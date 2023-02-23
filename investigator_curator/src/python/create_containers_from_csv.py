@@ -1,6 +1,5 @@
 import pytz
 import time
-import os
 import pandas as pd
 from flywheel_gear_toolkit.utils.reporters import AggregatedReporter, BaseLogRecord
 from flywheel_gear_toolkit.utils.curator import HierarchyCurator
@@ -24,13 +23,11 @@ print(f'Curator Script Version {__version__}')
 # Initial Version
 
 
-"""
-Constants to be set for run:
 
-- These will be set by the info on the project's metadata in:
-project.info.<NAMESPACE>.<PIPELINE_NAME>
+# Constants to be set for run:
 
-"""
+# - These will be set by the info on the project's metadata in:
+# project.info.<NAMESPACE>.<PIPELINE_NAME>
 
 PIPELINE_NAME = "CreateContainers"
 NAMESPACE = "HierarchyCurator"
@@ -104,7 +101,7 @@ def get_global_settings(fw_client, destination_id):
         info[NAMESPACE][PIPELINE_NAME] = GLOBAL_SETTINGS
     project.update_info(info)
 
-    for key in GLOBAL_SETTINGS.keys():
+    for key in GLOBAL_SETTINGS:
         GLOBAL_SETTINGS[key] = info[NAMESPACE][PIPELINE_NAME].get(key)
 
 
@@ -160,30 +157,30 @@ class Curator(HierarchyCurator):
         # Use this value for execution on flywheel:
         self.fw_client = self.context.client
         # Use (and modify as necessary) this value for local testing:
-        #self.fw_client = flywheel.Client(os.environ["FWGA_API"])
+        # self.fw_client = flywheel.Client(os.environ["FWGA_API"])
         get_global_settings(self.fw_client, self.context.destination.get("id"))
         # self.additional_input_one='/Users/davidparker/Documents/Flywheel/Clients/NACC/HierarchyCurator/CreateContainers/investigator_nacc57_abridged_FullCol.csv'
 
-    def find_or_create(self, container_name, type, parent):
+    def find_or_create(self, container_name, container_type, parent):
         global LOG_OBJECT
         current_c = find_container(
-            self.fw_client, container_name, type, parent)
+            self.fw_client, container_name, container_type, parent)
         if len(current_c) > 0:
             current_c = current_c[0]
-            LOG_OBJECT[f'{type}_existed'] = True
-            LOG_OBJECT[f'flywheel_{type}'] = current_c.id
+            LOG_OBJECT[f'{container_type}_existed'] = True
+            LOG_OBJECT[f'flywheel_{container_type}'] = current_c.id
 
         else:
-            LOG_OBJECT[f'{type}_existed'] = False
+            LOG_OBJECT[f'{container_type}_existed'] = False
 
             try:
-                current_c = create_container(parent, container_name, type)
-                LOG_OBJECT[f'{type}_created'] = True
-                LOG_OBJECT[f'flywheel_{type}'] = current_c.id
+                current_c = create_container(parent, container_name, container_type)
+                LOG_OBJECT[f'{container_type}_created'] = True
+                LOG_OBJECT[f'flywheel_{container_type}'] = current_c.id
 
-            except Exception as e:
-                print(e)
-                LOG_OBJECT[f'{type}_created'] = False
+            except Exception as error:
+                print(error)
+                LOG_OBJECT[f'{container_type}_created'] = False
                 msg = f"error creating project {container_name} on {parent.label}"
                 LOG_OBJECT['msg'] = msg
                 LOG_OBJECT['error'] = True
@@ -203,12 +200,12 @@ class Curator(HierarchyCurator):
 
         columns_to_group = [GLOBAL_SETTINGS['PROJECT_COLUMN']]
 
-        df = load_csv(self.additional_input_one)
-        grouped_df = group_by_columns(df, columns_to_group)
+        dataframe = load_csv(self.additional_input_one)
+        grouped_dataframe = group_by_columns(dataframe, columns_to_group)
 
         start = time.time()
 
-        for project in grouped_df.groups:
+        for project in grouped_dataframe.groups:
          #   print(project)
             project_label = f"ADC-{project}"
             LOG_OBJECT['csv_project'] = str(project)
@@ -219,10 +216,10 @@ class Curator(HierarchyCurator):
                 self.log_current()
                 continue
 
-            subject_df = grouped_df.get_group(project)
-            # print(subject_df)
+            subject_dataframe = grouped_dataframe.get_group(project)
+            # print(subject_dataframe)
             subject_group = group_by_columns(
-                subject_df, GLOBAL_SETTINGS['SUBJECT_COLUMN'])
+                subject_dataframe, GLOBAL_SETTINGS['SUBJECT_COLUMN'])
 
             for subject in subject_group.groups:
 
@@ -236,10 +233,10 @@ class Curator(HierarchyCurator):
                     self.log_current()
                     continue
 
-                session_df = subject_group.get_group(subject)
-                handle_subject_meta(subject_c, session_df)
+                session_dataframe = subject_group.get_group(subject)
+                handle_subject_meta(subject_c, session_dataframe)
                 session_group = group_by_columns(
-                    session_df, GLOBAL_SETTINGS['SESSION_COLUMN'])
+                    session_dataframe, GLOBAL_SETTINGS['SESSION_COLUMN'])
 
                 for session in session_group.groups:
                     #    print(session)
@@ -278,8 +275,8 @@ class Curator(HierarchyCurator):
                                 dict_out = {'investigator': meta_dict}
                                 acq_c.update_info(dict_out)
                             self.log_current()
-                        except Exception as e:
-                            msg = e.__str__()
+                        except Exception as error:
+                            msg = str(error)
                             LOG_OBJECT['msg'] = msg
                             LOG_OBJECT['error'] = True
                             self.log_current()
@@ -287,67 +284,74 @@ class Curator(HierarchyCurator):
         stop = time.time()
 
         dur = stop-start
-        print(f"It took {dur/60} min to process {len(df)} rows")
+        print(f"It took {dur/60} min to process {len(dataframe)} rows")
 
     def curate_subject(self, subject: flywheel.Subject):
-        pass
+        """This curator does not operate on subjects."""
 
     def validate_session(self, session: flywheel.Session):
-        pass
+        """This curator does not operate on sessions"""
 
     def curate_session(self, session: flywheel.Session):
-        pass
+        """This curator does not operate on sessions."""
 
     def curate_analysis(self, analysis: flywheel.AnalysisOutput):
-        pass
+        """This curator does not operate on AnalysisOutput"""
 
     def curate_file(self, file_: flywheel.FileEntry):
-        pass
+        """This curator does not operate on Files."""
 
 
-def load_csv(csv):
+def load_csv(csv) -> pd.DataFrame:
     print(f'loading {csv}')
-    df = pd.read_csv(csv)
-    return df
+    dataframe = pd.read_csv(csv)
+    return dataframe
 
 
-def group_by_columns(df, columns):
+def group_by_columns(dataframe, columns):
 
-    grouped_df = df.groupby(columns)
+    grouped_dataframe = dataframe.groupby(columns)
 
-    return grouped_df
+    return grouped_dataframe
 
 
-def find_container(fw_client, label, type, parent=None):
+def find_container(fw_client, label, container_type, parent=None):
 
     if not parent:
         parent = fw_client
 
-    finder = getattr(parent, f'{type}s')
+    finder = getattr(parent, f'{container_type}s')
 
     found_containers = finder.find(f'label="{label}"')
 
     return found_containers
 
 
-def create_container(parent, conatiner_name, type):
+def create_container(parent, conatiner_name, container_type):
 
-    creator = getattr(parent, f"add_{type}")
+    creator = getattr(parent, f"add_{container_type}")
 
     container = creator({'label': conatiner_name})
 
     return container
 
 
-def get_timestamp(row):
-    month = 'VISITMO'
-    day = 'VISITDAY'
-    year = 'VISITYR'
-    m = row[month]
-    d = row[day]
-    y = row[year]
+def get_timestamp(row) -> datetime.datetime:
+    """Converts separate date variables in row to a single date time.
+    
+    Args:
+      row: the row
+    Returns:
+      the datetime object for the month, day, year in row
+    """
+    month_label = 'VISITMO'
+    day_label = 'VISITDAY'
+    year_label = 'VISITYR'
+    month = row[month_label]
+    day = row[day_label]
+    year = row[year_label]
     timezone = pytz.utc
-    ses_time = datetime.datetime(y, m, d, 0, 0, tzinfo=timezone)
+    ses_time = datetime.datetime(year, month, day, 0, 0, tzinfo=timezone)
     return ses_time
 
 
@@ -371,16 +375,16 @@ def testytest():
     import pandas as pd
     csv = "/Users/davidparker/Documents/Flywheel/Clients/NACC/HierarchyCurator/CreateContainers/investigator_nacc57_abridged.csv"
     csv = "/Users/davidparker/Documents/Flywheel/Clients/NACC/HierarchyCurator/CreateContainers/investigator_nacc57_abridged_FullCol.csv"
-    df = pd.read_csv(csv)
+    dataframe = pd.read_csv(csv)
 
     col_names = ['NACCADC', 'NACCID']
-    gb = df.groupby(col_names)
-    gb.get_group()
+    grouped_frame = dataframe.groupby(col_names)
+    grouped_frame.get_group()
 
 
-def handle_subject_meta(subject, df):
+def handle_subject_meta(subject, dataframe):
 
-    row = df.iloc[0]
+    row = dataframe.iloc[0]
     subject_coded_meta = {'SEX': {1: 'male', 2: 'female'},
                           'RACE': {3: 'American Indian or Alaska Native',
                                    5: 'Asian',
@@ -407,22 +411,22 @@ def handle_subject_meta(subject, df):
     return
 
 
-def handle_session_meta(session, df):
-    row = df.iloc[0]
+def handle_session_meta(session, dataframe):
+    row = dataframe.iloc[0]
 
     ses_month = 'VISITMO'
     ses_day = 'VISITDAY'
     ses_year = 'VISITYR'
     birth_month = 'BIRTHMO'
     birth_year = 'BIRTHYR'
-    sm = int(row[ses_month])
-    sd = int(row[ses_day])
-    sy = int(row[ses_year])
-    bm = int(row[birth_month])
-    by = int(row[birth_year])
+    session_month = int(row[ses_month])
+    session_day = int(row[ses_day])
+    session_year = int(row[ses_year])
+    birth_month = int(row[birth_month])
+    birth_year = int(row[birth_year])
 
-    visit_day = datetime.date(sy, sm, sd)
-    birth_day = datetime.date(by, bm, 15)
+    visit_day = datetime.date(session_year, session_month, session_day)
+    birth_day = datetime.date(birth_year, birth_month, 15)
     age_at_visit = visit_day - birth_day
     age_sec = int(age_at_visit.total_seconds())
 
@@ -447,17 +451,15 @@ def handle_acq_meta(row):
     row['DRUGS'] = drug_array
     return row.to_dict()
 
-    pass
-
 
 def cleanse_numpy(update):
 
-    for k, v in update.items():
-        if isinstance(v, collections.abc.Mapping):
-            update[k] = cleanse_numpy(update.get(k, {}))
+    for key, value in update.items():
+        if isinstance(value, collections.abc.Mapping):
+            update[key] = cleanse_numpy(update.get(key, {}))
         else:
             # Flywheel doesn't like numpy data types:
-            if type(v).__module__ == np.__name__:
-                v = v.item()
-                update[k] = v
+            if type(value).__module__ == np.__name__:
+                value = value.item()
+                update[key] = value
     return update
