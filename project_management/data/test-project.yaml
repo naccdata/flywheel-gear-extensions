@@ -2,14 +2,16 @@
 project: "Project Tau"
 project-id: tau
 centers:
-  - adc-id: 1006
-    name: "Alpha Center"
+  - name: "Alpha Center"
     center-id: alpha
     is-active: True
-  - adc-id: 2006
-    name: "Beta Center"
+    tags:
+      - 'center-code-1006'
+  - name: "Beta Center"
     center-id: beta-inactive
     is-active: False
+    tags:
+      - 'center-code-2006'
 datatypes:
   - form
   - dicom
@@ -18,14 +20,16 @@ published: True
 project: "Project Zeta"
 project-id: zeta
 centers:
-  - adc-id: 1006
-    name: "Alpha Center"
+  - name: "Alpha Center"
     center-id: alpha
     is-active: True
-  - adc-id: 5006
-    name: "Gamma ADRC"
+    tags:
+      - 'center-code-1006'
+  - name: "Gamma ADRC"
     center-id: gamma-adrc
     is-active: True
+    tags:
+      - 'center-code-5006'
 datatypes:
   - form
 published: False

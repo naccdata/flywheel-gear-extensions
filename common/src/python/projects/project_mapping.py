@@ -24,11 +24,12 @@ To represent this a project release group is created with a single "master"
 project for managing the consolodated data.
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import flywheel  # type: ignore
 from projects.flywheel_proxy import FlywheelProxy
 from projects.project import Center, Project
+from projects.template_project import TemplateProject
 
 log = logging.getLogger(__name__)
 
@@ -41,18 +42,22 @@ class ProjectMappingAdaptor:
                  *,
                  project: Project,
                  flywheel_proxy: FlywheelProxy,
-                 admin_users: Optional[List[flywheel.User]] = None) -> None:
+                 admin_users: Optional[List[flywheel.User]] = None,
+                 template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
         """Creates an adaptor mapping the given project to the corresponding
         objects in the flywheel instance linked by the proxy.
 
         Args:
             project: the domain project
             flywheel_proxy: the proxy for the flywheel instance
+            admin_users: the administrative users
+            template_map: mapping from data types to template projects
         """
         self.__fw = flywheel_proxy
         self.__project = project
         self.__release_group = None
         self.__admin_users = admin_users
+        self.__template_map = template_map
 
     def has_datatype(self, datatype: str) -> bool:
         """Indicates whether this project has the datatype.
@@ -82,6 +87,8 @@ class ProjectMappingAdaptor:
 
         Args:
             prefix: the prefix for the project ID
+        Returns:
+          the project id built using prefix
         """
         assert self.__project
         if self.__project.is_primary():
@@ -161,7 +168,8 @@ class ProjectMappingAdaptor:
             center_adaptor = CenterMappingAdaptor(
                 center=center,
                 flywheel_proxy=self.__fw,
-                admin_users=self.__admin_users)
+                admin_users=self.__admin_users,
+                template_map=self.__template_map)
             center_adaptor.create_center_pipeline(self)
 
     def create_release_pipeline(self) -> None:
@@ -196,13 +204,22 @@ class CenterMappingAdaptor:
                  *,
                  center: Center,
                  flywheel_proxy: FlywheelProxy,
-                 admin_users: Optional[List[flywheel.User]] = None) -> None:
+                 admin_users: Optional[List[flywheel.User]] = None,
+                 template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
         """Initializes an adaptor for the given center using the Flywheel
-        instance linked by the proxy."""
+        instance linked by the proxy.
+
+        Args:
+          center: the center object
+          flywheel_proxy: the flywheel instance proxy
+          admin_users: the administrative users from admin group
+          template_map: template projects for project resources
+        """
         self.__center = center
         self.__fw = flywheel_proxy
         self.__group = None
         self.__admin_users = admin_users
+        self.__template_map = template_map
 
     def get_group(self) -> flywheel.Group:
         """Gets the FW group for this center.
@@ -224,6 +241,8 @@ class CenterMappingAdaptor:
         """Returns the FW project for the accepted stage of the project for
         this center.
 
+        Args:
+          project: the project mapping adaptor for project
         Returns:
             the Flywheel project
         """
@@ -236,6 +255,9 @@ class CenterMappingAdaptor:
         project and datatype. Requires that the center is active in the
         project, and that the datatype is included in the project.
 
+        Args:
+          project: the mapping for the project
+          datatype: the datatype for ingest
         Returns:
             the ingest FW project, or None if datatype not in project or
             center is not active in project
@@ -260,33 +282,137 @@ class CenterMappingAdaptor:
         return self.__fw.get_project(group=self.get_group(),
                                      project_label="metadata")
 
+    def get_retrospective_project(self, *, project: ProjectMappingAdaptor,
+                                  datatype: str) -> Optional[flywheel.Project]:
+        """Returns the FW project for the retrospective stage of this center
+        for the project and datatype. Requires that the datatype is included in
+        the project. Essentially, ingest for previously QC'd data.
+
+        Args:
+          project: the mapping for the project
+          datatype: the datatype for ingest
+        Returns:
+
+          project
+        """
+        if not project.has_datatype(datatype):
+            return None
+
+        retrospective_id = project.build_project_id('retrospective-' +
+                                                    datatype.lower())
+        assert retrospective_id
+
+        return self.__fw.get_project(group=self.get_group(),
+                                     project_label=retrospective_id)
+
     def create_ingest_projects(
-            self, project: ProjectMappingAdaptor) -> List[flywheel.Project]:
+            self,
+            project: ProjectMappingAdaptor) -> Dict[str, flywheel.Project]:
         """Creates ingest projects for the given project within the group for
         this center.
 
         Args:
             project: the mapping adaptor for the project
         Returns:
-            list of ingest created ingest projects
+            map of data type to ingest created ingest projects
         """
         if not self.__center.is_active():
             log.info("Not creating ingest for inactive center %s",
                      self.__center.name)
-            return []
+            return {}
         if not project.datatypes:
             log.warning("No ingest groups created for %s: no datatypes given",
                         project.name)
-            return []
+            return {}
 
-        project_list = []
+        project_map = {}
         for datatype in project.datatypes:
             ingest_project = self.get_ingest_project(project=project,
                                                      datatype=datatype)
             if ingest_project:
-                project_list.append(ingest_project)
+                project_map[datatype] = ingest_project
+                self.add_tags(ingest_project)
 
-        return project_list
+        return project_map
+
+    def create_retrospective_projects(
+            self,
+            project: ProjectMappingAdaptor) -> Dict[str, flywheel.Project]:
+        """Creates retrospective ingest projects for the given project within
+        the group for this center.
+
+        Args:
+          project: the mapping adaptor for the project
+        Returns:
+          map of datatype to created retrospective ingest projects
+        """
+        if not project.datatypes:
+            log.warning(
+                "No retrospective ingest projects created for %s: "
+                "no datatypes given", project.name)
+            return {}
+
+        project_map = {}
+        for datatype in project.datatypes:
+            retrospective_project = self.get_retrospective_project(
+                project=project, datatype=datatype)
+            if retrospective_project:
+                project_map[datatype] = retrospective_project
+                self.add_tags(retrospective_project)
+
+        return project_map
+
+    def add_tags(self, project: flywheel.Project) -> None:
+        """Adds tags from this center to the project.
+
+        Note: requires that tag is enabled in the group for the center.
+
+        Args:
+          project: the project to add tags to
+        """
+        for tag in self.__center.tags:
+            if tag not in project.tags:
+                project.add_tag(tag)
+
+    def __add_group_tags(self) -> None:
+        """Adds tags for the center to the group."""
+        center_group = self.get_group()
+
+        for tag in self.__center.tags:
+            if tag not in center_group.tags:
+                center_group.add_tag(tag)
+
+    def add_ingest_rules(self,
+                         ingest_projects: Dict[str, flywheel.Project],
+                         stage: str = 'ingest') -> None:
+        """Adds ingest gear rules to each of the given projects based on
+        datatype.
+
+        Args:
+          ingest_projects: a dictionary mapping from datatype to project
+        """
+        for datatype, project in ingest_projects.items():
+            stage_map = self.__template_map.get(datatype)
+            if stage_map:
+                template_project = stage_map.get(stage)
+                if template_project:
+                    template_project.copy_to(project)
+
+    def add_curation_rules(self, *, project: flywheel.Project,
+                           datatypes: List[str]) -> None:
+        """Adds curation gear rules to the given project based on the
+        datatypes.
+
+        Args:
+          accepted_project: the project
+          datatypes: the list of datatypes
+        """
+        for datatype in datatypes:
+            stage_map = self.__template_map.get(datatype)
+            if stage_map:
+                template_project = stage_map.get('accepted')
+                if template_project:
+                    template_project.copy_to(project)
 
     def create_center_pipeline(self, project: ProjectMappingAdaptor) -> None:
         """Creates FW groups and projects for data pipeline of the given
@@ -296,19 +422,34 @@ class CenterMappingAdaptor:
             project: the project mapping adaptor
         """
         center_group = self.get_group()
+        self.__add_group_tags()
+
         ingest_projects = self.create_ingest_projects(project)
+        retrospective_projects = self.create_retrospective_projects(project)
         accepted_project = self.get_accepted_project(project)
         metadata_project = self.get_metadata_project()
 
         if self.__admin_users:
             self.__fw.add_admin_users(obj=center_group,
                                       users=self.__admin_users)
-            for ingest_project in ingest_projects:
+            for ingest_project in ingest_projects.values():
                 self.__fw.add_admin_users(obj=ingest_project,
                                           users=self.__admin_users)
+
+            for retrospective_project in retrospective_projects.values():
+                self.__fw.add_admin_users(obj=retrospective_project,
+                                          users=self.__admin_users)
+
             assert accepted_project
             self.__fw.add_admin_users(obj=accepted_project,
                                       users=self.__admin_users)
             assert metadata_project
             self.__fw.add_admin_users(obj=metadata_project,
                                       users=self.__admin_users)
+
+        if self.__template_map:
+            self.add_ingest_rules(ingest_projects, stage='ingest')
+            self.add_ingest_rules(retrospective_projects,
+                                  stage='retrospective')
+            self.add_curation_rules(project=accepted_project,
+                                    datatypes=project.datatypes)

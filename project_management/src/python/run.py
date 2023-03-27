@@ -11,11 +11,11 @@ published - boolean indicating whether data is to be published
 import logging
 import sys
 
-from admin.users import get_admin_users
 from flywheel_gear_toolkit import GearToolkitContext
 from inputs.arguments import build_parser
 from inputs.context_parser import parse_config
 from inputs.environment import get_api_key
+from inputs.templates import get_template_projects
 from inputs.yaml import get_object_list
 from project_main import run
 from projects.flywheel_proxy import FlywheelProxy
@@ -25,7 +25,24 @@ log = logging.getLogger(__name__)
 
 
 def main():
-    """Main method to create project from the adrc_program.yaml file."""
+    """Main method to create project from the adrc_program.yaml file.
+
+    Uses command line argument `gear` to indicate whether being run as a gear.
+    If running as a gear, the arguments are taken from the gear context.
+    Otherwise, arguments are taken from the command line.
+
+    Arguments are
+      * admin_group: the name of the admin group in the instance
+        default is `nacc`
+      * dry_run: whether to run as a dry run, default is False
+      * the project file
+
+    Gear rules are taken from template projects in the admin group.
+    These projects are expected to be named `<datatype>-<stage>-template`,
+    where `datatype` is one of the datatypes that occur in the project file,
+    and `stage` is one of 'accepted', 'ingest' or 'retrospective'.
+    (These are pipeline stages that can be created for the project)
+    """
 
     parser = build_parser()
     args = parser.parse_args()
@@ -55,12 +72,24 @@ def main():
 
     flywheel_proxy = FlywheelProxy(api_key=api_key, dry_run=dry_run)
 
-    admin_users = get_admin_users(flywheel_proxy=flywheel_proxy,
-                                  group_name=admin_group_name)
+    admin_group = None
+    groups = flywheel_proxy.find_groups(admin_group_name)
+    if groups:
+        admin_group = groups[0]
+    else:
+        log.warning("Admin group %s not found", admin_group_name)
+
+    admin_users = []
+    if admin_group:
+        admin_users = flywheel_proxy.get_group_users(admin_group, role='admin')
+
+    template_map = get_template_projects(group=admin_group,
+                                         proxy=flywheel_proxy)
 
     run(proxy=flywheel_proxy,
         project_list=project_list,
-        admin_users=admin_users)
+        admin_users=admin_users,
+        template_map=template_map)
 
 
 if __name__ == "__main__":

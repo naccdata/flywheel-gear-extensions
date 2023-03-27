@@ -1,7 +1,7 @@
 """Classes for representing NACC projects."""
 import re
 from abc import ABC, abstractmethod
-from typing import Any, List, Mapping
+from typing import Any, Iterable, List, Mapping, Optional
 
 
 def convert_to_slug(name: str) -> str:
@@ -55,45 +55,47 @@ class Center:
 
     def __init__(self,
                  *,
-                 adcid: int,
                  name: str,
                  center_id: str,
-                 active: bool = True) -> None:
-        self._adcid = adcid
-        self._name = name
-        self._active = active
-        self._center_id = center_id
+                 active: bool = True,
+                 tags: Optional[List[str]] = None) -> None:
+        self.__name = name
+        self.__active = active
+        self.__center_id = center_id
+        if tags is None:
+            tags = []
+        self.__tags = tags
 
     def __repr__(self) -> str:
-        return (f"Center(adcid={self.adcid}, "
-                f"center_id={self.center_id}, "
+        return (f"Center(center_id={self.center_id}, "
                 f"name={self.name}, "
-                f"active={self.is_active()})")
+                f"active={self.is_active()}, "
+                f"tags={self.tags}")
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, Center):
             return False
-        return (self._adcid == __o._adcid and self._active == __o._active
-                and self.name == __o.name)
+        return (self.__center_id == __o.center_id
+                and self.__active == __o.is_active() and self.name == __o.name)
 
     @property
     def name(self) -> str:
         """Center name property."""
-        return self._name
+        return self.__name
 
     def is_active(self) -> bool:
         """Indicates whether the center is active."""
-        return self._active
-
-    @property
-    def adcid(self) -> int:
-        """Center ADC ID property."""
-        return self._adcid
+        return self.__active
 
     @property
     def center_id(self):
         """Center text ID property."""
-        return self._center_id
+        return self.__center_id
+
+    @property
+    def tags(self) -> Iterable[str]:
+        """Center tags property."""
+        return tuple(self.__tags)
 
     def apply(self, visitor):
         """Applies visitor to this Center."""
@@ -102,10 +104,10 @@ class Center:
     @classmethod
     def create(cls, center: dict) -> "Center":
         """Creates a Center from the given dictionary."""
-        return Center(adcid=center['adc-id'],
-                      name=center['name'],
+        return Center(name=center['name'],
                       center_id=center['center-id'],
-                      active=center['is-active'])
+                      active=center['is-active'],
+                      tags=center['tags'])
 
 
 class Project:
@@ -119,59 +121,59 @@ class Project:
                  datatypes: List[str],
                  published: bool = False,
                  primary: bool = False) -> None:
-        self._name = name
-        self._centers = centers
-        self._datatypes = datatypes
-        self._published = published
-        self._primary = primary
-        self._project_id = project_id
+        self.__name = name
+        self.__centers = centers
+        self.__datatypes = datatypes
+        self.__published = published
+        self.__primary = primary
+        self.__project_id = project_id
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, Project):
             return False
-        return (__o.name == self._name and __o._centers == self._centers
-                and __o._datatypes == self._datatypes
-                and __o._published == self._published
-                and __o._primary == self._primary)
+        return (__o.name == self.__name and __o.centers == self.centers
+                and __o.datatypes == self.datatypes
+                and __o.is_published() == self.is_published()
+                and __o.is_primary() == self.is_primary())
 
     def __repr__(self) -> str:
         return ("Project("
-                f"name={self._name},"
-                f"project_id={self._project_id},"
-                f"centers={self._centers},"
-                f"datatypes={self._datatypes},"
-                f"published={self._published},"
-                f"primary={self._primary}"
+                f"name={self.__name},"
+                f"project_id={self.__project_id},"
+                f"centers={self.__centers},"
+                f"datatypes={self.__datatypes},"
+                f"published={self.__published},"
+                f"primary={self.__primary}"
                 ")")
 
     @property
     def project_id(self) -> str:
         """Project ID property."""
-        return self._project_id
+        return self.__project_id
 
     @property
     def name(self) -> str:
         """Project Name property."""
-        return self._name
+        return self.__name
 
     @property
     def centers(self) -> List[Center]:
         """Project centers property."""
-        return self._centers
+        return self.__centers
 
     @property
     def datatypes(self) -> List[str]:
         """Project datatypes property."""
-        return self._datatypes
+        return self.__datatypes
 
     def is_published(self) -> bool:
         """Project published predicate."""
-        return self._published
+        return self.__published
 
     def is_primary(self) -> bool:
         """Predicate to indicate whether is the main project of coordinating
         center."""
-        return self._primary
+        return self.__primary
 
     def apply(self, visitor) -> None:
         """Apply visitor to this Project."""

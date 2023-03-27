@@ -29,8 +29,10 @@ class TestCenter:
 
     def test_object(self):
         """Sanity check on object creation and properties."""
-        center = Center(adcid=7, name="Alpha ADRC", center_id='alpha-adrc')
-        assert center.adcid == 7
+        center = Center(tags=['adcid-7'],
+                        name="Alpha ADRC",
+                        center_id='alpha-adrc')
+        assert 'adcid-7' in center.tags
         assert center.name == "Alpha ADRC"
         assert center.is_active()
         assert center.center_id == 'alpha-adrc'
@@ -38,12 +40,14 @@ class TestCenter:
     def test_create(self):
         """Check that create method creates object correctly."""
         center = Center.create({
-            'adc-id': 7,
+            'tags': ['adcid-7'],
             'name': 'Alpha ADRC',
             'center-id': 'alpha-adrc',
             'is-active': True
         })
-        center2 = Center(adcid=7, name="Alpha ADRC", center_id='alpha-adrc')
+        center2 = Center(tags=['adcid-7'],
+                         name="Alpha ADRC",
+                         center_id='alpha-adrc')
         assert center == center2
 
         with pytest.raises(KeyError):
@@ -52,7 +56,9 @@ class TestCenter:
     def test_apply(self):
         """Test that visitor applied."""
         visitor = DummyVisitor()
-        center = Center(adcid=1, name="Dummy Center", center_id="dummy")
+        center = Center(tags=['adcid-1'],
+                        name="Dummy Center",
+                        center_id="dummy")
         center.apply(visitor)
         assert visitor.center_name == "Dummy Center"
 
@@ -65,7 +71,7 @@ class TestProject:
         project = Project(name="Project Alpha",
                           project_id='project-alpha',
                           centers=[
-                              Center(adcid=1,
+                              Center(tags=['adcid-1'],
                                      name='A Center',
                                      center_id='ac',
                                      active=True)
@@ -75,7 +81,10 @@ class TestProject:
                           primary=True)
         assert project.project_id == "project-alpha"
         assert project.centers == [
-            Center(adcid=1, name='A Center', center_id='ac', active=True)
+            Center(tags=['adcid-1'],
+                   name='A Center',
+                   center_id='ac',
+                   active=True)
         ]
         assert project.datatypes == ['dicom']
         assert project.is_published()
@@ -87,7 +96,7 @@ class TestProject:
             'project-id':
             'project-alpha',
             'centers': [{
-                'adc-id': 1,
+                'tags': ['adcid-1'],
                 'name': 'A Center',
                 'center-id': 'ac',
                 'is-active': True

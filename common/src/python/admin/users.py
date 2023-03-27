@@ -22,7 +22,7 @@ def get_admin_users(flywheel_proxy: FlywheelProxy,
     if not group_name:
         return []
 
-    groups = flywheel_proxy.find_group(group_name)
+    groups = flywheel_proxy.find_groups(group_name)
     if not groups:
         log.warning("No group found with name %s", group_name)
         return []

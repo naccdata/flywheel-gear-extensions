@@ -24,10 +24,10 @@ published: <whether the data is published>
 A center is described using the following fields
 
 ```yaml
-adc-id: <numeric center id>
 name: <center name>
 center-id: <string identifier>
 is-active: <whether the center is active>
+tags: <list of strings for tagging project>
 ```
 
 Notes:
@@ -36,9 +36,8 @@ Notes:
 2. Like with any YAML file, you can include several project definitions separated by a line with `---`.
    However, it is more pragmatic to have one file per project for large projects.
 
-2. The `adc-id` at NACC is an ID that is used on the Uniform Data Set forms to identify a center.
-   Within a project, it will correspond directly to the `center-id`.
-   (Apologies to anyone who wants to use this code for this little bit of NACC peculiarity.)
+2. The `tags` are strings that will be permissible as tags within the group for the center. 
+   Each tag will also be added to ingest projects within the center's pipeline(s).
 
 3. Choose `center-id` values to be mnemonic for the coordinating center staff.
    The choice will be visible to centers, but they will not need to type the value in regular interactions. 
@@ -54,14 +53,16 @@ Notes:
 project: "Project Tau"
 project-id: tau
 centers:
-  - adc-id: 1006
-    name: "Alpha Center"
+  - name: "Alpha Center"
     center-id: alpha
     is-active: True
-  - adc-id: 2006
-    name: "Beta Center"
+    tags:
+      - 'center-code-1006'
+  - name: "Beta Center"
     center-id: beta-inactive
     is-active: False
+    tags:
+      - 'center-code-2006'
 datatypes:
   - form
   - dicom
@@ -70,14 +71,16 @@ published: True
 project: "Project Zeta"
 project-id: zeta
 centers:
-  - adc-id: 1006
-    name: "Alpha Center"
+  - name: "Alpha Center"
     center-id: alpha
     is-active: True
-  - adc-id: 5006
-    name: "Gamma ADRC"
+    tags:
+      - 'center-code-1006'
+  - name: "Gamma ADRC"
     center-id: gamma-adrc
     is-active: True
+    tags:
+      - 'center-code-5006'
 datatypes:
   - form
 published: False

@@ -3,6 +3,7 @@ import logging
 from typing import List, Mapping, Optional, Union
 
 import flywheel  # type: ignore
+from flywheel.models.gear_rule_input import GearRuleInput
 from flywheel.models.roles_role import RolesRole
 from flywheel.models.roles_role_assignment import RolesRoleAssignment
 
@@ -14,18 +15,28 @@ class FlywheelProxy:
     instance."""
 
     def __init__(self, api_key: str, dry_run: bool = True) -> None:
-        self.__fw = flywheel.Client(api_key, root=True)
+        """Initializes a flywheel proxy object.
+
+        Args:
+          api_key: the API key
+          dry_run: whether proxy will be used for a dry run
+        """
+        self.__fw = flywheel.Client(api_key)
         self.__dry_run = dry_run
         self.__roles: Optional[Mapping[str, RolesRoleAssignment]] = None
         self.__admin_role = None
 
     @property
     def dry_run(self):
-        """Indicates whether proxy is set for a dry run."""
+        """Indicates whether proxy is set for a dry run.
+
+        Returns:
+            True if proxy is set for a dry run. False otherwise.
+        """
         return self.__dry_run
 
-    def find_project(self, *, group_id: str,
-                     project_label: str) -> List[flywheel.Project]:
+    def find_projects(self, *, group_id: str,
+                      project_label: str) -> List[flywheel.Project]:
         """Finds a flywheel project with a given label, within a group ID if
         specified. Otherwise it's site wide.
 
@@ -39,7 +50,7 @@ class FlywheelProxy:
         return self.__fw.projects.find(
             f"parents.group={group_id},label={project_label}")  # type: ignore
 
-    def find_group(self, group_id: str) -> List[flywheel.Group]:
+    def find_groups(self, group_id: str) -> List[flywheel.Group]:
         """Searches for and returns a group if it exists.
 
         Args:
@@ -50,7 +61,7 @@ class FlywheelProxy:
         """
         return self.__fw.groups.find(f'_id={group_id}')  # type: ignore
 
-    def find_user(self, user_id: str) -> List[flywheel.User]:
+    def find_users(self, user_id: str) -> List[flywheel.User]:
         """Searches for and returns a user if it exists.
 
         Args:
@@ -76,12 +87,12 @@ class FlywheelProxy:
         Returns:
           group: the created group
         """
-        group = self.find_group(group_id)
+        group = self.find_groups(group_id)
         if group:
             return group[0]
 
         if self.__dry_run:
-            log.info('Dry Run, would create group %s', group_id)
+            log.info('Dry Run: would create group %s', group_id)
             return flywheel.Group(label=group_label, id=group_id)
 
         log.info('creating group...')
@@ -108,8 +119,8 @@ class FlywheelProxy:
         """
         group_id = group.id
         assert group_id
-        existing_projects = self.find_project(group_id=group_id,
-                                              project_label=project_label)
+        existing_projects = self.find_projects(group_id=group_id,
+                                               project_label=project_label)
         if existing_projects and len(existing_projects) == 1:
             project_ref = f"{group.id}/{project_label}"
             log.info('Project %s exists', project_ref)
@@ -192,6 +203,11 @@ class FlywheelProxy:
           user: the user to add
           access: the user role to add ('admin','rw','ro')
         """
+        if self.__dry_run:
+            log.info('Dry Run: would add access %s for user %s to group %s',
+                     access, user.id, group.label)
+            return
+
         permissions = [
             permission for permission in group.permissions
             if permission.id == user.id
@@ -252,7 +268,50 @@ class FlywheelProxy:
         user_ids = [permission.id for permission in permissions]
         users = []
         for user_id in user_ids:
-            user = self.find_user(user_id)[0]
+            user = self.find_users(user_id)[0]
             if user:
                 users.append(user)
         return users
+
+    def get_project_gear_rules(
+            self, project) -> List[flywheel.models.gear_rule.GearRule]:
+        """Get the gear rules from the given project.
+
+        Args:
+          project: the flywheel project
+
+        Returns:
+          the gear rules
+        """
+        return self.__fw.get_project_rules(project.id)
+
+    def add_project_gear_rule(self, *, project: flywheel.Project,
+                              rule_input: GearRuleInput) -> None:
+        """Adds the gear rule to the Flywheel project.
+
+        Replaces an existing rule with the same name.
+
+        Args:
+          project: the flywheel project
+          rule_input: the GearRuleInput for the gear
+        """
+        project_rules = self.get_project_gear_rules(project)
+        conflict = None
+        for rule in project_rules:
+            if rule.name == rule_input.name:
+                conflict = rule
+                break
+
+        if self.__dry_run:
+            if conflict:
+                log.info(
+                    'Dry Run: would remove conflicting '
+                    'rule %s from project %s', conflict.name, project.label)
+            log.info('Dry Run: would add gear rule %s to project %s',
+                     rule_input.name, project.label)
+            return
+
+        if conflict:
+            self.__fw.remove_project_rule(project.id, conflict.id)
+
+        self.__fw.add_project_rule(project.id, rule_input)

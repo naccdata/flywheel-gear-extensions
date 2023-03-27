@@ -10,5 +10,4 @@ Consists of python scripts for managing projects and project users.
 
 The repository is setup to use Pants (https://www.pantsbuild.org) for the build.
 
-
-
+See [documentation](https://naccdata.github.io/flywheel-extensions/).

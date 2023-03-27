@@ -7,6 +7,12 @@
 ├── common              # shared code
 │   ├── src
 │   └── test
+├── docs
+│   ├── development
+│   ├── index.md
+│   ├── project_management
+│   └── user_management
+├── mypy.ini
 ├── project_management  # script for managing NACC projects
 │   ├── data
 │   ├── src
@@ -24,6 +30,20 @@
 ├── LICENSE
 └── README.md
 ```
+
+[To update this structure, use `tree -L 2` and select missing chunks for inclusion.]
+
+## Working with this repository
+
+This respository is managed using [Pants](https://www.pantsbuild.org).
+
+It may also be opened in a VS Code devcontainer with a Python 3 environment and whatever is needed installed.
+See the details [below](#working-within-vscode).
+
+If you don't want to use the devcontainer you'll need to make sure you have a compatible environment setup along with the FW cli.
+For details, see the files in `.devcontainer`, or just use the devcontainer.
+
+If things are setup correctly, you will be able to run `./pants version` and get a version number as a response, and `which fw` and find the FW cli executable.
 
 ## Care and feeding
 
