@@ -1,31 +1,21 @@
-"""Reads a YAML file with project info.
-
-project - name of project
-centers - array of centers
-    center-id - "ADC" ID of center (protected info)
-    name - name of center
-    is-active - whether center is active, has users if True
-datatypes - array of datatype names (form, dicom)
-published - boolean indicating whether data is to be published
-"""
+"""Main function for running template push process."""
 import logging
 import sys
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.group_adaptor import GroupAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
-from inputs.arguments import build_parser_with_input
+from inputs.arguments import build_base_parser
 from inputs.context_parser import parse_config
 from inputs.environment import get_api_key
-from inputs.yaml import get_object_list
-from project_main import run
+from inputs.templates import get_template_projects
+from push_template_main import run
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
 def main():
-    """Main method to create project from the adrc_program.yaml file.
+    """Main method to copy template projects to center projects.
 
     Uses command line argument `gear` to indicate whether being run as a gear.
     If running as a gear, the arguments are taken from the gear context.
@@ -43,27 +33,19 @@ def main():
     and `stage` is one of 'accepted', 'ingest' or 'retrospective'.
     (These are pipeline stages that can be created for the project)
     """
-
-    parser = build_parser_with_input()
+    parser = build_base_parser()
     args = parser.parse_args()
 
     if args.gear:
-        filename = 'project_file'
         with GearToolkitContext() as gear_context:
             gear_context.init_logging()
             context_args = parse_config(gear_context=gear_context,
-                                        filename=filename)
+                                        filename=None)
             admin_group_name = context_args['admin_group']
             dry_run = context_args['dry_run']
-            project_file = context_args[filename]
     else:
         dry_run = args.dry_run
-        project_file = args.filename
         admin_group_name = args.admin_group
-
-    project_list = get_object_list(project_file)
-    if not project_list:
-        sys.exit(1)
 
     api_key = get_api_key()
     if not api_key:
@@ -72,21 +54,15 @@ def main():
 
     flywheel_proxy = FlywheelProxy(api_key=api_key, dry_run=dry_run)
 
-    admin_group = None
     groups = flywheel_proxy.find_groups(admin_group_name)
-    if groups:
-        admin_group = GroupAdaptor(group=groups[0], proxy=flywheel_proxy)
-    else:
+    if not groups:
         log.warning("Admin group %s not found", admin_group_name)
+        sys.exit(1)
 
-    admin_access = []
-    if admin_group:
-        admin_access = admin_group.get_user_access()
-
+    template_map = get_template_projects(group=groups[0], proxy=flywheel_proxy)
     run(proxy=flywheel_proxy,
-        project_list=project_list,
-        admin_access=admin_access,
-        role_names=['curate', 'upload'])
+        center_tag_pattern=r'adcid-\d+',
+        template_map=template_map)
 
 
 if __name__ == "__main__":

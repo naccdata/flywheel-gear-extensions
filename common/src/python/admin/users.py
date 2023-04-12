@@ -3,8 +3,9 @@
 import logging
 from typing import List
 
-import flywheel  # type: ignore
-from projects.flywheel_proxy import FlywheelProxy
+import flywheel
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.group_adaptor import GroupAdaptor  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +28,6 @@ def get_admin_users(flywheel_proxy: FlywheelProxy,
         log.warning("No group found with name %s", group_name)
         return []
 
-    admin_group = groups[0]
-    admin_users = flywheel_proxy.get_group_users(admin_group, role='admin')
+    admin_group = GroupAdaptor(group=groups[0], proxy=flywheel_proxy)
+    admin_users = admin_group.get_group_users(access='admin')
     return admin_users

@@ -92,6 +92,11 @@ If you add new python dependencies
     ./pants test common::
     ```
 
+5. Run type checker for common subproject
+    ```bash
+    ./pants check common::
+    ```
+
 5. Run the create project script (The `--` is required before the arguments)
     ```bash
     ./pants run project_management/src/python/run.py --  project_management/data/test-project.yaml

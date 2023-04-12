@@ -2,4 +2,5 @@ flywheel-gear-toolkit>=0.2
 flywheel-sdk>=16.14.8
 pyyaml==6.0
 pytest>=7.2.0
+requests>=2.28.1
 types-PyYAML>=6.0.12

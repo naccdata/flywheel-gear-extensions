@@ -1,7 +1,7 @@
 {
-    "name": "project-management",
-    "label": "Project management",
-    "description": "Creates and updates projects from project YAML file",
+    "name": "push-template",
+    "label": "Push Project Template",
+    "description": "Pushes template projects to center projects",
     "version": "0.0.1",
     "author": "bjkeller@uw.edu",
     "maintainer": "nacchelp@uw.edu",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/project-management"
+            "image": "naccdata/push-template"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -23,15 +23,6 @@
         }
     },
     "inputs": {
-        "project_file": {
-            "description": "The project YAML file",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        }
     },
     "config": {
         "dry_run": {

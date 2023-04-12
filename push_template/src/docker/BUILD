@@ -1,6 +1,6 @@
 file(name="manifest", source="manifest.json")
 
-docker_image(name="project-management",
+docker_image(name="push-template",
              source="Dockerfile",
-             dependencies=[":manifest", "project_management/src/python:bin"],
+             dependencies=[":manifest", "push_template/src/python:bin"],
              image_tags=["0.0.1", "latest"])

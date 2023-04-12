@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Dict
 
 import flywheel
-from projects.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from projects.template_project import TemplateProject
 
 log = logging.getLogger(__name__)
@@ -28,14 +28,19 @@ def get_template_projects(
     """
     template_map: Dict[str, Dict[str, TemplateProject]] = defaultdict(dict)
     if group:
-        template_matcher = re.compile(r"^(\w+)-(\w+)-template$")
+        template_matcher = re.compile(r"^((\w+)-)?(\w+)-template$")
+        # group 2 datatype
+        # group 3 stage
         for project in group.projects():
             match = template_matcher.match(project.label)
             if match:
-                datatype = match.group(1)
-                stage = match.group(2)
+                datatype = match.group(2)
+                if not datatype:
+                    # accepted stage has no datatype, set to 'all'
+                    datatype = 'all'
+                stage = match.group(3)
 
-                # TODO: stage list needs to come from project mapping
+                # TODO: stage list needs to come from elsewhere
                 if stage not in ['accepted', 'ingest', 'retrospective']:
                     log.error(
                         'unrecognized pipeline stage %s'

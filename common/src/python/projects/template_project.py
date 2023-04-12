@@ -4,14 +4,16 @@ the template, to other projects.
 Based on code written by David Parker, davidparker@flywheel.io
 """
 import logging
-from typing import List
+from string import Template
+from typing import Dict, List, Optional
 
 import flywheel
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.fixed_input import FixedInput
 from flywheel.models.gear_rule import GearRule
 from flywheel.models.gear_rule_input import GearRuleInput
-from projects.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.project_adaptor import ProjectAdaptor
 
 log = logging.getLogger()
 
@@ -32,7 +34,10 @@ class TemplateProject:
         self.__source_project = project
         self.__rules: List[GearRule] = []
 
-    def copy_to(self, destination: flywheel.Project) -> None:
+    def copy_to(self,
+                destination: ProjectAdaptor,
+                *,
+                value_map: Optional[Dict[str, str]] = None) -> None:
         """Copies all gear rules from the source project of the template to the
         destination project.
 
@@ -40,13 +45,34 @@ class TemplateProject:
 
         Args:
           destination: project to copy to
+          value_map: optional map for substitutions for description template
+        """
+        self.copy_rules(destination)
+        self.copy_users(destination)
+        if value_map:
+            self.copy_description(destination=destination, values=value_map)
+
+    def copy_rules(self, destination: ProjectAdaptor) -> None:
+        """Performs copy of gear rules to destination.
+
+        Removes any conflicting rules from the destination.
+
+        Args:
+          destination: the destination project
         """
         if not self.__rules:
             log.info('loading rules for template project %s',
-                     destination.label)
+                     self.__source_project.label)
             self.__rules = self.__fw.get_project_gear_rules(
                 self.__source_project)
+            if not self.__rules:
+                log.warning('template %s has no rules, skipping',
+                            self.__source_project.label)
+                return
+
         assert self.__rules
+
+        self.__clean_up_rules(destination)
 
         for rule in self.__rules:
             log.info('copying rule %s to project %s', rule.name,
@@ -55,11 +81,57 @@ class TemplateProject:
                                                    destination=destination)
             gear_rule_input = self.__create_gear_rule_input(
                 rule=rule, fixed_inputs=fixed_inputs)
-            self.__fw.add_project_gear_rule(project=destination,
-                                            rule_input=gear_rule_input)
+            destination.add_gear_rule(rule_input=gear_rule_input)
+
+    def copy_users(self, destination: ProjectAdaptor) -> None:
+        """Copies users from this project to the destination.
+
+        Args:
+          destination: the destination project
+        """
+        role_assignments = self.__source_project.permissions
+        for role_assignment in role_assignments:
+            destination.add_user_roles(role_assignment)
+
+    def copy_description(self, *, destination: ProjectAdaptor,
+                         values: Dict[str, str]) -> None:
+        """Copies description from this project to the destination.
+
+        Args:
+          destination: the destination project
+          values: value map for substitutions into description template
+        """
+        template_text = self.__source_project.description
+        if not template_text:
+            log.info('no description found in %s project',
+                     self.__source_project.label)
+            return
+
+        template = Template(template_text)
+        description = template.substitute(values)
+        destination.set_description(description)
+
+    def __clean_up_rules(self, destination: ProjectAdaptor) -> None:
+        """Remove any gear rules from destination that are not in this
+        template.
+
+        Args:
+          destination: the detination project
+        """
+        destination_rules = destination.get_gear_rules()
+        if not destination_rules:
+            return
+
+        assert self.__rules
+        template_rulenames = [rule.name for rule in self.__rules]
+        for rule in destination_rules:
+            if rule.name not in template_rulenames:
+                log.info('removing rule %s, not in template %s', rule.name,
+                         self.__source_project.label)
+                destination.remove_gear_rule(rule=rule)
 
     def __map_fixed_inputs(self, *, inputs: List[FixedInput],
-                           destination: flywheel.Project) -> List[FixedInput]:
+                           destination: ProjectAdaptor) -> List[FixedInput]:
         """Maps the given fixed inputs to inputs for the destination project.
 
         Args:
@@ -85,18 +157,19 @@ class TemplateProject:
         return dest_inputs
 
     @staticmethod
-    def __copy_file(file: FileEntry, destination: flywheel.Project) -> None:
+    def __copy_file(file: FileEntry, destination: ProjectAdaptor) -> None:
         """Copies the file to the destination project.
 
         Args:
           file: the file entry for the file
           destination: the destination project
         """
+        log.info("copying file %s to %s", file.name, destination.label)
         file_spec = flywheel.FileSpec(file.name, file.read(), file.mimetype)
         destination.upload_file(file_spec)
 
     @staticmethod
-    def __same_file_exists(file: FileEntry, project: flywheel.Project) -> bool:
+    def __same_file_exists(file: FileEntry, project: ProjectAdaptor) -> bool:
         """Determines whether the destination project has a file with the same
         name and hash value as the given file.
 
