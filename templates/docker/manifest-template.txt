@@ -1,0 +1,57 @@
+{
+    "name": "${IMAGENAME}",
+    "label": "ADD GEAR LABEL",
+    "description": "DESCRIBE GEAR",
+    "version": "${IMAGETAG}",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/${IMAGENAME}:${IMAGETAG}"
+        },
+        "flywheel": {
+            "suite": "NACC Admin Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "${FILEKEY}": {
+            "description": "The project YAML file",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
+        "new_only": {
+            "description": "Only create projects for centers tagged as new",
+            "type": "boolean",
+            "default": false
+        }
+    },
+    "command": "/bin/run"
+}

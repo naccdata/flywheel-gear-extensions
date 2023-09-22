@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/python:3.10
 
-RUN mkdir -p /home/vscode/bin \
- && export FW_CLI_INSTALL_DIR=/home/vscode/bin \
+ENV USERHOME=/home/vscode/bin
+RUN mkdir -p ${USERHOME} \
+ && export FW_CLI_INSTALL_DIR=${USERHOME} \
  && curl https://storage.googleapis.com/flywheel-dist/fw-cli/stable/install.sh | bash \
- && chown -R vscode /home/vscode/bin
+ && echo "alias fw='fw-beta'" > /etc/bash.bashrc \
+ && chown -R vscode ${USERHOME}

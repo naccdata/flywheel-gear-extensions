@@ -26,11 +26,8 @@ project for managing the consolodated data.
 import logging
 from typing import Dict, List, Optional
 
-import flywheel  # type: ignore
 from centers.center_group import CenterGroup
-from flywheel.models.permission_access_permission import \
-    PermissionAccessPermission
-from flywheel.models.roles_role import RolesRole
+from flywheel import AccessPermission, RolesRole
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.group_adaptor import GroupAdaptor
 from flywheel_adaptor.project_adaptor import ProjectAdaptor
@@ -47,24 +44,25 @@ class ProjectMappingAdaptor:
                  *,
                  project: Project,
                  flywheel_proxy: FlywheelProxy,
-                 admin_access: Optional[
-                     List[PermissionAccessPermission]] = None,
-                 center_roles: List[RolesRole]) -> None:
+                 admin_access: Optional[List[AccessPermission]] = None,
+                 center_roles: List[RolesRole],
+                 new_only: bool) -> None:
         """Creates an adaptor mapping the given project to the corresponding
         objects in the flywheel instance linked by the proxy.
 
         Args:
             project: the domain project
             flywheel_proxy: the proxy for the flywheel instance
-            admin_access: the administrative users
-            template_map: mapping from data types to template projects
+            admin_access: the access permissions for administrative users
             center_roles: the roles for center users
+            new_only: whether to only process new centers
         """
         self.__fw = flywheel_proxy
         self.__project = project
         self.__release_group: Optional[GroupAdaptor] = None
         self.__admin_access = admin_access
         self.__center_roles = center_roles
+        self.__new_centers_only = new_only
 
     def has_datatype(self, datatype: str) -> bool:
         """Indicates whether this project has the datatype.
@@ -150,7 +148,7 @@ class ProjectMappingAdaptor:
             self.__release_group = GroupAdaptor(group=group, proxy=self.__fw)
         return self.__release_group
 
-    def get_master_project(self) -> Optional[flywheel.Project]:
+    def get_master_project(self) -> Optional[ProjectAdaptor]:
         """Returns the FW consolidation project for this project if it is
         published. Otherwise, returns None.
 
@@ -162,7 +160,11 @@ class ProjectMappingAdaptor:
 
         release_group = self.get_release_group()
         assert release_group
-        return release_group.get_project(label='master-project')
+        project = release_group.get_project(label='master-project')
+        if not project:
+            return None
+
+        return ProjectAdaptor(project=project, proxy=self.__fw)
 
     def create_center_pipelines(self) -> None:
         """Creates data pipelines for centers in this project."""
@@ -173,6 +175,9 @@ class ProjectMappingAdaptor:
             return
 
         for center in self.__project.centers:
+            if self.__new_centers_only and 'new-center' not in center.tags:
+                continue
+
             center_adaptor = CenterMappingAdaptor(
                 center=center,
                 flywheel_proxy=self.__fw,
@@ -212,8 +217,7 @@ class CenterMappingAdaptor:
                  *,
                  center: Center,
                  flywheel_proxy: FlywheelProxy,
-                 admin_access: Optional[
-                     List[PermissionAccessPermission]] = None,
+                 admin_access: Optional[List[AccessPermission]] = None,
                  center_roles: Optional[List[RolesRole]]) -> None:
         """Initializes an adaptor for the given center using the Flywheel
         instance linked by the proxy.
@@ -255,8 +259,8 @@ class CenterMappingAdaptor:
         Returns:
             the Flywheel project
         """
-        accepted_project = self.__fw.get_project(
-            group=self.get_group(), project_label=project.accepted_id)
+        center_group = self.get_group()
+        accepted_project = center_group.get_project(label=project.accepted_id)
         if not accepted_project:
             return None
 
@@ -283,8 +287,8 @@ class CenterMappingAdaptor:
         ingest_id = project.get_ingest_id(datatype)
         assert ingest_id
 
-        ingest_project = self.__fw.get_project(group=self.get_group(),
-                                               project_label=ingest_id)
+        center_group = self.get_group()
+        ingest_project = center_group.get_project(label=ingest_id)
         if not ingest_project:
             return None
 
@@ -296,8 +300,8 @@ class CenterMappingAdaptor:
         Returns:
             the FW project
         """
-        metadata_project = self.__fw.get_project(group=self.get_group(),
-                                                 project_label="metadata")
+        center_group = self.get_group()
+        metadata_project = center_group.get_project(label="metadata")
         if not metadata_project:
             return None
 
@@ -323,8 +327,8 @@ class CenterMappingAdaptor:
                                                     datatype.lower())
         assert retrospective_id
 
-        retro_project = self.__fw.get_project(group=self.get_group(),
-                                              project_label=retrospective_id)
+        center_group = self.get_group()
+        retro_project = center_group.get_project(label=retrospective_id)
         if not retro_project:
             return None
 
@@ -354,8 +358,7 @@ class CenterMappingAdaptor:
             ingest_project = self.get_ingest_project(project=project,
                                                      datatype=datatype)
             if ingest_project:
-                project_map[datatype] = ProjectAdaptor(project=ingest_project,
-                                                       proxy=self.__fw)
+                project_map[datatype] = ingest_project
                 self.add_tags(ingest_project)
 
         return project_map
@@ -381,8 +384,7 @@ class CenterMappingAdaptor:
             retrospective_project = self.get_retrospective_project(
                 project=project, datatype=datatype)
             if retrospective_project:
-                project_map[datatype] = ProjectAdaptor(
-                    project=retrospective_project, proxy=self.__fw)
+                project_map[datatype] = retrospective_project
                 self.add_tags(retrospective_project)
 
         return project_map

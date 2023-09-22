@@ -2,12 +2,12 @@
     "name": "push-template",
     "label": "Push Project Template",
     "description": "Pushes template projects to center projects",
-    "version": "0.0.1",
-    "author": "bjkeller@uw.edu",
-    "maintainer": "nacchelp@uw.edu",
+    "version": "0.0.6",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/push_template/",
     "source": "https://github.com/naccdata/flywheel-gear-extensions",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/push-template"
+            "image": "naccdata/push-template:0.0.6"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -23,6 +23,9 @@
         }
     },
     "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
     },
     "config": {
         "dry_run": {
@@ -34,7 +37,12 @@
             "description": "Name of the admin group",
             "type": "string",
             "default": "nacc"
+        },
+        "new_only": {
+            "description": "Only create projects for centers tagged as new",
+            "type": "boolean",
+            "default": false
         }
     },
-    "command": "/bin/run --gear"
+    "command": "/bin/run"
 }

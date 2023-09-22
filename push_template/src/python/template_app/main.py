@@ -10,7 +10,7 @@ from projects.template_project import TemplateProject
 log = logging.getLogger(__name__)
 
 
-def run(*, proxy: FlywheelProxy, center_tag_pattern: str,
+def run(*, proxy: FlywheelProxy, center_tag_pattern: str, new_only: bool,
         template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
     """Runs template copying process.
 
@@ -27,4 +27,8 @@ def run(*, proxy: FlywheelProxy, center_tag_pattern: str,
 
     for group in group_list:
         center = CenterGroup(group=group, proxy=proxy)
+        if new_only and 'new-center' not in center.get_tags():
+            continue
+
         center.apply_template_map(template_map)
+        # TODO: remove 'new-center' tag

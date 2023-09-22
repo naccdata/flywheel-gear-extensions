@@ -96,7 +96,7 @@ export FW_API_KEY=XXXXXX
 using your FW key instead of the `XXXXXX`. This key is available on your FW profile page.
 
 ```bash
-./pants run project_management/src/python:bin --  project_management/data/project-definition.yaml
+pants run project_management/src/python/project_app:bin --  --no-gear project_management/data/project-definition.yaml
 ```
 
 you can also specify the name of your admin group using `--admin_group` (default is `nacc`).

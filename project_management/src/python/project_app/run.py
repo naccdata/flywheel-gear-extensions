@@ -14,11 +14,10 @@ import sys
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.group_adaptor import GroupAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
-from inputs.arguments import build_parser_with_input
+from inputs.api_key import get_api_key
 from inputs.context_parser import parse_config
-from inputs.environment import get_api_key
 from inputs.yaml import get_object_list
-from project_main import run
+from project_app.main import run
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -44,33 +43,26 @@ def main():
     (These are pipeline stages that can be created for the project)
     """
 
-    parser = build_parser_with_input()
-    args = parser.parse_args()
+    filename = 'project_file'
+    with GearToolkitContext() as gear_context:
+        gear_context.init_logging()
+        context_args = parse_config(gear_context=gear_context,
+                                    filename=filename)
+        admin_group_name = context_args['admin_group']
+        dry_run = context_args['dry_run']
+        new_only = context_args['new_only']
+        project_file = context_args[filename]
+        client = gear_context.client
 
-    if args.gear:
-        filename = 'project_file'
-        with GearToolkitContext() as gear_context:
-            gear_context.init_logging()
-            context_args = parse_config(gear_context=gear_context,
-                                        filename=filename)
-            admin_group_name = context_args['admin_group']
-            dry_run = context_args['dry_run']
-            project_file = context_args[filename]
-    else:
-        dry_run = args.dry_run
-        project_file = args.filename
-        admin_group_name = args.admin_group
+    if not client:
+        log.error('No Flywheel connection. Check API key configuration.')
+        sys.exit(1)
+
+    flywheel_proxy = FlywheelProxy(client=client, dry_run=dry_run)
 
     project_list = get_object_list(project_file)
     if not project_list:
         sys.exit(1)
-
-    api_key = get_api_key()
-    if not api_key:
-        log.error('No API key: expecting FW_API_KEY to be set')
-        sys.exit(1)
-
-    flywheel_proxy = FlywheelProxy(api_key=api_key, dry_run=dry_run)
 
     admin_group = None
     groups = flywheel_proxy.find_groups(admin_group_name)
@@ -86,7 +78,8 @@ def main():
     run(proxy=flywheel_proxy,
         project_list=project_list,
         admin_access=admin_access,
-        role_names=['curate', 'upload'])
+        role_names=['curate', 'upload'],
+        new_only=new_only)
 
 
 if __name__ == "__main__":

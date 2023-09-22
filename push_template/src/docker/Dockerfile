@@ -6,6 +6,6 @@ RUN mkdir -p ${BASE_DIR}/input
 WORKDIR ${BASE_DIR}
 
 COPY push_template/src/docker/manifest.json ${BASE_DIR}
-COPY push_template.src.python/bin.pex /bin/run
+COPY push_template.src.python.template_app/bin.pex /bin/run
 
 ENTRYPOINT [ "/bin/run" ]

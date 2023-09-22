@@ -1,5 +1,5 @@
 [GLOBAL]
-pants_version = "2.14.0"
+pants_version = "2.17.0"
 backend_packages = [
     "pants.backend.build_files.fmt.yapf",
     "pants.backend.docker",
@@ -13,6 +13,7 @@ backend_packages = [
     "pants.backend.python.typecheck.mypy",
     "pants.backend.docker",
     "pants.backend.docker.lint.hadolint",
+    "pants.backend.shell"
 ]
 
 [anonymous-telemetry]

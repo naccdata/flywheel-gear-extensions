@@ -2,9 +2,10 @@
 import logging
 from typing import List, Mapping, Optional
 
-import flywheel  # type: ignore
-from flywheel.models.gear_rule_input import GearRuleInput
-from flywheel.models.roles_role import RolesRole
+import flywheel
+from flywheel import (Client, ContainerIdViewInput, DataView, GearRule,
+                      GearRuleInput, RolesRole, ViewerApp, ViewIdOutput)
+from flywheel.models.project_parents import ProjectParents
 
 log = logging.getLogger(__name__)
 
@@ -13,17 +14,17 @@ class FlywheelProxy:
     """Defines a proxy object for group and project creation on a Flywheel
     instance."""
 
-    def __init__(self, api_key: str, dry_run: bool = True) -> None:
+    def __init__(self, client: Client, dry_run: bool = True) -> None:
         """Initializes a flywheel proxy object.
 
         Args:
           api_key: the API key
           dry_run: whether proxy will be used for a dry run
         """
-        self.__fw = flywheel.Client(api_key)
+        self.__fw = client
         self.__dry_run = dry_run
-        self.__roles: Optional[Mapping[str, RolesRole]] = None
-        self.__admin_role = None
+        self.__project_roles: Optional[Mapping[str, RolesRole]] = None
+        self.__project_admin_role: Optional[RolesRole] = None
 
     @property
     def dry_run(self):
@@ -47,7 +48,7 @@ class FlywheelProxy:
             existing: a list of all matching projects.
         """
         return self.__fw.projects.find(
-            f"parents.group={group_id},label={project_label}")  # type: ignore
+            f"parents.group={group_id},label={project_label}")
 
     def find_groups(self, group_id: str) -> List[flywheel.Group]:
         """Searches for and returns a group if it exists.
@@ -58,7 +59,7 @@ class FlywheelProxy:
         Returns:
             the group (or empty list if not found)
         """
-        return self.__fw.groups.find(f'_id={group_id}')  # type: ignore
+        return self.__fw.groups.find(f'_id={group_id}')
 
     def find_groups_by_tag(self, tag_pattern: str) -> List[flywheel.Group]:
         """Searches for groups with tags matching the pattern.
@@ -69,7 +70,7 @@ class FlywheelProxy:
         Returns:
           the list of groups
         """
-        return self.__fw.groups.find(f"tags=~{tag_pattern}")  # type: ignore
+        return self.__fw.groups.find(f"tags=~{tag_pattern}")
 
     def find_users(self, user_id: str) -> List[flywheel.User]:
         """Searches for and returns a user if it exists.
@@ -80,7 +81,7 @@ class FlywheelProxy:
         Returns:
             a list with the user, or an empty list if not found
         """
-        return self.__fw.users.find(f'_id={user_id}')  # type: ignore
+        return self.__fw.users.find(f'_id={user_id}')
 
     def get_group(self, *, group_id: str, group_label: str) -> flywheel.Group:
         """Returns the flywheel group with the given ID and label.
@@ -97,9 +98,9 @@ class FlywheelProxy:
         Returns:
           group: the created group
         """
-        group = self.find_groups(group_id)
-        if group:
-            return group[0]
+        group_list = self.find_groups(group_id)
+        if group_list:
+            return group_list[0]
 
         if self.__dry_run:
             log.info('Dry Run: would create group %s', group_id)
@@ -107,9 +108,10 @@ class FlywheelProxy:
 
         log.info('creating group...')
         # This just returns a string of the group ID
-        group = self.__fw.add_group(flywheel.Group(group_id, group_label))
+        added_group_id = self.__fw.add_group(
+            flywheel.Group(group_id, group_label))
         # we must fw.get_group() with ID string to get the actual Group object.
-        group = self.__fw.get_group(group)
+        group = self.__fw.get_group(added_group_id)
         log.info("success")
 
         return group
@@ -146,7 +148,7 @@ class FlywheelProxy:
         if self.__dry_run:
             log.info('Dry Run: would create project %s', project_ref)
             return flywheel.Project(label=project_label,
-                                    parents={'group': group.id})
+                                    parents=ProjectParents(group=group.id))
 
         log.info('creating project...')
         project = group.add_project(label=project_label)
@@ -155,14 +157,17 @@ class FlywheelProxy:
         return project
 
     def __get_roles(self) -> Mapping[str, RolesRole]:
-        """Gets all roles for the FW instance."""
-        if not self.__roles:
-            all_roles = self.__fw.get_all_roles()
-            self.__roles = {role.label: role for role in all_roles}
-        return self.__roles
+        """Gets all roles for the FW instance.
 
-    def get_role(self, label) -> Optional[RolesRole]:
-        """Gets role with label.
+        Does not include GroupRoles.
+        """
+        if not self.__project_roles:
+            all_roles = self.__fw.get_all_roles()
+            self.__project_roles = {role.label: role for role in all_roles}
+        return self.__project_roles
+
+    def get_role(self, label: str) -> Optional[RolesRole]:
+        """Gets project role with label.
 
         Args:
           label: the name of the role
@@ -174,9 +179,9 @@ class FlywheelProxy:
 
     def get_admin_role(self) -> Optional[RolesRole]:
         """Gets admin role."""
-        if not self.__admin_role:
-            self.__admin_role = self.get_role('admin')
-        return self.__admin_role
+        if not self.__project_admin_role:
+            self.__project_admin_role = self.get_role('admin')
+        return self.__project_admin_role
 
     def add_group_role(self, *, group: flywheel.Group,
                        role: RolesRole) -> None:
@@ -190,14 +195,14 @@ class FlywheelProxy:
             return
 
         if self.dry_run:
-            log.info("Dry run: would add role %s to group %s", role.name,
+            log.info("Dry run: would add role %s to group %s", role.id,
                      group.label)
             return
 
         self.__fw.add_role_to_group(group.id, role)
 
-    def get_project_gear_rules(
-            self, project) -> List[flywheel.models.gear_rule.GearRule]:
+    def get_project_gear_rules(self,
+                               project: flywheel.Project) -> List[GearRule]:
         """Get the gear rules from the given project.
 
         Args:
@@ -213,9 +218,8 @@ class FlywheelProxy:
         """Forwards call to the FW client."""
         self.__fw.add_project_rule(project.id, rule_input)
 
-    def remove_project_gear_rule(
-            self, *, project: flywheel.Project,
-            rule: flywheel.models.gear_rule.GearRule) -> None:
+    def remove_project_gear_rule(self, *, project: flywheel.Project,
+                                 rule: GearRule) -> None:
         """Removes the gear rule from the project.
 
         Args:
@@ -228,3 +232,82 @@ class FlywheelProxy:
             return
 
         self.__fw.remove_project_rule(project.id, rule.id)
+
+    def get_dataviews(self, project: flywheel.Project) -> List[DataView]:
+        """Get the dataviews for the project.
+
+        Args:
+          project: the project
+        Returns:
+          the dataviews for the project
+        """
+
+        dataviews = self.__fw.get_views(project.id)
+        return [view for view in dataviews if view.parent != "site"]
+
+    def add_dataview(self, *, project: flywheel.Project,
+                     viewinput: ContainerIdViewInput) -> ViewIdOutput:
+        """Adds the data view to the enclosed project.
+
+        Args:
+          project: the project to which to add the data view
+          viewinput: the object representing the data view
+        """
+        return self.__fw.add_view(project.id, viewinput)
+
+    def modify_dataview(self, *, source: DataView,
+                        destination: DataView) -> None:
+        """Updates the destination data view by copying from the source view.
+
+        Args:
+          source: the source DataView
+          destination: the DataView to modify
+        """
+        temp_id = source._id  # pylint: disable=(protected-access)
+        temp_parent = source.parent
+        source._id = None  # pylint: disable=(protected-access)
+        source.parent = destination.parent
+        self.__fw.modify_view(destination.id, source)
+        source._id = temp_id  # pylint: disable=(protected-access)
+        source.parent = temp_parent
+
+    def delete_dataview(self, view: DataView) -> bool:
+        """Removes the indicated dataview.
+
+        Args:
+          view: the dataview to remove
+        Returns:
+          True if the dataview is deleted, False otherwise
+        """
+        result = self.__fw.delete_view(view.id)
+        return bool(result.deleted)
+
+    def get_project_apps(self, project: flywheel.Project) -> List[ViewerApp]:
+        """Returns the viewer apps for the project.
+
+        Args:
+          project: the project
+        Returns:
+          The list of apps for the project
+        """
+        settings = self.__fw.get_project_settings(project.id)
+        if not settings:
+            return []
+
+        return settings.viewer_apps
+
+    def set_project_apps(self, *, project: flywheel.Project,
+                         apps: List[ViewerApp]):
+        """Sets the apps to the project settings to the list of apps.
+
+        Note: this will replace any existing apps
+
+        Args:
+          project: the project
+          apps: the list of viewer apps
+        """
+        self.__fw.modify_project_settings(project.id, {"viewer_apps": apps})
+
+    def get_site(self):
+        """Returns URL for site of this instance."""
+        return self.__fw.get_config()["site"]["redirect_url"]

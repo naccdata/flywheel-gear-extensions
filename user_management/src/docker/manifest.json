@@ -3,11 +3,11 @@
     "label": "User Management",
     "description": "Creates and updates user and user roles",
     "version": "0.0.1",
-    "author": "bjkeller@uw.edu",
-    "maintainer": "nacchelp@uw.edu",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/user_management",
     "source": "https://github.com/naccdata/flywheel-extensions",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/user-management"
+            "image": "naccdata/user-management:0.0.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -23,6 +23,9 @@
         }
     },
     "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
         "user_file": {
             "description": "The user YAML file",
             "base": "file",
@@ -40,5 +43,5 @@
             "default": false
         }        
     },
-    "command": "bin/run --gear"
+    "command": "bin/run"
 }

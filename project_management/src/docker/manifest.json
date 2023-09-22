@@ -3,11 +3,11 @@
     "label": "Project management",
     "description": "Creates and updates projects from project YAML file",
     "version": "0.0.1",
-    "author": "bjkeller@uw.edu",
-    "maintainer": "nacchelp@uw.edu",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/project_management",
     "source": "https://github.com/naccdata/flywheel-gear-extensions",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/project-management"
+            "image": "naccdata/project-management:0.0.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -23,6 +23,9 @@
         }
     },
     "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
         "project_file": {
             "description": "The project YAML file",
             "base": "file",
@@ -43,7 +46,12 @@
             "description": "Name of the admin group",
             "type": "string",
             "default": "nacc"
+        },
+        "new_only": {
+            "description": "Only create projects for centers tagged as new",
+            "type": "boolean",
+            "default": false
         }
     },
-    "command": "/bin/run --gear"
+    "command": "/bin/run"
 }

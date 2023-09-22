@@ -16,12 +16,3 @@ def get_environment_variable(name: str) -> Optional[str]:
     if variable in os.environ:
         value = os.environ[variable]
     return value
-
-
-def get_api_key() -> Optional[str]:
-    """Get the Flywheel API key from environment.
-
-    Returns:
-        the API Key if defined. None, otherwise.
-    """
-    return get_environment_variable('FW_API_KEY')

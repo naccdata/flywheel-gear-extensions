@@ -29,16 +29,19 @@ def get_template_projects(
     template_map: Dict[str, Dict[str, TemplateProject]] = defaultdict(dict)
     if group:
         template_matcher = re.compile(r"^((\w+)-)?(\w+)-template$")
-        # group 2 datatype
-        # group 3 stage
+        # match group for pipeline datatype
+        datatype_group = 2
+        # match group for pipeline stage
+        stage_group = 3
+
         for project in group.projects():
             match = template_matcher.match(project.label)
             if match:
-                datatype = match.group(2)
+                datatype = match.group(datatype_group)
                 if not datatype:
                     # accepted stage has no datatype, set to 'all'
                     datatype = 'all'
-                stage = match.group(3)
+                stage = match.group(stage_group)
 
                 # TODO: stage list needs to come from elsewhere
                 if stage not in ['accepted', 'ingest', 'retrospective']:

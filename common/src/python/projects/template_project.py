@@ -8,10 +8,8 @@ from string import Template
 from typing import Dict, List, Optional
 
 import flywheel
-from flywheel.models.file_entry import FileEntry
-from flywheel.models.fixed_input import FixedInput
-from flywheel.models.gear_rule import GearRule
-from flywheel.models.gear_rule_input import GearRuleInput
+from flywheel import (DataView, FileEntry, FixedInput, GearRule, GearRuleInput,
+                      ViewerApp)
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.project_adaptor import ProjectAdaptor
 
@@ -33,6 +31,8 @@ class TemplateProject:
         self.__fw = proxy
         self.__source_project = project
         self.__rules: List[GearRule] = []
+        self.__dataviews: List[DataView] = []
+        self.__apps: List[ViewerApp] = []
 
     def copy_to(self,
                 destination: ProjectAdaptor,
@@ -51,6 +51,30 @@ class TemplateProject:
         self.copy_users(destination)
         if value_map:
             self.copy_description(destination=destination, values=value_map)
+        self.copy_apps(destination)
+
+    def copy_apps(self, destination: ProjectAdaptor) -> None:
+        """Performs copy of viewer apps to the destination.
+
+        Replaces any existing apps in the destination project.
+
+        Args:
+          destination: the destination project
+        """
+        if not self.__apps:
+            log.info('loading apps for template project %s',
+                     self.__source_project.label)
+            self.__apps = self.__fw.get_project_apps(self.__source_project)
+            if not self.__apps:
+                log.warning('template %s has no apps, skipping',
+                            self.__source_project.label)
+                return
+
+        assert self.__apps
+        log.info('copying apps from template %s to %s/%s',
+                 self.__source_project.label, destination.group,
+                 destination.label)
+        destination.set_apps(self.__apps)
 
     def copy_rules(self, destination: ProjectAdaptor) -> None:
         """Performs copy of gear rules to destination.
@@ -110,6 +134,33 @@ class TemplateProject:
         template = Template(template_text)
         description = template.substitute(values)
         destination.set_description(description)
+
+    def copy_dataviews(self, *, destination: ProjectAdaptor) -> None:
+        """Copies the dataviews from this project to the destination.
+
+        Args:
+          destination: the destination project
+        """
+        if not self.__dataviews:
+            log.info('copying dataviews for the template %s',
+                     self.__source_project.label)
+            self.__dataviews = self.__fw.get_dataviews(self.__source_project)
+            if not self.__dataviews:
+                log.warning('template %s has no dataviews',
+                            self.__source_project.label)
+                return
+
+        # TODO: cleanup dataviews?
+
+        for dataview in self.__dataviews:
+            destination_dataview = destination.get_dataview(dataview.label)
+            if destination_dataview:
+                if self.__equal_views(destination_dataview, dataview):
+                    return
+                # TODO: decide whether to modify instead?
+                self.__fw.delete_dataview(destination_dataview)
+
+            destination.add_dataview(dataview)
 
     def __clean_up_rules(self, destination: ProjectAdaptor) -> None:
         """Remove any gear rules from destination that are not in this
@@ -224,3 +275,27 @@ class TemplateProject:
             disabled=rule.disabled,
             compute_provider_id=rule.compute_provider_id,
             triggering_input=rule.triggering_input)
+
+    @staticmethod
+    def __equal_views(first: DataView, second: DataView) -> bool:
+        """Checks whether the first and second dataviews are equivalent.
+
+        Checks properties: columns, label, sort, error_colum, file_spec,
+        filter, group_by, include_ids, include_labels, missing_data_strategy
+
+        Args:
+          first: a dataview
+          second: a dataview
+        Returns:
+          True if views are equivalent on listed properties, False otherwise
+        """
+        properties = [
+            "columns", "label", "sort", "error_column", "file_spec", "filter",
+            "group_by", "include_ids", "include_labels",
+            "missing_data_strategy"
+        ]
+        for view_property in properties:
+            if first.get(view_property) != second.get(view_property):
+                return False
+
+        return True

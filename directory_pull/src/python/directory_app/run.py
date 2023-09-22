@@ -1,17 +1,19 @@
 """Script to pull directory information and convert to file expected by the
 user management gear."""
+import argparse
 import logging
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import flywheel
 import yaml
 from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
+from inputs.api_key import get_api_key
 from inputs.arguments import build_parser_with_output
 from inputs.context_parser import parse_config
-from inputs.environment import get_api_key, get_environment_variable
+from inputs.environment import get_environment_variable
 from redcap.nacc_directory import UserDirectoryEntry
 from redcap.redcap_connection import REDCapConnection, REDCapConnectionError
 
@@ -23,12 +25,12 @@ log = logging.getLogger(__name__)
 def main() -> None:
     """Main method for directory pull.
 
-    Expects several information needed for access to user access report
-    from directory on REDCap, and api key for flywheel. These must be
-    given as environment variables.
+    Expects information needed for access to the user access report from
+    the NACC directory on REDCap, and api key for flywheel. These must
+    be given as environment variables.
     """
 
-    parser = build_parser_with_output()
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.gear:
@@ -40,14 +42,15 @@ def main() -> None:
             admin_group_name = context_args['admin_group']
             dry_run = context_args['dry_run']
             user_filename = context_args[filename]
+            api_key = gear_context.get_input('api-key')
     else:
         dry_run = args.dry_run
         user_filename = args.filename
         admin_group_name = args.admin_group
+        api_key = get_api_key()
 
-    api_key = get_api_key()
     if not api_key:
-        log.error('No API key: expecting FW_API_KEY to be set')
+        log.error('No API key found. Cannot connect to Flywheel')
         sys.exit(1)
 
     url_variable = 'NACC_DIRECTORY_URL'
@@ -77,10 +80,11 @@ def main() -> None:
         log.error('Failed to pull users from directory: %s', error.error)
         sys.exit(1)
 
-    # TODO: add argument to allow uploading file if not run as gear
-    if args.gear:
+    if args.gear or args.upload:
         admin_project = get_admin_project(admin_group_name, dry_run, api_key)
         if not admin_project:
+            log.error('No admin group %s, cannot upload file %s',
+                      admin_group_name, user_filename)
             sys.exit(1)
 
         if dry_run:
@@ -98,7 +102,7 @@ def main() -> None:
 
 
 def get_admin_project(admin_group_name: str, dry_run: bool,
-                      api_key: str) -> flywheel.Project:
+                      api_key: str) -> Optional[flywheel.Project]:
     """Gets the admin project from the admin group.
 
     Args:
@@ -154,6 +158,17 @@ def get_user_records(*, directory_token: str, directory_url: str,
         if entry:
             user_entries.append(entry.as_dict())
     return user_entries
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Creates an argument parser customized to pulling from directory."""
+    parser = build_parser_with_output()
+    parser.add_argument('-u',
+                        '--upload',
+                        help='whether to upload to file to admin group',
+                        default=False,
+                        action='store_true')
+    return parser
 
 
 if __name__ == "__main__":
