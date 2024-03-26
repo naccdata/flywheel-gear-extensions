@@ -44,9 +44,11 @@ class REDCapConnection:
             data['format'] = result_format
         try:
             response = requests.post(self.__url, data=data)
-        except requests.exceptions.SSLError as error:
+        except (requests.exceptions.SSLError,
+                requests.exceptions.ConnectionError) as error:
             raise REDCapConnectionError(
-                message=f"SSL error connecting to {self.__url}") from error
+                message=f"Error connecting to {self.__url} - {error}"
+            ) from error
 
         return response
 
@@ -122,6 +124,67 @@ class REDCapConnection:
             raise REDCapConnectionError(message=message) from error
 
         return num_records
+
+    def export_records(
+            self,
+            *,
+            exp_format: str = 'json',
+            record_ids: Optional[list[str]] = None,
+            fields: Optional[list[str]] = None,
+            forms: Optional[list[str]] = None,
+            events: Optional[list[str]] = None,
+            filters: Optional[str] = None) -> List[Dict[str, str]] | str:
+        """ Export records from the REDCap project.
+
+        Args:
+            exp_format: Export format, defaults to 'json'
+            record_ids (Optional): List of record IDs to be exported
+            fields (Optional): List of fields to be included
+            forms (Optional): List of forms to be included
+            events (Optional): List of events to be included
+            filters (Optional) : Filter logic as a string (e.g. [age]>30)
+
+        Returns:
+            The list of records (JSON objects) or 
+            a CSV text string depending on exp_format.
+
+        Raises:
+          REDCapConnectionException if the response has an error.
+        """
+
+        data = {
+            'content': 'record',
+            'action': 'export',
+            'returnFormat': 'json'
+        }
+
+        # If set of record ids specified, export only those records.
+        if record_ids:
+            data['records'] = ','.join(record_ids)
+
+        # If set of fields specified, export records only those fields.
+        if fields:
+            data['fields'] = ','.join(fields)
+
+        # If set of forms specified, export records only from those forms.
+        if forms:
+            data['forms'] = ','.join(forms)
+
+        # If set of events specified, export records only for those events.
+        if events:
+            data['events'] = ','.join(events)
+
+        # If any filters specified, export only matching records.
+        if filters:
+            data['filterLogic'] = ','.join(filters)
+
+        message = 'failed to export records'
+        if exp_format == 'json':
+            return self.request_json_value(data=data, message=message)
+
+        return self.request_text_value(data=data,
+                                       result_format=exp_format,
+                                       message=message)
 
 
 class REDCapReportConnection(REDCapConnection):

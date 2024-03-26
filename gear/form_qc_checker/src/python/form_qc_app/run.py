@@ -8,6 +8,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from form_qc_app.main import run
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore
+from redcap.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -41,6 +42,11 @@ def main():
                                        key='parameter_path')
             s3_parameters = parameter_store.get_s3_parameters(
                 param_path=s3_param_path)
+
+            qc_checks_db_path = gear_context.config.get(
+                'qc_checks_db_path', '/redcap/aws/qcchecks')
+            redcap_params = parameter_store.get_redcap_report_connection(
+                param_path=qc_checks_db_path)
         except ParameterError as error:
             log.error('Parameter error: %s', error)
             sys.exit(1)
@@ -60,10 +66,12 @@ def main():
             log.error('Unable to connect to S3')
             sys.exit(1)
 
-        # TODO
-        # dry_run = gear_context.config.get("dry_run", False)
+        redcap_connection = REDCapReportConnection.create_from(redcap_params)
 
-    run(fw_client=fw_client, s3_client=s3_client, gear_context=gear_context)
+        run(fw_client=fw_client,
+            s3_client=s3_client,
+            gear_context=gear_context,
+            redcap_connection=redcap_connection)
 
 
 if __name__ == "__main__":

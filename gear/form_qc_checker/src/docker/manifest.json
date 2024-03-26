@@ -2,7 +2,7 @@
     "name": "form-qc-checker",
     "label": "Form QC Checker",
     "description": "Gear to check form data as JSON with QC rule set",
-    "version": "0.0.3",
+    "version": "0.0.9",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-qc-checker:0.0.3"
+            "image": "naccdata/form-qc-checker:0.0.9"
         },
         "flywheel": {
             "suite": "Curation",
@@ -37,20 +37,20 @@
         }
     },
     "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter gearbot path prefix",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
-
         },
         "parameter_path": {
             "description": "Parameter path for QC rules on S3",
-            "type": "string"
+            "type": "string",
+            "default": "/prod/flywheel/gearbot/qcrules"
+        },
+        "qc_checks_db_path": {
+            "description": "Parameter path for NACC QC checks database credentials",
+            "type": "string",
+            "default": "/redcap/aws/qcchecks"
         },
         "primary_key": {
             "description": "Primary key field (variable) for the form data project.",
@@ -60,7 +60,7 @@
         "strict_mode": {
             "description": "Validation mode. If false, input data variables that are not in the rule definitions are skipped from validation.",
             "type": "boolean",
-            "default": true
+            "default": false
         },
         "tag": {
             "default": "form-qc-checker",

@@ -5,4 +5,4 @@ docker_image(name="form-qc-checker",
              dependencies=[
                  ":manifest", "gear/form_qc_checker/src/python/form_qc_app:bin"
              ],
-             image_tags=["0.0.3", "latest"])
+             image_tags=["0.0.9", "latest"])

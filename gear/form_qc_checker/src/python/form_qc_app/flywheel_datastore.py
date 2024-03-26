@@ -7,7 +7,7 @@ from json.decoder import JSONDecodeError
 from flywheel.client import Client
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from form_qc_app.parser import FormVars
+from form_qc_app.parser import Keys
 from validator.datastore import Datastore
 
 log = logging.getLogger(__name__)
@@ -65,14 +65,14 @@ class FlywheelDatastore(Datastore):
                        'cannot retrieve the previous visits'), orderby)
             return None
 
-        if FormVars.MODULE not in current_ins:
+        if Keys.MODULE not in current_ins:
             log.error(('Variable %s not set in current visit data, '
-                       'cannot retrieve the previous visits'), FormVars.MODULE)
+                       'cannot retrieve the previous visits'), Keys.MODULE)
             return None
 
         subject_lbl = current_ins[pk_field]
         curr_ob_col_val = current_ins[orderby]
-        module = current_ins[FormVars.MODULE]
+        module = current_ins[Keys.MODULE]
 
         # Dataview to retrieve the previous visits
         orderby_col = f'file.info.forms.json.{orderby}'
