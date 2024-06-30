@@ -38,6 +38,15 @@
             "type": "string",
             "default": "nacc"
         },
+        "template_project": {
+            "description": "Label of the template project",
+            "type": "string"
+        },
+        "template_group": {
+            "description": "ID of the template group",
+            "type": "string",
+            "default": "project-templates"
+        },
         "new_only": {
             "description": "Only create projects for centers tagged as new",
             "type": "boolean",

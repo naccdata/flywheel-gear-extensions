@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 
+from flywheel.models.container_output import ContainerOutput
 import pandas
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.session import Session
@@ -133,5 +134,5 @@ class Client:
     def get_acquisition(self, id: str) -> Acquisition:
         ...
 
-    def get(self, id: str) -> ContainerOutput:
+    def get(self, id: str, **kwargs: Dict[str, Any]) -> ContainerOutput:
         ...

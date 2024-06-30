@@ -1,16 +1,13 @@
 # Push Template
 
-Script to push settings from template projects in an admin group, to projects in center groups.
+Script to push settings from a template project to projects in center groups.
 
 ## [Source directory](https://github.com/naccdata/flywheel-gear-extensions/tree/main/push_template)
 
-## Environment
-
-The script expects the `FW_API_KEY` environment variables to be set, which should be an API key for the FW instance.
 
 ## Flywheel configuration
 
-The script also expects that there is an admin group containing template projects.
+The script expects that there is a group containing template projects.
 The following are copied from a template project:
 
 - gear rules and any associated files
