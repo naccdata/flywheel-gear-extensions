@@ -56,16 +56,16 @@ class IdentifierVisitor(CSVVisitor):
         Args:
           header: the list of header names
         Returns:
-          True if `ptid` is missing from the header, False otherwise
+          True if `ptid` occurs in the header, False otherwise
         """
         if PTID not in header:
             self.__error_writer.write(missing_header_error())
-            return True
+            return False
 
         self.__header = header
         self.__header.append(NACCID)
 
-        return False
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Finds the NACCID for the row from the PTID, and outputs a row to a
@@ -78,7 +78,7 @@ class IdentifierVisitor(CSVVisitor):
           row: the dictionary from the CSV row (DictReader)
           line_num: the line number of the row
         Returns:
-          True if there is no NACCID for the PTID, False otherwise
+          True if there is a NACCID for the PTID, False otherwise
         """
         writer = self.__get_writer()
 
@@ -86,12 +86,12 @@ class IdentifierVisitor(CSVVisitor):
         if not identifier:
             self.__error_writer.write(
                 identifier_error(line=line_num, value=row[PTID]))
-            return True
+            return False
 
         row[NACCID] = identifier.naccid
         writer.write(row)
 
-        return False
+        return True
 
 
 def run(*, input_file: TextIO, identifiers: Dict[str, IdentifierObject],

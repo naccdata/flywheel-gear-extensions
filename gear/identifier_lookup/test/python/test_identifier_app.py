@@ -113,13 +113,13 @@ class TestIdentifierLookup:
         """Test empty input stream."""
         out_stream = StringIO()
         err_stream = StringIO()
-        errors = run(input_file=empty_data_stream,
+        success = run(input_file=empty_data_stream,
                      identifiers=identifiers_map,
                      output_file=out_stream,
                      error_writer=StreamErrorWriter(stream=err_stream,
                                                     container_id='dummy',
                                                     fw_path='dummy-path'))
-        assert errors
+        assert not success
         assert empty(out_stream)
         assert not empty(err_stream)
 
@@ -128,13 +128,13 @@ class TestIdentifierLookup:
         """Test case with no header."""
         out_stream = StringIO()
         err_stream = StringIO()
-        errors = run(input_file=no_header_stream,
+        success = run(input_file=no_header_stream,
                      identifiers=identifiers_map,
                      output_file=out_stream,
                      error_writer=StreamErrorWriter(stream=err_stream,
                                                     container_id='dummy',
                                                     fw_path='dummy-path'))
-        assert errors
+        assert not success
         assert empty(out_stream)
         assert not empty(err_stream)
 
@@ -143,13 +143,13 @@ class TestIdentifierLookup:
         """Test case where header doesn't have ID columns."""
         out_stream = StringIO()
         err_stream = StringIO()
-        errors = run(input_file=no_ids_stream,
+        success = run(input_file=no_ids_stream,
                      identifiers=identifiers_map,
                      output_file=out_stream,
                      error_writer=StreamErrorWriter(stream=err_stream,
                                                     container_id='dummy',
                                                     fw_path='dummy-path'))
-        assert errors
+        assert not success
         assert empty(out_stream)
         assert not empty(err_stream)
 
@@ -158,13 +158,13 @@ class TestIdentifierLookup:
         """Test case where everything should match."""
         out_stream = StringIO()
         err_stream = StringIO()
-        errors = run(input_file=data_stream,
+        success = run(input_file=data_stream,
                      identifiers=identifiers_map,
                      output_file=out_stream,
                      error_writer=StreamErrorWriter(stream=err_stream,
                                                     container_id='dummy',
                                                     fw_path='dummy-path'))
-        assert not errors
+        assert success
         assert empty(err_stream)
         assert not empty(out_stream)
         out_stream.seek(0)
@@ -182,12 +182,12 @@ class TestIdentifierLookup:
         """Test case where there is no matching identifier."""
         out_stream = StringIO()
         err_stream = StringIO()
-        errors = run(input_file=data_stream,
+        success = run(input_file=data_stream,
                      identifiers=mismatched_identifiers_map,
                      output_file=out_stream,
                      error_writer=StreamErrorWriter(stream=err_stream,
                                                     container_id='dummy',
                                                     fw_path='dummy-path'))
-        assert errors
+        assert not success
         assert empty(out_stream)
         assert not empty(err_stream)

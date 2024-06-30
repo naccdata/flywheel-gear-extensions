@@ -94,12 +94,12 @@ class TestCSVReader:
     def test_empty_input_stream(self, empty_data_stream):
         """Test empty input stream."""
         err_stream = StringIO()
-        errors = read_csv(input_file=empty_data_stream,
+        success = read_csv(input_file=empty_data_stream,
                           error_writer=StreamErrorWriter(stream=err_stream,
                                                          container_id='dummy',
                                                          fw_path='dummy-path'),
                           visitor=DummyVisitor())
-        assert errors
+        assert not success
         assert not empty(err_stream)
         err_stream.seek(0)
         reader = csv.DictReader(err_stream, dialect='unix')
@@ -110,12 +110,12 @@ class TestCSVReader:
     def test_no_header_stream(self, no_header_stream):
         """Test stream without header row."""
         err_stream = StringIO()
-        errors = read_csv(input_file=no_header_stream,
+        success = read_csv(input_file=no_header_stream,
                           error_writer=StreamErrorWriter(stream=err_stream,
                                                          container_id='dummy',
                                                          fw_path='dummy-path'),
                           visitor=DummyVisitor())
-        assert errors
+        assert not success
         assert not empty(err_stream)
         err_stream.seek(0)
         reader = csv.DictReader(err_stream, dialect='unix')

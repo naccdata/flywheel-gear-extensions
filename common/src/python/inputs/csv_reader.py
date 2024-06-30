@@ -19,9 +19,9 @@ class CSVVisitor(ABC):
         Args:
           row: the dictionary for a row from a CSV file
         Returns:
-          True if an error was encountered, False otherwise
+          True if the row was processed without error, False otherwise
         """
-        return False
+        return True
 
     @abstractmethod
     def visit_header(self, header: List[str]) -> bool:
@@ -30,9 +30,9 @@ class CSVVisitor(ABC):
         Args:
           header: list of header names
         Returns:
-          True if the header is missing any required fields, False otherwise
+          True if the header has all required fields, False otherwise
         """
-        return False
+        return True
 
 
 def read_csv(input_file: TextIO, error_writer: ErrorWriter,
@@ -44,39 +44,38 @@ def read_csv(input_file: TextIO, error_writer: ErrorWriter,
       error_writer: the ErrorWriter for the input file
       visitor: the visitor
     Returns:
-      True if the input file has an error, False otherwise
+      True if the input file was processed without error, False otherwise
     """
     sniffer = Sniffer()
     csv_sample = input_file.read(1024)
     if not csv_sample:
         error_writer.write(empty_file_error())
-        return True
+        return False
 
     try:
         has_header = sniffer.has_header(csv_sample)
     except Error as error:
         error_writer.write(malformed_file_error(str(error)))
-        return True
+        return False
 
     if not has_header:
         error_writer.write(missing_header_error())
-        return True
+        return False
 
     input_file.seek(0)
     detected_dialect = sniffer.sniff(csv_sample, delimiters=',')
     reader = DictReader(input_file, dialect=detected_dialect)
     assert reader.fieldnames, "File has header, reader should have fieldnames"
 
-    error_found = visitor.visit_header(list(reader.fieldnames))
-    if error_found:
-        return True
+    success = visitor.visit_header(list(reader.fieldnames))
+    if not success:
+        return False
 
-    error_found = False
     for record in reader:
-        error_in_row = visitor.visit_row(record, line_num=reader.line_num)
-        error_found = error_in_row or error_found
+        row_success = visitor.visit_row(record, line_num=reader.line_num)
+        success = row_success and success
 
-    return error_found
+    return success
 
 
 # pylint: disable=(too-few-public-methods)

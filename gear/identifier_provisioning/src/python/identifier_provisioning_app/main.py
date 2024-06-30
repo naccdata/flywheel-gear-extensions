@@ -87,16 +87,16 @@ class TransferVisitor(CSVVisitor):
         Args:
           header: the list of column headings for file
         Returns:
-          True if there are errors, False otherwise.
+          True if the header has expected columns, False otherwise.
         """
         expected_columns = {
             'oldadcid', 'oldptid', 'naccidknwn', 'naccid', 'prevenrl'
         }
         if not expected_columns.issubset(set(header)):
             self.__error_writer.write(missing_header_error())
-            return True
+            return False
 
-        return False
+        return True
 
     def _naccid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits a row to process a known NACCID to gather existing
@@ -109,19 +109,19 @@ class TransferVisitor(CSVVisitor):
           row: the dictionary for the input row
           line_num: the line number of the row
         Returns:
-          True if the row has an error. False otherwise.
+          True if the rows has no expected NACCID, or the NACCID in the row exists. False otherwise.
         """
         if not has_known_naccid(row):
-            return False
+            return True
 
         self.__naccid = row['naccid']
         if not self.__naccid:
             self.__error_writer.write(empty_field_error('naccid', line_num))
-            return True
+            return False
 
         self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
         if self.__naccid_identifier:
-            return False
+            return True
 
         self.__error_writer.write(
             identifier_error(
@@ -130,7 +130,7 @@ class TransferVisitor(CSVVisitor):
                 line=line_num,
                 message=f"Did not find participant for NACCID {self.__naccid}")
         )
-        return True
+        return False
 
     def _match_naccid(self, identifier, source, line_num: int) -> bool:
         """Checks whether the identifier matches the NACCID in the visitor.
@@ -167,10 +167,10 @@ class TransferVisitor(CSVVisitor):
           row: the dictionary for the input row
           line_num: the line number of the row
         Returns:
-          True if the row has an error. False otherwise.
+          True if either the row does not have an expected GUID, or the GUID exists and is for same participant as other identifiers. False otherwise.
         """
         if not guid_available(row):
-            return False
+            return True
 
         guid_identifier = self.__repo.get(guid=row['guid'])
         if not guid_identifier:
@@ -180,13 +180,13 @@ class TransferVisitor(CSVVisitor):
                     value=row['guid'],
                     line=line_num,
                     message=f"No NACCID found for GUID {row['guid']}"))
-            return True
+            return False
         if not self._match_naccid(guid_identifier, row['guid'], line_num):
-            return True
+            return False
 
         self.__naccid_identifier = guid_identifier
 
-        return False
+        return True
 
     def _prevenrl_visit(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits the row for a previous enrollment to gather identifiers.
@@ -197,19 +197,19 @@ class TransferVisitor(CSVVisitor):
           row: the dictionary for the input row
           line_num: the line number of the row
         Returns:
-          True if the row has an error. False otherwise.
+          True if either the row does not indicate a previous enrollment, or the provided identifiers correspond to the same participant as other identifiers. False otherwise.
         """
         if not previously_enrolled(row):
-            return False
+            return True
 
         previous_adcid = row['oldadcid']
         if previous_adcid is None:
             self.__error_writer.write(empty_field_error('oldadcid', line_num))
-            return True
+            return False
         previous_ptid = row['oldptid']
         if not previous_ptid:
             self.__error_writer.write(empty_field_error('oldptid', line_num))
-            return True
+            return False
 
         ptid_identifier = self.__repo.get(adcid=previous_adcid,
                                           ptid=previous_ptid)
@@ -220,17 +220,17 @@ class TransferVisitor(CSVVisitor):
                     line=line_num,
                     message=(f"No NACCID found for ADCID {previous_adcid}, "
                              f"PTID {previous_ptid}")))
-            return True
+            return False
 
         if not self._match_naccid(ptid_identifier,
                                   f"{previous_adcid}-{previous_ptid}",
                                   line_num):
-            return True
+            return False
 
         self.__naccid_identifier = ptid_identifier
         self.__previous_identifiers = CenterIdentifiers(adcid=previous_adcid,
                                                         ptid=previous_ptid)
-        return False
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits enrollment/transfer data for single form.
@@ -239,7 +239,7 @@ class TransferVisitor(CSVVisitor):
           row: the dictionary for the row in the file
           line_num: the line number of the row
         Returns:
-          True if there are any errors in the row. False, otherwise.
+          True if the row is a valid transfer. False, otherwise.
         """
         if not self.__validator.check(row, line_num):
             return True
@@ -247,14 +247,14 @@ class TransferVisitor(CSVVisitor):
         new_identifiers = CenterIdentifiers(adcid=row['adcid'],
                                             ptid=row['ptid'])
 
-        if self._naccid_visit(row=row, line_num=line_num):
-            return True
+        if not self._naccid_visit(row=row, line_num=line_num):
+            return False
 
-        if self._guid_visit(row=row, line_num=line_num):
-            return True
+        if not self._guid_visit(row=row, line_num=line_num):
+            return False
 
-        if self._prevenrl_visit(row=row, line_num=line_num):
-            return True
+        if not self._prevenrl_visit(row=row, line_num=line_num):
+            return False
 
         naccid = None
         if self.__naccid_identifier:
@@ -268,7 +268,7 @@ class TransferVisitor(CSVVisitor):
 
         log.info('Transfer found on line %s', line_num)
 
-        return False
+        return True
 
 
 class NewEnrollmentVisitor(CSVVisitor):
@@ -289,14 +289,14 @@ class NewEnrollmentVisitor(CSVVisitor):
         Args:
           header: the list of header column names
         Returns:
-          True if there is an error in the header. False, otherwise.
+          True if the header has expected columns. False, otherwise.
         """
         expected_columns = {'adcid', 'ptid', 'guid'}
         if not expected_columns.issubset(set(header)):
             self.__error_writer.write(missing_header_error())
-            return True
+            return False
 
-        return False
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Adds an enrollment record to the batch for creating new identifiers.
@@ -305,16 +305,16 @@ class NewEnrollmentVisitor(CSVVisitor):
           row: the dictionary for the row
           line_num: the line number for the row
         Returns:
-          True if any of the validators fail. False, otherwise.
+          True if the row is a valid enrollment. False, otherwise.
         """
         if not self.__validator.check(row, line_num):
-            return True
+            return False
 
         log.info('Adding new enrollment for (%s,%s)', row['adcid'],
                  row['ptid'])
         self.__batch.add(EnrollmentRecord.create_from(row))
 
-        return False
+        return True
 
 
 class ProvisioningVisitor(CSVVisitor):
@@ -344,7 +344,7 @@ class ProvisioningVisitor(CSVVisitor):
         expected_columns = {'enrltype'}
         if not expected_columns.issubset(set(header)):
             self.__error_writer.write(missing_header_error())
-            return True
+            return False
 
         return (self.__enrollment_visitor.visit_header(header)
                 and self.__transfer_in_visitor.visit_header(header))
@@ -362,10 +362,10 @@ class ProvisioningVisitor(CSVVisitor):
           row: the dictionary for the CSV row (DictReader)
           line_num: the line number of the row
         Returns:
-          True if an error occurs. False, otherwise.
+          True if the row represents a valid enrollment or transfer. False, otherwise.
         """
         if not self.__validator.check(row=row, line_number=line_num):
-            return True
+            return False
 
         if is_new_enrollment(row):
             return self.__enrollment_visitor.visit_row(row=row,
@@ -388,7 +388,7 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
     transfer_info = TransferInfo(transfers=[])
     enrollment_batch = EnrollmentBatch()
     try:
-        has_error = read_csv(input_file=input_file,
+        success = read_csv(input_file=input_file,
                              error_writer=error_writer,
                              visitor=ProvisioningVisitor(
                                  center_id=center_id,
@@ -396,7 +396,7 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
                                  repo=repo,
                                  error_writer=error_writer,
                                  transfer_info=transfer_info))
-        if has_error:
+        if not success:
             log.error("no changes made due to errors in input file")
             return True
 
@@ -422,4 +422,4 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
 
     enrollment_project.add_transfers(transfer_info)
 
-    return False
+    return True

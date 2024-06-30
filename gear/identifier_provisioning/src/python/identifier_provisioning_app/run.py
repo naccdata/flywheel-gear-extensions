@@ -92,7 +92,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         with open(input_path, mode='r', encoding='utf-8') as csv_file:
             error_writer = ListErrorWriter(
                 container_id=file_id, fw_path=self.proxy.get_lookup_path(file))
-            errors = run(
+            success = run(
                 input_file=csv_file,
                 center_id=adcid,
                 error_writer=error_writer,
@@ -103,7 +103,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name="validation",
-                                           state="FAIL" if errors else "PASS",
+                                           state="PASS" if success else "FAIL",
                                            data=error_writer.errors())
 
 

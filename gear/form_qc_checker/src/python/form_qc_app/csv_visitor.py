@@ -70,15 +70,15 @@ class FormQCCSVVisitor(CSVVisitor):
           header: the list of header names
 
         Returns:
-          True if required fields missing from the header, False otherwise
+          True if required fields occur in the header, False otherwise
         """
         if self.__pk_field not in header:
             self.__error_writer.write(missing_field_error(self.__pk_field))
-            return True
+            return False
 
         self.__header = header
 
-        return False
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Validates a row from the CSV file.
@@ -90,14 +90,14 @@ class FormQCCSVVisitor(CSVVisitor):
           line_num: the line number of the row
 
         Returns:
-          True if required fields missing from the row, False otherwise
+          True if required fields occur in the row, False otherwise
         """
         if self.__pk_field not in row or row[self.__pk_field] == '':
             self.__error_writer.write(
                 empty_field_error(self.__pk_field, line_num))
-            return True
+            return False
 
-        return False
+        return True
 
 
 def read_first_data_row(input_file: TextIO, error_writer: ErrorWriter,
@@ -135,7 +135,7 @@ def read_first_data_row(input_file: TextIO, error_writer: ErrorWriter,
     assert reader.fieldnames, "File has header, reader should have fieldnames"
 
     # check for required fields in the header
-    if visitor.visit_header(list(reader.fieldnames)):
+    if not visitor.visit_header(list(reader.fieldnames)):
         return None
 
     first_row = next(reader)
