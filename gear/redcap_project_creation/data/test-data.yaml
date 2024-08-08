@@ -1,0 +1,17 @@
+---
+study-id: test
+centers:
+  - sample-center
+  - example-center
+projects:
+  - project-label: ingest-form
+    modules:
+    - label: udsv4
+      title: UDSv4
+    - label: ftldv4
+      title: FTLDv4
+      template: ftld-alt
+  - project-label: ingest-enrollment
+    modules:
+    - label: ptenrlv1
+      title: Participant Enrollment/Transfer

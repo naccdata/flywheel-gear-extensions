@@ -10,6 +10,12 @@ from typing_extensions import Type, TypedDict, TypeVar
 log = logging.getLogger(__name__)
 
 
+class REDCapParameters(TypedDict):
+    """Dictionary type for parameters needed to access a REDCap project."""
+    url: str
+    token: str
+
+
 class REDCapReportParameters(TypedDict):
     """Dictionary type for parameters needed to access a REDCap report."""
     url: str
@@ -45,6 +51,29 @@ class ParameterStore:
 
     def __init__(self, parameter_store: EC2ParameterStore) -> None:
         self.__store = parameter_store
+        self.__client = parameter_store.client  # type: ignore
+
+    @classmethod
+    def create_from_environment(cls) -> 'ParameterStore':
+        """Gets a proxy object for the parameter store if AWS credentials are
+        set. Expects AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, and
+        AWS_DEFAULT_REGION.
+
+        Returns:
+            parameter store object if credentials are valid, and None otherwise
+        Raises:
+            ParameterError if any of the environment variables are missing
+        """
+        secret_key = get_environment_variable('AWS_SECRET_ACCESS_KEY')
+        access_id = get_environment_variable('AWS_ACCESS_KEY_ID')
+        region = get_environment_variable('AWS_DEFAULT_REGION')
+        if not secret_key or not access_id or not region:
+            raise ParameterError("Environment variables not found")
+
+        return ParameterStore(
+            EC2ParameterStore(aws_access_key_id=access_id,
+                              aws_secret_access_key=secret_key,
+                              region_name=region))
 
     def get_parameters(self, *, param_type: Type[P], parameter_path: str) -> P:
         """Pulls the parameters at the path and checks that they match the
@@ -175,24 +204,36 @@ class ParameterStore:
         return self.get_parameters(param_type=RDSParameters,
                                    parameter_path=param_path)
 
-    @classmethod
-    def create_from_environment(cls) -> 'ParameterStore':
-        """Gets a proxy object for the parameter store if AWS credentials are
-        set. Expects AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, and
-        AWS_DEFAULT_REGION.
+    def set_redcap_project_prameters(self, *, base_path: str, pid: int,
+                                     url: str, token: str):
+        """Store API URL and token for the respective REDCap project in AWS
+        parameter store.
 
-        Returns:
-            parameter store object if credentials are valid, and None otherwise
+        Args:
+          base_path: base path in the parameter store
+          pid: REDCap project ID
+          url: REDCap API url
+          token: REDCap API token for the specified project
         Raises:
-            ParameterError if any of the environment variables are missing
+          ParameterError if failed to update parameter store
         """
-        secret_key = get_environment_variable('AWS_SECRET_ACCESS_KEY')
-        access_id = get_environment_variable('AWS_ACCESS_KEY_ID')
-        region = get_environment_variable('AWS_DEFAULT_REGION')
-        if not secret_key or not access_id or not region:
-            raise ParameterError("Environment variables not found")
 
-        return ParameterStore(
-            EC2ParameterStore(aws_access_key_id=access_id,
-                              aws_secret_access_key=secret_key,
-                              region_name=region))
+        if not base_path.endswith('/'):
+            base_path += '/'
+
+        param_path = base_path + 'pid_' + str(pid)
+        try:
+            param_name_url = param_path + '/url'
+            self.__client.put_parameter(Name=param_name_url,
+                                        Value=url,
+                                        Type='String',
+                                        Overwrite=True)
+
+            param_name_token = param_path + '/token'
+            self.__client.put_parameter(Name=param_name_token,
+                                        Value=token,
+                                        Type='SecureString',
+                                        Overwrite=True)
+        except Exception as error:
+            raise ParameterError(
+                f"Failed to store parameters at {param_path}") from error

@@ -4,8 +4,88 @@ from json import JSONDecodeError
 from typing import Any, Dict, List, Optional
 
 import requests
-from inputs.parameter_store import REDCapReportParameters
+from inputs.parameter_store import REDCapParameters, REDCapReportParameters
 from requests import Response
+
+
+class REDCapSuperUserConnection:
+    """REDCap connection using super API token.
+
+    Can only be used to create projects, other API methods doesn't work
+    for super token.
+    """
+
+    def __init__(self, *, token: str, url: str) -> None:
+        """Initializes a REDCap connection using the super API token and URL.
+
+        Args:
+            token: Super API token for the REDCap project.
+            url: URL of REDCap instance
+        """
+        self.__token = token
+        self.__url = url
+
+    @property
+    def url(self) -> str:
+        """REDCap API URL."""
+        return self.__url
+
+    @classmethod
+    def create_from(
+            cls, parameters: REDCapParameters) -> 'REDCapSuperUserConnection':
+        """Creates a REDCap connection with given parameters.
+
+        Args:
+          parameters: the parameters
+        Returns:
+          the connection using the parameters
+        """
+        return REDCapSuperUserConnection(token=parameters['token'],
+                                         url=parameters['url'])
+
+    def create_project(self,
+                       *,
+                       title: str,
+                       purpose: Optional[int] = 4,
+                       project_xml: Optional[str] = None) -> str:
+        """Creates a new REDCap project using the super API token.
+
+        Args:
+            title: Title of the REDCap project
+            purpose (optional): Project purpose, defaults to 4(Operational Support).
+            project_xml (optional): REDCap XML template, defaults to None.
+
+        Returns:
+            str: REDCap API token for the created project
+
+        Raises:
+          REDCapConnectionError if the response has an error
+        """
+        properties = {"project_title": title, "purpose": purpose}
+        data = json.dumps([properties])
+
+        fields = {
+            'token': self.__token,
+            'content': 'project',
+            'format': 'json',
+            'data': data,
+        }
+        if project_xml:
+            fields['odm'] = project_xml
+
+        try:
+            response = requests.post(self.__url, data=fields)
+        except (requests.exceptions.SSLError,
+                requests.exceptions.ConnectionError) as error:
+            raise REDCapConnectionError(
+                message=f"Error connecting to {self.__url} - {error}"
+            ) from error
+
+        if not response.ok:
+            raise REDCapConnectionError(message=error_message(
+                message='creating project', response=response))
+
+        return response.text
 
 
 class REDCapConnection:
@@ -62,7 +142,7 @@ class REDCapConnection:
           The response from posting the request.
 
         Raises:
-          REDCapConnectionException if there is an error connecting to the
+          REDCapConnectionError if there is an error connecting to the
           specified project
         """
         data.update({'token': self.__token, 'returnFormat': return_format})
@@ -86,7 +166,7 @@ class REDCapConnection:
           The object for the JSON value.
 
         Raises:
-          REDCapConnectionException if the response has an error.
+          REDCapConnectionError if the response has an error.
         """
         response = self.post_request(data=data, result_format='json')
         if not response.ok:
@@ -113,7 +193,6 @@ class REDCapConnection:
         """
         response = self.post_request(data=data, result_format=result_format)
         if not response.ok:
-            message = "cannot get project XML"
             raise REDCapConnectionError(
                 message=error_message(message=message, response=response))
 
@@ -175,7 +254,7 @@ class REDCapConnection:
             a CSV text string depending on exp_format.
 
         Raises:
-          REDCapConnectionException if the response has an error.
+          REDCapConnectionError if the response has an error.
         """
 
         data = {
@@ -240,9 +319,7 @@ class REDCapConnection:
         """
 
         message = "exporting project info"
-        data = {
-            'content': 'project',
-        }
+        data = {'content': 'project'}
 
         return self.request_json_value(data=data, message=message)
 

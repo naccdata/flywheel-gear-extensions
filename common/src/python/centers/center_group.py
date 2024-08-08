@@ -580,7 +580,7 @@ class REDCapFormProject(BaseModel):
 
     redcap_pid: int
     label: str
-    report_id: int
+    report_id: Optional[int] = None
 
 
 class FormIngestProjectMetadata(IngestProjectMetadata):
@@ -709,3 +709,29 @@ class REDCapProjectInput(BaseModel):
     study_id: str
     project_label: str
     projects: List[REDCapFormProject]
+
+
+class REDCapModule(BaseModel):
+    """Information required to create a REDCap project for a module."""
+    model_config = ConfigDict(populate_by_name=True,
+                              alias_generator=AliasGenerator(alias=kebab_case))
+    label: str
+    title: str
+    template: Optional[str] = None
+
+
+class REDCapProjectMapping(BaseModel):
+    """List of REDCap projects associated with a Flywheel project."""
+    model_config = ConfigDict(populate_by_name=True,
+                              alias_generator=AliasGenerator(alias=kebab_case))
+    project_label: str
+    modules: List[REDCapModule]
+
+
+class StudyREDCapMetadata(BaseModel):
+    """REDCap project info associated with a study."""
+    model_config = ConfigDict(populate_by_name=True,
+                              alias_generator=AliasGenerator(alias=kebab_case))
+    study_id: str
+    centers: List[str]
+    projects: List[REDCapProjectMapping]
