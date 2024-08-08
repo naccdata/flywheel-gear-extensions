@@ -1,7 +1,7 @@
 """Singleton class representing NACC with a FW group."""
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_group import CenterGroup
@@ -162,6 +162,23 @@ class NACCGroup(CenterAdaptor):
             return None
 
         return CenterGroup.create_from_group_adaptor(adaptor=group)
+
+    def get_centers(self) -> List[CenterGroup]:
+        """Returns the center groups for all centers.
+
+        Returns:
+            The list of center groups.
+        """
+        centers = []
+        center_map = self.get_center_map()
+        for center_info in center_map.centers.values():
+            group_id = center_info.group
+            group = self._fw.find_group(group_id=(group_id))
+            if group:
+                center = CenterGroup.create_from_group_adaptor(group)
+                centers.append(center)
+
+        return centers
 
     def add_center_user(self, user: User) -> None:
         """Authorizes a user to access the metadata project of nacc group.
