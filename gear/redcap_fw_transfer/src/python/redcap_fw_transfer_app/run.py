@@ -11,7 +11,7 @@ from centers.center_group import (
     REDCapFormProjectMetadata,
 )
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor
+from flywheel_adaptor.flywheel_proxy import GroupAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -186,9 +186,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
                 f'Cannot find Flywheel project {project_id}')
 
         redcap_projects = get_redcap_projects_metadata(
-            fw_proxy=self.proxy,
-            group_adaptor=group,
-            project_label=project.label)
+            group_adaptor=group, project_label=project.label)
 
         if not redcap_projects:
             raise GearExecutionError(

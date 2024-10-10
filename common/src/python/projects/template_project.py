@@ -4,6 +4,7 @@ the template, to other projects.
 Based on code written by David Parker, davidparker@flywheel.io
 """
 import logging
+import re
 from string import Template
 from typing import Dict, List, Optional
 
@@ -32,6 +33,28 @@ class TemplateProject:
         self.__rules: List[GearRule] = []
         self.__dataviews: List[DataView] = []
         self.__apps: List[AttrDict] = []
+
+    def get_pattern(self) -> Optional[str]:
+        """Returns the regex pattern for the prefix this template applies to.
+
+        Returns:
+            Regex pattern for project label prefix that matches this template.
+        """
+        template_matcher = re.compile(r"^((\w+)-)?(\w+)-template$")
+        # match group for pipeline datatype
+        datatype_group = 2
+        # match group for pipeline stage
+        stage_group = 3
+
+        match = template_matcher.match(self.__source_project.label)
+        if not match:
+            log.error("template label doesn't match expected pattern")
+            return None
+
+        datatype = match.group(datatype_group)
+        stage = match.group(stage_group)
+
+        return rf"^{stage}-{datatype}"
 
     def copy_to(self,
                 destination: ProjectAdaptor,
