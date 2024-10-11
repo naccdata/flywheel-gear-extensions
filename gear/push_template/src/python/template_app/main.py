@@ -1,40 +1,31 @@
 """Function to push template projects to pipeline projects in the center groups
 of the the Flywheel instance."""
 import logging
-from typing import Dict
 
-from centers.center_group import CenterError, CenterGroup
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from centers.nacc_group import NACCGroup
 from projects.template_project import TemplateProject
 
 log = logging.getLogger(__name__)
 
 
-def run(*, proxy: FlywheelProxy, center_tag_pattern: str, new_only: bool,
-        template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
-    """Runs template copying process.
+def run(*, admin_group: NACCGroup, new_only: bool,
+        template: TemplateProject) -> None:
+    """Applies the template to all matching projects in centers managed by the
+    admin group.
 
     Args:
       proxy: the proxy for the Flywheel instance
       center_tag_pattern: regex pattern to match center tags
       template_map: map from datatype name to template projects
     """
-    group_list = proxy.find_groups_by_tag(center_tag_pattern)
-    if not group_list:
-        log.warning('no centers found matching tag pattern %s',
-                    center_tag_pattern)
+    center_list = admin_group.get_centers()
+    if not center_list:
+        log.warning('no groups found for centers')
         return
 
-    for group in group_list:
-        try:
-            center = CenterGroup.create_from_group(group=group, proxy=proxy)
-        except CenterError as error:
-            log.warning('failed to create center for group %s: %s',
-                        group.label, error.message)
-            continue
-
+    for center in center_list:
         if new_only and 'new-center' not in center.get_tags():
             continue
 
-        center.apply_template_map(template_map)
+        center.apply_template(template)
         # TODO: remove 'new-center' tag

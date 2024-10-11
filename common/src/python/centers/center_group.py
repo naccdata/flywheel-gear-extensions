@@ -334,6 +334,25 @@ class CenterGroup(CenterAdaptor):
 
         self.apply_to_accepted(template_map)
 
+    def apply_template(self, template: TemplateProject) -> None:
+        """Applies the template to projects of this center group that match.
+
+        Args:
+          template: the template project
+        """
+        prefix_pattern = template.get_pattern()
+        if not prefix_pattern:
+            return
+
+        projects = self.__get_matching_projects(prefix_pattern)
+        for project in projects:
+            template.copy_to(project,
+                             value_map={
+                                 'adrc': self.label,
+                                 'project_id': project.id,
+                                 'site': self.proxy().get_site()
+                             })
+
     def get_portal(self) -> ProjectAdaptor:
         """Returns the center-portal project.
 
