@@ -26,6 +26,7 @@ To add new code see the [Adding a New Gear](#adding-a-new-gear)
   - [Adding common code](#adding-common-code)
   - [Adding new dependencies](#adding-new-dependencies)
   - [Working with code](#working-with-code)
+  - [Documenting and versioning](#documenting-and-versioning)
 
 
 ## Getting Started
@@ -416,4 +417,17 @@ If you add new python dependencies
     pants check common::
     ```
 
+## Documenting and versioning
 
+All gear documentation and version tracking is stored under `docs/<gear-name>`, each with at minimum an `index.md` (for documentation) and a `CHANGELOG.md` (for tracking gear versions), and should be added for every new gear. The documentation only needs to be updated if new updates fundamentally change or deprecate previously documented features. The Changelog on the other hand should be updated consistently whenever any notable changes or bugfixes are added.
+
+The Changelogs loosely follow the convention described in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the gears all follow semantic versioning. All working changes should be added under the **Unreleased** header, and if a PR is associated with the change, the PR should be linked as well. 
+
+Releases and version bumping are currently done manually. When releasing a new version of the gear, ensure the following have been updated:
+
+* Increment the gear's image tag in the following files:
+    * `src/docker/BUILD`: the `image_tags` field 
+    * `src/docker/manifest.json`: the `version` and `custom/gear-builder/image` fields
+* In the `CHANGELOG.md`, move all changes under the **Unreleased** header to a new header under the new release version
+
+See [this commit](https://github.com/naccdata/flywheel-gear-extensions/commit/fa3ff5ab5218282299b9c67665beacb90f5d8244) for an example of updating the version and image tags in the code.
