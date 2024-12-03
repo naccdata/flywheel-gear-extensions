@@ -120,6 +120,12 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         if not identifiers:
             raise GearExecutionError('Unable to load center participant IDs')
 
+        module_name = self.__file_input.get_module_name_from_file_suffix()
+        if not module_name:
+            raise GearExecutionError(
+                'Expect module suffix to input file name: '
+                f'{self.__file_input.filename}')
+
         filename = f"{self.__file_input.filename}-identifier"
         input_path = Path(self.__file_input.filepath)
         with (open(input_path, mode='r', encoding='utf-8') as csv_file,
@@ -132,6 +138,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             success = run(input_file=csv_file,
                           identifiers=identifiers,
                           output_file=out_file,
+                          module_name=module_name,
                           error_writer=error_writer)
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name="validation",
