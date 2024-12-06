@@ -34,7 +34,8 @@ class CenterGroup(CenterAdaptor):
                  proxy: FlywheelProxy) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages = ['ingest', 'retrospective', 'sandbox']
+        self.__ingest_stages = ['ingest', 'retrospective', 'sandbox',
+                                'distribution']
         self.__adcid = adcid
         self.__is_active = active
         self.__center_portal: Optional[ProjectAdaptor] = None
@@ -318,6 +319,7 @@ class CenterGroup(CenterAdaptor):
                 template_project.copy_to(project,
                                          value_map={
                                              'adrc': self.label,
+                                             'adcid': self.adcid,
                                              'project_id': project.id,
                                              'site': self.proxy().get_site()
                                          })
@@ -350,6 +352,7 @@ class CenterGroup(CenterAdaptor):
             template.copy_to(project,
                              value_map={
                                  'adrc': self.label,
+                                 'adcid': self.adcid,
                                  'project_id': project.id,
                                  'site': self.proxy().get_site()
                              })

@@ -2,7 +2,7 @@
     "name": "push-template",
     "label": "Push Project Template",
     "description": "Pushes template projects to center projects",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/push-template:1.0.2"
+            "image": "naccdata/push-template:1.0.3"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
