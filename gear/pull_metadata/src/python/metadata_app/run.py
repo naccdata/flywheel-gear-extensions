@@ -1,60 +1,19 @@
 """Main function for running template push process."""
 import logging
-import re
 import sys
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from centers.center_group import CenterError, CenterGroup
 from flywheel import Client
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, S3Parameters
+from projects.project_mamper import build_project_map
 from s3.s3_client import S3BucketReader
 
 from metadata_app.main import run
 
 log = logging.getLogger(__name__)
-
-
-def build_project_map(*, proxy: FlywheelProxy, center_tag_pattern: str,
-                      destination_label: str) -> Dict[str, ProjectAdaptor]:
-    """Builds a map from adcid to the project of center group with the given
-    label.
-
-    Args:
-      proxy: the flywheel instance proxy
-      center_tag_pattern: the regex for adcid-tags
-      destination_label: the project of center to map to
-    Returns:
-      dictionary mapping from adcid to group
-    """
-    try:
-        group_list = [
-            CenterGroup.create_from_group(group=group, proxy=proxy)
-            for group in proxy.find_groups_by_tag(center_tag_pattern)
-        ]
-    except CenterError as error:
-        log.error('failed to create center from group: %s', error.message)
-        return {}
-
-    if not group_list:
-        log.warning('no centers found matching tag pattern %s',
-                    center_tag_pattern)
-        return {}
-
-    project_map = {}
-    for group in group_list:
-        project = group.find_project(destination_label)
-        if not project:
-            continue
-
-        pattern = re.compile(center_tag_pattern)
-        tags = list(filter(pattern.match, group.get_tags()))
-        for tag in tags:
-            project_map[tag] = project
-
-    return project_map
 
 
 def main():

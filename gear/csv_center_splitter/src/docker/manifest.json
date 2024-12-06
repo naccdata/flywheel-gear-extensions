@@ -1,0 +1,70 @@
+{
+    "name": "csv-center-splitter",
+    "label": "CSV Center Splitter",
+    "description": "Splits a CSV by center ID",
+    "version": "0.1.0",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/csv-center-splitter:0.1.0"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The input CSV",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "adcid_key": {
+            "description": "Column name from the input CSV with the ADCIDs",
+            "type": "string"
+        },
+        "target_project": {
+            "description": "Target project to write the split results to",
+            "type": "string"
+        },
+        "allow_merged_cells": {
+            "description": "Allow merged cells; if a row is missing an ADCID it assumes it's the same as the previous row(s)",
+            "type": "boolean",
+            "default": false
+        },
+        "delimiter": {
+            "description": "The input file delimiter",
+            "type": "string",
+            "default": ","
+        },
+        "local_run": {
+            "description": "Set to true if executing on a local input file",
+            "type": "boolean",
+            "default": false
+        }
+    },
+    "command": "/bin/run"
+}
