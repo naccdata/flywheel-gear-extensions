@@ -1,57 +1,18 @@
 """Singleton class representing NACC with a FW group."""
-
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from flywheel.models.group import Group
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from redcap.redcap_repository import REDCapParametersRepository
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_group import CenterGroup
+from centers.center_info import CenterInfo, CenterMapInfo
 
 log = logging.getLogger(__name__)
-
-
-class CenterInfo(BaseModel):
-    """Represents information about a center in nacc/metadata project.
-
-    Attributes:
-        adcid (int): The ADC ID of the center.
-        name (str): The name of the center.
-        group (str): The group ID of the center.
-        active (bool): Active or inactive status.
-    """
-    adcid: int
-    name: str
-    group: str
-    active: bool
-
-
-class CenterMapInfo(BaseModel):
-    """Represents the center map in nacc/metadata project."""
-    centers: Dict[int, CenterInfo]
-
-    def add(self, adcid: int, center_info: CenterInfo) -> None:
-        """Adds the center info to the map.
-
-        Args:
-            adcid: The ADC ID of the center.
-            center_info: The center info object.
-        """
-        self.centers[adcid] = center_info
-
-    def get(self, adcid: int) -> Optional[CenterInfo]:
-        """Gets the center info for the given ADCID.
-
-        Args:
-            adcid: The ADC ID of the center.
-        Returns:
-            The center info for the center. None if no info is found.
-        """
-        return self.centers.get(adcid, None)
 
 
 class NACCGroup(CenterAdaptor):
@@ -119,7 +80,8 @@ class NACCGroup(CenterAdaptor):
                        name=group_label,
                        group=group_id,
                        active=active))
-        metadata.update_info(center_map.model_dump())
+        exclude = {'centers': {'__all__': {'tags'}}}
+        metadata.update_info(center_map.model_dump(exclude=exclude))
 
     def get_center_map(self) -> CenterMapInfo:
         """Returns the adcid-group map.

@@ -226,6 +226,12 @@ Before you run the following be sure that `gear/<project-dir>/src/docker/.gitign
 
 #### Basic configuration
 
+The following steps are generalized in `bin/set-up-gear-for-local-run.sh` to automate some of the set up. Assumes the script is being run from the root directory due to local paths.
+
+```
+./bin/set-up-gear-for-local-run.sh <project-dir> <FW_API_KEY> [FW path]
+```
+
 1. Change into the project directory
 
    ```bash

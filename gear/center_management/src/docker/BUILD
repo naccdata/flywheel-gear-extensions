@@ -6,5 +6,5 @@ docker_image(
     dependencies=[
         ":manifest", "gear/center_management/src/python/center_app:bin"
     ],
-    image_tags=["1.0.1", "latest"],
+    image_tags=["1.0.3", "latest"],
 )

@@ -2,7 +2,7 @@
     "name": "center-management",
     "label": "Center management",
     "description": "Creates and updates centers from center YAML file",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/center-management:1.0.1"
+            "image": "naccdata/center-management:1.0.3"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

@@ -13,7 +13,7 @@ from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
-from projects.study import Center, Study
+from projects.study import Study
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, ValidationError
 from redcap.redcap_project import CENTER_USER_ROLE
@@ -23,6 +23,7 @@ from users.authorizations import AuthMap
 from users.nacc_directory import Authorizations
 
 from centers.center_adaptor import CenterAdaptor
+from centers.center_info import CenterInfo
 
 log = logging.getLogger(__name__)
 
@@ -91,20 +92,21 @@ class CenterGroup(CenterAdaptor):
 
     @classmethod
     def create_from_center(cls, *, proxy: FlywheelProxy,
-                           center: Center) -> 'CenterGroup':
+                           center: CenterInfo) -> 'CenterGroup':
         """Creates a CenterGroup from a center object.
 
         Args:
-          center: the study center
-          proxy: the flywheel proxy object
+          center: CenterInfo object, the study center
+          proxy: The flywheel proxy object
         Returns:
           the CenterGroup for the center
         """
         group = proxy.get_group(group_label=center.name,
-                                group_id=center.center_id)
+                                group_id=center.group)
         assert group, "No group for center"
+
         center_group = CenterGroup(adcid=center.adcid,
-                                   active=center.is_active(),
+                                   active=center.active,
                                    group=group,
                                    proxy=proxy)
 
@@ -119,7 +121,7 @@ class CenterGroup(CenterAdaptor):
         metadata_project.add_admin_users(center_group.get_user_access())
         metadata_project.update_info({
             'adcid': center.adcid,
-            'active': center.is_active()
+            'active': center.active
         })
 
         center_group.add_center_portal()

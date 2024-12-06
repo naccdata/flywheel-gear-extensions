@@ -2,9 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.0.3
+
+* Bugfixes to avoid breaking metadata serialization from `centers.center_info.CenterInfo`
+    * Renames `center_id` back to `group`
+    * Avoids pushing `tags` to `metadata` group
+
+## 1.0.2
 
 * [#109](https://github.com/naccdata/flywheel-gear-extensions/pull/109) Moves the `add_study` behavior from `CenterGroup` to `StudyMapping`, keeping the project creation in `CenterGroup`
+* Consolidate `projects.study.Center` and `centers.naccgroup.CenterInfo` to `centers.center_info.CenterInfo` and updates gear to utilize it
 * Adds this CHANGELOG
 
 ## [1.0.1](https://github.com/naccdata/flywheel-gear-extensions/commit/aa620caf2b6ce8451bdccd1e3719ea2ddeb1d95c)

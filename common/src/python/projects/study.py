@@ -1,7 +1,7 @@
 """Classes for representing NACC studies (or, if you must, projects)."""
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional
+from typing import Any, List, Literal, Mapping
 
 
 def convert_to_slug(name: str) -> str:
@@ -48,89 +48,6 @@ class StudyVisitor(ABC):
         Args:
           datatype: the name of the datatype within a study.
         """
-
-
-class Center:
-    """Represents a center with data managed at NACC."""
-
-    def __init__(self,
-                 *,
-                 name: str,
-                 center_id: str,
-                 adcid: int,
-                 active: bool = True,
-                 tags: Optional[List[str]] = None) -> None:
-        """Initializes a center object.
-
-        Args:
-          name: the name of the center
-          center_id: symbolic ID for center
-          adcid: the numeric ADC ID for center used in data
-          active: whether the center is active
-          tags: list of tags for the center
-        """
-        self.__name = name
-        self.__active = active
-        self.__center_id = center_id
-        self.__adcid = adcid
-        if tags is None:
-            tags = []
-        self.__tags = tags
-
-    def __repr__(self) -> str:
-        return (f"Center(center_id={self.center_id}, "
-                f"name={self.name}, "
-                f"adcid={self.adcid}, "
-                f"active={self.is_active()}, "
-                f"tags={self.tags}")
-
-    def __eq__(self, __o: object) -> bool:
-        if not isinstance(__o, Center):
-            return False
-        return (self.__center_id == __o.center_id and self.__adcid == __o.adcid
-                and self.__active == __o.is_active() and self.name == __o.name)
-
-    @property
-    def name(self) -> str:
-        """Center name property."""
-        return self.__name
-
-    def is_active(self) -> bool:
-        """Indicates whether the center is active."""
-        return self.__active
-
-    @property
-    def center_id(self) -> str:
-        """Center text ID property."""
-        return self.__center_id
-
-    @property
-    def adcid(self) -> int:
-        """ADC ID property."""
-        return self.__adcid
-
-    @property
-    def tags(self) -> Iterable[str]:
-        """Center tags property."""
-        return tuple(self.__tags)
-
-    def apply(self, visitor: StudyVisitor):
-        """Applies visitor to this Center."""
-        visitor.visit_center(self.center_id)
-
-    @classmethod
-    def create(cls, center: Dict[str, Any]) -> "Center":
-        """Creates a Center from the given dictionary."""
-
-        tags: List[str] = []
-        if 'tags' in center:
-            tags = center['tags']
-
-        return Center(name=center['name'],
-                      center_id=center['center-id'],
-                      adcid=int(center['adcid']),
-                      active=center['is-active'],
-                      tags=tags)
 
 
 StudyMode = Literal['aggregation', 'distribution']

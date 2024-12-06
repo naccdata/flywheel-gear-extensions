@@ -9,6 +9,7 @@ array of centers:
 import logging
 from typing import List, Optional
 
+from centers.center_info import CenterInfo
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -19,7 +20,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from projects.study import Center
 
 from center_app.main import run
 
@@ -56,6 +56,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         """
         client = GearBotClient.create(context=context,
                                       parameter_store=parameter_store)
+
         center_filepath = context.get_input_path('center_file')
         if not center_filepath:
             raise GearExecutionError('No center file provided')
@@ -67,7 +68,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
                                      new_only=context.config.get(
                                          "new_only", False))
 
-    def __get_center_list(self, center_file_path: str) -> List[Center]:
+    def __get_center_list(self, center_file_path: str) -> List[CenterInfo]:
         """Get the centers from the file.
 
         Args:
@@ -85,7 +86,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         if not object_list:
             raise GearExecutionError('No centers found in center file')
 
-        return [Center.create(center_doc) for center_doc in object_list]
+        return [CenterInfo(**center_doc) for center_doc in object_list]
 
     def run(self, context: GearToolkitContext) -> None:
         """Executes the gear.
