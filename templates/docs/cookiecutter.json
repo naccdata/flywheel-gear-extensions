@@ -1,0 +1,5 @@
+{
+    "gear_name": "Gear Name",
+    "gear_description": "A NACC gear for Flywheel",
+    "module_name": "{{ cookiecutter.gear_name.lower().replace(' ', '_').replace('-', '_') }}"
+}

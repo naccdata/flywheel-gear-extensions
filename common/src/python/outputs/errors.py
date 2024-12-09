@@ -92,7 +92,7 @@ def missing_field_error(field: str) -> FileError:
     """Creates a FileError for a missing field in header."""
     return FileError(error_type='error',
                      error_code='missing-field',
-                     message=f'Missing field {field} in the header')
+                     message=f'Missing field "{field}" in the header')
 
 
 def empty_field_error(field: str,
@@ -170,6 +170,13 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
                      error_code='failed-previous-visit',
                      message=(f'Visit file {prev_visit} has to be approved '
                               'before evaluating any subsequent visits'))
+
+
+def invalid_row_error(error_reason: str, index: int) -> FileError:
+    """Creates a FileError when a row is invalid."""
+    return FileError(error_type='error',
+                     error_code='invalid-row',
+                     message=f'Row {index} was invalid: {error_reason}')
 
 
 class ErrorWriter(ABC):
