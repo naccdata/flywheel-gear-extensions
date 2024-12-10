@@ -244,3 +244,22 @@ class ListErrorWriter(ErrorWriter):
           List of serialized FileError objects
         """
         return self.__errors
+
+
+def legacy_naccid_error(value: str,
+                        field: str = 'naccid',
+                        message: Optional[str] = None) -> FileError:
+    """Creates a FileError for an unrecognized NACCID error in a CSV file.
+
+    Tags the error type as 'error:identifier'
+
+    Args:
+      value: the value of the NACCID
+    Returns:
+      a FileError object initialized for an identifier error
+    """
+    error_message = message if message else 'Unrecognized NACCID'
+    return FileError(error_type='error',
+                     error_code='identifier',
+                     value=value,
+                     message=error_message)
