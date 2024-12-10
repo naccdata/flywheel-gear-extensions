@@ -223,8 +223,8 @@ class SubjectAdaptor:
     def upload_acquisition_file(
             self,
             *,
-            session_lbl: str,
-            acq_lbl: str,
+            session_label: str,
+            acquisition_label: str,
             filename: str,
             contents: str,
             content_type: str,
@@ -233,8 +233,8 @@ class SubjectAdaptor:
         Creates new containers if session/acquisition does not exist.
 
         Args:
-            session_lbl: Flywheel session label
-            acq_lbl: Flywheel acquisition label
+            session_label: Flywheel session label
+            acquisition_label: Flywheel acquisition label
             filename: file name
             contents: file contents
             content_type: contents type
@@ -247,27 +247,28 @@ class SubjectAdaptor:
             SubjectError: if any error occurred while upload
         """
 
-        session = self.find_session(session_lbl)
+        session = self.find_session(session_label)
         if not session:
             log.info(
                 'Session %s does not exist in subject %s, creating a new session',
-                session_lbl, self.label)
-            session = self.add_session(session_lbl)
+                session_label, self.label)
+            session = self.add_session(session_label)
 
-        acquisition = session.acquisitions.find_first(f'label={acq_lbl}')
+        acquisition = session.acquisitions.find_first(
+            f'label={acquisition_label}')
         if not acquisition:
             log.info(
                 'Acquisition %s does not exist in session %s, '
-                'creating a new acquisition', acq_lbl, session_lbl)
-            acquisition = session.add_acquisition(label=acq_lbl)
+                'creating a new acquisition', acquisition_label, session_label)
+            acquisition = session.add_acquisition(label=acquisition_label)
 
         if skip_duplicates:
             existing_file = acquisition.get_file(filename)
             if existing_file and is_duplicate_record(
                     contents, existing_file.read(), content_type):
-                log.warning(
-                    'Duplicate visit file %s already exists in subject %s',
-                    filename, self.label)
+                log.warning('Duplicate file %s already exists at %s/%s/%s',
+                            filename, self.label, session_label,
+                            acquisition_label)
                 return None
 
         record_file_spec = FileSpec(name=filename,
@@ -280,5 +281,6 @@ class SubjectAdaptor:
             return acquisition.get_file(filename)
         except ApiException as error:
             raise SubjectError(
-                f'Failed to upload file {filename} to subject {self.label} - {error}'
+                f'Failed to upload file {filename} to '
+                '{self.label}/{session_label}/{acquisition_label}: {error}'
             ) from error

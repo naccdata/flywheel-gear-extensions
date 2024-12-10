@@ -27,8 +27,18 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "The project-level CSV file with naccid and module",
+            "description": "a CSV file with NACCIDs",
             "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
+        },
+        "transform_file": {
+            "description": "a JSON file with transform data",
+            "base": "file",
+            "optional": true,
             "type": {
                 "enum": [
                     "source code"
@@ -42,10 +52,29 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot"
         },
-        "admin_project": {
-            "description": "Flywheel lookup string for the admin project",
+        "admin_group": {
+            "description": "Name of the admin group",
             "type": "string",
-            "default": "nacc/project-admin"
+            "default": "nacc"
+        },
+        "hierarchy_labels" : {
+            "description": "the string templates for session/acquisition/filename",
+            "type": "object",
+            "default": [ 
+                {
+                    "type": "session",
+                    "template": ""
+                },
+                {
+                    "type": "acquisition",
+                    "template": "",
+                    "transform": "upper"
+                },
+                {
+                    "type": "filename",
+                    "template": ""
+                }
+            ]
         }
     },
     "command": "/bin/run"
