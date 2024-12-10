@@ -1,10 +1,12 @@
 import csv
 from io import StringIO
-from typing import Any, List
+from typing import Any, Dict, List
 
 import pytest
-from csv_app.main import run
+from csv_app.main import CSVTransformVisitor
+from inputs.csv_reader import read_csv
 from outputs.errors import StreamErrorWriter
+from transform.transformer import FieldTransformations, TransformerFactory
 
 
 def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
@@ -81,35 +83,61 @@ def nonvisit_data_stream(valid_nonvisit_table):
     yield stream
 
 
-class TestJSONWriterVisitor:
+class TestCSVTransformVisitor:
     """Tests csv-to-json transformation."""
 
     def test_missing_column_headers(self, missing_columns_stream):
         """test missing expected column headers."""
         err_stream = StringIO()
-        errors = run(input_file=missing_columns_stream,
-                     error_writer=StreamErrorWriter(stream=err_stream,
-                                                    container_id='dummy',
-                                                    fw_path='dummy/dummy'))
+        records: Dict[str, List[Dict[str, Any]]] = {}
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy/dummy')
+        visitor = CSVTransformVisitor(req_fields=['naccid'],
+                                      transformed_records=records,
+                                      error_writer=error_writer,
+                                      transformer_factory=TransformerFactory(
+                                          FieldTransformations()))
+
+        errors = read_csv(input_file=missing_columns_stream,
+                          error_writer=error_writer,
+                          visitor=visitor)
         assert errors, ("expect error for missing columns")
         assert not empty(err_stream), "expect error message in output"
 
     def test_valid_visit(self, visit_data_stream):
         """Test case where data corresponds to form completed at visit."""
         err_stream = StringIO()
-        errors = run(input_file=visit_data_stream,
-                     error_writer=StreamErrorWriter(stream=err_stream,
-                                                    container_id='dummy',
-                                                    fw_path='dummy/dummy'))
+        records: Dict[str, List[Dict[str, Any]]] = {}
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy/dummy')
+        visitor = CSVTransformVisitor(req_fields=['naccid'],
+                                      transformed_records=records,
+                                      error_writer=error_writer,
+                                      transformer_factory=TransformerFactory(
+                                          FieldTransformations()))
+        errors = read_csv(input_file=visit_data_stream,
+                          error_writer=error_writer,
+                          visitor=visitor)
         assert not errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
 
     def test_valid_nonvisit(self, nonvisit_data_stream):
         """Test case where data does not correspond to visit."""
         err_stream = StringIO()
-        errors = run(input_file=nonvisit_data_stream,
-                     error_writer=StreamErrorWriter(stream=err_stream,
-                                                    container_id='dummy',
-                                                    fw_path='dummy/dummy'))
+        records: Dict[str, List[Dict[str, Any]]] = {}
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy/dummy')
+        visitor = CSVTransformVisitor(req_fields=['naccid'],
+                                      transformed_records=records,
+                                      error_writer=error_writer,
+                                      transformer_factory=TransformerFactory(
+                                          FieldTransformations()))
+        errors = read_csv(input_file=nonvisit_data_stream,
+                          error_writer=error_writer,
+                          visitor=visitor)
+
         assert not errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
