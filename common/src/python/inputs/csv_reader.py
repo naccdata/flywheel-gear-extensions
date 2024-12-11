@@ -39,14 +39,17 @@ class CSVVisitor(ABC):
         return True
 
 
-def read_csv(input_file: TextIO, error_writer: ErrorWriter,
-             visitor: CSVVisitor) -> bool:
+def read_csv(input_file: TextIO,
+             error_writer: ErrorWriter,
+             visitor: CSVVisitor,
+             delimiters=',') -> bool:
     """Reads CSV file and applies the visitor to each row.
 
     Args:
       input_file: the input stream for the CSV file
       error_writer: the ErrorWriter for the input file
       visitor: the visitor
+      delimiters: The expected delimiter(s)
     Returns:
       True if the input file was processed without error, False otherwise
     """
@@ -67,8 +70,13 @@ def read_csv(input_file: TextIO, error_writer: ErrorWriter,
         return False
 
     input_file.seek(0)
-    detected_dialect = sniffer.sniff(csv_sample, delimiters=',')
-    reader = DictReader(input_file, dialect=detected_dialect)
+    try:
+        detected_dialect = sniffer.sniff(csv_sample, delimiters=delimiters)
+        reader = DictReader(input_file, dialect=detected_dialect)
+    except Error:
+        # sniffer cannot always determine delimiter, so try to just read directly
+        reader = DictReader(input_file, delimiter=delimiters)
+
     assert reader.fieldnames, "File has header, reader should have fieldnames"
 
     success = visitor.visit_header(list(reader.fieldnames))

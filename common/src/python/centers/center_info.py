@@ -45,7 +45,7 @@ class CenterInfo(BaseModel):
     def set_tags(cls, tags: Tuple[Tuple[str], List[str]]) -> Tuple[str]:
         if not tags:
             return ()
-        return tuple(tags)
+        return tuple(tags)  # type: ignore
 
     def apply(self, visitor: StudyVisitor):
         """Applies visitor to this Center."""

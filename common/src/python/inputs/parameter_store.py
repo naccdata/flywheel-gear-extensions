@@ -2,7 +2,7 @@
 import logging
 from typing import Dict, Optional
 
-from botocore.exceptions import ClientError, ParamValidationError
+from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
 from ssm_parameter_store import EC2ParameterStore
 from typing_extensions import Type, TypedDict, TypeVar

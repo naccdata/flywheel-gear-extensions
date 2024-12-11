@@ -92,7 +92,7 @@ def missing_field_error(field: str) -> FileError:
     """Creates a FileError for a missing field in header."""
     return FileError(error_type='error',
                      error_code='missing-field',
-                     message=f'Missing field {field} in the header')
+                     message=f'Missing field "{field}" in the header')
 
 
 def empty_field_error(field: str,

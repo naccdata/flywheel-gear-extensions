@@ -404,7 +404,21 @@ To complete the gear, you will need to
 Generally, `run.py` should handle gathering any inputs, and `main.py` should handle the computation.
 The `common` directory includes common code that may be used across the gears.
 
-Additionally, you should also document your gear. Under `docs`, add a new directory called `docs/<gear-name>` with an `index.md` and `CHANGELOG.md`. The `index.md` should describe your gear as well as the expected inputs and outputs/results, whereas the Changelog should keep track of gear versions. See [Documenting and versioning](#documenting-and-versioning) for more information.
+Additionally, you should also document your gear, which can also be generated using a cookiecutter template:
+
+```bash
+cookiecutter templates/docs --output-dir docs/
+```
+
+which will create the following directory structure:
+
+```bash
+junk_gear
+├── CHANGELOG.md
+└── index.md
+```
+
+The `index.md` should describe your gear as well as the expected inputs and outputs/results, whereas the Changelog should keep track of gear versions. See [Documenting and versioning](#documenting-and-versioning) for more information.
 
 ## Adding common code
 

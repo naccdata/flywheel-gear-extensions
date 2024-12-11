@@ -107,11 +107,11 @@ class CenterGroup(CenterAdaptor):
         assert group, "No group for center"
 
         center_group = CenterGroup(adcid=center.adcid,
-                                   active=center.active,
+                                   active=center.active,  # type: ignore
                                    group=group,
                                    proxy=proxy)
 
-        tags = list(center.tags)
+        tags = list(center.tags)  # type: ignore
         adcid_tag = f"adcid-{center.adcid}"
         if adcid_tag not in tags:
             tags.append(adcid_tag)
