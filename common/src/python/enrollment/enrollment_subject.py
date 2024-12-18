@@ -5,6 +5,7 @@ from typing import Optional
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import GUID_PATTERN, NACCID_PATTERN
+from keys.keys import DefaultValues
 from pydantic import BaseModel, Field, ValidationError
 
 from enrollment.enrollment_transfer import (
@@ -96,17 +97,18 @@ class EnrollmentSubject(SubjectAdaptor):
     def upload_enrollment(self, record: EnrollmentRecord) -> None:
         """Uploads a file for the enrollment record to this subject.
 
-        The record is saved as a JSON file
-        `enrollment_transfer/enrollment/enrollment.json`
-        under this subject.
+        The record is saved as a JSON file under this subject.
 
         Args:
           record: the enrollment record
         """
+        formdate = record.start_date.strftime("%Y-%m-%d")
+        session_label = f'{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}'
         self.upload_acquisition_file(
-            session_label='enrollment_transfer',
-            acquisition_label='enrollment',
-            filename='enrollment.json',
+            session_label=session_label,
+            acquisition_label=DefaultValues.ENROLLMENT_MODULE,
+            filename=
+            f'{record.naccid}_{session_label}_{DefaultValues.ENROLLMENT_MODULE}.json',
             contents=record.model_dump_json(exclude_none=True),
             content_type='application/json',
             skip_duplicates=False)

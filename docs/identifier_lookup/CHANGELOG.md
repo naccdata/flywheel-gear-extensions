@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.0.5
+* Changes `identifier_mode` gear config to `database_mode`
+  
 ## Unreleased
 
 * [#30](https://github.com/naccdata/flywheel-gear-extensions/pull/30) Initial version - adds the identifier-lookup gear: reads a CSV with ADCID and PTID on each row, looks up NACCID, if NACCID exists, outputs row to file, if NACCID doesn't exist output error

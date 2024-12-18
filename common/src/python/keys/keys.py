@@ -44,6 +44,7 @@ class DefaultValues:
     METADATA_PRJ_LBL = 'metadata'
     ADMIN_PROJECT = 'project-admin'
     SESSION_LBL_PRFX = 'FORMS-VISIT-'
+    ENRL_SESSION_LBL_PRFX = 'ENROLLMENT-TRANSFER-'
     C2TMODE = 1
     LBD_SHORT_VER = 3.1
     QC_JSON_DIR = 'JSON'

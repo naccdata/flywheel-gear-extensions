@@ -282,5 +282,5 @@ class SubjectAdaptor:
         except ApiException as error:
             raise SubjectError(
                 f'Failed to upload file {filename} to '
-                '{self.label}/{session_label}/{acquisition_label}: {error}'
+                f'{self.label}/{session_label}/{acquisition_label}: {error}'
             ) from error

@@ -87,7 +87,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         assert file_input, "create raises exception if missing expected input"
 
         admin_id = context.config.get("admin_group", "nacc")
-        mode = context.config.get("identifiers_mode", "dev")
+        mode = context.config.get("database_mode", "prod")
 
         return IdentifierLookupVisitor(client=client,
                                        admin_id=admin_id,
