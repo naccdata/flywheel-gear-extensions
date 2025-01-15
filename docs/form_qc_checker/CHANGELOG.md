@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.4 (Unreleased)
+
+* Refactors to use `InputFileWrapper.get_parent_project`
+
 ## 1.2.3
 * Updates enrollment qc workflow - writes passed visits to a new file to trigger identifier provisioning.
 

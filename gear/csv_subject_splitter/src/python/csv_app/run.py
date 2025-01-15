@@ -76,7 +76,6 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
         proxy = self.__client.get_proxy()
         file_id = self.__file_input.file_id
-        project = self.__file_input.get_parent_project(proxy)
 
         try:
             file = proxy.get_file(file_id)
@@ -84,6 +83,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
 
+        project = self.__file_input.get_parent_project(proxy, file=file)
         template_map = self.__load_template(self.__hierarchy_labels)
 
         with open(self.__file_input.filepath, mode='r',

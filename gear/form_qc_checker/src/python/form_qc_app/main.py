@@ -141,17 +141,13 @@ def run(  # noqa: C901
 
     file_id = input_wrapper.file_id
     proxy = client_wrapper.get_proxy()
-    project = input_wrapper.get_parent_project(proxy)
     try:
         file = proxy.get_file(file_id)
     except ApiException as error:
         raise GearExecutionError(
             f'Failed to find the input file: {error}') from error
 
-    project = proxy.get_project_by_id(file.parents.project)
-    if not project:
-        raise GearExecutionError(
-            f'Failed to find the project with ID {file.parents.project}')
+    project = input_wrapper.get_parent_project(proxy, file=file)
 
     legacy_label = gear_context.config.get('legacy_project_label',
                                            DefaultValues.LEGACY_PRJ_LABEL)
