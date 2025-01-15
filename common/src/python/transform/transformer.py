@@ -158,6 +158,8 @@ class RecordTransformer(BaseRecordTransformer):
         Returns:
           the transformed record. None, if any transform returns None.
         """
+        log.info('Transforming input record %s', line_num)
+
         record: Optional[Dict[str, Any]] = input_record
         for transformer in self.__transformers:
             if record is None:
