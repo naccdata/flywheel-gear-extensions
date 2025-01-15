@@ -76,16 +76,13 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
         proxy = self.__client.get_proxy()
         file_id = self.__file_input.file_id
+        project = self.__file_input.get_parent_project(proxy)
+
         try:
             file = proxy.get_file(file_id)
         except ApiException as error:
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
-
-        project = proxy.get_project_by_id(file.parents.project)
-        if not project:
-            raise GearExecutionError(
-                f'Failed to find the project with ID {file.parents.project}')
 
         template_map = self.__load_template(self.__hierarchy_labels)
 

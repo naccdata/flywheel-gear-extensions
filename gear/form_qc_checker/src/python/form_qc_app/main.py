@@ -141,6 +141,7 @@ def run(  # noqa: C901
 
     file_id = input_wrapper.file_id
     proxy = client_wrapper.get_proxy()
+    project = input_wrapper.get_parent_project(proxy)
     try:
         file = proxy.get_file(file_id)
     except ApiException as error:

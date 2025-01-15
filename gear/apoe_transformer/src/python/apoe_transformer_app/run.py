@@ -79,23 +79,15 @@ class APOETransformerVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the APOE Transformer app."""
-        if not self.__local_run:
-            try:
-                file_id = self.__file_input.file_id
-                file = self.proxy.get_file(file_id)
-                target_project_id = file.parents.project
-            except ApiException as error:
-                raise GearExecutionError(
-                    f'Failed to find the input file: {error}') from error
-
         if self.__target_project_id:
             target_project_id = self.__target_project_id
+            target_project = self.proxy.get_project_by_id(target_project_id)
         else:
+            target_project = self.__file_input.get_parent_project(self.proxy)
             log.info(
                 "No target project ID provided, defaulting to input file's " +
-                f"parent project: {target_project_id}")
+                "parent project")
 
-        target_project = self.proxy.get_project_by_id(target_project_id)
         if not target_project:
             raise GearExecutionError(
                 f'Did not find a project with ID {target_project_id}')

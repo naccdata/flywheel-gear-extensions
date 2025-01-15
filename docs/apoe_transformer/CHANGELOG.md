@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.4 (Unreleased)
+
+* Refactors to use `InputFileWrapper.get_parent_project`
+
 ## 0.1.3
 
 * Change to only require genotype fields
