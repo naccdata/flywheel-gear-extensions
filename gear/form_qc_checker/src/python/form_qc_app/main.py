@@ -101,8 +101,7 @@ def validate_input_file_type(mimetype: str) -> Optional[str]:
     return None
 
 
-def run(  # noqa: C901
-        *,
+def run(*,
         client_wrapper: ClientWrapper,
         input_wrapper: InputFileWrapper,
         s3_client: S3BucketReader,
@@ -147,10 +146,7 @@ def run(  # noqa: C901
         raise GearExecutionError(
             f'Failed to find the input file: {error}') from error
 
-    project = proxy.get_project_by_id(file.parents.project)
-    if not project:
-        raise GearExecutionError(
-            f'Failed to find the project with ID {file.parents.project}')
+    project = input_wrapper.get_parent_project(proxy, file=file)
 
     legacy_label = gear_context.config.get('legacy_project_label',
                                            DefaultValues.LEGACY_PRJ_LABEL)

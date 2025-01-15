@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.7 (Unreleased)
+
+* Refactors to use `InputFileWrapper.get_parent_project`
+
 ## 1.0.6
 
 * Fixes bug where an empty file would be generated if no entries passed
