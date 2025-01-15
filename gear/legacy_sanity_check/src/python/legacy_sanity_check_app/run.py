@@ -1,4 +1,4 @@
-"""Entry script for {{cookiecutter.gear_name}}."""
+"""Entry script for Legacy Sanity Check."""
 
 import logging
 
@@ -11,13 +11,13 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
 )
-from {{cookiecutter.app_name}}.main import run
+from legacy_sanity_check_app.main import run
 from inputs.parameter_store import ParameterStore
 
 log = logging.getLogger(__name__)
 
-class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
-    """Visitor for the {{cookiecutter.gear_name}} gear."""
+class LegacySanityCheckVisitor(GearExecutionEnvironment):
+    """Visitor for the Legacy Sanity Check gear."""
 
     def __init__(self, admin_id: str, client: ClientWrapper, new_only: bool):
         super().__init__(client=client, admin_id=admin_id)
@@ -27,8 +27,8 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
         cls,
         context: GearToolkitContext,
         parameter_store: Optional[ParameterStore] = None
-    ) -> '{{cookiecutter.class_name}}Visitor':
-        """Creates a {{cookiecutter.gear_name}} execution visitor.
+    ) -> 'LegacySanityCheckVisitor':
+        """Creates a Legacy Sanity Check execution visitor.
 
         Args:
             context: The gear context.
@@ -43,7 +43,7 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
         client = GearBotClient.create(context=context,
                                       parameter_store=parameter_store)
 
-        return {{cookiecutter.class_name}}Visitor(
+        return LegacySanityCheckVisitor(
             admin_id=context.config.get("admin_group", "nacc"),
             client=client,
             new_only=context.config.get("new_only", False))
@@ -53,10 +53,10 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
             new_only=self.__new_only)
 
 def main():
-    """Main method for {{cookiecutter.gear_name}}."""
+    """Main method for Legacy Sanity Check."""
 
     GearEngine.create_with_parameter_store().run(
-        gear_type={{cookiecutter.class_name}}Visitor)
+        gear_type=LegacySanityCheckVisitor)
 
 if __name__ == "__main__":
     main()
