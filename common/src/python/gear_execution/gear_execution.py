@@ -7,8 +7,10 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+import flywheel
 from centers.nacc_group import NACCGroup
 from flywheel.client import Client
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from fw_client import FWClient
@@ -236,6 +238,30 @@ class InputFileWrapper:
             module = match.group(2)
 
         return module
+
+    def get_parent_project(self,
+                           proxy: FlywheelProxy) -> Optional[flywheel.Project]:
+        """Gets the parent project that owns this file.
+
+        Args:
+            proxy: The Flywheel proxy
+        """
+        file = None
+        try:
+            file = proxy.get_file(self.file_id)
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Failed to find the input file: {error}') from error
+
+        if not file:
+            return None
+
+        project = proxy.get_project_by_id(file.parents.project)
+        if not project:
+            raise GearExecutionError(
+                f'Failed to find the project with ID {file.parents.project}')
+
+        return project
 
 
 # pylint: disable=too-few-public-methods
