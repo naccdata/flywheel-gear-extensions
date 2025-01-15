@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (

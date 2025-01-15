@@ -243,7 +243,7 @@ class InputFileWrapper:
     def get_parent_project(
             self,
             proxy: FlywheelProxy,
-            file: Optional[FileEntry] = None) -> Optional[flywheel.Project]:
+            file: Optional[FileEntry] = None) -> flywheel.Project:
         """Gets the parent project that owns this file.
 
         Args:
@@ -256,9 +256,6 @@ class InputFileWrapper:
             except ApiException as error:
                 raise GearExecutionError(
                     f'Failed to find the input file: {error}') from error
-
-        if not file:
-            return None
 
         project = proxy.get_project_by_id(file.parents.project)
         if not project:

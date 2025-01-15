@@ -101,8 +101,7 @@ def validate_input_file_type(mimetype: str) -> Optional[str]:
     return None
 
 
-def run(  # noqa: C901
-        *,
+def run(*,
         client_wrapper: ClientWrapper,
         input_wrapper: InputFileWrapper,
         s3_client: S3BucketReader,
