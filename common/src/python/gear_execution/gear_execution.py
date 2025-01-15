@@ -239,11 +239,12 @@ class InputFileWrapper:
 
         return module
 
-    def get_parent_project(self, proxy: FlywheelProxy) -> Optional[flywheel.Project]
+    def get_parent_project(self,
+                           proxy: FlywheelProxy) -> Optional[flywheel.Project]:
         """Gets the parent project that owns this file.
 
         Args:
-            proxy: The Flywheel project
+            proxy: The Flywheel proxy
         """
         file = None
         try:
