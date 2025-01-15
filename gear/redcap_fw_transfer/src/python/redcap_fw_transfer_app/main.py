@@ -204,7 +204,7 @@ def run(*, gear_context: GearToolkitContext, redcap_con: REDCapConnection,
             prj_adaptor.label)
         return
 
-    filename = 'redcapingest-' + module + '.csv'
+    filename = 'redcap-ingest-' + module + '.csv'
     upload_to_flywheel(visits=records_list,
                        extra_fields=extra_fields,
                        filename=filename,

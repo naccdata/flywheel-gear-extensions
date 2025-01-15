@@ -66,7 +66,7 @@ def get_redcap_projects_metadata(
     REDCap->FW mapping info is included in each center's metadata project.
 
     Args:
-        group_adaptor: Flywhee group adaptor
+        group_adaptor: Flywheel group adaptor
         project_label: Flywheel ingest project label to upload data
 
     Returns:
@@ -158,7 +158,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
     def get_redcap_connection(
         self, redcap_project: REDCapFormProjectMetadata
     ) -> Optional[REDCapConnection]:
-        """Get API connection for the sepcified REDCap project.
+        """Get API connection for the specified REDCap project.
 
         Args:
             redcap_project: REDCap project metadata
@@ -192,7 +192,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
             context: the gear execution context
 
         Raises:
-            GearExecutionError if error occurrs while transferring data
+            GearExecutionError if error occurs while transferring data
         """
 
         assert context, 'Gear context required'
