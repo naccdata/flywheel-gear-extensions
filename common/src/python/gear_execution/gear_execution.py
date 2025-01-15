@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 import flywheel
 from centers.nacc_group import NACCGroup
 from flywheel.client import Client
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
@@ -239,19 +240,22 @@ class InputFileWrapper:
 
         return module
 
-    def get_parent_project(self,
-                           proxy: FlywheelProxy) -> Optional[flywheel.Project]:
+    def get_parent_project(
+            self,
+            proxy: FlywheelProxy,
+            file: Optional[FileEntry] = None) -> Optional[flywheel.Project]:
         """Gets the parent project that owns this file.
 
         Args:
             proxy: The Flywheel proxy
+            file: (optional) the Flywheel FileEntry representing this file
         """
-        file = None
-        try:
-            file = proxy.get_file(self.file_id)
-        except ApiException as error:
-            raise GearExecutionError(
-                f'Failed to find the input file: {error}') from error
+        if not file:
+            try:
+                file = proxy.get_file(self.file_id)
+            except ApiException as error:
+                raise GearExecutionError(
+                    f'Failed to find the input file: {error}') from error
 
         if not file:
             return None
