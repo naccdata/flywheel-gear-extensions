@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 def run(*,
         proxy: FlywheelProxy,
         new_only: bool = False):
-    """Runs ADD DETAIL process.
+    """Runs the {{cookiecutter.gear_name}} process.
 
     Args:
         proxy: the proxy for the Flywheel instance
