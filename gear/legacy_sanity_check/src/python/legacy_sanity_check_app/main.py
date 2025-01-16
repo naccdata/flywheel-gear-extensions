@@ -1,11 +1,12 @@
 """Defines Legacy Sanity Check."""
 
+import json
 import logging
 
 from typing import List
 
 import flywheel
-from datastore.forms_store import FormsStoreGeneric
+from datastore.forms_store import FormStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from key.keys import (
     DefaultValues,
@@ -13,6 +14,7 @@ from key.keys import (
     SysErrorCodes,
     preprocess_errors,
 )
+from notifications.email import EmailClient, create_ses_client
 from outputs.errors import ListErrorWriter, preprocessing_error
 from preprocess.preprocessor import FormProjectConfigs
 
@@ -23,13 +25,15 @@ class LegacySanityChecker:
     """Class to run sanity checks on legacy retrospective projects."""
 
     def __init__(self,
-                 form_store: FormStoreGeneric,
+                 form_store: FormStore,
                  form_configs: FormProjectConfigs,
-                 error_writer: ListErrorWriter):
+                 error_writer: ListErrorWriter,
+                 legacy_project: ProjectAdaptor):
         """Initializer."""
         self.__form_store = form_store
         self.__form_configs = form_configs
         self.__error_writer = error_writer
+        self.__legacy_project = legacy_project
 
     def check_multiple_ivp(self,
                            subject_lbl: str,
@@ -68,28 +72,34 @@ class LegacySanityChecker:
                 )
             )
 
-    def run_all_checks(self, subject_lbl: str) -> None:
-        """Runs all sanity checks on the given subject.
-
-        Args:
-            subject_lbl: The subject's label
+    def run_all_checks(self) -> None:
+        """Runs all sanity checks for each subject/module in the
+        retrospective project
         """
         module_configs = self.__form_configs.module_configs
-        for module in module_configs:
-            self.check_multiple_ivp(subject_lbl, module)
+        for subject in self.__legacy_project.subjects():
+            for module in module_configs:
+                self.check_multiple_ivp(subject.label, module)
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        sanity_checker: LegacySanityChecker,
-        project: flywheel.Project):
-    """Runs the Legacy Sanity Check process for each subject
-    in the project.
+    def send_email(sender_email: str,
+                   target_emails: List[str],
+                   group_lbl: str):
+        """Send a raw email notifying of the error
 
-    Args:
-        proxy: the proxy for the Flywheel instance
-        sanity_checker: The LegacySanityChecker
-        project: The Flywheel project to evaluate
-    """
-    for subject in project.subjects():
-        sanity_checker.run_all_checks(subject.label)
+        Args:
+            sender_email: The sender email
+            target_emails: The target email(s)
+            group_lbl: The group label
+        """
+        client = EmailClient(client=create_ses_client(),
+                             source=sender_email)
+
+        subject = f'{self.__project.label} Sanity Check Failure'
+        body = f'Project {self.__project.label} for {group_lbl} failed '
+             + 'the following legacy sanity checks:\n'
+        body += json.dumps(self.__error_writer.errors())
+
+        client.send_raw(destinations=target_emails,
+                        subject=subject,
+                        body=body)

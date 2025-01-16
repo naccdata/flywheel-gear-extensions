@@ -12,10 +12,7 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
 )
-from legacy_sanity_check_app.main import (
-    LegacySanityChecker,
-    run,
-)
+from legacy_sanity_check_app.main import LegacySanityChecker
 from inputs.parameter_store import ParameterStore
 from outputs.errors import ListErrorWriter
 from preprocess.preprocessor import FormProjectConfigs
@@ -27,12 +24,19 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
     """Visitor for the Legacy Sanity Check gear."""
 
     def __init__(self,
+                 client: ClientWrapper,
                  file_input: InputFileWrapper,
-                 form_configs_input: InputFileWrapper):
-        super().__init__(client=client, admin_id=admin_id)
+                 form_configs_input: InputFileWrapper,
+                 ingest_project_label: str,
+                 sender_email: str,
+                 target_emails: List[str]):
+        super().__init__(client=client)
 
         self.__file_input = file_input
         self.__form_configs_input = form_configs_input
+        self.__ingest_project_label = ingest_project_label
+        self.__sender_email = sender_email
+        self.__target_emails = target_emails
 
     @classmethod
     def create(
@@ -63,9 +67,17 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             input_name='form_configs_file', context=context)
         assert form_configs_input, "missing expected input, form_configs_file"
 
+        ingest_project_label = context.get('ingest_project_label', 'ingest-form')
+        sender_email = context.get('sender_email', 'nacchelp@uw.edu')
+        target_emails = context.get('target_emails', 'nacchelp@uw.edu')
+        target_emails = [x.strip() for x in target_emails.split(',')]
+
         return LegacySanityCheckVisitor(
             file_input=file_input,
-            form_configs_input=form_configs_input)
+            form_configs_input=form_configs_input,
+            ingest_project_label=ingest_project_label,
+            sender_email=sender_email,
+            target_emails=target_emails)
 
     def run(self, context: GearToolkitContext) -> None:
         """Run the Legacy Sanity Checker"""
@@ -75,9 +87,6 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         except ApiException as error:
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
-
-        project = self.__file_input.get_parent_project(
-            self.proxy, file=file)
 
         error_writer = ListErrorWriter(
             container_id=file_id,
@@ -94,16 +103,41 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                     'Error reading form configurations file'
                     f'{self.__form_configs_input.filename}: {error}') from error
 
+        project = ProjectAdaptor(
+            project=self.__file_input.get_parent_project(self.proxy, file=file),
+            proxy=self.proxy)
+
+        # grab the corresponding ingest (e.g. UDSv4) project based on the group
+        ingest_group = None
+        group = GroupAdaptor(group=self.proxy.find_group(project.group),
+                             proxy=self.proxy)
+        if group:
+            ingest_project = group.find_project(
+                label=self.__ingest_project_label)
+
+        # all centers should have a corresponding ingest project
+        # raise error if group/project not found - could also send email here?
+        if not ingest_project:
+            raise GearExecutionError(
+                f"Could not find {self.__ingest_project_label} project "
+                 f"for {project.group}")
+
         sanity_checker = LegacySanityChecker(
-            form_store=FormsStoreGeneric(project=project),
+            form_store=FormStore(ingest_project=ingest_project,
+                                 legacy_project=project),
             form_configs=form_configs,
             error_writer=error_writer)
 
-        run(proxy=self.proxy,
+        success = sanity_checker.run_all_checks(
+            proxy=self.proxy,
             sanity_checker=sanity_checker,
             project=project)
 
-        # TODO: WRITE ERRORS TO LOG FILE
+        if not success:
+            sanity_checker.send_email(
+                sender_email=self.__sender_email,
+                target_emails=self.__target_emails,
+                group_lbl=group.label)
 
 def main():
     """Main method for Legacy Sanity Check."""

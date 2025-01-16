@@ -13,16 +13,106 @@ log = logging.getLogger(__name__)
 SearchOperator = Literal['=', '>', '<', '!=', '>=', '<=', '=|']
 
 
-class FormsStoreGeneric:
-    """Generic class to extract/query form data from Flywheel."""
+class FormsStore():
+    """Class to extract/query form data from Flywheel for ingest projects."""
 
-    def __init__(self, project: ProjectAdaptor) -> None:
-        self._project = project
-        self._proxy = project.proxy
+    def __init__(self, ingest_project: ProjectAdaptor,
+                 legacy_project: Optional[ProjectAdaptor]) -> None:
+        self.__ingest_project = ingest_project
+        self.__legacy_project = legacy_project
+        self.__proxy = self.__ingest_project.proxy
 
-    def _query_project(
+    def is_new_subject(self, subject_lbl: str) -> bool:
+        """_summary_
+
+        Args:
+            subject_lbl (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+
+        if self.__ingest_project.find_subject(subject_lbl):
+            return False
+
+        return not (self.__legacy_project
+                    and self.__legacy_project.find_subject(subject_lbl))
+
+    def query_ingest_project(
             self,
             *,
+            subject_lbl: str,
+            module: str,
+            search_col: str,
+            search_val: str | List[str],
+            search_op: SearchOperator,
+            qc_gear: Optional[str] = None,
+            extra_columns: Optional[List[str]] = None,
+            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
+        """_summary_
+
+        Args:
+            subject_lbl (str): _description_
+            module (str): _description_
+            search_col (str): _description_
+            search_val (str | List[str]): _description_
+            search_op (SearchOperator): _description_
+            qc_gear (Optional[str], optional): _description_. Defaults to None.
+
+        Returns:
+            Optional[List[Dict[str, str]]]: _description_
+        """
+        return self.__query_project(project=self.__ingest_project,
+                                    subject_lbl=subject_lbl,
+                                    module=module,
+                                    search_col=search_col,
+                                    search_val=search_val,
+                                    search_op=search_op,
+                                    qc_gear=qc_gear,
+                                    extra_columns=extra_columns)
+
+    def query_legacy_project(
+            self,
+            *,
+            subject_lbl: str,
+            module: str,
+            search_col: str,
+            search_val: str | List[str],
+            search_op: SearchOperator,
+            qc_gear: Optional[str] = None,
+            extra_columns: Optional[List[str]] = None,
+            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
+        """_summary_
+
+        Args:
+            subject_lbl (str): _description_
+            module (str): _description_
+            search_col (str): _description_
+            search_val (str): _description_
+            search_op (SearchOperator): _description_
+            qc_gear (Optional[str], optional): _description_. Defaults to None.
+
+        Returns:
+            Optional[List[Dict[str, str]]]: _description_
+        """
+        if not self.__legacy_project:
+            log.warning('Legacy project not provided for group %s',
+                        self.__ingest_project.group)
+            return None
+
+        return self.__query_project(project=self.__legacy_project,
+                                    subject_lbl=subject_lbl,
+                                    module=module,
+                                    search_col=search_col,
+                                    search_val=search_val,
+                                    search_op=search_op,
+                                    qc_gear=qc_gear,
+                                    extra_columns=extra_columns)
+
+    def __query_project(
+            self,
+            *,
+            project: ProjectAdaptor,
             subject_lbl: str,
             module: str,
             search_col: str,
@@ -34,6 +124,7 @@ class FormsStoreGeneric:
         """Retrieve previous visit records for the specified project/subject.
 
         Args:
+            project: Flywheel project container
             subject_lbl: Flywheel subject label
             module: module name
             search_col: variable name that visits are sorted by
@@ -46,7 +137,6 @@ class FormsStoreGeneric:
             List[Dict]: List of visits matching with the specified cutoff value,
                         sorted in descending order
         """
-        project = self._project
 
         subject = project.find_subject(subject_lbl)
         if not subject:
@@ -123,97 +213,3 @@ class FormsStoreGeneric:
                       file_name, error)
 
         return visit_data
-
-
-class FormsStore:
-    """Class to extract/query form data from Flywheel for ingest projects."""
-
-    def __init__(self, ingest_project: ProjectAdaptor,
-                 legacy_project: Optional[ProjectAdaptor]) -> None:
-        super().__init__(project=ingest_project)
-        self.__legacy_project = legacy_project
-
-    def is_new_subject(self, subject_lbl: str) -> bool:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-
-        Returns:
-            bool: _description_
-        """
-
-        if self._project.find_subject(subject_lbl):
-            return False
-
-        return not (self.__legacy_project
-                    and self.__legacy_project.find_subject(subject_lbl))
-
-    def query_ingest_project(
-            self,
-            *,
-            subject_lbl: str,
-            module: str,
-            search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str | List[str]): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-
-        Returns:
-            Optional[List[Dict[str, str]]]: _description_
-        """
-        return self._query_project(subject_lbl=subject_lbl,
-                                   module=module,
-                                   search_col=search_col,
-                                   search_val=search_val,
-                                   search_op=search_op,
-                                   qc_gear=qc_gear,
-                                   extra_columns=extra_columns)
-
-    def query_legacy_project(
-            self,
-            *,
-            subject_lbl: str,
-            module: str,
-            search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-
-        Returns:
-            Optional[List[Dict[str, str]]]: _description_
-        """
-        if not self.__legacy_project:
-            log.warning('Legacy project not provided for group %s',
-                        self._project.group)
-            return None
-
-        return self._query_project(subject_lbl=subject_lbl,
-                                   module=module,
-                                   search_col=search_col,
-                                   search_val=search_val,
-                                   search_op=search_op,
-                                   qc_gear=qc_gear,
-                                   extra_columns=extra_columns)
