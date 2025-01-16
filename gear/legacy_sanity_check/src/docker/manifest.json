@@ -27,7 +27,16 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "The project YAML file",
+            "description": "The input file",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
             "base": "file",
             "type": {
                 "enum": [
