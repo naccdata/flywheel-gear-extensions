@@ -2,8 +2,8 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
-from flywheel import Project
 from flywheel.models.file_output import FileOutput  # type: ignore
+from flywheel.models.project_output import ProjectOutput  # type: ignore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 MODULE_PATTERN = re.compile(r"^.+-([a-zA-Z]+)(\..+)$")
@@ -33,7 +33,7 @@ class FormSchedulerQueue:
         }
 
     def add_files(self,
-                  project: Project,
+                  project: ProjectOutput,
                   file_extensions: Optional[List[str]] = None) -> int:
         """Add the files (filtered by queue tags) to queue.
 
