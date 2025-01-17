@@ -2,23 +2,31 @@
 
 import logging
 
-from typing import Optional
+from typing import List, Optional
 
-from datastore.forms_store import FormsStoreGeneric
+from datastore.forms_store import FormsStore
+from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import (
+    GroupAdaptor,
+    ProjectAdaptor,
+)
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    InputFileWrapper,
 )
 from legacy_sanity_check_app.main import LegacySanityChecker
 from inputs.parameter_store import ParameterStore
-from outputs.errors import ListErrorWriter
+from outputs.errors import ListErrorWriter, FileError
 from preprocess.preprocessor import FormProjectConfigs
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.ERROR)
+
 
 class LegacySanityCheckVisitor(GearExecutionEnvironment):
     """Visitor for the Legacy Sanity Check gear."""
@@ -67,12 +75,14 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             input_name='form_configs_file', context=context)
         assert form_configs_input, "missing expected input, form_configs_file"
 
-        ingest_project_label = context.get('ingest_project_label', 'ingest-form')
-        sender_email = context.get('sender_email', 'nacchelp@uw.edu')
-        target_emails = context.get('target_emails', 'nacchelp@uw.edu')
+        config = context.config
+        ingest_project_label = config.get('ingest_project_label', 'ingest-form')
+        sender_email = config.get('sender_email', 'no-reply@naccdata.org')
+        target_emails = config.get('target_emails', 'nacchelp@uw.edu')
         target_emails = [x.strip() for x in target_emails.split(',')]
 
         return LegacySanityCheckVisitor(
+            client=client,
             file_input=file_input,
             form_configs_input=form_configs_input,
             ingest_project_label=ingest_project_label,
@@ -83,7 +93,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         """Run the Legacy Sanity Checker"""
         file_id = self.__file_input.file_id
         try:
-            file = proxy.get_file(file_id)
+            file = self.proxy.get_file(file_id)
         except ApiException as error:
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
@@ -123,17 +133,17 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                  f"for {project.group}")
 
         sanity_checker = LegacySanityChecker(
-            form_store=FormStore(ingest_project=ingest_project,
-                                 legacy_project=project),
+            form_store=FormsStore(ingest_project=ingest_project,
+                                  legacy_project=project),
             form_configs=form_configs,
-            error_writer=error_writer)
+            error_writer=error_writer,
+            legacy_project=project)
 
-        success = sanity_checker.run_all_checks(
-            proxy=self.proxy,
-            sanity_checker=sanity_checker,
-            project=project)
-
-        if not success:
+        # could technically iterate on all subjects, but we only
+        # really need to check the subject that had a new form.
+        # could probably even not both iterating on all modules
+        subject = project.get_subject_by_id(file.parents.subject)
+        if not sanity_checker.run_all_checks(subject.label):
             sanity_checker.send_email(
                 sender_email=self.__sender_email,
                 target_emails=self.__target_emails,

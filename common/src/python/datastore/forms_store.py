@@ -18,13 +18,13 @@ class FormQueryArgs(BaseModel):
     """Make pydantic model for query arguments to make them easier
     to pass around.
     """
-    subject_lbl: str,
-    module: str,
-    search_col: str,
-    search_val: str | List[str],
-    search_op: SearchOperator,
-    qc_gear: Optional[str] = None,
-    extra_columns: Optional[List[str]] = None,
+    subject_lbl: str
+    module: str
+    search_col: str
+    search_val: Optional[str] | Optional[List[str]] = None
+    search_op: Optional[SearchOperator] = None
+    qc_gear: Optional[str] = None
+    extra_columns: Optional[List[str]] = None
     find_all: bool = False
 
 
@@ -59,8 +59,8 @@ class FormsStore():
             subject_lbl: str,
             module: str,
             search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
+            search_val: Optional[str] | Optional[List[str]] = None,
+            search_op: Optional[SearchOperator] = None,
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
@@ -84,7 +84,8 @@ class FormsStore():
                                     search_val=search_val,
                                     search_op=search_op,
                                     qc_gear=qc_gear,
-                                    extra_columns=extra_columns)
+                                    extra_columns=extra_columns,
+                                    find_all=find_all)
 
     def query_legacy_project(
             self,
@@ -92,8 +93,8 @@ class FormsStore():
             subject_lbl: str,
             module: str,
             search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
+            search_val: Optional[str] | Optional[List[str]] = None,
+            search_op: Optional[SearchOperator] = None,
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
@@ -122,7 +123,8 @@ class FormsStore():
                                     search_val=search_val,
                                     search_op=search_op,
                                     qc_gear=qc_gear,
-                                    extra_columns=extra_columns)
+                                    extra_columns=extra_columns,
+                                    find_all=find_all)
 
     def __query_project(
             self,
@@ -131,8 +133,8 @@ class FormsStore():
             subject_lbl: str,
             module: str,
             search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
+            search_val: Optional[str] | Optional[List[str]] = None,
+            search_op: Optional[SearchOperator],
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
@@ -186,6 +188,12 @@ class FormsStore():
 
         filters = f'acquisition.label={module}'
         if not find_all:
+            if not search_op or not search_val:
+                raise ValueError("search_op and search_val must be set if find_all false")
+
+            if search_op == DefaultValues.FW_SEARCH_OR:
+                search_val = f"[{','.join(search_val)}]"
+
             filters += f',{search_col}{search_op}{search_val}'
 
         if qc_gear:

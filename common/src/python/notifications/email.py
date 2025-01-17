@@ -113,7 +113,7 @@ class EmailClient:
           the message ID if successfully sent
         """
         raw_msg = f'From: {self.__source}\n' \
-            + f'To: {', '.join(destinations)}\n' \
+            + f"To: {', '.join(destinations)}\n" \
             + f'Subject: {subject}\n' \
             + 'MIME-Version: 1.0\n' \
             + 'Content-Type: text/plain\n' \
@@ -122,9 +122,7 @@ class EmailClient:
             response = self.__client.send_raw_email(
                 Source=self.__source,
                 Destinations=destinations,
-                RawMessage={
-                    'Data': raw_msg
-                }
+                RawMessage={'Data': raw_msg}
             )
         except ClientError as error:
             log.error("Failed to send raw email")

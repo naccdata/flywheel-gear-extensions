@@ -6,16 +6,22 @@ import logging
 from typing import List
 
 import flywheel
-from datastore.forms_store import FormQueryArgs, FormStore
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from key.keys import (
+from datastore.forms_store import FormQueryArgs, FormsStore
+from flywheel_adaptor.flywheel_proxy import (
+    FlywheelProxy,
+    ProjectAdaptor,
+)
+from keys.keys import (
     DefaultValues,
     FieldNames,
     SysErrorCodes,
-    preprocess_errors,
 )
 from notifications.email import EmailClient, create_ses_client
-from outputs.errors import ListErrorWriter, preprocessing_error
+from outputs.errors import (
+    FileError,
+    ListErrorWriter,
+    preprocess_errors,
+)
 from preprocess.preprocessor import FormProjectConfigs
 
 log = logging.getLogger(__name__)
@@ -25,7 +31,7 @@ class LegacySanityChecker:
     """Class to run sanity checks on legacy retrospective projects."""
 
     def __init__(self,
-                 form_store: FormStore,
+                 form_store: FormsStore,
                  form_configs: FormProjectConfigs,
                  error_writer: ListErrorWriter,
                  legacy_project: ProjectAdaptor):
@@ -47,8 +53,7 @@ class LegacySanityChecker:
         Returns:
             True if if passes the check, False otherwise
         """
-        log.info(f'Checking for multiple visits for {subject_lbl} '
-                 + f' module {module}')
+        log.info(f'Checking for multiple visits in {module}')
 
         module_configs = self.__form_configs.module_configs.get(module, None)
         if not module_configs:
@@ -68,8 +73,8 @@ class LegacySanityChecker:
         # first check there aren't somehow multiple initial retrospective visits
         num_legacy = len(init_legacy_packets) if init_legacy_packets else 0
         if num_legacy > 1:
-            log.error(f"Subject {subject_lbl} has multiple retrospective initial "
-                      + f"visit packets for {module} {num_initial_packets}")
+            log.error(f"Multiple retrospective initial visit packets"
+                      + f"found for {module} {num_initial_packets}")
             self.__error_writer.write(
                 FileError(
                     error_type='error',
@@ -80,24 +85,27 @@ class LegacySanityChecker:
 
         # if there are no retrospective legacy initial packets, we're good
         elif num_legacy == 0:
-            return  True
+            log.info("Retrospective project has no initial projects, passes check")
+            return True
 
-        log.info("Retrsopective project has an initial visit packet "
+        log.info("Retrospective project has an initial visit packet, "
                  + "checking ingest project")
 
         # next compare against ingest visits
-        init_packets = self.__form_store.query_project(
+        #initial_packet_query.search_val = ['I4']
+        init_packets = self.__form_store.query_ingest_project(
              **initial_packet_query.model_dump())
 
         # if no initial packets, then we're good to go
         if not init_packets:
+            log.info("Ingest project has no initial visits, passes check")
             return True
 
         # it not UDS or somehow more than one initial packet exists
         # we have a problem, report error
-        if module.lower() != 'uds' or len(init_packets):
-            log.error(f"Subject {subject_lbl} already has initial "
-                      + f"visit packet(s) for {module} in ingest project")
+        if module.lower() != 'uds' or len(init_packets) > 1:
+            log.error(f"Initial visit packet(s) already exist for "
+                      + f"{module} in ingest project")
             self.__error_writer.write(
                 FileError(
                     error_type='error',
@@ -108,17 +116,19 @@ class LegacySanityChecker:
 
         # otherwise, for UDS we need to check if it is an I4,
         # which is allowed, otherwise also fail the check
-        record = init_packets[0].get_visit_data(
+        init_packet = init_packets[0]
+        record = self.__form_store.get_visit_data(
             init_packet['file.name'],
             init_packet['file.parents.acquisition'])
 
         if not record:
             raise ValueError(
-                f"Error reading previous visit file {initial_packet['file.name']}"
+                f"Error reading previous visit file {init_packet['file.name']}"
             )
+
         if record[FieldNames.PACKET] != DefaultValues.UDS_I4_PACKET:
-            log.error(f"Subject {subject_lbl} already has non-I4 initial "
-                      + f"visit packet(s) for {module} in ingest project")
+            log.error(f"Non-I4 initial visit packet already exists for"
+                      + f"{module} in ingest project")
             self.__error_writer.write(
                 FileError(
                     error_type='error',
@@ -129,7 +139,7 @@ class LegacySanityChecker:
 
         # ingest project would only accept an I4 if it was valid, so we
         # don't need to check further from here
-        log.info("Ingest project has singular I4 packet, okay")
+        log.info("Ingest project has singular I4 packet, passes check")
         return True
 
     def check_duplicate_visit(self,
@@ -145,31 +155,33 @@ class LegacySanityChecker:
         Returns:
             True if if passes the check, False otherwise
         """
-        log.info(f'Checking for duplicate visits for {subject_lbl} '
-                 + f' module {module}')
+        log.info(f'Checking for duplicate visits in {module}')
 
         module_configs = self.__form_configs.module_configs.get(module, None)
         if not module_configs:
             raise ValueError(f"Unrecognized module: {module}")
 
+        visitdate = module_configs.date_field
+        legacy_visitdate = module_configs.legacy_date \
+            if module_configs.legacy_date else visitdate
+
         duplicates_query = FormQueryArgs(
             subject_lbl=subject_lbl,
             module=module,
             search_col=FieldNames.PACKET,
-            search_val=None,
-            search_op=None,
-            extra_columns=[FieldNames.VISITNUM, FieldNames.VISITDATE],
+            extra_columns=[FieldNames.VISITNUM, module_configs.date_field],
             find_all=True)
 
-        ingest_results = self.__form_store.query_project(
+        ingest_results = self.__form_store.query_ingest_project(
              **duplicates_query.model_dump())
-        retro_results = self.__form_store.query_project(
+        duplicates_query.extra_columns[1] = legacy_visitdate
+        retro_results = self.__form_store.query_legacy_project(
              **duplicates_query.model_dump())
 
         # if there are no visits for the module/packet in one of the projects
         # this automatically passes
-        if not ingest_results or not restro_results:
-            log.info("No results found for one or more projects, "
+        if not ingest_results or not retro_results:
+            log.info("No visits found for one or more projects, "
                      + "automatically passes")
             return True
 
@@ -178,16 +190,18 @@ class LegacySanityChecker:
         visitnum_lbl = \
             f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         visitdate_lbl = \
-            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITDATE}'
+            f'{DefaultValues.FORM_METADATA_PATH}.{visitdate}'
+        legacy_visitdate_lbl = \
+            f'{DefaultValues.FORM_METADATA_PATH}.{legacy_visitdate}'
 
         ingest_records = [(record[visitnum_lbl], record[visitdate_lbl])
                           for record in ingest_results]
-        retro_records = [(record[visitnum_lbl], record[visitdate_lbl])
+        retro_records = [(record[visitnum_lbl], record[legacy_visitdate_lbl])
                           for record in retro_results]
 
         no_duplicates = True
-        for record in ingest_record:
-            if record in retro_records:
+        for record in retro_records:
+            if record in ingest_records:
                 no_duplicates = False
                 duplicate_val = f'subject: {subject_lbl} module: {module}, ' \
                     + f'packet: {packet} visitnum: {record[0]}, ' \
@@ -202,23 +216,35 @@ class LegacySanityChecker:
                         message="Duplicate records found between ingest "
                             + "and retrospective projects"))
 
+        if no_duplicates:
+            log.info("No duplicates found, passes check")
+
         return no_duplicates
 
-    def run_all_checks(self) -> None:
-        """Runs all sanity checks for each subject/module in the
-        retrospective project
-        """
-        module_configs = self.__form_configs.module_configs
-        for subject in self.__legacy_project.subjects():
-            for module in module_configs:
-                if not self.check_multiple_ivp(subject.label, module):
-                    continue
-                self.check_duplicate_visit(subject.label, module)
+    def run_all_checks(self, subject_lbl: str) -> bool:
+        """Runs all sanity checks for the given subject on
+        all modules in the retrospective project
 
-    def send_email(sender_email: str,
+        Returns:
+            Whether or not checks were successful
+        """
+        log.info(f"Running legacy sanity checks for subject {subject_lbl}")
+        result = True
+
+        for module in self.__form_configs.module_configs:
+            if not self.check_multiple_ivp(subject_lbl, module):
+                result = False
+                continue
+            result = self.check_duplicate_visit(subject_lbl, module) \
+                and result
+
+        return result
+
+    def send_email(self,
+                   sender_email: str,
                    target_emails: List[str],
-                   group_lbl: str):
-        """Send a raw email notifying of the error
+                   group_lbl: str) -> None:
+        """Send a raw email notifying target emails of the error
 
         Args:
             sender_email: The sender email
@@ -228,10 +254,11 @@ class LegacySanityChecker:
         client = EmailClient(client=create_ses_client(),
                              source=sender_email)
 
-        subject = f'{self.__project.label} Sanity Check Failure'
-        body = f'Project {self.__project.label} for {group_lbl} failed '
-             + 'the following legacy sanity checks:\n'
-        body += json.dumps(self.__error_writer.errors())
+        project_lbl = self.__legacy_project.label
+        subject = f'{project_lbl} Sanity Check Failure'
+        body = f'Project {project_lbl} for {group_lbl} failed ' \
+             + 'the following legacy sanity checks:\n\n' \
+             + json.dumps(self.__error_writer.errors(), indent=4)
 
         client.send_raw(destinations=target_emails,
                         subject=subject,

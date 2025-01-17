@@ -36,7 +36,7 @@
             }
         },
         "form_configs_file": {
-            "description": "A JSON file with forms module configurations",
+            "description": "A JSON file with forms module configurations. Should be the same as the one used by the ingest project.",
             "base": "file",
             "type": {
                 "enum": [
@@ -51,15 +51,20 @@
             "type": "boolean",
             "default": false
         },
-        "admin_group": {
-            "description": "Name of the admin group",
+        "ingest_project_label": {
+            "description": "Label of the corresponding ingest project to compare this retrospective project to",
             "type": "string",
-            "default": "nacc"
+            "default": "ingest-form"
         },
-        "new_only": {
-            "description": "Only create projects for centers tagged as new",
-            "type": "boolean",
-            "default": false
+        "sender_email": {
+            "description": "Email to send error reports from",
+            "type": "string",
+            "default": "no-reply@naccdata.org"
+        },
+        "target_emails": {
+            "description": "Comma-deliminated list of emails to send error reports to",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
         },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",
