@@ -1,4 +1,4 @@
-"""Entry script for form_screening."""
+"""Entry script for Form Screening."""
 import logging
 from typing import List, Optional
 
@@ -85,13 +85,14 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             scheduler_gear=scheduler_gear)
 
     def run(self, context: GearToolkitContext) -> None:
-        """Runs the Prescreening app."""
+        """Runs the Form Screening app."""
         file = self.proxy.get_file(self.__file_input.file_id)
         error_writer = ListErrorWriter(
             container_id=self.__file_input.file_id,
             fw_path=self.proxy.get_lookup_path(file))
 
         success = run(proxy=self.proxy,
+                      context=context,
                       file_input=self.__file_input,
                       accepted_modules=self.__accepted_modules,
                       queue_tags=self.__queue_tags,

@@ -2,8 +2,8 @@
 import re
 from typing import Dict, List, Tuple
 
+from flywheel import Project
 from flywheel.models.file_output import FileOutput  # type: ignore
-from flywheel.models.project_output import ProjectOutput  # type: ignore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 MODULE_PATTERN = re.compile(r"^.+-([a-zA-Z]+)(\..+)$")
@@ -32,11 +32,12 @@ class FormSchedulerQueue:
             for k in self.__module_order
         }
 
-    def add_files(self, project: ProjectOutput) -> int:
+    def add_files(self, project: Project, file_extensions: List[str]: ['.csv']) -> int:
         """Add the files (filtered by queue tags) to queue.
 
         Args:
             project: Project to pull queue files from
+            file_extensions: List of file extensions to grab
         Returns:
             The number of files added to the queue
         """
@@ -56,7 +57,7 @@ class FormSchedulerQueue:
 
             module = match.group(1)
             ext = match.group(2)
-            if ext not in ['.csv', '.json']:
+            if ext not in file_extensions:
                 continue
 
             # add to queue

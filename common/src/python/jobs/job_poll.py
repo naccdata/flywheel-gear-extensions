@@ -66,13 +66,7 @@ class JobPoll:
         Returns:
             bool: True if job successfully complete, else False
         """
-
-        job = proxy.get_job_by_id(job_id)
-        if not job:
-            log.error('Cannot find a job with ID %s', job_id)
-            return False
-
-        status = JobPoll.poll_job_status(job)
+        status = JobPoll.poll_job_status_by_id(job_id)
         max_retries = 3  # maximum number of retries in Flywheel
         retries = 1
         while status == 'retried' and retries <= max_retries:

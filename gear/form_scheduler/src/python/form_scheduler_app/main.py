@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 def wait_for_submission_pipeline(proxy: FlywheelProxy,
                                  search_str: str) -> None:
-    """Wait for a submission pipeline to finish executing bfore continuing.
+    """Wait for the submission pipeline to finish executing before continuing.
 
     Args:
         proxy: the proxy for the Flywheel instance
@@ -42,7 +42,7 @@ def wait_for_submission_pipeline(proxy: FlywheelProxy,
     while running:
         job = proxy.find_job(search_str)
         if job:
-            log.info(f"A submission pipeline with id {job.id} is currently " +
+            log.info(f"A submission pipeline with current job {job.id} is " +
                      "running, waiting for completion")
             # at least for now we don't really care about the state
             # of other submission pipelines, we just wait for it to finish
@@ -96,7 +96,7 @@ def run(*,
                 continue
 
             # a. Check if any submission pipelines are already running for
-            #    this project if one is found, wait for it to finish before continuing
+            #    this project. If one is found, wait for it to finish before continuing.
             #    This should actually not happen as it would mean that this gear
             #    instance is not the owner/trigger of this submission pipeline,
             #    but left in as a safeguard

@@ -12,12 +12,18 @@ from outputs.errors import ListErrorWriter, preprocessing_error
 log = logging.getLogger(__name__)
 
 
-def run(*, proxy: FlywheelProxy, file_input: InputFileWrapper,
-        accepted_modules: List[str], queue_tags: List[str],
-        scheduler_gear: GearInfo, error_writer: ListErrorWriter) -> bool:
-    """Runs the form_screening process. Checks that the file suffix matches any
-    accepted modules; if so, tag the file with the specified tags, and run the
-    scheduler gear if it's not already running, else report error.
+def run(*,
+        proxy: FlywheelProxy,
+        context: GearToolkitContext,
+        file_input: InputFileWrapper,
+        accepted_modules: List[str],
+        queue_tags: List[str],
+        scheduler_gear: GearInfo,
+        error_writer: ListErrorWriter) -> bool:
+    """Runs the form screening process. Checks that the file suffix matches any
+    accepted modules; if so, tags the file with the specified tags, and run the
+    form-scheduler gear if it's not already running. If the suffix
+    does not match, report an error.
 
     Args:
         proxy: the proxy for the Flywheel instance
@@ -46,10 +52,10 @@ def run(*, proxy: FlywheelProxy, file_input: InputFileWrapper,
         log.info("DRY RUN: file passes prescreening, would have added" +
                  f"{queue_tags}")
     else:
-        # add the specified tag
+        # add the specified tags
         log.info(f"Adding the following tags to file: {queue_tags}")
-        for tag in queue_tags:
-            file.add_tag(tag)
+        context.metadata.add_file_tags(file_input.file_input,
+                                       tags=queue_tags)
 
     # check if the scheduler gear is pending/running
     project_id = file.parents.project

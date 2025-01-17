@@ -2,7 +2,7 @@
     "name": "form-scheduler",
     "label": "Form Scheduler",
     "description": "Queues project files for the submission pipeline",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-scheduler:0.0.8"
+            "image": "naccdata/form-scheduler:0.0.9"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -28,11 +28,6 @@
         }
     },
     "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
         "submission_pipeline": {
             "description": "Comma-deliminated list of gears representing a submission pipeline",
             "type": "string",

@@ -6,4 +6,4 @@ docker_image(name="form-scheduler",
                  ":manifest",
                  "gear/form_scheduler/src/python/form_scheduler_app:bin"
              ],
-             image_tags=["0.0.8", "latest"])
+             image_tags=["0.0.9", "latest"])

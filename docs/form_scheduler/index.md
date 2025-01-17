@@ -25,5 +25,5 @@ This gear takes the following optional input parameters:
 | `accepted_modules` | No | `"UDS,ENROLL,FTLD,LBD"` | Comma-deliminated list of accepted modules, listed in order of priority. There will be one queue for each. Cannot be empty. |
 | `queue_tags` | No | `"queued"` | Comma-deliminated list of tags to add to the prescreened file. Cannot be empty. |
 | `source_email` | No | `""` | Source email address to send emails from. If empty will not send emails. |
-| `dry_run` | No | `false` | Whether or not to do a dry run - will verify file but will not add tags |
 
+This gear currently does not support a `dry-run` mode.
