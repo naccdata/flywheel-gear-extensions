@@ -3,6 +3,7 @@ import logging
 from typing import List
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
 from gear_execution.gear_trigger import GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
@@ -12,18 +13,14 @@ from outputs.errors import ListErrorWriter, preprocessing_error
 log = logging.getLogger(__name__)
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        context: GearToolkitContext,
-        file_input: InputFileWrapper,
-        accepted_modules: List[str],
-        queue_tags: List[str],
-        scheduler_gear: GearInfo,
+def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
+        file_input: InputFileWrapper, accepted_modules: List[str],
+        queue_tags: List[str], scheduler_gear: GearInfo,
         error_writer: ListErrorWriter) -> bool:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules; if so, tags the file with the specified tags, and run the
-    form-scheduler gear if it's not already running. If the suffix
-    does not match, report an error.
+    form-scheduler gear if it's not already running. If the suffix does not
+    match, report an error.
 
     Args:
         proxy: the proxy for the Flywheel instance
@@ -54,8 +51,7 @@ def run(*,
     else:
         # add the specified tags
         log.info(f"Adding the following tags to file: {queue_tags}")
-        context.metadata.add_file_tags(file_input.file_input,
-                                       tags=queue_tags)
+        context.metadata.add_file_tags(file_input.file_input, tags=queue_tags)
 
     # check if the scheduler gear is pending/running
     project_id = file.parents.project

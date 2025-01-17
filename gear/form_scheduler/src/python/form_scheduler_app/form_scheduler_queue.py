@@ -1,6 +1,6 @@
 """Defines the Form Scheduler Queue."""
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from flywheel import Project
 from flywheel.models.file_output import FileOutput  # type: ignore
@@ -32,7 +32,9 @@ class FormSchedulerQueue:
             for k in self.__module_order
         }
 
-    def add_files(self, project: Project, file_extensions: List[str]: ['.csv']) -> int:
+    def add_files(self,
+                  project: Project,
+                  file_extensions: Optional[List[str]] = None) -> int:
         """Add the files (filtered by queue tags) to queue.
 
         Args:
@@ -41,6 +43,9 @@ class FormSchedulerQueue:
         Returns:
             The number of files added to the queue
         """
+        if not file_extensions:
+            file_extensions = ['.csv']
+
         files = [
             x for x in project.files if self.queue_tags.issubset(set(x.tags))
         ]

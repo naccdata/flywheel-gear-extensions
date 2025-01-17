@@ -600,7 +600,7 @@ class FlywheelProxy:
         """
         return self.__fw.jobs.find_first(search_str)
 
-    def find_jobs(self, search_str: str) -> List[job]:
+    def find_jobs(self, search_str: str) -> List[Job]:
         """Find all jobs matching the search string.
 
         Args:
