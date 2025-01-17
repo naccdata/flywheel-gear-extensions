@@ -74,11 +74,10 @@ class LegacySanityChecker:
                 FileError(
                     error_type='error',
                     error_code=SysErrorCodes.MULTIPLE_IVP,
-                    value=f'{num_legacy} visits',
-                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]
-                )
-            )
+                    value=f'{num_legacy} initial visits in retrospective',
+                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]))
             return False
+
         # if there are no retrospective legacy initial packets, we're good
         elif num_legacy == 0:
             return  True
@@ -103,10 +102,8 @@ class LegacySanityChecker:
                 FileError(
                     error_type='error',
                     error_code=SysErrorCodes.MULTIPLE_IVP,
-                    value=f'{len(init_packets)} visits in ingest',
-                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]
-                )
-            )
+                    value=f'{len(init_packets)} initial visits in ingest',
+                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]))
             return False
 
         # otherwise, for UDS we need to check if it is an I4,
@@ -127,9 +124,7 @@ class LegacySanityChecker:
                     error_type='error',
                     error_code=SysErrorCodes.MULTIPLE_IVP,
                     value=f'{len(init_packets)} non-I4 visits in ingest',
-                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]
-                )
-            )
+                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]))
             return False
 
         # ingest project would only accept an I4 if it was valid, so we
@@ -190,12 +185,12 @@ class LegacySanityChecker:
         retro_records = [(record[visitnum_lbl], record[visitdate_lbl])
                           for record in retro_results]
 
-        found_duplicates = False
+        no_duplicates = True
         for record in ingest_record:
             if record in retro_records:
-                found_duplicates = True
+                no_duplicates = False
                 duplicate_val = f'subject: {subject_lbl} module: {module}, ' \
-                    + f'packet: {packet} visitnum: {record[0]}, '
+                    + f'packet: {packet} visitnum: {record[0]}, ' \
                     + f'visitdate: {record[1]}'
 
                 log.error(f"Duplicate records found for {duplicate_val}")
@@ -205,11 +200,9 @@ class LegacySanityChecker:
                         error_code='duplicate-visits',
                         value=duplicate_val,
                         message="Duplicate records found between ingest "
-                            + "and retrospective projects"
-                    )
-                )
+                            + "and retrospective projects"))
 
-        return found_duplicates
+        return no_duplicates
 
     def run_all_checks(self) -> None:
         """Runs all sanity checks for each subject/module in the
@@ -220,7 +213,7 @@ class LegacySanityChecker:
             for module in module_configs:
                 if not self.check_multiple_ivp(subject.label, module):
                     continue
-                self.check_conflicting_visits(subject.label, module)
+                self.check_duplicate_visit(subject.label, module)
 
     def send_email(sender_email: str,
                    target_emails: List[str],
