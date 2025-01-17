@@ -17,6 +17,7 @@ from outputs.errors import (
     unexpected_value_error,
     update_error_log_and_qc_metadata,
 )
+from preprocess.preprocessor import FormPreprocessor
 from transform.transformer import BaseRecordTransformer, TransformerFactory
 from uploads.uploader import FormJSONUploader
 
@@ -33,12 +34,14 @@ class CSVTransformVisitor(CSVVisitor):
                                                                       Any]]],
                  error_writer: ListErrorWriter,
                  transformer_factory: TransformerFactory,
+                 preprocessor: FormPreprocessor,
                  gear_name: str,
                  project: Optional[ProjectAdaptor] = None) -> None:
         self.__req_fields = req_fields
         self.__transformed = transformed_records
         self.__error_writer = error_writer
         self.__transformer_factory = transformer_factory
+        self.__preprocessor = preprocessor
         self.__has_module_field = False
         self.__gear_name = gear_name
         self.__project = project
@@ -128,6 +131,15 @@ class CSVTransformVisitor(CSVVisitor):
         transformed_row = self.__transformer.transform(row, line_num)
         if not transformed_row:
             self.__update_visit_error_log(input_record=row, qc_passed=False)
+            return False
+
+        # preprocessing checks (needs to happen after transformations)
+        if self.module and not self.__preprocessor.preprocess(
+                input_record=transformed_row,
+                module=self.module,
+                line_num=line_num):
+            self.__update_visit_error_log(input_record=row, qc_passed=False)
+            log.error('Failed pre-processing checks in line %s', line_num)
             return False
 
         # for the records that passed transformation, only obtain the log name
@@ -248,6 +260,7 @@ def run(*,
         input_file: TextIO,
         destination: ProjectAdaptor,
         transformer_factory: TransformerFactory,
+        preprocessor: FormPreprocessor,
         error_writer: ListErrorWriter,
         gear_name: str,
         downstream_gears: Optional[List[str]] = None) -> bool:
@@ -279,6 +292,7 @@ def run(*,
                                   transformed_records=transformed_records,
                                   error_writer=error_writer,
                                   transformer_factory=transformer_factory,
+                                  preprocessor=preprocessor,
                                   gear_name=gear_name,
                                   project=destination)
     result = read_csv(input_file=input_file,

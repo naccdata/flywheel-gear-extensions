@@ -2,7 +2,7 @@
     "name": "form-transformer",
     "label": "Form CSV to JSON Transformer",
     "description": "Form specific transformation from CSV to JSON",
-    "version": "1.0.11",
+    "version": "1.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-transformer:1.0.11"
+            "image": "naccdata/form-transformer:1.1.0"
         },
         "flywheel": {
             "suite": "Curation",
@@ -35,8 +35,17 @@
                 ]
             }
         },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
         "transform_file": {
-            "description": "a JSON file with transform data",
+            "description": "A JSON file with transform data",
             "base": "file",
             "optional": true,
             "type": {
@@ -47,6 +56,11 @@
         }
     },
     "config": {
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
         "downstream_gears": {
             "description": "Comma-delimited list of downstream gears",
             "type": "string",

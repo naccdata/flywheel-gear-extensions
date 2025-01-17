@@ -1,8 +1,8 @@
-"""Frquently accessed field names, labels, and default values."""
+"""Frequently accessed field names, labels, and default values."""
 
 
 class FieldNames:
-    """Class to store frquently accessed field names."""
+    """Class to store frequently accessed field names."""
     NACCID = 'naccid'
     MODULE = 'module'
     PACKET = 'packet'
@@ -55,6 +55,10 @@ class DefaultValues:
     MAX_POOL_CONNECTIONS = 50
     PROV_SUFFIX = 'provisioning'
     IDENTIFIER_SUFFIX = 'identifiers'
+    FW_SEARCH_OR = '=|'
+    FORM_METADATA_PATH = 'file.info.forms.json'
+    UDS_I4_PACKET = 'I4'
+    UDS_I_PACKET = 'I'
 
 
 class MetadataKeys:
@@ -68,8 +72,21 @@ class MetadataKeys:
     LBD_LONG = 'LBD-v3.0'
     LBD_SHORT = 'LBD-v3.1'
     TRANSFERS = 'transfers'
+    MODULE_CONFIGS = 'module_configs'
 
 
 class SysErrorCodes:
     """Class to store pre-processing error codes."""
     ADCID_MISMATCH = 'preprocess-001'
+    IVP_EXISTS = 'preprocess-002'
+    DIFF_VISITDATE = 'preprocess-006'
+    DIFF_VISITNUM = 'preprocess-007'
+    LOWER_FVP_VISITNUM = 'preprocess-008'
+    LOWER_I4_VISITNUM = 'preprocess-009'
+    LOWER_FVP_VISITDATE = 'preprocess-010'
+    LOWER_I4_VISITDATE = 'preprocess-013'
+    INVALID_MODULE = 'preprocess-018'
+    INVALID_PACKET = 'preprocess-019'
+    MISSING_IVP = 'preprocess-020'
+    MULTIPLE_IVP = 'preprocess-021'
+    INVALID_VERSION = 'preprocess-022'

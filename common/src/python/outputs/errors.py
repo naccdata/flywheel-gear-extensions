@@ -21,6 +21,38 @@ log = logging.getLogger(__name__)
 preprocess_errors = {
     SysErrorCodes.ADCID_MISMATCH:
     "ADCID must match the ADCID of the center uploading the data",
+    SysErrorCodes.IVP_EXISTS:
+    "Only one Initial Visit Packet is allowed per participant",
+    SysErrorCodes.DIFF_VISITDATE:
+    "Two packets cannot have the same visit number (VISITNUM) " +
+    "if they are from different dates (VISITDATE)",
+    SysErrorCodes.DIFF_VISITNUM:
+    "Two packets cannot have the same visit date(VISITDATE) " +
+    "if they are from different visit numbers (VISITNUM)",
+    SysErrorCodes.LOWER_FVP_VISITNUM:
+    "Visit number (VISITNUM) for Follow-Up Visit Packets must be " +
+    "greater than Visit number (VISITNUM) for Initial Visit Packet",
+    SysErrorCodes.LOWER_I4_VISITNUM:
+    "Visit number (VISITNUM) for UDSv4 Initial Visit Packet (PACKET=I4) " +
+    "must be greater than Visit number (VISITNUM) for of the last UDSv3 Visit Packet",
+    SysErrorCodes.LOWER_FVP_VISITDATE:
+    "Follow-Up Packet visit date (VISITDATE) cannot be equal to " +
+    "or from a date before the Initial Visit Packet",
+    SysErrorCodes.LOWER_I4_VISITDATE:
+    "To submit an Initial UDSv4 Visit Packet (PACKET=I4), participant must have "
+    +
+    "an existing UDSv3 Visit with visit date (VISITDATE) before the Initial I4 Packet",
+    SysErrorCodes.INVALID_MODULE:
+    "Provided MODULE is not in the list of currently accepted modules",
+    SysErrorCodes.INVALID_PACKET:
+    "Provided PACKET code is not in the list of accepted packets for this module",
+    SysErrorCodes.MISSING_IVP:
+    "Follow-Up visit cannot be submitted without an existing Initial Visit Packet",
+    SysErrorCodes.MULTIPLE_IVP:
+    "More than one IVP packet found for the participant/module",
+    SysErrorCodes.INVALID_VERSION:
+    "Provided FORMVER is not in the list of " +
+    "accepted versions for this module"
 }
 
 
@@ -206,7 +238,9 @@ def preprocessing_error(field: str,
                         value: str,
                         line: int,
                         error_code: Optional[str] = None,
-                        message: Optional[str] = None) -> FileError:
+                        message: Optional[str] = None,
+                        ptid: Optional[str] = None,
+                        visitnum: Optional[str] = None) -> FileError:
     """Creates a FileError for pre-processing error.
 
     Args:
@@ -215,6 +249,8 @@ def preprocessing_error(field: str,
       line: the line number
       error_code (optional): pre-processing error code
       message (optional): the error message
+      ptid (optional): PTID if known
+      visitnum (optional): visitnum if known
 
     Returns:
       the constructed FileError
@@ -231,7 +267,9 @@ def preprocessing_error(field: str,
         error_code=error_code if error_code else 'preprocess-error',
         value=value,
         location=CSVLocation(line=line, column_name=field),
-        message=error_message)
+        message=error_message,
+        ptid=ptid,
+        visitnum=visitnum)
 
 
 def partially_failed_file_error() -> FileError:
