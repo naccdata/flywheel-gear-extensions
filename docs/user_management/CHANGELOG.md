@@ -2,9 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.4.6
 
-* tba
+* Enable automated REDCap user management based on the permissions set in NACC directory
 
 ## 1.4.4
 

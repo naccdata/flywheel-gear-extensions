@@ -1,11 +1,12 @@
 """Entrypoint script for the identifier lookup app."""
-
 import logging
 import os
+from io import StringIO
 from pathlib import Path
 from typing import Dict, Literal, Optional, TextIO
 
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -152,7 +153,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                                    module_name=module_name,
                                    error_writer=error_writer,
                                    date_field=self.__date_field,
-                                   gear_name=self.__gear_name)
+                                   gear_name=self.__gear_name,
+                                   project=ProjectAdaptor(project=project,
+                                                          proxy=self.proxy))
 
     def __build_center_lookup(self, *, identifiers_repo: IdentifierRepository,
                               output_file: TextIO,
@@ -178,9 +181,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         (basename, extension) = os.path.splitext(self.__file_input.filename)
         filename = f'{basename}_{DefaultValues.IDENTIFIER_SUFFIX}{extension}'
         input_path = Path(self.__file_input.filepath)
-        with (open(input_path, mode='r', encoding='utf-8') as csv_file,
-              context.open_output(filename, mode='w', encoding='utf-8') as
-              out_file):
+        out_file = StringIO()
+
+        with open(input_path, mode='r', encoding='utf-8') as csv_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=self.proxy.get_lookup_path(
@@ -205,12 +208,19 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                           error_writer=error_writer,
                           clear_errors=clear_errors)
 
-            context.metadata.add_qc_result(
-                self.__file_input.file_input,
-                name="validation",
-                state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
-            )
+            contents = out_file.getvalue()
+            if len(contents) > 0:
+                log.info("Writing contents")
+                with context.open_output(filename, mode='w',
+                                         encoding='utf-8') as fh:
+                    fh.write(contents)
+            else:
+                log.info("Contents empty, will not write output file")
+
+            context.metadata.add_qc_result(self.__file_input.file_input,
+                                           name="validation",
+                                           state="PASS" if success else "FAIL",
+                                           data=error_writer.errors())
 
             context.metadata.add_file_tags(self.__file_input.file_input,
                                            tags=self.__gear_name)

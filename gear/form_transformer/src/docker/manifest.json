@@ -2,7 +2,7 @@
     "name": "form-transformer",
     "label": "Form CSV to JSON Transformer",
     "description": "Form specific transformation from CSV to JSON",
-    "version": "1.0.5",
+    "version": "1.0.11",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-transformer:1.0.5"
+            "image": "naccdata/form-transformer:1.0.11"
         },
         "flywheel": {
             "suite": "Curation",
@@ -46,6 +46,12 @@
             }
         }
     },
-    "config": {},
+    "config": {
+        "downstream_gears": {
+            "description": "Comma-delimited list of downstream gears",
+            "type": "string",
+            "default": "form-qc-coordinator,form-qc-checker"
+        }
+    },
     "command": "/bin/run"
 }

@@ -493,8 +493,39 @@ class ProvisioningVisitor(CSVVisitor):
         """
 
         self.__error_writer.clear()
+        try:
+            if not self.__validator.check(row=row, line_number=line_num):
+                update_record_level_error_log(
+                    input_record=row,
+                    qc_passed=False,
+                    project=self.__project,
+                    gear_name=self.__gear_name,
+                    errors=self.__error_writer.errors(),
+                    naming_template=self.__error_log_template)
+                return False
 
-        if not self.__validator.check(row=row, line_number=line_num):
+            if is_new_enrollment(row):
+                success = self.__enrollment_visitor.visit_row(
+                    row=row, line_num=line_num)
+                if not success:  # Only update record level log if validation failed
+                    update_record_level_error_log(
+                        input_record=row,
+                        qc_passed=False,
+                        project=self.__project,
+                        gear_name=self.__gear_name,
+                        errors=self.__error_writer.errors(),
+                        naming_template=self.__error_log_template)
+                return success
+        except IdentifierRepositoryError as error:
+            message = (
+                f'Failed to assign a NACCID for PTID {row[FieldNames.PTID]}: {error}'
+            )
+            log.error(message)
+            self.__error_writer.write(
+                identifier_error(message=message,
+                                 field=FieldNames.PTID,
+                                 value=row[FieldNames.PTID],
+                                 line=line_num))
             update_record_level_error_log(
                 input_record=row,
                 qc_passed=False,
@@ -503,19 +534,6 @@ class ProvisioningVisitor(CSVVisitor):
                 errors=self.__error_writer.errors(),
                 naming_template=self.__error_log_template)
             return False
-
-        if is_new_enrollment(row):
-            success = self.__enrollment_visitor.visit_row(row=row,
-                                                          line_num=line_num)
-            if not success:  # Only update record level log if validation failed
-                update_record_level_error_log(
-                    input_record=row,
-                    qc_passed=False,
-                    project=self.__project,
-                    gear_name=self.__gear_name,
-                    errors=self.__error_writer.errors(),
-                    naming_template=self.__error_log_template)
-            return success
 
         # No further processing implemented for transfers, so update visit level log
         # TODO - need to change when processing transfers implemented

@@ -2,7 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.0.3
+## 1.0.6
+
+* Fixes bug where an empty file would be generated if no entries passed
+
+## 1.0.5
+* Fixes a bug in error reporting
 * Updates identifier lookup error messages and identifier file suffix.
 
 ## 1.0.0

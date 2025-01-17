@@ -18,6 +18,7 @@ from inputs.parameter_store import ParameterStore
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
 from transform.transformer import FieldTransformations, TransformerFactory
+from utils.utils import parse_string_to_list
 
 from form_csv_app.main import run
 
@@ -87,6 +88,9 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
         gear_name = context.manifest.get('name', 'form-transformer')
 
+        downstream_gears = parse_string_to_list(
+            context.config.get('downstream_gears', None))
+
         with open(self.__file_input.filepath, mode='r',
                   encoding='utf-8') as csv_file:
             error_writer = ListErrorWriter(container_id=file_id,
@@ -97,7 +101,8 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                           transformer_factory=self.__build_transformer(
                               self.__transform_input),
                           error_writer=error_writer,
-                          gear_name=gear_name)
+                          gear_name=gear_name,
+                          downstream_gears=downstream_gears)
 
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name='validation',
@@ -118,6 +123,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
         Args:
           transformer_input: the input file wrapper
+
         Returns:
           the TransformerFactory for the input
         """

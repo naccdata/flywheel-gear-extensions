@@ -2,10 +2,10 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-import yaml
-from centers.center_group import StudyREDCapMetadata
+# import yaml
+from centers.center_group import REDCapProjectInput, StudyREDCapMetadata
 from flywheel import Project
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -116,7 +116,25 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         return REDCapProjectCreation(client=client_wrapper,
                                      parameter_store=parameter_store)
 
-    # pylint: disable=(too-many-locals)
+    def __write_out_file(self, context: GearToolkitContext,
+                         fw_metadata: List[REDCapProjectInput], filename: str):
+        """Write generated REDCap project metadata to output yaml file.
+
+        Args:
+            context: gear context
+            fw_metadata: REDCap project metadata
+            filename: output file name
+        """
+        # TODO - fix writing generated metadata to yaml file
+        # yaml_text = yaml.safe_dump(data=fw_metadata,
+        #                            allow_unicode=True,
+        #                            default_flow_style=False)
+
+        # with context.open_output(fname, mode='w',
+        #                          encoding='utf-8') as out_file:
+        #     out_file.write(yaml_text)
+
+    # pylint: disable = (too-many-locals)
     def run(self, context: GearToolkitContext) -> None:
         """Invoke the redcap project creation app.
 
@@ -185,15 +203,11 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                                   xml_templates=xml_templates)
 
         if len(fw_metadata) > 0:
-            yaml_text = yaml.safe_dump(data=fw_metadata,
-                                       allow_unicode=True,
-                                       default_flow_style=False)
-
             tstmp = datetime.now().strftime("%Y%m%d-%H%M%S")
             fname = f'{output_prefix} - {study_info.study_id} - {tstmp}.yaml'
-            with context.open_output(fname, mode='w',
-                                     encoding='utf-8') as out_file:
-                out_file.write(yaml_text)
+            self.__write_out_file(context=context,
+                                  fw_metadata=fw_metadata,
+                                  filename=fname)
 
         if errors:
             raise GearExecutionError(

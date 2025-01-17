@@ -2,7 +2,7 @@
     "name": "identifier-provisioning",
     "label": "Identifier Provisioning",
     "description": "Gear for provisioning NACCIDs from Enrollment forms",
-    "version": "1.0.5",
+    "version": "1.0.8",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-provisioning:1.0.5"
+            "image": "naccdata/identifier-provisioning:1.0.8"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

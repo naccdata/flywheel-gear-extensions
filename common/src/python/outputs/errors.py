@@ -46,7 +46,8 @@ class FileError(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     timestamp: Optional[str] = None
-    error_type: Literal['alert', 'error'] = Field(serialization_alias='type')
+    error_type: Literal['alert', 'error',
+                        'warning'] = Field(serialization_alias='type')
     error_code: str = Field(serialization_alias='code')
     location: Optional[CSVLocation | JSONLocation] = None
     container_id: Optional[str] = None
@@ -175,18 +176,20 @@ def unknown_field_error(field: str | set[str]) -> FileError:
 
 
 def system_error(
-    message: str,
-    error_location: Optional[CSVLocation | JSONLocation] = None,
-) -> FileError:
+        message: str,
+        error_location: Optional[CSVLocation | JSONLocation] = None,
+        error_type: Literal['alert', 'error',
+                            'warning'] = 'error') -> FileError:
     """Creates a FileError object for a system error.
 
     Args:
       message: error message
-      error_location [Optional]: CSV or JSON file location related to the error
+      error_location (optional): CSV or JSON file location related to the error
+      error_type: error type, defaults to "error"
     Returns:
       a FileError object initialized for system error
     """
-    return FileError(error_type='error',
+    return FileError(error_type=error_type,
                      error_code='system-error',
                      location=error_location,
                      message=message)
@@ -239,6 +242,19 @@ def partially_failed_file_error() -> FileError:
         error_code='partially-failed',
         message=('Some records in this file did not pass validation, '
                  'check the respective record level qc status'))
+
+
+def existing_participant_error(field: str,
+                               value: str,
+                               line: int,
+                               message: Optional[str] = None) -> FileError:
+    """Creates a FileError for unexpected existing participant."""
+    error_message = message if message else ('Participant exists for PTID '
+                                             f'{value}')
+    return FileError(error_type='error',
+                     error_code='participant-exists',
+                     location=CSVLocation(column_name=field, line=line),
+                     message=error_message)
 
 
 class ErrorWriter(ABC):

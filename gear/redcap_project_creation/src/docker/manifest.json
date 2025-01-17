@@ -2,7 +2,7 @@
     "name": "redcap-project-creation",
     "label": "REDCap Project Creation",
     "description": "A gear to create REDCap projects using the REDCap API",
-    "version": "0.0.3",
+    "version": "0.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/redcap-project-creation:0.0.3"
+            "image": "naccdata/redcap-project-creation:0.1.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

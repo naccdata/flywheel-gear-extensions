@@ -82,35 +82,52 @@ class QCCoordinator():
         validation = gear_info.get('validation', {})
         return not ('state' not in validation or validation['state'] != 'PASS')
 
-    def __update_qc_error_metadata(self, *, visit_file: FileEntry,
-                                   error: FileError, ptid: str,
-                                   visitdate: str):
+    def __update_qc_error_metadata(self,
+                                   *,
+                                   visit_file: FileEntry,
+                                   ptid: str,
+                                   visitdate: str,
+                                   status: str,
+                                   error_obj: Optional[FileError] = None):
         """Add error metadata to the visits file qc info section.
         Also, updates the visit error log and add qc info metadata
         Note: This method modifies metadata in a file which is not tracked as gear input
 
         Args:
             visit_file: FileEntry object for the visits file
-            error: FileError object with failure info
             ptid: PTID
             visitdate: visit date
+            status: QC status
+            error_obj (optional): FileError object with failure info
         """
 
         error_writer = ListErrorWriter(
             container_id=visit_file.id,
             fw_path=self.__proxy.get_lookup_path(visit_file))
-        error_writer.write(error)
+
+        if error_obj:
+            error_writer.write(error_obj)
 
         qc_result = create_qc_result_dict(name='validation',
-                                          state='FAIL',
+                                          state=status,
                                           data=error_writer.errors())
+        visit_file = visit_file.reload()
+        info = visit_file.info if (visit_file.info
+                                   and 'qc' in visit_file.info) else {
+                                       'qc': {}
+                                   }
 
         # add qc-coordinator gear info to visit file metadata
         updated_qc_info = self.__metadata.add_gear_info(
             'qc', visit_file, **qc_result)
-        self.__metadata.update_file_metadata(visit_file,
-                                             container_type='acquisition',
-                                             info=updated_qc_info)
+        gear_name = self.__metadata.name  # type: ignore
+        info['qc'][gear_name] = updated_qc_info['qc'][gear_name]
+
+        try:
+            visit_file.update_info(info)
+        except ApiException as error:
+            log.error('Error in setting QC metadata in file %s - %s',
+                      visit_file, error)
 
         error_log_name = get_error_log_name(module=self.__module,
                                             input_data={
@@ -125,8 +142,8 @@ class QCCoordinator():
                 error_log_name=error_log_name,
                 destination_prj=ProjectAdaptor(project=project,
                                                proxy=self.__proxy),
-                gear_name=self.__metadata.name,  # type: ignore
-                state='FAIL',
+                gear_name=gear_name,
+                state=status,
                 errors=error_writer.errors()):
             raise GearExecutionError(
                 f'Failed to update error log for visit {ptid}, {visitdate}')
@@ -204,15 +221,19 @@ class QCCoordinator():
                     f'Errors occurred while running gear {gear_name} on this file'
                 )
                 self.__update_qc_error_metadata(visit_file=visit_file,
-                                                error=error_obj,
+                                                error_obj=error_obj,
                                                 ptid=ptid,
-                                                visitdate=visitdate)
+                                                visitdate=visitdate,
+                                                status='FAIL')
                 failed_visit = visit_file.name
                 break
 
+            self.__update_qc_error_metadata(visit_file=visit_file,
+                                            ptid=ptid,
+                                            visitdate=visitdate,
+                                            status='PASS')
+
             # If QC checks failed, stop evaluating any subsequent visits
-            # If it gets to this point, that means QC gear completed,
-            # no need to update failed visit info or error metadata, QC gear handles it
             if not self.passed_qc_checks(visit_file, gear_name):
                 failed_visit = visit_file.name
                 break
@@ -239,6 +260,7 @@ class QCCoordinator():
                     continue
                 error_obj = previous_visit_failed_error(failed_visit)
                 self.__update_qc_error_metadata(visit_file=visit_file,
-                                                error=error_obj,
+                                                error_obj=error_obj,
                                                 ptid=ptid,
-                                                visitdate=visitdate)
+                                                visitdate=visitdate,
+                                                status='FAIL')

@@ -12,7 +12,11 @@ from identifiers.identifiers_repository import (
 from identifiers.model import GUID_PATTERN, NACCID_PATTERN, CenterIdentifiers
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
-from outputs.errors import CSVLocation, ErrorWriter, FileError, preprocessing_error
+from outputs.errors import (
+    ErrorWriter,
+    existing_participant_error,
+    preprocessing_error,
+)
 from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
@@ -158,19 +162,6 @@ def has_known_naccid(row: Dict[str, Any]) -> bool:
     return has_value(row, FieldNames.NACCIDKWN, 1)
 
 
-def existing_participant_error(field: str,
-                               value: str,
-                               line: int,
-                               message: Optional[str] = None) -> FileError:
-    """Creates a FileError for unexpected existing participant."""
-    error_message = message if message else ('Participant exists for PTID '
-                                             f'{value}')
-    return FileError(error_type='error',
-                     error_code='participant-exists',
-                     location=CSVLocation(column_name=field, line=line),
-                     message=error_message)
-
-
 # pylint: disable=(too-few-public-methods)
 class NewPTIDRowValidator(RowValidator):
     """Row validator to check that the PTID in the rows does not have a
@@ -186,6 +177,7 @@ class NewPTIDRowValidator(RowValidator):
 
         Args:
           row: the dictionary for the row
+
         Returns:
           True if no existing NACCID is found for the PTID, False otherwise
         """
