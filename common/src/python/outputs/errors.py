@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 preprocess_errors = {
     SysErrorCodes.ADCID_MISMATCH:
     "ADCID must match the ADCID of the center uploading the data",
+    SysErrorCodes.INVALID_MODULE: "MODULE is not in list of accepted modules"
 }
 
 
