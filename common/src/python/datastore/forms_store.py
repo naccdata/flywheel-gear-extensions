@@ -58,6 +58,7 @@ class FormsStore():
             search_val (str | List[str]): _description_
             search_op (SearchOperator): _description_
             qc_gear (Optional[str], optional): _description_. Defaults to None.
+            find_all (optional)
 
         Returns:
             Optional[List[Dict[str, str]]]: _description_
@@ -69,7 +70,8 @@ class FormsStore():
                                     search_val=search_val,
                                     search_op=search_op,
                                     qc_gear=qc_gear,
-                                    extra_columns=extra_columns)
+                                    extra_columns=extra_columns,
+                                    find_all=find_all)
 
     def query_legacy_project(
             self,
@@ -91,6 +93,7 @@ class FormsStore():
             search_val (str): _description_
             search_op (SearchOperator): _description_
             qc_gear (Optional[str], optional): _description_. Defaults to None.
+            find_all (optional)
 
         Returns:
             Optional[List[Dict[str, str]]]: _description_
@@ -107,7 +110,8 @@ class FormsStore():
                                     search_val=search_val,
                                     search_op=search_op,
                                     qc_gear=qc_gear,
-                                    extra_columns=extra_columns)
+                                    extra_columns=extra_columns,
+                                    find_all=find_all)
 
     def __query_project(
             self,
@@ -152,7 +156,12 @@ class FormsStore():
 
         if isinstance(search_val,
                       str) and search_op == DefaultValues.FW_SEARCH_OR:
-            search_val = [search_val]
+            search_val = [search_val.replace(", ", ",")]
+
+        # remove spaces for OR search (=|)
+        if isinstance(search_val,
+                      List) and search_op == DefaultValues.FW_SEARCH_OR:
+            search_val = f"[{','.join(search_val)}]"
 
         # Dataview to retrieve the previous visits
         title = ('Visits for '
