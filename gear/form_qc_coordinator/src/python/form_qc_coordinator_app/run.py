@@ -1,8 +1,6 @@
 """Entry script for Form QC Coordinator."""
 
-import json
 import logging
-from json.decoder import JSONDecodeError
 from typing import Any, Optional
 
 from flywheel.rest import ApiException
@@ -16,12 +14,12 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
+from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import FieldNames
 from pydantic import ValidationError
 
-from form_qc_coordinator_app.coordinator import QCGearInfo
 from form_qc_coordinator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -60,32 +58,6 @@ def validate_input_data(input_file_path: str,
         return None
 
     return visits_info
-
-
-def get_qc_gear_configs(configs_file_path: str, ) -> Optional[QCGearInfo]:
-    """Load the QC gear information from input file - qc_configs_file
-
-    Args:
-        config_file_path: Gear input qc_configs_file file path
-
-    Returns:
-        Optional[QCGearInfo]: QC gear name and configs
-    """
-    try:
-        with open(configs_file_path, mode='r', encoding='utf-8') as file_obj:
-            config_data = json.load(file_obj)
-    except (FileNotFoundError, JSONDecodeError, TypeError) as error:
-        log.error('Failed to read the qc gear configs file %s - %s',
-                  configs_file_path, error)
-        return None
-
-    try:
-        gear_configs = QCGearInfo.model_validate(config_data)
-    except ValidationError as error:
-        log.error('QC gear config data not in expected format - %s', error)
-        return None
-
-    return gear_configs
 
 
 class FormQCCoordinator(GearExecutionEnvironment):
@@ -170,7 +142,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
             raise GearExecutionError(
                 'Required input qc_configs_file not provided')
 
-        qc_gear_info = get_qc_gear_configs(config_file_path)
+        qc_gear_info = GearInfo.load_from_file(config_file_path)
         if not qc_gear_info:
             raise GearExecutionError(
                 f'Error(s) in reading qc gear configs file - {config_file_path}'

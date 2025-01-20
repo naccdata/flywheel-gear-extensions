@@ -73,3 +73,4 @@ class MetadataKeys:
 class SysErrorCodes:
     """Class to store pre-processing error codes."""
     ADCID_MISMATCH = 'preprocess-001'
+    INVALID_MODULE = 'preprocess-018'

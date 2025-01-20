@@ -88,7 +88,7 @@ class EnrollmentRecord(BaseModel):
     """Model representing enrollment of participant."""
     center_identifier: CenterIdentifiers
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
+    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     start_date: datetime
     end_date: Optional[datetime] = None
     transfer_from: Optional[TransferRecord] = None
