@@ -3,7 +3,7 @@
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -87,8 +87,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                                           adcid=adcid,
                                           ptid=ptid,
                                           guid=guid))
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
+
         if response.statusCode not in (200, 201):
             raise IdentifierRepositoryError("No identifier created")
 
@@ -150,7 +151,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         Returns:
           the IdentifierObject for the nacc_id or the adcid-ptid pair
         Raises:
-          IdentifierRespositoryError: if no Identifier record was found
+          IdentifierRepositoryError: if no Identifier record was found
           TypeError: if the arguments are nonsensical
         """
         if naccid is not None:
@@ -259,7 +260,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                                           adcid=adcid,
                                           ptid=ptid,
                                           guid=guid))
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:

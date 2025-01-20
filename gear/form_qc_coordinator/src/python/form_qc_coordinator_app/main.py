@@ -14,9 +14,10 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
+from gear_execution.gear_trigger import GearInfo
 from keys.keys import FieldNames
 
-from form_qc_coordinator_app.coordinator import QCCoordinator, QCGearInfo
+from form_qc_coordinator_app.coordinator import QCCoordinator
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def run(*,
         subject: SubjectAdaptor,
         date_col: str,
         visits_info: ParticipantVisits,
-        qc_gear_info: QCGearInfo,
+        qc_gear_info: GearInfo,
         check_all: bool = False):
     """Invoke QC process for the given participant/module.
 
@@ -130,8 +131,7 @@ def run(*,
                                    proxy=proxy,
                                    gear_context=gear_context)
 
-    qc_coordinator.run_error_checks(gear_name=qc_gear_info.gear_name,
-                                    gear_configs=qc_gear_info.configs,
+    qc_coordinator.run_error_checks(qc_gear_info=qc_gear_info,
                                     visits=visits_list,
                                     date_col=date_col)
 

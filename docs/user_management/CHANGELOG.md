@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.4.5
+## 1.4.6
 
 * Enable automated REDCap user management based on the permissions set in NACC directory
 

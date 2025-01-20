@@ -281,6 +281,19 @@ def partially_failed_file_error() -> FileError:
                  'check the respective record level qc status'))
 
 
+def existing_participant_error(field: str,
+                               value: str,
+                               line: int,
+                               message: Optional[str] = None) -> FileError:
+    """Creates a FileError for unexpected existing participant."""
+    error_message = message if message else ('Participant exists for PTID '
+                                             f'{value}')
+    return FileError(error_type='error',
+                     error_code='participant-exists',
+                     location=CSVLocation(column_name=field, line=line),
+                     message=error_message)
+
+
 class ErrorWriter(ABC):
     """Abstract class for error write."""
 

@@ -1,18 +1,18 @@
 """QC checks coordination module."""
 
 import logging
-import time
 from collections import deque
 from typing import Dict, List, Optional
 
 from flywheel import FileEntry
-from flywheel.models.job import Job
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, VisitInfo
 from flywheel_gear_toolkit import GearToolkitContext
 from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
+from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
+from jobs.job_poll import JobPoll
 from keys.keys import FieldNames
 from outputs.errors import (
     FileError,
@@ -22,16 +22,12 @@ from outputs.errors import (
     system_error,
     update_error_log_and_qc_metadata,
 )
-from pydantic import BaseModel, ConfigDict
 
 log = logging.getLogger(__name__)
 
 
-class QCGearConfigs(BaseModel):
+class QCGearConfigs(GearConfigs):
     """Class to represent qc gear configs."""
-    model_config = ConfigDict(populate_by_name=True)
-
-    apikey_path_prefix: str
     rules_s3_bucket: str
     qc_checks_db_path: str
     primary_key: str
@@ -39,13 +35,6 @@ class QCGearConfigs(BaseModel):
     strict_mode: Optional[bool] = True
     legacy_project_label: Optional[str] = None
     date_field: Optional[str] = None
-
-
-class QCGearInfo(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    gear_name: str
-    configs: QCGearConfigs
 
 
 class QCCoordinator():
@@ -72,58 +61,6 @@ class QCCoordinator():
         self.__module = module
         self.__proxy = proxy
         self.__metadata = Metadata(context=gear_context)
-
-    def poll_job_status(self, job: Job) -> str:
-        """Check for the completion status of a gear job.
-
-        Args:
-            job: Flywheel Job object
-
-        Returns:
-            str: job completion status
-        """
-
-        while job.state in ['pending', 'running']:
-            time.sleep(30)
-            job = job.reload()
-
-        if job.state == 'failed':
-            time.sleep(5)  # wait to see if the job gets retried
-            job = job.reload()
-
-        log.info('Job %s finished with status: %s', job.id, job.state)
-
-        return job.state
-
-    def is_job_complete(self, job_id: str) -> bool:
-        """Checks the status of the given job.
-
-        Args:
-            job_id: Flywheel job ID
-
-        Returns:
-            bool: True if job successfully complete, else False
-        """
-
-        job = self.__proxy.get_job_by_id(job_id)
-        if not job:
-            log.error('Cannot find a job with ID %s', job_id)
-            return False
-
-        status = self.poll_job_status(job)
-        max_retries = 3  # maximum number of retries in Flywheel
-        retries = 1
-        while status == 'retried' and retries <= max_retries:
-            new_job = self.__proxy.find_job(f'previous_job_id="{job_id}"')
-            if not new_job:
-                log.error('Cannot find a retried job with previous_job_id=%s',
-                          job_id)
-                break
-            job_id = new_job.id
-            retries += 1
-            status = self.poll_job_status(new_job)
-
-        return (status == 'complete')
 
     def passed_qc_checks(self, visit_file: FileEntry, gear_name: str) -> bool:
         """Check the validation status for the specified visit for the
@@ -225,29 +162,21 @@ class QCCoordinator():
                                visitdate=visitdate)
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
-    def run_error_checks(self, *, gear_name: str, gear_configs: QCGearConfigs,
+    def run_error_checks(self, *, qc_gear_info: GearInfo,
                          visits: List[Dict[str, str]], date_col: str) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
         none of the subsequent visits will be evaluated.
 
         Args:
-            gear_name: QC checks gear name (form_qc_checker)
-            gear_configs: QC check gear configs
+            qc_gear_info: GearInfo containing info for the qc gear
             visits: set of visits to be evaluated
             date_col: name of the visit date field to sort the visits
 
         Raises:
             GearExecutionError if errors occur while triggering the QC gear
         """
-
-        try:
-            gear = self.__proxy.lookup_gear(gear_name)
-        except ApiException as error:
-            raise GearExecutionError(error) from error
-
-        configs = gear_configs.model_dump()
-
+        gear_name = qc_gear_info.gear_name
         ptid_key = f'file.info.forms.json.{FieldNames.PTID}'
         date_col_key = f'file.info.forms.json.{date_col}'
 
@@ -271,9 +200,11 @@ class QCCoordinator():
                 raise GearExecutionError(
                     f'Failed to retrieve {filename} - {error}') from error
 
-            job_id = gear.run(config=configs,
-                              inputs={"form_data_file": visit_file},
-                              destination=destination)
+            job_id = trigger_gear(proxy=self.__proxy,
+                                  gear_name=gear_name,
+                                  config=qc_gear_info.configs.model_dump(),
+                                  inputs={"form_data_file": visit_file},
+                                  destination=destination)
             if job_id:
                 log.info('Gear %s queued for file %s - Job ID %s', gear_name,
                          filename, job_id)
@@ -282,7 +213,7 @@ class QCCoordinator():
                     f'Failed to trigger gear {gear_name} on file {filename}')
 
             # If QC gear did not complete, stop evaluating any subsequent visits
-            if not self.is_job_complete(job_id):
+            if not JobPoll.is_job_complete(self.__proxy, job_id):
                 self.update_last_failed_visit(file_id=file_id,
                                               filename=filename,
                                               visitdate=visitdate)

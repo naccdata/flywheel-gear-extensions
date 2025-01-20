@@ -6,5 +6,5 @@ docker_image(
     dependencies=[
         ":manifest", "gear/identifier_lookup/src/python/identifier_app:bin"
     ],
-    image_tags=["1.0.5", "latest"],
+    image_tags=["1.0.6", "latest"],
 )

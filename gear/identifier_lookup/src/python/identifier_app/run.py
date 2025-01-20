@@ -1,7 +1,7 @@
 """Entrypoint script for the identifier lookup app."""
-
 import logging
 import os
+from io import StringIO
 from pathlib import Path
 from typing import Dict, Literal, Optional, TextIO
 
@@ -181,9 +181,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         (basename, extension) = os.path.splitext(self.__file_input.filename)
         filename = f'{basename}_{DefaultValues.IDENTIFIER_SUFFIX}{extension}'
         input_path = Path(self.__file_input.filepath)
-        with (open(input_path, mode='r', encoding='utf-8') as csv_file,
-              context.open_output(filename, mode='w', encoding='utf-8') as
-              out_file):
+        out_file = StringIO()
+
+        with open(input_path, mode='r', encoding='utf-8') as csv_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=self.proxy.get_lookup_path(
@@ -207,6 +207,15 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                           lookup_visitor=lookup_visitor,
                           error_writer=error_writer,
                           clear_errors=clear_errors)
+
+            contents = out_file.getvalue()
+            if len(contents) > 0:
+                log.info("Writing contents")
+                with context.open_output(filename, mode='w',
+                                         encoding='utf-8') as fh:
+                    fh.write(contents)
+            else:
+                log.info("Contents empty, will not write output file")
 
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name="validation",
