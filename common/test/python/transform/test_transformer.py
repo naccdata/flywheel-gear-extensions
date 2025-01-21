@@ -29,15 +29,15 @@ class TestFieldFilter:
             fieldname='dummy',
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
-            fields={
-            'alpha': [],
-            'beta': []
-        })
+                                   fields={
+                                       'alpha': [],
+                                       'beta': []
+                                   })
         input_record = {
             'dummy': 'alpha-raw',
         }
-        error_writer = ListErrorWriter(
-            container_id='dummy', fw_path='dummy/dummy')
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
         record = field_filter.apply(input_record, error_writer, 1)
 
         assert record == input_record
@@ -47,13 +47,13 @@ class TestFieldFilter:
             fieldname='dummy',
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
-            fields={
-            'alpha': ['f1'],
-            'beta': ['f1']
-        })
+                                   fields={
+                                       'alpha': ['f1'],
+                                       'beta': ['f1']
+                                   })
         input_record = {'dummy': 'alpha-raw', 'f1': 'v1'}
-        error_writer = ListErrorWriter(
-            container_id='dummy', fw_path='dummy/dummy')
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
 
         record = field_filter.apply(input_record, error_writer, 1)
 
@@ -64,14 +64,19 @@ class TestFieldFilter:
             fieldname='dummy',
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
-            fields={
-            'alpha': ['common1', 'common2', 'a1'],
-            'beta': ['common1', 'common2', 'b1']
-        })
-        input_record = {'dummy': 'alpha-raw', 'common1': 'c1',
-                        'common2': 'c2', 'a1': 'alpha-val', 'b1': ''}
-        error_writer = ListErrorWriter(
-            container_id='dummy', fw_path='dummy/dummy')
+                                   fields={
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
+                                   })
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': ''
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
         record = field_filter.apply(input_record, error_writer, 1)
         assert record
         assert [k for k in record if k in input_record and k != 'b1']
@@ -81,15 +86,20 @@ class TestFieldFilter:
             fieldname='dummy',
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
-            nofill=True,
-            fields={
-            'alpha': ['common1', 'common2', 'a1'],
-            'beta': ['common1', 'common2', 'b1']
-        })
-        input_record = {'dummy': 'alpha-raw', 'common1': 'c1',
-                        'common2': 'c2', 'a1': 'alpha-val', 'b1': 'beta-val'}
-        error_writer = ListErrorWriter(
-            container_id='dummy', fw_path='dummy/dummy')
+                                   nofill=True,
+                                   fields={
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
+                                   })
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': 'beta-val'
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
         record = field_filter.apply(input_record, error_writer, 1)
 
         assert not record
@@ -99,15 +109,20 @@ class TestFieldFilter:
             fieldname='dummy',
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
-            nofill=False,
-            fields={
-            'alpha': ['common1', 'common2', 'a1'],
-            'beta': ['common1', 'common2', 'b1']
-        })
-        input_record = {'dummy': 'alpha-raw', 'common1': 'c1',
-                        'common2': 'c2', 'a1': 'alpha-val', 'b1': 'beta-val'}
-        error_writer = ListErrorWriter(
-            container_id='dummy', fw_path='dummy/dummy')
+                                   nofill=False,
+                                   fields={
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
+                                   })
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': 'beta-val'
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
         record = field_filter.apply(input_record, error_writer, 1)
 
         assert record
