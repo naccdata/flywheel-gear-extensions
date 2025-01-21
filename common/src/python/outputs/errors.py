@@ -42,6 +42,8 @@ preprocess_errors = {
     "To submit an Initial UDSv4 Visit Packet (PACKET=I4), participant must have "
     +
     "an existing UDSv3 Visit with visit date (VISITDATE) before the Initial I4 Packet",
+    SysErrorCodes.EXCLUDED_FIELDS:
+    "Some fields in the input record do not match with the submitted version",
     SysErrorCodes.INVALID_MODULE:
     "Provided MODULE is not in the list of currently accepted modules",
     SysErrorCodes.INVALID_PACKET:

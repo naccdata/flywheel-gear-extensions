@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
-from keys.keys import FieldNames
-from outputs.errors import ErrorWriter, unexpected_value_error
+from keys.keys import FieldNames, SysErrorCodes
+from outputs.errors import ListErrorWriter, preprocessing_error, unexpected_value_error
 from pydantic import BaseModel, RootModel
 
 log = logging.getLogger(__name__)
@@ -33,12 +33,14 @@ class FieldFilter(BaseModel):
     """Defines a map of form field names for different versions of the form."""
     version_map: VersionMap
     fields: Dict[str, List[str]] = {}
+    nofill: bool = True
 
     def __unique_fields(self, version_name: str) -> Set[str]:
         """Finds the field names unique to the version.
 
         Args:
           version_name: the name of the form version
+
         Returns:
           the set of field names unique to the version
         """
@@ -58,26 +60,45 @@ class FieldFilter(BaseModel):
 
         return field_set
 
-    def apply(self, input_record: Dict[str, Any]) -> Dict[str, Any]:
+    def apply(self, input_record: Dict[str,
+                                       Any], error_writer: ListErrorWriter,
+              line_num: int) -> Optional[Dict[str, Any]]:
         """Filters the input record by dropping the key-value pairs for fields
         unique to the version.
 
         Args:
           input_record: the record to filter
-          version_name: the name of version for excluded fields
+          error_writer: error metadata writer
+          line_num: line number in the input CSV
+
         Returns:
-          the input_record without the keys for the excluded fields
+          the input_record without the keys for the excluded fields or None
         """
         version_name = self.version_map.apply(input_record)
         drop_fields = self.__unique_fields(version_name)
         if not drop_fields:
             return input_record
 
-        return {
-            field: value
-            for field, value in input_record.items()
-            if field not in drop_fields
-        }
+        transformed = {}
+        for field, value in input_record.items():
+            if field in drop_fields:
+                # report error if excluded fields expected to be empty, but filled
+                if self.nofill and input_record.get(field):
+                    error_writer.write(
+                        preprocessing_error(
+                            field=self.version_map.fieldname,
+                            value=input_record.get(self.version_map.fieldname,
+                                                   ''),
+                            line=line_num,
+                            error_code=SysErrorCodes.EXCLUDED_FIELDS,
+                            ptid=input_record.get(FieldNames.PTID),
+                            visitnum=input_record.get(FieldNames.VISITNUM)))
+                    return None
+                continue
+
+            transformed[field] = value
+
+        return transformed
 
 
 class FieldTransformations(RootModel):
@@ -133,6 +154,7 @@ class BaseRecordTransformer(ABC):
         Args:
           input_record: the record to be transformed
           line_num: the line number of the record in the input
+
         Returns:
           the transformed record. None, if transform cannot be performed.
         """
@@ -173,12 +195,7 @@ class RecordTransformer(BaseRecordTransformer):
 class DateTransformer(BaseRecordTransformer):
     """Defines a transformer that normalizes date fields."""
 
-    def __init__(self, error_writer: ErrorWriter) -> None:
-        """Initialize the CSV Transformer.
-
-        Args:
-            schema_file(optional): name of the transformation schema file
-        """
+    def __init__(self, error_writer: ListErrorWriter) -> None:
         self._error_writer = error_writer
 
     def transform(self, input_record: Dict[str, Any],
@@ -215,8 +232,10 @@ class DateTransformer(BaseRecordTransformer):
 class FilterTransformer(BaseRecordTransformer):
     """Defines a transform that applies a field filter to a record."""
 
-    def __init__(self, field_filter: FieldFilter) -> None:
+    def __init__(self, field_filter: FieldFilter,
+                 error_writer: ListErrorWriter) -> None:
         self._transform = field_filter
+        self._error_writer = error_writer
 
     def transform(self, input_record: Dict[str, Any],
                   line_num: int) -> Optional[Dict[str, Any]]:
@@ -225,10 +244,13 @@ class FilterTransformer(BaseRecordTransformer):
         Args:
           input_record: the input record
           line_num: the line number of the record in the input
+
         Returns:
           the record with fields filtered
         """
-        return self._transform.apply(input_record)
+        return self._transform.apply(input_record=input_record,
+                                     error_writer=self._error_writer,
+                                     line_num=line_num)
 
 
 class TransformerFactory:
@@ -237,7 +259,7 @@ class TransformerFactory:
         self.__transformations = transformations
 
     def create(self, module: Optional[str],
-               error_writer: ErrorWriter) -> RecordTransformer:
+               error_writer: ListErrorWriter) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
         this object.
 
@@ -246,6 +268,8 @@ class TransformerFactory:
 
         Args:
           module: the module name
+          error_writer: error metadata writer
+
         Returns:
           the record transformer
         """
@@ -254,6 +278,7 @@ class TransformerFactory:
         if module:
             filter_list = self.__transformations.get(module)
             for field_filter in filter_list:
-                transformer_list.append(FilterTransformer(field_filter))
+                transformer_list.append(
+                    FilterTransformer(field_filter, error_writer))
 
         return RecordTransformer(transformer_list)

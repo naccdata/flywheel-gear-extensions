@@ -85,6 +85,7 @@ class SysErrorCodes:
     LOWER_I4_VISITNUM = 'preprocess-009'
     LOWER_FVP_VISITDATE = 'preprocess-010'
     LOWER_I4_VISITDATE = 'preprocess-013'
+    EXCLUDED_FIELDS = 'preprocess-014'
     INVALID_MODULE = 'preprocess-018'
     INVALID_PACKET = 'preprocess-019'
     MISSING_IVP = 'preprocess-020'
