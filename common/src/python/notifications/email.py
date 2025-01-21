@@ -48,10 +48,14 @@ class MessageComponent(BaseModel):
     charset: str = Field('utf-8')
 
 
-class TemplateDataModel(BaseModel):
+class BaseTemplateModel(BaseModel):
+    """Base templte model for messages for the boto3 SES client."""
+    email_address: Optional[str] = None\
+
+
+class TemplateDataModel(BaseTemplateModel):
     """Defines a model for messages for the boto3 SES client."""
     firstname: str
-    email_address: Optional[str] = None
     url: Optional[str] = None
 
 
@@ -67,11 +71,12 @@ class EmailClient:
         configuration_set_name: str,
         destination: DestinationModel,
         template: str,
-        template_data: TemplateDataModel,
+        template_data: BaseTemplateModel,
     ) -> str:
         """Sends the message to the destination from the source address.
 
         Args:
+          configuration_set_name: name of the configuration set
           destination: the DestinationModel with email addresses
           template: the name of the SES template
           template_data: the MessageContentModel with message content

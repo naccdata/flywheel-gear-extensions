@@ -7,11 +7,14 @@ from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
-from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
 SearchOperator = Literal['=', '>', '<', '!=', '>=', '<=', '=|']
+
+
+class FormsStoreException(Exception):
+    pass
 
 
 class FormQueryArgs(BaseModel):
@@ -38,13 +41,13 @@ class FormsStore():
         self.__proxy = self.__ingest_project.proxy
 
     def is_new_subject(self, subject_lbl: str) -> bool:
-        """_summary_
+        """Check whether the given subject exists.
 
         Args:
-            subject_lbl (str): _description_
+            subject_lbl: Flywheel subject label
 
         Returns:
-            bool: _description_
+            bool: True, if this is a new subject
         """
 
         if self.__ingest_project.find_subject(subject_lbl):
@@ -53,107 +56,46 @@ class FormsStore():
         return not (self.__legacy_project
                     and self.__legacy_project.find_subject(subject_lbl))
 
-    def query_ingest_project(
+    def query_form_data(  # noqa: C901
             self,
             *,
             subject_lbl: str,
             module: str,
+            legacy: bool,
             search_col: str,
-            search_val: Optional[str] | Optional[List[str]] = None,
-            search_op: Optional[SearchOperator] = None,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str | List[str]): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-
-        Returns:
-            Optional[List[Dict[str, str]]]: _description_
-        """
-        return self.__query_project(project=self.__ingest_project,
-                                    subject_lbl=subject_lbl,
-                                    module=module,
-                                    search_col=search_col,
-                                    search_val=search_val,
-                                    search_op=search_op,
-                                    qc_gear=qc_gear,
-                                    extra_columns=extra_columns,
-                                    find_all=find_all)
-
-    def query_legacy_project(
-            self,
-            *,
-            subject_lbl: str,
-            module: str,
-            search_col: str,
-            search_val: Optional[str] | Optional[List[str]] = None,
-            search_op: Optional[SearchOperator] = None,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-
-        Returns:
-            Optional[List[Dict[str, str]]]: _description_
-        """
-        if not self.__legacy_project:
-            log.warning('Legacy project not provided for group %s',
-                        self.__ingest_project.group)
-            return None
-
-        return self.__query_project(project=self.__legacy_project,
-                                    subject_lbl=subject_lbl,
-                                    module=module,
-                                    search_col=search_col,
-                                    search_val=search_val,
-                                    search_op=search_op,
-                                    qc_gear=qc_gear,
-                                    extra_columns=extra_columns,
-                                    find_all=find_all)
-
-    def __query_project(
-            self,
-            *,
-            project: ProjectAdaptor,
-            subject_lbl: str,
-            module: str,
-            search_col: str,
-            search_val: Optional[str] | Optional[List[str]] = None,
-            search_op: Optional[SearchOperator],
+            search_val: str | List[str],
+            search_op: SearchOperator,
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
         """Retrieve previous visit records for the specified project/subject.
 
         Args:
-            project: Flywheel project container
             subject_lbl: Flywheel subject label
             module: module name
-            search_col: variable name that visits are sorted by
-            search_val: cutoff value on orderby field
+            legacy: whether to query legacy project or not
+            search_col: field to search
+            search_val: value(s) to search
             search_op: search operator
             qc_gear (optional): specify qc_gear name to retrieve records that passed QC
             extra_columns (optional): list of extra columns to return if any
+            find_all (optional): bypass search and return all visits for the module
 
         Returns:
-            List[Dict]: List of visits matching with the specified cutoff value,
-                        sorted in descending order
+            List[Dict] (optional): List of visits matching the search,
+                                sorted in descending order or None
         """
+
+        if legacy and not self.__legacy_project:
+            log.warning('Legacy project not provided for group %s',
+                        self.__ingest_project.group)
+            return None
+
+        project = self.__legacy_project if legacy else self.__ingest_project
+        if not project:  # this cannot happen
+            raise FormsStoreException(
+                f'Project not found to query data for subject {subject_lbl}/{module}'
+            )
 
         subject = project.find_subject(subject_lbl)
         if not subject:
@@ -169,7 +111,12 @@ class FormsStore():
 
         if isinstance(search_val,
                       str) and search_op == DefaultValues.FW_SEARCH_OR:
-            search_val = [search_val]
+            search_val = [search_val.replace(", ", ",")]
+
+        # remove spaces for OR search (=|)
+        if isinstance(search_val,
+                      List) and search_op == DefaultValues.FW_SEARCH_OR:
+            search_val = f"[{','.join(search_val)}]"
 
         # Dataview to retrieve the previous visits
         title = ('Visits for '
@@ -188,12 +135,6 @@ class FormsStore():
 
         filters = f'acquisition.label={module}'
         if not find_all:
-            if not search_op or not search_val:
-                raise ValueError("search_op and search_val must be set if find_all false")
-
-            if search_op == DefaultValues.FW_SEARCH_OR:
-                search_val = f"[{','.join(search_val)}]"
-
             filters += f',{search_col}{search_op}{search_val}'
 
         if qc_gear:

@@ -271,6 +271,7 @@ def run(*,
         input_file: the input file
         destination: Flyhweel project container
         transformer_factory: the factory for column transformers
+        preprocessor: class to run pre-processing checks
         error_writer: the writer for error output
         gear_name: gear name
         downstream_gears: list of downstream gears

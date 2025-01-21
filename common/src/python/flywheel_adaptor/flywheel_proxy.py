@@ -600,6 +600,17 @@ class FlywheelProxy:
         """
         return self.__fw.jobs.find_first(search_str)
 
+    def find_jobs(self, search_str: str) -> List[Job]:
+        """Find all jobs matching the search string.
+
+        Args:
+            search_str: parameters to search (e.g. 'state=failed')
+
+        Returns:
+            Job: List of Flywheel Job objects found
+        """
+        return self.__fw.jobs.find(search_str)
+
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Find the Job with matching ID.
 
