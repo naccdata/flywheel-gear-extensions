@@ -36,7 +36,9 @@ class TestFieldFilter:
         input_record = {
             'dummy': 'alpha-raw',
         }
-        record = field_filter.apply(input_record)
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
+        record = field_filter.apply(input_record, error_writer, 1)
 
         assert record == input_record
 
@@ -50,7 +52,10 @@ class TestFieldFilter:
                                        'beta': ['f1']
                                    })
         input_record = {'dummy': 'alpha-raw', 'f1': 'v1'}
-        record = field_filter.apply(input_record)
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
+
+        record = field_filter.apply(input_record, error_writer, 1)
 
         assert record == input_record
 
@@ -60,12 +65,67 @@ class TestFieldFilter:
             value_map={'alpha-raw': 'beta'},
             default='alpha'),
                                    fields={
-                                       'alpha': ['a1'],
-                                       'beta': ['b1']
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
                                    })
-        input_record = {'dummy': 'alpha-raw', 'a1': 'v1', 'b1': 'v2'}
-        record = field_filter.apply(input_record)
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': ''
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
+        record = field_filter.apply(input_record, error_writer, 1)
+        assert record
+        assert [k for k in record if k in input_record and k != 'b1']
 
+    def test_diff_fields_nofill_true(self):
+        field_filter = FieldFilter(version_map=VersionMap(
+            fieldname='dummy',
+            value_map={'alpha-raw': 'beta'},
+            default='alpha'),
+                                   nofill=True,
+                                   fields={
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
+                                   })
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': 'beta-val'
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
+        record = field_filter.apply(input_record, error_writer, 1)
+
+        assert not record
+
+    def test_diff_fields_nofill_false(self):
+        field_filter = FieldFilter(version_map=VersionMap(
+            fieldname='dummy',
+            value_map={'alpha-raw': 'beta'},
+            default='alpha'),
+                                   nofill=False,
+                                   fields={
+                                       'alpha': ['common1', 'common2', 'a1'],
+                                       'beta': ['common1', 'common2', 'b1']
+                                   })
+        input_record = {
+            'dummy': 'alpha-raw',
+            'common1': 'c1',
+            'common2': 'c2',
+            'a1': 'alpha-val',
+            'b1': 'beta-val'
+        }
+        error_writer = ListErrorWriter(container_id='dummy',
+                                       fw_path='dummy/dummy')
+        record = field_filter.apply(input_record, error_writer, 1)
+
+        assert record
         assert [k for k in record if k in input_record and k != 'b1']
 
 

@@ -124,6 +124,7 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         self.__error_writer.clear()
 
+        # check for valid ADCID and PTID
         if not self.__validator.check(row=row, line_number=line_num):
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False

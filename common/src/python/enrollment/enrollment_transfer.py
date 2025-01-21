@@ -2,6 +2,7 @@
 form."""
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
@@ -9,7 +10,12 @@ from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
 )
-from identifiers.model import GUID_PATTERN, NACCID_PATTERN, CenterIdentifiers
+from identifiers.model import (
+    GUID_PATTERN,
+    NACCID_PATTERN,
+    PTID_PATTERN,
+    CenterIdentifiers,
+)
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
 from outputs.errors import (
@@ -253,32 +259,45 @@ class NewGUIDRowValidator(RowValidator):
 
 # pylint: disable=(too-few-public-methods)
 class CenterValidator(RowValidator):
-    """Row validator to check whether the row has the correct ADCID."""
+    """Row validator to check whether the row has the correct ADCID and the
+    PTID matches expected format."""
 
     def __init__(self, center_id: int, error_writer: ErrorWriter) -> None:
         self.__center_id = center_id
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
-        """Checks that the row has the expected ADCID.
+        """Checks that the row has the expected ADCID and the PTID matches
+        expected format.
 
         Args:
           row: the dictionary for the row
           line_number: the line number of the row
+
         Returns:
-          True if the center ID matches, False otherwise.
+          True if the ADCID matches and PTID in expected format, False otherwise.
         """
 
-        if str(row.get(FieldNames.ADCID)) == str(self.__center_id):
-            return True
+        valid = True
+        if str(row.get(FieldNames.ADCID)) != str(self.__center_id):
+            log.error("Center ID for project must match form ADCID")
+            self.__error_writer.write(
+                preprocessing_error(field=FieldNames.ADCID,
+                                    value=row[FieldNames.ADCID],
+                                    line=line_number,
+                                    error_code=SysErrorCodes.ADCID_MISMATCH))
+            valid = False
 
-        log.error("Center ID for project must match form ADCID")
-        self.__error_writer.write(
-            preprocessing_error(field=FieldNames.ADCID,
-                                value=row[FieldNames.ADCID],
-                                line=line_number,
-                                error_code=SysErrorCodes.ADCID_MISMATCH))
-        return False
+        ptid = row.get(FieldNames.PTID, '')
+        if not re.fullmatch(PTID_PATTERN, ptid):
+            self.__error_writer.write(
+                preprocessing_error(field=FieldNames.PTID,
+                                    value=ptid,
+                                    line=line_number,
+                                    error_code=SysErrorCodes.INVALID_PTID))
+            valid = False
+
+        return valid
 
 
 class EnrollmentError(Exception):
