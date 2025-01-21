@@ -168,6 +168,8 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
         Args:
           form_config_input: the input file wrapper for form configs file
+          ingest_project: Flywheel project adaptor
+          error_writer: error metadata writer
 
         Returns:
           the FormPreprocessor with given configs

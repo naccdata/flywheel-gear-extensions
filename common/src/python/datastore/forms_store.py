@@ -23,13 +23,13 @@ class FormsStore():
         self.__proxy = self.__ingest_project.proxy
 
     def is_new_subject(self, subject_lbl: str) -> bool:
-        """_summary_
+        """Check whether the given subject exists.
 
         Args:
-            subject_lbl (str): _description_
+            subject_lbl: Flywheel subject label
 
         Returns:
-            bool: _description_
+            bool: True, if this is a new subject
         """
 
         if self.__ingest_project.find_subject(subject_lbl):
@@ -49,19 +49,20 @@ class FormsStore():
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
+        """Query the form ingest project for matching visits.
 
         Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str | List[str]): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-            find_all (optional)
+            subject_lbl: Flywheel subject label
+            module: module label
+            search_col: field to search
+            search_val: value(s) to search
+            search_op: search operator
+            qc_gear (optional): QC gear name
+            extra_columns (optional): list of extra column to include in the result
+            find_all (optional): bypass search and return all visits for the module
 
         Returns:
-            Optional[List[Dict[str, str]]]: _description_
+            Optional[List[Dict[str, str]]]: list of matching visits or None
         """
         return self.__query_project(project=self.__ingest_project,
                                     subject_lbl=subject_lbl,
@@ -84,19 +85,20 @@ class FormsStore():
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """_summary_
+        """Query the legacy ingest project for matching visits.
 
         Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            search_col (str): _description_
-            search_val (str): _description_
-            search_op (SearchOperator): _description_
-            qc_gear (Optional[str], optional): _description_. Defaults to None.
-            find_all (optional)
+            subject_lbl: Flywheel subject label
+            module: module label
+            search_col: field to search
+            search_val: value(s) to search
+            search_op: search operator
+            qc_gear (optional): QC gear name
+            extra_columns (optional): list of extra column to include in the result
+            find_all (optional): bypass search and return all visits for the module
 
         Returns:
-            Optional[List[Dict[str, str]]]: _description_
+            Optional[List[Dict[str, str]]]: list of matching visits or None
         """
         if not self.__legacy_project:
             log.warning('Legacy project not provided for group %s',
@@ -131,15 +133,16 @@ class FormsStore():
             project: Flywheel project container
             subject_lbl: Flywheel subject label
             module: module name
-            search_col: variable name that visits are sorted by
-            search_val: cutoff value on orderby field
+            search_col: field to search
+            search_val: value(s) to search
             search_op: search operator
             qc_gear (optional): specify qc_gear name to retrieve records that passed QC
             extra_columns (optional): list of extra columns to return if any
+            find_all (optional): bypass search and return all visits for the module
 
         Returns:
-            List[Dict]: List of visits matching with the specified cutoff value,
-                        sorted in descending order
+            List[Dict] (optional): List of visits matching the search,
+                                sorted in descending order or None
         """
 
         subject = project.find_subject(subject_lbl)

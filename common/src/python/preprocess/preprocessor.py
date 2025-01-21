@@ -56,16 +56,17 @@ class FormPreprocessor():
     def __is_accepted_packet(self, *, input_record: Dict[str, Any],
                              module: str, module_configs: ModuleConfigs,
                              line_num: int) -> bool:
-        """_summary_
+        """Validate whether the provided packet code matches with an expected
+        code for the module.
 
         Args:
-            module (str): _description_
-            module_configs (ModuleConfigs): _description_
-            input_record: _description_
-            line_num (int): _description_
+            module: module label
+            module_configs: module configurations
+            input_record: input record
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: True if packet code is valid
         """
 
         packet = input_record[FieldNames.PACKET]
@@ -89,16 +90,17 @@ class FormPreprocessor():
     def __is_accepted_version(self, *, input_record: Dict[str, Any],
                               module: str, module_configs: ModuleConfigs,
                               line_num: int) -> bool:
-        """_summary_
+        """Validate whether the provided version matches with an expected
+        version for the module.
 
         Args:
-            module (str): _description_
-            module_configs (ModuleConfigs): _description_
-            version (str): _description_
-            line_num (int): _description_
+            module: module label
+            module_configs: module configurations
+            input_record: input record
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: True if packet code is valid
         """
 
         version = input_record[FieldNames.FORMVER]
@@ -121,20 +123,20 @@ class FormPreprocessor():
     def __check_initial_visit(  # noqa: C901
             self, *, subject_lbl: str, input_record: Dict[str, Any],
             module: str, module_configs: ModuleConfigs, line_num: int) -> bool:
-        """_summary_
+        """Initial visit validations (missing, duplicate, multiple, etc)
 
         Args:
-            subject_lbl (str): _description_
-            input_record: _description_
-            module: module
-            module_configs (str): _description_
-            line_num: the line number of the input record
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
 
         Raises:
-            PreprocessingException: _description_
+            PreprocessingException: if error occur while validating
 
         Returns:
-            bool: _description_
+            bool: False if any of the validations fail
         """
 
         packet = input_record[FieldNames.PACKET]
@@ -174,6 +176,7 @@ class FormPreprocessor():
                 search_val=module_configs.initial_packets,
                 search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
 
+        # this cannot happen, adding as a sanity check
         if initial_packets and len(initial_packets) > 1:
             self.__error_writer.write(
                 preprocessing_error(
@@ -242,15 +245,15 @@ class FormPreprocessor():
 
     def __find_conflicting_visits(self, visits: List[Dict[str, str]],
                                   field: str, value: Any) -> bool:
-        """_summary_
+        """Check for any conflicting visits in existing records.
 
         Args:
-            visits (List[Dict[str, str]]): _description_
-            field (str): _description_
-            value (Any): _description_
+            visits: list of existing visits to check
+            field: field to check
+            value: input value for the field
 
         Returns:
-            bool: _description_
+            bool: True, if any conflicting visits found
         """
 
         field_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{field}'
@@ -267,17 +270,17 @@ class FormPreprocessor():
                                    input_record: Dict[str, Any], module: str,
                                    module_configs: ModuleConfigs,
                                    line_num: int) -> bool:
-        """_summary_
+        """Check for conflicting visitnum for same visit date.
 
         Args:
-            subject_lbl (str): _description_
-            input_record (Dict[str, Any]): _description_
-            module (str): _description_
-            module_configs (str): _description_
-            line_num: the line number of the input record
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: False, if a conflicting visitnum found
         """
 
         date_field = module_configs.date_field
@@ -336,17 +339,17 @@ class FormPreprocessor():
                                    input_record: Dict[str, Any], module: str,
                                    module_configs: ModuleConfigs,
                                    line_num: int) -> bool:
-        """_summary_
+        """Check for conflicting visit date for same visitnum.
 
         Args:
-            subject_lbl (str): _description_
-            input_record (Dict[str, Any]): _description_
-            module (str): _description_
-            module_configs (str): _description_
-            line_num: the line number of the input record
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: False, if a conflicting visit date found
         """
 
         date_field = module_configs.date_field
@@ -405,17 +408,17 @@ class FormPreprocessor():
                                     input_record: Dict[str, Any], module: str,
                                     module_configs: ModuleConfigs,
                                     line_num: int) -> bool:
-        """_summary_
+        """Validate UDSv4 I4 packet.
 
         Args:
-            subject_lbl (str): _description_
-            input_record (Dict[str, Any]): _description_
-            module (str): _description_
-            module_configs (str): _description_
-            line_num: the line number of the input record
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: False, if validations fail
         """
 
         if input_record[FieldNames.PACKET] != DefaultValues.UDS_I4_PACKET:
@@ -467,15 +470,15 @@ class FormPreprocessor():
 
     def preprocess(self, *, input_record: Dict[str, Any], module: str,
                    line_num: int) -> bool:
-        """_summary_
+        """Run pre-processing checks for the input record.
 
         Args:
-            input_record (Dict[str, Any]): _description_
-            module (str): _description_
-            line_num: the line number of the input record
+            input_record: input visit record
+            module: module label
+            line_num: line number in CSV file
 
         Returns:
-            bool: _description_
+            bool: True, if input record pass the pre-processing checks
         """
 
         module_configs = self.__module_info.get(module)
