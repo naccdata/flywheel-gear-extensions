@@ -158,9 +158,10 @@ class FormPreprocessor():
                         visitnum=input_record[FieldNames.VISITNUM]))
                 return False
 
-        initial_packets = self.__forms_store.query_ingest_project(
+        initial_packets = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=False,
             search_col=FieldNames.PACKET,
             search_val=module_configs.initial_packets,
             search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
@@ -169,9 +170,10 @@ class FormPreprocessor():
             if module_configs.legacy_module:
                 module = module_configs.legacy_module
 
-            initial_packets = self.__forms_store.query_legacy_project(
+            initial_packets = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
                 module=module,
+                legacy=True,
                 search_col=FieldNames.PACKET,
                 search_val=module_configs.initial_packets,
                 search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
@@ -284,9 +286,10 @@ class FormPreprocessor():
         """
 
         date_field = module_configs.date_field
-        date_matches = self.__forms_store.query_ingest_project(
+        date_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=False,
             search_col=date_field,
             search_val=input_record[date_field],
             search_op='=',
@@ -311,9 +314,10 @@ class FormPreprocessor():
         if module_configs.legacy_date:
             date_field = module_configs.legacy_date
 
-        legacy_matches = self.__forms_store.query_legacy_project(
+        legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=True,
             search_col=date_field,
             search_val=input_record[date_field],
             search_op='=',
@@ -353,9 +357,10 @@ class FormPreprocessor():
         """
 
         date_field = module_configs.date_field
-        visitnum_matches = self.__forms_store.query_ingest_project(
+        visitnum_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=False,
             search_col=FieldNames.VISITNUM,
             search_val=input_record[FieldNames.VISITNUM],
             search_op='=',
@@ -380,9 +385,10 @@ class FormPreprocessor():
         if module_configs.legacy_date:
             date_field = module_configs.legacy_date
 
-        legacy_matches = self.__forms_store.query_legacy_project(
+        legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=True,
             search_col=FieldNames.VISITNUM,
             search_val=input_record[FieldNames.VISITNUM],
             search_op='=',
@@ -430,9 +436,10 @@ class FormPreprocessor():
         if module_configs.legacy_date:
             date_field = module_configs.legacy_date
 
-        legacy_visits = self.__forms_store.query_legacy_project(
+        legacy_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
+            legacy=True,
             search_col=date_field,
             search_val=input_record[date_field],
             search_op='<=',

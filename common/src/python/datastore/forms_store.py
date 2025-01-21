@@ -13,6 +13,10 @@ log = logging.getLogger(__name__)
 SearchOperator = Literal['=', '>', '<', '!=', '>=', '<=', '=|']
 
 
+class FormsStoreException(Exception):
+    pass
+
+
 class FormsStore():
     """Class to extract/query form data from Flywheel for ingest projects."""
 
@@ -38,89 +42,12 @@ class FormsStore():
         return not (self.__legacy_project
                     and self.__legacy_project.find_subject(subject_lbl))
 
-    def query_ingest_project(
+    def query_form_data(  # noqa: C901
             self,
             *,
             subject_lbl: str,
             module: str,
-            search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """Query the form ingest project for matching visits.
-
-        Args:
-            subject_lbl: Flywheel subject label
-            module: module label
-            search_col: field to search
-            search_val: value(s) to search
-            search_op: search operator
-            qc_gear (optional): QC gear name
-            extra_columns (optional): list of extra column to include in the result
-            find_all (optional): bypass search and return all visits for the module
-
-        Returns:
-            Optional[List[Dict[str, str]]]: list of matching visits or None
-        """
-        return self.__query_project(project=self.__ingest_project,
-                                    subject_lbl=subject_lbl,
-                                    module=module,
-                                    search_col=search_col,
-                                    search_val=search_val,
-                                    search_op=search_op,
-                                    qc_gear=qc_gear,
-                                    extra_columns=extra_columns,
-                                    find_all=find_all)
-
-    def query_legacy_project(
-            self,
-            *,
-            subject_lbl: str,
-            module: str,
-            search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
-            qc_gear: Optional[str] = None,
-            extra_columns: Optional[List[str]] = None,
-            find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """Query the legacy ingest project for matching visits.
-
-        Args:
-            subject_lbl: Flywheel subject label
-            module: module label
-            search_col: field to search
-            search_val: value(s) to search
-            search_op: search operator
-            qc_gear (optional): QC gear name
-            extra_columns (optional): list of extra column to include in the result
-            find_all (optional): bypass search and return all visits for the module
-
-        Returns:
-            Optional[List[Dict[str, str]]]: list of matching visits or None
-        """
-        if not self.__legacy_project:
-            log.warning('Legacy project not provided for group %s',
-                        self.__ingest_project.group)
-            return None
-
-        return self.__query_project(project=self.__legacy_project,
-                                    subject_lbl=subject_lbl,
-                                    module=module,
-                                    search_col=search_col,
-                                    search_val=search_val,
-                                    search_op=search_op,
-                                    qc_gear=qc_gear,
-                                    extra_columns=extra_columns,
-                                    find_all=find_all)
-
-    def __query_project(
-            self,
-            *,
-            project: ProjectAdaptor,
-            subject_lbl: str,
-            module: str,
+            legacy: bool,
             search_col: str,
             search_val: str | List[str],
             search_op: SearchOperator,
@@ -130,9 +57,9 @@ class FormsStore():
         """Retrieve previous visit records for the specified project/subject.
 
         Args:
-            project: Flywheel project container
             subject_lbl: Flywheel subject label
             module: module name
+            legacy: whether to query legacy project or not
             search_col: field to search
             search_val: value(s) to search
             search_op: search operator
@@ -144,6 +71,17 @@ class FormsStore():
             List[Dict] (optional): List of visits matching the search,
                                 sorted in descending order or None
         """
+
+        if legacy and not self.__legacy_project:
+            log.warning('Legacy project not provided for group %s',
+                        self.__ingest_project.group)
+            return None
+
+        project = self.__legacy_project if legacy else self.__ingest_project
+        if not project:  # this cannot happen
+            raise FormsStoreException(
+                f'Project not found to query data for subject {subject_lbl}/{module}'
+            )
 
         subject = project.find_subject(subject_lbl)
         if not subject:
