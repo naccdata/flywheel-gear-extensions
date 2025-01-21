@@ -44,17 +44,19 @@ preprocess_errors = {
     "an existing UDSv3 Visit with visit date (VISITDATE) before the Initial I4 Packet",
     SysErrorCodes.EXCLUDED_FIELDS:
     "Some fields in the input record do not match with the submitted version",
-    SysErrorCodes.INVALID_MODULE:
-    "Provided MODULE is not in the list of currently accepted modules",
     SysErrorCodes.INVALID_PACKET:
     "Provided PACKET code is not in the list of accepted packets for this module",
+    SysErrorCodes.INVALID_VERSION:
+    "Provided FORMVER is not in the list of " +
+    "accepted versions for this module",
+    SysErrorCodes.INVALID_PTID:
+    "PTID must be an alpha numeric code " + "that is no more than 10 digits",
+    SysErrorCodes.INVALID_MODULE:
+    "Provided MODULE is not in the list of currently accepted modules",
     SysErrorCodes.MISSING_IVP:
     "Follow-Up visit cannot be submitted without an existing Initial Visit Packet",
     SysErrorCodes.MULTIPLE_IVP:
-    "More than one IVP packet found for the participant/module",
-    SysErrorCodes.INVALID_VERSION:
-    "Provided FORMVER is not in the list of " +
-    "accepted versions for this module"
+    "More than one IVP packet found for the participant/module"
 }
 
 
