@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, RootModel
 
 GUID_PATTERN = r"^[a-zA-Z0-9]+$"
 NACCID_PATTERN = r"^NACC\d{6}$"
-PTID_PATTERN = r"^[a-zA-Z0-9]{1,10}$"
+PTID_PATTERN = r"^[a-zA-Z0-9-]{1,10}$"
 
 
 class IdentifierObject(BaseModel):

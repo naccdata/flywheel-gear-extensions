@@ -6,7 +6,6 @@
         "queue_tags": "queued",
         "source_email": "no-reply@naccdata.org",
         "portal_url_path": "/sandbox/flywheel/portal",
-        "apikey_path_prefix": "/sandbox/flywheel/gearbot",
-        "dry_run": false
+        "apikey_path_prefix": "/sandbox/flywheel/gearbot"
     }
 }
