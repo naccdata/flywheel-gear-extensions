@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.1.6 (Unreleased)
+## 0.1.9 - 1.1.6
 
 * Refactors to move logic related to triggering gears to `common/gear_execution/gear_trigger` and pull from there
 * Refactors to move logic related to polling jobs to `common/jobs/jobs` and pull from there
