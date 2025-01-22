@@ -7,6 +7,7 @@ from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
@@ -18,14 +19,14 @@ class FormsStoreException(Exception):
 
 
 class FormQueryArgs(BaseModel):
-    """Make pydantic model for query arguments to make them easier
-    to pass around.
-    """
+    """Make pydantic model for query arguments to make them easier to pass
+    around."""
     subject_lbl: str
     module: str
+    legacy: bool
     search_col: str
     search_val: Optional[str] | Optional[List[str]] = None
-    search_op: Optional[SearchOperator] = None
+    search_op: Optional[SearchOperator] | Optional[str] = None
     qc_gear: Optional[str] = None
     extra_columns: Optional[List[str]] = None
     find_all: bool = False
@@ -63,8 +64,8 @@ class FormsStore():
             module: str,
             legacy: bool,
             search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
+            search_val: Optional[str] | Optional[List[str]] = None,
+            search_op: Optional[SearchOperator] | Optional[str] = None,
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:

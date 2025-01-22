@@ -103,12 +103,10 @@ class EmailClient:
         log.info("Sent mail %s", message_id)
         return message_id
 
-    def send_raw(self,
-                 destinations: List[str],
-                 subject: str,
+    def send_raw(self, destinations: List[str], subject: str,
                  body: str) -> str:
-        """Sends a plain text raw email that doesn't require
-        any templating. Mainly for internal use.
+        """Sends a plain text raw email that doesn't require any templating.
+        Mainly for internal use.
 
         Args:
           destinations: The list of destinations
@@ -127,8 +125,7 @@ class EmailClient:
             response = self.__client.send_raw_email(
                 Source=self.__source,
                 Destinations=destinations,
-                RawMessage={'Data': raw_msg}
-            )
+                RawMessage={'Data': raw_msg})
         except ClientError as error:
             log.error("Failed to send raw email")
             raise EmailSendError(error) from error

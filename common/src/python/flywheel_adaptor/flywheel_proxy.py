@@ -1334,7 +1334,7 @@ class ProjectAdaptor:
 
         return None
 
-    def get_subject_by_id(self, subject_id: str) -> Optional[flywheel.Subject]:
+    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
         """Gets the subject with the given id.
 
         Args:
@@ -1347,4 +1347,3 @@ class ProjectAdaptor:
             return SubjectAdaptor(subject)
 
         return None
-
