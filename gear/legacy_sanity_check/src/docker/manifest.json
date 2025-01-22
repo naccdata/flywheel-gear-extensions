@@ -36,7 +36,7 @@
             }
         },
         "form_configs_file": {
-            "description": "A JSON file with forms module configurations. Should be the same as the one used by the ingest project.",
+            "description": "A JSON file with the forms module configurations. Should be the same as the one used by the ingest project.",
             "base": "file",
             "type": {
                 "enum": [
@@ -46,11 +46,6 @@
         }
     },
     "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
         "ingest_project_label": {
             "description": "Label of the corresponding ingest project to compare this retrospective project to",
             "type": "string",

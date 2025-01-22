@@ -176,12 +176,14 @@ class LegacySanityChecker:
         # if there are no visits for the module/packet in one of the projects
         # this automatically passes
         if not ingest_results or not retro_results:
-            log.info("No visits found for one or more projects, " +
+            log.info("No visits found for one or both projects, " +
                      "automatically passes")
             return True
 
         # otherwise we need to compare duplicates. store each record's
         # packet/visitnum/visitdate in a tuple and compare between the projects
+        packet_lbl = \
+            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PACKET}'
         visitnum_lbl = \
             f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         visitdate_lbl = \
@@ -189,9 +191,9 @@ class LegacySanityChecker:
         legacy_visitdate_lbl = \
             f'{DefaultValues.FORM_METADATA_PATH}.{legacy_visitdate}'
 
-        ingest_records = [(record[FieldNames.PACKET], record[visitnum_lbl],
+        ingest_records = [(record[packet_lbl], record[visitnum_lbl],
                            record[visitdate_lbl]) for record in ingest_results]
-        retro_records = [(record[FieldNames.PACKET], record[visitnum_lbl],
+        retro_records = [(record[packet_lbl], record[visitnum_lbl],
                           record[legacy_visitdate_lbl])
                          for record in retro_results]
 
