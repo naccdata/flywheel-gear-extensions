@@ -18,7 +18,6 @@ class GearConfigs(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='allow')
 
     apikey_path_prefix: str
-    dry_run: Optional[bool] = False
 
 
 class GearInfo(BaseModel):
