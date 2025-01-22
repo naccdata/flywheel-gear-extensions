@@ -106,9 +106,13 @@ class FormsStore():
 
         if isinstance(search_val,
                       List) and search_op != DefaultValues.FW_SEARCH_OR:
-            log.error('Unsupported operator "%s" for list input %s', search_op,
-                      search_val)
-            return None
+            raise FormsStoreException(
+                'Unsupported operator "%s" for list input %s', search_op,
+                search_val)
+
+        if not find_all and (not search_val or not search_op):
+            raise FormsStoreException(
+                'search_val and search_op must be set if find_all is False')
 
         if isinstance(search_val,
                       str) and search_op == DefaultValues.FW_SEARCH_OR:

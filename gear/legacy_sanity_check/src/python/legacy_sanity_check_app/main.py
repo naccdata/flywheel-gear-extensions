@@ -66,7 +66,7 @@ class LegacySanityChecker:
         # first check there aren't somehow multiple initial retrospective visits
         num_legacy = len(init_legacy_packets) if init_legacy_packets else 0
         if num_legacy > 1:
-            log.error("Multiple retrospective initial visit packets" +
+            log.error("Multiple retrospective initial visit packets " +
                       f"found for {module}: {num_legacy}")
             self.__error_writer.write(
                 FileError(
