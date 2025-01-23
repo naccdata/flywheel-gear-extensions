@@ -18,12 +18,13 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
 from outputs.errors import ListErrorWriter
+from preprocess.preprocessor import FormProjectConfigs, ModuleConfigs
 from redcap.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 
@@ -108,7 +109,9 @@ def run(  # noqa: C901
         s3_client: S3BucketReader,
         admin_group: NACCGroup,
         gear_context: GearToolkitContext,
-        redcap_connection: Optional[REDCapReportConnection] = None):
+        form_project_configs: FormProjectConfigs,
+        redcap_connection: Optional[REDCapReportConnection] = None,
+        supplement_input: Optional[InputFileWrapper] = None):
     """Starts QC process for input file. Depending on the input file type calls
     the appropriate file processor.
 
@@ -118,7 +121,9 @@ def run(  # noqa: C901
         s3_client: boto3 client for QC rules S3 bucket
         admin_group: Flywheel admin group
         gear_context: Flywheel gear context
-        redcap_connection (Optional): REDCap project for NACC QC checks
+        form_project_configs: module configurations
+        redcap_connection (optional): REDCap project for NACC QC checks
+        supplement_input (optional): input file for supplement module
 
     Raises:
         GearExecutionError if any problem occurs while validating input file
@@ -152,20 +157,27 @@ def run(  # noqa: C901
         raise GearExecutionError(
             f'Failed to find the project with ID {file.parents.project}')
 
-    legacy_label = gear_context.config.get('legacy_project_label',
-                                           DefaultValues.LEGACY_PRJ_LABEL)
-    pk_field = (gear_context.config.get('primary_key',
-                                        FieldNames.NACCID)).lower()
-    date_field = (gear_context.config.get('date_field',
-                                          FieldNames.DATE_COLUMN)).lower()
+    if (module not in form_project_configs.accepted_modules
+            or not form_project_configs.module_configs.get(module)):
+        raise GearExecutionError(
+            f'Failed to find the configurations for module {module}')
+
+    legacy_label = (form_project_configs.legacy_project_label
+                    if form_project_configs.legacy_project_label else
+                    DefaultValues.LEGACY_PRJ_LABEL)
+    pk_field = form_project_configs.primary_key.lower()
+    module_configs: ModuleConfigs = form_project_configs.module_configs.get(
+        module)  # type: ignore
+    date_field = module_configs.date_field
     strict = gear_context.config.get("strict_mode", True)
 
     error_writer = ListErrorWriter(container_id=file_id,
                                    fw_path=proxy.get_lookup_path(file))
 
     rule_def_loader = DefinitionsLoader(s3_client=s3_client,
-                                        strict=strict,
-                                        error_writer=error_writer)
+                                        error_writer=error_writer,
+                                        module_configs=module_configs,
+                                        strict=strict)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
     gear_name = gear_context.manifest.get('name', 'form-qc-checker')

@@ -34,6 +34,25 @@
                     "source code"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "supplement_data_file": {
+            "description": "Optional input file for supplement module",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -52,25 +71,10 @@
             "type": "string",
             "default": "/redcap/aws/qcchecks"
         },
-        "primary_key": {
-            "description": "Primary key field (variable) for the form data project.",
-            "type": "string",
-            "default": "naccid"
-        },
         "strict_mode": {
             "description": "Validation mode. If false, input data variables that are not in the rule definitions are skipped from validation.",
             "type": "boolean",
             "default": false
-        },
-        "legacy_project_label": {
-            "description": "The label of the Flywheel project where legacy data stored.",
-            "type": "string",
-            "default": "retrospective-form"
-        },
-        "date_field": {
-            "description": "Variable name of the visit date field for the module",
-            "type": "string",
-            "default": "visitdate"
         },
         "admin_group": {
             "description": "Name of the admin group",

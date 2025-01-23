@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Mapping, Optional
 import yaml
 from keys.keys import DefaultValues, FieldNames
 from outputs.errors import ListErrorWriter, empty_field_error, system_error
+from preprocess.preprocessor import ModuleConfigs
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class DefinitionsLoader:
                  *,
                  s3_client: S3BucketReader,
                  error_writer: ListErrorWriter,
+                 module_configs: ModuleConfigs,
                  strict: bool = True):
         """
 
@@ -36,6 +38,7 @@ class DefinitionsLoader:
 
         self.__s3_bucket = s3_client
         self.__error_writer = error_writer
+        self.__module_configs = module_configs
         self.__strict = strict
         # optional forms file in S3 bucket
         self.__opfname = f'{DefaultValues.QC_JSON_DIR}/optional_forms.json'

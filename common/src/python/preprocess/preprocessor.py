@@ -22,21 +22,12 @@ class ModuleConfigs(BaseModel):
     date_field: str
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
-
-    @classmethod
-    def create(cls, label: str, configs: Dict[str, Any]) -> 'ModuleConfigs':
-        """Create from given configs."""
-        return ModuleConfigs(initial_packets=configs['initial_packets'],
-                             followup_packets=configs['followup_packets'],
-                             versions=configs['versions'],
-                             date_field=configs['date_field'],
-                             legacy_module=configs.get('legacy_module', label),
-                             legacy_date=configs.get('legacy_date',
-                                                     configs['date_field']))
+    supplement_module: Optional[Dict[str, str]] = None
 
 
 class FormProjectConfigs(BaseModel):
     primary_key: str
+    accepted_modules: List[str]
     legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
     module_configs: Dict[str, ModuleConfigs]
 
