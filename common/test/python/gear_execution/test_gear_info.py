@@ -1,5 +1,4 @@
 """Tests the GearInfo and GearConfigs pydantic classes."""
-import copy
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,49 +21,60 @@ class TestGearInfo:
 
     def test_basic_create(self):
         """Test a basic create with default GearConfigs class."""
-        configs: Dict[str, Any] = {'gear_name': 'dummy-gear'}
-
         # assert that when empty/without apikey_path_prefix this
         # fails/returns None
-        assert GearInfo.load_from_file({}) is None
-        assert GearInfo.load_from_file(configs) is None
-        configs['configs'] = {}
-        assert GearInfo.load_from_file(configs) is None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'empty-file.json')) is None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'no-configs.json')) is None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'empty-configs.json')) is None
 
         # now assert that it matches
-        configs['configs']['apikey_path_prefix'] = '/test/dummy/gearbot'
-        result = GearInfo.load_from_file(copy.deepcopy(configs))
+        result = GearInfo.load_from_file(str(TEST_FILES_DIR / 'basic-configs.json'))
 
         assert result is not None
-        assert result.model_dump() == configs
-
-    def test_custom_create(self):
-        """Test a create with custom GearConfigs class."""
-        configs: Dict[str, Any] = {
-            'gear_name': 'dummy-gear-2',
-            'configs': {
-                'test_str': 'hello',
-                'test_list': [{
-                    'key': 'value'
-                }, 2, 'world']
+        assert result.model_dump() == {
+            "gear_name": "basic-configs",
+            "configs": {
+                "apikey_path_prefix": "/test/dummy/gearbot"
             }
         }
 
+    def test_custom_create(self):
+        """Test a create with custom GearConfigs class."""
         # assert that without apikey_path_prefix this fails/returns None
-        assert GearInfo.load_from_file(configs, DummyGearConfigs) is None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'custom-configs-invalid.json'),
+            DummyGearConfigs) is None
 
         # assert that without test_int this still fails/returns None
-        configs['configs']['apikey_path_prefix'] = '/test/dummy/gearbot'
-        assert GearInfo.load_from_file(configs, DummyGearConfigs) is None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'custom-configs-invalid-2.json'),
+            DummyGearConfigs) is None
 
         # now make sure that this passes
-        configs['configs']['test_int'] = 1
-        result = GearInfo.load_from_file(copy.deepcopy(configs),
-                                         DummyGearConfigs)
+        result = GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'custom-configs.json'),
+            DummyGearConfigs)
         assert result is not None
 
         # however output will not be exactly the same, since test_optional
         # was not explicitly passed; test the behavior is as expected
+        configs: Dict[str, Any] = {
+            "gear_name": "custom-configs",
+            "configs": {
+                "test_str": "hello",
+                "test_int": 1,
+                "test_list": [
+                    {"key": "value"},
+                    2,
+                    "world"
+                ],
+                "apikey_path_prefix": "/test/dummy/gearbot"
+            }
+        }
+
         assert result.configs.test_optional == 'optional'
         assert result.model_dump() != configs
         configs['configs']['test_optional'] = 'optional'

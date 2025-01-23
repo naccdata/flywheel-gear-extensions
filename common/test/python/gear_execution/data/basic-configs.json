@@ -1,5 +1,5 @@
 {
-    "gear-name": "basic-configs",
+    "gear_name": "basic-configs",
     "configs": {
         "apikey_path_prefix": "/test/dummy/gearbot"
     }

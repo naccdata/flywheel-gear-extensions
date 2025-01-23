@@ -1,5 +1,5 @@
 {
-    "gear-name": "custom-configs-invalid-2",
+    "gear_name": "custom-configs-invalid-2",
     "configs": {
         "test_str": "hello",
         "test_list": [
