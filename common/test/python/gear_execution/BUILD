@@ -1,9 +1,3 @@
-python_tests(
-    name="tests",
-    dependencies=[":test_data"]
-)
+python_tests(name="tests", dependencies=[":test_data"])
 
-files(
-    name="test_data",
-    sources=["data/*.json"]
-)
+files(name="test_data", sources=["data/*.json"])
