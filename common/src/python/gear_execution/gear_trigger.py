@@ -2,7 +2,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -29,7 +29,7 @@ class GearInfo(BaseModel):
 
     @classmethod
     def load_from_file(cls,
-                       configs_file_path: str | Dict[str, Any],
+                       configs_file_path: str,
                        configs_class=GearConfigs) -> Optional[Any]:
         """Load GearInfo from configs file.
 
@@ -39,12 +39,11 @@ class GearInfo(BaseModel):
         Returns:
             The GearInfo object with gear name and config, if valid
         """
-        configs_data = configs_file_path
+        configs_data = {}
         try:
-            if isinstance(configs_file_path, str):
-                with open(configs_file_path, mode='r',
-                          encoding='utf-8') as file_obj:
-                    configs_data = json.load(file_obj)
+            with open(configs_file_path, mode='r',
+                      encoding='utf-8') as file_obj:
+                configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error('Failed to read the gear configs file %s - %s',
                       configs_file_path, error)

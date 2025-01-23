@@ -1,8 +1,12 @@
 """Tests the GearInfo and GearConfigs pydantic classes."""
 import copy
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from gear_execution.gear_trigger import GearConfigs, GearInfo
+
+TEST_FILES_DIR = Path(__file__).parent.resolve() / 'data'
+
 
 
 class DummyGearConfigs(GearConfigs):
