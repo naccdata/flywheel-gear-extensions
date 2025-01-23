@@ -62,7 +62,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             context.config.get('accepted_modules', None))
         queue_tags = parse_string_to_list(context.config.get(
             'queue_tags', None),
-            to_lower=False)
+                                          to_lower=False)
 
         if not accepted_modules:
             raise GearExecutionError("No accepted modules provided")
