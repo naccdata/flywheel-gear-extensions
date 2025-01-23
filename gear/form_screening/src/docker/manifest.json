@@ -1,7 +1,7 @@
 {
     "name": "form-screening",
     "label": "Form Screening",
-    "description": "Prescreens input files to queue for the form-scheduler gear",
+    "description": "Screens input files and queue for the form-scheduler gear",
     "version": "1.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
@@ -52,12 +52,12 @@
             "default": false
         },
         "accepted_modules": {
-            "description": "Comma-deliminated list of accepted modules",
+            "description": "Comma-delimited list of accepted modules",
             "type": "string",
             "default": "ENROLL,UDS,FTLD,LBD"
         },
         "queue_tags": {
-            "description": "Comma-deliminated list of queue tags to add",
+            "description": "Comma-delimited list of queue tags to add",
             "type": "string",
             "default": "queued"
         },
@@ -65,7 +65,6 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
-
         }
     },
     "command": "/bin/run"

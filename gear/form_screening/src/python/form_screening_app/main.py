@@ -45,7 +45,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
     module = file_input.basename.split('-')[-1]
 
     if module.lower() not in accepted_modules:
-        log.error(f"Unallowed module suffix: {module}")
+        log.error(f"Un-accepted module suffix: {module}")
         error_writer.write(
             preprocessing_error(field=FieldNames.MODULE,
                                 value=module,

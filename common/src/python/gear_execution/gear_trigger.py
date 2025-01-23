@@ -86,15 +86,15 @@ def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
     if not gear:
         raise GearExecutionError(f"Failed to find gear: {gear_name}")
 
-    destination = kwargs.get('destination', None)
+    destination = kwargs.get('destination')
     if destination:
         destination = destination.label
 
     log.info(f"Triggering {gear_name} with the following args:")
-    log.info(f"config: {kwargs.get('config', None)}")
-    log.info(f"inputs: {kwargs.get('inputs', None)}")
+    log.info(f"config: {kwargs.get('config')}")
+    log.info(f"inputs: {kwargs.get('inputs')}")
     log.info(f"destination: {destination}")
-    log.info(f"analysis_label: {kwargs.get('analysis_label', None)}")
-    log.info(f"tags: {kwargs.get('tags', None)}")
+    log.info(f"analysis_label: {kwargs.get('analysis_label')}")
+    log.info(f"tags: {kwargs.get('tags')}")
 
     return gear.run(**kwargs)
