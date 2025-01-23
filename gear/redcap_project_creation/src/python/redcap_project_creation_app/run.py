@@ -1,5 +1,6 @@
 """Entry script for REDCap Project Creation."""
 
+import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -19,6 +20,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, REDCapParameters
 from inputs.yaml import YAMLReadError, load_from_stream
+from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap.redcap_connection import REDCapSuperUserConnection
 
@@ -133,6 +135,31 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         # with context.open_output(fname, mode='w',
         #                          encoding='utf-8') as out_file:
         #     out_file.write(yaml_text)
+        pass
+
+    def __send_email(self,
+                     fw_metadata: List[REDCapProjectInput],
+                     sender_email: str,
+                     target_emails: List[str]) -> None:
+        """Sends email to the specified target emails notifying of the
+        REDCap project(s) that were generated.
+
+        Args:
+            fw_metadata: List of REDCap project metadata
+            sender_email: The email to send from
+            target_emails: List of email(s) to send to
+        """
+        redcap_projects = [x.model_dump() for x in fw_metadata]
+
+        subject = "REDCap API Project Creation"
+        body = 'This email is to notify you that the following REDCap ' \
+            + 'projects have been automatically generated through the API: ' \
+            + f'{json.dumps(redcap_projects, indent=4)}'
+
+        client = EmailClient(client=create_ses_client(), source=sender_email)
+        client.send_raw(destinations=target_emails,
+                        subject=subject,
+                        body=body)
 
     # pylint: disable = (too-many-locals)
     def run(self, context: GearToolkitContext) -> None:
@@ -169,6 +196,14 @@ class REDCapProjectCreation(GearExecutionEnvironment):
             output_prefix: str = get_config(gear_context=context,
                                             key='output_file_prefix',
                                             default='redcap-projects')
+            sender_email: str = get_config(gear_context=context,
+                                           key='sender_email',
+                                           default='no-reply@naccdata.org')
+            target_emails: str = get_config(gear_context=context,
+                                           key='target_emails',
+                                           default='')
+            target_emails = [x.strip() for x in target_emails.split(',')]
+
         except ConfigParseError as error:
             raise GearExecutionError(
                 f'Incomplete configuration - {error}') from error
@@ -208,6 +243,11 @@ class REDCapProjectCreation(GearExecutionEnvironment):
             self.__write_out_file(context=context,
                                   fw_metadata=fw_metadata,
                                   filename=fname)
+
+            if target_emails:
+                self.__send_email(fw_metadata=fw_metadata,
+                                  sender_email=sender_email,
+                                  target_emails=target_emails)
 
         if errors:
             raise GearExecutionError(
