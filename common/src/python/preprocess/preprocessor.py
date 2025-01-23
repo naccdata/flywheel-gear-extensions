@@ -158,17 +158,21 @@ class FormPreprocessor():
                         visitnum=input_record[FieldNames.VISITNUM]))
                 return False
 
+        date_field = module_configs.date_field
         initial_packets = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
             legacy=False,
             search_col=FieldNames.PACKET,
             search_val=module_configs.initial_packets,
-            search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
+            search_op=DefaultValues.FW_SEARCH_OR,
+            extra_columns=[FieldNames.VISITNUM, date_field])
 
         if not initial_packets:
             if module_configs.legacy_module:
                 module = module_configs.legacy_module
+            if module_configs.legacy_date:
+                date_field = module_configs.legacy_date
 
             initial_packets = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
@@ -176,7 +180,8 @@ class FormPreprocessor():
                 legacy=True,
                 search_col=FieldNames.PACKET,
                 search_val=module_configs.initial_packets,
-                search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
+                search_op=DefaultValues.FW_SEARCH_OR,
+                extra_columns=[FieldNames.VISITNUM, date_field])
 
         # this cannot happen, adding as a sanity check
         if initial_packets and len(initial_packets) > 1:
@@ -204,34 +209,31 @@ class FormPreprocessor():
             return False
 
         if packet in module_configs.initial_packets and initial_packet:
-            ivp_record = self.__forms_store.get_visit_data(
-                initial_packet['file.name'],
-                initial_packet['file.parents.acquisition'])
-
-            if not ivp_record:
-                raise PreprocessingException(
-                    f"Error reading previous visit file {initial_packet['file.name']}"
-                )
+            visitnum_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            date_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{date_field}'
+            packet_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PACKET}'
 
             # allow if this is an update to the existing initial visit packet
-            if (ivp_record[module_configs.date_field]
+            if (initial_packet[date_lbl]
                     == input_record[module_configs.date_field]
-                    and ivp_record[FieldNames.VISITNUM]
+                    and initial_packet[visitnum_lbl]
                     == input_record[FieldNames.VISITNUM]):
                 return True
 
             # allow if this is a new I4 submission
-            if (ivp_record[FieldNames.PACKET] == DefaultValues.UDS_I_PACKET
+            if (initial_packet[packet_lbl] == DefaultValues.UDS_I_PACKET
                     and input_record[FieldNames.PACKET]
                     == DefaultValues.UDS_I4_PACKET):
                 return True
 
-            log.error('%s: %s - %s, %s - %s',
-                      preprocess_errors[SysErrorCodes.IVP_EXISTS],
-                      ivp_record[module_configs.date_field],
-                      ivp_record[FieldNames.VISITNUM],
-                      input_record[module_configs.date_field],
-                      input_record[FieldNames.VISITNUM])
+            log.error(
+                '%s: %s - visitnum:%s - packet:%s, %s - visitnum:%s - packet:%s',
+                preprocess_errors[SysErrorCodes.IVP_EXISTS],
+                initial_packet[date_lbl], initial_packet[visitnum_lbl],
+                initial_packet[packet_lbl],
+                input_record[module_configs.date_field],
+                input_record[FieldNames.VISITNUM],
+                input_record[FieldNames.PACKET])
 
             self.__error_writer.write(
                 preprocessing_error(
