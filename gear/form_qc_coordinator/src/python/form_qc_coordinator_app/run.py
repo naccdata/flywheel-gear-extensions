@@ -20,6 +20,7 @@ from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import FieldNames
 from pydantic import ValidationError
 
+from form_qc_coordinator_app.coordinator import QCGearConfigs
 from form_qc_coordinator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -142,7 +143,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
             raise GearExecutionError(
                 'Required input qc_configs_file not provided')
 
-        qc_gear_info = GearInfo.load_from_file(config_file_path)
+        qc_gear_info = GearInfo.load_from_file(config_file_path,
+                                               configs_class=QCGearConfigs)
         if not qc_gear_info:
             raise GearExecutionError(
                 f'Error(s) in reading qc gear configs file - {config_file_path}'

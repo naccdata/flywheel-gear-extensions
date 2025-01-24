@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.10
+
+* Refactors to use gear-specific `QCGearConfigs`
+
 ## 0.1.9 - 1.1.6
 
 * Refactors to move logic related to triggering gears to `common/gear_execution/gear_trigger` and pull from there
