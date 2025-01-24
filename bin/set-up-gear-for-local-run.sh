@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Sets up a gear for a local run
 
 set -euo pipefail
@@ -26,4 +26,4 @@ fw-beta gear config -i api_key=$FW_API_KEY $config_dir
 fw-beta gear config -d $FW_PATH $config_dir
 
 # Set the apikey_path_prefix to specified fw context (sandbox or prod)
-fw-beta gear config -i api_key="/${FW_CONTEXT}/flywheel/gearbot" $config_dir
+fw-beta gear config -c apikey_path_prefix="/${FW_CONTEXT}/flywheel/gearbot" $config_dir

@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.4
+
+* Upgrades to dependencies
+
 ## 1.0.3
 
 * Bugfixes to avoid breaking metadata serialization from `centers.center_info.CenterInfo`

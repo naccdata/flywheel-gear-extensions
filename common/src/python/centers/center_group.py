@@ -499,19 +499,29 @@ class CenterGroup(CenterAdaptor):
                 authorizations=authorizations)
 
         ingest_projects = study_info.ingest_projects
+        log.info('Adding user to %s ingest projects', len(ingest_projects))
         for project in ingest_projects.values():
             self.__add_user_roles_to_project(user=user,
                                              project_id=project.project_id,
                                              auth_map=auth_map,
                                              authorizations=authorizations)
+            # Above method returns False when no change in permissions
+            # TODO - fix that and add to REDCap if only above successful
 
-            # if not isinstance(project, FormIngestProjectMetadata):
-            #     continue
+            if not isinstance(project, FormIngestProjectMetadata):
+                log.info(
+                    'Skipping ingest project %s/%s/%s, no linked REDCap project.',
+                    authorizations.study_id, self.label, project.project_label)
+                continue
 
-            # self.__add_user_to_redcap_project(user=user,
-            #                                   auth_email=auth_email,
-            #                                   form_ingest_project=project,
-            #                                   authorizations=authorizations)
+            # If user added successfully, add the user to REDCap project (if any)
+            log.info('Setting REDCap permissions for ingest project %s/%s/%s',
+                     authorizations.study_id, self.label,
+                     project.project_label)
+            self.__add_user_to_redcap_project(user=user,
+                                              auth_email=auth_email,
+                                              form_ingest_project=project,
+                                              authorizations=authorizations)
 
         metadata_project = self.get_metadata()
         if metadata_project:
@@ -598,6 +608,8 @@ class CenterGroup(CenterAdaptor):
             submission_type = redcap_metadata.get_submission_type()
             # User doesn't have submission privileges for this module
             if submission_type not in activities:
+                log.info('Skipping %s due to insufficient user permissions %s',
+                         submission_type, activities)
                 continue
 
             redcap_project = self.__redcap_param_repo.get_redcap_project(

@@ -20,8 +20,11 @@
     },
     "editor.detectIndentation": false,
     "cSpell.words": [
+        "adcid",
+        "apoe",
         "devcontainer",
-        "NACC"
+        "NACC",
+        "naccid",
         "adcid",
         "birthmo",
         "birthyr",

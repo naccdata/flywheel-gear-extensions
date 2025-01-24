@@ -333,7 +333,8 @@ class ParameterStore:
                                         Overwrite=True)
         except Exception as error:
             raise ParameterError(
-                f"Failed to store parameters at {param_path}") from error
+                f"Failed to store parameters at {param_path}: {error}"
+            ) from error
 
     def get_comanage_parameters(self, param_path: str) -> CoManageParameters:
         """Pulls comanage parameters from the SSM parameter store at the given

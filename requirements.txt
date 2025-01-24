@@ -24,4 +24,4 @@ types-PyYAML>=6.0.12
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
-nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.4.0/nacc_form_validator-0.4.0-py3-none-any.whl
+nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.4.1/nacc_form_validator-0.4.1-py3-none-any.whl

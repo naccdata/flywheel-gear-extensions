@@ -14,8 +14,10 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
+from gear_execution.gear_trigger import GearInfo
+from keys.keys import FieldNames
 
-from form_qc_coordinator_app.coordinator import QCCoordinator, QCGearInfo
+from form_qc_coordinator_app.coordinator import QCCoordinator
 
 log = logging.getLogger(__name__)
 
@@ -42,10 +44,10 @@ def get_matching_visits(
         module: str,
         date_col: str,
         cutoff_date: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
-    """Get the list of visits for the specified partipant for the specified
+    """Get the list of visits for the specified participant for the specified
     module.
 
-    Note: This method assumes visit date in file metadata is notmalized to
+    Note: This method assumes visit date in file metadata is normalized to
     YYYY-MM-DD format at a previous stage of the submission pipeline.
 
     Args:
@@ -62,20 +64,21 @@ def get_matching_visits(
 
     title = f'{module} visits for participant {subject}'
 
+    ptid_key = f'file.info.forms.json.{FieldNames.PTID}'
     date_col_key = f'file.info.forms.json.{date_col}'
     columns = [
-        date_col_key, 'file.name', 'file.file_id', 'file.parents.acquisition',
-        'file.info.forms.json.visitnum'
+        ptid_key, date_col_key, 'file.name', 'file.file_id',
+        'file.parents.acquisition', 'file.info.forms.json.visitnum'
     ]
     filters = f'acquisition.label={module}'
 
     if cutoff_date:
         filters += f',{date_col_key}>={cutoff_date}'
 
-    return proxy.get_matching_aquisition_files_info(container_id=container_id,
-                                                    dv_title=title,
-                                                    columns=columns,
-                                                    filters=filters)
+    return proxy.get_matching_acquisition_files_info(container_id=container_id,
+                                                     dv_title=title,
+                                                     columns=columns,
+                                                     filters=filters)
 
 
 def run(*,
@@ -85,7 +88,7 @@ def run(*,
         subject: SubjectAdaptor,
         date_col: str,
         visits_info: ParticipantVisits,
-        qc_gear_info: QCGearInfo,
+        qc_gear_info: GearInfo,
         check_all: bool = False):
     """Invoke QC process for the given participant/module.
 
@@ -100,7 +103,7 @@ def run(*,
         check_all: re-evaluate all visits for the participant/module
 
     Raises:
-        GearExecutionError if any problem occurrs during the QC process
+        GearExecutionError if any problem occurs during the QC process
     """
 
     if check_all:
@@ -128,8 +131,7 @@ def run(*,
                                    proxy=proxy,
                                    gear_context=gear_context)
 
-    qc_coordinator.run_error_checks(gear_name=qc_gear_info.gear_name,
-                                    gear_configs=qc_gear_info.configs,
+    qc_coordinator.run_error_checks(qc_gear_info=qc_gear_info,
                                     visits=visits_list,
                                     date_col=date_col)
 

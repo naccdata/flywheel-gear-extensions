@@ -16,14 +16,7 @@ The gear needs to be added to the allow list for these variables to be shared.
 
 ## Configuration
 
-The gear can be configured with the following options:
-
-- `dry_run` -- whether to run the script without updating Flywheel or the files
-  Default: `false`.
-- `rds_parameter_path` -- the AWS SSM parameter path for the identifier MySQL database. 
-  Default: `/prod/flywheel/gearbot/identifiers`
-
-In addition to the RDS parameter, the gear uses the API Key stored as `/prod/flywheel/gearbot/apikey`.
+Gear configs are defined in [manifest.json](../../gear/identifier_lookup/src/docker/manifest.json).
 
 ## Input
 

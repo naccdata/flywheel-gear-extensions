@@ -10,7 +10,7 @@ from centers.center_group import (
     REDCapProjectInput,
     StudyREDCapMetadata,
 )
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor
 from inputs.parameter_store import ParameterError, ParameterStore
 from redcap.redcap_connection import (
     REDCapConnection,
@@ -84,7 +84,7 @@ def run(
         Optional[str]: YAML text of REDCap project metadata
     """
 
-    redcap_metadata = []
+    redcap_metadata: List[REDCapProjectInput] = []
     errors = False
 
     for center in study_info.centers:
@@ -138,17 +138,30 @@ def run(
                                                        report_id=None)
                 project_object.projects.append(module_obj)
 
-            # Update REDCap project metadata in Flywheel
-            if len(project_object.projects) > 0:
-                try:
-                    center_group = CenterGroup.get_center_group(
-                        adaptor=group_adaptor)
-                    center_group.add_redcap_project(project_object)
-                except CenterError:
-                    log.error(
-                        'Failed to update REDCap project metadata for %s/%s',
-                        group_adaptor.label, project_lbl)
-
-                redcap_metadata.append(project_object)
+            update_redcap_metadata(redcap_metadata=redcap_metadata,
+                                   group_adaptor=group_adaptor,
+                                   project_object=project_object)
 
     return errors, redcap_metadata
+
+
+def update_redcap_metadata(*, redcap_metadata: List[REDCapProjectInput],
+                           group_adaptor: GroupAdaptor,
+                           project_object: REDCapProjectInput):
+    """Updates the REDCap project metadata in Flywheel.
+
+    Args:
+      redcap_metadata: the project metadata
+      group_adapter: the group for the center
+      project_lbl: the project label
+      project_object: the project
+    """
+    if len(project_object.projects) > 0:
+        try:
+            center_group = CenterGroup.get_center_group(adaptor=group_adaptor)
+            center_group.add_redcap_project(project_object)
+        except CenterError:
+            log.error('Failed to update REDCap project metadata for %s/%s',
+                      group_adaptor.label, project_object.project_label)
+
+        redcap_metadata.append(project_object)

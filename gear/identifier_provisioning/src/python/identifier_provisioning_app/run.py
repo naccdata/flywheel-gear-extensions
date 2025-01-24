@@ -54,7 +54,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         assert file_input, "create raises exception if missing expected input"
 
         admin_id = context.config.get("admin_group", "nacc")
-        mode = context.config.get("identifiers_mode", "dev")
+        mode = context.config.get("database_mode", "prod")
 
         return IdentifierProvisioningVisitor(client=client,
                                              admin_id=admin_id,
@@ -70,10 +70,13 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
         assert context, 'Gear context required'
 
-        file_module = self.__file_input.get_module_name_from_file_suffix()
+        file_suffix = self.__file_input.get_module_name_from_file_suffix()
         enroll_module: str = context.config.get(
-            "enrollment_module", DefaultValues.ENROLLMENT_MODULE)
-        if not file_module or (file_module.lower() != enroll_module.lower()):
+            "enrollment_module", DefaultValues.ENROLLMENT_MODULE).lower()
+        if not file_suffix or not (
+            (f'{enroll_module}_{file_suffix.lower()}'
+             == f'{enroll_module}_{DefaultValues.PROV_SUFFIX}') or
+            (file_suffix.lower() == enroll_module)):
             raise GearExecutionError(
                 f'Input file name {self.__file_input.filename} '
                 f'expected to have {enroll_module} suffix.')
@@ -107,6 +110,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                                      f'{file.parents.project}')
 
         input_path = Path(self.__file_input.filepath)
+        gear_name = context.manifest.get('name', 'identifier-provisioning')
         with open(input_path, mode='r', encoding='utf-8') as csv_file:
             error_writer = ListErrorWriter(
                 container_id=file_id, fw_path=self.proxy.get_lookup_path(file))
@@ -115,6 +119,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 center_id=adcid,
                 error_writer=error_writer,
                 enrollment_project=enrollment_project,
+                gear_name=gear_name,
                 repo=IdentifiersLambdaRepository(
                     client=LambdaClient(client=create_lambda_client()),
                     mode=self.__identifiers_mode))
@@ -123,6 +128,9 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                                            name="validation",
                                            state="PASS" if success else "FAIL",
                                            data=error_writer.errors())
+
+            context.metadata.add_file_tags(self.__file_input.file_input,
+                                           tags=gear_name)
 
 
 def main():

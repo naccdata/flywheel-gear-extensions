@@ -6,5 +6,5 @@ docker_image(
     dependencies=[
         ":manifest", "gear/project_management/src/python/project_app:bin"
     ],
-    image_tags=["1.0.6", "latest"],
+    image_tags=["1.0.7", "latest"],
 )

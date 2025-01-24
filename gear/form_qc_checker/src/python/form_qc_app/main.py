@@ -6,11 +6,12 @@ validator) for validating the inputs.
 """
 
 import logging
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import NACCGroup
 from flywheel import FileEntry
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -36,28 +37,34 @@ from form_qc_app.validate import RecordValidator
 log = logging.getLogger(__name__)
 
 
-def update_file_metadata(*, gear_context: GearToolkitContext, file: FileEntry,
-                         qc_passed: bool, error_writer: ListErrorWriter):
-    """Write error details to input file metadata and add gear tag.
+def update_input_file_qc_status(*,
+                                gear_context: GearToolkitContext,
+                                gear_name: str,
+                                input_wrapper: InputFileWrapper,
+                                file: FileEntry,
+                                qc_passed: bool,
+                                errors: Optional[List[Dict[str, Any]]] = None):
+    """Write validation status to input file metadata and add gear tag.
+    Detailed errors for each visit is recorded in the error log for the visit.
 
     Args:
         gear_context: Flywheel gear context
+        gear_name: gear name
         file: Flywheel file object
         qc_passed: QC check passed or failed
-        error_writer: error output writer
+        errors (optional): List of error metadata
     """
 
-    status_str = "PASS" if qc_passed else "FAIL"
+    status_str = 'PASS' if qc_passed else 'FAIL'
 
-    gear_context.metadata.add_qc_result(file,
+    gear_context.metadata.add_qc_result(input_wrapper.file_input,
                                         name='validation',
                                         state=status_str,
-                                        data=error_writer.errors())
+                                        data=errors)
 
-    tag = gear_context.config.get('tag', 'form-qc-checker')
-    fail_tag = f'{tag}-FAIL'
-    pass_tag = f'{tag}-PASS'
-    new_tag = f'{tag}-{status_str}'
+    fail_tag = f'{gear_name}-FAIL'
+    pass_tag = f'{gear_name}-PASS'
+    new_tag = f'{gear_name}-{status_str}'
 
     if file.tags:
         if fail_tag in file.tags:
@@ -65,9 +72,11 @@ def update_file_metadata(*, gear_context: GearToolkitContext, file: FileEntry,
         if pass_tag in file.tags:
             file.delete_tag(pass_tag)
 
-    file.add_tag(new_tag)
+    # file.add_tag(new_tag)
+    gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
 
     log.info('QC check status for file %s : %s', file.name, status_str)
+    return True
 
 
 def validate_input_file_type(mimetype: str) -> Optional[str]:
@@ -112,7 +121,7 @@ def run(  # noqa: C901
         redcap_connection (Optional): REDCap project for NACC QC checks
 
     Raises:
-        GearExecutionError if any problem occurrs while validating input file
+        GearExecutionError if any problem occurs while validating input file
     """
 
     if not input_wrapper.file_input:
@@ -159,26 +168,35 @@ def run(  # noqa: C901
                                         error_writer=error_writer)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
+    gear_name = gear_context.manifest.get('name', 'form-qc-checker')
 
     file_processor: FileProcessor
     if file_type == 'json':
         file_processor = JSONFileProcessor(pk_field=pk_field,
                                            module=module,
                                            date_field=date_field,
-                                           error_writer=error_writer)
+                                           project=ProjectAdaptor(
+                                               project=project, proxy=proxy),
+                                           error_writer=error_writer,
+                                           gear_name=gear_name)
     else:  # For enrollment form processing
         file_processor = CSVFileProcessor(pk_field=pk_field,
                                           module=module,
-                                          error_writer=error_writer)
+                                          date_field=date_field,
+                                          project=ProjectAdaptor(
+                                              project=project, proxy=proxy),
+                                          error_writer=error_writer,
+                                          gear_name=gear_name)
 
-    input_data = file_processor.validate_input(input_wrapper=input_wrapper,
-                                               project=project)
+    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
 
     if not input_data:
-        update_file_metadata(gear_context=gear_context,
-                             file=file,
-                             qc_passed=False,
-                             error_writer=error_writer)
+        update_input_file_qc_status(gear_context=gear_context,
+                                    gear_name=gear_name,
+                                    input_wrapper=input_wrapper,
+                                    file=file,
+                                    qc_passed=False,
+                                    errors=error_writer.errors())
         return
 
     try:
@@ -214,7 +232,9 @@ def run(  # noqa: C901
 
     valid = file_processor.process_input(validator=validator)
 
-    update_file_metadata(gear_context=gear_context,
-                         file=file,
-                         qc_passed=valid,
-                         error_writer=error_writer)
+    update_input_file_qc_status(gear_context=gear_context,
+                                gear_name=gear_name,
+                                input_wrapper=input_wrapper,
+                                file=file,
+                                qc_passed=valid,
+                                errors=error_writer.errors())

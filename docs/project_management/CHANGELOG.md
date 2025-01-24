@@ -6,6 +6,10 @@ All notable changes to this gear are documented in this file.
 
 * TBD
 
+## 1.0.7
+
+* Update python dependencies
+
 ## 1.0.6
 
 * Adds this CHANGELOG

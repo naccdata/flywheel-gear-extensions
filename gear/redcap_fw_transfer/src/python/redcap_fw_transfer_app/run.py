@@ -11,7 +11,7 @@ from centers.center_group import (
     REDCapFormProjectMetadata,
 )
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import GroupAdaptor
+from flywheel_adaptor.flywheel_proxy import GroupAdaptor, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -66,7 +66,7 @@ def get_redcap_projects_metadata(
     REDCap->FW mapping info is included in each center's metadata project.
 
     Args:
-        group_adaptor: Flywhee group adaptor
+        group_adaptor: Flywheel group adaptor
         project_label: Flywheel ingest project label to upload data
 
     Returns:
@@ -158,7 +158,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
     def get_redcap_connection(
         self, redcap_project: REDCapFormProjectMetadata
     ) -> Optional[REDCapConnection]:
-        """Get API connection for the sepcified REDCap project.
+        """Get API connection for the specified REDCap project.
 
         Args:
             redcap_project: REDCap project metadata
@@ -192,7 +192,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
             context: the gear execution context
 
         Raises:
-            GearExecutionError if error occurrs while transferring data
+            GearExecutionError if error occurs while transferring data
         """
 
         assert context, 'Gear context required'
@@ -235,7 +235,8 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
                     redcap_pid=str(redcap_project.redcap_pid),
                     module=module,
                     fw_group=group_id,
-                    fw_project=project)
+                    prj_adaptor=ProjectAdaptor(project=project,
+                                               proxy=self.proxy))
             except GearExecutionError as error:
                 log.error(
                     'Error in ingesting module %s from REDCap project %s: %s',

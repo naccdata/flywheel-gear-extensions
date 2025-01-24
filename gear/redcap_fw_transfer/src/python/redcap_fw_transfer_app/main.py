@@ -4,11 +4,12 @@ import json
 import logging
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, TextIO
+from typing import Any, Dict, List
 
 import pandas as pd
-from flywheel import Project
+from flywheel import FileSpec
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from redcap.redcap_connection import (
@@ -21,8 +22,9 @@ from redcap.redcap_project import REDCapProject
 log = logging.getLogger(__name__)
 
 
-def upload_to_flywheel(visits: List[Dict[str, Any]], output_file: TextIO,
-                       extra_fields: List[str]):
+def upload_to_flywheel(*, visits: List[Dict[str,
+                                            Any]], extra_fields: List[str],
+                       filename: str, prj_adaptor: ProjectAdaptor):
     """Convert the visits details to CSV format and upload to Flywheel.
 
     Args:
@@ -41,12 +43,24 @@ def upload_to_flywheel(visits: List[Dict[str, Any]], output_file: TextIO,
         output_df = input_df.drop(labels=extra_fields, axis=1, errors='ignore')
 
     try:
-        output_df.to_csv(path_or_buf=output_file,
-                         index=False,
-                         doublequote=False)
+        csv_contents = output_df.to_csv(index=False, doublequote=False)
     except Exception as error:
         raise GearExecutionError(
-            f'Problem occurred while writing CSV: {error}') from error
+            f'Problem occurred while generating CSV file: {error}') from error
+
+    file_spec = FileSpec(name=filename,
+                         contents=csv_contents,
+                         content_type="text/csv")
+
+    try:
+        prj_adaptor.upload_file(file_spec)
+        log.info('Successfully uploaded file %s to %s/%s', filename,
+                 prj_adaptor.group, prj_adaptor.label)
+    except ApiException as error:
+        raise GearExecutionError(
+            'Failed to upload file '
+            f'{filename} to {prj_adaptor.group}/{prj_adaptor.label}: {error}'
+        ) from error
 
 
 def reset_upload_checkbox(redcap_prj: REDCapProject,
@@ -117,17 +131,18 @@ def validate_redcap_report(redcap_prj: REDCapProject, report_id: str,
 
 
 def run(*, gear_context: GearToolkitContext, redcap_con: REDCapConnection,
-        redcap_pid: str, module: str, fw_group: str, fw_project: Project):
+        redcap_pid: str, module: str, fw_group: str,
+        prj_adaptor: ProjectAdaptor):
     """Download new/updated records from REDCap and upload to Flywheel as a CSV
     file.
 
     Args:
-        fw_prj_adaptor: Flywheel project to transfer data
+        context: the gear execution context
         redcap_con: API connection to REDCap project
         redcap_pid: REDCap project id
         module: Forms module
         fw_group: Flywheel group id
-        fw_project: Flywheel project container
+        prj_adaptor: Flywheel project to transfer data
 
     Raises:
         GearExecutionError if any problem occurs during the transfer
@@ -135,7 +150,7 @@ def run(*, gear_context: GearToolkitContext, redcap_con: REDCapConnection,
 
     schema_file = module + '-schema.json'
     try:
-        schema = json.loads(fw_project.read_file(schema_file))
+        schema = json.loads(prj_adaptor.read_file(schema_file))
     except (ApiException, JSONDecodeError) as error:
         raise GearExecutionError(
             f'Failed to read schema file {schema_file}: {error}') from error
@@ -186,15 +201,13 @@ def run(*, gear_context: GearToolkitContext, redcap_con: REDCapConnection,
         log.info(
             'No new/updated visits found in REDCap project pid=%s module=%s '
             'for Flywheel project %s/%s', redcap_pid, module, fw_group,
-            fw_project.label)
+            prj_adaptor.label)
         return
 
-    timestamp = datetime.now()
-    file_name = 'redcapingest-' + timestamp.strftime(
-        '%Y%m%d-%H%M%S') + '-' + module + '.csv'
+    filename = 'redcap-ingest-' + module + '.csv'
+    upload_to_flywheel(visits=records_list,
+                       extra_fields=extra_fields,
+                       filename=filename,
+                       prj_adaptor=prj_adaptor)
 
-    with gear_context.open_output(file_name, mode='w',
-                                  encoding='utf-8') as output_file:
-        upload_to_flywheel(records_list, output_file, extra_fields)
-
-    reset_upload_checkbox(redcap_prj, records_list, timestamp)
+    reset_upload_checkbox(redcap_prj, records_list, datetime.now())

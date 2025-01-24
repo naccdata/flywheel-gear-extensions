@@ -2,7 +2,7 @@
     "name": "form-qc-checker",
     "label": "Form QC Checker",
     "description": "Gear to check form data as JSON with QC rule set",
-    "version": "1.1.0",
+    "version": "1.2.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-qc-checker:1.1.0"
+            "image": "naccdata/form-qc-checker:1.2.3"
         },
         "flywheel": {
             "suite": "Curation",
@@ -68,7 +68,7 @@
             "default": "retrospective-form"
         },
         "date_field": {
-            "description": "Variable name of the visit date field for the module (used to sort the participant visits)",
+            "description": "Variable name of the visit date field for the module",
             "type": "string",
             "default": "visitdate"
         },
@@ -76,11 +76,6 @@
             "description": "Name of the admin group",
             "type": "string",
             "default": "nacc"
-        },
-        "tag": {
-            "description": "The tag to be added on input file upon job completion.",
-            "type": "string",
-            "default": "form-qc-checker"
         }
     },
     "command": "/bin/run"

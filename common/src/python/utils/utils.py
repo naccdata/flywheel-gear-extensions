@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -63,3 +63,24 @@ def update_file_info_metadata(file: FileEntry,
         return False
 
     return True
+
+
+def parse_string_to_list(input_str: str,
+                         to_lower: bool = True,
+                         delimiter: str = ',') -> List[str]:
+    """Parses a comma deliminated string to a list.
+
+    Args:
+        input_str: The input string to parse
+        to_lower: Whether or not to set all to lower
+        delimiter: The delimiter to split on
+    Returns:
+        The parsed list
+    """
+    if not input_str:
+        input_str = ''
+
+    if to_lower:
+        return [x.strip().lower() for x in input_str.split(delimiter)]
+
+    return [x.strip() for x in input_str.split(delimiter)]

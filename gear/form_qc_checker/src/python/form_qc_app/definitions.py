@@ -253,7 +253,7 @@ class DefinitionsLoader:
                     submission_status[form] = False
                 continue
 
-            submission_status[form] = (input_data.get(mode_var)
+            submission_status[form] = (int(input_data.get(mode_var, -1))
                                        != DefaultValues.NOTFILLED)
 
         if missing:

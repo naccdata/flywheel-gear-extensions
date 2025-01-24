@@ -5,9 +5,9 @@
         "rules_s3_bucket": "nacc-qc-rules",
         "qc_checks_db_path": "/redcap/aws/qcchecks",
         "primary_key": "naccid",
+        "admin_group": "nacc",
         "strict_mode": true,
         "legacy_project_label": "retrospective-form",
-        "date_field": "visitdate",
-        "tag": "form-qc-checker"
+        "date_field": "visitdate"
     }
 }

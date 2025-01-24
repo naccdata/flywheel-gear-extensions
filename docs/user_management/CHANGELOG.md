@@ -2,9 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.4.6
 
-* tba
+* Enable automated REDCap user management based on the permissions set in NACC directory
+
+## 1.4.4
+
+* Change so only enqueues a user entry in created-user queue immediately after creation.
+  Prevents multiple emails to users who haven't logged in.
+
+## 1.4.3
+
+* Enable sending "user created" email when "none" is selected for notifications.
+* Update python dependencies.
   
 ## 1.4.2
 

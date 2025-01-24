@@ -37,13 +37,13 @@ class CSVSplitVisitor(CSVVisitor):
         Returns:
           True if the header has all required fields, False otherwise
         """
-        found_all = True
-        for field in self.__req_fields:
-            if field not in header:
-                found_all = False
-                self.__error_writer.write(missing_field_error(field))
 
-        return found_all
+        if not set(self.__req_fields).issubset(set(header)):
+            self.__error_writer.write(
+                missing_field_error(set(self.__req_fields)))
+            return False
+
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Assigns the row data to the subject by NACCID.
@@ -57,12 +57,15 @@ class CSVSplitVisitor(CSVVisitor):
         """
 
         found_all = True
+        empty_fields = set()
         for field in self.__req_fields:
             if field not in row or not row[field]:
+                empty_fields.add(field)
                 found_all = False
-                self.__error_writer.write(empty_field_error(field, line_num))
 
         if not found_all:
+            self.__error_writer.write(empty_field_error(
+                empty_fields, line_num))
             return False
 
         subject_lbl = row[FieldNames.NACCID]

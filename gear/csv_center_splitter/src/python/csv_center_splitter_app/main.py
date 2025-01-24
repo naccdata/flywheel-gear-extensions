@@ -177,8 +177,7 @@ def run(*,
                  f"ADCID {adcid} with project ID {project.id}")  # type: ignore
 
         contents = write_csv_to_stream(headers=visitor.headers,
-                                       data=data,
-                                       filename=filename).getvalue()
+                                       data=data).getvalue()
         file_spec = FileSpec(name=filename,
                              contents=contents,
                              content_type="text/csv",

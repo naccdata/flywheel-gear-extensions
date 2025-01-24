@@ -3,7 +3,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import LegacyModuleInfo, NACCGroup, ValidationError
 from flywheel import Project
@@ -49,6 +49,9 @@ class DatastoreHelper(Datastore):
         self.__current_adcids = self.__pull_adcids_list()
         self.__legacy_project = self.__get_legacy_project()
         self.__legacy_info = self.__get_legacy_modules_info()
+
+        self.__prev_visits: Dict[str, Any] = {
+        }  # cache for grabbing previous records
 
     def __pull_adcids_list(self) -> Optional[List[int]]:
         """Pull the list of ADCIDs from the admin group metadata project.
@@ -143,13 +146,12 @@ class DatastoreHelper(Datastore):
             'file.name', 'file.file_id', "file.parents.acquisition",
             "file.parents.session", orderby_col
         ]
-        filters = (f'subject.label={subject_lbl}, acquisition.label={module},'
-                   f'{orderby_col}<{cutoff_val}')
+        filters = (f'acquisition.label={module},{orderby_col}<{cutoff_val}')
 
         if qc_gear:
             filters += f',file.info.qc.{qc_gear}.validation.state=PASS'
 
-        visits = self.__proxy.get_matching_aquisition_files_info(
+        visits = self.__proxy.get_matching_acquisition_files_info(
             container_id=subject.id,
             dv_title=title,
             columns=columns,
@@ -249,9 +251,19 @@ class DatastoreHelper(Datastore):
             return None
 
         subject_lbl = current_record[self.pk_field]
-        module = current_record[FieldNames.MODULE]
+        module = current_record[FieldNames.MODULE].upper()
         orderby_value = current_record[self.orderby]
 
+        # see if we've already cached the previous records
+        prev_visit_cached = self.__prev_visits.get(subject_lbl, {})\
+            .get(module, {}).get(orderby_value, {}).get('cached', False)
+        if prev_visit_cached:
+            log.info(
+                "Already searched for previous visit, using cached records")
+            return self.__prev_visits[subject_lbl][module][orderby_value][
+                'prev_visits']
+
+        # otherwise try to grab from either project or legacy
         prev_visits = self.__query_project(project=self.__project,
                                            subject_lbl=subject_lbl,
                                            module=module,
@@ -260,6 +272,17 @@ class DatastoreHelper(Datastore):
                                            qc_gear=DefaultValues.QC_GEAR)
 
         if prev_visits:
+            # cache the previous visit
+            self.__prev_visits.update({
+                subject_lbl: {
+                    module: {
+                        orderby_value: {
+                            'prev_visits': prev_visits,
+                            'cached': True
+                        }
+                    }
+                }
+            })
             return prev_visits
 
         # if no previous visits found in the current project, check the legacy project
@@ -270,6 +293,18 @@ class DatastoreHelper(Datastore):
         if not legacy_visits:
             log.error('No previous visits found for %s/%s', subject_lbl,
                       module)
+
+        # cache either the fact there is no previous visit or the found legacy one
+        self.__prev_visits.update({
+            subject_lbl: {
+                module: {
+                    orderby_value: {
+                        'prev_visits': legacy_visits,
+                        'cached': True
+                    }
+                }
+            }
+        })
 
         return legacy_visits
 

@@ -2,7 +2,7 @@
     "name": "redcap-fw-transfer",
     "label": "REDCap to Flywheel Transfer",
     "description": "Gear to transfer from data from a REDCap project to the respective Flywheel project",
-    "version": "0.0.20",
+    "version": "0.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/redcap-fw-transfer:0.0.20"
+            "image": "naccdata/redcap-fw-transfer:0.1.0"
         },
         "flywheel": {
             "suite": "Import",

@@ -196,15 +196,16 @@ class TestREDCapUpdate:
         """Tests for updating redcap project info."""
         assert portal_metadata, "expect non-null info object"
 
-        input_object = REDCapProjectInput(center_id="dummy",
-                                          study_id="test",
-                                          project_label="ingest-form-test",
-                                          projects=[
-                                              REDCapFormProjectMetadata(
-                                                  redcap_pid=12345,
-                                                  label=DefaultValues.ENROLLMENT_MODULE,
-                                                  report_id=22)
-                                          ])
+        input_object = REDCapProjectInput(
+            center_id="dummy",
+            study_id="test",
+            project_label="ingest-form-test",
+            projects=[
+                REDCapFormProjectMetadata(
+                    redcap_pid=12345,
+                    label=DefaultValues.ENROLLMENT_MODULE,
+                    report_id=22)
+            ])
         study_info = portal_metadata.studies.get(input_object.study_id)
         ingest_project = study_info.get_ingest(input_object.project_label)
         assert ingest_project, "expect non-null ingest project"
@@ -219,11 +220,13 @@ class TestREDCapUpdate:
         assert ingest_project.redcap_projects, (
             "expect non-null redcap projects after update")
         assert ingest_project.redcap_projects.get(
-            DefaultValues.ENROLLMENT_MODULE), "expect non-null redcap project after update"
+            DefaultValues.ENROLLMENT_MODULE), \
+            "expect non-null redcap project after update"
 
         study_info.add_ingest(ingest_project)
         portal_metadata.add(study_info)
 
         assert portal_metadata.studies["test"].ingest_projects[
             "ingest-form-test"].redcap_projects[
-                DefaultValues.ENROLLMENT_MODULE], "expect non-null redcap project after update"
+                DefaultValues.ENROLLMENT_MODULE], \
+            "expect non-null redcap project after update"

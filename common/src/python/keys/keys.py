@@ -1,8 +1,8 @@
-"""Frquently accessed field names, labels, and default values."""
+"""Frequently accessed field names, labels, and default values."""
 
 
 class FieldNames:
-    """Class to store frquently accessed field names."""
+    """Class to store frequently accessed field names."""
     NACCID = 'naccid'
     MODULE = 'module'
     PACKET = 'packet'
@@ -20,6 +20,8 @@ class FieldNames:
     NACCIDKWN = 'naccidknwn'
     PREVENRL = 'prevenrl'
     C2C2T = 'rmmodec2c2t'
+    ENRLTYPE = 'enrltype'
+    GUIDAVAIL = 'guidavail'
 
 
 class RuleLabels:
@@ -44,12 +46,19 @@ class DefaultValues:
     METADATA_PRJ_LBL = 'metadata'
     ADMIN_PROJECT = 'project-admin'
     SESSION_LBL_PRFX = 'FORMS-VISIT-'
+    ENRL_SESSION_LBL_PRFX = 'ENROLLMENT-TRANSFER-'
     C2TMODE = 1
     LBD_SHORT_VER = 3.1
     QC_JSON_DIR = 'JSON'
     QC_GEAR = 'form-qc-checker'
     LEGACY_QC_GEAR = 'file-validator'
     MAX_POOL_CONNECTIONS = 50
+    PROV_SUFFIX = 'provisioning'
+    IDENTIFIER_SUFFIX = 'identifiers'
+    FW_SEARCH_OR = '=|'
+    FORM_METADATA_PATH = 'file.info.forms.json'
+    UDS_I4_PACKET = 'I4'
+    UDS_I_PACKET = 'I'
 
 
 class MetadataKeys:
@@ -62,3 +71,24 @@ class MetadataKeys:
     C2T = 'UDS-C2T'
     LBD_LONG = 'LBD-v3.0'
     LBD_SHORT = 'LBD-v3.1'
+    TRANSFERS = 'transfers'
+    MODULE_CONFIGS = 'module_configs'
+
+
+class SysErrorCodes:
+    """Class to store pre-processing error codes."""
+    ADCID_MISMATCH = 'preprocess-001'
+    IVP_EXISTS = 'preprocess-002'
+    DIFF_VISITDATE = 'preprocess-006'
+    DIFF_VISITNUM = 'preprocess-007'
+    LOWER_FVP_VISITNUM = 'preprocess-008'
+    LOWER_I4_VISITNUM = 'preprocess-009'
+    LOWER_FVP_VISITDATE = 'preprocess-010'
+    LOWER_I4_VISITDATE = 'preprocess-013'
+    EXCLUDED_FIELDS = 'preprocess-014'
+    INVALID_PACKET = 'preprocess-015'
+    INVALID_VERSION = 'preprocess-016'
+    INVALID_PTID = 'preprocess-017'
+    INVALID_MODULE = 'preprocess-018'
+    MISSING_IVP = 'preprocess-019'
+    MULTIPLE_IVP = 'preprocess-020'

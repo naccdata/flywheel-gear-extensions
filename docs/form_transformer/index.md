@@ -17,7 +17,7 @@ It consists of an object indicating how to determine the version of the module t
 ```json
 { 
     "fieldname": "indicator-field",
-    "value-map": { "indicator-value": "version1" },
+    "value_map": { "indicator-value": "version1" },
     "default": "version2"
 }
 ```
@@ -28,6 +28,7 @@ This information is used to determine which fields to exclude:
     - otherwise, exclude fields for `version2`
 
 A field filter also includes the full lists of fields for each version of the module.
+If `nofill` set to `true` exclude fields must be empty
 
 This (partial) example shows field filters for the C2 forms of UDS and the version of the LBD module.
 
@@ -35,28 +36,30 @@ This (partial) example shows field filters for the C2 forms of UDS and the versi
 {
     "UDS": [
         {
-            "version-map": { 
+            "version_map": { 
                 "fieldname": "rmmodec2c2t",
-                "value-map": { "1": "C2" },
+                "value_map": { "1": "C2" },
                 "default": "C2T"
             },
             "fields": {
                 "C2": [],
                 "C2T": []
-            }
+            },
+            "nofill": true
         }
     ],
     "LBD": [
         {
-            "version-map": {
+            "version_map": {
                 "fieldname": "formver",
-                "value-map": { "3.1": "v3.0" },
+                "value_map": { "3.1": "v3.0" },
                 "default": "v3.1"
             },
             "fields": {
                 "v3.0": [],
                 "v3.1": []
-            }
+            },
+            "nofill": true
         }
     ]
 }

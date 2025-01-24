@@ -97,15 +97,13 @@ class NotificationClient:
           user_entry: the user entry for the user
         """
         assert user_entry.auth_email, "user entry must have auth email"
-        if self.__should_send(user_entry):
-            self.__client.send(
-                configuration_set_name=self.__configuration_set_name,
-                destination=DestinationModel(
-                    to_addresses=[user_entry.email],
-                    cc_addresses=[user_entry.auth_email]),
-                template="user-creation",
-                template_data=TemplateDataModel(
-                    firstname=user_entry.first_name, url=self.__portal_url))
+        self.__client.send(
+            configuration_set_name=self.__configuration_set_name,
+            destination=DestinationModel(to_addresses=[user_entry.email],
+                                         cc_addresses=[user_entry.auth_email]),
+            template="user-creation",
+            template_data=TemplateDataModel(firstname=user_entry.first_name,
+                                            url=self.__portal_url))
 
     def __should_send(self, user_entry: ActiveUserEntry) -> bool:
         """Determines whether to send a notification.
@@ -410,6 +408,8 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
             if not self.__add_user(entry):
                 return
 
+            self.__created_queue.enqueue(entry)
+
             log.info('Added user %s', entry.registry_id)
 
         fw_user = self.__env.proxy.find_user(entry.registry_id)
@@ -417,9 +417,6 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error('Failed to find user %s with ID %s', entry.email,
                       entry.registry_id)
             return
-
-        if not fw_user.firstlogin:
-            self.__created_queue.enqueue(entry)
 
         self.__update_queue.enqueue(entry)
 

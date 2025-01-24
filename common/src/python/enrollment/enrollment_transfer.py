@@ -2,6 +2,7 @@
 form."""
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
@@ -9,9 +10,19 @@ from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
 )
-from identifiers.model import GUID_PATTERN, NACCID_PATTERN, CenterIdentifiers
+from identifiers.model import (
+    GUID_PATTERN,
+    NACCID_PATTERN,
+    PTID_PATTERN,
+    CenterIdentifiers,
+)
 from inputs.csv_reader import RowValidator
-from outputs.errors import CSVLocation, ErrorWriter, FileError, unexpected_value_error
+from keys.keys import FieldNames, SysErrorCodes
+from outputs.errors import (
+    ErrorWriter,
+    existing_participant_error,
+    preprocessing_error,
+)
 from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
@@ -75,22 +86,22 @@ class TransferRecord(BaseModel):
     date: datetime
     initials: str
     center_identifiers: CenterIdentifiers
-    previous_identifiers: Optional[CenterIdentifiers]
-    naccid: Optional[str] = Field(max_length=10, pattern=NACCID_PATTERN)
+    previous_identifiers: Optional[CenterIdentifiers] = None
+    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
 class EnrollmentRecord(BaseModel):
     """Model representing enrollment of participant."""
     center_identifier: CenterIdentifiers
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
+    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     start_date: datetime
     end_date: Optional[datetime] = None
     transfer_from: Optional[TransferRecord] = None
     transfer_to: Optional[TransferRecord] = None
 
     def query_object(self) -> IdentifierQueryObject:
-        """Creates an object for creating identifiers in the respository.
+        """Creates an object for creating identifiers in the repository.
 
         Returns:
           the identifier query object to use in batch identifier creation
@@ -106,7 +117,7 @@ def has_value(row: Dict[str, Any], variable: str, value: int) -> bool:
     Args:
       row: dictionary for a data row
       variable: the variable name
-      value: the expected valute
+      value: the expected value
     Returns:
       True if the variable has the value. False, otherwise.
     """
@@ -121,7 +132,7 @@ def is_new_enrollment(row: Dict[str, Any]) -> bool:
     Returns:
       True if the row represents a new enrollment. False, otherwise.
     """
-    return has_value(row, 'enrltype', 1)
+    return has_value(row, FieldNames.ENRLTYPE, 1)
 
 
 def previously_enrolled(row: Dict[str, Any]) -> bool:
@@ -132,7 +143,7 @@ def previously_enrolled(row: Dict[str, Any]) -> bool:
     Returns:
       True if the row represents a previous enrollment. False, otherwise.
     """
-    return has_value(row, 'prevenrl', 1)
+    return has_value(row, FieldNames.PREVENRL, 1)
 
 
 def guid_available(row: Dict[str, Any]) -> bool:
@@ -143,7 +154,7 @@ def guid_available(row: Dict[str, Any]) -> bool:
     Returns:
       True if the row indicates the GUID is available
     """
-    return has_value(row, 'guidavail', 1)
+    return has_value(row, FieldNames.GUIDAVAIL, 1)
 
 
 def has_known_naccid(row: Dict[str, Any]) -> bool:
@@ -154,20 +165,7 @@ def has_known_naccid(row: Dict[str, Any]) -> bool:
     Returns:
       True if the row represents a known NACCID. False, otherwise.
     """
-    return has_value(row, 'naccidknwn', 1)
-
-
-def existing_participant_error(field: str,
-                               value: str,
-                               line: int,
-                               message: Optional[str] = None) -> FileError:
-    """Creates a FileError for unexpected existing participant."""
-    error_message = message if message else ('Participant exists for PTID '
-                                             f'{value}')
-    return FileError(error_type='error',
-                     error_code='participant-exists',
-                     location=CSVLocation(column_name=field, line=line),
-                     message=error_message)
+    return has_value(row, FieldNames.NACCIDKWN, 1)
 
 
 # pylint: disable=(too-few-public-methods)
@@ -185,6 +183,7 @@ class NewPTIDRowValidator(RowValidator):
 
         Args:
           row: the dictionary for the row
+
         Returns:
           True if no existing NACCID is found for the PTID, False otherwise
         """
@@ -260,31 +259,45 @@ class NewGUIDRowValidator(RowValidator):
 
 # pylint: disable=(too-few-public-methods)
 class CenterValidator(RowValidator):
-    """Row validator to check whether the row has the correct ADCID."""
+    """Row validator to check whether the row has the correct ADCID and the
+    PTID matches expected format."""
 
     def __init__(self, center_id: int, error_writer: ErrorWriter) -> None:
         self.__center_id = center_id
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
-        """Checks that the row has the expected ADCID.
+        """Checks that the row has the expected ADCID and the PTID matches
+        expected format.
 
         Args:
           row: the dictionary for the row
           line_number: the line number of the row
-        Returns:
-          True if the center ID matches, False otherwise.
-        """
-        if int(row['adcid']) == self.__center_id:
-            return True
 
-        log.error("Center ID for project must match form ADCID")
-        self.__error_writer.write(
-            unexpected_value_error(field='adcid',
-                                   value=row['adcid'],
-                                   expected=str(self.__center_id),
-                                   line=line_number))
-        return False
+        Returns:
+          True if the ADCID matches and PTID in expected format, False otherwise.
+        """
+
+        valid = True
+        if str(row.get(FieldNames.ADCID)) != str(self.__center_id):
+            log.error("Center ID for project must match form ADCID")
+            self.__error_writer.write(
+                preprocessing_error(field=FieldNames.ADCID,
+                                    value=row[FieldNames.ADCID],
+                                    line=line_number,
+                                    error_code=SysErrorCodes.ADCID_MISMATCH))
+            valid = False
+
+        ptid = row.get(FieldNames.PTID, '')
+        if not re.fullmatch(PTID_PATTERN, ptid):
+            self.__error_writer.write(
+                preprocessing_error(field=FieldNames.PTID,
+                                    value=ptid,
+                                    line=line_number,
+                                    error_code=SysErrorCodes.INVALID_PTID))
+            valid = False
+
+        return valid
 
 
 class EnrollmentError(Exception):

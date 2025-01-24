@@ -5,6 +5,7 @@ import logging
 from typing import List
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from keys.keys import MetadataKeys
 from pydantic import BaseModel, ValidationError
 from typing_extensions import override
 
@@ -61,14 +62,15 @@ class EnrollmentProject(ProjectAdaptor):
         info = self.get_info()
         if not info:
             return TransferInfo(transfers=[])
-        if 'transfers' not in info:
+        if MetadataKeys.TRANSFERS not in info:
             return TransferInfo(transfers=[])
 
         try:
             return TransferInfo.model_validate(info)
         except ValidationError as error:
-            raise EnrollmentError(f"Info in {self.group}/{self.label}"
-                                  " does not match expected format") from error
+            raise EnrollmentError(
+                f"{MetadataKeys.TRANSFERS} metadata in {self.group}/{self.label} "
+                "does not match expected format") from error
 
     def update_transfer_info(self, transfer_info: TransferInfo) -> None:
         """Updates the transfer information for this project.

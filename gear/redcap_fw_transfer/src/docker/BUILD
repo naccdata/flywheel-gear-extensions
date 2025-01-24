@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/redcap_fw_transfer/src/python/redcap_fw_transfer_app:bin",
     ],
-    image_tags=["0.0.20", "latest"],
+    image_tags=["0.1.0", "latest"],
 )
