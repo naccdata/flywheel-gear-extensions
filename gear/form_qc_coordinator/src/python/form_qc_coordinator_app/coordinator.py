@@ -288,6 +288,11 @@ class QCCoordinator():
                 raise GearExecutionError(
                     f'Failed to retrieve {filename} - {error}') from error
 
+            qc_gear_inputs = {
+                'form_data_file': visit_file,
+                'form_configs_file': self.__configs_file
+            }
+
             supplement_file = None
             # if supplement visit required check for approved supplement visit
             # i.e. UDS visit must be approved before processing any FTLD/LBD visits
@@ -312,15 +317,13 @@ class QCCoordinator():
                     failed_visit = visit_file.name
                     break
 
+                qc_gear_inputs['supplement_data_file'] = supplement_file
+
             job_id = trigger_gear(
                 proxy=self.__proxy,
                 gear_name=gear_name,
                 config=self.__qc_gear_info.configs.model_dump(),
-                inputs={
-                    "form_data_file": visit_file,
-                    "form_configs_file": self.__configs_file,
-                    "supplement_data_file": supplement_file
-                },
+                inputs=qc_gear_inputs,
                 destination=destination)
             if job_id:
                 log.info('Gear %s queued for file %s - Job ID %s', gear_name,
