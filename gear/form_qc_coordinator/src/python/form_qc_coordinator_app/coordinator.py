@@ -154,8 +154,8 @@ class QCCoordinator():
             raise GearExecutionError(
                 f'Failed to update error log for visit {ptid}, {visitdate}')
 
-    def update_last_failed_visit(self, file_id: str, filename: str,
-                                 visitdate: str):
+    def __update_last_failed_visit(self, file_id: str, filename: str,
+                                   visitdate: str):
         """Update last failed visit details in subject metadata.
 
         Args:
@@ -223,6 +223,27 @@ class QCCoordinator():
 
         return self.__proxy.get_file(matching_visits[0]['file.file_id'])
 
+    def __update_visit_metadata_on_failure(self, *, ptid: str,
+                                           visit_file: FileEntry,
+                                           visitdate: str,
+                                           error_obj: FileError) -> None:
+        """Set last failed visit and update QC error metadata.
+
+        Args:
+            ptid: PTID for this visit
+            visit_file: Flyhweel file object for the visit
+            visitdate: visit date
+            error_obj: error metadata to report
+        """
+        self.__update_last_failed_visit(file_id=visit_file.id,
+                                        filename=visit_file.name,
+                                        visitdate=visitdate)
+        self.__update_qc_error_metadata(visit_file=visit_file,
+                                        error_obj=error_obj,
+                                        ptid=ptid,
+                                        visitdate=visitdate,
+                                        status='FAIL')
+
     def run_error_checks(  # noqa: C901
             self, *, visits: List[Dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
@@ -248,8 +269,7 @@ class QCCoordinator():
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
         visits_queue = deque(sorted_visits)
 
-        supplement_module = (self.__module_configs.supplement_module if
-                             self.__module_configs.supplement_module else None)
+        supplement_module = self.__module_configs.supplement_module
 
         failed_visit = ''
         while len(visits_queue) > 0:
@@ -278,20 +298,17 @@ class QCCoordinator():
                     visitdate=visitdate,
                     visitnum=visitnum)
                 if not supplement_file:
-                    self.update_last_failed_visit(file_id=file_id,
-                                                  filename=filename,
-                                                  visitdate=visitdate)
                     error_obj = preprocessing_error(
                         field=FieldNames.MODULE,
                         value=self.__module,
                         error_code=SysErrorCodes.UDS_NOT_APPROVED,
                         ptid=ptid,
                         visitnum=visitnum)
-                    self.__update_qc_error_metadata(visit_file=visit_file,
-                                                    error_obj=error_obj,
-                                                    ptid=ptid,
-                                                    visitdate=visitdate,
-                                                    status='FAIL')
+                    self.__update_visit_metadata_on_failure(
+                        ptid=ptid,
+                        visit_file=visit_file,
+                        visitdate=visitdate,
+                        error_obj=error_obj)
                     failed_visit = visit_file.name
                     break
 
@@ -314,17 +331,13 @@ class QCCoordinator():
 
             # If QC gear did not complete, stop evaluating any subsequent visits
             if not JobPoll.is_job_complete(self.__proxy, job_id):
-                self.update_last_failed_visit(file_id=file_id,
-                                              filename=filename,
-                                              visitdate=visitdate)
                 error_obj = system_error(
                     f'Errors occurred while running gear {gear_name} on this file'
                 )
-                self.__update_qc_error_metadata(visit_file=visit_file,
-                                                error_obj=error_obj,
-                                                ptid=ptid,
-                                                visitdate=visitdate,
-                                                status='FAIL')
+                self.__update_visit_metadata_on_failure(ptid=ptid,
+                                                        visit_file=visit_file,
+                                                        visitdate=visitdate,
+                                                        error_obj=error_obj)
                 failed_visit = visit_file.name
                 break
 
