@@ -56,7 +56,7 @@ class DefinitionsLoader:
             str: S3 path prefix
         """
 
-        s3_prefix = f'{DefaultValues.QC_JSON_DIR}/{module}'
+        s3_prefix = f'{DefaultValues.QC_JSON_DIR}/{module.upper()}'
         formver = str(float(data_record.get(FieldNames.FORMVER, 0.0)))
         s3_prefix = f'{s3_prefix}/{formver}'
         if data_record.get(FieldNames.PACKET, None):
