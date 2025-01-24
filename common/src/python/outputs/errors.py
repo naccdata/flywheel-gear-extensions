@@ -272,8 +272,8 @@ def preprocessing_error(field: str,
         error_type='error',
         error_code=error_code if error_code else 'preprocess-error',
         value=value,
-        location=CSVLocation(
-            line=line, column_name=field) if line else JSONLocation(key_path=field),
+        location=CSVLocation(line=line, column_name=field)
+        if line else JSONLocation(key_path=field),
         message=error_message,
         ptid=ptid,
         visitnum=visitnum)
