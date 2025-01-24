@@ -4,9 +4,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from preprocess.preprocessor import FormProjectConfigs
 
 log = logging.getLogger(__name__)
 

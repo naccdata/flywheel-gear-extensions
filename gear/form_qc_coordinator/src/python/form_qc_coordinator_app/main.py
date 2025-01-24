@@ -3,6 +3,7 @@
 import logging
 from typing import Dict, List, Optional
 
+from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -16,7 +17,6 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues, FieldNames
-from preprocess.preprocessor import ModuleConfigs
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 

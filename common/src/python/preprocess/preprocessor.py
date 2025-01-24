@@ -1,35 +1,18 @@
 """Module to implement form data pre-processing checks."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
+from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
-from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
 
 class PreprocessingException(Exception):
     pass
-
-
-class ModuleConfigs(BaseModel):
-    initial_packets: List[str]
-    followup_packets: List[str]
-    versions: List[str]
-    date_field: str
-    legacy_module: Optional[str] = None
-    legacy_date: Optional[str] = None
-    supplement_module: Optional[Dict[str, str]] = None
-
-
-class FormProjectConfigs(BaseModel):
-    primary_key: str
-    accepted_modules: List[str]
-    legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
-    module_configs: Dict[str, ModuleConfigs]
 
 
 class FormPreprocessor():

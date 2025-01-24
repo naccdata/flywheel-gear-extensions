@@ -11,6 +11,7 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import NACCGroup
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -26,7 +27,6 @@ from nacc_form_validator.quality_check import (
     QualityCheckException,
 )
 from outputs.errors import ListErrorWriter
-from preprocess.preprocessor import FormProjectConfigs, ModuleConfigs
 from redcap.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 

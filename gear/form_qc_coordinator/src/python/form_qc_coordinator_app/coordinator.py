@@ -4,6 +4,7 @@ import logging
 from collections import deque
 from typing import Dict, List, Optional
 
+from configs.ingest_configs import ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -23,7 +24,6 @@ from outputs.errors import (
     system_error,
     update_error_log_and_qc_metadata,
 )
-from preprocess.preprocessor import ModuleConfigs
 
 log = logging.getLogger(__name__)
 
