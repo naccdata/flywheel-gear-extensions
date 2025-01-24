@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Mapping, Optional
 import yaml
 from keys.keys import DefaultValues, FieldNames
 from outputs.errors import ListErrorWriter, empty_field_error, system_error
-from preprocess.preprocessor import ModuleConfigs
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -26,31 +25,71 @@ class DefinitionsLoader:
                  *,
                  s3_client: S3BucketReader,
                  error_writer: ListErrorWriter,
-                 module_configs: ModuleConfigs,
                  strict: bool = True):
         """
 
         Args:
             s3_bucket (S3BucketReader): S3 bucket to load rule definitions
             error_writer: error writer object to output error metadata
-            module_configs: module ingest configurations
-            strict (optional): Validation mode, defaults to True.
+            strict (optional): Validation mode, defaults to True
         """
 
         self.__s3_bucket = s3_client
         self.__error_writer = error_writer
-        self.__module_configs = module_configs
         self.__strict = strict
         # optional forms file in S3 bucket
         self.__opfname = f'{DefaultValues.QC_JSON_DIR}/optional_forms.json'
 
+    def __get_s3_prefix(
+        self,
+        *,
+        module: str,
+        data_record: Dict[str, Any],
+    ) -> str:
+        """Get the S3 path prefix to load the definitions.
+
+        Args:
+            module: module label
+            data_record: data record
+
+        Returns:
+            str: S3 path prefix
+        """
+
+        s3_prefix = f'{DefaultValues.QC_JSON_DIR}/{module}'
+        formver = str(float(data_record.get(FieldNames.FORMVER, 0.0)))
+        s3_prefix = f'{s3_prefix}/{formver}'
+        if data_record.get(FieldNames.PACKET, None):
+            packet = str(data_record[FieldNames.PACKET]).upper()
+            s3_prefix = f'{s3_prefix}/{packet}'
+
+        return s3_prefix
+
+    def __append_supplement_schema(self, schema: Dict[str, Mapping],
+                                   supplement: Dict[str, Mapping]):
+        """Append supplement schema to the given schema. Only assign the type
+        and set nullable to True, any other rules defined in the supplement
+        schema are skipped.
+
+        Args:
+            schema: schema for input visit data
+            supplement: schema for supplement module visit data
+        """
+        for field in supplement:
+            if field not in schema:
+                schema[field] = {
+                    'type': supplement[field]['type'],
+                    "nullable": True
+                }
+
     def load_definition_schemas(
         self,
         *,
-        input_data: dict[str, Any],
+        input_data: Dict[str, Any],
         module: str,
         optional_forms: Optional[Dict[str, bool]] = None,
-        skip_forms: Optional[List[str]] = None
+        skip_forms: Optional[List[str]] = None,
+        supplement_data: Optional[Dict[str, Any]] = None
     ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
         """Download QC rule definitions and error code mappings from S3 bucket.
 
@@ -59,6 +98,7 @@ class DefinitionsLoader:
             module: module name,
             optional_forms (optional): Submission status of each optional form
             skip_forms (optional): List of form names to skip
+            supplement_data (optional): supplement data record
 
         Returns:
             rule definition schema, code mapping schema (optional)
@@ -67,15 +107,7 @@ class DefinitionsLoader:
             DefinitionException: if error occurred while loading schemas
         """
 
-        s3_prefix = f'{DefaultValues.QC_JSON_DIR}/{module}'
-        # Assumes formver is validated earlier in the pipeline at pre-processing checks
-        formver = str(float(input_data.get(FieldNames.FORMVER, 0.0)))
-        s3_prefix = f'{s3_prefix}/{formver}'
-
-        if input_data.get(FieldNames.PACKET, None):
-            packet = str(input_data[FieldNames.PACKET]).upper()
-            s3_prefix = f'{s3_prefix}/{packet}'
-
+        s3_prefix = self.__get_s3_prefix(module=module, data_record=input_data)
         schema = self.download_definitions_from_s3(f'{s3_prefix}/rules/',
                                                    optional_forms, skip_forms)
         try:
@@ -95,6 +127,18 @@ class DefinitionsLoader:
                     'Rule definitions and codes definitions does not match, '
                     f'list of fields missing in one of the schemas: {diff_keys}'
                 )
+
+        # load supplement module schema if a supplement record provided
+        if supplement_data and supplement_data.get(FieldNames.MODULE):
+            supplement_s3_prefix = self.__get_s3_prefix(
+                module=supplement_data.get(FieldNames.MODULE),  # type: ignore
+                data_record=supplement_data)
+            try:
+                supplement_schema = self.download_definitions_from_s3(
+                    f'{supplement_s3_prefix}/rules/')
+                self.__append_supplement_schema(supplement_schema, schema)
+            except DefinitionException as error:
+                log.warning(error)
 
         return schema, codes_map
 

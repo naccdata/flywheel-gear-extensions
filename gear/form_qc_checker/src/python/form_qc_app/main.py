@@ -5,7 +5,9 @@ Uses nacc-form-validator (https://github.com/naccdata/nacc-form-
 validator) for validating the inputs.
 """
 
+import json
 import logging
+from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import NACCGroup
@@ -102,6 +104,19 @@ def validate_input_file_type(mimetype: str) -> Optional[str]:
     return None
 
 
+def load_supplement_input(
+        supplement_input: InputFileWrapper) -> Optional[Dict[str, Any]]:
+    with open(supplement_input.filepath, mode='r',
+              encoding='utf-8') as file_obj:
+        try:
+            input_data = json.load(file_obj)
+        except (JSONDecodeError, TypeError) as error:
+            log.error('Failed to load supplement input file %s - %s',
+                      supplement_input.filename, error)
+            return None
+    return input_data
+
+
 def run(  # noqa: C901
         *,
         client_wrapper: ClientWrapper,
@@ -176,7 +191,6 @@ def run(  # noqa: C901
 
     rule_def_loader = DefinitionsLoader(s3_client=s3_client,
                                         error_writer=error_writer,
-                                        module_configs=module_configs,
                                         strict=strict)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
@@ -184,13 +198,21 @@ def run(  # noqa: C901
 
     file_processor: FileProcessor
     if file_type == 'json':
+        supplement_record = load_supplement_input(
+            supplement_input=supplement_input) if supplement_input else None
+        if module_configs.supplement_module and not supplement_record:
+            raise GearExecutionError(
+                f"Supplement {module_configs.supplement_module['label']} "
+                f"visit record is required to validate {module} visit")
+
         file_processor = JSONFileProcessor(pk_field=pk_field,
                                            module=module,
                                            date_field=date_field,
                                            project=ProjectAdaptor(
                                                project=project, proxy=proxy),
                                            error_writer=error_writer,
-                                           gear_name=gear_name)
+                                           gear_name=gear_name,
+                                           supplement_data=supplement_record)
     else:  # For enrollment form processing
         file_processor = CSVFileProcessor(pk_field=pk_field,
                                           module=module,
