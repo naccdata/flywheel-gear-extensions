@@ -33,6 +33,7 @@ class DefinitionsLoader:
         Args:
             s3_bucket (S3BucketReader): S3 bucket to load rule definitions
             error_writer: error writer object to output error metadata
+            module_configs: module ingest configurations
             strict (optional): Validation mode, defaults to True.
         """
 

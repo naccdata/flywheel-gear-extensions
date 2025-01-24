@@ -17,8 +17,8 @@ from gear_execution.gear_execution import (
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from keys.keys import FieldNames
 from pydantic import ValidationError
+from utils.utils import load_form_ingest_configurations
 
 from form_qc_coordinator_app.coordinator import QCGearConfigs
 from form_qc_coordinator_app.main import run
@@ -54,7 +54,7 @@ def validate_input_data(input_file_path: str,
 
     if visits_info and subject_lbl != visits_info.participant:
         log.error(
-            'Partipant label in visits file %s does not match with subject label %s',
+            'Participant label in visits file %s does not match with subject label %s',
             visits_info.participant, subject_lbl)
         return None
 
@@ -67,16 +67,25 @@ class FormQCCoordinator(GearExecutionEnvironment):
     def __init__(self,
                  *,
                  client: ClientWrapper,
-                 date_col: str,
+                 file_input: InputFileWrapper,
+                 form_config_input: InputFileWrapper,
+                 qc_config_input: InputFileWrapper,
+                 subject: SubjectAdaptor,
                  check_all: bool = False):
         """
         Args:
             client: Flywheel SDK client wrapper
-            date_col: variable name to sort the participant visits
+            file_input: Gear input file wrapper
+            form_config_input: forms module configurations file
+            qc_config_input: QC gear configurations file
+            subject: Flywheel subject adaptor
             check_all: If True, re-evaluate all visits for the module/participant
         """
-        self._date_col = date_col
-        self._check_all = check_all
+        self.__file_input = file_input
+        self.__form_config_input = form_config_input
+        self.__qc_config_input = qc_config_input
+        self.__subject = subject
+        self.__check_all = check_all
         super().__init__(client=client)
 
     @classmethod
@@ -98,22 +107,6 @@ class FormQCCoordinator(GearExecutionEnvironment):
         assert parameter_store, "Parameter store expected"
         client = GearBotClient.create(context=context,
                                       parameter_store=parameter_store)
-        date_col = context.config.get('date_field', FieldNames.DATE_COLUMN)
-        check_all = context.config.get('check_all', False)
-
-        return FormQCCoordinator(client=client,
-                                 date_col=date_col,
-                                 check_all=check_all)
-
-    def run(self, context: GearToolkitContext) -> None:
-        """Validates input files, runs the form-qc-coordinator app.
-
-        Args:
-            context: the gear execution context
-
-        Raises:
-          GearExecutionError
-        """
 
         try:
             dest_container: Any = context.get_destination_container()
@@ -129,35 +122,64 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         visits_file_input = InputFileWrapper.create(input_name='visits_file',
                                                     context=context)
-        assert visits_file_input, "create raises exception if missing"
+        assert visits_file_input, "missing expected input, visits_file"
 
-        visits_file_path = visits_file_input.filepath
-        visits_info = validate_input_data(visits_file_path,
-                                          dest_container.label)
+        form_configs_input = InputFileWrapper.create(
+            input_name='form_configs_file', context=context)
+        assert form_configs_input, "missing expected input, form_configs_file"
+
+        qc_configs_input = InputFileWrapper.create(
+            input_name='qc_configs_file', context=context)
+        assert qc_configs_input, "missing expected input, qc_configs_file"
+
+        check_all = context.config.get('check_all', False)
+
+        return FormQCCoordinator(client=client,
+                                 file_input=visits_file_input,
+                                 form_config_input=form_configs_input,
+                                 qc_config_input=qc_configs_input,
+                                 subject=SubjectAdaptor(dest_container),
+                                 check_all=check_all)
+
+    def run(self, context: GearToolkitContext) -> None:
+        """Validates input files, runs the form-qc-coordinator app.
+
+        Args:
+            context: the gear execution context
+
+        Raises:
+          GearExecutionError
+        """
+
+        visits_info = validate_input_data(self.__file_input.filepath,
+                                          self.__subject.label)
         if not visits_info:
             raise GearExecutionError(
-                f'Error(s) in reading visits info file - {visits_file_path}')
+                f'Error reading visits info file - {self.__file_input.filename}'
+            )
 
-        config_file_path = context.get_input_path('qc_configs_file')
-        if not config_file_path:
+        try:
+            form_project_configs = load_form_ingest_configurations(
+                self.__form_config_input.filepath)
+        except ValidationError as error:
             raise GearExecutionError(
-                'Required input qc_configs_file not provided')
+                'Error reading form configurations file '
+                f'{self.__form_config_input.filename}: {error}') from error
 
-        qc_gear_info = GearInfo.load_from_file(config_file_path,
+        qc_gear_info = GearInfo.load_from_file(self.__qc_config_input.filepath,
                                                configs_class=QCGearConfigs)
         if not qc_gear_info:
-            raise GearExecutionError(
-                f'Error(s) in reading qc gear configs file - {config_file_path}'
-            )
+            raise GearExecutionError('Error reading qc gear configs file '
+                                     f'{self.__qc_config_input.filename}')
 
         run(gear_context=context,
             client_wrapper=self.client,
-            visits_file_wrapper=visits_file_input,
-            subject=SubjectAdaptor(dest_container),
-            date_col=self._date_col,
+            visits_file_wrapper=self.__file_input,
+            form_project_configs=form_project_configs,
+            subject=self.__subject,
             visits_info=visits_info,
             qc_gear_info=qc_gear_info,
-            check_all=self._check_all)
+            check_all=self.__check_all)
 
 
 def main():

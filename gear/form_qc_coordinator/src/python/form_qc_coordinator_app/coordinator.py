@@ -22,6 +22,7 @@ from outputs.errors import (
     system_error,
     update_error_log_and_qc_metadata,
 )
+from preprocess.preprocessor import ModuleConfigs
 
 log = logging.getLogger(__name__)
 
@@ -44,18 +45,20 @@ class QCCoordinator():
     """
 
     def __init__(self, *, subject: SubjectAdaptor, module: str,
-                 proxy: FlywheelProxy,
+                 module_configs: ModuleConfigs, proxy: FlywheelProxy,
                  gear_context: GearToolkitContext) -> None:
         """Initialize the QC Coordinator.
 
         Args:
             subject: Flywheel subject to run the QC checks
             module: module label, matched with Flywheel acquisition label
+            module_configs: module ingest configurations
             proxy: Flywheel proxy object
             gear_context: Flywheel gear context
         """
         self.__subject = subject
         self.__module = module
+        self.__module_configs = module_configs
         self.__proxy = proxy
         self.__metadata = Metadata(context=gear_context)
 

@@ -75,7 +75,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
                                       parameter_store=parameter_store)
         file_input = InputFileWrapper.create(input_name='form_data_file',
                                              context=context)
-        assert file_input, "create raises exception if missing expected input"
+        assert file_input, "missing expected input, form_data_file"
 
         form_configs_input = InputFileWrapper.create(
             input_name='form_configs_file', context=context)

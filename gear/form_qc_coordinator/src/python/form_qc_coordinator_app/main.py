@@ -16,6 +16,7 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import FieldNames
+from preprocess.preprocessor import FormProjectConfigs, ModuleConfigs
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 
@@ -86,7 +87,7 @@ def run(*,
         client_wrapper: ClientWrapper,
         visits_file_wrapper: InputFileWrapper,
         subject: SubjectAdaptor,
-        date_col: str,
+        form_project_configs: FormProjectConfigs,
         visits_info: ParticipantVisits,
         qc_gear_info: GearInfo,
         check_all: bool = False):
@@ -97,7 +98,7 @@ def run(*,
         client_wrapper: Flywheel SDK client wrapper
         visits_file_wrapper: Input file wrapper
         subject: Flywheel subject to run the QC checks
-        date_col: name of the visit date field (to filter/sort the visits)
+        form_project_configs: module configurations
         visits_info: Info on new/updated visits for the participant/module
         qc_gear_info: QC gear name and configs
         check_all: re-evaluate all visits for the participant/module
@@ -113,26 +114,36 @@ def run(*,
         cutoff = curr_visit.visitdate
 
     module = visits_info.module.upper()
+    if (module not in form_project_configs.accepted_modules
+            or not form_project_configs.module_configs.get(module)):
+        raise GearExecutionError(
+            f'Failed to find the configurations for module {module}')
+
+    module_configs: ModuleConfigs = form_project_configs.module_configs.get(
+        module)  # type: ignore
+
     proxy = client_wrapper.get_proxy()
     visits_list = get_matching_visits(proxy=proxy,
                                       container_id=subject.id,
                                       subject=subject.label,
                                       module=module,
-                                      date_col=date_col,
+                                      date_col=module_configs.date_field,
                                       cutoff_date=cutoff)
     if not visits_list:
         # This cannot happen, at least one file should exist with matching cutoff date
         raise GearExecutionError(
             'Cannot find matching visits for subject '
-            f'{subject.label}/{module} with {date_col}>={cutoff}')
+            f'{subject.label}/{module} with {module_configs.date_field}>={cutoff}'
+        )
 
     qc_coordinator = QCCoordinator(subject=subject,
                                    module=module,
+                                   module_configs=module_configs,
                                    proxy=proxy,
                                    gear_context=gear_context)
 
     qc_coordinator.run_error_checks(qc_gear_info=qc_gear_info,
                                     visits=visits_list,
-                                    date_col=date_col)
+                                    date_col=module_configs.date_field)
 
     update_file_tags(gear_context, visits_file_wrapper)
