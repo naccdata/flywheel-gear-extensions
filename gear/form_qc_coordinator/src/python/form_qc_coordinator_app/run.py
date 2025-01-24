@@ -18,7 +18,6 @@ from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from pydantic import ValidationError
-from utils.utils import load_form_ingest_configurations
 
 from form_qc_coordinator_app.coordinator import QCGearConfigs
 from form_qc_coordinator_app.main import run
@@ -158,14 +157,6 @@ class FormQCCoordinator(GearExecutionEnvironment):
                 f'Error reading visits info file - {self.__file_input.filename}'
             )
 
-        try:
-            form_project_configs = load_form_ingest_configurations(
-                self.__form_config_input.filepath)
-        except ValidationError as error:
-            raise GearExecutionError(
-                'Error reading form configurations file '
-                f'{self.__form_config_input.filename}: {error}') from error
-
         qc_gear_info = GearInfo.load_from_file(self.__qc_config_input.filepath,
                                                configs_class=QCGearConfigs)
         if not qc_gear_info:
@@ -175,7 +166,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         run(gear_context=context,
             client_wrapper=self.client,
             visits_file_wrapper=self.__file_input,
-            form_project_configs=form_project_configs,
+            configs_file_wrapper=self.__form_config_input,
             subject=self.__subject,
             visits_info=visits_info,
             qc_gear_info=qc_gear_info,

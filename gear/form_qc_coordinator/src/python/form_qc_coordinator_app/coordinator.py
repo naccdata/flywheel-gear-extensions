@@ -45,7 +45,8 @@ class QCCoordinator():
     """
 
     def __init__(self, *, subject: SubjectAdaptor, module: str,
-                 module_configs: ModuleConfigs, proxy: FlywheelProxy,
+                 module_configs: ModuleConfigs, configs_file_id: str,
+                 qc_gear_info: GearInfo, proxy: FlywheelProxy,
                  gear_context: GearToolkitContext) -> None:
         """Initialize the QC Coordinator.
 
@@ -53,13 +54,17 @@ class QCCoordinator():
             subject: Flywheel subject to run the QC checks
             module: module label, matched with Flywheel acquisition label
             module_configs: module ingest configurations
+            configs_file_id: form ingest configurations file id
+            qc_gear_info: GearInfo containing info for the qc gear
             proxy: Flywheel proxy object
             gear_context: Flywheel gear context
         """
         self.__subject = subject
         self.__module = module
         self.__module_configs = module_configs
+        self.__qc_gear_info = qc_gear_info
         self.__proxy = proxy
+        self.__configs_file = proxy.get_file(configs_file_id)
         self.__metadata = Metadata(context=gear_context)
 
     def passed_qc_checks(self, visit_file: FileEntry, gear_name: str) -> bool:
@@ -162,29 +167,30 @@ class QCCoordinator():
                                visitdate=visitdate)
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
-    def run_error_checks(self, *, qc_gear_info: GearInfo,
-                         visits: List[Dict[str, str]], date_col: str) -> None:
+    def run_error_checks(self, *, visits: List[Dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
         none of the subsequent visits will be evaluated.
 
         Args:
-            qc_gear_info: GearInfo containing info for the qc gear
             visits: set of visits to be evaluated
-            date_col: name of the visit date field to sort the visits
 
         Raises:
             GearExecutionError if errors occur while triggering the QC gear
         """
-        gear_name = qc_gear_info.gear_name
-        ptid_key = f'file.info.forms.json.{FieldNames.PTID}'
-        date_col_key = f'file.info.forms.json.{date_col}'
+        gear_name = self.__qc_gear_info.gear_name
+
+        ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
+        date_col_key = (
+            f'{DefaultValues.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
+        )
 
         # sort the visits in the ascending order of visit date
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
         visits_queue = deque(sorted_visits)
 
         failed_visit = ''
+        supplement_file = None
         while len(visits_queue) > 0:
             visit = visits_queue.popleft()
             filename = visit['file.name']
@@ -200,11 +206,16 @@ class QCCoordinator():
                 raise GearExecutionError(
                     f'Failed to retrieve {filename} - {error}') from error
 
-            job_id = trigger_gear(proxy=self.__proxy,
-                                  gear_name=gear_name,
-                                  config=qc_gear_info.configs.model_dump(),
-                                  inputs={"form_data_file": visit_file},
-                                  destination=destination)
+            job_id = trigger_gear(
+                proxy=self.__proxy,
+                gear_name=gear_name,
+                config=self.__qc_gear_info.configs.model_dump(),
+                inputs={
+                    "form_data_file": visit_file,
+                    "form_configs_file": self.__configs_file,
+                    "supplement_data_file": supplement_file
+                },
+                destination=destination)
             if job_id:
                 log.info('Gear %s queued for file %s - Job ID %s', gear_name,
                          filename, job_id)
