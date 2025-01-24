@@ -13,7 +13,7 @@ from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
-from keys.keys import FieldNames
+from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     FileError,
     ListErrorWriter,
@@ -30,11 +30,8 @@ class QCGearConfigs(GearConfigs):
     """Class to represent qc gear configs."""
     rules_s3_bucket: str
     qc_checks_db_path: str
-    primary_key: str
-    admin_group: str
     strict_mode: Optional[bool] = True
-    legacy_project_label: Optional[str] = None
-    date_field: Optional[str] = None
+    admin_group: Optional[str] = DefaultValues.NACC_GROUP_ID
 
 
 class QCCoordinator():
