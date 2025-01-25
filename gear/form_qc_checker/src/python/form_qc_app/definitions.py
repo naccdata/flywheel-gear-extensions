@@ -77,10 +77,10 @@ class DefinitionsLoader:
         """
         for field in supplement:
             if field not in schema:
-                schema[field] = {
-                    'type': supplement[field]['type'],
-                    "nullable": True
-                }
+                schema[field] = {"nullable": True}
+
+                if supplement[field].get('type', None):
+                    schema[field]['type'] = supplement[field]['type']
 
     def load_definition_schemas(
         self,
@@ -136,7 +136,7 @@ class DefinitionsLoader:
             try:
                 supplement_schema = self.download_definitions_from_s3(
                     f'{supplement_s3_prefix}/rules/')
-                self.__append_supplement_schema(supplement_schema, schema)
+                self.__append_supplement_schema(schema, supplement_schema)
             except DefinitionException as error:
                 log.warning(error)
 
