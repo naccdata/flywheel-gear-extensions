@@ -80,7 +80,8 @@ class DefinitionsLoader:
                 schema[field] = {"nullable": True}
 
                 if supplement[field].get('type', None):
-                    schema[field]['type'] = supplement[field]['type']
+                    schema[field]['type'] = supplement[field][  # type: ignore
+                        'type']
 
     def load_definition_schemas(
         self,
