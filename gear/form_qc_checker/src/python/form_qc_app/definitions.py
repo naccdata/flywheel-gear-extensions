@@ -65,7 +65,7 @@ class DefinitionsLoader:
 
         return s3_prefix
 
-    def __append_supplement_schema(self, schema: Dict[str, Mapping],
+    def __append_supplement_schema(self, *, schema: Dict[str, Mapping],
                                    supplement: Dict[str, Mapping]):
         """Append supplement schema to the given schema. Only assign the type
         and set nullable to True, any other rules defined in the supplement
@@ -79,7 +79,7 @@ class DefinitionsLoader:
             if field not in schema:
                 schema[field] = {"nullable": True}
 
-                if supplement[field].get('type', None):
+                if supplement[field].get('type'):
                     schema[field]['type'] = supplement[field][  # type: ignore
                         'type']
 
@@ -137,7 +137,8 @@ class DefinitionsLoader:
             try:
                 supplement_schema = self.download_definitions_from_s3(
                     f'{supplement_s3_prefix}/rules/')
-                self.__append_supplement_schema(schema, supplement_schema)
+                self.__append_supplement_schema(schema=schema,
+                                                supplement=supplement_schema)
             except DefinitionException as error:
                 log.warning(error)
 
