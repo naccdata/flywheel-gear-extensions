@@ -2,7 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.1.0 - 1.1.2
+## 1.1.2
+* Changes the transformation schema format to only include unique fields
+
+## 1.1.0 - 1.1.1
 * Adds pre-processing checks.
   
 ## 1.0.5
