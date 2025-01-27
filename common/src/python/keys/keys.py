@@ -92,3 +92,4 @@ class SysErrorCodes:
     INVALID_MODULE = 'preprocess-018'
     MISSING_IVP = 'preprocess-019'
     MULTIPLE_IVP = 'preprocess-020'
+    UDS_NOT_APPROVED = 'preprocess-021'

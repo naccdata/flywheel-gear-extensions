@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.1.0, 1.1.1
+## 1.1.0 - 1.1.2
 * Adds pre-processing checks.
   
 ## 1.0.5

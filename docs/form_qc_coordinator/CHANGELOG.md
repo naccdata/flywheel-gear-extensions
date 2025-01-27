@@ -2,17 +2,17 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.0
+* Checks for valid UDS input before proceeding with LBD/FTLD validation
+  
 ## 0.1.10
-
 * Refactors to use gear-specific `QCGearConfigs`
 
 ## 0.1.9 - 1.1.6
-
 * Refactors to move logic related to triggering gears to `common/gear_execution/gear_trigger` and pull from there
 * Refactors to move logic related to polling jobs to `common/jobs/jobs` and pull from there
 
 ## 0.1.5
-
 * Update error reporting - move error metadata to visit error log files stored at project level.
   
 ## 0.0.3

@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 
@@ -68,7 +69,7 @@ def update_file_info_metadata(file: FileEntry,
 def parse_string_to_list(input_str: str,
                          to_lower: bool = True,
                          delimiter: str = ',') -> List[str]:
-    """Parses a comma deliminated string to a list.
+    """Parses a comma delimited string to a list.
 
     Args:
         input_str: The input string to parse
@@ -84,3 +85,21 @@ def parse_string_to_list(input_str: str,
         return [x.strip().lower() for x in input_str.split(delimiter)]
 
     return [x.strip() for x in input_str.split(delimiter)]
+
+
+def load_form_ingest_configurations(
+        config_file_path: str) -> FormProjectConfigs:
+    """Load the form module configs from the configs file.
+
+    Args:
+      config_file_path: the form module configs file path
+
+    Returns:
+      FormProjectConfigs
+
+    Raises:
+      ValidationError if failed to load the configs file
+    """
+
+    with open(config_file_path, mode='r', encoding='utf-8') as configs_file:
+        return FormProjectConfigs.model_validate_json(configs_file.read())
