@@ -56,7 +56,9 @@ preprocess_errors = {
     SysErrorCodes.MISSING_IVP:
     "Follow-Up visit cannot be submitted without an existing Initial Visit Packet",
     SysErrorCodes.MULTIPLE_IVP:
-    "More than one IVP packet found for the participant/module"
+    "More than one IVP packet found for the participant/module",
+    SysErrorCodes.UDS_NOT_APPROVED:
+    "UDS visit packet must be approved before the module visit can be processed",
 }
 
 
@@ -240,7 +242,7 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
 
 def preprocessing_error(field: str,
                         value: str,
-                        line: int,
+                        line: Optional[int] = None,
                         error_code: Optional[str] = None,
                         message: Optional[str] = None,
                         ptid: Optional[str] = None,
@@ -249,8 +251,8 @@ def preprocessing_error(field: str,
 
     Args:
       field: the field name
-      value: the unexpected value
-      line: the line number
+      value: the value
+      line (optional): the line number
       error_code (optional): pre-processing error code
       message (optional): the error message
       ptid (optional): PTID if known
@@ -270,7 +272,8 @@ def preprocessing_error(field: str,
         error_type='error',
         error_code=error_code if error_code else 'preprocess-error',
         value=value,
-        location=CSVLocation(line=line, column_name=field),
+        location=CSVLocation(line=line, column_name=field)
+        if line else JSONLocation(key_path=field),
         message=error_message,
         ptid=ptid,
         visitnum=visitnum)

@@ -16,7 +16,7 @@ from inputs.parameter_store import ParameterStore
 from outputs.errors import ListErrorWriter
 from utils.utils import parse_string_to_list
 
-from form_screening_app.main import run
+from form_screening_app.main import FormSchedulerGearConfigs, run
 
 log = logging.getLogger(__name__)
 
@@ -71,7 +71,8 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         if not config_file_path:
             raise GearExecutionError("No scheduler gear config file specified")
 
-        scheduler_gear = GearInfo.load_from_file(config_file_path)
+        scheduler_gear = GearInfo.load_from_file(
+            config_file_path, configs_class=FormSchedulerGearConfigs)
         if not scheduler_gear:
             raise GearExecutionError(
                 f'Error(s) in reading scheduler gear configs file - {config_file_path}'
@@ -108,7 +109,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
 def main():
     """Main method for FormScreeningVisitor.
 
-    Prescreens the input file.
+    Screens the input file and queue for processing.
     """
 
     GearEngine.create_with_parameter_store().run(
