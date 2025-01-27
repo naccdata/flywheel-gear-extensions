@@ -139,7 +139,7 @@ class FormPreprocessor():
             legacy=False,
             search_col=FieldNames.PACKET,
             search_val=module_configs.initial_packets,
-            search_op=DefaultValues.FW_SEARCH_OR,
+            search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
             extra_columns=[FieldNames.VISITNUM, date_field])
 
         if not initial_packets:
@@ -154,7 +154,7 @@ class FormPreprocessor():
                 legacy=True,
                 search_col=FieldNames.PACKET,
                 search_val=module_configs.initial_packets,
-                search_op=DefaultValues.FW_SEARCH_OR,
+                search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
                 extra_columns=[FieldNames.VISITNUM, date_field])
 
         # this cannot happen, adding as a sanity check
