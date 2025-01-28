@@ -57,13 +57,27 @@ def validate_and_create_record(
     return record
 
 
-def process_record_collection(record_collection: LegacyEnrollmentCollection,
-                              enrollment_project: EnrollmentProject,
-                              dry_run: bool) -> bool:
-    """Process the collection of records."""
-    success = True
+def process_record_collection(
+    record_collection: LegacyEnrollmentCollection,
+    enrollment_project: EnrollmentProject,
+    dry_run: bool
+) -> bool:
+    """Process a collection of enrollment records.
+
+    Args:
+        record_collection: Collection of legacy enrollment records to process
+        enrollment_project: Project where enrollments will be added
+        dry_run: If True, simulate execution without making changes
+
+    Returns:
+        bool: True if processing was successful with no errors
+    """
+    success_count = 0
+    error_count = 0
+    skipped_count = 0
     for record in record_collection:
         if not record.naccid:
+            error_count += 1
             log.error('Missing NACCID for record: %s', record)
             continue
 
@@ -71,13 +85,29 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
             log.error(
                 'Subject with NACCID %s already exists - skipping creation',
                 record.naccid)
+            skipped_count += 1
             continue
-
+        
         if not dry_run:
-            subject = enrollment_project.add_subject(record.naccid)
-            subject.add_enrollment(record)
-            log.info('Created enrollment for subject %s', record.naccid)
-    return success
+            try:
+                subject = enrollment_project.add_subject(record.naccid)
+                subject.add_enrollment(record)
+                log.info('Created enrollment for subject %s', record.naccid)
+                success_count += 1
+            except Exception as e:
+                log.error('Failed to create enrollment for %s: %s', record.naccid, str(e))
+                error_count += 1
+        else:
+            log.info('Dry run: would create enrollment for subject %s',
+                     record.naccid)
+            success_count += 1
+    
+    if error_count:
+        log.error('Failed to process %d records', error_count)
+    if skipped_count:
+        log.warning('Skipped %d records', skipped_count)
+    log.info('Successfully processed %d records', success_count)
+    return error_count == 0  # Returns True only if no errors occurred
 
 
 def process_legacy_identifiers(
@@ -105,7 +135,7 @@ def process_legacy_identifiers(
             if record:
                 record_collection.add(record)
                 log.info(
-                    'Added legacy enrollment for NACCID %s (ADCID: %s, PTID: %s)',
+                    'Found legacy enrollment for NACCID %s (ADCID: %s, PTID: %s)',
                     identifier.naccid, identifier.adcid, identifier.ptid)
         except ValidationError as validation_error:
             for error in validation_error.errors():
@@ -142,8 +172,6 @@ def run(*,
     Returns:
         bool: True if processing was successful, False otherwise
     """
-    log.info(f"Running the Legacy Identifier Transfer gear for ADCID {adcid}")
-    log.info(f'found {len(identifiers)} identifiers')
 
     try:
         success = process_legacy_identifiers(

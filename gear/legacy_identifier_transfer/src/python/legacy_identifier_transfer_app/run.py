@@ -49,7 +49,7 @@ def get_identifiers(identifiers_repo: IdentifierRepository,
             identifier.naccid: identifier
             for identifier in center_identifiers
         }
-
+    log.info(f"Found {len(identifiers)} identifiers for center {adcid}")
     return identifiers
 
 
