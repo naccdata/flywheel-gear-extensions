@@ -173,7 +173,6 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         if not identifiers:
             raise GearExecutionError('Unable to load center participant IDs')
-        log.info(f"Found {len(identifiers)} identifiers")
 
         # Initialize enrollment project adapter
         group = self.proxy.find_group(group_id=group_id)

@@ -57,11 +57,9 @@ def validate_and_create_record(
     return record
 
 
-def process_record_collection(
-    record_collection: LegacyEnrollmentCollection,
-    enrollment_project: EnrollmentProject,
-    dry_run: bool
-) -> bool:
+def process_record_collection(record_collection: LegacyEnrollmentCollection,
+                              enrollment_project: EnrollmentProject,
+                              dry_run: bool) -> bool:
     """Process a collection of enrollment records.
 
     Args:
@@ -87,7 +85,7 @@ def process_record_collection(
                 record.naccid)
             skipped_count += 1
             continue
-        
+
         if not dry_run:
             try:
                 subject = enrollment_project.add_subject(record.naccid)
@@ -95,13 +93,14 @@ def process_record_collection(
                 log.info('Created enrollment for subject %s', record.naccid)
                 success_count += 1
             except Exception as e:
-                log.error('Failed to create enrollment for %s: %s', record.naccid, str(e))
+                log.error('Failed to create enrollment for %s: %s',
+                          record.naccid, str(e))
                 error_count += 1
         else:
             log.info('Dry run: would create enrollment for subject %s',
                      record.naccid)
             success_count += 1
-    
+
     if error_count:
         log.error('Failed to process %d records', error_count)
     if skipped_count:
@@ -186,8 +185,7 @@ def run(*,
             log.error("No changes made due to errors in identifier processing")
             return False
 
-        log.info("Successfully processed %d legacy identifiers",
-                 len(identifiers))
+        log.info("Processed %d legacy identifiers", len(identifiers))
 
     except GearExecutionError as error:
         log.error("Error during gear execution: %s", str(error))

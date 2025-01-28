@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 0.0.4
+
+* Cleans up logging, adds error handling to ID creation process.
 
 ## 0.0.3
 
