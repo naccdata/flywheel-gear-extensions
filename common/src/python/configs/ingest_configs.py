@@ -6,6 +6,13 @@ from keys.keys import DefaultValues
 from pydantic import BaseModel
 
 
+class SupplementModuleConfigs(BaseModel):
+    label: str
+    date_field: str
+    version: Optional[str] = None
+    exact_match: Optional[bool] = True
+
+
 class ModuleConfigs(BaseModel):
     initial_packets: List[str]
     followup_packets: List[str]
@@ -13,7 +20,7 @@ class ModuleConfigs(BaseModel):
     date_field: str
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
-    supplement_module: Optional[Dict[str, str]] = None
+    supplement_module: Optional[SupplementModuleConfigs] = None
 
 
 class FormProjectConfigs(BaseModel):

@@ -4,7 +4,7 @@ import logging
 from collections import deque
 from typing import Dict, List, Optional
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import ModuleConfigs, SupplementModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -169,8 +169,8 @@ class QCCoordinator():
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
     def __get_matching_supplement_visit_file(
-            self, *, supplement_module_info: Dict[str, str], visitdate: str,
-            visitnum: str) -> Optional[FileEntry]:
+            self, *, supplement_module_info: SupplementModuleConfigs,
+            visitdate: str, visitnum: str) -> Optional[FileEntry]:
         """Find the matching supplement visit for the current visit (i.e.
         respective UDS visit for LBD or FTLD submission)
 
@@ -186,8 +186,8 @@ class QCCoordinator():
             FileEntry(optional): matching supplement visit file if found
         """
 
-        supplement_module = supplement_module_info.get('label')
-        supplement_date_field = supplement_module_info.get('date_field')
+        supplement_module = supplement_module_info.label
+        supplement_date_field = supplement_module_info.date_field
 
         title = f'{supplement_module} visits for participant {self.__subject.label}'
 
@@ -296,8 +296,7 @@ class QCCoordinator():
             supplement_file = None
             # if supplement visit required check for approved supplement visit
             # i.e. UDS visit must be approved before processing any FTLD/LBD visits
-            if (supplement_module and supplement_module.get('label')
-                    and supplement_module.get('date_field')):
+            if (supplement_module and supplement_module.exact_match):
                 supplement_file = self.__get_matching_supplement_visit_file(
                     supplement_module_info=supplement_module,
                     visitdate=visitdate,

@@ -39,7 +39,8 @@
             "supplement_module": {
                 "label": "UDS",
                 "version": "4",
-                "date_field": "visitdate"
+                "date_field": "visitdate",
+                "exact_match": true
             }
         },
         "FTLD": {
@@ -58,7 +59,8 @@
             "supplement_module": {
                 "label": "UDS",
                 "version": "4",
-                "date_field": "visitdate"
+                "date_field": "visitdate",
+                "exact_match": true
             }
         }
     }
