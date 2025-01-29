@@ -74,7 +74,10 @@ class RegistryPerson:
         return self.__coperson_message.co_person.meta.created
 
     @property
-    def email_addresses(self) -> Optional[List[EmailAddress]]:
+    def email_addresses(self) -> List[EmailAddress]:
+        if not self.__coperson_message.email_address:
+            return []
+
         return self.__coperson_message.email_address
 
     @property
@@ -142,11 +145,13 @@ class RegistryPerson:
 
         return None
 
-    def organization_email_addresses(self) -> Optional[List[EmailAddress]]:
+    def organization_email_addresses(self) -> List[EmailAddress]:
         """Returns the email from the first organizational identity."""
         org_identity = self.__get_claim_org()
         if not org_identity:
-            return None
+            return []
+        if not org_identity.email_address:
+            return []
 
         return org_identity.email_address
 
