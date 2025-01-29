@@ -9,7 +9,7 @@ class MilestoneCurator(FormCurator):
     """File curation class for milestone forms."""
 
     def curate_form(self, file_entry: FileEntry):
-        """Curates metadata for milestone form
+        """Curates metadata for milestone form.
 
         Args:
           file_entry: file entry for form file

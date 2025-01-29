@@ -1,6 +1,7 @@
-from abc import abstractmethod
 import logging
+from abc import abstractmethod
 from typing import Any, Dict
+
 from dates.dates import get_localized_timestamp
 from files.form import Form
 from flywheel.models.acquisition import Acquisition
@@ -14,12 +15,13 @@ log = logging.getLogger(__name__)
 
 class FormCurator(FileCurator):
     """Curator for form files."""
+
     def __init__(self) -> None:
         super().__init__()
 
     def curate_file(self, file_: Dict[str, Any]):
         """Curate form data.
-        
+
         Args:
           file_: JSON data for file
         """
@@ -29,7 +31,7 @@ class FormCurator(FileCurator):
     @abstractmethod
     def curate_form(self, file_entry: FileEntry):
         """Curates data for the form.
-        
+
         Args:
           file_entry: the file entry for the form
         """
@@ -37,7 +39,7 @@ class FormCurator(FileCurator):
 
     def get_file(self, file_object: Dict[str, Any]) -> FileEntry:
         """Get the file entry for the file object.
-        
+
         Args:
           file_object: JSON data for file
         Returns:
@@ -53,9 +55,9 @@ class FormCurator(FileCurator):
 
     def get_session(self, file_entry: FileEntry) -> Session:
         """Get the session for the file entry.
-        
+
         Args:
-          file_entry: the file entry 
+          file_entry: the file entry
         Returns:
           the Session for the file entry
         """
@@ -63,7 +65,7 @@ class FormCurator(FileCurator):
         assert client
         parents_session = file_entry.parents.get("session")
         return client.get_session(parents_session)
-    
+
     def get_subject(self, file_entry: FileEntry) -> Subject:
         """Get the subject for the file entry.
 
@@ -74,7 +76,8 @@ class FormCurator(FileCurator):
         """
         parents_subject = file_entry.parents.get("subject")
         return self.context.client.get_subject(parents_subject)
-    
+
+
 def curate_session_timestamp(session: Session, form: Form):
     """Set timestamp attribute for session.
 

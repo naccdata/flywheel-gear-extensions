@@ -3,8 +3,8 @@
 import logging
 from typing import Any, Dict, Optional
 
-from dates.dates import datetime_from_form_date, get_localized_timestamp
 from curator.form_curator import FormCurator, curate_session_timestamp
+from dates.dates import datetime_from_form_date, get_localized_timestamp
 from files.uds_form import UDSV3Form
 from flywheel import Session, Subject
 from flywheel.models.file_entry import FileEntry
@@ -17,7 +17,7 @@ class UDSv3Curator(FormCurator):
 
     def curate_form(self, file_entry: FileEntry):
         """Curates metadata for UDSv3 forms.
-        
+
         Arg:
           file_entry: the file entry for the form
         """
@@ -30,6 +30,7 @@ class UDSv3Curator(FormCurator):
 
         session = self.get_session(file_entry)
         curate_session(subject, session, form)
+
 
 def curate_session(subject: Subject, session: Session, form: UDSV3Form):
     """Set session attributes.
