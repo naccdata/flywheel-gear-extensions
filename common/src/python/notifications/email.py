@@ -103,6 +103,37 @@ class EmailClient:
         log.info("Sent mail %s", message_id)
         return message_id
 
+    def send_raw(self, destinations: List[str], subject: str,
+                 body: str) -> str:
+        """Sends a plain text raw email that doesn't require any templating.
+        Mainly for internal use.
+
+        Args:
+          destinations: The list of destinations
+          subject: The email subject
+          body: The email body
+        Returns:
+          the message ID if successfully sent
+        """
+        raw_msg = f'From: {self.__source}\n' \
+            + f"To: {', '.join(destinations)}\n" \
+            + f'Subject: {subject}\n' \
+            + 'MIME-Version: 1.0\n' \
+            + 'Content-Type: text/plain\n' \
+            + body
+        try:
+            response = self.__client.send_raw_email(
+                Source=self.__source,
+                Destinations=destinations,
+                RawMessage={'Data': raw_msg})
+        except ClientError as error:
+            log.error("Failed to send raw email")
+            raise EmailSendError(error) from error
+
+        message_id = response['MessageId']
+        log.info("Sent mail %s", message_id)
+        return message_id
+
 
 class EmailSendError(Exception):
     """Error class for error during sending email."""
