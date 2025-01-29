@@ -145,6 +145,7 @@ class RegistryPerson:
 
         return None
 
+    @property
     def organization_email_addresses(self) -> List[EmailAddress]:
         """Returns the email from the first organizational identity."""
         org_identity = self.__get_claim_org()
