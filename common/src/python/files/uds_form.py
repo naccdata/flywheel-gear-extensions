@@ -1,6 +1,7 @@
 """Defines the form class for UDSv3 forms."""
 import logging
 from datetime import datetime
+from types import MappingProxyType
 from typing import Any, Dict, Optional
 
 from dates.dates import datetime_from_form_date
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 class UDSV3Form(Form):
     """Class for UDSv3 forms."""
 
-    RACE_MAPPING = {
+    RACE_MAPPING = MappingProxyType({
         1: "White",
         2: "Black or African American",
         3: "American Indian or Alaska Native",
@@ -22,7 +23,7 @@ class UDSV3Form(Form):
         50: "Unknown or Not Reported",
         88: "Unknown or Not Reported",
         99: "Unknown or Not Reported",
-    }
+    })
     MORE_THAN_ONE = "More Than One Race"
 
     def get_subject_race(self) -> str:
@@ -48,24 +49,22 @@ class UDSV3Form(Form):
             return self.UNKNOWN
 
         secondary_code = self.get_metadata("racesec")
-        if secondary_code:
-            if self.RACE_MAPPING.get(int(secondary_code),
-                                     self.UNKNOWN) != self.UNKNOWN:
-                return self.MORE_THAN_ONE
+        if secondary_code and self.RACE_MAPPING.get(
+                int(secondary_code), self.UNKNOWN) != self.UNKNOWN:
+            return self.MORE_THAN_ONE
 
         tertiary_code = self.get_metadata("raceter")
-        if tertiary_code:
-            if self.RACE_MAPPING.get(int(tertiary_code),
-                                     self.UNKNOWN) != self.UNKNOWN:
-                return self.MORE_THAN_ONE
+        if tertiary_code and self.RACE_MAPPING.get(
+                int(tertiary_code), self.UNKNOWN) != self.UNKNOWN:
+            return self.MORE_THAN_ONE
 
         return race
 
-    ETHNICITY_MAPPING = {
+    ETHNICITY_MAPPING = MappingProxyType({
         0: "Not Hispanic or Latino",
         1: "Hispanic or Latino",
         9: "Unknown or Not Reported",
-    }
+    })
     UNKNOWN = "Unknown or Not Reported"
 
     def get_subject_ethnicity(self) -> str:
@@ -89,7 +88,7 @@ class UDSV3Form(Form):
             ethnicity_code)
         return self.UNKNOWN
 
-    SEX_MAPPING = {1: "male", 2: "female"}
+    SEX_MAPPING = MappingProxyType({1: "male", 2: "female"})
 
     def get_subject_sex(self) -> Optional[str]:
         """Gets the subject sex from the UDSv3 file entry.
@@ -148,15 +147,15 @@ class UDSV3Form(Form):
         }
         return info
 
-    EDUC_MAPPING = {
+    EDUC_MAPPING = MappingProxyType({
         12: "High School or GED",
         16: "Bachelor's degree",
         18: "Masters's degree",
         20: "Doctorate",
         99: "Unknown or Not Reported",
-    }
+    })
 
-    LANG_MAPPING = {
+    LANG_MAPPING = MappingProxyType({
         1: "English",
         2: "Spanish",
         3: "Mandarin",
@@ -165,7 +164,7 @@ class UDSV3Form(Form):
         6: "Japanese",
         8: "Other",
         9: "Unknown or Not Reported",
-    }
+    })
 
     def get_demographics(self) -> Dict[str, Dict[str, Any]]:
         """Gathers demographic information from the file.
