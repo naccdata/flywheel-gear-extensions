@@ -12,6 +12,7 @@ from coreapi_client.models.email_address import EmailAddress
 from coreapi_client.models.get_co_person200_response import GetCoPerson200Response
 from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
+from coreapi_client.models.org_identity import OrgIdentity
 
 
 class RegistryPerson:
@@ -73,7 +74,7 @@ class RegistryPerson:
         return self.__coperson_message.co_person.meta.created
 
     @property
-    def email_address(self) -> Optional[List[EmailAddress]]:
+    def email_addresses(self) -> Optional[List[EmailAddress]]:
         return self.__coperson_message.email_address
 
     @property
@@ -102,16 +103,14 @@ class RegistryPerson:
         Returns:
           True if this person has the email address. False, otherwise.
         """
-        if not self.email_address:
+        if not self.email_addresses:
             return False
 
         email_addresses = [
-            address for address in self.email_address if email == address.mail
+            address for address in self.email_addresses
+            if email == address.mail
         ]
-        if not email_addresses:
-            return False
-
-        return True
+        return bool(email_addresses)
 
     def is_claimed(self) -> bool:
         """Indicates whether the CoPerson record is claimed.
@@ -122,18 +121,34 @@ class RegistryPerson:
         Returns:
           True if the record has been claimed. False, otherwise.
         """
+        return bool(self.__get_claim_org())
+
+    def __get_claim_org(self) -> Optional[OrgIdentity]:
+        """Returns the first claimed organizational identity.
+
+        Returns:
+          The first claimed organization identity if there is one. None, otherwise.
+        """
         if not self.__coperson_message.org_identity:
-            return False
+            return None
 
         for org_identity in self.__coperson_message.org_identity:
             if not org_identity.identifier:
-                return False
+                continue
 
             for identifier in org_identity.identifier:
                 if identifier.type == "oidcsub" and identifier.login:
-                    return True
+                    return org_identity
 
-        return False
+        return None
+
+    def organization_email_addresses(self) -> Optional[List[EmailAddress]]:
+        """Returns the email from the first organizational identity."""
+        org_identity = self.__get_claim_org()
+        if not org_identity:
+            return None
+
+        return org_identity.email_address
 
     def registry_id(self) -> Optional[str]:
         """Returns the registry ID for the person.
@@ -207,7 +222,7 @@ class UserRegistry:
         Args:
           name: the registry person name
         Returns:
-          True if the name corresposponds to an incomplete claim
+          True if the name corresponds to an incomplete claim
         """
         if not self.__registry_map:
             self.__list()
@@ -246,7 +261,7 @@ class UserRegistry:
             page_index += 1
 
             for person in person_list:
-                if not person.email_address:
+                if not person.email_addresses:
                     if not person.is_claimed():
                         continue
 
@@ -256,7 +271,7 @@ class UserRegistry:
 
                     continue
 
-                for address in person.email_address:
+                for address in person.email_addresses:
                     self.__registry_map[address.mail].append(person)
 
     def __parse_response(
