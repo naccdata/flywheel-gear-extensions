@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.4.7
+## 1.4.8
 
 * Find the SSO authentication email from claimed registry record
   
