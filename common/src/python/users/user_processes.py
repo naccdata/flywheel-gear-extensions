@@ -288,7 +288,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         """
 
         registry_person = self.__env.user_registry.find_by_registry_id(
-            entry.email, entry.registry_id)
+            entry.registry_id)
 
         # this cannot happen, user should have been claimed if it reaches this step
         if not registry_person or not registry_person.organization_email_addresses:

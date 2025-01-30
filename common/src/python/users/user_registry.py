@@ -199,6 +199,7 @@ class UserRegistry:
         self.__coid = coid
         self.__registry_map: Dict[str, List[RegistryPerson]] = {}
         self.__bad_claims: Dict[str, List[RegistryPerson]] = {}
+        self.__registry_map_by_id: Dict[str, RegistryPerson] = {}
 
     @property
     def coid(self) -> int:
@@ -238,27 +239,21 @@ class UserRegistry:
 
         return self.__registry_map[email]
 
-    def find_by_registry_id(self, email: str,
+    def find_by_registry_id(self,
                             registry_id: str) -> Optional[RegistryPerson]:
         """Returns the registry person object with matching registry id.
 
         Args:
-          email: the user email address
           registry_id: the registry id
 
         Returns:
           the registry person objects if a match found, else None
         """
 
-        registry_person_list = self.get(email)
-        if not registry_person_list:
-            return None
+        if not self.__registry_map_by_id:
+            self.__list()
 
-        for person in registry_person_list:
-            if person.registry_id == registry_id:
-                return person
-
-        return None
+        return self.__registry_map_by_id.get(registry_id)
 
     def has_bad_claim(self, name: str) -> bool:
         """Returns true if a RegistryPerson with the primary name has an
@@ -288,6 +283,7 @@ class UserRegistry:
         """
         self.__registry_map = defaultdict(list)
         self.__bad_claims = defaultdict(list)
+        self.__registry_map_by_id = {}
 
         limit = 100
         page_index = 0
@@ -320,6 +316,10 @@ class UserRegistry:
 
                 for address in person.email_addresses:
                     self.__registry_map[address.mail].append(person)
+
+                registry_id = person.registry_id()
+                if registry_id:
+                    self.__registry_map_by_id[registry_id] = person
 
     def __parse_response(
             self, response: GetCoPerson200Response) -> List[RegistryPerson]:
