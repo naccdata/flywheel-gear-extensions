@@ -23,11 +23,18 @@ preprocess_errors = {
     "ADCID must match the ADCID of the center uploading the data",
     SysErrorCodes.IVP_EXISTS:
     "Only one Initial Visit Packet is allowed per participant",
+    SysErrorCodes.UDS_NOT_MATCH:
+    "Cannot find a matching UDS visit packet with the " +
+    "same visit number and visit date as the module packet",
+    SysErrorCodes.INVALID_MODULE_PACKET:
+    "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)",
+    SysErrorCodes.UDS_NOT_EXIST:
+    "A UDS packet must be uploaded before uploading this form/module",
     SysErrorCodes.DIFF_VISITDATE:
     "Two packets cannot have the same visit number (VISITNUM) " +
     "if they are from different dates (VISITDATE)",
     SysErrorCodes.DIFF_VISITNUM:
-    "Two packets cannot have the same visit date(VISITDATE) " +
+    "Two packets cannot have the same visit date (VISITDATE) " +
     "if they are from different visit numbers (VISITNUM)",
     SysErrorCodes.LOWER_FVP_VISITNUM:
     "Visit number (VISITNUM) for Follow-Up Visit Packets must be " +
@@ -41,7 +48,7 @@ preprocess_errors = {
     SysErrorCodes.LOWER_I4_VISITDATE:
     "To submit an Initial UDSv4 Visit Packet (PACKET=I4), participant must have "
     +
-    "an existing UDSv3 Visit with visit date (VISITDATE) before the Initial I4 Packet",
+    "an existing UDSv3 visit with visit date (VISITDATE) before the I4 packet",
     SysErrorCodes.EXCLUDED_FIELDS:
     "Some fields in the input record do not match with the submitted version",
     SysErrorCodes.INVALID_PACKET:
