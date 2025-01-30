@@ -57,6 +57,25 @@ class RegistryPerson:
     def as_coperson_message(self) -> CoPersonMessage:
         return self.__coperson_message
 
+    def has_matching_auth_email(self, auth_email: str) -> bool:
+        """Check whether the auth email matches with the organization email
+        that the registry entry was claimed.
+
+        Args:
+            auth_email: auth email provided in NACC directory
+
+        Returns:
+            bool: True if the auth emailed matches with org email
+        """
+        if not self.organization_email_addresses:
+            return False
+
+        for org_email in self.organization_email_addresses:
+            if org_email.mail == auth_email:
+                return True
+
+        return False
+
     @property
     def creation_date(self) -> Optional[datetime]:
         """Returns the creation date for this person in the registry.
@@ -218,6 +237,28 @@ class UserRegistry:
             self.__list()
 
         return self.__registry_map[email]
+
+    def find_by_registry_id(self, email: str,
+                            registry_id: str) -> Optional[RegistryPerson]:
+        """Returns the registry person object with matching registry id.
+
+        Args:
+          email: the user email address
+          registry_id: the registry id
+
+        Returns:
+          the registry person objects if a match found, else None
+        """
+
+        registry_person_list = self.get(email)
+        if not registry_person_list:
+            return None
+
+        for person in registry_person_list:
+            if person.registry_id == registry_id:
+                return person
+
+        return None
 
     def has_bad_claim(self, name: str) -> bool:
         """Returns true if a RegistryPerson with the primary name has an
