@@ -543,6 +543,78 @@ class FormPreprocessor():
             bool: True, if a matching supplement module visit found
         """
 
+        if not module_configs.supplement_module:
+            return True
+
+        supplement_module = module_configs.supplement_module
+
+        supplement_visits = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=supplement_module.label,
+            legacy=False,
+            search_col=supplement_module.date_field,
+            search_val=input_record[module_configs.date_field],
+            search_op="=" if supplement_module.exact_match else "<=",
+            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM])
+
+        supplement_visit = supplement_visits[0] if supplement_visits else None
+
+        if not supplement_visit:
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.MODULE,
+                    value=module,
+                    line=line_num,
+                    error_code=(SysErrorCodes.UDS_NOT_MATCH
+                                if supplement_module.exact_match else
+                                SysErrorCodes.UDS_NOT_EXIST),
+                    ptid=input_record[FieldNames.PTID],
+                    visitnum=input_record[FieldNames.VISITNUM]))
+            return False
+
+        if not supplement_module.exact_match:  # just checking for supplement existence
+            return True
+
+        date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_module.date_field}'
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        if supplement_visit[visitnum_lbl] != input_record[FieldNames.VISITNUM]:
+            log.error('%s - %s:%s,%s and %s:%s,%s',
+                      preprocess_errors[SysErrorCodes.UDS_NOT_MATCH], module,
+                      input_record[module_configs.date_field],
+                      input_record[FieldNames.VISITNUM],
+                      supplement_module.label, supplement_visit[date_lbl],
+                      supplement_visit[visitnum_lbl])
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.MODULE,
+                    value=module,
+                    line=line_num,
+                    error_code=SysErrorCodes.UDS_NOT_MATCH,
+                    ptid=input_record[FieldNames.PTID],
+                    visitnum=input_record[FieldNames.VISITNUM]))
+            return False
+
+        packet = input_record[FieldNames.PACKET]
+        packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
+        if (packet in module_configs.followup_packets and
+                supplement_visit[packet_lbl] == DefaultValues.UDS_I_PACKET):
+            log.error('%s - %s:%s,%s,%s and %s:%s,%s,%s',
+                      preprocess_errors[SysErrorCodes.INVALID_MODULE_PACKET],
+                      module, packet, input_record[module_configs.date_field],
+                      input_record[FieldNames.VISITNUM],
+                      supplement_visit[packet_lbl], supplement_module.label,
+                      supplement_visit[date_lbl],
+                      supplement_visit[visitnum_lbl])
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.PACKET,
+                    value=packet,
+                    line=line_num,
+                    error_code=SysErrorCodes.INVALID_MODULE_PACKET,
+                    ptid=input_record[FieldNames.PTID],
+                    visitnum=input_record[FieldNames.VISITNUM]))
+            return False
+
         return True
 
     def preprocess(self, *, input_record: Dict[str, Any], module: str,
@@ -616,4 +688,5 @@ class FormPreprocessor():
                 module_configs=module_configs,
                 input_record=input_record,
                 line_num=line_num)
+
         return True

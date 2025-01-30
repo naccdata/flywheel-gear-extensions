@@ -29,7 +29,7 @@ preprocess_errors = {
     SysErrorCodes.INVALID_MODULE_PACKET:
     "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)",
     SysErrorCodes.UDS_NOT_EXIST:
-    "A UDS packet must be uploaded before uploading this form/module",
+    "A UDS packet must be submitted before submitting this module/form",
     SysErrorCodes.DIFF_VISITDATE:
     "Two packets cannot have the same visit number (VISITNUM) " +
     "if they are from different dates (VISITDATE)",
