@@ -71,7 +71,7 @@ class RegistryPerson:
             return False
 
         for org_email in self.organization_email_addresses:
-            if org_email.mail == auth_email:
+            if org_email.mail.lower() == auth_email.lower():
                 return True
 
         return False
