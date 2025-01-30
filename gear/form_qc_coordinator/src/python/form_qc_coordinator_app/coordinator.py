@@ -14,7 +14,7 @@ from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import (
     FileError,
     ListErrorWriter,
@@ -191,9 +191,9 @@ class QCCoordinator():
 
         title = f'{supplement_module} visits for participant {self.__subject.label}'
 
-        ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = f'{DefaultValues.FORM_METADATA_PATH}.{supplement_date_field}'
-        visitnum_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
+        date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_date_field}'
+        visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         columns = [
             ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
             'file.parents.acquisition'
@@ -258,12 +258,12 @@ class QCCoordinator():
         """
         gear_name = self.__qc_gear_info.gear_name
 
-        ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
+        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
         date_col_key = (
-            f'{DefaultValues.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
         )
         visitnum_key = (
-            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}')
+            f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}')
 
         # sort the visits in the ascending order of visit date
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])

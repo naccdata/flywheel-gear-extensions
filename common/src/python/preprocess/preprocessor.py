@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
 
 log = logging.getLogger(__name__)
@@ -171,22 +171,49 @@ class FormPreprocessor():
 
         initial_packet = initial_packets[0] if initial_packets else None
 
-        if packet in module_configs.followup_packets and not initial_packet:
-            self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.PACKET,
-                    value=packet,
-                    line=line_num,
-                    error_code=SysErrorCodes.MISSING_IVP,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM]))
-            return False
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
+        packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
+
+        if packet in module_configs.followup_packets:
+            if not initial_packet:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.PACKET,
+                        value=packet,
+                        line=line_num,
+                        error_code=SysErrorCodes.MISSING_IVP,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            if initial_packet[date_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=module_configs.date_field,
+                        value=input_record[module_configs.date_field],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_FVP_VISITDATE,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            if initial_packet[visitnum_lbl] >= input_record[
+                    FieldNames.VISITNUM]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.VISITNUM,
+                        value=input_record[FieldNames.VISITNUM],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_FVP_VISITNUM,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            return True
 
         if packet in module_configs.initial_packets and initial_packet:
-            visitnum_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
-            date_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{date_field}'
-            packet_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PACKET}'
-
             # allow if this is an update to the existing initial visit packet
             if (initial_packet[date_lbl]
                     == input_record[module_configs.date_field]
@@ -234,7 +261,7 @@ class FormPreprocessor():
             bool: True, if any conflicting visits found
         """
 
-        field_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{field}'
+        field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{field}'
         for visit in visits:
             if visit[field_lbl] != value:
                 log.error(
@@ -424,7 +451,7 @@ class FormPreprocessor():
 
         legacy_visit = legacy_visits[0] if legacy_visits else None
 
-        date_field_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{date_field}'
+        date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
         if (not legacy_visit or legacy_visit[date_field_lbl]
                 >= input_record[module_configs.date_field]):
             self.__error_writer.write(
@@ -437,7 +464,7 @@ class FormPreprocessor():
                     visitnum=input_record[FieldNames.VISITNUM]))
             return False
 
-        visitnum_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
             self.__error_writer.write(
                 preprocessing_error(
@@ -448,6 +475,25 @@ class FormPreprocessor():
                     ptid=input_record[FieldNames.PTID],
                     visitnum=input_record[FieldNames.VISITNUM]))
             return False
+
+        return True
+
+    def __check_supplement_module(self, *, subject_lbl: str,
+                                  input_record: Dict[str, Any], module: str,
+                                  module_configs: ModuleConfigs,
+                                  line_num: int) -> bool:
+        """Check whether a matching supplement module found.
+
+        Args:
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
+
+        Returns:
+            bool: True, if a matching supplement module visit found
+        """
 
         return True
 
@@ -505,8 +551,18 @@ class FormPreprocessor():
                                                line_num=line_num):
             return False
 
-        return self.__check_visitnum_visitdate(subject_lbl=subject_lbl,
+        if not self.__check_visitnum_visitdate(subject_lbl=subject_lbl,
                                                module=module,
                                                module_configs=module_configs,
                                                input_record=input_record,
-                                               line_num=line_num)
+                                               line_num=line_num):
+            return False
+
+        if module_configs.supplement_module:
+            return self.__check_supplement_module(
+                subject_lbl=subject_lbl,
+                module=module,
+                module_configs=module_configs,
+                input_record=input_record,
+                line_num=line_num)
+        return True

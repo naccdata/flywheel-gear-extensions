@@ -56,9 +56,9 @@ class DefaultValues:
     PROV_SUFFIX = 'provisioning'
     IDENTIFIER_SUFFIX = 'identifiers'
     FW_SEARCH_OR = '=|'
-    FORM_METADATA_PATH = 'file.info.forms.json'
-    UDS_I4_PACKET = 'I4'
     UDS_I_PACKET = 'I'
+    UDS_I4_PACKET = 'I4'
+    UDS_F_PACKET = 'F'
 
 
 class MetadataKeys:
@@ -73,6 +73,7 @@ class MetadataKeys:
     LBD_SHORT = 'LBD-v3.1'
     TRANSFERS = 'transfers'
     MODULE_CONFIGS = 'module_configs'
+    FORM_METADATA_PATH = 'file.info.forms.json'
 
 
 class SysErrorCodes:
@@ -96,3 +97,4 @@ class SysErrorCodes:
     MISSING_IVP = 'preprocess-017'
     MULTIPLE_IVP = 'preprocess-018'
     UDS_NOT_APPROVED = 'preprocess-019'
+    MISSING_UDS_I4 = 'preprocess-020'

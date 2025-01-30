@@ -66,6 +66,9 @@ preprocess_errors = {
     "More than one IVP packet found for the participant/module",
     SysErrorCodes.UDS_NOT_APPROVED:
     "UDS visit packet must be approved before the module visit can be processed",
+    SysErrorCodes.MISSING_UDS_I4:
+    "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
+    + "submitted before the Follow-Up Visit Packet (PACKET=F)",
 }
 
 
