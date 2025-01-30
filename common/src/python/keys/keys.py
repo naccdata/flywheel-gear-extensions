@@ -97,4 +97,5 @@ class SysErrorCodes:
     MISSING_IVP = 'preprocess-017'
     MULTIPLE_IVP = 'preprocess-018'
     UDS_NOT_APPROVED = 'preprocess-019'
-    MISSING_UDS_I4 = 'preprocess-020'
+    MISSING_UDS_V3 = 'preprocess-020'
+    MISSING_UDS_I4 = 'preprocess-021'

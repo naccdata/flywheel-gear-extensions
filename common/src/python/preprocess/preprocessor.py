@@ -106,9 +106,6 @@ class FormPreprocessor():
             module_configs: module configurations
             line_num: line number in CSV file
 
-        Raises:
-            PreprocessingException: if error occur while validating
-
         Returns:
             bool: False if any of the validations fail
         """
@@ -417,7 +414,7 @@ class FormPreprocessor():
                                     input_record: Dict[str, Any], module: str,
                                     module_configs: ModuleConfigs,
                                     line_num: int) -> bool:
-        """Validate UDSv4 I4 packet.
+        """Validate UDSv4 I4 packet requirements.
 
         Args:
             subject_lbl: Flywheel subject label
@@ -430,18 +427,23 @@ class FormPreprocessor():
             bool: False, if validations fail
         """
 
-        if input_record[FieldNames.PACKET] != DefaultValues.UDS_I4_PACKET:
+        packet = input_record[FieldNames.PACKET]
+        if (module != DefaultValues.UDS_MODULE or packet not in [
+                DefaultValues.UDS_I4_PACKET, DefaultValues.UDS_F_PACKET
+        ]):
             return True
 
+        legacy_module = (module_configs.legacy_module
+                         if module_configs.legacy_module else module)
         date_field = module_configs.date_field
-        if module_configs.legacy_module:
-            module = module_configs.legacy_module
         if module_configs.legacy_date:
             date_field = module_configs.legacy_date
 
+        # retrieve all legacy visits for this module (find_all=True)
+        # sorted in descending of visit date
         legacy_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
-            module=module,
+            module=legacy_module,
             legacy=True,
             search_col=date_field,
             search_val=input_record[date_field],
@@ -451,30 +453,76 @@ class FormPreprocessor():
 
         legacy_visit = legacy_visits[0] if legacy_visits else None
 
-        date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
-        if (not legacy_visit or legacy_visit[date_field_lbl]
-                >= input_record[module_configs.date_field]):
+        if not legacy_visit:
+            # For FVP return true, since IVP check (I or I4) is done earlier
+            if packet == DefaultValues.UDS_F_PACKET:
+                return True
+
+            # For I4 reject, since UDSv3 visit must present to submit I4
             self.__error_writer.write(
                 preprocessing_error(
-                    field=module_configs.date_field,
-                    value=input_record[module_configs.date_field],
+                    field=FieldNames.PACKET,
+                    value=packet,
                     line=line_num,
-                    error_code=SysErrorCodes.LOWER_I4_VISITDATE,
+                    error_code=SysErrorCodes.MISSING_UDS_V3,
                     ptid=input_record[FieldNames.PTID],
                     visitnum=input_record[FieldNames.VISITNUM]))
             return False
 
-        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
-        if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
-            self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.VISITNUM,
-                    value=input_record[FieldNames.VISITNUM],
-                    line=line_num,
-                    error_code=SysErrorCodes.LOWER_I4_VISITNUM,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM]))
-            return False
+        # If participant has UDSv3 visits and trying to submit FVP packet
+        # check whether an I4 packet already submitted for the participant
+        if packet == DefaultValues.UDS_F_PACKET:
+            i4_visits = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=module,
+                legacy=False,
+                search_col=FieldNames.PACKET,
+                search_val=DefaultValues.UDS_I4_PACKET,
+                search_op='=',
+                extra_columns=[module_configs.date_field])
+
+            i4_visit = i4_visits[0] if i4_visits else None
+
+            date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
+            if not i4_visit or i4_visit[date_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.PACKET,
+                        value=packet,
+                        line=line_num,
+                        error_code=SysErrorCodes.MISSING_UDS_I4,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+        # If participant has UDSv3 visits and trying to submit I4 packet
+        # check whether the I4 packet visit date and visit num higher than latest UDSv3
+        if packet == DefaultValues.UDS_I4_PACKET:
+            date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
+            if legacy_visit[date_field_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=module_configs.date_field,
+                        value=input_record[module_configs.date_field],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_I4_VISITDATE,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.VISITNUM,
+                        value=input_record[FieldNames.VISITNUM],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_I4_VISITNUM,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
 
         return True
 
@@ -508,6 +556,9 @@ class FormPreprocessor():
 
         Returns:
             bool: True, if input record pass the pre-processing checks
+
+        Raises:
+            PreprocessingException: if error occur while validating
         """
 
         module_configs = self.__module_info.get(module)
