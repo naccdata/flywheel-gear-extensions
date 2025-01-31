@@ -4,12 +4,14 @@ All notable changes to this gear are documented in this file.
 
 ## 1.1.2
 * Changes the transformation schema format to only include unique fields
+* Adds LBD/FTLD pre-processing checks
+* Updates pre-processing error codes
 
 ## 1.1.0 - 1.1.1
-* Adds pre-processing checks.
+* Adds pre-processing checks
   
 ## 1.0.5
-* Updates error reporting - move error metadata to visit error log files stored at project level.
+* Updates error reporting - move error metadata to visit error log files stored at project level
   
 ## 1.0.2
 - Removes GearBot client
@@ -17,7 +19,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.0.0
 
-- Moves form-specific functionality of csv-to-json-transformer to form-transformer gear.
+- Moves form-specific functionality of csv-to-json-transformer to form-transformer gear
 - Adds transformer schema as input file
 
 ## 0.0.11 (from CSV-to-JSON-transformer)
