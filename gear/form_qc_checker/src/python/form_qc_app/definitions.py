@@ -130,6 +130,7 @@ class DefinitionsLoader:
                 )
 
         # load supplement module schema if a supplement record provided
+        # skip optional forms to ensure the type is preserved
         if supplement_data and supplement_data.get(FieldNames.MODULE):
             supplement_s3_prefix = self.__get_s3_prefix(
                 module=supplement_data.get(FieldNames.MODULE),  # type: ignore
@@ -187,9 +188,12 @@ class DefinitionsLoader:
                 log.info('Skipping definition file: %s', key)
                 continue
 
+            optional_def = filename.endswith('_optional.json')
+            if optional_def and not optional_forms:
+                continue  # skip optional form if no optional forms specified
+
             # Select which definition to load depending on form is submitted or not
             if optional_forms and formname in optional_forms:
-                optional_def = filename.endswith('_optional.json')
                 if optional_forms[formname] and optional_def:
                     continue  # form is submitted, skip optional schema
 

@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.0.0
 * Checks for valid UDS input before proceeding with LBD/FTLD validation
+* Updates pre-processing error codes
   
 ## 0.1.10
 * Refactors to use gear-specific `QCGearConfigs`

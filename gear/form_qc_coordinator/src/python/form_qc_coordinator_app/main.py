@@ -16,7 +16,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import FieldNames, MetadataKeys
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 
@@ -67,9 +67,9 @@ def get_matching_visits(
 
     title = f'{module} visits for participant {subject}'
 
-    ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
-    date_col_key = f'{DefaultValues.FORM_METADATA_PATH}.{date_col}'
-    visitnum_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+    ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
+    date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{date_col}'
+    visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
     columns = [
         ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
         'file.parents.acquisition', 'file.info.forms.json.visitnum'
