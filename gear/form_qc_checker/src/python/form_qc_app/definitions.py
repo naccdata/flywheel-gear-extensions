@@ -137,7 +137,7 @@ class DefinitionsLoader:
                 data_record=supplement_data)
             try:
                 supplement_schema = self.download_definitions_from_s3(
-                    f'{supplement_s3_prefix}/rules/', skip_optional=True)
+                    f'{supplement_s3_prefix}/rules/')
                 self.__append_supplement_schema(schema=schema,
                                                 supplement=supplement_schema)
             except DefinitionException as error:
@@ -149,8 +149,7 @@ class DefinitionsLoader:
             self,
             prefix: str,
             optional_forms: Optional[Dict[str, bool]] = None,
-            skip_forms: Optional[List[str]] = None,
-            skip_optional: bool = False) -> Dict[str, Mapping]:
+            skip_forms: Optional[List[str]] = None) -> Dict[str, Mapping]:
         """Download rule definition files from a source S3 bucket and generate
         validation schema. For optional forms, there are two definition files
         in the S3 bucket. Load the appropriate definition depending on whether
@@ -160,8 +159,6 @@ class DefinitionsLoader:
             prefix: S3 path prefix
             optional_forms (optional): Submission status of each optional form
             skip_forms (optional): List of form names to skip
-            skip_optional (optional): Whether or not to skip optional forms,
-                defaults to False
 
         Returns:
             dict[str, Mapping[str, object]: Schema object from rule definitions
@@ -192,8 +189,8 @@ class DefinitionsLoader:
                 continue
 
             optional_def = filename.endswith('_optional.json')
-            if optional_def and skip_optional:
-                continue  # skip optional form if specified
+            if optional_def and not optional_forms:
+                continue  # skip optional form if no optional forms specified
 
             # Select which definition to load depending on form is submitted or not
             if optional_forms and formname in optional_forms:
