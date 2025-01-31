@@ -137,8 +137,7 @@ class DefinitionsLoader:
                 data_record=supplement_data)
             try:
                 supplement_schema = self.download_definitions_from_s3(
-                    f'{supplement_s3_prefix}/rules/',
-                    skip_optional=True)
+                    f'{supplement_s3_prefix}/rules/', skip_optional=True)
                 self.__append_supplement_schema(schema=schema,
                                                 supplement=supplement_schema)
             except DefinitionException as error:
