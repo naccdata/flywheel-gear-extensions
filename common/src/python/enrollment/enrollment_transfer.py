@@ -11,10 +11,11 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
 )
 from identifiers.model import (
-    GUID_PATTERN,
     NACCID_PATTERN,
     PTID_PATTERN,
     CenterIdentifiers,
+    GUIDField,
+    OptionalNACCIDField,
 )
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
@@ -90,11 +91,9 @@ class TransferRecord(BaseModel):
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
-class EnrollmentRecord(BaseModel):
+class EnrollmentRecord(GUIDField, OptionalNACCIDField):
     """Model representing enrollment of participant."""
     center_identifier: CenterIdentifiers
-    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     start_date: datetime
     end_date: Optional[datetime] = None
     transfer_from: Optional[TransferRecord] = None
