@@ -85,7 +85,7 @@ def curate_session_timestamp(session: Session, form: Form):
         session: the session to curate
         form: the milestone form
     """
-    visit_datetime = form.get_session_date()
+    visit_datetime = form.get_form_date()
     if visit_datetime:
         timestamp = get_localized_timestamp(visit_datetime)
         session.update({"timestamp": timestamp})

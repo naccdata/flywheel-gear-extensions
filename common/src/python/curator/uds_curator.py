@@ -48,7 +48,7 @@ def curate_session(subject: Subject, session: Session, form: UDSV3Form):
     else:
         log.warning("Weight unknown for %s", session.label)
 
-    visit_datetime = form.get_session_date()
+    visit_datetime = form.get_form_date()
     if not visit_datetime:
         log.warning("No visit date given for %s", session.label)
         return

@@ -10,7 +10,7 @@ from files.form import Form
 class NPv11Form(Form):
     """NPv11 form class used for attribute curation."""
 
-    def get_session_date(self) -> Optional[datetime]:
+    def get_form_date(self) -> Optional[datetime]:
         """Get date of NP session.
 
         Args:

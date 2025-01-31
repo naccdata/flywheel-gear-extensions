@@ -26,7 +26,7 @@ class Form(ABC):
                                                   {}).get("json").get(key)
 
     @abstractmethod
-    def get_session_date(self) -> Optional[datetime]:
+    def get_form_date(self) -> Optional[datetime]:
         """Gets the date of the session of form.
 
         Returns:

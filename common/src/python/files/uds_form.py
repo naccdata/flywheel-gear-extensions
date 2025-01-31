@@ -228,7 +228,7 @@ class UDSV3Form(Form):
 
         return round(float(weight_lbs) * 0.45359237, 2)  # Lb to Kg conversion
 
-    def get_session_date(self) -> Optional[datetime]:
+    def get_form_date(self) -> Optional[datetime]:
         """Get date of session from visit date on A1 form of UDSv3.
 
         Args:
