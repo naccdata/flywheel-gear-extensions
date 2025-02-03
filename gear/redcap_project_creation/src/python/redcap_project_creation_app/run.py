@@ -153,14 +153,14 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                             center.group)
                 continue
 
-            center_metadata = group_adaptor.find_project(
+            center_metadata_prj = group_adaptor.find_project(
                 DefaultValues.METADATA_PRJ_LBL)
-            if not center_metadata:
+            if not center_metadata_prj:
                 log.warning('Cannot find metadata project in group %s',
                             center.group)
                 continue
 
-            info = center_metadata.get_info()
+            info = center_metadata_prj.get_info()
             if not info or 'studies' not in info:
                 log.warning('Studies metadata not found in %s/metadata',
                             center.group)
