@@ -850,10 +850,18 @@ class REDCapProjectInput(BaseModel):
     projects: List[REDCapFormProjectMetadata]
 
 
+class StudyREDCapProjectsList(BaseModel):
+    """List of REDCap ingest projects in for a given study."""
+    # TODO - move study id out of REDCapProjectInput
+    model_config = ConfigDict(populate_by_name=True,
+                              alias_generator=AliasGenerator(alias=kebab_case))
+    center_projects: List[REDCapProjectInput]
+
+
 class REDCapModule(BaseModel):
     """Information required to create a REDCap project for a module.
 
-    label: module name (udsv4, ftldv4, etc.)
+    label: module name (uds, ftld, etc.)
     title: REDCap project title (this will be prefixed with center name)
     template[Optional]: XML template filename prefix (if different from label)
     """

@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.1
+* Save updated REDCap metadata in a yaml file in admin project
+  
 ## 0.1.0
 * First release
   
