@@ -1,7 +1,7 @@
 """Entry script for REDCap Project Creation."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import yaml
 from centers.center_adaptor import CenterAdaptor
@@ -141,8 +141,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                       admin_group_id)
             return
 
-        center_redcap_projects: List[REDCapProjectInput] = []
-
+        study_redcap_metadata = StudyREDCapProjectsList([])
         # collect updated REDCap project mapping metadata for the study
         for center in centers.values():
             if not center.active:
@@ -186,7 +185,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 for redcap_project in ingest_project.redcap_projects.values():
                     redcap_projects.append(redcap_project)
 
-                center_redcap_projects.append(
+                study_redcap_metadata.append(
                     REDCapProjectInput(
                         center_id=center.group,
                         study_id=study_id,
@@ -194,15 +193,15 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                         projects=redcap_projects))
 
         # write updated metadata to output file
-        if len(center_redcap_projects) > 0:
+        if len(study_redcap_metadata.root) > 0:
+            yaml_text = yaml.safe_dump(
+                data=study_redcap_metadata.model_dump(serialize_as_any=True),
+                allow_unicode=True,
+                default_flow_style=False)
+
             out_filename = f'{study_id}-{filename}'
-            study_redcap_metadata = StudyREDCapProjectsList(
-                center_projects=center_redcap_projects)
             with context.open_output(out_filename, mode='w',
                                      encoding='utf-8') as out_file:
-                yaml_text = yaml.safe_dump(data=study_redcap_metadata,
-                                           allow_unicode=True,
-                                           default_flow_style=False)
                 out_file.write(yaml_text)
 
     # pylint: disable = (too-many-locals)
