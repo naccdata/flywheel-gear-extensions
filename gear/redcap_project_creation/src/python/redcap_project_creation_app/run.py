@@ -4,7 +4,6 @@ import logging
 from typing import Dict, Optional
 
 import yaml
-from centers.center_adaptor import CenterAdaptor
 from centers.center_group import (
     CenterProjectMetadata,
     FormIngestProjectMetadata,
@@ -25,6 +24,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, REDCapParameters
 from inputs.yaml import YAMLReadError, load_from_stream
+from keys.keys import DefaultValues
 from pydantic import ValidationError
 from redcap.redcap_connection import REDCapSuperUserConnection
 
@@ -153,10 +153,14 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                             center.group)
                 continue
 
-            center_group = CenterAdaptor(group=group_adaptor.group,
-                                         proxy=self.proxy)
+            center_metadata = group_adaptor.find_project(
+                DefaultValues.METADATA_PRJ_LBL)
+            if not center_metadata:
+                log.warning('Cannot find metadata project in group %s',
+                            center.group)
+                continue
 
-            info = center_group.get_metadata().get_info()
+            info = center_metadata.get_info()
             if not info or 'studies' not in info:
                 log.warning('Studies metadata not found in %s/metadata',
                             center.group)
