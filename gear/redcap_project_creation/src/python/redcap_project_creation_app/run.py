@@ -265,15 +265,15 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         redcap_super_con = REDCapSuperUserConnection.create_from(
             super_credentials)
 
-        errors, fw_metadata = run(proxy=self.proxy,
-                                  parameter_store=self.__param_store,
-                                  base_path=token_path_prefix,
-                                  redcap_super_con=redcap_super_con,
-                                  study_info=study_info,
-                                  use_template=use_xml_template,
-                                  xml_templates=xml_templates)
+        errors, updated = run(proxy=self.proxy,
+                              parameter_store=self.__param_store,
+                              base_path=token_path_prefix,
+                              redcap_super_con=redcap_super_con,
+                              study_info=study_info,
+                              use_template=use_xml_template,
+                              xml_templates=xml_templates)
 
-        if len(fw_metadata) > 0:
+        if updated > 0:
             fname = f'{study_info.study_id}-{output_filename}'
             self.__write_out_file(context=context,
                                   admin_group_id=admin_project.group,
