@@ -67,6 +67,11 @@
             "description": "Output file name to save metadata details (will be prefixed with study id)",
             "type": "string",
             "default": "ingest-projects-redcap-metadata.yaml"
+        },
+        "dry_run": {
+            "description": "Whether to do a dry run (only generates the metadata file)",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"

@@ -195,9 +195,10 @@ class REDCapProjectCreation(GearExecutionEnvironment):
 
         # write updated metadata to output file
         if len(center_redcap_projects) > 0:
+            out_filename = f'{study_id}-{filename}'
             study_redcap_metadata = StudyREDCapProjectsList(
                 center_projects=center_redcap_projects)
-            with context.open_output(filename, mode='w',
+            with context.open_output(out_filename, mode='w',
                                      encoding='utf-8') as out_file:
                 yaml_text = yaml.safe_dump(data=study_redcap_metadata,
                                            allow_unicode=True,
@@ -205,7 +206,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 out_file.write(yaml_text)
 
     # pylint: disable = (too-many-locals)
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearToolkitContext) -> None:  # noqa: C901
         """Invoke the redcap project creation app.
 
         Args:
@@ -240,6 +241,10 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 gear_context=context,
                 key='output_file_name',
                 default='ingest-projects-redcap-metadata.yaml')
+
+            dry_run: bool = get_config(gear_context=context,
+                                       key='dry_run',
+                                       default=False)
         except ConfigParseError as error:
             raise GearExecutionError(
                 f'Incomplete configuration - {error}') from error
@@ -249,6 +254,16 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         except ApiException as error:
             raise GearExecutionError(
                 f'Cannot find admin project - {error}') from error
+
+        # Just update the REDCap metadata file and exit
+        if dry_run:
+            log.info('Dry run - updating the metadata file %s-%s',
+                     study_info.study_id, output_filename)
+            self.__write_out_file(context=context,
+                                  admin_group_id=admin_project.group,
+                                  study_id=study_info.study_id,
+                                  filename=output_filename)
+            exit(0)
 
         if use_xml_template:
             xml_templates = get_xml_templates(admin_project, study_info)
@@ -274,11 +289,10 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                               xml_templates=xml_templates)
 
         if updated > 0:
-            fname = f'{study_info.study_id}-{output_filename}'
             self.__write_out_file(context=context,
                                   admin_group_id=admin_project.group,
                                   study_id=study_info.study_id,
-                                  filename=fname)
+                                  filename=output_filename)
 
         if errors:
             raise GearExecutionError(
