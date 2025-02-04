@@ -202,7 +202,7 @@ def run(  # noqa: C901
             supplement_input=supplement_input) if supplement_input else None
         if module_configs.supplement_module and not supplement_record:
             raise GearExecutionError(
-                f"Supplement {module_configs.supplement_module['label']} "
+                f"Supplement {module_configs.supplement_module.label} "
                 f"visit record is required to validate {module} visit")
 
         file_processor = JSONFileProcessor(pk_field=pk_field,

@@ -4,7 +4,7 @@ import logging
 from collections import deque
 from typing import Dict, List, Optional
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import ModuleConfigs, SupplementModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -14,7 +14,7 @@ from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import (
     FileError,
     ListErrorWriter,
@@ -169,8 +169,8 @@ class QCCoordinator():
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
     def __get_matching_supplement_visit_file(
-            self, *, supplement_module_info: Dict[str, str], visitdate: str,
-            visitnum: str) -> Optional[FileEntry]:
+            self, *, supplement_module_info: SupplementModuleConfigs,
+            visitdate: str, visitnum: str) -> Optional[FileEntry]:
         """Find the matching supplement visit for the current visit (i.e.
         respective UDS visit for LBD or FTLD submission)
 
@@ -186,14 +186,14 @@ class QCCoordinator():
             FileEntry(optional): matching supplement visit file if found
         """
 
-        supplement_module = supplement_module_info.get('label')
-        supplement_date_field = supplement_module_info.get('date_field')
+        supplement_module = supplement_module_info.label
+        supplement_date_field = supplement_module_info.date_field
 
         title = f'{supplement_module} visits for participant {self.__subject.label}'
 
-        ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = f'{DefaultValues.FORM_METADATA_PATH}.{supplement_date_field}'
-        visitnum_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
+        date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_date_field}'
+        visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         columns = [
             ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
             'file.parents.acquisition'
@@ -258,12 +258,12 @@ class QCCoordinator():
         """
         gear_name = self.__qc_gear_info.gear_name
 
-        ptid_key = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PTID}'
+        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
         date_col_key = (
-            f'{DefaultValues.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
         )
         visitnum_key = (
-            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}')
+            f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}')
 
         # sort the visits in the ascending order of visit date
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
@@ -296,8 +296,7 @@ class QCCoordinator():
             supplement_file = None
             # if supplement visit required check for approved supplement visit
             # i.e. UDS visit must be approved before processing any FTLD/LBD visits
-            if (supplement_module and supplement_module.get('label')
-                    and supplement_module.get('date_field')):
+            if (supplement_module and supplement_module.exact_match):
                 supplement_file = self.__get_matching_supplement_visit_file(
                     supplement_module_info=supplement_module,
                     visitdate=visitdate,

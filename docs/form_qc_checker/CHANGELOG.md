@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.5
+* Updates `nacc-form-validator` to 0.5.0
+  
 ## 1.2.4
 * Adds loading supplement UDS input for LBD/FTLD validation
   
