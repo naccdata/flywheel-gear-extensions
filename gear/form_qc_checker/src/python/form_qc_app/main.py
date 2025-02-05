@@ -171,6 +171,7 @@ def run(  # noqa: C901
     if not project:
         raise GearExecutionError(
             f'Failed to find the project with ID {file.parents.project}')
+    project_adaptor = ProjectAdaptor(project=project, proxy=proxy)
 
     if (module not in form_project_configs.accepted_modules
             or not form_project_configs.module_configs.get(module)):
@@ -208,8 +209,7 @@ def run(  # noqa: C901
         file_processor = JSONFileProcessor(pk_field=pk_field,
                                            module=module,
                                            date_field=date_field,
-                                           project=ProjectAdaptor(
-                                               project=project, proxy=proxy),
+                                           project=project_adaptor,
                                            error_writer=error_writer,
                                            gear_name=gear_name,
                                            supplement_data=supplement_record)
@@ -217,8 +217,7 @@ def run(  # noqa: C901
         file_processor = CSVFileProcessor(pk_field=pk_field,
                                           module=module,
                                           date_field=date_field,
-                                          project=ProjectAdaptor(
-                                              project=project, proxy=proxy),
+                                          project=project_adaptor,
                                           error_writer=error_writer,
                                           gear_name=gear_name)
 
@@ -245,12 +244,12 @@ def run(  # noqa: C901
         raise GearExecutionError(f'Failed to find ADCID for group: {gid}')
 
     datastore = DatastoreHelper(pk_field=pk_field,
-                                orderby=date_field,
                                 proxy=proxy,
                                 adcid=adcid,
                                 group_id=gid,
-                                project=project,
+                                project=project_adaptor,
                                 admin_group=admin_group,
+                                module_configs=module_configs,
                                 legacy_label=legacy_label)
 
     try:
