@@ -146,7 +146,7 @@ def run(proxy: FlywheelProxy,
             context.metadata.add_qc_result(input_file.file_input,
                                            name='hello-world-qc',
                                            state='PASS' if pass_qc else 'NO',
-                                           data=[{'msg': f'input file said {fail_qc}'}])
+                                           data=[{'msg': f'input file said {pass_qc}'}])
         else:
             log.info("LOCAL RUN: cannot update metadata for input file, as it does "
                      + "not belong to a Flywheel container")

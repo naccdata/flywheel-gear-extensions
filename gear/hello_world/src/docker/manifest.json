@@ -2,7 +2,7 @@
     "name": "hello-world",
     "label": "Hello World",
     "description": "Hello World tutorial gear",
-    "version": "0.0.1c",
+    "version": "0.0.1d",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/hello-world:0.0.1c"
+            "image": "naccdata/hello-world:0.0.1d"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

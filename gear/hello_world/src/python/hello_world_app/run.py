@@ -84,7 +84,7 @@ class HelloWorldVisitor(GearExecutionEnvironment):
             try:
                 file_id = self.__input_file.file_id
                 file = self.proxy.get_file(file_id)
-                project = file.parents.project
+                project = self.proxy.get_project_by_id(file.parents.project)
             except ApiException as error:
                 raise GearExecutionError(
                     f'Failed to find the input file: {error}') from error
@@ -92,6 +92,7 @@ class HelloWorldVisitor(GearExecutionEnvironment):
             project = self.proxy.get_project_by_id(self.__target_project_id)
 
         project = ProjectAdaptor(project=project, proxy=self.proxy)
+        log.info(f"Running in group {project.group}, project {project.label}")
 
         run(proxy=self.proxy,
             context=context,
