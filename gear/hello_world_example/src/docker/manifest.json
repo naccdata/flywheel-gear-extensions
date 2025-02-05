@@ -41,15 +41,15 @@
             "description": "Name of output file to write to",
             "type": "string"
         },
-        "target_project_id": {
-            "description": "Target project ID, must be set to a valid Flywheel project ID if using local_run. Otherwise if set to the empty string, uses the input_file's parent project.",
-            "type": "string",
-            "default": ""
-        },
         "local_run": {
             "description": "Whether or not this is a local run",
             "type": "boolean",
             "default": false
+        },
+        "target_project_id": {
+            "description": "Target project ID, must be set to a valid Flywheel project ID if using local_run. Otherwise if set to the empty string, uses the input_file's parent project.",
+            "type": "string",
+            "default": ""
         },
         "dry_run": {
             "description": "Whether to do a dry run",
@@ -59,7 +59,7 @@
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
-            "default": "/prod/flywheel/gearbot"
+            "default": "/sandbox/flywheel/gearbot"
 
         }
     },

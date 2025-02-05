@@ -7,13 +7,14 @@ the Flywheel hierarchy and associated files. It
     with the following values:
     a. The label to say hello to and create a subject for
     b. Comma-deliminated list of tags to add to the output file
-    c. Data to add under the `dummy_metadata` key in the output file's info data
+    c. Data to add under the `dummy_metadata` key in the output file's custom
+        information
     d. NO to fail the QC and YES to pass it and attach that result to the
         input file's metadata (if not a local run)
 2. Creates a subject with the label provided by the input file and adds
-    `created_by` to the subject's info data
+    `created_by` to the subject's custom information
     a. If a subject with that label already exists, finds the subject and instead
-        adds `last_updated_by` to the subject's info data
+        adds `last_updated_by` to the subject's custom information
 3. Grabs the project's metadata. Increments both a count and adds the subject
     label to a list
 4. Write data to an output file that is then attached to the subject. The data
@@ -23,15 +24,17 @@ the Flywheel hierarchy and associated files. It
 Feel free to modify this gear script to explore your own use cases.
 """
 import logging
-
 from datetime import datetime
 from io import StringIO
 
 from flywheel.file_spec import FileSpec
 from flywheel.rest import ApiException
+
+# from common/src/python
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
@@ -45,16 +48,24 @@ def run(proxy: FlywheelProxy,
     """Runs the Hello World process.
 
     Args:
-        proxy: the proxy for the Flywheel instance
+        proxy: the proxy for the Flywheel instance, for
+            interacting with Flywheel
+        context: GearToolkitContext, for applying custom
+            information updates to the input file
         project: The corresponding project of this file
-        input_file: InputFileWrapper to read from
+        input_file: InputFileWrapper to read the input file
+            from, pulls the subject to create and metadata
+            to add
         output_filename: Name of file to write results to
-        local_run: Whether or not this is a local run
+            and attach to the created subject
+        local_run: Whether or not this is a local run, may
+            block certain actions that cannot be done while
+            iterating on a local file
     """
     # 1. read the name from the first line of the input file
     with open(input_file.filepath, mode='r') as fh:
         label = fh.readline().strip()
-        tags = fh.readline().strip().split(',')
+        tags = parse_string_to_list(fh.readline())
         metadata = fh.readline().strip()
         pass_qc = fh.readline().strip().upper() == 'YES'
 
@@ -69,8 +80,8 @@ def run(proxy: FlywheelProxy,
     else:
         log.info(f"Creating subject with label {label}")
 
-        # add metadata to the subject with information about the file
-        # it was created from
+        # add custom information to the subject with information about
+        # the file it was created from
         subject_metadata = {
             'name': input_file.filename,
             'filepath': input_file.filepath,
@@ -86,9 +97,9 @@ def run(proxy: FlywheelProxy,
             subject = project.find_subject(label)
             subject.update({"last_updated_by": subject_metadata})
 
-    # 3. get project metadata and increment counter by 1
+    # 3. get project custom information and increment counter by 1
     # and then also add label to array
-    log.info("Grabbing project metadata")
+    log.info("Grabbing project custom information")
     project_info = project.get_info()
     if project_info.get('count', None) is None:
         project_info['count'] = 0
@@ -120,10 +131,12 @@ def run(proxy: FlywheelProxy,
     contents = stream.getvalue()
 
     if proxy.dry_run:
-        log.info(f"DRY RUN: Would have written the following to {output_filename}:")
+        log.info("DRY RUN: Would have written the following " +
+                 f"to {output_filename}:")
         log.info(contents)
     else:
-        log.info(f"Writing output to {output_filename} and attaching it to subject {subject.label}")
+        log.info(f"Writing output to {output_filename} and " +
+                 f"attaching it to subject {subject.label}")
         file_spec = FileSpec(name=output_filename,
                              contents=contents,
                              content_type='text/plain',
@@ -142,11 +155,15 @@ def run(proxy: FlywheelProxy,
 
         if not local_run:
             context.metadata.add_file_tags(input_file.file_input,
-                                           tags=['processed'])
+                                           tags=['hello-world-processed'])
             context.metadata.add_qc_result(input_file.file_input,
                                            name='hello-world-qc',
                                            state='PASS' if pass_qc else 'NO',
-                                           data=[{'msg': f'input file said {pass_qc}'}])
+                                           data=[{
+                                               'msg':
+                                               f'input file said {pass_qc}'
+                                           }])
         else:
-            log.info("LOCAL RUN: cannot update metadata for input file, as it does "
-                     + "not belong to a Flywheel container")
+            log.info(
+                "LOCAL RUN: cannot update metadata for input file, as it does "
+                + "not belong to a Flywheel container")

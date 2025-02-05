@@ -1,7 +1,6 @@
 """Entry script for Hello World."""
 
 import logging
-
 from typing import Optional
 
 from flywheel.rest import ApiException
@@ -9,17 +8,18 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    GearBotClient,
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
-    InputFileWrapper
+    InputFileWrapper,
 )
-from hello_world_app.main import run
 from inputs.parameter_store import ParameterStore
 
+from hello_world_app.main import run
+
 log = logging.getLogger(__name__)
+
 
 class HelloWorldVisitor(GearExecutionEnvironment):
     """Visitor for the Hello World gear."""
@@ -59,37 +59,43 @@ class HelloWorldVisitor(GearExecutionEnvironment):
         """
         client = ContextClient.create(context=context)
 
-        output_filename = context.config.get('output_filename', None)
-        if not output_filename:
-            raise GearExecutionError("Output filename not defined")
+        # # Gear Bot version
+        # client = GearBotClient.create(context=context,
+        #                               parameter_store=parameter_store)
 
-        input_file = InputFileWrapper.create(input_name='input_file',
-                                             context=context)
+        output_filename = context.config.get('output_filename', None)
         target_project_id = context.config.get('target_project_id', None)
         local_run = context.config.get('local_run', False)
 
-        return HelloWorldVisitor(
-            client=client,
-            input_file=input_file,
-            target_project_id=target_project_id,
-            output_filename=output_filename,
-            local_run=local_run)
+        if not output_filename:
+            raise GearExecutionError("Output filename not defined")
+
+
+
+        input_file = InputFileWrapper.create(input_name='input_file',
+                                             context=context)
+
+        return HelloWorldVisitor(client=client,
+                                 input_file=input_file,
+                                 target_project_id=target_project_id,
+                                 output_filename=output_filename,
+                                 local_run=local_run)
 
     def run(self, context: GearToolkitContext) -> None:
         """Run the Hello World gear."""
 
         # if target project ID is not set, try to grab it from the
         # input file's parent
-        if not self.__target_project_id:
-            try:
+        try:
+            if not self.__target_project_id:
                 file_id = self.__input_file.file_id
                 file = self.proxy.get_file(file_id)
                 project = self.proxy.get_project_by_id(file.parents.project)
-            except ApiException as error:
-                raise GearExecutionError(
-                    f'Failed to find the input file: {error}') from error
-        else:
-            project = self.proxy.get_project_by_id(self.__target_project_id)
+            else:
+                project = self.proxy.get_project_by_id(self.__target_project_id)
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Failed to find the input file and/or project: {error}') from error
 
         project = ProjectAdaptor(project=project, proxy=self.proxy)
         log.info(f"Running in group {project.group}, project {project.label}")
@@ -105,6 +111,10 @@ class HelloWorldVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Hello World."""
     GearEngine().run(gear_type=HelloWorldVisitor)
+
+    # if using the Gear Bot
+    # GearEngine.create_with_parameter_store().run(
+    #     gear_type=HelloWorldVisitor)
 
 
 if __name__ == "__main__":
