@@ -4,6 +4,26 @@ The following tutorial outlines developing and running a basic gear in the conte
 
 **Please do this tutorial on a separate branch and do NOT push your hello-world gears to main.**
 
+* [Set Up](#set-up)
+* [Hello World](#hello-world)
+    * [Creating the Gear](#creating-the-gear)
+    * [Configurations and Parameters](#configurations-and-parameters)
+        * [Manifest](#manifest)
+        * [API Keys](#api-keys)
+        * [Output Files](#output-files)
+        * [Local Runs](#local-runs)
+    * [Developing the Gear](#developing-the-gear)
+        * [run.py](#runpy)
+        * [main.py](#mainpy)
+    * [Building and Uploading the Gear](#building-and-uploading-the-gear)
+    * [Running the Gear](#running-the-gear)
+        * [Locally](#locally)
+            * [Passing Environment Variables](#passing-environment-variables)
+            * [Development Cycle](#development-cycle)
+        * [Triggering through Gear Rules](#triggering-through-gear-rules)
+            * [Monitoring and Viewing Result](#monitoring-and-viewing-results)
+        * [Programmatically Triggering](#programmatically-triggering)
+
 ## Set Up
 
 Before we begin, please ensure you have access to NACC's Sandbox Flywheel instance ([nacc.flywheel.io](https://naccdata.flywheel.io/)), as well as read-write permissions to the [hello-world](https://naccdata.flywheel.io/#/projects/6792d642e6aa584a8b16cf7a) project this tutorial will take place in. If you do not have access, reach out to the NACC Tech Team or [nacchelp@uw.edu](mailto:nacchelp@uw.edu).
@@ -66,7 +86,7 @@ with the following values when prompted (defaults are used for everything except
 
 The generated docs can be found under `docs/hello_world`. This creates both an `index.md`, which is the written documentation for your gear, as well as the `CHANGELOG.md` for keeping track of the different versions. While not necessary just for the sake of developing a runnable gear, it is a good idea to keep these two files updated throughout gear iteration, not just for yourself but also your fellow developers. See [Documenting and Versioning](https://github.com/naccdata/flywheel-gear-extensions/blob/main/docs/development/index.md#documenting-and-versioning) for more details.
 
-## Setting up the Configurations and Parameters
+## Configurations and Parameters
 
 We will start by defining our gear's inputs and configuration values which are defined in the `manifest.json`. See [Flywheel's manifest documentation](https://docs.flywheel.io/Developer_Guides/dev_gear_building_tutorial_part_5_the_manifest/) for more information on the manifest JSON.
 
@@ -137,7 +157,7 @@ Within NACC, however, we tend to directly write/upload files at all levels of th
 
 ### Local Runs
 
-Running a gear that locally is a bit tricky especially if you want to modify data, since local files don't have the container and metadata information associated with them the same way Flywheel containers and files do. Both the `local_run` and `target_project_id` variables will be used throughout the gear to get around that limitation.
+Running a gear that locally is a bit tricky especially if you want to modify data in Flywheel, since local files don't have the container and metadata information associated with them the same way Flywheel objects do. Both the `local_run` and `target_project_id` variables will be used throughout the gear to get around that limitation.
 
 ## Developing the Gear
 
@@ -606,6 +626,8 @@ You should now have a config file that looks similar to the following (do **NOT*
 
 Notice the format of `input_file`. If this were an actual Flywheel file, `object` would have a lot more filled out, but since we are using a local file in this case it just sets all of them to default values. The `location` is the file's location relative to the gear - you can think of `/flywheel/v0` as the working directory for the gear's Docker image, and this particular location is where Flywheel will put the input file to run on.
 
+> If you want this to use/correspond to a file on Flywheel, you will need to get and manually apply this information, usually from looking up the file through the Flywheel SDK. However, it will still be treated like a "local" file
+
 This also creates an `.input_map.json` which tells `fw-beta` where to find the actual input file for our next step.
 
 Now that the configuration is set up, we need to prepare the correct directory structure for our gear. This is easily done with the following command (`-p` means `--prepare`).
@@ -695,7 +717,7 @@ Dumping run command in run.sh
 
 You can also see the `docker run` command that was actually used behind the scenes at the bottom, and how it mounted all the configuration/manifest/input files stored in the temporary gear structure.
 
-Since we set `dry_run` to true, we just see reported what would have happened - in general it's a good idea to thoroughly log your gear so you know what it's doing at any given time, especially for debugging purposes. Set `dry_run` to `false` to have it actually do what you are about to see in the next [Triggering through Gear Rules](#triggering-through-gear-rules) section.
+Since we set `dry_run` to true, we just see reported what would have happened - in general it's a good idea to thoroughly log your gear so you know what it's doing at any given time, especially for debugging purposes. Set `dry_run` to `false` to have it actually do what you are about to see in the next [Triggering through Gear Rules: Viewing the Results](#viewing-the-results) section.
 
 #### Passing Environment Variables
 
@@ -717,12 +739,112 @@ Once the above is set up, the development and testing flow becomes easier to man
 
 ### Triggering through Gear Rules
 
-### Manually Triggering
+The most common and "production" method of triggering gears is through gear rules. See [Flywheel's Gear Rule documentation](https://docs.flywheel.io/user/compute/gears/user_gear_rules/) for more detailed information.
 
-You can also manually trigger a gear that has been uploaded into your Flywheel instance, either through the [Flywheel SDK]
+To develop pipelines, gear rules are chained together using different metadata elements of the input and output files, such as using the file name or tags. For example, since this Hello World gear writes a `hello-world-processed` tag to the input file on completion, this could be used to trigger another gear to make a 2-gear pipeline.
 
-## Gear Rules
+For this tutorial, we want to define a Gear Rule to trigger the Hello World gear whenever a file with the `.txt` extension is uploaded to the Project (note the specification of data at the Project level and the use of regex in the following image):
 
-Another nuance that we won't get into here in depth is that gear rules are often chained together using different metadata elements of the the input and output files; using the file name (by matching a certain extension/regex) or the file's tags in particular are usually the common ways to chain gear triggers. For example consider the following set of gears and their corresponding gear rules: Gear A is triggered by any CSV file, and writes out a JSON file with the `A-COMPLETED` tag at the project level. We define a Gear Rule to trigger Gear B based on this, e.g. it looks for a JSON file with the `A-COMPLETED` tag is written at the project-level. This results in a mini-pipeline of Gear A -> Gear B.
+![Gear Rules 1: Image showing a gear rule for Hello World being defined](./imgs/gear-rules-1.png)
 
-However, one must also be careful when multiple gears are involved - you may accidentally trigger an unrelated gear rule if your triggers are not specific enough, although this could also be intentionally done to create more complicated DAG-like pipelines. Either way, using both the file name _and_ custom tags will often provide enough granularity for your gear chains.
+Next, we select the gear it will actually trigger. When selecting a gear, you will be prompted to fill in the configuration values, which we set to the following (we can leave the local run-specific variables blank as they are not needed here):
+
+![Gear Rules 2: Image showing the Hello World gear and configuration being selected for the gear rule](./imgs/gear-rules-2.png)
+
+We then specify that the data (file) that triggered the gear be set as our `input_file`, and because the gear needs to be able to read/write to the project, set its permissions to `read-write`. Then hit "Save" to save the gear rule.
+
+![Gear Rules 3: Image showing the `input_file` and gear rule permissions being set](./imgs/gear-rules-3.png)
+
+> Make sure the gear rule is set to "Active" once you have saved the gear - if you are updating a pre-existing gear rule, Flywheel will inactivate it as a safeguard.
+
+Next we want to trigger the gear rule - note that the gear rule will NOT trigger on any pre-existing files. Under "Attachments" select "Upload" and upload the input file you wish to run the gear on:
+
+![Gear Rules 4: Image showing the `input.txt` file being uploaded to the project to trigger the gear rule](./imgs/gear-rules-4.png)
+
+#### Monitoring and Viewing the Results
+
+Navigating to the "Jobs Log", you can now see a job has been kicked off for the gear rule. Clicking on the job will give you more information about it, including where it was triggered from, what configurations/inputs/outputs it has, the logs, etc. It will take a few minutes (3 minutes at the time of writing) for the gear to move from the "Pending" to "Running" state due to instance configurations (production is set to 1 minute).
+
+![Gear Rules 5: Image showing the job log for the Hello World job execution](./imgs/gear-rules-5.png)
+
+Navigating back to our Project and taking a look at the Subjects will now show the subject our Hello World gear just created/modified, with the areas highlighted being the values we populated. Similarly, the custom information at the project level and input file should have also updated. You should also get this output when running locally with `dry_run` set to `false`.
+
+![Gear Rules 6: Image showing the newly created/modified subject after running the Hello World gear](./imgs/gear-rules-6.png)
+![Gear Rules 7: Image showing the tags and custom information set on the newly-generated output file](./imgs/gear-rules-7.png)
+
+Congratulations, you have successfuly created and run a gear!
+
+### Programmatically Triggering
+
+You can also manually trigger a gear that has been uploaded into your Flywheel instance programmatically through the [Flywheel SDK](https://flywheel-io.gitlab.io/product/backend/sdk/index.html), which can be useful for one-off admin tasks.
+
+The following script illustrates triggering the Hello World Gear using the Flywheel SDK:
+
+```python
+import flywheel
+
+API_KEY="YOUR API KEY"
+fw = flywheel.Client(API_KEY)
+
+dest_project = fw.lookup('example-center/hello-world')
+gear = fw.lookup('gears/hello-world')
+gear.print_details()
+
+config = {
+  "output_filename": "output.txt",
+  "target_project_id": "",
+  "local_run": False,
+  "dry_run": False,
+  "apikey_path_prefix": "/sandbox/flywheel/gearbot"
+}
+
+# since our client is using our API key, don't need to specify it
+# in the input arguments to trigger the gear
+input_args = {
+    'input_file': dest_project.get_file('input_file.txt')
+}
+job_id = gear.run(destination=dest_project,
+                  inputs=input_args,
+                  config=config)
+
+print(job_id)
+```
+
+Which will produce the following output:
+
+```
+$ python3 run_gears.py
+Hello World
+
+Hello World tutorial gear
+
+Name:           hello-world
+Version:        0.0.1d
+Category:       utility
+Author:         NACC
+Maintainer:     NACC <nacchelp@uw.edu>
+URL:            https://naccdata.github.io/flywheel-gear-extensions
+Source:         https://github.com/naccdata/flywheel-gear-extensions
+
+Inputs:
+  api-key (api-key, required)
+  input_file (file, required)
+
+Configuration:
+  output_filename (string)
+    Name of output file to write to
+  target_project_id (string, default: )
+    Target project ID, must be set to a valid Flywheel project ID if using local_run.
+      Otherwise if set to the empty string, uses the input_file's parent project.
+  local_run (boolean, default: False)
+    Whether or not this is a local run
+  dry_run (boolean, default: False)
+    Whether to do a dry run
+  apikey_path_prefix (string, default: /prod/flywheel/gearbot)
+    The instance specific AWS parameter path prefix for apikey
+67a4e8165e7ef42cdf144bae
+```
+
+You can also see the job running in the Jobs Log. The only difference is that the user is now an actual user and not "System" (gear rule trigger).
+
+![Image showing job executions for the Hello World gear from a programmatic vs gear rule trigger](./imgs/programmatic-trigger.png)
