@@ -251,15 +251,17 @@ class CenterLookupVisitor(CSVVisitor):
           GearExecutionError if the identifiers repository raises an error
         """
         row = {key.strip(): value for key, value in row.items()}
-        naccid = row.get(FieldNames.NACCID, row[FieldNames.NACCID.upper()])
+        naccid = row.get(FieldNames.NACCID,
+                         row.get(FieldNames.NACCID.upper(), None))
+
+        if naccid is None:
+            raise GearExecutionError(f"NACCID not found in row {line_num}")
 
         try:
-            identifier = self.__identifiers_repo.get(
-                naccid=naccid)
+            identifier = self.__identifiers_repo.get(naccid=naccid)
         except IdentifierRepositoryError as error:
             raise GearExecutionError(
-                f"Lookup of {naccid} failed: {error}"
-            ) from error
+                f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
             self.__error_writer.write(
