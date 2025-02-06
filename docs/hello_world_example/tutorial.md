@@ -10,11 +10,11 @@ Before we begin, please ensure you have access to NACC's Sandbox Flywheel instan
 
 > While not strictly necessary for this tutorial, if you want to actually upload the gear to Flywheel you will also need site-wide admin access - if you do not require site-level admin access otherwise, you can use a version of this gear already uploaded to Flywheel.
 
-Additionally, it is advised to do gear development in the VS Code devcontainer environment, otherwise you may run into build issues (developing on MacOS with Apple Silicon in particular is known to be finicky about this). You can follow the steps in the [Getting Started](https://github.com/naccdata/flywheel-gear-extensions/blob/main/docs/development/index.md#getting-started) guide.
+Additionally, it is advised to do gear development in the VS Code devcontainer environment, otherwise you may run into build issues (developing on MacOS with Apple Silicon in particular is known to be finicky about this). You can follow the steps in the [Getting Started](../development/index.md#getting-started) guide.
 
 > Even if you opt out of using the VS Code devcontainer, you will still need [Pants](https://www.pantsbuild.org/) installed in your environment in order to build the gears.
 
-While this tutorial will go through each component explicitly, it will echo a lot of the documentation already provided in the [Development Guide](https://github.com/naccdata/flywheel-gear-extensions/blob/main/docs/development/index.md) which is a great general guide for gear development. Flywheel's [Gear Development Guide](https://docs.flywheel.io/Developer_Guides/dev_gear_building_tutorial_part_1_developing_gears/) is also a great resource, particularly in regards to Flywheel-specific nuances.
+While this tutorial will go through each component explicitly, it will echo a lot of the documentation already provided in the [Development Guide](../development/index.md) which is a great general guide for gear development. Flywheel's [Gear Development Guide](https://docs.flywheel.io/Developer_Guides/dev_gear_building_tutorial_part_1_developing_gears/) is also a great resource, particularly in regards to Flywheel-specific nuances.
 
 # Hello World
 
@@ -26,7 +26,7 @@ A complete example of this can be found under `hello_world_example`.
 
 ## Creating The Gear
 
-Also see [Adding a New Gear](https://github.com/naccdata/flywheel-gear-extensions/blob/main/docs/development/index.md#adding-a-new-gear) in the Development Guide.
+Also see [Adding a New Gear](../development/index.md#adding-a-new-gear) in the Development Guide.
 
 Each gear is set up using [cookiecutter](https://cookiecutter.readthedocs.io/en/stable/installation.html) templates. Ensure `cookiecutter` is installed in your environment, and then in the root of the repo run
 
@@ -72,7 +72,7 @@ We will start by defining our gear's inputs and configuration values which are d
 
 ### Manifest
 
-For the current purposes of this tutorial, you can think of the manifest as where we define our **inputs** and **configuration values**, and lives under `src/docker/manifest.json`. The cookiecutter template will have already set up a basic one for you; update the `inputs` and `config` sections of the manifest to look like the following:
+For now, you can think of the manifest as where we define our **inputs** and **configuration values**, and lives under `src/docker/manifest.json`. The cookiecutter template will have already set up a basic one for you; update the `inputs` and `config` sections of the manifest to look like the following:
 
 ```json
     "inputs": {
@@ -279,7 +279,15 @@ We then execute the main `run`, which was imported from `hello_world_app.main`, 
 
 The next file we will look at `main.py`, which can be considered the main execution of your gear. This is where the actual "work" you want your gear to do should happen. In this case we have a single `run` method, but your gear could develop into a more detailed Python module.
 
-The main thing to keep in mind is that this is a monorepo, and a lot of common code has already been extracted under `common/src/python`. It is advised to use the common code as much as possible.
+The main thing to keep in mind is that this is a monorepo, and a lot of common code has already been extracted under `common/src/python`. It is advised to use the common code as much as possible. You simply need to import them like any other Python module, as shown below. We will not go into great detail on it here, but this is possible thanks to the Pants build this repository is set up with. If you need to add a dependency, adding it to `requirements.txt` in the root of the repo will apply it to the entire codebase.
+
+```python
+# from common/src/python
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_gear_toolkit import GearToolkitContext
+from gear_execution.gear_execution import InputFileWrapper
+from utils.utils import parse_string_to_list
+```
 
 The primary ones to use are the Flywheel adaptors, e.g. wrappers around Flywheel containers. We have already used `FlywheelProxy` and `ProjectAdaptor`, which is a proxy for the Flywheel client and adaptor for a Flywheel project, respectively. There are also adaptors for the Group (`GroupAdaptor`) and Subject ([SubjectAdaptor](../common/src/python/flywheel_adaptor/subject_adaptor.py))) containers, the latter of which we will use in this gear.
 
@@ -313,7 +321,7 @@ def run(proxy: FlywheelProxy,
 
 Let us walk through each step of our `main.py` logic:
 
-1. Reading the input file. Remember that `input_file` is an `InputFileWrapper`, so the path we are actually opening to read is `input_file.filepath`:
+1. **Reading the input file:** Remember that `input_file` is an `InputFileWrapper`, so the path we are actually opening to read is `input_file.filepath`:
 
 ```python
     # 1. read the name from the first line of the input file
@@ -328,7 +336,7 @@ Let us walk through each step of our `main.py` logic:
     log.info(f"Read metadata {metadata} from input file")
 ```
 
-2. Adding a subject. Using the label we pulled from the input file, we try to create a subject with that label. If a subject with that label already exists, we instead search for that one. In both cases, a `SubjectAdaptor` is returned and we add custom information about the input file we just evaluated, again pulled from the `InputFileWrapper`. The owner is a particular attribute that class does not expose, so we access it through the raw Flywheel entry (`input_file.file_input`).
+2. **Adding a subject:** Using the label we pulled from the input file, we attempt to create a subject with that label. If a subject with that label already exists, we instead search for that one. In both cases, a `SubjectAdaptor` is returned and we add custom information about the input file we just evaluated, again pulled from the `InputFileWrapper`. The owner is a particular attribute that class does not expose, so we access it through the raw Flywheel entry (`input_file.file_input`).
 
 > This is not very intuitive, but the proxy object always has a `dry_run` property, which is pulled from the same `dry_run` configuration value in the manifest if it exists (which in this case it does). We can use this to implement dry run logic.
 
@@ -336,7 +344,8 @@ Let us walk through each step of our `main.py` logic:
     # 2. add subject with label
     timestamp = datetime.now()
     if proxy.dry_run:
-        log.info(f"DRY RUN: Would have created new subject with label {label}")
+        log.info("DRY RUN: Would have created or looked up " +
+                 f"subject with label {label}")
     else:
         log.info(f"Creating subject with label {label}")
 
@@ -358,7 +367,7 @@ Let us walk through each step of our `main.py` logic:
             subject.update({"last_updated_by": subject_metadata})
 ```
 
-3. Next we look at the project, which was already grabbed in `run.py` and passed as a `ProjectAdaptor`. In this example we grab the project's custom information, and look for the `count` and `entries` fields, and then increment/append to them.
+3. **Updating Project custom information:** Next we look at the project, which was already grabbed in `run.py` and passed as a `ProjectAdaptor`. In this example we grab the project's custom information, and look for the `count` and `entries` fields, and then increment/append to them.
 
 ```python
     # 3. get project custom information and increment counter by 1
@@ -382,6 +391,335 @@ Let us walk through each step of our `main.py` logic:
         project_info['entries'].append(label)
         project.update_info(project_info)
 ```
+
+4. **Writing an output file and attaching it to the Subject:** Here we write to an output file with various attributes of our subject and project containers. We then define a `FileSpec` object and upload the file to our previously created/found subject. We could just as easily upload this file to the project, or create an acquisition and upload it there as well.
+
+```python
+    # 4. Write output file and attach it to the subject
+    stream = StringIO()
+    stream.write(f"Hello {label}!\n")
+    stream.write(f"You were created or updated at {timestamp}\n")
+
+    # we only have the subject if not a dry run
+    if not proxy.dry_run:
+        stream.write(f"Your ID is {subject.id}\n")
+
+    stream.write(f"This is the URL of the site instance: {proxy.get_site()}\n")
+    stream.write("And this is your project's information:\n")
+    stream.write(f"Project ID: {project.id}\n")
+    stream.write(f"Label: {project.label}\n")
+    stream.write(f"Group: {project.group}")
+    contents = stream.getvalue()
+
+    if proxy.dry_run:
+        log.info("DRY RUN: Would have written the following " +
+                 f"to {output_filename}:")
+        log.info(contents)
+    else:
+        log.info(f"Writing output to {output_filename} and " +
+                 f"attaching it to subject {subject.label}")
+        file_spec = FileSpec(name=output_filename,
+                             contents=contents,
+                             content_type='text/plain',
+                             size=len(contents))
+
+        # upload_file returns a list, so we grab index 0
+        # since this only returns the file entry, we query the
+        # proxy to get the actual Flywheel file
+        output_file_entry = subject.upload_file(file_spec)[0]  # type: ignore
+        output_file = proxy.get_file(output_file_entry['file_id'])
+
+```
+
+5. **Updating tags and custom information:** Next we update the tags and custom information of our files. There are two ways to do this: directly on a Flywheel file, as our `output_file` showcases, or through the `context.metadata`, described under the [GearContextToolKit.metadata here](https://flywheel-io.gitlab.io/public/gear-toolkit/flywheel_gear_toolkit/context/#writing-metadata-metadatajson). Note that in order to add tags/metadata, the target has to exist in Flywheel under some container, since tags and metadata only make sense in that context. This is mainly a concern when running things on local files, which is why the below checks `local_run` before attempting to write that information to `input_file`.
+
+```python
+    if proxy.dry_run:
+        log.info(f"DRY RUN: Would have added tags: {tags}")
+        log.info(f"DRY RUN: Would have added metadata: {metadata}")
+    else:
+        output_file.add_tags(tags)
+        output_file.update_info({'dummy_metadata': metadata})
+
+        if not local_run:
+            context.metadata.add_file_tags(input_file.file_input,
+                                           tags=['hello-world-processed'])
+            context.metadata.add_qc_result(input_file.file_input,
+                                           name='hello-world-qc',
+                                           state='PASS' if pass_qc else 'NO',
+                                           data=[{
+                                               'msg':
+                                               f'input file said {pass_qc}'
+                                           }])
+        else:
+            log.info(
+                "LOCAL RUN: cannot update metadata for input file, as it does "
+                + "not belong to a Flywheel container")
+
+```
+
+And that's it for this gear! Feel free to modify the `main.py` for your own use case.
+
+## Building and Uploading the Gear
+
+**This step is highly recommended to be done in the VS Code devcontainer, otherwise your resulting gear may have incompatible architectural issues.**
+
+Again, most of the following steps are outlined under the [development guide](../development/index.md#working-with-a-gear), but this tutorial will go over it a bit more explicitly. In a nutshell, the gears are built using [Pants](https://www.pantsbuild.org) and upload/management is done through the [fw-beta Flywheel CLI](https://flywheel-io.gitlab.io/tools/app/cli/fw-beta/). Ensure both are configured in your environment.
+
+Before building, we also want to lint and format our gears. Any PR or merge to main will also run a [GitHub Action](https://github.com/naccdata/flywheel-gear-extensions/actions/workflows/pants.yml) which runs these same steps.
+
+```bash
+pants fmt gear/hello_world::
+pants lint gear/hello_world::
+pants check gear/hello_world::
+```
+
+Building is then simply
+
+```bash
+pants package gear/hello_world/src/docker/
+```
+
+The output should look similar to this:
+
+```bash
+$ pants package src/docker/
+00:05:39.23 [INFO] Completed: Building docker image naccdata/hello-world:0.0.1d +1 additional tag.
+00:05:39.23 [INFO] Wrote dist/gear.hello_world_example.src.docker/hello-world.docker-info.json
+Built docker images: 
+  * naccdata/hello-world:0.0.1d
+  * naccdata/hello-world:latest
+Docker image ID: sha256:991208f952a3c3abbbe01d099144a21c369ef7894b7dde83e05ae7d0299b1fb1
+```
+
+This creates a docker image using the information defined in the `manifest.json` - in this case, building the image will creates both the `naccdata/hello-world:0.0.1d` and `naccdata/hello-world:latest` images.
+
+Uploading the gear to Flywheel then requires `fw-beta` as well as site-admin access - first make sure you are logged into the correct instance
+
+```bash
+fw-beta login
+# entire your API key when prompted
+
+fw-beta gear upload src/docker
+```
+
+Again using the `manifest.json`, the CLI will know to look for the `naccdata/hello-world:0.0.1d` image and push it to the Flywheel instance's docker registry.
+
+**IMPORTANT NOTE:** Flywheel does not allow pushing the same image/version multiple times; so once the above `naccdata/hello-world:0.0.1d` is uploaded, an image with that same name/tag can't be uploaded again, so you must increment the version. In order to avoid pushing multiple minor changes to Flywheel, it is advised to test your gear locally before pushing your gear to the instance. In a similar vein, while we don't neccessarily follow a specific versioning schema, some developers use alpha characters to denote certain dev iterations, e.g. the `d` in this example.
+
+## Running the Gear
+
+There are several ways you can run a gear.
+
+### Locally
+
+This is the most ideal for development/debugging, but is a bit involved to get set up. Again, most of this utilizes the `fw-beta` CLI and is documented by [Flywheel here](https://docs.flywheel.io/Developer_Guides/dev_gear_building_tutorial_part_7_running_gear_locally/) as well as our own [development buide](../development.md#running-a-gear-locally), and again ensure you are logged into the correct Flywheel instance first.
+
+In the context of this repo, the script `bin/set-up-gear-for-local-run.sh` simplifies some of the steps. For the Hello World gear:
+
+```bash
+fw-beta login
+# entire your API key when prompted
+
+./bin/set-up-gear-for-local-run.sh hello_world <YOUR-FW-API-KEY> example-center/hello-world sandbox
+```
+
+Inspecting the script, it runs the following commands:
+
+```bash
+config_dir="./gear/${GEAR}/src/docker"
+
+# Set up config using defaults from manifest
+fw-beta gear config --new $config_dir
+
+# Set API key
+fw-beta gear config -i api_key=$FW_API_KEY $config_dir
+
+# Set destination for output
+fw-beta gear config -d $FW_PATH $config_dir
+
+# Set the apikey_path_prefix to specified fw context (sandbox or prod)
+fw-beta gear config -c apikey_path_prefix="/${FW_CONTEXT}/flywheel/gearbot" $config_dir
+```
+
+This creates `gear/hello_world/docker/config.json`, which is based on the configuration defined in the adjacent `manifest.json`. Because `input_file` and `output_filename` were neither handled by the above script nor have default values, they need to be added manually (note `-i` for inputs and `-c` for configuration values).
+
+We also set some of the other configuration values to override their defaults.
+
+```bash
+cd gear/hello_world
+fw-beta gear config -i input_file="./src/data/input_file.txt" src/docker
+fw-beta gear config -c output_filename='output.txt' src/docker
+fw-beta gear config -c local_run=true src/docker
+fw-beta gear config -c dry_run=true src/docker
+
+# this ID corresponds to example-center/hello-world, which you can easily get from the URL or query with the Flywheel SDK
+fw-beta gear config -c target_project_id='6792d642e6aa584a8b16cf7a' src/docker
+```
+
+You should now have a config file that looks similar to the following (do **NOT** push this file to the repo, especially if it contains secret keys!). Here I also manually modified `mimetype` to be `text/plain`, and `origin/id` to be `local-user-example`.
+
+```json
+{
+    "config": {
+        "local_run": true,
+        "target_project_id": "",
+        "dry_run": false,
+        "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+        "output_filename": "output.txt"
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "key": "<YOUR-FW-API-KEY>"
+        },
+        "input_file": {
+            "base": "file",
+            "location": {
+                "name": "input_file.txt",
+                "path": "/flywheel/v0/input/input_file/input_file.txt"
+            },
+            "object": {
+                "size": 67,
+                "type": null,
+                "mimetype": "text/plain",
+                "modality": null,
+                "classification": {},
+                "tags": [],
+                "info": {},
+                "zip_member_count": null,
+                "version": 1,
+                "file_id": "",
+                "origin": {
+                    "type": "user",
+                    "id": "local-user-example"
+                }
+            }
+        }
+    },
+    "destination": {
+        "id": "6792d642e6aa584a8b16cf7a",
+        "type": "project"
+    }
+}
+```
+
+Notice the format of `input_file`. If this were an actual Flywheel file, `object` would have a lot more filled out, but since we are using a local file in this case it just sets all of them to default values. The `location` is the file's location relative to the gear - you can think of `/flywheel/v0` as the working directory for the gear's Docker image, and this particular location is where Flywheel will put the input file to run on.
+
+This also creates an `.input_map.json` which tells `fw-beta` where to find the actual input file for our next step.
+
+Now that the configuration is set up, we need to prepare the correct directory structure for our gear. This is easily done with the following command (`-p` means `--prepare`).
+
+```bash
+fw-beta gear run -p src/docker
+```
+
+which will have the following output:
+
+```bash
+$ fw-beta gear run -p src/docker/
+Building gear structure in /tmp/gear/hello-world_0.0.1d.
+Populating inputs.
+* Found file input with source path: /w/f/g/h/s/d/input_file.txt, 
+        copying to destination: /t/g/h/i/i/input_file.txt
+
+Success! Prepared gear structure in /tmp/gear/hello-world_0.0.1d
+```
+
+This creates the gear structure at `/tmp/gear/hello-world_0.0.1d` which simulates the directory structure when the gear is run in Flywheel. If you inspect that location, you can see that it moved our config, manifest, and input files to this location, as well as set up the output and working directories:
+
+```bash
+$ ls /tmp/gear/hello-world_0.0.1d/ -R
+/tmp/gear/hello-world_0.0.1d/:
+config.json  input  manifest.json  output  work
+
+/tmp/gear/hello-world_0.0.1d/input:
+input_file
+
+/tmp/gear/hello-world_0.0.1d/input/input_file:
+input_file.txt
+
+/tmp/gear/hello-world_0.0.1d/output:
+
+/tmp/gear/hello-world_0.0.1d/work:
+```
+
+Now we're ready to actually run our gear:
+
+```bash
+fw-beta gear run /tmp/gear/hello-world_0.0.1d
+```
+
+which will execute the earlier-generated `naccdata/hello-world:0.0.1d` image using the gear directory.
+
+If all goes well, the output should look similar to the following:
+
+```
+$ fw-beta gear run /tmp/gear/hello-world_0.0.1d
+Populating inputs.
+* Found file input with source path: /w/f/g/h/s/d/input_file.txt, 
+        copying to destination: /t/g/h/i/i/input_file.txt
+
+Creating container from naccdata/hello-world:0.0.1d
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[2963ms   INFO     ]  Log level is INFO
+[2964ms   INFO     ]  Destination is project=6792d642e6aa584a8b16cf7a
+[2964ms   INFO     ]  Input file "input_file" is input_file.txt from None=None
+[2964ms   INFO     ]  Config "output_filename=test-output.txt"
+[2964ms   INFO     ]  Config "target_project_id=6792d642e6aa584a8b16cf7a"
+[2964ms   INFO     ]  Config "local_run=True"
+[2964ms   INFO     ]  Config "dry_run=True"
+[2964ms   INFO     ]  Config "apikey_path_prefix=/sandbox/flywheel/gearbot"
+[3831ms   INFO     ]  Running in group example-center, project hello-world
+[3832ms   INFO     ]  Read name YourSubjectLabelHere from input file
+[3832ms   INFO     ]  Read tags ['dummy-tag1', 'dummytag2'] from input file
+[3832ms   INFO     ]  Read metadata dummy-metadata-value from input file
+[3833ms   INFO     ]  DRY RUN: Would have created or looked up subject with label YourSubjectLabelHere
+[3833ms   INFO     ]  Grabbing project custom information
+[4012ms   INFO     ]  Previous count: 12
+[4012ms   INFO     ]  Previous entries: ['YourNameHere', 'YourNameHere', 'YourNameHere', 'YourNameHere', 'YourNameHere', 'YourNameHere', 'YourNameHere', 'YourSubjectLabelHere', 'YourSubjectLabelHere', 'YourSubjectLabelHere', 'YourSubjectLabelHere', 'YourSubjectLabelHere']
+[4012ms   INFO     ]  DRY RUN: Would have added to project metadata
+[4438ms   INFO     ]  DRY RUN: Would have written the following to test-output.txt:
+[4438ms   INFO     ]  Hello YourSubjectLabelHere!
+You were created or updated at 2025-02-06 01:03:59.864902
+This is the URL of the site instance: https://naccdata.flywheel.io
+And this is your project's information:
+Project ID: 6792d642e6aa584a8b16cf7a
+Label: hello-world
+Group: example-center
+[4438ms   INFO     ]  DRY RUN: Would have added tags: ['dummy-tag1', 'dummytag2']
+[4438ms   INFO     ]  DRY RUN: Would have added metadata: dummy-metadata-value
+Args passed to container: ['docker', 'run', '-v', '/tmp/gear/hello-world_0.0.1d/input:/flywheel/v0/input', '-v', '/tmp/gear/hello-world_0.0.1d/output:/flywheel/v0/output', '-v', '/tmp/gear/hello-world_0.0.1d/work:/flywheel/v0/work', '-v', '/tmp/gear/hello-world_0.0.1d/config.json:/flywheel/v0/config.json', '-v', '/tmp/gear/hello-world_0.0.1d/manifest.json:/flywheel/v0/manifest.json', '--entrypoint=/bin/sh', "-e FLYWHEEL='/flywheel/v0'", 'naccdata/hello-world:0.0.1d', '-c', '/bin/run']
+Dumping run command in run.sh
+```
+
+You can also see the `docker run` command that was actually used behind the scenes at the bottom, and how it mounted all the configuration/manifest/input files stored in the temporary gear structure.
+
+Since we set `dry_run` to true, we just see reported what would have happened - in general it's a good idea to thoroughly log your gear so you know what it's doing at any given time, especially for debugging purposes. Set `dry_run` to `false` to have it actually do what you are about to see in the next [Triggering through Gear Rules](#triggering-through-gear-rules) section.
+
+#### Passing Environment Variables
+
+Earlier we mentioned that running as a Gear Bot requires AWS environment variables to be set - in this case we need to explicitly pass them to the `fw-beta gear run` command, usually done through an `.env` file:
+
+```bash
+fw-beta gear run /tmp/gear/hello-world_0.0.1d -- --env-file .env
+```
+
+The `--` means to pass through arguments to the docker run command that is happening behind the scenes of `fw-beta gear run`, and then `--env-file .env` means to load the environment variables from a `.env` file. We do not need to do this for this Hello World gear, but keep this in mind when running gears that require the Gear Bot or other environment variables.
+
+#### Development Cycle
+
+Once the above is set up, the development and testing flow becomes easier to manage. In general:
+
+1. Every time you make a change you want to test, run `pants package src/docker` to rebuild the image
+2. Assuming the image tag stayed the same (remember the version matters for Flywheel but not for local development!), you can just rerun `fw-beta gear run /tmp/gear/hello-world_0.0.1d`
+    1. If the configuration or version changed, make sure to run `fw-beta gear run -p src/docker` first to rebuild/update the gear structure, and remember updating the version will also change the `/tmp/...` location you pass to `fw-beta gear run`
+
+### Triggering through Gear Rules
+
+### Manually Triggering
+
+You can also manually trigger a gear that has been uploaded into your Flywheel instance, either through the [Flywheel SDK]
 
 ## Gear Rules
 

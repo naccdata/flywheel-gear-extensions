@@ -76,7 +76,8 @@ def run(proxy: FlywheelProxy,
     # 2. add subject with label
     timestamp = datetime.now()
     if proxy.dry_run:
-        log.info(f"DRY RUN: Would have created new subject with label {label}")
+        log.info("DRY RUN: Would have created or looked up " +
+                 f"subject with label {label}")
     else:
         log.info(f"Creating subject with label {label}")
 
@@ -122,7 +123,11 @@ def run(proxy: FlywheelProxy,
     stream = StringIO()
     stream.write(f"Hello {label}!\n")
     stream.write(f"You were created or updated at {timestamp}\n")
-    stream.write(f"Your ID is {subject.id}\n")
+
+    # we only have the subject if not a dry run
+    if not proxy.dry_run:
+        stream.write(f"Your ID is {subject.id}\n")
+
     stream.write(f"This is the URL of the site instance: {proxy.get_site()}\n")
     stream.write("And this is your project's information:\n")
     stream.write(f"Project ID: {project.id}\n")
@@ -142,10 +147,13 @@ def run(proxy: FlywheelProxy,
                              content_type='text/plain',
                              size=len(contents))
 
+        # upload_file returns a list, so we grab index 0
+        # since this only returns the file entry, we query the
+        # proxy to get the actual Flywheel file
         output_file_entry = subject.upload_file(file_spec)[0]  # type: ignore
         output_file = proxy.get_file(output_file_entry['file_id'])
 
-    # 5. Update tags/metadata
+    # 5. Update tags/custom information
     if proxy.dry_run:
         log.info(f"DRY RUN: Would have added tags: {tags}")
         log.info(f"DRY RUN: Would have added metadata: {metadata}")

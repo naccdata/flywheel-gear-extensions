@@ -70,8 +70,6 @@ class HelloWorldVisitor(GearExecutionEnvironment):
         if not output_filename:
             raise GearExecutionError("Output filename not defined")
 
-
-
         input_file = InputFileWrapper.create(input_name='input_file',
                                              context=context)
 
@@ -92,10 +90,12 @@ class HelloWorldVisitor(GearExecutionEnvironment):
                 file = self.proxy.get_file(file_id)
                 project = self.proxy.get_project_by_id(file.parents.project)
             else:
-                project = self.proxy.get_project_by_id(self.__target_project_id)
+                project = self.proxy.get_project_by_id(
+                    self.__target_project_id)
         except ApiException as error:
             raise GearExecutionError(
-                f'Failed to find the input file and/or project: {error}') from error
+                f'Failed to find the input file and/or project: {error}'
+            ) from error
 
         project = ProjectAdaptor(project=project, proxy=self.proxy)
         log.info(f"Running in group {project.group}, project {project.label}")
