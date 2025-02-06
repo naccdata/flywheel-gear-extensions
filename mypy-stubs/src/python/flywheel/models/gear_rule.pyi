@@ -70,7 +70,7 @@ class GearRule:
     @property
     def triggering_input(self) -> str:
         ...
-    
+
     @property
     def priority(self) -> JobPriority:
         ...
