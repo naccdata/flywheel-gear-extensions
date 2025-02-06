@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-
+## 0.1.1
+* Transfers UDS module first if exists
+  
 ## 0.1.0
 * Removes timestamp from uploaded filename (filename needs to match for error correction)
 * Always upload the CSV file to project level regardless of where the gear is invoked

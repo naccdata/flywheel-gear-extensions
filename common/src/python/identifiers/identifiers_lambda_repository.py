@@ -11,11 +11,12 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import (
-    GUID_PATTERN,
-    NACCID_PATTERN,
+    ADCIDField,
     CenterIdentifiers,
+    GUIDField,
     IdentifierList,
     IdentifierObject,
+    NACCIDField,
 )
 
 
@@ -25,9 +26,8 @@ class ListRequest(BaseRequest):
     limit: int = Field(le=100)
 
 
-class IdentifierRequest(BaseRequest, CenterIdentifiers):
+class IdentifierRequest(BaseRequest, CenterIdentifiers, GUIDField):
     """Request model for creating Identifier."""
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
 
 
 class IdentifierListRequest(BaseRequest):
@@ -35,19 +35,16 @@ class IdentifierListRequest(BaseRequest):
     identifiers: List[IdentifierQueryObject]
 
 
-class ADCIDRequest(ListRequest):
+class ADCIDRequest(ListRequest, ADCIDField):
     """Model for request object with ADCID, and offset and limit."""
-    adcid: int = Field(ge=0)
 
 
-class GUIDRequest(BaseRequest):
+class GUIDRequest(BaseRequest, GUIDField):
     """Request model for search by GUID."""
-    guid: str = Field(max_length=13, pattern=GUID_PATTERN)
 
 
-class NACCIDRequest(BaseRequest):
+class NACCIDRequest(BaseRequest, NACCIDField):
     """Request model for search by NACCID."""
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
 
 
 class ListResponseObject(BaseModel):

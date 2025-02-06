@@ -1,0 +1,13 @@
+{
+    "gear_name": "custom-configs",
+    "configs": {
+        "test_str": "hello",
+        "test_int": 1,
+        "test_list": [
+            {"key": "value"},
+            2,
+            "world"
+        ],
+        "apikey_path_prefix": "/test/dummy/gearbot"
+    }
+}

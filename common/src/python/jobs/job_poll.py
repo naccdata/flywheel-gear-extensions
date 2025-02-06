@@ -31,9 +31,6 @@ class JobPoll:
             time.sleep(5)  # wait to see if the job gets retried
             job = job.reload()
 
-        if job.state == 'completed':
-            time.sleep(5)  # give buffer between gear triggers
-
         log.info('Job %s finished with status: %s', job.id, job.state)
 
         return job.state
@@ -79,7 +76,7 @@ class JobPoll:
             retries += 1
             status = JobPoll.poll_job_status(new_job)
 
-        return status == 'completed'
+        return status == 'complete'
 
     @staticmethod
     def generate_search_string(project_ids_list: Optional[List[str]] = None,

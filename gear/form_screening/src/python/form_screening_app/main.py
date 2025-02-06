@@ -5,12 +5,21 @@ from typing import List
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
-from gear_execution.gear_trigger import GearInfo, trigger_gear
+from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import FieldNames, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocessing_error
 
 log = logging.getLogger(__name__)
+
+
+class FormSchedulerGearConfigs(GearConfigs):
+    """Form Scheduler-specific gear configs."""
+    submission_pipeline: str
+    accepted_modules: str
+    queue_tags: str
+    source_email: str
+    portal_url_path: str
 
 
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
@@ -36,7 +45,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
     module = file_input.basename.split('-')[-1]
 
     if module.lower() not in accepted_modules:
-        log.error(f"Unallowed module suffix: {module}")
+        log.error(f"Un-accepted module suffix: {module}")
         error_writer.write(
             preprocessing_error(field=FieldNames.MODULE,
                                 value=module,
