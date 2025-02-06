@@ -6,7 +6,6 @@ from json import JSONDecodeError
 from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-
 from keys.keys import DefaultValues, MetadataKeys
 from pydantic import BaseModel
 

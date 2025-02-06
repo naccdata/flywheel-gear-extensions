@@ -4,11 +4,13 @@ import json
 import logging
 from typing import List
 
+from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormQueryArgs, FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import (
     DefaultValues,
     FieldNames,
+    MetadataKeys,
     SysErrorCodes,
 )
 from notifications.email import EmailClient, create_ses_client
@@ -17,7 +19,6 @@ from outputs.errors import (
     ListErrorWriter,
     preprocess_errors,
 )
-from preprocess.preprocessor import FormProjectConfigs
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +113,8 @@ class LegacySanityChecker:
         # which is allowed, otherwise also fail the check
         init_packet = init_packets[0]
         record = self.__form_store.get_visit_data(
-            init_packet['file.name'], init_packet['file.parents.acquisition'])
+            file_name=init_packet['file.name'],
+            acq_id=init_packet['file.parents.acquisition'])
 
         if not record:
             raise ValueError(
@@ -183,13 +185,13 @@ class LegacySanityChecker:
         # otherwise we need to compare duplicates. store each record's
         # packet/visitnum/visitdate in a tuple and compare between the projects
         packet_lbl = \
-            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.PACKET}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
         visitnum_lbl = \
-            f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         visitdate_lbl = \
-            f'{DefaultValues.FORM_METADATA_PATH}.{visitdate}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{visitdate}'
         legacy_visitdate_lbl = \
-            f'{DefaultValues.FORM_METADATA_PATH}.{legacy_visitdate}'
+            f'{MetadataKeys.FORM_METADATA_PATH}.{legacy_visitdate}'
 
         ingest_records = [(record[packet_lbl], record[visitnum_lbl],
                            record[visitdate_lbl]) for record in ingest_results]

@@ -3,6 +3,7 @@
 import logging
 from typing import List, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -17,7 +18,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from outputs.errors import ListErrorWriter
-from preprocess.preprocessor import FormProjectConfigs
 from pydantic import ValidationError
 
 from legacy_sanity_check_app.main import LegacySanityChecker
@@ -109,9 +109,8 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                     f'{self.__form_configs_input.filename}: {error}'
                 ) from error
 
-        project = ProjectAdaptor(project=self.__file_input.get_parent_project(
-            self.proxy, file=file),
-                                 proxy=self.proxy)
+        p_project = self.__file_input.get_parent_project(self.proxy, file=file)
+        project = ProjectAdaptor(project=p_project, proxy=self.proxy)
 
         # grab the corresponding ingest (e.g. UDSv4) project based on the group
         ingest_project = None
