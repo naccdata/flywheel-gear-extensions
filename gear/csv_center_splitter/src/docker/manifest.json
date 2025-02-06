@@ -2,7 +2,7 @@
     "name": "csv-center-splitter",
     "label": "CSV Center Splitter",
     "description": "Splits a CSV by center ID",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/csv-center-splitter:0.1.0"
+            "image": "naccdata/csv-center-splitter:0.1.1"
         },
         "flywheel": {
             "suite": "Curation",
