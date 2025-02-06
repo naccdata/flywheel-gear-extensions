@@ -145,7 +145,7 @@ The `api-key` corresponds to an user's Flywheel API key. `apikey_path_prefix` is
 
 The Hello World gear does not actually need nor use the Gear Bot, as it is isolated to a single project (`example-center/hello-world`) - however most of the gears _will_ need it, so is left in for demonstration purposes.
 
-> \* One important nuance is that a new gear will not automatically get these AWS environment variables passed - Flywheel needs to add it to the NACC credentials condor. The easiest way is to send [Flywheel a support ticket](https://support.flywheel.io/hc/en-us/requests/new) and ask for the gear(s) "to be added to the credentials condor". This `hello-world` gear we are about to write is already on the list, so you do not have to worry about that for this tutorial.
+> \* One important nuance is that a new gear will not automatically get these AWS environment variables passed - Flywheel needs to add it to the NACC credentials condor. The easiest way is to send [Flywheel a support ticket](https://support.flywheel.io/hc/en-us/requests/new) and ask for the gear(s) "to be added to the credentials condor".
 
 ### Output Files
 
@@ -776,7 +776,7 @@ Congratulations, you have successfuly created and run a gear!
 
 ### Programmatically Triggering
 
-You can also manually trigger a gear that has been uploaded into your Flywheel instance programmatically through the [Flywheel SDK](https://flywheel-io.gitlab.io/product/backend/sdk/index.html), which can be useful for one-off admin tasks.
+You can also manually trigger a gear that has been uploaded into your Flywheel instance programmatically through the [Flywheel SDK](https://flywheel-io.gitlab.io/product/backend/sdk/index.html), which can be useful for one-off admin tasks. Examples of these can be seen in [flywheel-admin-notebooks](https://github.com/naccdata/flywheel-admin-notebooks)
 
 The following script illustrates triggering the Hello World Gear using the Flywheel SDK:
 
