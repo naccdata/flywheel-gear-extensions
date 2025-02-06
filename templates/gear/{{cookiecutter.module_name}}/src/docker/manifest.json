@@ -56,7 +56,6 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
-
         }
     },
     "command": "/bin/run"

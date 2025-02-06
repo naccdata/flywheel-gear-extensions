@@ -2,9 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.4 (Unreleased)
 
-* Refactors to use `InputFileWrapper.get_parent_project`
+## 1.2.6
+* Refactor  `DatastoreHelper` class to use common package
+  
+## 1.2.5
+* Updates `nacc-form-validator` to 0.5.0
+  
+## 1.2.4
+* Adds loading supplement UDS input for LBD/FTLD validation
 
 ## 1.2.3
 * Updates enrollment qc workflow - writes passed visits to a new file to trigger identifier provisioning.

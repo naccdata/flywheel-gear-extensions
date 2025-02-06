@@ -471,7 +471,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=json.dumps(settings))
+                             data=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -599,6 +599,17 @@ class FlywheelProxy:
             Job: Flywheel Job object if found, else None
         """
         return self.__fw.jobs.find_first(search_str)
+
+    def find_jobs(self, search_str: str) -> List[Job]:
+        """Find all jobs matching the search string.
+
+        Args:
+            search_str: parameters to search (e.g. 'state=failed')
+
+        Returns:
+            Job: List of Flywheel Job objects found
+        """
+        return self.__fw.jobs.find(search_str)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Find the Job with matching ID.

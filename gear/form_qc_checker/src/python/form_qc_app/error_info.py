@@ -209,10 +209,7 @@ def is_composite_rule(rule: str) -> bool:
     Returns:
         bool: True if rule is in composite rules list
     """
-    if rule in COMPOSITE_RULES:
-        return True
-
-    return False
+    return rule in COMPOSITE_RULES
 
 
 class ErrorComposer():

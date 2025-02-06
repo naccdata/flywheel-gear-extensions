@@ -15,7 +15,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, Project
 from keys.keys import DefaultValues
 from projects.study import Study
 from projects.template_project import TemplateProject
-from pydantic import AliasGenerator, BaseModel, ConfigDict, ValidationError
+from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap.redcap_project import CENTER_USER_ROLE
 from redcap.redcap_repository import REDCapParametersRepository
 from serialization.case import kebab_case
@@ -850,10 +850,29 @@ class REDCapProjectInput(BaseModel):
     projects: List[REDCapFormProjectMetadata]
 
 
+class StudyREDCapProjectsList(RootModel):
+    """List of REDCap ingest projects metadata for a given study."""
+
+    root: List[REDCapProjectInput]
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __getitem__(self, item) -> REDCapProjectInput:
+        return self.root[item]
+
+    def __len__(self):
+        return len(self.root)
+
+    def append(self, entry: REDCapProjectInput) -> None:
+        """Appends the redcap project metadata to the list."""
+        self.root.append(entry)
+
+
 class REDCapModule(BaseModel):
     """Information required to create a REDCap project for a module.
 
-    label: module name (udsv4, ftldv4, etc.)
+    label: module name (uds, ftld, etc.)
     title: REDCap project title (this will be prefixed with center name)
     template[Optional]: XML template filename prefix (if different from label)
     """
