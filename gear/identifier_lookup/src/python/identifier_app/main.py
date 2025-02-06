@@ -250,7 +250,7 @@ class CenterLookupVisitor(CSVVisitor):
         Raises:
           GearExecutionError if the identifiers repository raises an error
         """
-        row = {key.strip().lower(): value for key, value in row.items()}
+        row = {key.strip(): value for key, value in row.items()}
 
         try:
             identifier = self.__identifiers_repo.get(

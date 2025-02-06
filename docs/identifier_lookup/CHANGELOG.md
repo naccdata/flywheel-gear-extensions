@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.9
+* Fixes bug where `CenterLookupVisitor.visit_row` was setting the keys to lowercase, causing `writer.write()` to fail with case-sensitive headers
+
 ## 1.0.8
 * Fixes CSV line number in error reports (exclude header row)
 * Updates pre-processing error codes
