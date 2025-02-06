@@ -312,6 +312,7 @@ class TemplateProject:
             gear_id=rule.gear_id,
             role_id=rule.role_id,
             name=rule.name,
+            priority=rule.priority,
             config=rule.config,
             fixed_inputs=fixed_inputs,
             auto_update=rule.auto_update,
