@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.8
+* Fixes CSV line number in error reports (exclude header row)
+* Updates pre-processing error codes
+* Updates GUID format and max length
+  
 ## 1.0.7
 * Adds pre-processing check for PTID length
 

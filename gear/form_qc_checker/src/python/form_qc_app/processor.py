@@ -135,15 +135,22 @@ class FileProcessor(ABC):
 class JSONFileProcessor(FileProcessor):
     """Class for processing JSON input file."""
 
-    def __init__(self, *, pk_field: str, module: str, date_field: str,
-                 project: ProjectAdaptor, error_writer: ListErrorWriter,
-                 gear_name: str) -> None:
+    def __init__(self,
+                 *,
+                 pk_field: str,
+                 module: str,
+                 date_field: str,
+                 project: ProjectAdaptor,
+                 error_writer: ListErrorWriter,
+                 gear_name: str,
+                 supplement_data: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(pk_field=pk_field,
                          module=module,
                          date_field=date_field,
                          project=project,
                          error_writer=error_writer,
                          gear_name=gear_name)
+        self.__supplement_data = supplement_data
 
     def __has_failed_visits(self) -> FailedStatus:
         """Check whether the participant has any failed previous visits.
@@ -256,7 +263,6 @@ class JSONFileProcessor(FileProcessor):
         Args:
             rule_def_loader: Helper class to load rule definitions
             input_data: Input data record
-
         Returns:
             rule definition schema, code mapping schema (optional)
 
@@ -284,7 +290,8 @@ class JSONFileProcessor(FileProcessor):
             input_data=input_data,
             module=self._module,
             optional_forms=optional_forms,
-            skip_forms=skip_forms)
+            skip_forms=skip_forms,
+            supplement_data=self.__supplement_data)
 
     def process_input(self, *, validator: RecordValidator) -> bool:
         """Process the JSON record for the participant visit.
@@ -309,7 +316,11 @@ class JSONFileProcessor(FileProcessor):
         # if there are no failed visits or last failed visit is the current visit
         # run error checks on visit file
         if failed_visit in ['NONE', 'SAME']:
-            valid = validator.process_data_record(record=self.__input_record)
+            # merge supplement input if provided,
+            # any duplicate fields should be replaced by current input
+            valid = validator.process_data_record(
+                record=(self.__supplement_data | self.__input_record
+                        ) if self.__supplement_data else self.__input_record)
             if not valid:
                 visit_info = VisitInfo(filename=self.__filename,
                                        file_id=self.__file_id,

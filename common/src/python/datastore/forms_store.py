@@ -6,7 +6,8 @@ from json import JSONDecodeError
 from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from keys.keys import DefaultValues
+
+from keys.keys import DefaultValues, MetadataKeys
 from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class FormsStore():
         title = ('Visits for '
                  f'{project.group}/{project.label}/{subject_lbl}/{module}')
 
-        search_col = f'{DefaultValues.FORM_METADATA_PATH}.{search_col}'
+        search_col = f'{MetadataKeys.FORM_METADATA_PATH}.{search_col}'
         columns = [
             'file.name', 'file.file_id', "file.parents.acquisition",
             "file.parents.session", search_col
@@ -135,7 +136,7 @@ class FormsStore():
 
         if extra_columns:
             for extra_lbl in extra_columns:
-                extra_col = f'{DefaultValues.FORM_METADATA_PATH}.{extra_lbl}'
+                extra_col = f'{MetadataKeys.FORM_METADATA_PATH}.{extra_lbl}'
                 columns.append(extra_col)
 
         filters = f'acquisition.label={module}'
@@ -158,7 +159,7 @@ class FormsStore():
 
         return sorted(visits, key=lambda d: d[search_col], reverse=True)
 
-    def get_visit_data(self, file_name: str,
+    def get_visit_data(self, *, file_name: str,
                        acq_id: str) -> dict[str, str] | None:
         """Read the previous visit file and convert to python dictionary.
 

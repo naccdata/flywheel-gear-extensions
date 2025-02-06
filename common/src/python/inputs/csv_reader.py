@@ -80,7 +80,7 @@ def read_csv(*,
 
     try:
         for count, record in enumerate(reader):
-            row_success = visitor.visit_row(record, line_num=reader.line_num)
+            row_success = visitor.visit_row(record, line_num=count + 1)
             success = row_success and success
             if limit and count >= limit:
                 break

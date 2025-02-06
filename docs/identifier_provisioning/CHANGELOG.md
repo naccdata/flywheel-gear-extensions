@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+* Fixes CSV line number in error reports (exclude header row)
+* Updates pre-processing error codes
+* Updates GUID format and max length
+  
 ## 1.1.0
 * Fix gear crashing when PTID length is greater than 10
 * Increase GUID maxlength to 20

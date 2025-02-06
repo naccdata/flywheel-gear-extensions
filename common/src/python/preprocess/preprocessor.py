@@ -1,44 +1,18 @@
 """Module to implement form data pre-processing checks."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
+from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
-from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
 
 class PreprocessingException(Exception):
     pass
-
-
-class ModuleConfigs(BaseModel):
-    initial_packets: List[str]
-    followup_packets: List[str]
-    versions: List[str]
-    date_field: str
-    legacy_module: Optional[str] = None
-    legacy_date: Optional[str] = None
-
-    @classmethod
-    def create(cls, label: str, configs: Dict[str, Any]) -> 'ModuleConfigs':
-        """Create from given configs."""
-        return ModuleConfigs(initial_packets=configs['initial_packets'],
-                             followup_packets=configs['followup_packets'],
-                             versions=configs['versions'],
-                             date_field=configs['date_field'],
-                             legacy_module=configs.get('legacy_module', label),
-                             legacy_date=configs.get('legacy_date',
-                                                     configs['date_field']))
-
-
-class FormProjectConfigs(BaseModel):
-    primary_key: str
-    legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
-    module_configs: Dict[str, ModuleConfigs]
 
 
 class FormPreprocessor():
@@ -132,9 +106,6 @@ class FormPreprocessor():
             module_configs: module configurations
             line_num: line number in CSV file
 
-        Raises:
-            PreprocessingException: if error occur while validating
-
         Returns:
             bool: False if any of the validations fail
         """
@@ -158,17 +129,21 @@ class FormPreprocessor():
                         visitnum=input_record[FieldNames.VISITNUM]))
                 return False
 
+        date_field = module_configs.date_field
         initial_packets = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
             legacy=False,
             search_col=FieldNames.PACKET,
             search_val=module_configs.initial_packets,
-            search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
+            search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
+            extra_columns=[FieldNames.VISITNUM, date_field])
 
         if not initial_packets:
             if module_configs.legacy_module:
                 module = module_configs.legacy_module
+            if module_configs.legacy_date:
+                date_field = module_configs.legacy_date
 
             initial_packets = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
@@ -176,7 +151,8 @@ class FormPreprocessor():
                 legacy=True,
                 search_col=FieldNames.PACKET,
                 search_val=module_configs.initial_packets,
-                search_op=DefaultValues.FW_SEARCH_OR)  # type: ignore
+                search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
+                extra_columns=[FieldNames.VISITNUM, date_field])
 
         # this cannot happen, adding as a sanity check
         if initial_packets and len(initial_packets) > 1:
@@ -192,46 +168,70 @@ class FormPreprocessor():
 
         initial_packet = initial_packets[0] if initial_packets else None
 
-        if packet in module_configs.followup_packets and not initial_packet:
-            self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.PACKET,
-                    value=packet,
-                    line=line_num,
-                    error_code=SysErrorCodes.MISSING_IVP,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM]))
-            return False
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
+        packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
+
+        if packet in module_configs.followup_packets:
+            if not initial_packet:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.PACKET,
+                        value=packet,
+                        line=line_num,
+                        error_code=SysErrorCodes.MISSING_IVP,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            if initial_packet[date_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=module_configs.date_field,
+                        value=input_record[module_configs.date_field],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_FVP_VISITDATE,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            if initial_packet[visitnum_lbl] >= input_record[
+                    FieldNames.VISITNUM]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.VISITNUM,
+                        value=input_record[FieldNames.VISITNUM],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_FVP_VISITNUM,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            return True
 
         if packet in module_configs.initial_packets and initial_packet:
-            ivp_record = self.__forms_store.get_visit_data(
-                initial_packet['file.name'],
-                initial_packet['file.parents.acquisition'])
-
-            if not ivp_record:
-                raise PreprocessingException(
-                    f"Error reading previous visit file {initial_packet['file.name']}"
-                )
-
             # allow if this is an update to the existing initial visit packet
-            if (ivp_record[module_configs.date_field]
+            if (initial_packet[date_lbl]
                     == input_record[module_configs.date_field]
-                    and ivp_record[FieldNames.VISITNUM]
+                    and initial_packet[visitnum_lbl]
                     == input_record[FieldNames.VISITNUM]):
                 return True
 
             # allow if this is a new I4 submission
-            if (ivp_record[FieldNames.PACKET] == DefaultValues.UDS_I_PACKET
+            if (initial_packet[packet_lbl] == DefaultValues.UDS_I_PACKET
                     and input_record[FieldNames.PACKET]
                     == DefaultValues.UDS_I4_PACKET):
                 return True
 
-            log.error('%s: %s - %s, %s - %s',
-                      preprocess_errors[SysErrorCodes.IVP_EXISTS],
-                      ivp_record[module_configs.date_field],
-                      ivp_record[FieldNames.VISITNUM],
-                      input_record[module_configs.date_field],
-                      input_record[FieldNames.VISITNUM])
+            log.error(
+                '%s: %s - visitnum:%s - packet:%s, %s - visitnum:%s - packet:%s',
+                preprocess_errors[SysErrorCodes.IVP_EXISTS],
+                initial_packet[date_lbl], initial_packet[visitnum_lbl],
+                initial_packet[packet_lbl],
+                input_record[module_configs.date_field],
+                input_record[FieldNames.VISITNUM],
+                input_record[FieldNames.PACKET])
 
             self.__error_writer.write(
                 preprocessing_error(
@@ -258,7 +258,7 @@ class FormPreprocessor():
             bool: True, if any conflicting visits found
         """
 
-        field_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{field}'
+        field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{field}'
         for visit in visits:
             if visit[field_lbl] != value:
                 log.error(
@@ -414,7 +414,7 @@ class FormPreprocessor():
                                     input_record: Dict[str, Any], module: str,
                                     module_configs: ModuleConfigs,
                                     line_num: int) -> bool:
-        """Validate UDSv4 I4 packet.
+        """Validate UDSv4 I4 packet requirements.
 
         Args:
             subject_lbl: Flywheel subject label
@@ -427,18 +427,23 @@ class FormPreprocessor():
             bool: False, if validations fail
         """
 
-        if input_record[FieldNames.PACKET] != DefaultValues.UDS_I4_PACKET:
+        packet = input_record[FieldNames.PACKET]
+        if (module != DefaultValues.UDS_MODULE or packet not in [
+                DefaultValues.UDS_I4_PACKET, DefaultValues.UDS_F_PACKET
+        ]):
             return True
 
+        legacy_module = (module_configs.legacy_module
+                         if module_configs.legacy_module else module)
         date_field = module_configs.date_field
-        if module_configs.legacy_module:
-            module = module_configs.legacy_module
         if module_configs.legacy_date:
             date_field = module_configs.legacy_date
 
+        # retrieve all legacy visits for this module (find_all=True)
+        # sorted in descending of visit date
         legacy_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
-            module=module,
+            module=legacy_module,
             legacy=True,
             search_col=date_field,
             search_val=input_record[date_field],
@@ -448,27 +453,164 @@ class FormPreprocessor():
 
         legacy_visit = legacy_visits[0] if legacy_visits else None
 
-        date_field_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{date_field}'
-        if (not legacy_visit or legacy_visit[date_field_lbl]
-                >= input_record[module_configs.date_field]):
+        if not legacy_visit:
+            # For FVP return true, since IVP check (I or I4) is done earlier
+            if packet == DefaultValues.UDS_F_PACKET:
+                return True
+
+            # For I4 reject, since UDSv3 visit must present to submit I4
             self.__error_writer.write(
                 preprocessing_error(
-                    field=module_configs.date_field,
-                    value=input_record[module_configs.date_field],
+                    field=FieldNames.PACKET,
+                    value=packet,
                     line=line_num,
-                    error_code=SysErrorCodes.LOWER_I4_VISITDATE,
+                    error_code=SysErrorCodes.MISSING_UDS_V3,
                     ptid=input_record[FieldNames.PTID],
                     visitnum=input_record[FieldNames.VISITNUM]))
             return False
 
-        visitnum_lbl = f'{DefaultValues.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
-        if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
+        # If participant has UDSv3 visits and trying to submit FVP packet
+        # check whether an I4 packet already submitted for the participant
+        if packet == DefaultValues.UDS_F_PACKET:
+            i4_visits = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=module,
+                legacy=False,
+                search_col=FieldNames.PACKET,
+                search_val=DefaultValues.UDS_I4_PACKET,
+                search_op='=',
+                extra_columns=[module_configs.date_field])
+
+            i4_visit = i4_visits[0] if i4_visits else None
+
+            date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
+            if not i4_visit or i4_visit[date_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.PACKET,
+                        value=packet,
+                        line=line_num,
+                        error_code=SysErrorCodes.MISSING_UDS_I4,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+        # If participant has UDSv3 visits and trying to submit I4 packet
+        # check whether the I4 packet visit date and visit num higher than latest UDSv3
+        if packet == DefaultValues.UDS_I4_PACKET:
+            date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
+            if legacy_visit[date_field_lbl] >= input_record[
+                    module_configs.date_field]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=module_configs.date_field,
+                        value=input_record[module_configs.date_field],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_I4_VISITDATE,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+            visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
+                self.__error_writer.write(
+                    preprocessing_error(
+                        field=FieldNames.VISITNUM,
+                        value=input_record[FieldNames.VISITNUM],
+                        line=line_num,
+                        error_code=SysErrorCodes.LOWER_I4_VISITNUM,
+                        ptid=input_record[FieldNames.PTID],
+                        visitnum=input_record[FieldNames.VISITNUM]))
+                return False
+
+        return True
+
+    def __check_supplement_module(self, *, subject_lbl: str,
+                                  input_record: Dict[str, Any], module: str,
+                                  module_configs: ModuleConfigs,
+                                  line_num: int) -> bool:
+        """Check whether a matching supplement module found.
+
+        Args:
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
+            module: module label
+            module_configs: module configurations
+            line_num: line number in CSV file
+
+        Returns:
+            bool: True, if a matching supplement module visit found
+        """
+
+        if not module_configs.supplement_module:
+            return True
+
+        supplement_module = module_configs.supplement_module
+
+        supplement_visits = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=supplement_module.label,
+            legacy=False,
+            search_col=supplement_module.date_field,
+            search_val=input_record[module_configs.date_field],
+            search_op="=" if supplement_module.exact_match else "<=",
+            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM])
+
+        supplement_visit = supplement_visits[0] if supplement_visits else None
+
+        if not supplement_visit:
             self.__error_writer.write(
                 preprocessing_error(
-                    field=FieldNames.VISITNUM,
-                    value=input_record[FieldNames.VISITNUM],
+                    field=FieldNames.MODULE,
+                    value=module,
                     line=line_num,
-                    error_code=SysErrorCodes.LOWER_I4_VISITNUM,
+                    error_code=(SysErrorCodes.UDS_NOT_MATCH
+                                if supplement_module.exact_match else
+                                SysErrorCodes.UDS_NOT_EXIST),
+                    ptid=input_record[FieldNames.PTID],
+                    visitnum=input_record[FieldNames.VISITNUM]))
+            return False
+
+        if not supplement_module.exact_match:  # just checking for supplement existence
+            return True
+
+        date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_module.date_field}'
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        if supplement_visit[visitnum_lbl] != input_record[FieldNames.VISITNUM]:
+            log.error('%s - %s:%s,%s and %s:%s,%s',
+                      preprocess_errors[SysErrorCodes.UDS_NOT_MATCH], module,
+                      input_record[module_configs.date_field],
+                      input_record[FieldNames.VISITNUM],
+                      supplement_module.label, supplement_visit[date_lbl],
+                      supplement_visit[visitnum_lbl])
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.MODULE,
+                    value=module,
+                    line=line_num,
+                    error_code=SysErrorCodes.UDS_NOT_MATCH,
+                    ptid=input_record[FieldNames.PTID],
+                    visitnum=input_record[FieldNames.VISITNUM]))
+            return False
+
+        packet = input_record[FieldNames.PACKET]
+        packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
+        if (packet in module_configs.followup_packets and
+                supplement_visit[packet_lbl] == DefaultValues.UDS_I_PACKET):
+            log.error('%s - %s:%s,%s,%s and %s:%s,%s,%s',
+                      preprocess_errors[SysErrorCodes.INVALID_MODULE_PACKET],
+                      module, packet, input_record[module_configs.date_field],
+                      input_record[FieldNames.VISITNUM],
+                      supplement_visit[packet_lbl], supplement_module.label,
+                      supplement_visit[date_lbl],
+                      supplement_visit[visitnum_lbl])
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.PACKET,
+                    value=packet,
+                    line=line_num,
+                    error_code=SysErrorCodes.INVALID_MODULE_PACKET,
                     ptid=input_record[FieldNames.PTID],
                     visitnum=input_record[FieldNames.VISITNUM]))
             return False
@@ -486,6 +628,9 @@ class FormPreprocessor():
 
         Returns:
             bool: True, if input record pass the pre-processing checks
+
+        Raises:
+            PreprocessingException: if error occur while validating
         """
 
         module_configs = self.__module_info.get(module)
@@ -529,8 +674,19 @@ class FormPreprocessor():
                                                line_num=line_num):
             return False
 
-        return self.__check_visitnum_visitdate(subject_lbl=subject_lbl,
+        if not self.__check_visitnum_visitdate(subject_lbl=subject_lbl,
                                                module=module,
                                                module_configs=module_configs,
                                                input_record=input_record,
-                                               line_num=line_num)
+                                               line_num=line_num):
+            return False
+
+        if module_configs.supplement_module:
+            return self.__check_supplement_module(
+                subject_lbl=subject_lbl,
+                module=module,
+                module_configs=module_configs,
+                input_record=input_record,
+                line_num=line_num)
+
+        return True
