@@ -2,7 +2,7 @@ from typing import List
 
 from .fixed_input import FixedInput
 from .gear_rule_condition import GearRuleCondition
-from flywheel.models.job_priority import JobPriority
+from .job_priority import JobPriority
 
 
 class GearRule:
