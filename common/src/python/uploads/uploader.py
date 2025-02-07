@@ -91,12 +91,14 @@ class JSONUploader:
                  *,
                  project: ProjectAdaptor,
                  environment: Optional[Dict[str, Any]] = None,
-                 template_map: UploadTemplateInfo) -> None:
+                 template_map: UploadTemplateInfo,
+                 subject_exists_okay: bool = True) -> None:
         self.__project = project
         self.__session_template = template_map.session
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
         self.__environment = environment if environment else {}
+        self.__subject_exists_okay = subject_exists_okay
 
     def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
@@ -108,7 +110,14 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            subject = self.__project.add_subject(subject_label)
+            try:
+                subject = self.__project.add_subject(subject_label)
+            except ApiException as error:
+                if not self.__subject_exists_okay:
+                    raise error
+                else:
+                    log.info(f"{subject_label} already exists")
+                    subject = self.__project.find_subject(subject_label)
 
             for record in record_list:
                 try:

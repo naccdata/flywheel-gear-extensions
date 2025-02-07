@@ -1,5 +1,6 @@
 """Entrypoint script for the csv-subject splitter app."""
 
+import json
 import logging
 import sys
 from typing import Dict, Optional
@@ -16,6 +17,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from json.decoder import JSONDecodeError
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
 from uploads.uploader import UploadTemplateInfo
@@ -51,8 +53,6 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         Raises:
           GearExecutionError if any expected inputs are missing
         """
-        assert parameter_store, "Parameter store expected"
-
         client = ContextClient.create(context=context)
 
         file_input = InputFileWrapper.create(input_name='input_file',
@@ -62,6 +62,11 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         hierarchy_labels = context.config.get('hierarchy_labels')
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
+
+        try:
+            hierarchy_labels = json.loads(hierarchy_labels)
+        except (JSONDecodeError, TypeError, ValueError) as error:
+            raise GearExecutionError(f"Failed to load JSON string: {error}")
 
         return CsvToJsonVisitor(client=client,
                                 file_input=file_input,
