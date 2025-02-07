@@ -6,6 +6,10 @@ All notable changes to this gear are documented in this file.
 
 - n/a
 
+## 1.0.1 (Unreleased)
+
+* Refactors to use `InputFileWrapper.get_parent_project`
+
 ## 1.0.0
 
 - Redefines the csv-to-json-transformer to csv-subject-splitter gear that splits CSV files using the value in the NACCID column.

@@ -5,7 +5,6 @@ from io import StringIO
 from pathlib import Path
 from typing import Dict, Literal, Optional, TextIO
 
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -111,26 +110,18 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                                        date_field=date_field,
                                        direction=direction)
 
-    def __build_naccid_lookup(self, *, file_id: str,
+    def __build_naccid_lookup(self, *, file_input: InputFileWrapper,
                               identifiers_repo: IdentifierRepository,
                               output_file: TextIO,
                               error_writer: ListErrorWriter) -> CSVVisitor:
 
         admin_group = self.admin_group(admin_id=self.__admin_id)
-        adcid = admin_group.get_adcid(self.proxy.get_file_group(file_id))
+        adcid = admin_group.get_adcid(
+            self.proxy.get_file_group(file_input.file_id))
         if adcid is None:
             raise GearExecutionError("Unable to determine center ID for file")
 
-        try:
-            file = self.proxy.get_file(file_id)
-        except ApiException as error:
-            raise GearExecutionError(
-                f"Failed to find the input file: {error}") from error
-
-        project = self.proxy.get_project_by_id(file.parents.project)
-        if not project:
-            raise GearExecutionError(
-                f"Failed to find the project with ID {file.parents.project}")
+        project = file_input.get_parent_project(self.proxy)
 
         try:
             identifiers = get_identifiers(identifiers_repo=identifiers_repo,
@@ -192,7 +183,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             clear_errors = False
             if self.__direction == 'nacc':
                 lookup_visitor = self.__build_naccid_lookup(
-                    file_id=file_id,
+                    file_input=self.__file_input,
                     identifiers_repo=identifiers_repo,
                     output_file=out_file,
                     error_writer=error_writer)
