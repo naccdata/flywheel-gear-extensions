@@ -5,7 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 1.0.1
 
 * Updates `hierarchy_labels` config to be type `string` instead of type `object`
-* Updates `uploads.uploader.JSONUploader` to accept a `subject_exists_okay` parameter (defaults `true`) and, if `false`, throw an error if the subject already exists
+* Updates `uploads.uploader.JSONUploader` to accept a `subject_exists_okay` parameter (defaults `false`) and, if `false`, throw an error if the subject already exists
 * Refactors to use `InputFileWrapper.get_parent_project`
 * Removes `assert parameter_store` statement
 

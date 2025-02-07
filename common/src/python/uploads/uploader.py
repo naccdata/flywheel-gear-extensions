@@ -92,7 +92,7 @@ class JSONUploader:
                  project: ProjectAdaptor,
                  environment: Optional[Dict[str, Any]] = None,
                  template_map: UploadTemplateInfo,
-                 subject_exists_okay: bool = True) -> None:
+                 subject_exists_okay: bool = False) -> None:
         self.__project = project
         self.__session_template = template_map.session
         self.__acquisition_template = template_map.acquisition
