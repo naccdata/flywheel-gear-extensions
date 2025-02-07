@@ -85,6 +85,9 @@ class FormsStore():
         Returns:
             List[Dict] (optional): List of visits matching the search,
                                 sorted in descending order or None
+
+        Raises:
+            FormsStoreException: If there are issues with querying the datastore
         """
 
         if legacy and not self.__legacy_project:

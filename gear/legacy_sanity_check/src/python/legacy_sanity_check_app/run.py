@@ -6,7 +6,7 @@ from typing import List, Optional
 from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -113,20 +113,17 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         project = ProjectAdaptor(project=p_project, proxy=self.proxy)
 
         # grab the corresponding ingest (e.g. UDSv4) project based on the group
-        ingest_project = None
-        group = self.proxy.find_group(project.group)
-        if group:
-            ingest_project = ProjectAdaptor.create(
-                proxy=self.proxy,
-                group_id=group.id,
-                project_label=self.__ingest_project_label)
-
         # all centers should have a corresponding ingest project
         # raise error if group/project not found - could also send email here?
-        if not ingest_project:
+        try:
+            ingest_project = ProjectAdaptor.create(
+                proxy=self.proxy,
+                group_id=project.group,
+                project_label=self.__ingest_project_label)
+        except ProjectError as error:
             raise GearExecutionError(
                 f"Could not find {self.__ingest_project_label} project "
-                f"for {project.group}")
+                f"in {project.group}: {error}") from error
 
         form_store = FormsStore(ingest_project=ingest_project,
                                 legacy_project=project)
@@ -143,11 +140,16 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
 
         module = self.__file_input.file_info['forms']['json']['module']
 
-        if not sanity_checker.run_all_checks(subject.label,
-                                             module):  # type: ignore
+        if not sanity_checker.run_all_checks(subject.label, module):
             sanity_checker.send_email(sender_email=self.__sender_email,
                                       target_emails=self.__target_emails,
-                                      group_lbl=group.label)  # type: ignore
+                                      group_lbl=project.label)
+            raise GearExecutionError(
+                f"Sanity checks failed: {error_writer.errors()}")
+
+        context.metadata.add_file_tags(self.__file_input.file_input,
+                                       tags=context.manifest.get(
+                                           'name', 'legacy-sanity-check'))
 
 
 def main():

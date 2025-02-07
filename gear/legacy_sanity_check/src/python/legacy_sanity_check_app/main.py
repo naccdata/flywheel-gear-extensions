@@ -4,7 +4,7 @@ import json
 import logging
 from typing import List
 
-from configs.ingest_configs import FormProjectConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormQueryArgs, FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import (
@@ -36,21 +36,20 @@ class LegacySanityChecker:
         self.__error_writer = error_writer
         self.__legacy_project = legacy_project
 
-    def check_multiple_ivp(self, subject_lbl: str, module: str) -> bool:
+    def check_multiple_ivp(self, subject_lbl: str, module: str,
+                           module_configs: ModuleConfigs) -> bool:
         """Checks that a subject does not have multiple conflicting initial
         visits.
 
         Args:
             subject_lbl: The subject (e.g. the NACCID)
             module: The module (e.g. UDS)
+            module_configs: Form ingest configs for the module
+
         Returns:
             True if if passes the check, False otherwise
         """
         log.info(f'Checking for multiple visits in {module}')
-
-        module_configs = self.__form_configs.module_configs.get(module, None)
-        if not module_configs:
-            raise ValueError(f"Unrecognized module: {module}")
 
         initial_packet_query = FormQueryArgs(
             subject_lbl=subject_lbl,
@@ -123,7 +122,8 @@ class LegacySanityChecker:
         log.info("Ingest project has singular I4 packet, passes check")
         return True
 
-    def check_duplicate_visit(self, subject_lbl: str, module: str) -> bool:
+    def check_duplicate_visit(self, subject_lbl: str, module: str,
+                              module_configs: ModuleConfigs) -> bool:
         """Check for duplicates visits. Two visits are considered duplicates if
         all of the packet, visitnum, and visitdate are the same.
 
@@ -134,10 +134,6 @@ class LegacySanityChecker:
             True if if passes the check, False otherwise
         """
         log.info(f'Checking for duplicate visits in {module}')
-
-        module_configs = self.__form_configs.module_configs.get(module, None)
-        if not module_configs:
-            raise ValueError(f"Unrecognized module: {module}")
 
         visitdate = module_configs.date_field
         legacy_visitdate = module_configs.legacy_date \
@@ -220,10 +216,14 @@ class LegacySanityChecker:
         log.info(f"Running legacy sanity checks for subject {subject_lbl}" +
                  f" and module {module}")
 
-        if not self.check_multiple_ivp(subject_lbl, module):
+        module_configs = self.__form_configs.module_configs.get(module, None)
+        if not module_configs:
+            raise ValueError(f"Unrecognized module: {module}")
+
+        if not self.check_multiple_ivp(subject_lbl, module, module_configs):
             return False
 
-        return self.check_duplicate_visit(subject_lbl, module)
+        return self.check_duplicate_visit(subject_lbl, module, module_configs)
 
     def send_email(self, sender_email: str, target_emails: List[str],
                    group_lbl: str) -> None:
@@ -239,7 +239,7 @@ class LegacySanityChecker:
         project_lbl = self.__legacy_project.label
         subject = f'{project_lbl} Sanity Check Failure'
         body = f'Project {project_lbl} for {group_lbl} failed ' \
-             + 'the following legacy sanity checks:\n\n' \
-             + json.dumps(self.__error_writer.errors(), indent=4)
+            + 'the following legacy sanity checks:\n\n' \
+            + json.dumps(self.__error_writer.errors(), indent=4)
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)
