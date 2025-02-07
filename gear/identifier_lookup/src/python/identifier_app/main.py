@@ -41,7 +41,8 @@ class NACCIDLookupVisitor(CSVVisitor):
                  error_writer: ListErrorWriter,
                  date_field: str,
                  gear_name: str,
-                 project: Optional[ProjectAdaptor] = None) -> None:
+                 project: Optional[ProjectAdaptor] = None,
+                 preserve_case: bool = False) -> None:
         """
         Args:
             adcid: ADCID for the center
@@ -52,6 +53,8 @@ class NACCIDLookupVisitor(CSVVisitor):
             date_field: visit date field for the module
             gear_name: gear name
             project: Flywheel project adaptor
+            preserve_case: whether or not to preserve the case of the
+                header keys
         """
         self.__identifiers = identifiers
         self.__output_file = output_file
@@ -60,6 +63,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__date_field = date_field
         self.__project = project
         self.__gear_name = gear_name
+        self.__preserve_case: bool = preserve_case
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
         self.__validator = CenterValidator(center_id=adcid,
@@ -101,6 +105,10 @@ class NACCIDLookupVisitor(CSVVisitor):
             self.__error_writer.write(missing_field_error(self.__req_fields))
             return False
 
+        if not self.__preserve_case:
+            for i, field in enumerate(header):
+                header[i] = field.strip().lower().replace(' ', '_')
+
         self.__header = header
         self.__header.append(FieldNames.NACCID)
         self.__header.append(FieldNames.MODULE)
@@ -121,6 +129,9 @@ class NACCIDLookupVisitor(CSVVisitor):
         Returns:
           True if there is a NACCID for the PTID, False otherwise
         """
+        if not self.__preserve_case:
+            row = {key.strip().lower().replace(' ', '_'): value
+                   for key, value in row.items()}
 
         self.__error_writer.clear()
 
@@ -193,11 +204,15 @@ class CenterLookupVisitor(CSVVisitor):
     Requires the input CSV has a NACCID column
     """
 
-    def __init__(self, *, identifiers_repo: IdentifierRepository,
-                 output_file: TextIO, error_writer: ListErrorWriter) -> None:
+    def __init__(self, *,
+                 identifiers_repo: IdentifierRepository,
+                 output_file: TextIO,
+                 error_writer: ListErrorWriter,
+                 preserve_case: bool = False) -> None:
         self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
         self.__error_writer = error_writer
+        self.__preserve_case: bool = preserve_case
         self.__writer: Optional[CSVWriter] = None
         self.__header: Optional[List[str]] = None
 
@@ -229,6 +244,12 @@ class CenterLookupVisitor(CSVVisitor):
             self.__error_writer.write(missing_field_error(FieldNames.NACCID))
             return False
 
+        # if not preserving, convert headers to lowercase and replace any
+        # spaces with an underscsore
+        if not self.__preserve_case:
+            for i, field in enumerate(header):
+                header[i] = field.strip().lower().replace(' ', '_')
+
         self.__header = header
         self.__header.append(FieldNames.ADCID)
         self.__header.append(FieldNames.PTID)
@@ -250,7 +271,10 @@ class CenterLookupVisitor(CSVVisitor):
         Raises:
           GearExecutionError if the identifiers repository raises an error
         """
-        row = {key.strip(): value for key, value in row.items()}
+        if not self.__preserve_case:
+            row = {key.strip().lower().replace(' ', '_'): value
+                   for key, value in row.items()}
+
         naccid = row.get(FieldNames.NACCID,
                          row.get(FieldNames.NACCID.upper(), None))
 

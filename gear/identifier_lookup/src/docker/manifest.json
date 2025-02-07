@@ -2,7 +2,7 @@
     "name": "identifier-lookup",
     "label": "Identifier Lookup",
     "description": "Gear to look up participant identifiers for incoming data",
-    "version": "1.0.9",
+    "version": "1.0.9a",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-lookup:1.0.9"
+            "image": "naccdata/identifier-lookup:1.0.9a"
         },
         "flywheel": {
             "suite": "NACC Data Gears",
@@ -66,6 +66,11 @@
             "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
             "type": "string",
             "default": "nacc"
+        },
+        "preserve_case": {
+            "description": "Whether or not to preserve the case of the header keys in the input file",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"
