@@ -1333,3 +1333,17 @@ class ProjectAdaptor:
             return SubjectAdaptor(subject)
 
         return None
+
+    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
+        """Gets the subject with the given id.
+
+        Args:
+          subject_id: the subject ID
+        Returns:
+          the Subject object the ID if found. None, otherwise
+        """
+        subject = self._project.subjects.find_first(f'_id={subject_id}')
+        if subject:
+            return SubjectAdaptor(subject)
+
+        return None
