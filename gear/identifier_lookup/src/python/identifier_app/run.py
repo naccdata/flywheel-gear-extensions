@@ -64,7 +64,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                  file_input: InputFileWrapper,
                  identifiers_mode: IdentifiersMode, date_field: str,
                  direction: Literal['nacc', 'center'], gear_name: str,
-                 preserve_case: str):
+                 preserve_case: bool):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
@@ -150,8 +150,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                                    date_field=self.__date_field,
                                    gear_name=self.__gear_name,
                                    project=ProjectAdaptor(project=project,
-                                                          proxy=self.proxy),
-                                   preserve_case=self.__preserve_case)
+                                                          proxy=self.proxy))
 
     def __build_center_lookup(self, *, identifiers_repo: IdentifierRepository,
                               output_file: TextIO,
@@ -159,8 +158,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
         return CenterLookupVisitor(identifiers_repo=identifiers_repo,
                                    output_file=output_file,
-                                   error_writer=error_writer,
-                                   preserve_case=self.__preserve_case)
+                                   error_writer=error_writer)
 
     def run(self, context: GearToolkitContext):
         """Runs the identifier lookup app.
@@ -203,7 +201,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             success = run(input_file=csv_file,
                           lookup_visitor=lookup_visitor,
                           error_writer=error_writer,
-                          clear_errors=clear_errors)
+                          clear_errors=clear_errors,
+                          preserve_case=self.__preserve_case)
 
             contents = out_file.getvalue()
             if len(contents) > 0:
