@@ -139,11 +139,11 @@ For now, you can think of the manifest as where we define our **inputs** and **c
 
 ### API Keys
 
-Notice how we left in `api-key` and `apikey_path_prefix` - these are included in every gear we write, and are necessary to ensure the correct user permissions are being used within the given gear context.
+Notice how we left in `api-key` and `apikey_path_prefix` - these are included in almost every gear we write, and are necessary to ensure the correct permissions are being used within the given gear context.
 
-The `api-key` corresponds to an user's Flywheel API key. `apikey_path_prefix` is similar - it tells the gear where in the AWS parameter store to grab the gear bot's API key. NACC's Flywheel instances are configured to provide the environment variables with AWS credentials necessary for the gear/gear bot to access AWS resources*, including said parameter store. See the [Gear Bot documentation](./gear-bot.md) for more information.
+The `api-key` corresponds to an user's Flywheel API key. `apikey_path_prefix` is similar - it tells the gear where in the AWS parameter store to grab the gear bot's API key. NACC's Flywheel instances are configured to provide the environment variables with AWS credentials necessary for the gear/gear bot to access AWS resources*, including said parameter store. See the [Gear Bot documentation](../development/gear-bot.md) for more information.
 
-The Hello World gear does not actually need nor use the Gear Bot, as it is isolated to a single project (`example-center/hello-world`) - however most of the gears _will_ need it, so is left in for demonstration purposes.
+The Hello World gear does not actually need nor use the Gear Bot; however most of the gears _will_ need it, so is left in for demonstration purposes. Generally the Gear Bot should be used if a gear requires credentials access to something like AWS.
 
 > \* One important nuance is that a new gear will not automatically get these AWS environment variables passed - Flywheel needs to add it to the NACC credentials condor. The easiest way is to send [Flywheel a support ticket](https://support.flywheel.io/hc/en-us/requests/new) and ask for the gear(s) "to be added to the credentials condor".
 
@@ -249,7 +249,7 @@ class HelloWorldVisitor(GearExecutionEnvironment):
                                  local_run=local_run)
 ```
 
-* `client` is what interacts with Flywheel. You can also use a `ContextClient` will just use your API key (`api-key`), or the commented out version uses `GearBotClient` which uses the Gear Bot API Key, pulled from `apikey_path_prefix`, and is usually what is used for the majority of our NACC gears
+* `client` is what interacts with Flywheel. You can use a `ContextClient` which will just use your API key (`api-key`), or the commented out version which uses a `GearBotClient` and uses the Gear Bot API Key, pulled from `apikey_path_prefix`
     * Behind the scenes, this client is a wrapper around the `GearToolkitContext`'s client
     * Using the Gear Bot requires the correct AWS environment variables set up, which will be discussed more when we get to running the gear
 * `context.config` allows you to access the configuration values like a normal Python dict; we pull out `output_filename` and ensure it's set, if not throw a GearExecutionError. Similarly we extract `target_project_id` and `local_run`, setting defaults if not defined
