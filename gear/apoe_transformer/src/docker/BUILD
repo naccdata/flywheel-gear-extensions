@@ -6,4 +6,4 @@ docker_image(name="apoe-transformer",
                  ":manifest",
                  "gear/apoe_transformer/src/python/apoe_transformer_app:bin"
              ],
-             image_tags=["0.1.3", "latest"])
+             image_tags=["0.1.4", "latest"])

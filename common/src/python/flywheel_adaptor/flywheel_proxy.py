@@ -471,7 +471,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=json.dumps(settings))
+                             data=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -1329,6 +1329,20 @@ class ProjectAdaptor:
           the Subject object with the label. None, otherwise
         """
         subject = self._project.subjects.find_first(f'label={label}')
+        if subject:
+            return SubjectAdaptor(subject)
+
+        return None
+
+    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
+        """Gets the subject with the given id.
+
+        Args:
+          subject_id: the subject ID
+        Returns:
+          the Subject object the ID if found. None, otherwise
+        """
+        subject = self._project.subjects.find_first(f'_id={subject_id}')
         if subject:
             return SubjectAdaptor(subject)
 

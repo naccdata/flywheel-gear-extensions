@@ -23,11 +23,18 @@ preprocess_errors = {
     "ADCID must match the ADCID of the center uploading the data",
     SysErrorCodes.IVP_EXISTS:
     "Only one Initial Visit Packet is allowed per participant",
+    SysErrorCodes.UDS_NOT_MATCH:
+    "Cannot find a matching UDS visit packet with the " +
+    "same visit number and visit date as the module packet",
+    SysErrorCodes.INVALID_MODULE_PACKET:
+    "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)",
+    SysErrorCodes.UDS_NOT_EXIST:
+    "A UDS packet must be submitted before submitting this module/form",
     SysErrorCodes.DIFF_VISITDATE:
     "Two packets cannot have the same visit number (VISITNUM) " +
     "if they are from different dates (VISITDATE)",
     SysErrorCodes.DIFF_VISITNUM:
-    "Two packets cannot have the same visit date(VISITDATE) " +
+    "Two packets cannot have the same visit date (VISITDATE) " +
     "if they are from different visit numbers (VISITNUM)",
     SysErrorCodes.LOWER_FVP_VISITNUM:
     "Visit number (VISITNUM) for Follow-Up Visit Packets must be " +
@@ -39,9 +46,8 @@ preprocess_errors = {
     "Follow-Up Packet visit date (VISITDATE) cannot be equal to " +
     "or from a date before the Initial Visit Packet",
     SysErrorCodes.LOWER_I4_VISITDATE:
-    "To submit an Initial UDSv4 Visit Packet (PACKET=I4), participant must have "
-    +
-    "an existing UDSv3 Visit with visit date (VISITDATE) before the Initial I4 Packet",
+    "Visit date (VISITDATE) for UDSv4 Initial Visit Packet (PACKET=I4) " +
+    "must be a date after the last UDSv3 Visit Packet",
     SysErrorCodes.EXCLUDED_FIELDS:
     "Some fields in the input record do not match with the submitted version",
     SysErrorCodes.INVALID_PACKET:
@@ -56,7 +62,15 @@ preprocess_errors = {
     SysErrorCodes.MISSING_IVP:
     "Follow-Up visit cannot be submitted without an existing Initial Visit Packet",
     SysErrorCodes.MULTIPLE_IVP:
-    "More than one IVP packet found for the participant/module"
+    "More than one IVP packet found for the participant/module",
+    SysErrorCodes.UDS_NOT_APPROVED:
+    "UDS visit packet must be approved before the module visit can be processed",
+    SysErrorCodes.MISSING_UDS_V3:
+    "To submit an Initial UDSv4 Visit Packet (PACKET=I4), " +
+    "participant must have an existing UDSv3 Visit Packet",
+    SysErrorCodes.MISSING_UDS_I4:
+    "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
+    + "submitted before the Follow-Up Visit Packet (PACKET=F)",
 }
 
 
@@ -240,7 +254,7 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
 
 def preprocessing_error(field: str,
                         value: str,
-                        line: int,
+                        line: Optional[int] = None,
                         error_code: Optional[str] = None,
                         message: Optional[str] = None,
                         ptid: Optional[str] = None,
@@ -249,8 +263,8 @@ def preprocessing_error(field: str,
 
     Args:
       field: the field name
-      value: the unexpected value
-      line: the line number
+      value: the value
+      line (optional): the line number
       error_code (optional): pre-processing error code
       message (optional): the error message
       ptid (optional): PTID if known
@@ -270,7 +284,8 @@ def preprocessing_error(field: str,
         error_type='error',
         error_code=error_code if error_code else 'preprocess-error',
         value=value,
-        location=CSVLocation(line=line, column_name=field),
+        location=CSVLocation(line=line, column_name=field)
+        if line else JSONLocation(key_path=field),
         message=error_message,
         ptid=ptid,
         visitnum=visitnum)

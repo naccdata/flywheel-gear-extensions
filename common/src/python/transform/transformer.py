@@ -44,21 +44,7 @@ class FieldFilter(BaseModel):
         Returns:
           the set of field names unique to the version
         """
-        field_set = set(self.fields.get(version_name, set()))
-        if not field_set:
-            return field_set
-
-        for key in self.fields:
-            if key == version_name:
-                continue
-
-            key_fields = self.fields.get(key)
-            if not key_fields:
-                continue
-
-            field_set = field_set.difference(set(key_fields))
-
-        return field_set
+        return set(self.fields.get(version_name, set()))
 
     def apply(self, input_record: Dict[str,
                                        Any], error_writer: ListErrorWriter,

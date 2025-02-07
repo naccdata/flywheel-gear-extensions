@@ -6,7 +6,8 @@ from json import JSONDecodeError
 from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
@@ -15,6 +16,20 @@ SearchOperator = Literal['=', '>', '<', '!=', '>=', '<=', '=|']
 
 class FormsStoreException(Exception):
     pass
+
+
+class FormQueryArgs(BaseModel):
+    """Make pydantic model for query arguments to make them easier to pass
+    around."""
+    subject_lbl: str
+    module: str
+    legacy: bool
+    search_col: str
+    search_val: Optional[str] | Optional[List[str]] = None
+    search_op: Optional[SearchOperator] | Optional[str] = None
+    qc_gear: Optional[str] = None
+    extra_columns: Optional[List[str]] = None
+    find_all: bool = False
 
 
 class FormsStore():
@@ -49,8 +64,8 @@ class FormsStore():
             module: str,
             legacy: bool,
             search_col: str,
-            search_val: str | List[str],
-            search_op: SearchOperator,
+            search_val: Optional[str] | Optional[List[str]] = None,
+            search_op: Optional[SearchOperator] | Optional[str] = None,
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
@@ -70,6 +85,9 @@ class FormsStore():
         Returns:
             List[Dict] (optional): List of visits matching the search,
                                 sorted in descending order or None
+
+        Raises:
+            FormsStoreException: If there are issues with querying the datastore
         """
 
         if legacy and not self.__legacy_project:
@@ -91,9 +109,13 @@ class FormsStore():
 
         if isinstance(search_val,
                       List) and search_op != DefaultValues.FW_SEARCH_OR:
-            log.error('Unsupported operator "%s" for list input %s', search_op,
-                      search_val)
-            return None
+            raise FormsStoreException(
+                'Unsupported operator "%s" for list input %s', search_op,
+                search_val)
+
+        if not find_all and (not search_val or not search_op):
+            raise FormsStoreException(
+                'search_val and search_op must be set if find_all is False')
 
         if isinstance(search_val,
                       str) and search_op == DefaultValues.FW_SEARCH_OR:
@@ -108,7 +130,7 @@ class FormsStore():
         title = ('Visits for '
                  f'{project.group}/{project.label}/{subject_lbl}/{module}')
 
-        search_col = f'{DefaultValues.FORM_METADATA_PATH}.{search_col}'
+        search_col = f'{MetadataKeys.FORM_METADATA_PATH}.{search_col}'
         columns = [
             'file.name', 'file.file_id', "file.parents.acquisition",
             "file.parents.session", search_col
@@ -116,7 +138,7 @@ class FormsStore():
 
         if extra_columns:
             for extra_lbl in extra_columns:
-                extra_col = f'{DefaultValues.FORM_METADATA_PATH}.{extra_lbl}'
+                extra_col = f'{MetadataKeys.FORM_METADATA_PATH}.{extra_lbl}'
                 columns.append(extra_col)
 
         filters = f'acquisition.label={module}'
@@ -139,7 +161,7 @@ class FormsStore():
 
         return sorted(visits, key=lambda d: d[search_col], reverse=True)
 
-    def get_visit_data(self, file_name: str,
+    def get_visit_data(self, *, file_name: str,
                        acq_id: str) -> dict[str, str] | None:
         """Read the previous visit file and convert to python dictionary.
 

@@ -10,7 +10,6 @@ import pandas as pd
 from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from redcap.redcap_connection import (
     REDCapConnection,
@@ -130,14 +129,12 @@ def validate_redcap_report(redcap_prj: REDCapProject, report_id: str,
     return list(extra_fields)
 
 
-def run(*, gear_context: GearToolkitContext, redcap_con: REDCapConnection,
-        redcap_pid: str, module: str, fw_group: str,
-        prj_adaptor: ProjectAdaptor):
+def run(*, redcap_con: REDCapConnection, redcap_pid: str, module: str,
+        fw_group: str, prj_adaptor: ProjectAdaptor):
     """Download new/updated records from REDCap and upload to Flywheel as a CSV
     file.
 
     Args:
-        context: the gear execution context
         redcap_con: API connection to REDCap project
         redcap_pid: REDCap project id
         module: Forms module

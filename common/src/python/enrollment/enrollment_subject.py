@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Optional
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
-from identifiers.model import GUID_PATTERN, NACCID_PATTERN
+from identifiers.model import CenterFields, GUIDField, NACCIDField
 from keys.keys import DefaultValues
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from enrollment.enrollment_transfer import (
     Demographics,
@@ -15,12 +15,8 @@ from enrollment.enrollment_transfer import (
 )
 
 
-class IdentifierInfoRecord(BaseModel):
+class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
-    adcid: int = Field(ge=0)
-    ptid: str = Field(max_length=10)
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(max_length=13, pattern=GUID_PATTERN)
     update_date: datetime
 
 

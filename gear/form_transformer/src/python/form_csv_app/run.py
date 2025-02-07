@@ -3,6 +3,7 @@
 import logging
 from typing import Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
@@ -18,7 +19,7 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from outputs.errors import ListErrorWriter
-from preprocess.preprocessor import FormPreprocessor, FormProjectConfigs
+from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
 from transform.transformer import FieldTransformations, TransformerFactory
 from utils.utils import parse_string_to_list

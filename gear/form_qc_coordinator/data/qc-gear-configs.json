@@ -4,10 +4,7 @@
         "apikey_path_prefix": "/sandbox/flywheel/gearbot",
         "rules_s3_bucket": "nacc-qc-rules",
         "qc_checks_db_path": "/redcap/aws/qcchecks",
-        "primary_key": "naccid",
-        "admin_group": "nacc",
         "strict_mode": true,
-        "legacy_project_label": "retrospective-form",
-        "date_field": "visitdate"
+        "admin_group": "nacc"
     }
 }

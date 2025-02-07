@@ -1,11 +1,11 @@
 {
     "primary_key": "naccid",
-    "legacy_project_label": "retrospective-form",
     "accepted_modules": [
         "UDS",
         "FTLD",
         "LBD"
     ],
+    "legacy_project_label": "retrospective-form",
     "module_configs": {
         "UDS": {
             "initial_packets": [
@@ -35,7 +35,13 @@
             ],
             "date_field": "visitdate",
             "legacy_module": "LBD",
-            "legacy_date": "visitdate"
+            "legacy_date": "visitdate",
+            "supplement_module": {
+                "label": "UDS",
+                "version": "4",
+                "date_field": "visitdate",
+                "exact_match": true
+            }
         },
         "FTLD": {
             "initial_packets": [
@@ -49,7 +55,13 @@
             ],
             "date_field": "visitdate",
             "legacy_module": "FTLD",
-            "legacy_date": "visitdate"
+            "legacy_date": "visitdate",
+            "supplement_module": {
+                "label": "UDS",
+                "version": "4",
+                "date_field": "visitdate",
+                "exact_match": true
+            }
         }
     }
 }

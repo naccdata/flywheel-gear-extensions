@@ -18,7 +18,7 @@
             "image": "naccdata/{{cookiecutter.package_name}}:{{cookiecutter.image_tag}}"
         },
         "flywheel": {
-            "suite": "NACC Admin Gears",
+            "suite": "Utility",
             "show-job": true
         }
     },
@@ -27,7 +27,7 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "The project YAML file",
+            "description": "The input file",
             "base": "file",
             "type": {
                 "enum": [
@@ -39,16 +39,6 @@
     "config": {
         "dry_run": {
             "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
-        "new_only": {
-            "description": "Only create projects for centers tagged as new",
             "type": "boolean",
             "default": false
         },

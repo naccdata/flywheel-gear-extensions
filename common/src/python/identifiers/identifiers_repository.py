@@ -9,11 +9,9 @@ import logging
 from abc import abstractmethod
 from typing import List, Optional, overload
 
-from pydantic import Field
-
 from identifiers.model import (
-    GUID_PATTERN,
     CenterIdentifiers,
+    GUIDField,
     IdentifierList,
     IdentifierObject,
 )
@@ -21,9 +19,8 @@ from identifiers.model import (
 log = logging.getLogger(__name__)
 
 
-class IdentifierQueryObject(CenterIdentifiers):
+class IdentifierQueryObject(CenterIdentifiers, GUIDField):
     """Query model creating objects."""
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
 
 
 class IdentifierRepository(abc.ABC):

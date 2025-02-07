@@ -286,8 +286,9 @@ fw-beta gear config -i <key-value-assignment> <project-dir>/src/docker
 
 where `<key-value-assignment>` should be of the form `key=value` using a key from the manifest.
 
-If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly.
-In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+> If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly. In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+
+> Similarly, If you want to use a file that already exists in Flywheel (which you will probably want to if your gear pulls metadata from Flywheel such as the project context or file.info) it is easiest to set the input value using a dummy file and replace the file metadata manually. At minimum this means ensuring `file_id` is set, which you can look up with the Flywheel SDK.
 
 Consult `fw-beta gear config --help` for details on the command.
 

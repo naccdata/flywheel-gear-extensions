@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.1 - 0.1.2
+* Saves updated REDCap metadata in a yaml file in admin project
+* Adds dry run option to scrape existing metadata and save to yaml file
+  
 ## 0.1.0
 * First release
   
