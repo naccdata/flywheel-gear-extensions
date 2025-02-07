@@ -116,8 +116,10 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         ingest_project = None
         group = self.proxy.find_group(project.group)
         if group:
-            ingest_project = group.find_project(
-                label=self.__ingest_project_label)
+            ingest_project = ProjectAdaptor.create(
+                proxy=self.proxy,
+                group_id=group.id,
+                project_label=self.__ingest_project_label)
 
         # all centers should have a corresponding ingest project
         # raise error if group/project not found - could also send email here?
@@ -126,21 +128,23 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 f"Could not find {self.__ingest_project_label} project "
                 f"for {project.group}")
 
-        sanity_checker = LegacySanityChecker(form_store=FormsStore(
-            ingest_project=ingest_project, legacy_project=project),
+        form_store = FormsStore(ingest_project=ingest_project,
+                                legacy_project=project)
+
+        sanity_checker = LegacySanityChecker(form_store=form_store,
                                              form_configs=form_configs,
                                              error_writer=error_writer,
                                              legacy_project=project)
 
-        # could technically iterate on all subjects, but we only
-        # really need to check the subject that had a new form.
-        # could probably not even bother iterating on all modules
         subject = project.get_subject_by_id(
             file.parents.subject)  # type: ignore
         if not subject:
             raise GearExecutionError("Input file has no parent subject")
 
-        if not sanity_checker.run_all_checks(subject.label):  # type: ignore
+        module = self.__file_input.file_info['forms']['json']['module']
+
+        if not sanity_checker.run_all_checks(subject.label,
+                                             module):  # type: ignore
             sanity_checker.send_email(sender_email=self.__sender_email,
                                       target_emails=self.__target_emails,
                                       group_lbl=group.label)  # type: ignore

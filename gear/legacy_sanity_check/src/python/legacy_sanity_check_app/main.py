@@ -77,12 +77,6 @@ class LegacySanityChecker:
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP]))
             return False
 
-        # if there are no retrospective legacy initial packets, we're good
-        elif num_legacy == 0:
-            log.info(
-                "Retrospective project has no initial projects, passes check")
-            return True
-
         log.info("Retrospective project has an initial visit packet, " +
                  "checking ingest project")
 
@@ -98,7 +92,7 @@ class LegacySanityChecker:
 
         # it not UDS or somehow more than one initial packet exists
         # we have a problem, report error
-        if module.lower() != 'uds' or len(init_packets) > 1:
+        if module.upper() != DefaultValues.UDS_MODULE or len(init_packets) > 1:
             log.error("Initial visit packet(s) already exist for " +
                       f"{module} in ingest project")
             self.__error_writer.write(
@@ -111,17 +105,9 @@ class LegacySanityChecker:
 
         # otherwise, for UDS we need to check if it is an I4,
         # which is allowed, otherwise also fail the check
-        init_packet = init_packets[0]
-        record = self.__form_store.get_visit_data(
-            file_name=init_packet['file.name'],
-            acq_id=init_packet['file.parents.acquisition'])
+        packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
 
-        if not record:
-            raise ValueError(
-                f"Error reading previous visit file {init_packet['file.name']}"
-            )
-
-        if record[FieldNames.PACKET] != DefaultValues.UDS_I4_PACKET:
+        if init_packets[0][packet_lbl] != DefaultValues.UDS_I4_PACKET:
             log.error("Non-I4 initial visit packet already exists for" +
                       f"{module} in ingest project")
             self.__error_writer.write(
@@ -160,7 +146,7 @@ class LegacySanityChecker:
         duplicates_query = FormQueryArgs(
             subject_lbl=subject_lbl,
             module=module,
-            legacy=True,
+            legacy=False,
             search_col=FieldNames.PACKET,
             extra_columns=[FieldNames.VISITNUM, visitdate],
             find_all=True)
@@ -171,7 +157,7 @@ class LegacySanityChecker:
         duplicates_query.extra_columns = [
             FieldNames.VISITNUM, legacy_visitdate
         ]
-        duplicates_query.legacy = False
+        duplicates_query.legacy = True
         retro_results = self.__form_store.query_form_data(
             **duplicates_query.model_dump())
 
@@ -221,24 +207,23 @@ class LegacySanityChecker:
 
         return no_duplicates
 
-    def run_all_checks(self, subject_lbl: str) -> bool:
-        """Runs all sanity checks for the given subject on all modules in the
-        retrospective project.
+    def run_all_checks(self, subject_lbl: str, module: str) -> bool:
+        """Runs all sanity checks for the given subject and module.
+
+        Args:
+            subject_lbl: Subject label to run checks on
+            module: Module to run checks on
 
         Returns:
             Whether or not checks were successful
         """
-        log.info(f"Running legacy sanity checks for subject {subject_lbl}")
-        result = True
+        log.info(f"Running legacy sanity checks for subject {subject_lbl}" +
+                 f" and module {module}")
 
-        for module in self.__form_configs.module_configs:
-            if not self.check_multiple_ivp(subject_lbl, module):
-                result = False
-                continue
-            result = self.check_duplicate_visit(subject_lbl, module) \
-                and result
+        if not self.check_multiple_ivp(subject_lbl, module):
+            return False
 
-        return result
+        return self.check_duplicate_visit(subject_lbl, module)
 
     def send_email(self, sender_email: str, target_emails: List[str],
                    group_lbl: str) -> None:

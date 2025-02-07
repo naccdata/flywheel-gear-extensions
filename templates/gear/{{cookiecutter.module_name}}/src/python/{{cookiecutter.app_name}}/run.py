@@ -7,7 +7,7 @@ from typing import Optional
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    GearBotClient,
+    ContextClient,
     GearEngine,
     GearExecutionEnvironment,
 )
@@ -40,8 +40,7 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
         """
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
+        client = ContextClient.create(context=context)
 
         return {{cookiecutter.class_name}}Visitor(
             admin_id=context.config.get("admin_group", "nacc"),
@@ -55,7 +54,7 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
 def main():
     """Main method for {{cookiecutter.gear_name}}."""
 
-    GearEngine.create_with_parameter_store().run(
+    GearEngine.run(
         gear_type={{cookiecutter.class_name}}Visitor)
 
 if __name__ == "__main__":
