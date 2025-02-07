@@ -117,7 +117,8 @@ class JSONUploader:
                     raise error
                 else:
                     log.info(f"{subject_label} already exists")
-                    subject = self.__project.find_subject(subject_label)
+                    subject = self.__project.find_subject(
+                        subject_label)  # type: ignore
 
             for record in record_list:
                 try:

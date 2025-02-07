@@ -3,6 +3,7 @@
 import json
 import logging
 import sys
+from json.decoder import JSONDecodeError
 from typing import Dict, Optional
 
 from flywheel.rest import ApiException
@@ -17,7 +18,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from json.decoder import JSONDecodeError
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
 from uploads.uploader import UploadTemplateInfo
@@ -66,7 +66,8 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         try:
             hierarchy_labels = json.loads(hierarchy_labels)
         except (JSONDecodeError, TypeError, ValueError) as error:
-            raise GearExecutionError(f"Failed to load JSON string: {error}")
+            raise GearExecutionError(f"Failed to load JSON string: {error}") \
+                from error
 
         return CsvToJsonVisitor(client=client,
                                 file_input=file_input,
