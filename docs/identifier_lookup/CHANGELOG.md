@@ -2,15 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-<<<<<<< HEAD
 ## 1.0.9
-* Fixes bug where `CenterLookupVisitor.visit_row` was setting the keys to lowercase, causing `writer.write()` to fail with case-sensitive headers
 * Adds `preserve_case` configuration value (default `false`) to allow preserving case of header keys in output file
-=======
-## 1.0.9 (Unreleased)
-
 * Refactors to use `InputFileWrapper.get_parent_project`
->>>>>>> main
 
 ## 1.0.8
 * Fixes CSV line number in error reports (exclude header row)
