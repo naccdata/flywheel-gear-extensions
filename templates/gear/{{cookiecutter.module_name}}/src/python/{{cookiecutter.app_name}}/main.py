@@ -6,9 +6,8 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 log = logging.getLogger(__name__)
 
-def run(*,
-        proxy: FlywheelProxy,
-        new_only: bool = False):
+
+def run(*, proxy: FlywheelProxy):
     """Runs the {{cookiecutter.gear_name}} process.
 
     Args:

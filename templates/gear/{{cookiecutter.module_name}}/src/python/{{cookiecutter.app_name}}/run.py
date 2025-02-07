@@ -16,11 +16,12 @@ from inputs.parameter_store import ParameterStore
 
 log = logging.getLogger(__name__)
 
+
 class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
     """Visitor for the {{cookiecutter.gear_name}} gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, new_only: bool):
-        super().__init__(client=client, admin_id=admin_id)
+    def __init__(self, client: ClientWrapper):
+        super().__init__(client=client)
 
     @classmethod
     def create(
@@ -38,24 +39,20 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
         Raises:
           GearExecutionError if any expected inputs are missing
         """
-        assert parameter_store, "Parameter store expected"
 
         client = ContextClient.create(context=context)
 
-        return {{cookiecutter.class_name}}Visitor(
-            admin_id=context.config.get("admin_group", "nacc"),
-            client=client,
-            new_only=context.config.get("new_only", False))
+        return {{cookiecutter.class_name}}Visitor(client=client)
 
     def run(self, context: GearToolkitContext) -> None:
-        run(proxy=self.proxy,
-            new_only=self.__new_only)
+        run(proxy=self.proxy)
+
 
 def main():
     """Main method for {{cookiecutter.gear_name}}."""
 
-    GearEngine.run(
-        gear_type={{cookiecutter.class_name}}Visitor)
+    GearEngine().run(gear_type={{cookiecutter.class_name}}Visitor)
+
 
 if __name__ == "__main__":
     main()
