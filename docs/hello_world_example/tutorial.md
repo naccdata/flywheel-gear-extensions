@@ -21,14 +21,14 @@ The following tutorial outlines developing and running a basic gear in the conte
             * [Passing Environment Variables](#passing-environment-variables)
             * [Development Cycle](#development-cycle)
         * [Triggering through Gear Rules](#triggering-through-gear-rules)
-            * [Monitoring and Viewing Result](#monitoring-and-viewing-results)
+            * [Monitoring and Viewing the Resultss](#monitoring-and-viewing-the-results)
         * [Programmatically Triggering](#programmatically-triggering)
 
 ## Set Up
 
 Before we begin, please ensure you have access to NACC's Sandbox Flywheel instance ([nacc.flywheel.io](https://naccdata.flywheel.io/)), as well as read-write permissions to the [hello-world](https://naccdata.flywheel.io/#/projects/6792d642e6aa584a8b16cf7a) project this tutorial will take place in. If you do not have access, reach out to the NACC Tech Team or [nacchelp@uw.edu](mailto:nacchelp@uw.edu).
 
-> While not strictly necessary for this tutorial, if you want to actually upload the gear to Flywheel you will also need site-wide admin access - if you do not require site-level admin access otherwise, you can use a version of this gear already uploaded to Flywheel.
+> While not strictly necessary for this tutorial, if you want to actually upload the gear to Flywheel you will also need site-wide admin access for the given instance - if you do not require site-level admin access otherwise, you can use a version of this gear already uploaded to Flywheel.
 
 Additionally, it is advised to do gear development in the VS Code devcontainer environment, otherwise you may run into build issues (developing on MacOS with Apple Silicon in particular is known to be finicky about this). You can follow the steps in the [Getting Started](../development/index.md#getting-started) guide.
 
@@ -139,13 +139,15 @@ For now, you can think of the manifest as where we define our **inputs** and **c
 
 ### API Keys
 
-Notice how we left in `api-key` and `apikey_path_prefix` - these are included in almost every gear we write, and are necessary to ensure the correct permissions are being used within the given gear context.
+Notice how we left in `api-key` and `apikey_path_prefix`.
 
-The `api-key` corresponds to an user's Flywheel API key. `apikey_path_prefix` is similar - it tells the gear where in the AWS parameter store to grab the gear bot's API key. NACC's Flywheel instances are configured to provide the environment variables with AWS credentials necessary for the gear/gear bot to access AWS resources*, including said parameter store. See the [Gear Bot documentation](../development/gear-bot.md) for more information.
+The `api-key` corresponds to an user's Flywheel API key. Behind the scenes, this input is pulled by the [GearToolKitContext](https://flywheel-io.gitlab.io/public/gear-toolkit/flywheel_gear_toolkit/context/) (which will be discussed in a bit) to provide access to [Flywheel's SDK Client](https://flywheel-io.gitlab.io/product/backend/sdk/index.html). This is essentially included in every gear we write - you can write a gear without it, but it won't be able to do anything very interesting if it can't interact with Flywheel. 
 
-The Hello World gear does not actually need nor use the Gear Bot; however most of the gears _will_ need it, so is left in for demonstration purposes. Generally the Gear Bot should be used if a gear requires credentials access to something like AWS.
+`apikey_path_prefix` is similar - it tells the gear where in the AWS parameter store to grab the gear bot's API key. See the [Gear Bot documentation](../development/gear-bot.md) for more information. In general though, the Gear Bot is necessary for either a) communicating with external clients such as AWS or b) the gear needs site-wide/admin permissions like for project management. NACC's Flywheel instances are configured to provide the environment variables with AWS credentials necessary for the Gear Bot to access AWS resources*, including said parameter store.
 
-> \* One important nuance is that a new gear will not automatically get these AWS environment variables passed - Flywheel needs to add it to the NACC credentials condor. The easiest way is to send [Flywheel a support ticket](https://support.flywheel.io/hc/en-us/requests/new) and ask for the gear(s) "to be added to the credentials condor".
+The Hello World gear does not actually need nor use the Gear Bot; however it is left in for demonstration purposes as it is frequently required.
+
+> \* One important nuance is that a new gear will not automatically get these AWS environment variables passed - Flywheel needs to add it to the NACC credentials condor. The easiest way is to send [Flywheel a support ticket](https://support.flywheel.io/hc/en-us/requests/new) and ask for the gear(s) "to be added to the credentials condor". The `nacc/project-admin` project is a special case where this is not necessary, but only for gears run within that project.
 
 ### Output Files
 
@@ -747,15 +749,17 @@ For this tutorial, we want to define a Gear Rule to trigger the Hello World gear
 
 ![Gear Rules 1: Image showing a gear rule for Hello World being defined](./imgs/gear-rules-1.png)
 
-Next, we select the gear it will actually trigger. When selecting a gear, you will be prompted to fill in the configuration values, which we set to the following (we can leave the local run-specific variables blank as they are not needed here):
+Next, we select the gear it will actually trigger. When selecting a gear, you will be prompted to fill in the configuration values, which we set to the following (we can leave the local run-specific variables blank as they are not needed here).
 
 ![Gear Rules 2: Image showing the Hello World gear and configuration being selected for the gear rule](./imgs/gear-rules-2.png)
 
 We then specify that the data (file) that triggered the gear be set as our `input_file`, and because the gear needs to be able to read/write to the project, set its permissions to `read-write`. Then hit "Save" to save the gear rule.
 
+If you ever want to update the configurations or update the version of a gear rule, select the "Change Gear Version" and the same UI from the previous step will pop up (you may need to give it a couple seconds to load the configuration).
+
 ![Gear Rules 3: Image showing the `input_file` and gear rule permissions being set](./imgs/gear-rules-3.png)
 
-> Make sure the gear rule is set to "Active" once you have saved the gear - if you are updating a pre-existing gear rule, Flywheel will inactivate it as a safeguard.
+> Make sure the gear rule is set to "Active" once you have saved the gear, and the permissions are set correctly - if you are updating a pre-existing gear rule, Flywheel will inactivate the gear and set permissions to `read-only` as a safeguard.
 
 Next we want to trigger the gear rule - note that the gear rule will NOT trigger on any pre-existing files. Under "Attachments" select "Upload" and upload the input file you wish to run the gear on:
 
@@ -767,6 +771,8 @@ Navigating to the "Jobs Log", you can now see a job has been kicked off for the 
 
 ![Gear Rules 5: Image showing the job log for the Hello World job execution](./imgs/gear-rules-5.png)
 
+You may notice that the above job was run by the "System" user - this indicates that it was triggered by a gear rule. This "System" user uses the same permissions as was set in the gear rule itself. If the gear was triggered manually, the user will instead be yourself/the user who triggered it (which is also sometimes the Gear Bot).
+
 Navigating back to our Project and taking a look at the Subjects will now show the subject our Hello World gear just created/modified, with the areas highlighted being the values we populated. Similarly, the custom information at the project level and input file should have also updated. You should also get this output when running locally with `dry_run` set to `false`.
 
 ![Gear Rules 6: Image showing the newly created/modified subject after running the Hello World gear](./imgs/gear-rules-6.png)
@@ -776,7 +782,7 @@ Congratulations, you have successfuly created and run a gear!
 
 ### Programmatically Triggering
 
-You can also manually trigger a gear that has been uploaded into your Flywheel instance programmatically through the [Flywheel SDK](https://flywheel-io.gitlab.io/product/backend/sdk/index.html), which can be useful for one-off admin tasks. Examples of these can be seen in [flywheel-admin-notebooks](https://github.com/naccdata/flywheel-admin-notebooks)
+You can also manually trigger a gear that has been uploaded into your Flywheel instance programmatically through the [Flywheel SDK](https://flywheel-io.gitlab.io/product/backend/sdk/index.html), which can be useful for one-off admin tasks. Examples of these can be seen in [flywheel-admin-notebooks](https://github.com/naccdata/flywheel-admin-notebooks).
 
 The following script illustrates triggering the Hello World Gear using the Flywheel SDK:
 
