@@ -159,7 +159,7 @@ Within NACC, however, we tend to directly write/upload files at all levels of th
 
 ### Local Runs
 
-Running a gear that locally is a bit tricky especially if you want to modify data in Flywheel, since local files don't have the container and metadata information associated with them the same way Flywheel objects do. Both the `local_run` and `target_project_id` variables will be used throughout the gear to get around that limitation.
+Running a gear locally is a bit tricky especially if you want to modify data in Flywheel, since local files don't have the container and metadata information associated with them the same way Flywheel objects do. Both the `local_run` and `target_project_id` variables will be used throughout the gear to get around that limitation.
 
 ## Developing the Gear
 
@@ -187,7 +187,7 @@ if __name__ == "__main__":
 
 Your job is to define the `HelloWorldVisitor` and its `run` method, which comes in two parts:
 
-1. Define the `create` method. This works in conjunction with the `__init__` method and is generally where you pull configuration values from. This is done through the `GearToolkitContext`, which you can learn more about [here](https://flywheel-io.gitlab.io/public/gear-toolkit/flywheel_gear_toolkit/context/). This context is primarily how we handle reading in inputs/configuration values along with adding custom information, but is generally useful for other things as well (you can directly access [Flywheel's SDK client](https://flywheel-io.gitlab.io/product/backend/sdk/tags/19.5.0/python/index.html) through this context).
+1. Define the `create` method. This works in conjunction with the `__init__` method and is generally where you pull configuration values from. This is done through the `GearToolkitContext`, which you can learn more about [here](https://flywheel-io.gitlab.io/public/gear-toolkit/flywheel_gear_toolkit/context/). This context is primarily how we handle reading in inputs/configuration values along with adding custom information, but is generally useful for other things as well within the given context (such as accessing [Flywheel's SDK client](https://flywheel-io.gitlab.io/product/backend/sdk/tags/19.5.0/python/index.html)).
 
 ```python
 class HelloWorldVisitor(GearExecutionEnvironment):
@@ -254,7 +254,7 @@ class HelloWorldVisitor(GearExecutionEnvironment):
 * `client` is what interacts with Flywheel. You can use a `ContextClient` which will just use your API key (`api-key`), or the commented out version which uses a `GearBotClient` and uses the Gear Bot API Key, pulled from `apikey_path_prefix`
     * Behind the scenes, this client is a wrapper around the `GearToolkitContext`'s client
     * Using the Gear Bot requires the correct AWS environment variables set up, which will be discussed more when we get to running the gear
-* `context.config` allows you to access the configuration values like a normal Python dict; we pull out `output_filename` and ensure it's set, if not throw a GearExecutionError. Similarly we extract `target_project_id` and `local_run`, setting defaults if not defined
+* `context.config` allows you to access the configuration values like a normal Python dict; we pull out `output_filename` and ensure it's set, if not throw a `GearExecutionError`. Similarly we extract `target_project_id` and `local_run`, setting defaults if not defined
 * Grabbing file inputs is done by creating an `InputFileWrapper`, which takes the specified file from the context and wraps it with useful methods and properties
 
 The above are used to create a `HelloWorldVisitor`, which implements the abstract `GearExecutionEnvironment`. It uses the client to create a [FlywheelProxy](../common/src/python/flywheel_adaptor/flywheel_proxy.py) object, which will be our primary means of dealing with anything related to Flywheel.
@@ -488,13 +488,16 @@ And that's it for this gear! Feel free to modify the `main.py` for your own use 
 
 Again, most of the following steps are outlined under the [development guide](../development/index.md#working-with-a-gear), but this tutorial will go over it a bit more explicitly. In a nutshell, the gears are built using [Pants](https://www.pantsbuild.org) and upload/management is done through the [fw-beta Flywheel CLI](https://flywheel-io.gitlab.io/tools/app/cli/fw-beta/). Ensure both are configured in your environment.
 
-Before building, we also want to lint and format our gears. Any PR or merge to main will also run a [GitHub Action](https://github.com/naccdata/flywheel-gear-extensions/actions/workflows/pants.yml) which runs these same steps.
+Before building, we also want to lint and format our gears. Any PR or merge to main will also run a [GitHub Action](https://github.com/naccdata/flywheel-gear-extensions/actions/workflows/pants.yml) which runs similar linter/test steps.
 
 ```bash
 pants fmt gear/hello_world::
 pants lint gear/hello_world::
 pants check gear/hello_world::
+pants test gear/hello_world::
 ```
+
+> While we did not add tests for this tutorial, you can easily add your own under `gear/hello_world/test/python`. We typically use PyTest for testing. Testing however can be a bit limited, since any testing against Flywheel specifically will require mocking the calls.
 
 Building is then simply
 
@@ -520,7 +523,7 @@ Uploading the gear to Flywheel then requires `fw-beta` as well as site-admin acc
 
 ```bash
 fw-beta login
-# entire your API key when prompted
+# enter your API key when prompted
 
 fw-beta gear upload src/docker
 ```
