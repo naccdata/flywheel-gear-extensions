@@ -130,6 +130,18 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                                                tags=gear_name)
                 return
 
+            adrc = metadata_project.get_custom_project_info(
+                f'studies:{DefaultValues.PRIMARY_STUDY}')
+
+            # TODO - implement affiliated studies checks, skipping for now
+            if not adrc:
+                log.info('Primary study %s not found in center %s, ',
+                         'skipping sanity checks for affiliated studies',
+                         DefaultValues.PRIMARY_STUDY, project.group)
+                context.metadata.add_file_tags(self.__file_input.file_input,
+                                               tags=gear_name)
+                return
+
             # all active centers should have a corresponding ingest project
             # raise error if group/project not found
             project_label = self.__ingest_project_label

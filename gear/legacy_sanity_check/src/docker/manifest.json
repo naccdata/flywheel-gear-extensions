@@ -2,7 +2,7 @@
     "name": "legacy-sanity-check",
     "label": "Legacy Sanity Check",
     "description": "Runs sanity checks on legacy ingest projects",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/legacy-sanity-check:0.1.1"
+            "image": "naccdata/legacy-sanity-check:0.1.2"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
