@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to pull REDCap API code from library instead
 
 ## 1.2.6
 * Refactor  `DatastoreHelper` class to use common package
