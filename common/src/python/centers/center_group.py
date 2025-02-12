@@ -15,10 +15,9 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, Project
 from keys.keys import DefaultValues
 from projects.study import Study
 from projects.template_project import TemplateProject
-from pydantic import AliasGenerator, BaseModel, ConfigDict, ValidationError
+from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
 from redcap_api.redcap_repository import REDCapParametersRepository
-from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from serialization.case import kebab_case
 from users.authorizations import AuthMap
 from users.nacc_directory import Authorizations
@@ -629,7 +628,8 @@ class CenterGroup(CenterAdaptor):
 
             log.info(
                 'User %s (%s) is assigned %s permissions in REDCap project %s',
-                user.email, auth_email, REDCapRoles.CENTER_USER_ROLE, redcap_project.title)
+                user.email, auth_email, REDCapRoles.CENTER_USER_ROLE,
+                redcap_project.title)
 
         return success
 

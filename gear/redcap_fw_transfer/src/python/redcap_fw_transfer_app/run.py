@@ -22,8 +22,8 @@ from gear_execution.gear_execution import (
 )
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore
-from redcap_api.redcap_connection import REDCapConnection, REDCapReportConnection
 from keys.keys import DefaultValues
+from redcap_api.redcap_connection import REDCapConnection, REDCapReportConnection
 
 from redcap_fw_transfer_app.main import run
 
