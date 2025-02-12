@@ -27,7 +27,7 @@
 //     "pyyaml==6.0",
 //     "ratelimit-types>=0.0.1",
 //     "ratelimit>=2.2.1",
-//     "redcap_api@ file:///workspaces/flywheel-gear-extensions/dist/redcap_api-0.1.0-py3-none-any.whl",
+//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.0/redcap_api-0.1.0-py3-none-any.whl",
 //     "requests-oauthlib>=2.0.0",
 //     "requests>=2.18.4",
 //     "setuptools>=68.2.2",
@@ -2566,12 +2566,14 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "88a7988346be8817afd781b6915176a2d92c36417a7cb66b05e1ef7740371ac2",
-              "url": "file:///workspaces/flywheel-gear-extensions/dist/redcap_api-0.1.0-py3-none-any.whl"
+              "hash": "c1dcfc57203bb41c0f88c3f3304b9ebd5cd24d06f56aebc1a5d0ab26f8b923b0",
+              "url": "https://github.com/naccdata/redcap-api/releases/download/v0.1.0/redcap_api-0.1.0-py3-none-any.whl"
             }
           ],
           "project_name": "redcap-api",
           "requires_dists": [
+            "ratelimit-types>=0.0.1",
+            "ratelimit>=2.2.1",
             "requests>=2.18.4",
             "typing-extensions>=4.8.0"
           ],
@@ -3238,7 +3240,7 @@
     "pyyaml==6.0",
     "ratelimit-types>=0.0.1",
     "ratelimit>=2.2.1",
-    "redcap-api==0.1.0",
+    "redcap_api",
     "requests-oauthlib>=2.0.0",
     "requests>=2.18.4",
     "setuptools>=68.2.2",

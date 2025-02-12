@@ -25,4 +25,4 @@ urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
 nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.0/nacc_form_validator-0.5.0-py3-none-any.whl
-redcap_api@ file:///workspaces/flywheel-gear-extensions/dist/redcap_api-0.1.0-py3-none-any.whl
+redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.0/redcap_api-0.1.0-py3-none-any.whl
