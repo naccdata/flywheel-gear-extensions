@@ -1,7 +1,7 @@
 """Defines REDCap Project Creation."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from centers.center_group import (
     CenterError,
@@ -62,12 +62,11 @@ def setup_new_project_elements(parameter_store: ParameterStore, base_path: str,
 
 
 # pylint: disable=(too-many-locals)
-def run(
-    *, proxy: FlywheelProxy, parameter_store: ParameterStore, base_path: str,
-    redcap_super_con: REDCapSuperUserConnection,
-    study_info: StudyREDCapMetadata, use_template: bool,
-    xml_templates: Optional[Dict[str, str]]
-) -> Tuple[bool, List[REDCapProjectInput]]:
+def run(  # noqa: C901
+        *, proxy: FlywheelProxy, parameter_store: ParameterStore,
+        base_path: str, redcap_super_con: REDCapSuperUserConnection,
+        study_info: StudyREDCapMetadata, use_template: bool,
+        xml_templates: Optional[Dict[str, str]]) -> Tuple[bool, int]:
     """Create REDCap projects using super API token, store project API token in
     AWS parameter store, update REDCap project info in Flywheel metadata.
 
@@ -82,12 +81,11 @@ def run(
 
     Returns:
         bool: True if there are no errors, else False
-        Optional[str]: YAML text of REDCap project metadata
+        int: Number of updated projects
     """
 
-    redcap_metadata: List[REDCapProjectInput] = []
     errors = False
-
+    updated_count = 0
     for center in study_info.centers:
         group_adaptor = proxy.find_group(center)
         if not group_adaptor:
@@ -139,30 +137,32 @@ def run(
                                                        report_id=None)
                 project_object.projects.append(module_obj)
 
-            update_redcap_metadata(redcap_metadata=redcap_metadata,
-                                   group_adaptor=group_adaptor,
-                                   project_object=project_object)
+            if (len(project_object.projects) > 0
+                    and update_redcap_metadata(group_adaptor=group_adaptor,
+                                               project_object=project_object)):
+                updated_count += 1
 
-    return errors, redcap_metadata
+    return errors, updated_count
 
 
-def update_redcap_metadata(*, redcap_metadata: List[REDCapProjectInput],
-                           group_adaptor: GroupAdaptor,
-                           project_object: REDCapProjectInput):
+def update_redcap_metadata(*, group_adaptor: GroupAdaptor,
+                           project_object: REDCapProjectInput) -> bool:
     """Updates the REDCap project metadata in Flywheel.
 
     Args:
-      redcap_metadata: the project metadata
       group_adapter: the group for the center
-      project_lbl: the project label
       project_object: the project
-    """
-    if len(project_object.projects) > 0:
-        try:
-            center_group = CenterGroup.get_center_group(adaptor=group_adaptor)
-            center_group.add_redcap_project(project_object)
-        except CenterError:
-            log.error('Failed to update REDCap project metadata for %s/%s',
-                      group_adaptor.label, project_object.project_label)
 
-        redcap_metadata.append(project_object)
+    Returns:
+        bool: True if metadata update successful
+    """
+
+    try:
+        center_group = CenterGroup.get_center_group(adaptor=group_adaptor)
+        center_group.add_redcap_project(project_object)
+        return True
+    except CenterError:
+        log.error('Failed to update REDCap project metadata for %s/%s',
+                  group_adaptor.label, project_object.project_label)
+        log.info(project_object)
+        return False

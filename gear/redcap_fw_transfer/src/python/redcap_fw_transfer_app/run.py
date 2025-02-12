@@ -23,6 +23,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore
 from redcap_api.redcap_connection import REDCapConnection, REDCapReportConnection
+from keys.keys import DefaultValues
 
 from redcap_fw_transfer_app.main import run
 
@@ -66,7 +67,7 @@ def get_redcap_projects_metadata(
     REDCap->FW mapping info is included in each center's metadata project.
 
     Args:
-        group_adaptor: Flywhee group adaptor
+        group_adaptor: Flywheel group adaptor
         project_label: Flywheel ingest project label to upload data
 
     Returns:
@@ -114,16 +115,20 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the redcap_fw_transfer app."""
 
     def __init__(self, client: ClientWrapper, parameter_store: ParameterStore,
-                 param_path: str):
+                 param_path: str, group_id: str, project_id: str):
         """
         Args:
             client: Flywheel SDK client wrapper
             parameter_store: AWS parameter store connection
             param_path: AWS parameter path for REDCap credentials
+            group_id: Flywheel destination group id
+            project_id: Flywheel destination project id
         """
         super().__init__(client=client)
         self.__param_store = parameter_store
         self.__param_path = param_path
+        self.__group_id = group_id
+        self.__project_id = project_id
 
     @classmethod
     def create(
@@ -151,14 +156,25 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
         client_wrapper = GearBotClient.create(context=context,
                                               parameter_store=parameter_store)
 
+        try:
+            dest_container = context.get_destination_container()
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Cannot find destination container: {error}') from error
+
+        group_id, project_id = get_destination_group_and_project(
+            dest_container)
+
         return REDCapFlywheelTransferVisitor(client=client_wrapper,
                                              parameter_store=parameter_store,
-                                             param_path=param_path)
+                                             param_path=param_path,
+                                             group_id=group_id,
+                                             project_id=project_id)
 
     def get_redcap_connection(
         self, redcap_project: REDCapFormProjectMetadata
     ) -> Optional[REDCapConnection]:
-        """Get API connection for the sepcified REDCap project.
+        """Get API connection for the specified REDCap project.
 
         Args:
             redcap_project: REDCap project metadata
@@ -185,6 +201,39 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
                 redcap_project.label, error)
             return None
 
+    def __transfer_from_redcap_project(
+            self, *, redcap_project: REDCapFormProjectMetadata, group_id: str,
+            project_adaptor: ProjectAdaptor) -> bool:
+        """Transfers the records from given redcap project to the Flywheel
+        destination project.
+
+        Args:
+            redcap_project: REDCap project metadata
+            group_id: Flywheel group id
+            project_adaptor: Flywheel destination project adaptor
+
+        Returns:
+            bool: True if transfer is successful
+        """
+        redcap_con = self.get_redcap_connection(redcap_project)
+        if not redcap_con:
+            return False
+
+        module = redcap_project.label.lower()
+        try:
+            run(redcap_con=redcap_con,
+                redcap_pid=str(redcap_project.redcap_pid),
+                module=module,
+                fw_group=group_id,
+                prj_adaptor=project_adaptor)
+        except GearExecutionError as error:
+            log.error(
+                'Error in ingesting module %s from REDCap project %s: %s',
+                module, redcap_project.redcap_pid, error)
+            return False
+
+        return True
+
     def run(self, context: GearToolkitContext):
         """Runs the redcap_fw_transfer app.
 
@@ -192,26 +241,21 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
             context: the gear execution context
 
         Raises:
-            GearExecutionError if error occurrs while transferring data
+            GearExecutionError if error occurs while transferring data
         """
 
         assert context, 'Gear context required'
 
-        try:
-            dest_container = context.get_destination_container()
-        except ApiException as error:
-            raise GearExecutionError(
-                f'Cannot find destination container: {error}') from error
-
-        group_id, project_id = get_destination_group_and_project(
-            dest_container)
-        group_adaptor = self.proxy.find_group(group_id)
+        group_adaptor = self.proxy.find_group(self.__group_id)
         if not group_adaptor:
-            raise GearExecutionError(f'Cannot find Flywheel group {group_id}')
-        project = self.proxy.get_project_by_id(project_id)
+            raise GearExecutionError(
+                f'Cannot find Flywheel group {self.__group_id}')
+
+        project = self.proxy.get_project_by_id(self.__project_id)
         if not project:
             raise GearExecutionError(
-                f'Cannot find Flywheel project {project_id}')
+                f'Cannot find Flywheel project {self.__project_id}')
+        project_adaptor = ProjectAdaptor(project=project, proxy=self.proxy)
 
         redcap_projects = get_redcap_projects_metadata(
             group_adaptor=group_adaptor, project_label=project.label)
@@ -219,34 +263,28 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
         if not redcap_projects:
             raise GearExecutionError(
                 'REDCap project information not found for '
-                f'{group_id}/{project.label}')
+                f'{group_adaptor.label}/{project.label}')
 
-        failed_count = 0
+        success = True
+
+        # Transfer UDS first (if available)
+        uds_project = redcap_projects.pop(DefaultValues.UDS_MODULE.lower(),
+                                          None)
+        if uds_project:
+            success = success and self.__transfer_from_redcap_project(
+                redcap_project=uds_project,
+                group_id=group_adaptor.label,
+                project_adaptor=project_adaptor)
+
         for redcap_project in redcap_projects.values():
-            redcap_con = self.get_redcap_connection(redcap_project)
-            if not redcap_con:
-                failed_count += 1
-                continue
+            success = success and self.__transfer_from_redcap_project(
+                redcap_project=redcap_project,
+                group_id=group_adaptor.label,
+                project_adaptor=project_adaptor)
 
-            module = redcap_project.label.lower()
-            try:
-                run(gear_context=context,
-                    redcap_con=redcap_con,
-                    redcap_pid=str(redcap_project.redcap_pid),
-                    module=module,
-                    fw_group=group_id,
-                    prj_adaptor=ProjectAdaptor(project=project,
-                                               proxy=self.proxy))
-            except GearExecutionError as error:
-                log.error(
-                    'Error in ingesting module %s from REDCap project %s: %s',
-                    module, redcap_project.redcap_pid, error)
-                failed_count += 1
-                continue
-
-        if failed_count > 0:
+        if not success:
             raise GearExecutionError(
-                f'Failed to ingest data for {failed_count} module(s)')
+                'Failed to transfer data for one or more modules')
 
 
 def main():

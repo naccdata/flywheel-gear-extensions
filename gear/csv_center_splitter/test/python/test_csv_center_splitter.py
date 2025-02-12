@@ -62,8 +62,8 @@ class TestCSVVisitorCenterSplitter:
 
         errors = visitor.error_writer.errors()
         assert len(errors) == 2
-        assert errors[0][
-            'message'] == 'Missing required field(s) adcid in the header'
+        assert errors[0]['message'].startswith(
+            "Missing one or more required field(s)")
 
     def test_visit_row(self, visitor):
         """Test the visit_row method, also checks that split_data property is

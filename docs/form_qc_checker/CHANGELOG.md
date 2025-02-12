@@ -6,7 +6,37 @@ All notable changes to this gear are documented in this file.
 
 * Updates to pull REDCap API code from library instead
 
+## 1.2.6
+* Refactor  `DatastoreHelper` class to use common package
+  
+## 1.2.5
+* Updates `nacc-form-validator` to 0.5.0
+  
+## 1.2.4
+* Adds loading supplement UDS input for LBD/FTLD validation
+
+## 1.2.3
+* Updates enrollment qc workflow - writes passed visits to a new file to trigger identifier provisioning.
+
+## 1.2.0
+* Updates error reporting - move error metadata to visit error log files stored at project level.
+  
+## 1.1.7
+
+* Changes module label to uppercase for looking up previous visits in Flywheel
+  
+## 1.1.5 and 1.1.6
+
+* Fixes string to int comparison when checking if C2 or C2T causing it to always skip C2T
+
+## 1.1.4
+
+* Updates `nacc-form-validator` to `1.4.1` which fixes tuple index error and implements "isclose" for comparing float values
+* Caches fetching of previous visit record for subject
+* Fixes some some minor typos
+
 ## 1.1.0
+
 * Update loading rule definitions from S3 - skipping C2 or C2T definition depending on the version submitted
 * Defines the `is_valid_adcid` method in the `DataStoreHelper` class - checks whether provided ADCID is in current list of ADCIDs
 * Implements `get_previous_nonempty_record` method in the `DataStoreHelper` class - retrieves the previous record where specified fields are NOT empty

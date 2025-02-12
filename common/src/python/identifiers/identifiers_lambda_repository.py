@@ -3,7 +3,7 @@
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -11,11 +11,12 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import (
-    GUID_PATTERN,
-    NACCID_PATTERN,
+    ADCIDField,
     CenterIdentifiers,
+    GUIDField,
     IdentifierList,
     IdentifierObject,
+    NACCIDField,
 )
 
 
@@ -25,9 +26,8 @@ class ListRequest(BaseRequest):
     limit: int = Field(le=100)
 
 
-class IdentifierRequest(BaseRequest, CenterIdentifiers):
+class IdentifierRequest(BaseRequest, CenterIdentifiers, GUIDField):
     """Request model for creating Identifier."""
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
 
 
 class IdentifierListRequest(BaseRequest):
@@ -35,19 +35,16 @@ class IdentifierListRequest(BaseRequest):
     identifiers: List[IdentifierQueryObject]
 
 
-class ADCIDRequest(ListRequest):
+class ADCIDRequest(ListRequest, ADCIDField):
     """Model for request object with ADCID, and offset and limit."""
-    adcid: int = Field(ge=0)
 
 
-class GUIDRequest(BaseRequest):
+class GUIDRequest(BaseRequest, GUIDField):
     """Request model for search by GUID."""
-    guid: str = Field(max_length=13, pattern=GUID_PATTERN)
 
 
-class NACCIDRequest(BaseRequest):
+class NACCIDRequest(BaseRequest, NACCIDField):
     """Request model for search by NACCID."""
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
 
 
 class ListResponseObject(BaseModel):
@@ -87,8 +84,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                                           adcid=adcid,
                                           ptid=ptid,
                                           guid=guid))
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
+
         if response.statusCode not in (200, 201):
             raise IdentifierRepositoryError("No identifier created")
 
@@ -150,7 +148,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         Returns:
           the IdentifierObject for the nacc_id or the adcid-ptid pair
         Raises:
-          IdentifierRespositoryError: if no Identifier record was found
+          IdentifierRepositoryError: if no Identifier record was found
           TypeError: if the arguments are nonsensical
         """
         if naccid is not None:
@@ -259,7 +257,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                                           adcid=adcid,
                                           ptid=ptid,
                                           guid=guid))
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:

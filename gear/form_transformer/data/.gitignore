@@ -1,0 +1,6 @@
+# ignore everything
+*
+# except for
+!.gitignore
+!form-data-module-configs.json
+!transformation-schemas.json

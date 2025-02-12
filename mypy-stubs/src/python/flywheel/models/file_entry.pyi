@@ -36,6 +36,10 @@ class FileEntry:
         ...
 
     @property
+    def info_exists(self) -> bool:
+        ...
+
+    @property
     def info(self) -> Dict[str, Any]:
         ...
 

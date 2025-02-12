@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, TextIO
 
 from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.errors import (
     ListErrorWriter,
@@ -141,6 +142,11 @@ def run(*,
         # if writing results to a staging project, manually build a project map
         # that maps all to the specified project ID
         project = proxy.get_project_by_id(staging_project_id)
+        if not project:
+            raise GearExecutionError(
+                f"Cannot find staging project with ID {staging_project_id}, " +
+                "possibly a permissions issue?")
+
         project_map = {f'adcid-{adcid}': project for adcid in visitor.centers}
     else:
         # else build project map from ADCID to corresponding
@@ -155,7 +161,7 @@ def run(*,
     # make sure all expected projects are there before upload
     missing_projects = [
         adcid for adcid in visitor.split_data
-        if f'adcid-{adcid}' not in project_map
+        if not project_map.get(f'adcid-{adcid}', None)
     ]
     if missing_projects:
         raise ValueError(
@@ -168,17 +174,14 @@ def run(*,
     # write results to each center's project
     for adcid, data in visitor.split_data.items():
         project = project_map[f'adcid-{adcid}']
-        assert project, "raises exception above if any projects are missing"
-
         filename = f'{adcid}_{input_filename}'
 
-        log.info(f"Uploading {filename} for project {project.label} "
-                 +  # type: ignore
-                 f"ADCID {adcid} with project ID {project.id}")  # type: ignore
+        log.info(
+            f"Uploading {filename} for project {project.label} "  # type: ignore
+            + f"ADCID {adcid} with project ID {project.id}")  # type: ignore
 
         contents = write_csv_to_stream(headers=visitor.headers,
-                                       data=data,
-                                       filename=filename).getvalue()
+                                       data=data).getvalue()
         file_spec = FileSpec(name=filename,
                              contents=contents,
                              content_type="text/csv",

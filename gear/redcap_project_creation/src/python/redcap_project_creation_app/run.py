@@ -1,11 +1,16 @@
 """Entry script for REDCap Project Creation."""
 
 import logging
-from datetime import datetime
 from typing import Dict, Optional
 
 import yaml
-from centers.center_group import StudyREDCapMetadata
+from centers.center_group import (
+    CenterProjectMetadata,
+    FormIngestProjectMetadata,
+    REDCapProjectInput,
+    StudyREDCapMetadata,
+    StudyREDCapProjectsList,
+)
 from flywheel import Project
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -19,6 +24,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
+from keys.keys import DefaultValues
 from pydantic import ValidationError
 from redcap_api.redcap_connection import REDCapSuperUserConnection
 from redcap_api.redcap_paramter_store import REDCapParameters
@@ -117,8 +123,94 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         return REDCapProjectCreation(client=client_wrapper,
                                      parameter_store=parameter_store)
 
-    # pylint: disable=(too-many-locals)
-    def run(self, context: GearToolkitContext) -> None:
+    def __write_out_file(  # noqa: C901
+            self, context: GearToolkitContext, admin_group_id: str,
+            study_id: str, filename: str):
+        """Write REDCap project metadata to output yaml file.
+
+        Args:
+            context: gear context
+            admin_group_id: Flywheel admin group ID
+            study_id: Study id
+            filename: output file name
+        """
+
+        nacc_group = self.admin_group(admin_id=admin_group_id)
+        centers = nacc_group.get_center_map().centers
+        if not centers:
+            log.error('Center information not found in %s/metadata',
+                      admin_group_id)
+            return
+
+        study_redcap_metadata = StudyREDCapProjectsList([])
+        # collect updated REDCap project mapping metadata for the study
+        for center in centers.values():
+            if not center.active:
+                continue
+
+            group_adaptor = self.proxy.find_group(center.group)
+            if not group_adaptor:
+                log.warning('Cannot find Flywheel group for Center ID %s',
+                            center.group)
+                continue
+
+            center_metadata_prj = group_adaptor.find_project(
+                DefaultValues.METADATA_PRJ_LBL)
+            if not center_metadata_prj:
+                log.warning('Cannot find metadata project in group %s',
+                            center.group)
+                continue
+
+            info = center_metadata_prj.get_info()
+            if not info or 'studies' not in info:
+                log.warning('Studies metadata not found in %s/metadata',
+                            center.group)
+                continue
+
+            try:
+                center_metadata = CenterProjectMetadata.model_validate(info)
+            except ValidationError as error:
+                log.error(
+                    'Studies info in %s/metadata does not match expected format: %s',
+                    center.group, error)
+                continue
+
+            study_metadata = center_metadata.studies.get(study_id)
+            if not study_metadata:
+                log.info('Study %s not found in %s/metadata', study_id,
+                         center.group)
+                continue
+
+            for ingest_project in study_metadata.ingest_projects.values():
+                if (not isinstance(ingest_project, FormIngestProjectMetadata)
+                        or not ingest_project.redcap_projects):
+                    continue
+
+                redcap_projects = []
+                for redcap_project in ingest_project.redcap_projects.values():
+                    redcap_projects.append(redcap_project)
+
+                study_redcap_metadata.append(
+                    REDCapProjectInput(
+                        center_id=center.group,
+                        study_id=study_id,
+                        project_label=ingest_project.project_label,
+                        projects=redcap_projects))
+
+        # write updated metadata to output file
+        if len(study_redcap_metadata.root) > 0:
+            yaml_text = yaml.safe_dump(
+                data=study_redcap_metadata.model_dump(serialize_as_any=True),
+                allow_unicode=True,
+                default_flow_style=False)
+
+            out_filename = f'{study_id}-{filename}'
+            with context.open_output(out_filename, mode='w',
+                                     encoding='utf-8') as out_file:
+                out_file.write(yaml_text)
+
+    # pylint: disable = (too-many-locals)
+    def run(self, context: GearToolkitContext) -> None:  # noqa: C901
         """Invoke the redcap project creation app.
 
         Args:
@@ -143,24 +235,39 @@ class REDCapProjectCreation(GearExecutionEnvironment):
             token_path_prefix: str = get_config(gear_context=context,
                                                 key='project_token_path',
                                                 default='/redcap/aws')
-            admin_id: str = get_config(gear_context=context,
-                                       key='admin_project',
-                                       default='nacc/project-admin')
+            admin_lookup: str = get_config(gear_context=context,
+                                           key='admin_project',
+                                           default='nacc/project-admin')
             use_xml_template: bool = get_config(gear_context=context,
                                                 key='use_xml_template',
                                                 default=True)
-            output_prefix: str = get_config(gear_context=context,
-                                            key='output_file_prefix',
-                                            default='redcap-projects')
+            output_filename: str = get_config(
+                gear_context=context,
+                key='output_file_name',
+                default='ingest-projects-redcap-metadata.yaml')
+
+            dry_run: bool = get_config(gear_context=context,
+                                       key='dry_run',
+                                       default=False)
         except ConfigParseError as error:
             raise GearExecutionError(
                 f'Incomplete configuration - {error}') from error
 
         try:
-            admin_project = self.client.client.lookup(admin_id)
+            admin_project: Project = self.proxy.lookup(admin_lookup)
         except ApiException as error:
             raise GearExecutionError(
                 f'Cannot find admin project - {error}') from error
+
+        # Just update the REDCap metadata file and exit
+        if dry_run:
+            log.info('Dry run - updating the metadata file %s-%s',
+                     study_info.study_id, output_filename)
+            self.__write_out_file(context=context,
+                                  admin_group_id=admin_project.group,
+                                  study_id=study_info.study_id,
+                                  filename=output_filename)
+            exit(0)
 
         if use_xml_template:
             xml_templates = get_xml_templates(admin_project, study_info)
@@ -177,24 +284,19 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         redcap_super_con = REDCapSuperUserConnection.create_from(
             super_credentials)
 
-        errors, fw_metadata = run(proxy=self.proxy,
-                                  parameter_store=self.__param_store,
-                                  base_path=token_path_prefix,
-                                  redcap_super_con=redcap_super_con,
-                                  study_info=study_info,
-                                  use_template=use_xml_template,
-                                  xml_templates=xml_templates)
+        errors, updated = run(proxy=self.proxy,
+                              parameter_store=self.__param_store,
+                              base_path=token_path_prefix,
+                              redcap_super_con=redcap_super_con,
+                              study_info=study_info,
+                              use_template=use_xml_template,
+                              xml_templates=xml_templates)
 
-        if len(fw_metadata) > 0:
-            yaml_text = yaml.safe_dump(data=fw_metadata,
-                                       allow_unicode=True,
-                                       default_flow_style=False)
-
-            tstmp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            fname = f'{output_prefix} - {study_info.study_id} - {tstmp}.yaml'
-            with context.open_output(fname, mode='w',
-                                     encoding='utf-8') as out_file:
-                out_file.write(yaml_text)
+        if updated > 0:
+            self.__write_out_file(context=context,
+                                  admin_group_id=admin_project.group,
+                                  study_id=study_info.study_id,
+                                  filename=output_filename)
 
         if errors:
             raise GearExecutionError(

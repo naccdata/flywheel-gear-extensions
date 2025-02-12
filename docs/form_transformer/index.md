@@ -28,6 +28,7 @@ This information is used to determine which fields to exclude:
     - otherwise, exclude fields for `version2`
 
 A field filter also includes the full lists of fields for each version of the module.
+If `nofill` set to `true` exclude fields must be empty
 
 This (partial) example shows field filters for the C2 forms of UDS and the version of the LBD module.
 
@@ -43,7 +44,8 @@ This (partial) example shows field filters for the C2 forms of UDS and the versi
             "fields": {
                 "C2": [],
                 "C2T": []
-            }
+            },
+            "nofill": true
         }
     ],
     "LBD": [
@@ -56,7 +58,8 @@ This (partial) example shows field filters for the C2 forms of UDS and the versi
             "fields": {
                 "v3.0": [],
                 "v3.1": []
-            }
+            },
+            "nofill": true
         }
     ]
 }

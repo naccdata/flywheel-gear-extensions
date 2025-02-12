@@ -30,7 +30,8 @@
                 "ms-python.python",
                 "ms-azuretools.vscode-docker",
                 "streetsidesoftware.code-spell-checker",                
-                "yzhang.markdown-all-in-one"
+                "yzhang.markdown-all-in-one",
+                "charliermarsh.ruff"
                 // "mermaidchart.vscode-mermaid-chart"
             ]
         }

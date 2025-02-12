@@ -21,6 +21,3 @@ Click the policy name and then click the Edit button to access the policy.
 
 The policy is written so that allows are specific, and denys are general.
 So, you should only need to add parameters or new paths to the allows.
-
-
-

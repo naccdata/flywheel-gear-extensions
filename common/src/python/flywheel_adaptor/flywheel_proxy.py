@@ -471,7 +471,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=json.dumps(settings))
+                             data=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -511,7 +511,7 @@ class FlywheelProxy:
 
         Note: this will replace any existing apps.
 
-        Note: temporary fix using FWCliennt because flywheel-sdk doesn't manage
+        Note: temporary fix using FWClient because flywheel-sdk doesn't manage
         type of viewer_apps.
 
         Args:
@@ -593,14 +593,40 @@ class FlywheelProxy:
         """Find the first Job matching the search string.
 
         Args:
-            search_str: paramets to search (e.g. 'id={job_id}')
+            search_str: parameters to search (e.g. 'state=failed')
 
         Returns:
             Job: Flywheel Job object if found, else None
         """
         return self.__fw.jobs.find_first(search_str)
 
-    def get_matching_aquisition_files_info(
+    def find_jobs(self, search_str: str) -> List[Job]:
+        """Find all jobs matching the search string.
+
+        Args:
+            search_str: parameters to search (e.g. 'state=failed')
+
+        Returns:
+            Job: List of Flywheel Job objects found
+        """
+        return self.__fw.jobs.find(search_str)
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        """Find the Job with matching ID.
+
+        Args:
+            job_id: Flywheel job id
+
+        Returns:
+            Job: Flywheel Job object if found, else None
+        """
+        try:
+            return self.__fw.get_job(job_id)
+        except ApiException as error:
+            log.warning(error)
+            return None
+
+    def get_matching_acquisition_files_info(
             self,
             *,
             container_id: str,
@@ -1295,7 +1321,7 @@ class ProjectAdaptor:
         return SubjectAdaptor(self._project.add_subject(label=label))
 
     def find_subject(self, label: str) -> Optional[SubjectAdaptor]:
-        """Finds the suject with the label.
+        """Finds the subject with the label.
 
         Args:
           label: the subject label
@@ -1303,6 +1329,20 @@ class ProjectAdaptor:
           the Subject object with the label. None, otherwise
         """
         subject = self._project.subjects.find_first(f'label={label}')
+        if subject:
+            return SubjectAdaptor(subject)
+
+        return None
+
+    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
+        """Gets the subject with the given id.
+
+        Args:
+          subject_id: the subject ID
+        Returns:
+          the Subject object the ID if found. None, otherwise
+        """
+        subject = self._project.subjects.find_first(f'_id={subject_id}')
         if subject:
             return SubjectAdaptor(subject)
 

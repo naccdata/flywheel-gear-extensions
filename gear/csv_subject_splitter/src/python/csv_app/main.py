@@ -57,12 +57,15 @@ class CSVSplitVisitor(CSVVisitor):
         """
 
         found_all = True
+        empty_fields = set()
         for field in self.__req_fields:
             if field not in row or not row[field]:
+                empty_fields.add(field)
                 found_all = False
-                self.__error_writer.write(empty_field_error(field, line_num))
 
         if not found_all:
+            self.__error_writer.write(empty_field_error(
+                empty_fields, line_num))
             return False
 
         subject_lbl = row[FieldNames.NACCID]

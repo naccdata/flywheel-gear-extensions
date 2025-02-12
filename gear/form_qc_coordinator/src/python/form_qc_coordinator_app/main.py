@@ -3,6 +3,7 @@
 import logging
 from typing import Dict, List, Optional
 
+from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -14,8 +15,12 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
+from gear_execution.gear_trigger import GearInfo
+from keys.keys import FieldNames, MetadataKeys
+from pydantic import ValidationError
+from utils.utils import load_form_ingest_configurations
 
-from form_qc_coordinator_app.coordinator import QCCoordinator, QCGearInfo
+from form_qc_coordinator_app.coordinator import QCCoordinator
 
 log = logging.getLogger(__name__)
 
@@ -42,10 +47,10 @@ def get_matching_visits(
         module: str,
         date_col: str,
         cutoff_date: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
-    """Get the list of visits for the specified partipant for the specified
+    """Get the list of visits for the specified participant for the specified
     module.
 
-    Note: This method assumes visit date in file metadata is notmalized to
+    Note: This method assumes visit date in file metadata is normalized to
     YYYY-MM-DD format at a previous stage of the submission pipeline.
 
     Args:
@@ -62,30 +67,32 @@ def get_matching_visits(
 
     title = f'{module} visits for participant {subject}'
 
-    date_col_key = f'file.info.forms.json.{date_col}'
+    ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
+    date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{date_col}'
+    visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
     columns = [
-        date_col_key, 'file.name', 'file.file_id', 'file.parents.acquisition',
-        'file.info.forms.json.visitnum'
+        ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
+        'file.parents.acquisition', 'file.info.forms.json.visitnum'
     ]
     filters = f'acquisition.label={module}'
 
     if cutoff_date:
         filters += f',{date_col_key}>={cutoff_date}'
 
-    return proxy.get_matching_aquisition_files_info(container_id=container_id,
-                                                    dv_title=title,
-                                                    columns=columns,
-                                                    filters=filters)
+    return proxy.get_matching_acquisition_files_info(container_id=container_id,
+                                                     dv_title=title,
+                                                     columns=columns,
+                                                     filters=filters)
 
 
 def run(*,
         gear_context: GearToolkitContext,
         client_wrapper: ClientWrapper,
         visits_file_wrapper: InputFileWrapper,
+        configs_file_wrapper: InputFileWrapper,
         subject: SubjectAdaptor,
-        date_col: str,
         visits_info: ParticipantVisits,
-        qc_gear_info: QCGearInfo,
+        qc_gear_info: GearInfo,
         check_all: bool = False):
     """Invoke QC process for the given participant/module.
 
@@ -94,13 +101,13 @@ def run(*,
         client_wrapper: Flywheel SDK client wrapper
         visits_file_wrapper: Input file wrapper
         subject: Flywheel subject to run the QC checks
-        date_col: name of the visit date field (to filter/sort the visits)
+        configs_file_wrapper: module configurations file
         visits_info: Info on new/updated visits for the participant/module
         qc_gear_info: QC gear name and configs
         check_all: re-evaluate all visits for the participant/module
 
     Raises:
-        GearExecutionError if any problem occurrs during the QC process
+        GearExecutionError if any problem occurs during the QC process
     """
 
     if check_all:
@@ -110,27 +117,47 @@ def run(*,
         cutoff = curr_visit.visitdate
 
     module = visits_info.module.upper()
+
+    try:
+        form_project_configs = load_form_ingest_configurations(
+            configs_file_wrapper.filepath)
+    except ValidationError as error:
+        raise GearExecutionError(
+            'Error reading form configurations file '
+            f'{configs_file_wrapper.filename}: {error}') from error
+
+    if (module not in form_project_configs.accepted_modules
+            or not form_project_configs.module_configs.get(module)):
+        raise GearExecutionError(
+            f'Failed to find the configurations for module {module}')
+
+    module_configs: ModuleConfigs = form_project_configs.module_configs.get(
+        module)  # type: ignore
+
     proxy = client_wrapper.get_proxy()
+
     visits_list = get_matching_visits(proxy=proxy,
                                       container_id=subject.id,
                                       subject=subject.label,
                                       module=module,
-                                      date_col=date_col,
+                                      date_col=module_configs.date_field,
                                       cutoff_date=cutoff)
     if not visits_list:
         # This cannot happen, at least one file should exist with matching cutoff date
         raise GearExecutionError(
             'Cannot find matching visits for subject '
-            f'{subject.label}/{module} with {date_col}>={cutoff}')
+            f'{subject.label}/{module} with {module_configs.date_field}>={cutoff}'
+        )
 
-    qc_coordinator = QCCoordinator(subject=subject,
-                                   module=module,
-                                   proxy=proxy,
-                                   gear_context=gear_context)
+    qc_coordinator = QCCoordinator(
+        subject=subject,
+        module=module,
+        module_configs=module_configs,
+        configs_file_id=configs_file_wrapper.file_id,
+        qc_gear_info=qc_gear_info,
+        proxy=proxy,
+        gear_context=gear_context)
 
-    qc_coordinator.run_error_checks(gear_name=qc_gear_info.gear_name,
-                                    gear_configs=qc_gear_info.configs,
-                                    visits=visits_list,
-                                    date_col=date_col)
+    qc_coordinator.run_error_checks(visits=visits_list)
 
     update_file_tags(gear_context, visits_file_wrapper)

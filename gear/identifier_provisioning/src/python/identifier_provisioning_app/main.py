@@ -16,6 +16,7 @@ from enrollment.enrollment_transfer import (
     is_new_enrollment,
     previously_enrolled,
 )
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
     IdentifierRepository,
@@ -23,23 +24,65 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
-from keys.keys import FieldNames
+from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     CSVLocation,
-    ErrorWriter,
     FileError,
+    ListErrorWriter,
     empty_field_error,
+    get_error_log_name,
     identifier_error,
     missing_field_error,
+    partially_failed_file_error,
+    system_error,
     unexpected_value_error,
+    update_error_log_and_qc_metadata,
 )
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 
 
+def update_record_level_error_log(*,
+                                  input_record: Dict[str, Any],
+                                  qc_passed: bool,
+                                  project: ProjectAdaptor,
+                                  gear_name: str,
+                                  errors: List[Dict[str, Any]],
+                                  naming_template: Optional[Dict[str,
+                                                                 str]] = None):
+    """Update error log file for the visit and store error metadata in
+    file.info.qc.
+
+    Args:
+        input_record: input record details
+        qc_passed: whether the visit passed QC checks
+        project: Flywheel project adaptor
+        gear_name: gear that generated errors
+        errors: list of error objects, expected to be JSON dicts
+        naming_template (optional): error log naming template for module
+
+    Returns:
+        bool: True if error log updated successfully, else False
+    """
+
+    error_log_name = get_error_log_name(module=DefaultValues.ENROLLMENT_MODULE,
+                                        input_data=input_record,
+                                        naming_template=naming_template)
+
+    if not error_log_name or not update_error_log_and_qc_metadata(
+            error_log_name=error_log_name,
+            destination_prj=project,
+            gear_name=gear_name,
+            state='PASS' if qc_passed else 'FAIL',
+            errors=errors):
+        raise GearExecutionError('Failed to update error log for visit '
+                                 f'{input_record[FieldNames.PTID]}, '
+                                 f'{input_record[FieldNames.ENRLFRM_DATE]}')
+
+
 class EnrollmentBatch:
-    """Collects new Identifier objects for commiting to repository."""
+    """Collects new Identifier objects for committing to repository."""
 
     def __init__(self) -> None:
         self.__records: Dict[str, EnrollmentRecord] = {}
@@ -53,7 +96,7 @@ class EnrollmentBatch:
         return len(self.__records.values())
 
     def add(self, enrollment_record: EnrollmentRecord) -> None:
-        """Adds the enrollment object to this bacth.
+        """Adds the enrollment object to this batch.
 
         Args:
           enrollment_record: the enrollment object
@@ -89,7 +132,8 @@ class EnrollmentBatch:
 class TransferVisitor(CSVVisitor):
     """Visitor for processing transfers into a center."""
 
-    def __init__(self, error_writer: ErrorWriter, transfer_info: TransferInfo,
+    def __init__(self, error_writer: ListErrorWriter,
+                 transfer_info: TransferInfo,
                  repo: IdentifierRepository) -> None:
         self.__error_writer = error_writer
         self.__transfer_info = transfer_info
@@ -314,8 +358,8 @@ class TransferVisitor(CSVVisitor):
 class NewEnrollmentVisitor(CSVVisitor):
     """A CSV Visitor class for processing new enrollment forms."""
 
-    def __init__(self, error_writer: ErrorWriter, repo: IdentifierRepository,
-                 batch: EnrollmentBatch) -> None:
+    def __init__(self, error_writer: ListErrorWriter,
+                 repo: IdentifierRepository, batch: EnrollmentBatch) -> None:
         self.__batch = batch
         self.__validator = AggregateRowValidator([
             NewPTIDRowValidator(repo, error_writer),
@@ -331,7 +375,7 @@ class NewEnrollmentVisitor(CSVVisitor):
         Returns:
           True if the header has expected columns. False, otherwise.
         """
-        expected_columns = {FieldNames.ADCID, FieldNames.PTID, FieldNames.GUID}
+        expected_columns = {FieldNames.GUID}
         if not expected_columns.issubset(set(header)):
             self.__error_writer.write(missing_field_error(expected_columns))
             return False
@@ -393,10 +437,13 @@ class ProvisioningVisitor(CSVVisitor):
     """A CSV Visitor class for processing participant enrollment and transfer
     forms."""
 
-    def __init__(self, *, center_id: int, error_writer: ErrorWriter,
+    def __init__(self, *, center_id: int, error_writer: ListErrorWriter,
                  transfer_info: TransferInfo, batch: EnrollmentBatch,
-                 repo: IdentifierRepository) -> None:
+                 repo: IdentifierRepository, gear_name: str,
+                 project: ProjectAdaptor) -> None:
         self.__error_writer = error_writer
+        self.__project = project
+        self.__gear_name = gear_name
         self.__enrollment_visitor = NewEnrollmentVisitor(error_writer,
                                                          repo=repo,
                                                          batch=batch)
@@ -404,6 +451,10 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer, repo=repo, transfer_info=transfer_info)
         self.__validator = CenterValidator(center_id=center_id,
                                            error_writer=error_writer)
+        self.__error_log_template = {
+            "ptid": FieldNames.PTID,
+            "visitdate": FieldNames.ENRLFRM_DATE
+        }
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares visitor to work with CSV file with given header.
@@ -413,7 +464,10 @@ class ProvisioningVisitor(CSVVisitor):
         Returns:
           True if all of the visitors return True. False otherwise
         """
-        expected_columns = {FieldNames.ENRLTYPE}
+        expected_columns = {
+            FieldNames.PTID, FieldNames.ADCID, FieldNames.ENRLFRM_DATE,
+            FieldNames.ENRLTYPE
+        }
         if not expected_columns.issubset(set(header)):
             self.__error_writer.write(missing_field_error(expected_columns))
             return False
@@ -433,21 +487,71 @@ class ProvisioningVisitor(CSVVisitor):
         Args:
           row: the dictionary for the CSV row (DictReader)
           line_num: the line number of the row
+
         Returns:
           True if the row is a valid enrollment or transfer.  False, otherwise.
         """
-        if not self.__validator.check(row=row, line_number=line_num):
+
+        self.__error_writer.clear()
+        try:
+            if not self.__validator.check(row=row, line_number=line_num):
+                update_record_level_error_log(
+                    input_record=row,
+                    qc_passed=False,
+                    project=self.__project,
+                    gear_name=self.__gear_name,
+                    errors=self.__error_writer.errors(),
+                    naming_template=self.__error_log_template)
+                return False
+
+            if is_new_enrollment(row):
+                success = self.__enrollment_visitor.visit_row(
+                    row=row, line_num=line_num)
+                if not success:  # Only update record level log if validation failed
+                    update_record_level_error_log(
+                        input_record=row,
+                        qc_passed=False,
+                        project=self.__project,
+                        gear_name=self.__gear_name,
+                        errors=self.__error_writer.errors(),
+                        naming_template=self.__error_log_template)
+                return success
+        except IdentifierRepositoryError as error:
+            message = (
+                f'Failed to assign a NACCID for PTID {row[FieldNames.PTID]}: {error}'
+            )
+            log.error(message)
+            self.__error_writer.write(
+                identifier_error(message=message,
+                                 field=FieldNames.PTID,
+                                 value=row[FieldNames.PTID],
+                                 line=line_num))
+            update_record_level_error_log(
+                input_record=row,
+                qc_passed=False,
+                project=self.__project,
+                gear_name=self.__gear_name,
+                errors=self.__error_writer.errors(),
+                naming_template=self.__error_log_template)
             return False
 
-        if is_new_enrollment(row):
-            return self.__enrollment_visitor.visit_row(row=row,
+        # No further processing implemented for transfers, so update visit level log
+        # TODO - need to change when processing transfers implemented
+        success = self.__transfer_in_visitor.visit_row(row=row,
                                                        line_num=line_num)
-
-        return self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+        update_record_level_error_log(
+            input_record=row,
+            qc_passed=success,
+            project=self.__project,
+            gear_name=self.__gear_name,
+            errors=self.__error_writer.errors(),
+            naming_template=self.__error_log_template)
+        return success
 
 
 def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
-        enrollment_project: EnrollmentProject, error_writer: ErrorWriter):
+        enrollment_project: EnrollmentProject, error_writer: ListErrorWriter,
+        gear_name: str):
     """Runs identifier provisioning process.
 
     Args:
@@ -456,6 +560,7 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
       repo: the identifier repository
       enrollment_project: the project tracking enrollment
       error_writer: the error output writer
+      gear_name: gear name
     """
     transfer_info = TransferInfo(transfers=[])
     enrollment_batch = EnrollmentBatch()
@@ -467,31 +572,69 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
                                batch=enrollment_batch,
                                repo=repo,
                                error_writer=error_writer,
-                               transfer_info=transfer_info))
+                               transfer_info=transfer_info,
+                               gear_name=gear_name,
+                               project=enrollment_project),
+                           clear_errors=True)
         if not success:
-            log.error("no changes made due to errors in input file")
-            return False
+            log.warning("Some records in the input file failed validation. "
+                        "Check record level QC status.")
 
-        log.info("requesting %s new NACCIDs", len(enrollment_batch))
+        log.info(
+            "Requesting new NACCIDs for %s successfully validated records",
+            len(enrollment_batch))
         enrollment_batch.commit(repo)
     except IdentifierRepositoryError as error:
         raise GearExecutionError(error) from error
 
     for record in enrollment_batch:
+        error_writer.clear()
+        record_info = {
+            'ptid': record.center_identifier.ptid,
+            'visitdate': record.start_date.strftime("%Y-%m-%d")
+        }
         if not record.naccid:
-            log.error('Failed to generate NACCID for enrollment record %s/%s',
-                      record.center_identifier.adcid,
-                      record.center_identifier.ptid)
+            message = ('Failed to generate NACCID for enrollment record '
+                       f'{record.center_identifier.adcid},'
+                       f'{record.center_identifier.ptid}')
+            log.error(message)
+            error_writer.write(system_error(message=message))
+            update_record_level_error_log(input_record=record_info,
+                                          qc_passed=False,
+                                          project=enrollment_project,
+                                          gear_name=gear_name,
+                                          errors=error_writer.errors())
+
+            success = False
             continue
 
         if enrollment_project.find_subject(label=record.naccid):
-            log.error('Subject with NACCID %s exists', record.naccid)
+            message = f'Subject with NACCID {record.naccid} exists'
+            log.error(message)
+            error_writer.write(system_error(message=message))
+            update_record_level_error_log(input_record=record_info,
+                                          qc_passed=False,
+                                          project=enrollment_project,
+                                          gear_name=gear_name,
+                                          errors=error_writer.errors())
+            success = False
             continue
 
         subject = enrollment_project.add_subject(record.naccid)
         subject.add_enrollment(record)
         # subject.update_demographics_info(demographics)
 
+        update_record_level_error_log(input_record=record_info,
+                                      qc_passed=True,
+                                      project=enrollment_project,
+                                      gear_name=gear_name,
+                                      errors=error_writer.errors())
+
+    # TODO - add record level error reporting when implementing transfer processing
     enrollment_project.add_transfers(transfer_info)
 
-    return True
+    if not success:
+        error_writer.clear()
+        error_writer.write(partially_failed_file_error())
+
+    return success
