@@ -18,7 +18,7 @@
             "image": "naccdata/attribute-curator:0.0.1"
         },
         "flywheel": {
-            "suite": "NACC Admin Gears",
+            "suite": "Curation",
             "show-job": true
         }
     },
@@ -26,9 +26,10 @@
         "api-key": {
             "base": "api-key"
         },
-        "attribute_file": {
-            "description": "The project YAML file",
+        "data_file": {
+            "description": "the subject level source data file",
             "base": "file",
+            "optional": true,
             "type": {
                 "enum": [
                     "source code"
