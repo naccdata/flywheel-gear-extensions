@@ -1,4 +1,4 @@
-from curator.compute import SymbolTable
+from curator.symbol_table import SymbolTable
 
 
 class TestSymbolTable:
@@ -53,3 +53,8 @@ class TestSymbolTable:
         assert table.get('a.b.c.d') == 3
 
         assert table.get('s.a.d') == ['alpha', 'beta']
+
+    def test_zero_value(self):
+        table = SymbolTable({'a': 0})
+        assert table.get('a') is not None
+        assert table.get('a') == 0
