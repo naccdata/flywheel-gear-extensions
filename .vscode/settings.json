@@ -26,10 +26,12 @@
         "comanage",
         "coperson",
         "devcontainer",
+        "minheap",
         "NACC",
         "naccadc",
         "naccid",
         "oidcsub",
+        "popleft",
         "ptid"
     ]
 }
