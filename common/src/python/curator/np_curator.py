@@ -1,8 +1,9 @@
 """Curation utilities for NP forms."""
 
-from curator.form_curator import FormCurator, curate_session_timestamp
 from files.np_form import NPv11Form
 from flywheel.models.file_entry import FileEntry
+
+from curator.form_curator import FormCurator, curate_session_timestamp
 
 
 class NPv11Curator(FormCurator):

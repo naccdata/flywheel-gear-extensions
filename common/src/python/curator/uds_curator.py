@@ -3,11 +3,12 @@
 import logging
 from typing import Any, Dict, Optional
 
-from curator.form_curator import FormCurator, curate_session_timestamp
 from dates.dates import datetime_from_form_date, get_localized_timestamp
 from files.uds_form import UDSV3Form
 from flywheel import Session, Subject
 from flywheel.models.file_entry import FileEntry
+
+from curator.form_curator import FormCurator, curate_session_timestamp
 
 log = logging.getLogger(__name__)
 

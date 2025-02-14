@@ -1,8 +1,9 @@
 from typing import Any, Dict, List, Optional, overload
 
-from curator.curator import AttributeCondition, ComputeDefinition, ValueDefinition
 from dates.form_dates import DEFAULT_DATE_FORMAT, parse_date
-from symbol_table import SymbolTable
+
+from curator.curator import AttributeCondition, ComputeDefinition, ValueDefinition
+from curator.symbol_table import SymbolTable
 
 
 class TransformDispatch:
