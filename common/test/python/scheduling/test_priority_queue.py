@@ -1,7 +1,7 @@
 from random import randint
 from typing import Any
 
-from scheduling.priority_queue import MinHeap
+from scheduling.min_heap import MinHeap
 
 
 class Element:
