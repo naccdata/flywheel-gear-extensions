@@ -1,11 +1,15 @@
 from heapq import heappop, heappush
-from queue.comparable import Comparable
 from typing import Generic, List, Optional, TypeVar
 
+from scheduling.comparable import Comparable
+
 T = TypeVar('T', bound=Comparable)
-class PriorityQueue(Generic[T]):
+
+
+class MinHeap(Generic[T]):
+
     def __init__(self) -> None:
-        self.__minheap: List[T]= []
+        self.__minheap: List[T] = []
 
     def __len__(self):
         return len(self.__minheap)
