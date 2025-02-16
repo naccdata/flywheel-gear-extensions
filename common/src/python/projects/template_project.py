@@ -314,6 +314,7 @@ class TemplateProject:
             name=rule.name,
             config=rule.config,
             fixed_inputs=fixed_inputs,
+            priority=rule.priority,
             auto_update=rule.auto_update,
             any=rule.any,
             all=rule.all,

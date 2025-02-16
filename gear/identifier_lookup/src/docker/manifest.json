@@ -66,6 +66,11 @@
             "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
             "type": "string",
             "default": "nacc"
+        },
+        "preserve_case": {
+            "description": "Whether or not to preserve the case of the header keys in the input file",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"
