@@ -135,9 +135,10 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
 
             # TODO - implement affiliated studies checks, skipping for now
             if not adrc:
-                log.info('Primary study %s not found in center %s, ',
-                         'skipping sanity checks for affiliated studies',
-                         DefaultValues.PRIMARY_STUDY, project.group)
+                log.info(
+                    'Primary study %s not found in center %s, '
+                    'skipping sanity checks for affiliated studies',
+                    DefaultValues.PRIMARY_STUDY, project.group)
                 context.metadata.add_file_tags(self.__file_input.file_input,
                                                tags=gear_name)
                 return
