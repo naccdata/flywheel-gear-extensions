@@ -71,6 +71,9 @@ preprocess_errors = {
     SysErrorCodes.MISSING_UDS_I4:
     "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
     + "submitted before the Follow-Up Visit Packet (PACKET=F)",
+    SysErrorCodes.DUPLICATE_VISIT:
+    "Duplicate record with the same visit date exists in the batch CSV file " +
+    "for this participant"
 }
 
 

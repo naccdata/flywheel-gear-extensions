@@ -4,9 +4,10 @@ import logging
 from typing import Any, Dict, List
 
 from configs.ingest_configs import ModuleConfigs
-from datastore.forms_store import FormsStore
+from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
+from utils.utils import is_duplicate_dict
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,45 @@ class FormPreprocessor():
         self.__forms_store = forms_store
         self.__module_info = module_info
         self.__error_writer = error_writer
+        self.__visits = {}
+
+    def __visit_exists_in_current_batch(self, subject_lbl: str, module: str,
+                                        date_field: str,
+                                        input_record: Dict[str, Any],
+                                        line_num: int) -> bool:
+        """_summary_
+
+        Args:
+            subject_lbl (str): _description_
+            module (str): _description_
+            date_field (str): _description_
+            input_record (Dict[str, Any]): _description_
+            line_num (int): _description_
+
+        Returns:
+            bool: _description_
+        """
+        visitdate = input_record[date_field]
+        packet = input_record[FieldNames.PACKET]
+        if not self.__visits.get(subject_lbl):
+            self.__visits[subject_lbl][visitdate] = input_record
+            return False
+
+        if not self.__visits[subject_lbl].get(visitdate):
+            self.__visits[subject_lbl][visitdate] = input_record
+            return False
+
+        log.error('%s - %s/%s/%s',
+                  preprocess_errors[SysErrorCodes.DUPLICATE_VISIT], module,
+                  packet, visitdate)
+        self.__error_writer.write(
+            preprocessing_error(field=date_field,
+                                value=visitdate,
+                                line=line_num,
+                                error_code=SysErrorCodes.DUPLICATE_VISIT,
+                                ptid=input_record[FieldNames.PTID],
+                                visitnum=input_record[FieldNames.VISITNUM]))
+        return True
 
     def __is_accepted_packet(self, *, input_record: Dict[str, Any],
                              module: str, module_configs: ModuleConfigs,
@@ -617,6 +657,60 @@ class FormPreprocessor():
 
         return True
 
+    def is_duplicate_visit(self, *, input_record: Dict[str, Any], module: str,
+                           line_num: int) -> bool:
+        module_configs = self.__module_info.get(module)
+        if not module_configs:
+            raise PreprocessingException(
+                f'No configurations found for module {module}')
+
+        subject_lbl = input_record[self.__primary_key]
+        log.info('Running duplicate checks for subject %s/%s', subject_lbl,
+                 module)
+
+        date_field = module_configs.date_field
+
+        filters = []
+        filters.append(
+            FormFilter(field=date_field,
+                       value=input_record[date_field],
+                       operator='='))
+        filters.append(
+            FormFilter(field=FieldNames.VISITNUM,
+                       value=input_record[FieldNames.VISITNUM],
+                       operator='='))
+        filters.append(
+            FormFilter(field=FieldNames.PACKET,
+                       value=input_record[FieldNames.PACKET],
+                       operator='='))
+
+        existing_visits = self.__forms_store.query_form_data_with_custom_filters(
+            subject_lbl=subject_lbl,
+            module=module,
+            legacy=False,
+            order_by=date_field,
+            list_filters=filters)
+
+        if not existing_visits:
+            return False
+
+        # This cannot happen
+        if len(existing_visits) > 0:
+            raise PreprocessingException(
+                'More than one matching visit exist for '
+                f'{subject_lbl}/{module}/{input_record[date_field]}')
+
+        existing_visit_info = existing_visits[0]
+        existing_visit = self.__forms_store.get_visit_data(
+            file_name=existing_visit_info['file.name'],
+            acq_id=existing_visit_info['file.parents.acquisition'])
+        if not existing_visit:
+            raise PreprocessingException(
+                'Failed to retrieve existing visit '
+                f'{subject_lbl}/{module}/{input_record[date_field]}')
+
+        return is_duplicate_dict(input_record, existing_visit)
+
     def preprocess(self, *, input_record: Dict[str, Any], module: str,
                    line_num: int) -> bool:
         """Run pre-processing checks for the input record.
@@ -639,7 +733,8 @@ class FormPreprocessor():
                 f'No configurations found for module {module}')
 
         subject_lbl = input_record[self.__primary_key]
-        log.info('Running preprocessing checks for subject %s', subject_lbl)
+        log.info('Running preprocessing checks for subject %s/%s', subject_lbl,
+                 module)
 
         if not self.__is_accepted_version(module_configs=module_configs,
                                           module=module,
