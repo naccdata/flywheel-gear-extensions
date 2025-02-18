@@ -47,7 +47,8 @@ def read_csv(*,
              visitor: CSVVisitor,
              delimiter: str = ',',
              limit: Optional[int] = None,
-             clear_errors: Optional[bool] = False) -> bool:
+             clear_errors: Optional[bool] = False,
+             preserve_case: bool = True) -> bool:
     """Reads CSV file and applies the visitor to each row.
 
     Args:
@@ -57,6 +58,9 @@ def read_csv(*,
       delimiter: expected delimiter for the CSV
       limit: maximum number of lines to read (excluding header)
       clear_errors: clear the accumulated error metadata
+      preserve_case: Whether or not to preserve case while reading
+        the CSV header keys. If false, will convert all headers
+        to lowercase and replace spaces with underscores
 
     Returns:
       True if the input file was processed without error, False otherwise
@@ -74,12 +78,22 @@ def read_csv(*,
         return False
 
     # visitor should handle errors for invalid headers/rows
-    success = visitor.visit_header(list(reader.fieldnames))
+    headers = list(reader.fieldnames)
+    if not preserve_case:
+        headers = [x.strip().lower().replace(' ', '_') for x in headers]
+
+    success = visitor.visit_header(headers)
     if not success:
         return False
 
     try:
         for count, record in enumerate(reader):
+            if not preserve_case:
+                record = {
+                    key.strip().lower().replace(' ', '_'): value
+                    for key, value in record.items()
+                }
+
             row_success = visitor.visit_row(record, line_num=count + 1)
             success = row_success and success
             if limit and count >= limit:
