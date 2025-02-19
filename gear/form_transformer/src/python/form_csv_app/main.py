@@ -46,7 +46,7 @@ class CSVTransformVisitor(CSVVisitor):
         self.__preprocessor = preprocessor
         self.__gear_name = gear_name
         self.__project = project
-        self.__module = 'UNDEFINED'
+        self.__module = ''
         self.__transformer: Optional[BaseRecordTransformer] = None
         # TODO - change to get from template
         self.__date_field = FieldNames.DATE_COLUMN
@@ -78,7 +78,7 @@ class CSVTransformVisitor(CSVVisitor):
                 missing_field_error(set(self.__req_fields)))
             return False
 
-        if not FieldNames.MODULE not in header:
+        if FieldNames.MODULE not in header:
             raise GearExecutionError(
                 'Module information not found in the input file')
 
@@ -185,7 +185,7 @@ class CSVTransformVisitor(CSVVisitor):
         Returns:
           the module in uppercase.
         """
-        return row.get(FieldNames.MODULE, 'UNDEFINED').upper()
+        return row.get(FieldNames.MODULE, '').upper()
 
     def __set_module(self, row: Dict[str, Any]) -> None:
         """Sets the module for the visitor from the row.
@@ -193,7 +193,7 @@ class CSVTransformVisitor(CSVVisitor):
         Args:
           row: the input row
         """
-        if self.__module == 'UNDEFINED':
+        if not self.__module:
             self.__module = self.__get_module(row)
 
     def __check_module(self, row: Dict[str, Any], line_num: int) -> bool:
@@ -421,18 +421,21 @@ def run(*,
                       visitor=visitor,
                       clear_errors=True)
 
-    visitor.update_duplicate_visits_error_log(
+    if not visitor.module:
+        raise GearExecutionError(
+            'Module information not found in the input file')
+
+    result = result and visitor.update_duplicate_visits_error_log(
         downstream_gears=downstream_gears)
 
     if not len(transformed_records) > 0:
         return result
 
-    uploader = FormJSONUploader(
-        project=destination,
-        module=visitor.module,  # type: ignore
-        gear_name=gear_name,
-        error_writer=error_writer,
-        downstream_gears=downstream_gears)
+    uploader = FormJSONUploader(project=destination,
+                                module=visitor.module,
+                                gear_name=gear_name,
+                                error_writer=error_writer,
+                                downstream_gears=downstream_gears)
     upload_status = uploader.upload(transformed_records)
     if not upload_status:
         error_writer.clear()
