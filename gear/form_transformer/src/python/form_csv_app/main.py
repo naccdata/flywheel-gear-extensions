@@ -4,6 +4,7 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Optional, TextIO
 
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -14,6 +15,7 @@ from outputs.errors import (
     get_error_log_name,
     missing_field_error,
     partially_failed_file_error,
+    system_error,
     unexpected_value_error,
     update_error_log_and_qc_metadata,
 )
@@ -53,6 +55,8 @@ class CSVTransformVisitor(CSVVisitor):
             "ptid": FieldNames.PTID,
             "visitdate": self.__date_field
         }
+        self.__duplicate_visits: DefaultDict[str, List[Dict[
+            str, Any]]] = defaultdict(list)
 
     def has_module(self) -> bool:
         """Indicates whether a module field was detected in the file header.
@@ -134,6 +138,14 @@ class CSVTransformVisitor(CSVVisitor):
             return False
 
         # preprocessing checks (needs to happen after transformations)
+        subject_lbl = transformed_row[FieldNames.NACCID]
+
+        # if duplicate visit skip pre-processing
+        if self.module and self.__preprocessor.is_duplicate_visit(
+                input_record=transformed_row, module=self.module):
+            self.__duplicate_visits[subject_lbl].append(transformed_row)
+            return True
+
         if self.module and not self.__preprocessor.preprocess(
                 input_record=transformed_row,
                 module=self.module,
@@ -150,10 +162,30 @@ class CSVTransformVisitor(CSVVisitor):
         if not error_log_name:
             return False
 
-        subject_lbl = transformed_row[FieldNames.NACCID]
         self.__transformed[subject_lbl][error_log_name] = transformed_row
 
         return True
+
+    def update_duplicate_visits_error_log(
+            self, downstream_gears: Optional[List[str]] = None) -> bool:
+        """_summary_
+
+        Args:
+            downstream_gears (optional): list of downstream gears to copy metadata
+
+        Returns:
+            bool: True if update successful
+        """
+        if not self.__duplicate_visits:
+            return True
+
+        success = True
+        for visits in self.__duplicate_visits.values():
+            for visit in visits:
+                success = success and self.__copy_downstream_gears_metadata(
+                    input_record=visit, downstream_gears=downstream_gears)
+
+        return success
 
     def __get_module(self, row: Dict[str, Any]) -> Optional[str]:
         """Returns the module from the row.
@@ -250,6 +282,112 @@ class CSVTransformVisitor(CSVVisitor):
 
         return error_log_name
 
+    def __copy_downstream_gears_metadata(self,
+                                         *,
+                                         input_record: Dict[str, Any],
+                                         downstream_gears: Optional[
+                                             List[str]] = None,
+                                         gear_state: str = 'PASS') -> bool:
+        """Copy any downstream gears metadata from visit file to error log
+        file.
+
+        Args:
+            input_record: input visit record
+            downstream_gears (optional): list of downstream gears to copy metadata
+            gear_state: status of current gear, defaults to PASS
+
+        Returns:
+            bool: True if copying metadata successful
+        """
+
+        if not self.__project or not self.module:
+            log.warning(
+                'Parent project or module not specified to update visit error log'
+            )
+            return False
+
+        error_log_name = get_error_log_name(
+            module=self.module,
+            input_data=input_record,
+            naming_template=self.__error_log_template)
+
+        if not error_log_name:
+            return False
+
+        error_log_file = self.__project.get_file(error_log_name)
+        if not error_log_file:
+            log.error(
+                'Failed to retrieve visit error log file %s from project',
+                error_log_name)
+            return False
+
+        error_log_file = error_log_file.reload()
+        info = error_log_file.info if (error_log_file.info
+                                       and 'qc' in error_log_file.info) else {
+                                           'qc': {}
+                                       }
+
+        # TODO: decide whether we need to show this warning, commenting out for now
+        # self.__error_writer.write(
+        #     system_error(message=(
+        #         f'Found duplicate visit {visit_file_name}, exit submission pipeline'
+        #     ),
+        #                  error_type='warning'))
+
+        if downstream_gears:
+            visit_file = None
+            visit_file_id = input_record.get('file_id')
+            if visit_file_id:
+                visit_file = self.__project.proxy.get_file(visit_file_id)
+            else:
+                log.error(
+                    'Missing file id for existing visit, '
+                    'failed to update error log - %s', error_log_name)
+
+            if visit_file and visit_file.info_exists:
+                visit_file = visit_file.reload()
+
+                for ds_gear in downstream_gears:
+                    ds_gear_metadata = visit_file.info.get('qc', {}).get(
+                        ds_gear, {})
+                    if not ds_gear_metadata:
+                        gear_state = 'FAIL'
+                        self.__error_writer.write(
+                            system_error(message=(
+                                f'QC metadata not found for gear {ds_gear} in the '
+                                f'existing duplicate visit file {visit_file.name}'
+                            ),
+                                         error_type='warning'))
+                        continue
+
+                    info['qc'][ds_gear] = ds_gear_metadata
+            else:
+                gear_state = 'FAIL'
+                self.__error_writer.write(
+                    system_error(message=(
+                        'Failed to load QC metadata from existing duplicate visit file'
+                    ),
+                                 error_type='warning'))
+        else:
+            log.warning('No downstream gears defined for current gear %s',
+                        self.__gear_name)
+
+        # add current gear
+        info["qc"][self.__gear_name] = {
+            "validation": {
+                "state": gear_state.upper(),
+                "data": self.__error_writer.errors()
+            }
+        }
+
+        try:
+            error_log_file.update_info(info)
+        except ApiException as error:
+            log.error(error)
+            return False
+
+        return True
+
 
 def notify_upload_errors():
     # TODO: send an email to nacc_dev@uw.edu
@@ -300,6 +438,9 @@ def run(*,
                       error_writer=error_writer,
                       visitor=visitor,
                       clear_errors=True)
+
+    visitor.update_duplicate_visits_error_log(
+        downstream_gears=downstream_gears)
 
     if not len(transformed_records) > 0:
         return result

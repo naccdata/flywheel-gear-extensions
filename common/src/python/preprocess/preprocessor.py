@@ -657,8 +657,20 @@ class FormPreprocessor():
 
         return True
 
-    def is_duplicate_visit(self, *, input_record: Dict[str, Any], module: str,
-                           line_num: int) -> bool:
+    def is_duplicate_visit(self, *, input_record: Dict[str, Any],
+                           module: str) -> bool:
+        """_summary_
+
+        Args:
+            input_record (Dict[str, Any]): _description_
+            module (str): _description_
+
+        Raises:
+            PreprocessingException: _description_
+
+        Returns:
+            bool: _description_
+        """
         module_configs = self.__module_info.get(module)
         if not module_configs:
             raise PreprocessingException(
@@ -709,7 +721,11 @@ class FormPreprocessor():
                 'Failed to retrieve existing visit '
                 f'{subject_lbl}/{module}/{input_record[date_field]}')
 
-        return is_duplicate_dict(input_record, existing_visit)
+        if is_duplicate_dict(input_record, existing_visit):
+            input_record['file_id'] = existing_visit_info['file.id']
+            return True
+
+        return False
 
     def preprocess(self, *, input_record: Dict[str, Any], module: str,
                    line_num: int) -> bool:
