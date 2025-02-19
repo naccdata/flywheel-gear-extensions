@@ -44,10 +44,9 @@ class CSVTransformVisitor(CSVVisitor):
         self.__error_writer = error_writer
         self.__transformer_factory = transformer_factory
         self.__preprocessor = preprocessor
-        self.__has_module_field = False
         self.__gear_name = gear_name
         self.__project = project
-        self.__module: Optional[str] = None
+        self.__module = 'UNDEFINED'
         self.__transformer: Optional[BaseRecordTransformer] = None
         # TODO - change to get from template
         self.__date_field = FieldNames.DATE_COLUMN
@@ -58,16 +57,8 @@ class CSVTransformVisitor(CSVVisitor):
         self.__duplicate_visits: DefaultDict[str, List[Dict[
             str, Any]]] = defaultdict(list)
 
-    def has_module(self) -> bool:
-        """Indicates whether a module field was detected in the file header.
-
-        Returns:
-          True if a module field was found in the file header. False, otherwise.
-        """
-        return self.__has_module_field
-
     @property
-    def module(self) -> Optional[str]:
+    def module(self) -> str:
         """Returns the detected module for the CSV file."""
         return self.__module
 
@@ -82,12 +73,14 @@ class CSVTransformVisitor(CSVVisitor):
           True if the header has all required fields, False otherwise
         """
 
-        self.__has_module_field = FieldNames.MODULE in header
-
         if not set(self.__req_fields).issubset(set(header)):
             self.__error_writer.write(
                 missing_field_error(set(self.__req_fields)))
             return False
+
+        if not FieldNames.MODULE not in header:
+            raise GearExecutionError(
+                'Module information not found in the input file')
 
         return True
 
@@ -118,14 +111,11 @@ class CSVTransformVisitor(CSVVisitor):
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
-        # If module expected set module
-        if self.has_module():
-            self.__set_module(row)
-            # All records in the CSV file must belongs to the same module.
-            if not self.__check_module(row=row, line_num=line_num):
-                self.__update_visit_error_log(input_record=row,
-                                              qc_passed=False)
-                return False
+        self.__set_module(row)
+        # All records in the CSV file must belongs to the same module.
+        if not self.__check_module(row=row, line_num=line_num):
+            self.__update_visit_error_log(input_record=row, qc_passed=False)
+            return False
 
         # Set transformer for the module
         if not self.__transformer:
@@ -140,16 +130,16 @@ class CSVTransformVisitor(CSVVisitor):
         # preprocessing checks (needs to happen after transformations)
         subject_lbl = transformed_row[FieldNames.NACCID]
 
-        # if duplicate visit skip pre-processing
-        if self.module and self.__preprocessor.is_duplicate_visit(
-                input_record=transformed_row, module=self.module):
+        # if duplicate visit add to duplicate visit list and skip pre-processing
+        # error logs will be updated later when processing the list of duplicates
+        if self.__preprocessor.is_duplicate_visit(input_record=transformed_row,
+                                                  module=self.module):
             self.__duplicate_visits[subject_lbl].append(transformed_row)
             return True
 
-        if self.module and not self.__preprocessor.preprocess(
-                input_record=transformed_row,
-                module=self.module,
-                line_num=line_num):
+        if not self.__preprocessor.preprocess(input_record=transformed_row,
+                                              module=self.module,
+                                              line_num=line_num):
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             log.error('Failed pre-processing checks in line %s', line_num)
             return False
@@ -187,32 +177,27 @@ class CSVTransformVisitor(CSVVisitor):
 
         return success
 
-    def __get_module(self, row: Dict[str, Any]) -> Optional[str]:
+    def __get_module(self, row: Dict[str, Any]) -> str:
         """Returns the module from the row.
 
         Args:
           row: the input row
         Returns:
-          the module in uppercase if one exists in row. None, otherwise.
+          the module in uppercase.
         """
-        module = row.get(FieldNames.MODULE)
-        return module.upper() if module else None
+        return row.get(FieldNames.MODULE, 'UNDEFINED').upper()
 
     def __set_module(self, row: Dict[str, Any]) -> None:
         """Sets the module for the visitor from the row.
 
-        If the row has no module field, sets to None.
-
         Args:
           row: the input row
         """
-        if not self.__module:
+        if self.__module == 'UNDEFINED':
             self.__module = self.__get_module(row)
 
     def __check_module(self, row: Dict[str, Any], line_num: int) -> bool:
         """Checks the module in the row matches the module in this visitor.
-
-        If the file has no module field, returns True.
 
         Args:
           row: the input row
@@ -221,9 +206,6 @@ class CSVTransformVisitor(CSVVisitor):
         Returns:
           True if module matches, or no module expected. False, otherwise.
         """
-        if not self.has_module():
-            return True
-
         row_module = self.__get_module(row)
         if self.__module == row_module:
             return True
@@ -444,10 +426,6 @@ def run(*,
 
     if not len(transformed_records) > 0:
         return result
-
-    if not visitor.has_module():
-        raise GearExecutionError(
-            'Module information not found in the input file')
 
     uploader = FormJSONUploader(
         project=destination,
