@@ -520,8 +520,7 @@ def run(*,
     uploader = FormJSONUploader(project=destination,
                                 module=visitor.module,
                                 gear_name=gear_name,
-                                error_writer=error_writer,
-                                downstream_gears=downstream_gears)
+                                error_writer=error_writer)
     upload_status = uploader.upload(transformed_records)
     if not upload_status:
         error_writer.clear()
