@@ -121,7 +121,6 @@ class NACCIDLookupVisitor(CSVVisitor):
         Returns:
           True if there is a NACCID for the PTID, False otherwise
         """
-
         self.__error_writer.clear()
 
         # check for valid ADCID and PTID
@@ -250,19 +249,21 @@ class CenterLookupVisitor(CSVVisitor):
         Raises:
           GearExecutionError if the identifiers repository raises an error
         """
-        row = {key.strip().lower(): value for key, value in row.items()}
+        naccid = row.get(FieldNames.NACCID,
+                         row.get(FieldNames.NACCID.upper(), None))
+
+        if naccid is None:
+            raise GearExecutionError(f"NACCID not found in row {line_num}")
 
         try:
-            identifier = self.__identifiers_repo.get(
-                naccid=row[FieldNames.NACCID])
+            identifier = self.__identifiers_repo.get(naccid=naccid)
         except IdentifierRepositoryError as error:
             raise GearExecutionError(
-                f"Lookup of {row[FieldNames.NACCID]} failed: {error}"
-            ) from error
+                f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
             self.__error_writer.write(
-                identifier_error(line=line_num, value=row[FieldNames.NACCID]))
+                identifier_error(line=line_num, value=naccid))
             return False
 
         row[FieldNames.ADCID] = identifier.adcid
@@ -278,7 +279,8 @@ def run(*,
         input_file: TextIO,
         error_writer: ListErrorWriter,
         lookup_visitor: CSVVisitor,
-        clear_errors: bool = False) -> bool:
+        clear_errors: bool = False,
+        preserve_case: bool = False) -> bool:
     """Reads participant records from the input CSV file and applies the ID
     lookup visitor to insert corresponding IDs.
 
@@ -287,6 +289,8 @@ def run(*,
       lookup_visitor: the CSVVisitor for identifier lookup
       error_writer: the error output writer
       clear_errors: clear the accumulated error metadata
+      preserve_case: Whether or not to preserve header key case while reading
+        in the CSV file
 
     Returns:
       True if there were IDs with no corresponding ID by lookup visitor
@@ -295,4 +299,5 @@ def run(*,
     return read_csv(input_file=input_file,
                     error_writer=error_writer,
                     visitor=lookup_visitor,
-                    clear_errors=clear_errors)
+                    clear_errors=clear_errors,
+                    preserve_case=preserve_case)
