@@ -12,12 +12,13 @@ from centers.center_group import (
 )
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor
 from inputs.parameter_store import ParameterError, ParameterStore
-from redcap.redcap_connection import (
+from keys.keys import DefaultValues
+from redcap_api.redcap_connection import (
     REDCapConnection,
     REDCapConnectionError,
     REDCapSuperUserConnection,
 )
-from redcap.redcap_project import REDCapProject
+from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def setup_new_project_elements(parameter_store: ParameterStore, base_path: str,
     try:
         redcap_prj = REDCapProject.create(
             REDCapConnection(token=token, url=url))
-        redcap_prj.add_gearbot_user_to_project()
+        redcap_prj.add_gearbot_user_to_project(DefaultValues.GEARBOT_USER_ID)
     except REDCapConnectionError as error:
         log.error(error)
         return None
