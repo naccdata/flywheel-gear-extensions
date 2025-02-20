@@ -18,16 +18,19 @@ from inputs.parameter_store import ParameterStore
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
+
 class ContainerCuratorVisitor(GearExecutionEnvironment):
 
     def __init__(self, client: ContextClient) -> None:
         self.__client = client
+
 
 class FileCuratorVisitor(GearExecutionEnvironment):
 
     def __init__(self, client: ClientWrapper) -> None:
         self.__client = client
         self.__file_input = file_input
+
 
 class AttributeCuratorVisitor(GearExecutionEnvironment):
 
@@ -44,7 +47,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         file_input = InputFileWrapper.create(input_name='data_file',
                                              context=context)
-
 
         return AttributeCuratorVisitor(client=client, file_input=file_input)
 
