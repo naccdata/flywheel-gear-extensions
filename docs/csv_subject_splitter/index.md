@@ -4,7 +4,7 @@ Gear reads a tabular (CSV) file where each row has a NACCID and creates a JSON f
 
 The JSON file will be added to a subject/session/acquisition for the participant determined by the NACCID. 
 
-The labels for session and the file name are determined by the config input `hierarchy_labels`, which is an an object with template strings for each:
+The labels for session and the file name are determined by the config input `hierarchy_labels` (representd as a JSON string), which is an an object with template strings for each:
 
 ```json
 {
@@ -21,6 +21,12 @@ The labels for session and the file name are determined by the config input `hie
         "transform": "<transform-name>"
     }
 }
+```
+
+In JSON string form:
+
+```json
+"{\"session\": {\"template\": \"<template-text>\",\"transform\": \"<transform-name>\"},\"acquisition\": {\"template\": \"<template-text>\",\"transform\": \"<transform-name>\"},\"filename\": {\"template\": \"<template-text>\",\"transform\": \"<transform-name>\"}"
 ```
 
 templates must be given for each of `session`, `acquisition`, and `filename`.
@@ -45,9 +51,15 @@ Also, the data was collected with an assay designated `assay-01`, and we want to
     },
     "filename": {
         "template": "$filename",
-        "transform" "lower"
+        "transform": "lower"
     }
 }
+```
+
+In JSON string form:
+
+```json
+"{\"session\": {\"template\": \"biomarker-release-2024-12\"},\"acquisition\": {\"template\": \"assay-01\"},\"filename\": {\"template\": \"$filename\",\"transform\": \"lower\"}}"
 ```
 
 Here the first two don't have variables, and the last uses the filename.

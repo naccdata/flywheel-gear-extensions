@@ -17,6 +17,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from keys.keys import DefaultValues
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
 
@@ -97,6 +98,8 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         error_writer = ListErrorWriter(
             container_id=file_id, fw_path=self.proxy.get_lookup_path(file))
 
+        gear_name = context.manifest.get('name', 'legacy-sanity-check')
+
         form_configs = None
         with open(self.__form_configs_input.filepath, mode='r') as fh:
             form_configs = None
@@ -112,18 +115,44 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         p_project = self.__file_input.get_parent_project(self.proxy, file=file)
         project = ProjectAdaptor(project=p_project, proxy=self.proxy)
 
-        # grab the corresponding ingest (e.g. UDSv4) project based on the group
-        # all centers should have a corresponding ingest project
-        # raise error if group/project not found - could also send email here?
         try:
-            ingest_project = ProjectAdaptor.create(
+            project_label = DefaultValues.METADATA_PRJ_LBL
+            metadata_project = ProjectAdaptor.create(
                 proxy=self.proxy,
                 group_id=project.group,
-                project_label=self.__ingest_project_label)
+                project_label=project_label)
+
+            prj_metadata = metadata_project.get_info()
+            if not prj_metadata.get('active'):
+                log.info('Skipping sanity checks for inactive center %s',
+                         project.group)
+                context.metadata.add_file_tags(self.__file_input.file_input,
+                                               tags=gear_name)
+                return
+
+            adrc = metadata_project.get_custom_project_info(
+                f'studies:{DefaultValues.PRIMARY_STUDY}')
+
+            # TODO - implement affiliated studies checks, skipping for now
+            if not adrc:
+                log.info(
+                    'Primary study %s not found in center %s, '
+                    'skipping sanity checks for affiliated studies',
+                    DefaultValues.PRIMARY_STUDY, project.group)
+                context.metadata.add_file_tags(self.__file_input.file_input,
+                                               tags=gear_name)
+                return
+
+            # all active centers should have a corresponding ingest project
+            # raise error if group/project not found
+            project_label = self.__ingest_project_label
+            ingest_project = ProjectAdaptor.create(proxy=self.proxy,
+                                                   group_id=project.group,
+                                                   project_label=project_label)
         except ProjectError as error:
             raise GearExecutionError(
-                f"Could not find {self.__ingest_project_label} project "
-                f"in {project.group}: {error}") from error
+                f"Could not find {project.group}/{project_label}: {error}"
+            ) from error
 
         form_store = FormsStore(ingest_project=ingest_project,
                                 legacy_project=project)
@@ -148,8 +177,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 f"Sanity checks failed: {error_writer.errors()}")
 
         context.metadata.add_file_tags(self.__file_input.file_input,
-                                       tags=context.manifest.get(
-                                           'name', 'legacy-sanity-check'))
+                                       tags=gear_name)
 
 
 def main():

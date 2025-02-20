@@ -37,6 +37,7 @@ class RuleLabels:
 
 class DefaultValues:
     """Class to store default values."""
+    PRIMARY_STUDY = 'adrc'
     NOTFILLED = 0
     LEGACY_PRJ_LABEL = 'retrospective-form'
     ENROLLMENT_MODULE = 'ENROLL'

@@ -1,2 +1,5 @@
 config.json
 run.sh
+config.json.back
+.input_map.json
+*.csv

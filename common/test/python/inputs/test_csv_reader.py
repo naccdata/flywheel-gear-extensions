@@ -63,7 +63,19 @@ def data_stream():
                                    [1, '2', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
-    stream.seek(0)
+    yield stream
+
+
+# pylint: disable=(redefined-outer-name)
+@pytest.fixture(scope="function")
+def case_stream():
+    """Create data stream with different case headeres."""
+    data: List[List[str | int]] = [[
+        'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
+        "CAPITAL VAR WITH SPACES"
+    ], [1, '1', 8, 9, 10, 11]]
+    stream = StringIO()
+    write_to_stream(data, stream)
     yield stream
 
 
@@ -79,10 +91,16 @@ def empty(stream) -> bool:
 class DummyVisitor(CSVVisitor):
     """Dummy CSV Visitor class for testing."""
 
+    def __init__(self):
+        self.header = None
+        self.rows = []
+
     def visit_header(self, header: List[str]) -> bool:
+        self.header = header
         return header is not None
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        self.rows.append(row)
         return row is not None
 
 
@@ -152,3 +170,37 @@ class TestCSVReader:
         assert reader.fieldnames
         row = next(reader)
         assert row['message'] == 'Header cannot be numeric'
+
+    def test_preserve_case_true(self, case_stream):
+        """Test preserve case is True."""
+        err_stream = StringIO()
+        visitor = DummyVisitor()
+        success = read_csv(input_file=case_stream,
+                           error_writer=StreamErrorWriter(
+                               stream=err_stream,
+                               container_id='dummy',
+                               fw_path='dummy-path'),
+                           visitor=visitor,
+                           preserve_case=True)
+        assert success
+        assert empty(err_stream)
+        assert visitor.header == \
+            ['adcid', 'ptid', 'var1', "CAPITALVAR",
+             "var with spaces", "CAPITAL VAR WITH SPACES"]
+
+    def test_preserve_case_false(self, case_stream):
+        """Test preserve case is False."""
+        err_stream = StringIO()
+        visitor = DummyVisitor()
+        success = read_csv(input_file=case_stream,
+                           error_writer=StreamErrorWriter(
+                               stream=err_stream,
+                               container_id='dummy',
+                               fw_path='dummy-path'),
+                           visitor=visitor,
+                           preserve_case=False)
+        assert success
+        assert empty(err_stream)
+        assert visitor.header == \
+            ['adcid', 'ptid', 'var1', "capitalvar",
+             "var_with_spaces", "capital_var_with_spaces"]
