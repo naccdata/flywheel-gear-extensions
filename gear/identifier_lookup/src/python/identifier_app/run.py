@@ -63,7 +63,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
     def __init__(self, *, client: ClientWrapper, admin_id: str,
                  file_input: InputFileWrapper,
                  identifiers_mode: IdentifiersMode, date_field: str,
-                 direction: Literal['nacc', 'center'], gear_name: str):
+                 direction: Literal['nacc', 'center'], gear_name: str,
+                 preserve_case: bool):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
@@ -71,6 +72,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__direction: Literal['nacc', 'center'] = direction
         self.__date_field = date_field
         self.__gear_name = gear_name
+        self.__preserve_case = preserve_case
 
     @classmethod
     def create(
@@ -96,6 +98,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         admin_id = context.config.get("admin_group", "nacc")
         mode = context.config.get("database_mode", "prod")
         direction = context.config.get("direction", "nacc")
+        preserve_case = context.config.get("preserve_case", False)
 
         date_field = (context.config.get("date_field",
                                          FieldNames.DATE_COLUMN)).lower()
@@ -108,7 +111,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                                        file_input=file_input,
                                        identifiers_mode=mode,
                                        date_field=date_field,
-                                       direction=direction)
+                                       direction=direction,
+                                       preserve_case=preserve_case)
 
     def __build_naccid_lookup(self, *, file_input: InputFileWrapper,
                               identifiers_repo: IdentifierRepository,
@@ -197,7 +201,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             success = run(input_file=csv_file,
                           lookup_visitor=lookup_visitor,
                           error_writer=error_writer,
-                          clear_errors=clear_errors)
+                          clear_errors=clear_errors,
+                          preserve_case=self.__preserve_case)
 
             contents = out_file.getvalue()
             if len(contents) > 0:
