@@ -25,13 +25,19 @@
         "coid",
         "comanage",
         "coperson",
+        "dataview",
+        "dataviews",
         "devcontainer",
+        "FTLD",
         "minheap",
         "NACC",
         "naccadc",
         "naccid",
         "oidcsub",
         "popleft",
-        "ptid"
+        "ptid",
+        "viewinput",
+        "visitdate",
+        "visitnum"
     ]
 }
