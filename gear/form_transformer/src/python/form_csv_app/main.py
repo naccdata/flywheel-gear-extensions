@@ -8,13 +8,15 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
-from keys.keys import FieldNames
+from keys.keys import FieldNames, SysErrorCodes
 from outputs.errors import (
     ListErrorWriter,
     empty_field_error,
     get_error_log_name,
     missing_field_error,
     partially_failed_file_error,
+    preprocess_errors,
+    preprocessing_error,
     system_error,
     unexpected_value_error,
     update_error_log_and_qc_metadata,
@@ -54,8 +56,10 @@ class CSVTransformVisitor(CSVVisitor):
             "ptid": FieldNames.PTID,
             "visitdate": self.__date_field
         }
-        self.__duplicate_visits: DefaultDict[str, List[Dict[
+        self.__existing_visits: DefaultDict[str, List[Dict[
             str, Any]]] = defaultdict(list)
+
+        self.__current_batch: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
     @property
     def module(self) -> str:
@@ -127,36 +131,22 @@ class CSVTransformVisitor(CSVVisitor):
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
-        # preprocessing checks (needs to happen after transformations)
+        # check for duplicates (should be done after transformations)
         subject_lbl = transformed_row[FieldNames.NACCID]
 
-        # if duplicate visit add to duplicate visit list and skip pre-processing
+        # if existing visit add to duplicate visit list and skip processing further
         # error logs will be updated later when processing the list of duplicates
-        if self.__preprocessor.is_duplicate_visit(input_record=transformed_row,
-                                                  module=self.module):
-            self.__duplicate_visits[subject_lbl].append(transformed_row)
+        if self.__preprocessor.is_existing_visit(input_record=transformed_row,
+                                                 module=self.module):
+            self.__existing_visits[subject_lbl].append(transformed_row)
             return True
 
-        if not self.__preprocessor.preprocess(input_record=transformed_row,
-                                              module=self.module,
-                                              line_num=line_num):
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
-            log.error('Failed pre-processing checks in line %s', line_num)
-            return False
-
-        # for the records that passed transformation, only obtain the log name
-        # error metadata will be updated when the acquisition file is uploaded
-        error_log_name = self.__update_visit_error_log(input_record=row,
-                                                       qc_passed=True,
-                                                       update=False)
-        if not error_log_name:
-            return False
-
-        self.__transformed[subject_lbl][error_log_name] = transformed_row
-
+        transformed_row['linenumber'] = line_num
+        self.__add_to_current_batch(subject_lbl=subject_lbl,
+                                    input_record=transformed_row)
         return True
 
-    def update_duplicate_visits_error_log(
+    def update_existing_visits_error_log(
             self, downstream_gears: Optional[List[str]] = None) -> bool:
         """_summary_
 
@@ -166,14 +156,57 @@ class CSVTransformVisitor(CSVVisitor):
         Returns:
             bool: True if update successful
         """
-        if not self.__duplicate_visits:
+        if not self.__existing_visits:
             return True
 
         success = True
-        for visits in self.__duplicate_visits.values():
+        for visits in self.__existing_visits.values():
             for visit in visits:
+                self.__error_writer.clear()
                 success = success and self.__copy_downstream_gears_metadata(
                     input_record=visit, downstream_gears=downstream_gears)
+
+        return success
+
+    def process_current_batch(self) -> bool:
+        """_summary_
+
+        Returns:
+            bool: _description_
+        """
+        success = True
+        for subject, visits in self.__current_batch.items():
+            sorted_visits = sorted(visits.items())
+            for visitdate, list_visits in sorted_visits:
+                self.__error_writer.clear()
+                if len(list_visits) > 0:
+                    success = success and self.__report_duplicates_within_current_batch(
+                        subject=subject, duplicate_records=list_visits)
+                    continue
+
+                line_num = list_visits[0].pop('linenumber')
+                transformed_row = list_visits[0]
+                if not self.__preprocessor.preprocess(
+                        input_record=transformed_row,
+                        module=self.module,
+                        line_num=line_num):
+                    self.__update_visit_error_log(input_record=transformed_row,
+                                                  qc_passed=False)
+                    log.error(
+                        'Failed pre-processing checks in line %s - visit date %s',
+                        line_num, visitdate)
+                    success = False
+                    continue
+
+                # for the records that passed transformation, only obtain the log name
+                # error metadata will be updated when the acquisition file is uploaded
+                error_log_name = self.__update_visit_error_log(
+                    input_record=transformed_row, qc_passed=True, update=False)
+                if not error_log_name:
+                    success = False
+                    continue
+
+                self.__transformed[subject][error_log_name] = transformed_row
 
         return success
 
@@ -204,7 +237,7 @@ class CSVTransformVisitor(CSVVisitor):
           line_num: the line number of row
 
         Returns:
-          True if module matches, or no module expected. False, otherwise.
+          True if module matches. False, otherwise.
         """
         row_module = self.__get_module(row)
         if self.__module == row_module:
@@ -370,6 +403,57 @@ class CSVTransformVisitor(CSVVisitor):
 
         return True
 
+    def __add_to_current_batch(self, subject_lbl: str,
+                               input_record: Dict[str, Any]):
+        """Group the input records by subject and visit date to detect any
+        duplicates within the current batch.
+
+        Args:
+            subject_lbl (str): _description_
+            input_record (Dict[str, Any]): _description_
+        """
+        visitdate = input_record[self.__date_field]
+        if not self.__current_batch.get(subject_lbl):
+            self.__current_batch[subject_lbl][visitdate] = [input_record]
+            return
+
+        if not self.__current_batch[subject_lbl].get(visitdate):
+            self.__current_batch[subject_lbl][visitdate] = [input_record]
+            return
+
+        self.__current_batch[subject_lbl][visitdate].append(input_record)
+
+    def __report_duplicates_within_current_batch(
+            self, subject: str, duplicate_records: List[Dict[str,
+                                                             Any]]) -> bool:
+        """_summary_
+
+        Args:
+            subject (str): _description_
+            duplicate_records (List[Dict[str, Any]]): _description_
+        """
+        input_record = None
+        for record in duplicate_records:
+            input_record = record
+            packet = record[FieldNames.PACKET]
+            visitdate = record[self.__date_field]
+            line_num = record.pop('linenumber', None)
+            log.error('%s - %s/%s/%s/%s',
+                      preprocess_errors[SysErrorCodes.DUPLICATE_VISIT],
+                      subject, self.module, packet, visitdate)
+            self.__error_writer.write(
+                preprocessing_error(field=self.__date_field,
+                                    value=visitdate,
+                                    line=line_num,
+                                    error_code=SysErrorCodes.DUPLICATE_VISIT,
+                                    ptid=record[FieldNames.PTID],
+                                    visitnum=record[FieldNames.VISITNUM]))
+
+        # use the last record since all records has same PTID, visitdate
+        return self.__update_visit_error_log(
+            input_record=input_record,  # type: ignore
+            qc_passed=False)
+
 
 def notify_upload_errors():
     # TODO: send an email to nacc_dev@uw.edu
@@ -425,8 +509,10 @@ def run(*,
         raise GearExecutionError(
             'Module information not found in the input file')
 
-    result = result and visitor.update_duplicate_visits_error_log(
+    result = result and visitor.update_existing_visits_error_log(
         downstream_gears=downstream_gears)
+
+    result = result and visitor.process_current_batch()
 
     if not len(transformed_records) > 0:
         return result

@@ -27,45 +27,6 @@ class FormPreprocessor():
         self.__forms_store = forms_store
         self.__module_info = module_info
         self.__error_writer = error_writer
-        self.__visits = {}
-
-    def __visit_exists_in_current_batch(self, subject_lbl: str, module: str,
-                                        date_field: str,
-                                        input_record: Dict[str, Any],
-                                        line_num: int) -> bool:
-        """_summary_
-
-        Args:
-            subject_lbl (str): _description_
-            module (str): _description_
-            date_field (str): _description_
-            input_record (Dict[str, Any]): _description_
-            line_num (int): _description_
-
-        Returns:
-            bool: _description_
-        """
-        visitdate = input_record[date_field]
-        packet = input_record[FieldNames.PACKET]
-        if not self.__visits.get(subject_lbl):
-            self.__visits[subject_lbl][visitdate] = input_record
-            return False
-
-        if not self.__visits[subject_lbl].get(visitdate):
-            self.__visits[subject_lbl][visitdate] = input_record
-            return False
-
-        log.error('%s - %s/%s/%s',
-                  preprocess_errors[SysErrorCodes.DUPLICATE_VISIT], module,
-                  packet, visitdate)
-        self.__error_writer.write(
-            preprocessing_error(field=date_field,
-                                value=visitdate,
-                                line=line_num,
-                                error_code=SysErrorCodes.DUPLICATE_VISIT,
-                                ptid=input_record[FieldNames.PTID],
-                                visitnum=input_record[FieldNames.VISITNUM]))
-        return True
 
     def __is_accepted_packet(self, *, input_record: Dict[str, Any],
                              module: str, module_configs: ModuleConfigs,
@@ -657,8 +618,8 @@ class FormPreprocessor():
 
         return True
 
-    def is_duplicate_visit(self, *, input_record: Dict[str, Any],
-                           module: str) -> bool:
+    def is_existing_visit(self, *, input_record: Dict[str, Any],
+                          module: str) -> bool:
         """_summary_
 
         Args:
@@ -677,10 +638,9 @@ class FormPreprocessor():
                 f'No configurations found for module {module}')
 
         subject_lbl = input_record[self.__primary_key]
-        log.info('Running duplicate checks for subject %s/%s', subject_lbl,
-                 module)
-
         date_field = module_configs.date_field
+        log.info('Running existing visit check for subject %s/%s/%s',
+                 subject_lbl, module, input_record[date_field])
 
         filters = []
         filters.append(
