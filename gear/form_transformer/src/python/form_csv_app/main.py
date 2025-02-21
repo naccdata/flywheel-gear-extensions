@@ -4,6 +4,7 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Optional, TextIO
 
+from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -33,32 +34,41 @@ class CSVTransformVisitor(CSVVisitor):
 
     def __init__(self,
                  *,
-                 req_fields: List[str],
+                 id_column: str,
+                 module: str,
                  transformed_records: DefaultDict[str, Dict[str, Dict[str,
                                                                       Any]]],
                  error_writer: ListErrorWriter,
                  transformer_factory: TransformerFactory,
                  preprocessor: FormPreprocessor,
+                 module_configs: ModuleConfigs,
                  gear_name: str,
                  project: Optional[ProjectAdaptor] = None) -> None:
-        self.__req_fields = req_fields
+        self.__module = module
+        self.__id_column = id_column
         self.__transformed = transformed_records
         self.__error_writer = error_writer
         self.__transformer_factory = transformer_factory
         self.__preprocessor = preprocessor
+        self.__module_configs = module_configs
         self.__gear_name = gear_name
         self.__project = project
-        self.__module = ''
         self.__transformer: Optional[BaseRecordTransformer] = None
-        # TODO - change to get from template
-        self.__date_field = FieldNames.DATE_COLUMN
+
+        self.__date_field = self.__module_configs.date_field
+        # TODO - set required fields in module configs template
+        self.__req_fields = [
+            self.__id_column, self.__date_field, FieldNames.MODULE,
+            FieldNames.VISITNUM, FieldNames.FORMVER
+        ]
+        # TODO - set this in module configs template
         self.__error_log_template = {
             "ptid": FieldNames.PTID,
             "visitdate": self.__date_field
         }
+
         self.__existing_visits: DefaultDict[str, List[Dict[
             str, Any]]] = defaultdict(list)
-
         self.__current_batch: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
     @property
@@ -132,29 +142,30 @@ class CSVTransformVisitor(CSVVisitor):
             return False
 
         # check for duplicates (should be done after transformations)
-        subject_lbl = transformed_row[FieldNames.NACCID]
-
         # if existing visit add to duplicate visit list and skip processing further
         # error logs will be updated later when processing the list of duplicates
+        subject_lbl = transformed_row[self.__id_column]
         if self.__preprocessor.is_existing_visit(input_record=transformed_row,
                                                  module=self.module):
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
 
         transformed_row['linenumber'] = line_num
+        # if not existing visit, add to current batch
         self.__add_to_current_batch(subject_lbl=subject_lbl,
                                     input_record=transformed_row)
         return True
 
     def update_existing_visits_error_log(
             self, downstream_gears: Optional[List[str]] = None) -> bool:
-        """_summary_
+        """For re-submitted existing visits, pull error metadata from previous
+        run.
 
         Args:
             downstream_gears (optional): list of downstream gears to copy metadata
 
         Returns:
-            bool: True if update successful
+            bool: True if metadata update successful
         """
         if not self.__existing_visits:
             return True
@@ -169,10 +180,11 @@ class CSVTransformVisitor(CSVVisitor):
         return success
 
     def process_current_batch(self) -> bool:
-        """_summary_
+        """Process new/updated visits in the current batch. Check for
+        duplicates within current batch. Apply pre-processing checks.
 
         Returns:
-            bool: _description_
+            bool: True, if all visits accepted for upload
         """
         success = True
         for subject, visits in self.__current_batch.items():
@@ -409,8 +421,8 @@ class CSVTransformVisitor(CSVVisitor):
         duplicates within the current batch.
 
         Args:
-            subject_lbl (str): _description_
-            input_record (Dict[str, Any]): _description_
+            subject_lbl: Flywheel subject label
+            input_record: input visit record
         """
         visitdate = input_record[self.__date_field]
         if not self.__current_batch.get(subject_lbl):
@@ -426,11 +438,12 @@ class CSVTransformVisitor(CSVVisitor):
     def __report_duplicates_within_current_batch(
             self, subject: str, duplicate_records: List[Dict[str,
                                                              Any]]) -> bool:
-        """_summary_
+        """Report duplicate visits, if there are multiple records in the input
+        file with same visit date for same participant.
 
         Args:
-            subject (str): _description_
-            duplicate_records (List[Dict[str, Any]]): _description_
+            subject: Flywheel subject label
+            duplicate_records: list of duplicate records
         """
         input_record = None
         for record in duplicate_records:
@@ -449,7 +462,7 @@ class CSVTransformVisitor(CSVVisitor):
                                     ptid=record[FieldNames.PTID],
                                     visitnum=record[FieldNames.VISITNUM]))
 
-        # use the last record since all records has same PTID, visitdate
+        # use the last record since all records have the same PTID, visitdate
         return self.__update_visit_error_log(
             input_record=input_record,  # type: ignore
             qc_passed=False)
@@ -462,9 +475,12 @@ def notify_upload_errors():
 
 def run(*,
         input_file: TextIO,
+        id_column: str,
+        module: str,
         destination: ProjectAdaptor,
         transformer_factory: TransformerFactory,
         preprocessor: FormPreprocessor,
+        module_configs: ModuleConfigs,
         error_writer: ListErrorWriter,
         gear_name: str,
         downstream_gears: Optional[List[str]] = None) -> bool:
@@ -473,9 +489,12 @@ def run(*,
 
     Args:
         input_file: the input file
+        id_column: the subject identifier (usually NACCID)
+        module: the module label
         destination: Flyhweel project container
         transformer_factory: the factory for column transformers
         preprocessor: class to run pre-processing checks
+        module_configs: form ingest configs for the module
         error_writer: the writer for error output
         gear_name: gear name
         downstream_gears: list of downstream gears
@@ -484,30 +503,22 @@ def run(*,
         bool: True if transformation/upload successful
     """
 
-    # TODO - get the required fields from template
-    req_fields_list = [
-        FieldNames.NACCID, FieldNames.MODULE, FieldNames.VISITNUM,
-        FieldNames.DATE_COLUMN, FieldNames.FORMVER
-    ]
-
     transformed_records: DefaultDict[str, Dict[str,
                                                Dict[str,
                                                     Any]]] = defaultdict(dict)
-    visitor = CSVTransformVisitor(req_fields=req_fields_list,
+    visitor = CSVTransformVisitor(id_column=id_column,
+                                  module=module,
                                   transformed_records=transformed_records,
                                   error_writer=error_writer,
                                   transformer_factory=transformer_factory,
                                   preprocessor=preprocessor,
+                                  module_configs=module_configs,
                                   gear_name=gear_name,
                                   project=destination)
     result = read_csv(input_file=input_file,
                       error_writer=error_writer,
                       visitor=visitor,
                       clear_errors=True)
-
-    if not visitor.module:
-        raise GearExecutionError(
-            'Module information not found in the input file')
 
     result = result and visitor.update_existing_visits_error_log(
         downstream_gears=downstream_gears)

@@ -87,6 +87,21 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
           context: the gear execution context
         """
 
+        module = self.__file_input.get_module_name_from_file_suffix()
+        if not module:
+            raise GearExecutionError(
+                "Expect module suffix in input file name: "
+                f"{self.__file_input.filename}")
+        module = module.upper()
+
+        form_configs = self.__load_form_ingest_configs(
+            form_config_input=self.__config_input)
+
+        if (module not in form_configs.accepted_modules
+                or not form_configs.module_configs.get(module)):
+            raise GearExecutionError(
+                f"Unsupported module {module} : {self.__file_input.filename}")
+
         proxy = self.__client.get_proxy()
         file_id = self.__file_input.file_id
         try:
@@ -109,22 +124,25 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
         error_writer = ListErrorWriter(container_id=file_id,
                                        fw_path=proxy.get_lookup_path(file))
-
-        preprocessor = self.__get_preprocessor(
-            form_config_input=self.__config_input,
-            ingest_project=prj_adaptor,
-            error_writer=error_writer)
+        preprocessor = self.__get_preprocessor(form_configs=form_configs,
+                                               ingest_project=prj_adaptor,
+                                               error_writer=error_writer)
 
         with open(self.__file_input.filepath, mode='r',
                   encoding='utf-8') as csv_file:
-            success = run(input_file=csv_file,
-                          destination=prj_adaptor,
-                          transformer_factory=self.__build_transformer(
-                              self.__transform_input),
-                          preprocessor=preprocessor,
-                          error_writer=error_writer,
-                          gear_name=gear_name,
-                          downstream_gears=downstream_gears)
+            success = run(
+                input_file=csv_file,
+                id_column=form_configs.primary_key,
+                module=module,
+                destination=prj_adaptor,
+                transformer_factory=self.__build_transformer(
+                    self.__transform_input),
+                module_configs=form_configs.module_configs.get(
+                    module),  # type: ignore
+                preprocessor=preprocessor,
+                error_writer=error_writer,
+                gear_name=gear_name,
+                downstream_gears=downstream_gears)
 
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name='validation',
@@ -162,13 +180,34 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                     'Error reading transformation file'
                     f'{transformer_input.filename}: {error}') from error
 
-    def __get_preprocessor(self, form_config_input: InputFileWrapper,
-                           ingest_project: ProjectAdaptor,
-                           error_writer: ListErrorWriter) -> FormPreprocessor:
-        """Reads the forms config file and initialize the preprocessor.
+    def __load_form_ingest_configs(
+            self, form_config_input: InputFileWrapper) -> FormProjectConfigs:
+        """Reads the forms config file.
 
         Args:
           form_config_input: the input file wrapper for form configs file
+
+        Returns:
+          the FormProjectConfigs for the ingest project
+        """
+
+        with open(form_config_input.filepath, mode='r',
+                  encoding='utf-8') as configs_file:
+            try:
+                return FormProjectConfigs.model_validate_json(
+                    configs_file.read())
+            except ValidationError as error:
+                raise GearExecutionError(
+                    'Error reading form configurations file'
+                    f'{form_config_input.filename}: {error}') from error
+
+    def __get_preprocessor(self, form_configs: FormProjectConfigs,
+                           ingest_project: ProjectAdaptor,
+                           error_writer: ListErrorWriter) -> FormPreprocessor:
+        """Initialize the preprocessor for ingest project.
+
+        Args:
+          form_configs: the form ingest configs
           ingest_project: Flywheel project adaptor
           error_writer: error metadata writer
 
@@ -176,35 +215,25 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
           the FormPreprocessor with given configs
         """
 
-        with open(form_config_input.filepath, mode='r',
-                  encoding='utf-8') as configs_file:
-            try:
-                form_configs = FormProjectConfigs.model_validate_json(
-                    configs_file.read())
-            except ValidationError as error:
-                raise GearExecutionError(
-                    'Error reading form configurations file'
-                    f'{form_config_input.filename}: {error}') from error
+        legacy_label = (form_configs.legacy_project_label
+                        if form_configs.legacy_project_label else
+                        DefaultValues.LEGACY_PRJ_LABEL)
+        try:
+            legacy_project = ProjectAdaptor.create(
+                proxy=ingest_project.proxy,
+                group_id=ingest_project.group,
+                project_label=legacy_label)
+        except ProjectError as error:
+            raise GearExecutionError(
+                f'Failed to retrieve legacy project: {error}') from error
 
-            legacy_label = (form_configs.legacy_project_label
-                            if form_configs.legacy_project_label else
-                            DefaultValues.LEGACY_PRJ_LABEL)
-            try:
-                legacy_project = ProjectAdaptor.create(
-                    proxy=ingest_project.proxy,
-                    group_id=ingest_project.group,
-                    project_label=legacy_label)
-            except ProjectError as error:
-                raise GearExecutionError(
-                    f'Failed to retrieve legacy project: {error}') from error
+        forms_store = FormsStore(ingest_project=ingest_project,
+                                 legacy_project=legacy_project)
 
-            forms_store = FormsStore(ingest_project=ingest_project,
-                                     legacy_project=legacy_project)
-
-            return FormPreprocessor(primary_key=form_configs.primary_key,
-                                    forms_store=forms_store,
-                                    module_info=form_configs.module_configs,
-                                    error_writer=error_writer)
+        return FormPreprocessor(primary_key=form_configs.primary_key,
+                                forms_store=forms_store,
+                                module_info=form_configs.module_configs,
+                                error_writer=error_writer)
 
 
 def main():
