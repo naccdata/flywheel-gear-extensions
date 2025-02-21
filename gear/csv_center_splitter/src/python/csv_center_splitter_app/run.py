@@ -1,6 +1,6 @@
 """Entry script for csv_center_splitter."""
 import logging
-from typing import Optional, List
+from typing import List, Optional
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -30,14 +30,13 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                  adcid_key: str,
                  target_project: str,
                  staging_project_id: Optional[str] = None,
-                 include: List[str] = None,
-                 exclude: List[str] = None,
+                 include: Optional[List[str]] = None,
+                 exclude: Optional[List[str]] = None,
                  delimiter: str = ',',
                  local_run: bool = False):
         super().__init__(client=client)
 
-        if (include and exclude and 
-            set(include) & set(exclude)):
+        if (include and exclude and set(include) & set(exclude)):
             raise GearExecutionError(
                 "Include and exclude lists cannot overlap")
 

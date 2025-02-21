@@ -96,6 +96,50 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         return True
 
 
+def generate_project_map(
+        proxy: FlywheelProxy,
+        centers: List[str],
+        target_project: str,
+        staging_project_id: Optional[str] = None,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Generates the project map.
+
+    Args:
+        proxy: the proxy for the Flywheel instance
+        centers: The list of centers to map
+        target_project: The FW target project name to write results to for
+                        each ADCID
+        staging_project_id: Project ID to stage results to; will override
+                            target_project if specified
+        include: Centers to include
+        exclude: Centers to exclude
+    Returns:
+        Evaluated project mapping
+    """
+    if include:
+        centers = [x for x in centers if x in include]
+    if exclude:
+        centers = [x for x in centers if x not in exclude]
+
+    if staging_project_id:
+        # if writing results to a staging project, manually build a project map
+        # that maps all to the specified project ID
+        project = proxy.get_project_by_id(staging_project_id)
+        if not project:
+            raise GearExecutionError(
+                f"Cannot find staging project with ID {staging_project_id}, " +
+                "possibly a permissions issue?")
+
+        return {f'adcid-{adcid}': project for adcid in centers}
+
+    # else build project map from ADCID to corresponding
+    # FW project for upload, and filter as needed
+    return build_project_map(proxy=proxy,
+                             destination_label=target_project,
+                             center_filter=centers)
+
+
 def run(*,
         proxy: FlywheelProxy,
         input_file: TextIO,
@@ -104,8 +148,8 @@ def run(*,
         adcid_key: str,
         target_project: str,
         staging_project_id: Optional[str] = None,
-        include: List[str] = None,
-        exclude: List[str] = None,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -122,6 +166,8 @@ def run(*,
 
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
+        include: Centers to include
+        exclude: Centers to exclude
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
@@ -139,29 +185,12 @@ def run(*,
             log.error(x['message'])
         return
 
-    project_map: Dict[str, Any] = {}
-    if staging_project_id:
-        # if writing results to a staging project, manually build a project map
-        # that maps all to the specified project ID
-        project = proxy.get_project_by_id(staging_project_id)
-        if not project:
-            raise GearExecutionError(
-                f"Cannot find staging project with ID {staging_project_id}, " +
-                "possibly a permissions issue?")
-
-        project_map = {f'adcid-{adcid}': project for adcid in visitor.centers}
-    else:
-        # else build project map from ADCID to corresponding
-        # FW project for upload
-        center_filter = visitors.centers
-        if include:
-            center_filter = [x for x in center_filters if x in include]
-        if exclude:
-            center_filter = [x for x in center_filter if x not in exclude]
-
-        project_map = build_project_map(proxy=proxy,
-                                        destination_label=target_project,
-                                        center_filter=center_filter)
+    project_map = generate_project_map(proxy=proxy,
+                                       centers=visitor.centers,
+                                       target_project=target_project,
+                                       staging_project_id=staging_project_id,
+                                       include=include,
+                                       exclude=exclude)
 
     if not project_map:
         raise ValueError(f"No {target_project} projects found")
