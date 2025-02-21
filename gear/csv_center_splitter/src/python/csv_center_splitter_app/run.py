@@ -36,7 +36,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                  local_run: bool = False):
         super().__init__(client=client)
 
-        if (include and exclude and set(include) & set(exclude)):
+        if (include and exclude and set(include).intersection(set(exclude))):
             raise GearExecutionError(
                 "Include and exclude lists cannot overlap")
 

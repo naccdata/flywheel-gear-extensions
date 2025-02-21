@@ -57,12 +57,12 @@
             "default": ""
         },
         "include": {
-            "description": "Comma-deliminated list of ADCIDs to include in the split. Will ignore all others.",
+            "description": "Comma-delimited list of ADCIDs to include in the split. Will ignore all others.",
             "type": "string",
             "default": ""
         },
         "exclude": {
-            "description": "Comma-deliminated list of ADCIDs to exclude in the split. Will evaluate all others.",
+            "description": "Comma-delimited list of ADCIDs to exclude in the split. Will evaluate all others.",
             "type": "string",
             "default": ""
         },
