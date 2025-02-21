@@ -26,8 +26,8 @@
         "api-key": {
             "base": "api-key"
         },
-        "data_file": {
-            "description": "the subject level source data file",
+        "input_file": {
+            "description": "the subject level source file",
             "base": "file",
             "optional": true,
             "type": {
@@ -39,19 +39,39 @@
     },
     "config": {
         "dry_run": {
-            "description": "Whether to do a dry run",
+            "description": "Whether to do a dry run. Will run curation but will not apply changes.",
             "type": "boolean",
             "default": false
         },
-        "admin_group": {
-            "description": "Name of the admin group",
+        "curation_schema_uri": {
+            "description": "Curation schema S3 URI",
             "type": "string",
-            "default": "nacc"
+            "default": "nacc-qc-rules-staging/emily-test/mqt-curation.yaml"
         },
-        "new_only": {
-            "description": "Only create projects for centers tagged as new",
+        "form_date_key": {
+            "description": "Form key to use in order to determine whether a curated field is the latest or not. If not provided, defaults to the form's last modified date.",
+            "type": "string",
+            "default": ""
+        },
+        "aggregation_containers": {
+            "description": "Comma-deliminated list of parent containers to pull supplement metadata from",
+            "type": "string",
+            "default": "project.info,session.info,acquistion.info,subject.info"
+        },
+        "apply_containers": {
+            "description": "Comma-deliminated list of containers to apply curated metadata changes to",
+            "type": "string",
+            "default": "subject"
+        },
+        "cross_sectional": {
+            "description": "Whether or not cross-sectional information is required",
             "type": "boolean",
-            "default": false
+            "default": true
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
         }
     },
     "command": "/bin/run"

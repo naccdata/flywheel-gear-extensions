@@ -16,8 +16,12 @@ log = logging.getLogger(__name__)
 class FormCurator(FileCurator):
     """Curator for form files."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self,
+                 context: GearToolKitContext = None,
+                 extra_packages: List[str] = None,
+                 **kwargs) -> None:
+        super().__init__(context, extra_packages, **kwargs)
+        self.__symbol_table = SymbolTable()
 
     def curate_file(self, file_: Dict[str, Any]):
         """Curate form data.

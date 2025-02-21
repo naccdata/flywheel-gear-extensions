@@ -44,6 +44,21 @@ class SymbolTable(MutableMapping):
 
         return value
 
+    def __contains__(self, key: str) -> bool:
+        value = self.__table
+        key_list = key.split('.')
+        while key_list:
+            sub_key = key_list.pop(0)
+            if not isinstance(value, dict):
+                raise KeyError()
+
+            if sub_key in value:
+                value = value[sub_key]
+            else:
+                return False
+
+        return True
+
     def __delitem__(self, key: Any) -> None:
         return
 
@@ -52,3 +67,6 @@ class SymbolTable(MutableMapping):
 
     def __len__(self) -> int:
         return len(self.__table)
+
+    def __str__(self) -> str:
+        return str(self.__table)

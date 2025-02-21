@@ -6,6 +6,6 @@ RUN mkdir -p ${BASE_DIR}/input
 WORKDIR ${BASE_DIR}
 
 COPY gear/attribute_curator/src/docker/manifest.json ${BASE_DIR}
-COPY gear.attribute_curator.src.python.${APPNAME}/bin.pex /bin/run
+COPY gear.attribute_curator.src.python.attribute_app/bin.pex /bin/run
 
 ENTRYPOINT [ "/bin/run" ]
