@@ -13,7 +13,6 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
-from gear_execution.gear_execution import GearExecutionError
 from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     FileError,
@@ -92,14 +91,12 @@ class JSONUploader:
                  *,
                  project: ProjectAdaptor,
                  environment: Optional[Dict[str, Any]] = None,
-                 template_map: UploadTemplateInfo,
-                 allow_updates: bool = False) -> None:
+                 template_map: UploadTemplateInfo) -> None:
         self.__project = project
         self.__session_template = template_map.session
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
         self.__environment = environment if environment else {}
-        self.__allow_updates = allow_updates
 
     def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
@@ -111,14 +108,7 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            subject = self.__project.find_subject(subject_label)
-            if subject:
-                if not self.__allow_updates:
-                    raise GearExecutionError(
-                        f"Subject {subject_label} already exists and " +
-                        "allow_updates set to False")
-            else:
-                subject = self.__project.add_subject(subject_label)
+            subject = self.__project.add_subject(subject_label)
 
             for record in record_list:
                 try:
