@@ -192,8 +192,8 @@ def run(*,
 
     # make sure all expected projects are there before upload
     missing_projects = [
-        adcid for adcid in visitor.split_data
-        if not project_map.get(f'adcid-{adcid}', None) and adcid in centers
+        adcid for adcid in centers
+        if not project_map.get(f'adcid-{adcid}', None)
     ]
     if missing_projects:
         raise ValueError(
