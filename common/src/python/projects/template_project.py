@@ -40,7 +40,7 @@ class TemplateProject:
         Returns:
             Regex pattern for project label prefix that matches this template.
         """
-        template_matcher = re.compile(r"^((\w+)-)?(\w+)-template$")
+        template_matcher = re.compile(r"^((\w+(?:-[\w]+)*)-)?(\w+)-template$")
         # match group for pipeline datatype
         datatype_group = 2
         # match group for pipeline stage
@@ -314,6 +314,7 @@ class TemplateProject:
             name=rule.name,
             config=rule.config,
             fixed_inputs=fixed_inputs,
+            priority=rule.priority,
             auto_update=rule.auto_update,
             any=rule.any,
             all=rule.all,
