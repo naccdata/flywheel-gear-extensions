@@ -110,18 +110,18 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            try:
-                subject = self.__project.add_subject(subject_label)
-            except ApiException as error:
-                if not self.__allow_updates:
-                    raise error
-                else:
-                    log.info(f"{subject_label} already exists")
-                    subject = self.__project.find_subject(subject_label)
-                    if not subject:
-                        raise UploaderError(
-                            f"Failed to retrieve existing subject {subject_label}"
-                        ) from None
+            subject = self.__project.find_subject(subject_label)
+            if subject and not self.__allow_updates:
+                raise UploaderError(
+                    f"{subject_label} already exists and updates not allowed")
+
+            if not subject:
+                try:
+                    subject = self.__project.add_subject(subject_label)
+                except ApiException as error:
+                    raise UploaderError(
+                        f"Failed to add subject {subject_label}: {error}"
+                    ) from error
 
             for record in record_list:
                 try:
