@@ -196,7 +196,7 @@ class CSVTransformVisitor(CSVVisitor):
                 self.__error_writer.clear()
 
                 # report duplicate visits within current batch
-                if len(list_visits) > 0:
+                if len(list_visits) > 1:
                     success = success and self.__report_duplicates_within_current_batch(
                         subject=subject, duplicate_records=list_visits)
                     continue

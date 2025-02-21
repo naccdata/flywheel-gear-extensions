@@ -668,17 +668,17 @@ class FormPreprocessor():
 
     def is_existing_visit(self, *, input_record: Dict[str, Any],
                           module: str) -> bool:
-        """_summary_
+        """Check for existing visits.
 
         Args:
-            input_record (Dict[str, Any]): _description_
-            module (str): _description_
+            input_record: input visit record
+            module (str): module
 
         Raises:
-            PreprocessingException: _description_
+            PreprocessingException: If issues occur while checking for existing visits
 
         Returns:
-            bool: _description_
+            bool: True if a matching visit found
         """
         module_configs = self.__module_info.get(module)
         if not module_configs:
@@ -715,7 +715,7 @@ class FormPreprocessor():
             return False
 
         # This cannot happen
-        if len(existing_visits) > 0:
+        if len(existing_visits) > 1:
             raise PreprocessingException(
                 'More than one matching visit exist for '
                 f'{subject_lbl}/{module}/{input_record[date_field]}')
