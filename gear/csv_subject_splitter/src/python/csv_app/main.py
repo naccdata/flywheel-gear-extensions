@@ -109,8 +109,7 @@ def run(*, input_file: TextIO, destination: ProjectAdaptor,
 
     uploader = JSONUploader(project=destination,
                             template_map=template_map,
-                            environment=environment,
-                            allow_updates=True)
+                            environment=environment)
     upload_status = uploader.upload(subject_record_map)
     if not upload_status:
         notify_upload_errors()

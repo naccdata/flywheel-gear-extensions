@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 import yaml
 from flywheel.file_spec import FileSpec
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -91,14 +90,12 @@ class JSONUploader:
                  *,
                  project: ProjectAdaptor,
                  environment: Optional[Dict[str, Any]] = None,
-                 template_map: UploadTemplateInfo,
-                 allow_updates: bool = False) -> None:
+                 template_map: UploadTemplateInfo) -> None:
         self.__project = project
         self.__session_template = template_map.session
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
         self.__environment = environment if environment else {}
-        self.__allow_updates = allow_updates
 
     def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
@@ -110,18 +107,7 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            subject = self.__project.find_subject(subject_label)
-            if subject and not self.__allow_updates:
-                raise UploaderError(
-                    f"{subject_label} already exists and updates not allowed")
-
-            if not subject:
-                try:
-                    subject = self.__project.add_subject(subject_label)
-                except ApiException as error:
-                    raise UploaderError(
-                        f"Failed to add subject {subject_label}: {error}"
-                    ) from error
+            subject = self.__project.add_subject(subject_label)
 
             for record in record_list:
                 try:
@@ -253,12 +239,7 @@ class FormJSONUploader:
 
         success = True
         for subject_lbl, visits_info in participant_records.items():
-            subject = self.__project.find_subject(subject_lbl)
-            if not subject:
-                log.info(
-                    'NACCID %s does not exist in project %s/%s, creating a new subject',
-                    subject_lbl, self.__project.group, self.__project.label)
-                subject = self.__project.add_subject(subject_lbl)
+            subject = self.__project.add_subject(subject_lbl)
 
             for log_file, record in visits_info.items():
                 self.__error_writer.clear()

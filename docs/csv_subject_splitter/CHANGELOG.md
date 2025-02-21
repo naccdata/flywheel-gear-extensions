@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.2
+
+* Updates `ProjectAdaptor.add_subject` to return the subject if it already exists
+* Updates `uploader.JSONUploader` to remove the `allow_updates` parameter - will always update instead
+
 ## 1.0.1
 
 * Updates `hierarchy_labels` config to be type `string` instead of type `object`
