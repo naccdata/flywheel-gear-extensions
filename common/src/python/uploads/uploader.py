@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 import yaml
 from flywheel.file_spec import FileSpec
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -116,8 +117,11 @@ class JSONUploader:
                     raise error
                 else:
                     log.info(f"{subject_label} already exists")
-                    subject = self.__project.find_subject(
-                        subject_label)  # type: ignore
+                    subject = self.__project.find_subject(subject_label)
+                    if not subject:
+                        raise UploaderError(
+                            f"Failed to retrieve existing subject {subject_label}"
+                        ) from None
 
             for record in record_list:
                 try:
