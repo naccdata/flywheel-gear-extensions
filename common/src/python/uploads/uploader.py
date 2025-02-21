@@ -13,6 +13,7 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
+from gear_execution.gear_execution import GearExecutionError
 from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     FileError,
@@ -110,15 +111,14 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            try:
-                subject = self.__project.add_subject(subject_label)
-            except ApiException as error:
+            subject = self.__project.find_subject(subject_label)
+            if subject:
                 if not self.__allow_updates:
-                    raise error
-                else:
-                    log.info(f"{subject_label} already exists")
-                    subject = self.__project.find_subject(
-                        subject_label)  # type: ignore
+                    raise GearExecutionError(
+                        f"Subject {subject_label} already exists and " +
+                        "allow_updates set to False")
+            else:
+                subject = self.__project.add_subject(subject_label)
 
             for record in record_list:
                 try:

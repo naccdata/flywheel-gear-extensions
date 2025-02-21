@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.2
+
+* Updates `uploader.JSONUploader` to query subject first and then add if it doesn't exist, instead of the other way around, since after any initial pipeline it is more likely for the subject to exist than not
+
 ## 1.0.1
 
 * Updates `hierarchy_labels` config to be type `string` instead of type `object`
