@@ -73,7 +73,10 @@ preprocess_errors = {
     + "submitted before the Follow-Up Visit Packet (PACKET=F)",
     SysErrorCodes.DUPLICATE_VISIT:
     "Duplicate record with the same visit date exists in the batch CSV file " +
-    "for this participant"
+    "for this participant",
+    SysErrorCodes.LOWER_VISITNUM:
+    "Packet with higher visit date (VISITDATE) " +
+    "must also have a higher visit number (VISITNUM)",
 }
 
 

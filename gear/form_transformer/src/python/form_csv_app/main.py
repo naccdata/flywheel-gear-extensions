@@ -188,9 +188,14 @@ class CSVTransformVisitor(CSVVisitor):
         """
         success = True
         for subject, visits in self.__current_batch.items():
+            # process in order of visit date
             sorted_visits = sorted(visits.items())
+            ivp_packet = None
+            prev_visit_num = None
             for visitdate, list_visits in sorted_visits:
                 self.__error_writer.clear()
+
+                # report duplicate visits within current batch
                 if len(list_visits) > 0:
                     success = success and self.__report_duplicates_within_current_batch(
                         subject=subject, duplicate_records=list_visits)
@@ -198,10 +203,45 @@ class CSVTransformVisitor(CSVVisitor):
 
                 line_num = list_visits[0].pop('linenumber')
                 transformed_row = list_visits[0]
+
+                is_ivp = False
+                if transformed_row[
+                        FieldNames.
+                        PACKET] in self.__module_configs.initial_packets:
+                    is_ivp = True
+                visit_num = transformed_row[FieldNames.VISITNUM]
+
+                # check the validity of visit numbers within current batch
+                if not prev_visit_num or prev_visit_num < visit_num:
+                    prev_visit_num = visit_num
+                elif prev_visit_num == visit_num:
+                    self.__error_writer.write(
+                        preprocessing_error(
+                            field=FieldNames.VISITNUM,
+                            value=transformed_row[FieldNames.VISITNUM],
+                            line=line_num,
+                            error_code=SysErrorCodes.DIFF_VISITDATE,
+                            ptid=transformed_row[FieldNames.PTID],
+                            visitnum=transformed_row[FieldNames.VISITNUM]))
+                    success = False
+                    continue
+                else:
+                    self.__error_writer.write(
+                        preprocessing_error(
+                            field=FieldNames.VISITNUM,
+                            value=transformed_row[FieldNames.VISITNUM],
+                            line=line_num,
+                            error_code=SysErrorCodes.LOWER_VISITNUM,
+                            ptid=transformed_row[FieldNames.PTID],
+                            visitnum=transformed_row[FieldNames.VISITNUM]))
+                    success = False
+                    continue
+
                 if not self.__preprocessor.preprocess(
                         input_record=transformed_row,
                         module=self.module,
-                        line_num=line_num):
+                        line_num=line_num,
+                        ivp_record=ivp_packet):
                     self.__update_visit_error_log(input_record=transformed_row,
                                                   qc_passed=False)
                     log.error(
@@ -209,6 +249,9 @@ class CSVTransformVisitor(CSVVisitor):
                         line_num, visitdate)
                     success = False
                     continue
+
+                if is_ivp:
+                    ivp_packet = transformed_row
 
                 # for the records that passed transformation, only obtain the log name
                 # error metadata will be updated when the acquisition file is uploaded
