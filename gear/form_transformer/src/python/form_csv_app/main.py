@@ -469,7 +469,7 @@ class CSVTransformVisitor(CSVVisitor):
         """
         visitdate = input_record[self.__date_field]
         if not self.__current_batch.get(subject_lbl):
-            self.__current_batch[subject_lbl][visitdate] = [input_record]
+            self.__current_batch[subject_lbl] = {visitdate: [input_record]}
             return
 
         if not self.__current_batch[subject_lbl].get(visitdate):
