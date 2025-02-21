@@ -1,6 +1,6 @@
 """Defines csv_center_splitter."""
 import logging
-from typing import Any, Dict, List, Optional, TextIO, Tuple
+from typing import Any, Dict, List, Optional, TextIO
 
 from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -100,10 +100,7 @@ def generate_project_map(
         proxy: FlywheelProxy,
         centers: List[str],
         target_project: str,
-        staging_project_id: Optional[str] = None,
-        include: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None
-) -> Tuple[Dict[str, Any], List[str]]:
+        staging_project_id: Optional[str] = None) -> Dict[str, Any]:
     """Generates the project map.
 
     Args:
@@ -113,16 +110,9 @@ def generate_project_map(
                         each ADCID
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
-        include: Centers to include
-        exclude: Centers to exclude
     Returns:
-        Evaluated project mapping and filtered list of centers
+        Evaluated project mapping
     """
-    if include:
-        centers = [x for x in centers if x in include]
-    if exclude:
-        centers = [x for x in centers if x not in exclude]
-
     if staging_project_id:
         # if writing results to a staging project, manually build a project map
         # that maps all to the specified project ID
@@ -132,13 +122,13 @@ def generate_project_map(
                 f"Cannot find staging project with ID {staging_project_id}, " +
                 "possibly a permissions issue?")
 
-        return {f'adcid-{adcid}': project for adcid in centers}, centers
+        return {f'adcid-{adcid}': project for adcid in centers}
 
     # else build project map from ADCID to corresponding
     # FW project for upload, and filter as needed
     return build_project_map(proxy=proxy,
                              destination_label=target_project,
-                             center_filter=centers), centers
+                             center_filter=centers)
 
 
 def run(*,
@@ -186,13 +176,16 @@ def run(*,
             log.error(x['message'])
         return
 
-    project_map, centers = generate_project_map(
-        proxy=proxy,
-        centers=visitor.centers,
-        target_project=target_project,
-        staging_project_id=staging_project_id,
-        include=include,
-        exclude=exclude)
+    centers = visitor.centers
+    if include:
+        centers = [x for x in centers if x in include]
+    if exclude:
+        centers = [x for x in centers if x not in exclude]
+
+    project_map = generate_project_map(proxy=proxy,
+                                       centers=centers,
+                                       target_project=target_project,
+                                       staging_project_id=staging_project_id)
 
     if not project_map:
         raise ValueError(f"No {target_project} projects found")
