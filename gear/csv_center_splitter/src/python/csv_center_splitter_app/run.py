@@ -1,6 +1,6 @@
 """Entry script for csv_center_splitter."""
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -14,6 +14,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from outputs.errors import ListErrorWriter
+from utils.utils import parse_string_to_list
 
 from csv_center_splitter_app.main import run
 
@@ -29,14 +30,22 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                  adcid_key: str,
                  target_project: str,
                  staging_project_id: Optional[str] = None,
+                 include: Optional[List[str]] = None,
+                 exclude: Optional[List[str]] = None,
                  delimiter: str = ',',
                  local_run: bool = False):
         super().__init__(client=client)
+
+        if (include and exclude and set(include).intersection(set(exclude))):
+            raise GearExecutionError(
+                "Include and exclude lists cannot overlap")
 
         self.__file_input = file_input
         self.__adcid_key = adcid_key
         self.__target_project = target_project
         self.__staging_project_id = staging_project_id
+        self.__include = include
+        self.__exclude = exclude
         self.__delimiter = delimiter
         self.__local_run = local_run
 
@@ -72,6 +81,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
+        include = context.config.get('include', '')
+        exclude = context.config.get('exclude', '')
+
         delimiter = context.config.get('delimiter', ',')
         local_run = context.config.get('local_run', False)
 
@@ -81,6 +93,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             adcid_key=adcid_key,
             target_project=target_project,
             staging_project_id=staging_project_id,
+            include=parse_string_to_list(include),
+            exclude=parse_string_to_list(exclude),
             delimiter=delimiter,
             local_run=local_run)
 
@@ -111,6 +125,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 adcid_key=self.__adcid_key,
                 target_project=self.__target_project,
                 staging_project_id=self.__staging_project_id,
+                include=self.__include,
+                exclude=self.__exclude,
                 delimiter=self.__delimiter)
 
 

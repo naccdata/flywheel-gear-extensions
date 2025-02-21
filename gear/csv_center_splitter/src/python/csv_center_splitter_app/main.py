@@ -96,6 +96,41 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         return True
 
 
+def generate_project_map(
+        proxy: FlywheelProxy,
+        centers: List[str],
+        target_project: str,
+        staging_project_id: Optional[str] = None) -> Dict[str, Any]:
+    """Generates the project map.
+
+    Args:
+        proxy: the proxy for the Flywheel instance
+        centers: The list of centers to map
+        target_project: The FW target project name to write results to for
+                        each ADCID
+        staging_project_id: Project ID to stage results to; will override
+                            target_project if specified
+    Returns:
+        Evaluated project mapping
+    """
+    if staging_project_id:
+        # if writing results to a staging project, manually build a project map
+        # that maps all to the specified project ID
+        project = proxy.get_project_by_id(staging_project_id)
+        if not project:
+            raise GearExecutionError(
+                f"Cannot find staging project with ID {staging_project_id}, " +
+                "possibly a permissions issue?")
+
+        return {f'adcid-{adcid}': project for adcid in centers}
+
+    # else build project map from ADCID to corresponding
+    # FW project for upload, and filter as needed
+    return build_project_map(proxy=proxy,
+                             destination_label=target_project,
+                             center_filter=centers)
+
+
 def run(*,
         proxy: FlywheelProxy,
         input_file: TextIO,
@@ -104,6 +139,8 @@ def run(*,
         adcid_key: str,
         target_project: str,
         staging_project_id: Optional[str] = None,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -120,6 +157,8 @@ def run(*,
 
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
+        include: Centers to include
+        exclude: Centers to exclude
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
@@ -137,30 +176,23 @@ def run(*,
             log.error(x['message'])
         return
 
-    project_map: Dict[str, Any] = {}
-    if staging_project_id:
-        # if writing results to a staging project, manually build a project map
-        # that maps all to the specified project ID
-        project = proxy.get_project_by_id(staging_project_id)
-        if not project:
-            raise GearExecutionError(
-                f"Cannot find staging project with ID {staging_project_id}, " +
-                "possibly a permissions issue?")
+    centers = visitor.centers
+    if include:
+        centers = [x for x in centers if x in include]
+    if exclude:
+        centers = [x for x in centers if x not in exclude]
 
-        project_map = {f'adcid-{adcid}': project for adcid in visitor.centers}
-    else:
-        # else build project map from ADCID to corresponding
-        # FW project for upload
-        project_map = build_project_map(proxy=proxy,
-                                        destination_label=target_project,
-                                        center_filter=visitor.centers)
+    project_map = generate_project_map(proxy=proxy,
+                                       centers=centers,
+                                       target_project=target_project,
+                                       staging_project_id=staging_project_id)
 
     if not project_map:
         raise ValueError(f"No {target_project} projects found")
 
     # make sure all expected projects are there before upload
     missing_projects = [
-        adcid for adcid in visitor.split_data
+        adcid for adcid in centers
         if not project_map.get(f'adcid-{adcid}', None)
     ]
     if missing_projects:
@@ -168,11 +200,13 @@ def run(*,
             f"Missing {target_project} projects for the following " +
             f"ADCIDs: {missing_projects}")
 
-    log.info(
-        f"Writing split results for the following ADCIDs: {visitor.centers}")
+    log.info(f"Writing split results for the following ADCIDs: {centers}")
 
     # write results to each center's project
     for adcid, data in visitor.split_data.items():
+        if adcid not in centers:
+            continue
+
         project = project_map[f'adcid-{adcid}']
         filename = f'{adcid}_{input_filename}'
 
