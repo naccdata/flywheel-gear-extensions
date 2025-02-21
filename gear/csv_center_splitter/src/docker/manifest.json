@@ -2,7 +2,7 @@
     "name": "csv-center-splitter",
     "label": "CSV Center Splitter",
     "description": "Splits a CSV by center ID",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/csv-center-splitter:0.1.1"
+            "image": "naccdata/csv-center-splitter:0.1.2"
         },
         "flywheel": {
             "suite": "Curation",
@@ -53,6 +53,16 @@
         },
         "staging_project_id": {
             "description": "Staging project ID to stage all results to; overrides target_project",
+            "type": "string",
+            "default": ""
+        },
+        "include": {
+            "description": "Comma-deliminated list of ADCIDs to include in the split. Will ignore all others.",
+            "type": "string",
+            "default": ""
+        },
+        "exclude": {
+            "description": "Comma-deliminated list of ADCIDs to exclude in the split. Will evaluate all others.",
             "type": "string",
             "default": ""
         },

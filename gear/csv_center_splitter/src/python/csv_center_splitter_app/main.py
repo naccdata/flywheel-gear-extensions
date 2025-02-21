@@ -104,6 +104,8 @@ def run(*,
         adcid_key: str,
         target_project: str,
         staging_project_id: Optional[str] = None,
+        include: List[str] = None,
+        exclude: List[str] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -151,9 +153,15 @@ def run(*,
     else:
         # else build project map from ADCID to corresponding
         # FW project for upload
+        center_filter = visitors.centers
+        if include:
+            center_filter = [x for x in center_filters if x in include]
+        if exclude:
+            center_filter = [x for x in center_filter if x not in exclude]
+
         project_map = build_project_map(proxy=proxy,
                                         destination_label=target_project,
-                                        center_filter=visitor.centers)
+                                        center_filter=center_filter)
 
     if not project_map:
         raise ValueError(f"No {target_project} projects found")
