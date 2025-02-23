@@ -492,7 +492,7 @@ class CSVTransformVisitor(CSVVisitor):
 
     def __report_duplicates_within_current_batch(
             self, subject: str, duplicate_records: List[Dict[str,
-                                                             Any]]) -> bool:
+                                                             Any]]) -> None:
         """Report duplicate visits, if there are multiple records in the input
         file with same visit date for same participant.
 
@@ -518,7 +518,7 @@ class CSVTransformVisitor(CSVVisitor):
                                     visitnum=record[FieldNames.VISITNUM]))
 
         # use the last record since all records have the same PTID, visitdate
-        return self.__update_visit_error_log(
+        self.__update_visit_error_log(
             input_record=input_record,  # type: ignore
             qc_passed=False)
 
