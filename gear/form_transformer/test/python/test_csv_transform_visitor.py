@@ -122,18 +122,6 @@ def create_record(data: Dict[str, Any]):
     return record
 
 
-# def format_record(record: Dict[str, object]):
-#     """Format a record with formatted form_data.
-#     This is pretty hacky I just added whatever it complained
-#     about when it tried to run.
-#     """
-#     file_name = f"{record['naccid']}.json"
-#     return {
-#         'file.name': file_name,
-#         'file.parents.acquisition': DefaultValues.UDS_MODULE
-#     }
-
-
 def get_qc_errors(project: MockProject):
     """Get the first QC error from mock project.
 
