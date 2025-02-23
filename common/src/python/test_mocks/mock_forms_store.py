@@ -1,15 +1,18 @@
-"""
-Mocks datastore.forms_store.FormStore
-"""
-from datastore.forms_store import FormsStore
-from test_mocks.mock_flywheel import MockProject
+"""Mocks datastore.forms_store.FormStore."""
 from typing import Dict, List, Optional
+
+from datastore.forms_store import FormsStore
+
+from test_mocks.mock_flywheel import MockProject
 
 
 class MockFormsStore(FormsStore):
-    """Mocked class of the FormsStore to simulate querying form data
-    without actually querying to Flywheel. Basically overrides all
-    query functionality to instead return something local."""
+    """Mocked class of the FormsStore to simulate querying form data without
+    actually querying to Flywheel.
+
+    Basically overrides all query functionality to instead return
+    something local.
+    """
 
     def __init__(self, date_field: str):
         # make fake/nonsense projects, the methods
@@ -20,13 +23,11 @@ class MockFormsStore(FormsStore):
         self.__date_field = date_field
 
         # maps subject to acquistion to filename to form data
-        self.__subjects = {}
+        self.__subjects = {}  # type: ignore
 
-    def add_subject(self,
-                    subject_lbl: str,
-                    form_data: Dict[str, str],
+    def add_subject(self, subject_lbl: str, form_data: Dict[str, str],
                     file_name: str):
-        """Add a local "subject"""
+        """Add a local "subject."""
         if subject_lbl not in self.__subjects:
             self.__subjects[subject_lbl] = {}
 
@@ -43,11 +44,8 @@ class MockFormsStore(FormsStore):
     def is_new_subject(self, subject_lbl: str) -> bool:
         return subject_lbl in self.__subjects
 
-    def query_form_data(
-        self,
-        subject_lbl: str,
-        module: str,
-        **kwargs) -> Optional[List[Dict[str, str]]]:
+    def query_form_data(self, subject_lbl: str, module: str,
+                        **kwargs) -> Optional[List[Dict[str, str]]]:
         # TODO - mock rest of query for better testing, this
         # is basically hardcoded to return whatever passes the tests
         if subject_lbl not in self.__subjects:
@@ -59,10 +57,14 @@ class MockFormsStore(FormsStore):
         result = []
         for file, form_data in self.__subjects[subject_lbl][module].items():
             result.append({
-                'file.name': file,
-                'file.parents.acquisition': module,
-                f'file.forms.json.{self.__date_field}': form_data['visitdate'],
-                'file.id': 'dummy-id'
+                'file.name':
+                file,
+                'file.parents.acquisition':
+                module,
+                f'file.forms.json.{self.__date_field}':
+                form_data['visitdate'],
+                'file.id':
+                'dummy-id'
             })
 
         return sorted(result,
@@ -70,14 +72,12 @@ class MockFormsStore(FormsStore):
                       reverse=True)
 
     def query_form_data_with_custom_filters(
-        self,
-        **kwargs) -> Optional[List[Dict[str, str]]]:
+            self, **kwargs) -> Optional[List[Dict[str, str]]]:
         return self.query_form_data(**kwargs)
 
-    def get_visit_data(self, *,
-                       file_name: str,
+    def get_visit_data(self, *, file_name: str,
                        acq_id: str) -> Optional[Dict[str, str]]:
-        for subject, modules in self.__subjects.items():
+        for modules in self.__subjects.values():
             for module, files in modules.items():
                 if module != acq_id:
                     continue

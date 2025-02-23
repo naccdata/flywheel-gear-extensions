@@ -1,5 +1,4 @@
 """Utility functions."""
-import copy
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -117,30 +116,3 @@ def load_form_ingest_configurations(
 
     with open(config_file_path, mode='r', encoding='utf-8') as configs_file:
         return FormProjectConfigs.model_validate_json(configs_file.read())
-
-
-def updated_nested_dict(d1: Dict[Any, Any], d2: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Deep update d1 with d2 - d2 will replace d1 values EXCEPT
-    for lists, which will be appended to the d1 list. Assumes the two
-    dicts are compatible, e.g. lists are in the same spots"""
-
-    # if not isinstance(d2, dict):
-    #     return d1
-
-    for k, v in d2.items():
-        if k in d1:
-            if isinstance(v, list):
-                if type(v) != type(d1[k]):
-                    raise ValueError(f"Cannot update {d1[k]} with {v}")
-                d1[k].extend(v)
-            elif isinstance(v, dict):
-                if type(v) != type(d1[k]):
-                    raise ValueError(f"Cannot update {d1[k]} with {v}")
-                d1[k] = updated_nested_dict(d1[k], v)
-            else:
-                d1[k] = v
-        else:
-            # deep copy in case this is a list/dict.
-            d1[k] = copy.deepcopy(v)
-
-    return d1

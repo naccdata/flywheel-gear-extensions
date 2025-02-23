@@ -68,9 +68,10 @@ class CSVTransformVisitor(CSVVisitor):
             str, Any]]] = defaultdict(list)
         self.__current_batch: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
-        self.__transformed: DefaultDict[str, Dict[str,
-                                                Dict[str,
-                                                    Any]]] = defaultdict(dict)
+        self.__transformed: DefaultDict[str,
+                                        Dict[str,
+                                             Dict[str,
+                                                  Any]]] = defaultdict(dict)
 
     @property
     def module(self) -> str:
@@ -581,7 +582,8 @@ def run(*,
                                 module=visitor.module,
                                 gear_name=gear_name,
                                 error_writer=error_writer)
-    upload_status = uploader.upload(visitor.transformed_records)
+    upload_status = uploader.upload(
+        visitor.transformed_records)  # type: ignore
     if not upload_status:
         error_writer.clear()
         error_writer.write(partially_failed_file_error())
