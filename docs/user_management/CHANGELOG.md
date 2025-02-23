@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to pull REDCap API code from library instead
+
 ## 1.4.8
 
 * Find the SSO authentication email from claimed registry record
