@@ -2,7 +2,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Optional, TextIO
+from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
@@ -36,8 +36,6 @@ class CSVTransformVisitor(CSVVisitor):
                  *,
                  id_column: str,
                  module: str,
-                 transformed_records: DefaultDict[str, Dict[str, Dict[str,
-                                                                      Any]]],
                  error_writer: ListErrorWriter,
                  transformer_factory: TransformerFactory,
                  preprocessor: FormPreprocessor,
@@ -46,7 +44,6 @@ class CSVTransformVisitor(CSVVisitor):
                  project: Optional[ProjectAdaptor] = None) -> None:
         self.__module = module
         self.__id_column = id_column
-        self.__transformed = transformed_records
         self.__error_writer = error_writer
         self.__transformer_factory = transformer_factory
         self.__preprocessor = preprocessor
@@ -71,10 +68,19 @@ class CSVTransformVisitor(CSVVisitor):
             str, Any]]] = defaultdict(list)
         self.__current_batch: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
+        self.__transformed: DefaultDict[str, Dict[str,
+                                                Dict[str,
+                                                    Any]]] = defaultdict(dict)
+
     @property
     def module(self) -> str:
         """Returns the detected module for the CSV file."""
         return self.__module
+
+    @property
+    def transformed_records(self) -> MutableMapping:
+        """Return the transformed records."""
+        return self.__transformed
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares the visitor to process rows using the given header columns.
@@ -545,13 +551,8 @@ def run(*,
     Returns:
         bool: True if transformation/upload successful
     """
-
-    transformed_records: DefaultDict[str, Dict[str,
-                                               Dict[str,
-                                                    Any]]] = defaultdict(dict)
     visitor = CSVTransformVisitor(id_column=id_column,
                                   module=module,
-                                  transformed_records=transformed_records,
                                   error_writer=error_writer,
                                   transformer_factory=transformer_factory,
                                   preprocessor=preprocessor,
@@ -568,14 +569,14 @@ def run(*,
 
     result = result and visitor.process_current_batch()
 
-    if not len(transformed_records) > 0:
+    if not len(visitor.transformed_records) > 0:
         return result
 
     uploader = FormJSONUploader(project=destination,
                                 module=visitor.module,
                                 gear_name=gear_name,
                                 error_writer=error_writer)
-    upload_status = uploader.upload(transformed_records)
+    upload_status = uploader.upload(visitor.transformed_records)
     if not upload_status:
         error_writer.clear()
         error_writer.write(partially_failed_file_error())
