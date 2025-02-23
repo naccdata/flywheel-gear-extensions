@@ -203,7 +203,8 @@ class CSVTransformVisitor(CSVVisitor):
 
                 # report duplicate visits within current batch
                 if len(list_visits) > 1:
-                    success = success and self.__report_duplicates_within_current_batch(
+                    success = False
+                    self.__report_duplicates_within_current_batch(
                         subject=subject, duplicate_records=list_visits)
                     continue
 

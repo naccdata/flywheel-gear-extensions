@@ -9,7 +9,7 @@ import copy
 from flywheel.file_spec import FileSpec
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from pydantic import BaseModel, field_validator
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 
 class MockFile(BaseModel):
@@ -53,10 +53,15 @@ class MockProject(ProjectAdaptor):
         """Get the file if it exists."""
         return self.__files.get(name, None)
 
-    def upload_file(self, file: FileSpec, *args, **kwargs):
+    def upload_file(self, file: Union[FileSpec, Dict[str, Any]], *args, **kwargs):
         """Add file to files; replacing as needed."""
-        self.__files[file.name] = MockFile(name=file.name,
-                                           contents=file.contents)
+        if isinstance(file, FileSpec):
+            self.__files[file.name] = MockFile(name=file.name,
+                                               contents=file.contents)
+        else:
+            self.__files[file['name']] = MockFile(name=file['name'],
+                                                  contents=file['contents'],
+                                                  info=file.get('info', {}))
 
     def reload(self, *args, **kwargs):
         return self

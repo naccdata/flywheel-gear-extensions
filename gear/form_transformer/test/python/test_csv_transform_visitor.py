@@ -11,7 +11,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from configs.ingest_configs import ModuleConfigs
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
-from outputs.errors import ListErrorWriter, preprocess_errors
+from outputs.errors import (
+    ListErrorWriter,
+    get_error_log_name,
+    preprocess_errors,
+)
 from preprocess.preprocessor import FormPreprocessor
 from transform.transformer import (
     FieldTransformations,
@@ -120,7 +124,7 @@ def create_record(data: Dict[str, str]):
         FieldNames.FORMVER: '4.0',
         FieldNames.VISITNUM: '1',
         DATE_FIELD: '2025-01-01',
-        'naccid': 'local-test',
+        'naccid': 'dummy-naccid',
         'dummy': 'dummy_val',
         'ptid': 'dummy-ptid',
         'packet': 'I'
@@ -128,6 +132,18 @@ def create_record(data: Dict[str, str]):
 
     record.update(data)
     return record
+
+
+# def format_record(record: Dict[str, object]):
+#     """Format a record with formatted form_data.
+#     This is pretty hacky I just added whatever it complained
+#     about when it tried to run.
+#     """
+#     file_name = f"{record['naccid']}.json"
+#     return {
+#         'file.name': file_name,
+#         'file.parents.acquisition': DefaultValues.UDS_MODULE
+#     }
 
 
 def get_qc_errors(project: MockProject):
@@ -215,3 +231,71 @@ class TestCSVTransformVisitor:
         code = SysErrorCodes.EXCLUDED_FIELDS
         assert qc[0]['code'] == code
         assert qc[0]['message'] == preprocess_errors[code]
+
+    def test_already_exists(self):
+        """Test that the subject already exists - this is allowed"""
+        visitor, project, form_store = create_visitor()
+        record = create_record({})
+        form_store.add_subject(subject_lbl=record['naccid'],
+                               form_data=record,
+                               file_name=f"{record['naccid']}.json")
+
+        # allowed when exactly the same
+        assert visitor.visit_row(record, 0)
+
+    def test_update_existing_visits_error_logs(self):
+        """Tests the existing_visits_error_logs method works
+        as expected. Adds a bunch of records that "already exist
+        but failed before".""" 
+        visitor, project, form_store = create_visitor()
+
+        # create "failed" files that already exist in the project
+        records = [create_record({'naccid': f'failed-{x}'}) for x in range(3)]
+        for i, record in enumerate(records):
+            file_name = get_error_log_name(module=record['module'],
+                                           input_data=record)
+
+            form_store.add_subject(subject_lbl=record['naccid'],
+                                   form_data=record,
+                                   file_name=file_name)
+            
+            # also update the project file's metadata to a failed state
+            project.upload_file(file={'name': file_name, 'contents': json.dumps(record),
+                'info': {
+                    'qc': {
+                        'form-transformer': {
+                            'state': 'FAILED',
+                            'data': [{'msg': 'some old failures'}]
+                        }
+                    }
+                }
+            })
+
+            assert visitor.visit_row(record, i)
+
+        # all records should now be in the visitor.__existing_visits
+        # check that after updating the states get set to TRUE
+        visitor.update_existing_visits_error_log()
+        for record in records:
+            file_name = get_error_log_name(module=record['module'],
+                                           input_data=record)
+            file = project.get_file(file_name)
+            assert file
+            assert file.info['qc']['form-transformer']['validation'] == {
+                'state': 'PASS', 'data': []}
+
+    def test_current_batch_duplicates(self):
+        """Test duplicates in current batch."""
+        visitor, project, _ = create_visitor()
+        record = create_record({})
+
+        for i in range(3):
+            assert visitor.visit_row(record, i)
+
+        assert not visitor.process_current_batch()
+        qc = get_qc_errors(project)
+        assert len(qc) == 3
+        for failed_form in qc:
+            code = SysErrorCodes.DUPLICATE_VISIT
+            assert failed_form['code'] == code
+            assert failed_form['message'] == preprocess_errors[code]
