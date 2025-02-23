@@ -55,6 +55,10 @@ class MockFormsStore(FormsStore):
         self,
         subject_lbl: str,
         **kwargs) -> Optional[List[Dict[str, str]]]:
+
+        if subject_lbl not in self.__subjects:
+            return None
+
         return sorted(self.__subjects[subject_lbl],
                       key=lambda x: x[self.__date_field], reverse=True)
 
