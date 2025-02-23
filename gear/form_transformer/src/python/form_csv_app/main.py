@@ -231,6 +231,8 @@ class CSVTransformVisitor(CSVVisitor):
                             ptid=transformed_row[FieldNames.PTID],
                             visitnum=transformed_row[FieldNames.VISITNUM]))
                     success = False
+                    self.__update_visit_error_log(input_record=transformed_row,
+                                                  qc_passed=False)
                     continue
                 else:
                     self.__error_writer.write(
@@ -241,6 +243,8 @@ class CSVTransformVisitor(CSVVisitor):
                             error_code=SysErrorCodes.LOWER_VISITNUM,
                             ptid=transformed_row[FieldNames.PTID],
                             visitnum=transformed_row[FieldNames.VISITNUM]))
+                    self.__update_visit_error_log(input_record=transformed_row,
+                                                  qc_passed=False)
                     success = False
                     continue
 

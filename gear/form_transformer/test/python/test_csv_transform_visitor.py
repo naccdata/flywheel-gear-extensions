@@ -1,7 +1,6 @@
 """
 Tests the CSVTransformVisitor
-Mainly tests the batch CSV internal record duplicates since that
-doesn't require querying Flywheel.
+Mainly tests the batch CSV records error checks.
 """
 import json
 import pytest
@@ -71,7 +70,7 @@ def create_visitor(
     module_configs = ModuleConfigs(
         initial_packets=['I', 'I4'],
         followup_packets=['F'],
-        versions=['4'],
+        versions=['4.0'],
         date_field=DATE_FIELD,
         legacy_module=DefaultValues.UDS_MODULE,
         legacy_date=DATE_FIELD)
@@ -299,3 +298,35 @@ class TestCSVTransformVisitor:
             code = SysErrorCodes.DUPLICATE_VISIT
             assert failed_form['code'] == code
             assert failed_form['message'] == preprocess_errors[code]
+
+    def test_current_batch_different_visit_date(self):
+        """Tests same visit number but different visit date correctly
+        raises error."""
+        visitor, project, _ = create_visitor()
+        record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
+        assert visitor.visit_row(record, 0)
+        record = create_record({'visitnum': "3", 'visitdate': '2024-01-01'})
+        assert visitor.visit_row(record, 1)
+
+        assert not visitor.process_current_batch()
+        qc = get_qc_errors(project)
+        assert len(qc) == 1
+        code = SysErrorCodes.DIFF_VISITDATE
+        assert qc[0]['code'] == code
+        assert qc[0]['message'] == preprocess_errors[code]
+
+    def test_current_batch_lower_visit_num(self):
+        """Tests invalid visit numbers correctly raises error. In this case
+        only one of the rows is marked "invalid"."""
+        visitor, project, _ = create_visitor()
+        record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
+        assert visitor.visit_row(record, 0)
+        record = create_record({'visitnum': "5", 'visitdate': '2024-01-01'})
+        assert visitor.visit_row(record, 1)
+
+        assert not visitor.process_current_batch()
+        qc = get_qc_errors(project)
+        assert len(qc) == 1
+        code = SysErrorCodes.LOWER_VISITNUM
+        assert qc[0]['code'] == code
+        assert qc[0]['message'] == preprocess_errors[code]
