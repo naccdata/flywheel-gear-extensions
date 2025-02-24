@@ -61,6 +61,9 @@ class CSVTransformVisitor(CSVVisitor):
             self.__id_column, self.__date_field, FieldNames.MODULE,
             FieldNames.VISITNUM, FieldNames.FORMVER
         ]
+        if self.__id_column != FieldNames.PTID:
+            self.__req_fields.append(FieldNames.PTID)
+
         # TODO - set this in module configs template
         self.__error_log_template = {
             "ptid": FieldNames.PTID,
