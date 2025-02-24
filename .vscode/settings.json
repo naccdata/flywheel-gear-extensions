@@ -26,10 +26,14 @@
         "comanage",
         "coperson",
         "devcontainer",
+        "FTLD",
         "NACC",
         "naccadc",
         "naccid",
         "oidcsub",
-        "ptid"
+        "popleft",
+        "ptid",
+        "visitdate",
+        "visitnum"
     ]
 }
