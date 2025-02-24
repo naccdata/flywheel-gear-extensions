@@ -452,7 +452,8 @@ def update_error_log_and_qc_metadata(*,
                                      gear_name: str,
                                      state: str,
                                      errors: List[Dict[str, Any]],
-                                     reset_metadata: bool = False) -> bool:
+                                     reset_metadata: bool = False,
+                                     append_errors: bool = False) -> bool:
     """Update project level error log file and store error metadata in
     file.info.qc.
 
@@ -463,6 +464,8 @@ def update_error_log_and_qc_metadata(*,
         state: gear execution status [PASS|FAIL|NA]
         errors: list of error objects, expected to be JSON dicts
         reset_metadata: reset metadata from previous runs, set to True for first gear
+        append_errors: Append to errors from previous calls, set to True if the same
+            gear is updating the error log multiple times
 
     Returns:
         bool: True if metadata update is successful, else False
@@ -498,14 +501,16 @@ def update_error_log_and_qc_metadata(*,
         return False
 
     # if error data already exists, append to data
-    existing_errors = info.get('qc', {}).get(gear_name, {}) \
-        .get('validation', {}).get('data', [])
-    existing_errors.extend(errors)
+    data = []
+    if append_errors:
+        data = info.get('qc', {}).get(gear_name, {}) \
+            .get('validation', {}).get('data', [])
+    data.extend(errors)
 
     info["qc"][gear_name] = {
         "validation": {
             "state": state.upper(),
-            "data": existing_errors
+            "data": data
         }
     }
     try:

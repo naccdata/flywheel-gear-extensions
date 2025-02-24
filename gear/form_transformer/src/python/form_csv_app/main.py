@@ -2,7 +2,16 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    List,
+    MutableMapping,
+    Optional,
+    Set,
+    TextIO,
+)
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
@@ -63,6 +72,9 @@ class CSVTransformVisitor(CSVVisitor):
             "ptid": FieldNames.PTID,
             "visitdate": self.__date_field
         }
+
+        # keeps track of error logs we have visited for this batch
+        self.__visited_error_logs: Set[str] = set()
 
         self.__existing_visits: DefaultDict[str, List[Dict[
             str, Any]]] = defaultdict(list)
@@ -351,15 +363,20 @@ class CSVTransformVisitor(CSVVisitor):
         if not update or not error_log_name:
             return error_log_name
 
+        append_errors = error_log_name in self.__visited_error_logs
+        self.__visited_error_logs.add(error_log_name)
+
         if not update_error_log_and_qc_metadata(
                 error_log_name=error_log_name,
                 destination_prj=self.__project,
                 gear_name=self.__gear_name,
                 state='PASS' if qc_passed else 'FAIL',
-                errors=self.__error_writer.errors()):
+                errors=self.__error_writer.errors(),
+                append_errors=append_errors):
             log.error('Failed to update error log for visit %s, %s',
                       input_record[FieldNames.PTID],
                       input_record[self.__date_field])
+
             return None
 
         return error_log_name
