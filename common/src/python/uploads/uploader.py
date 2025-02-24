@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 import yaml
 from flywheel.file_spec import FileSpec
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -131,17 +130,12 @@ class JSONUploader:
 
 class FormJSONUploader:
 
-    def __init__(self,
-                 project: ProjectAdaptor,
-                 module: str,
-                 gear_name: str,
-                 error_writer: ListErrorWriter,
-                 downstream_gears: Optional[List[str]] = None) -> None:
+    def __init__(self, project: ProjectAdaptor, module: str, gear_name: str,
+                 error_writer: ListErrorWriter) -> None:
         self.__project = project
         self.__module = module
         self.__gear_name = gear_name
         self.__error_writer = error_writer
-        self.__downstream_gears = downstream_gears
         self.__pending_visits: Dict[str, VisitMapping] = {}
 
     def __add_pending_visit(self, *, subject: SubjectAdaptor, filename: str,
@@ -201,99 +195,6 @@ class FormJSONUploader:
 
         return success
 
-    def __copy_downstream_gears_metadata(self,
-                                         *,
-                                         error_log_name: str,
-                                         visit_file_name: str,
-                                         subject: SubjectAdaptor,
-                                         session: str,
-                                         acquisition: str,
-                                         gear_state: str = 'PASS') -> bool:
-        """Copy any downstream gears metadata from visit file to error log
-        file.
-
-        Args:
-            error_log_name: error log name for the visit
-            visit_file_name: visit acquisition file file name
-            subject: Flywheel subject adaptor
-            session: Flywheel session label
-            acquisition: Flywheel acquisition label
-            gear_state: status of current gear, defaults to PASS
-
-        Returns:
-            bool: True if copying metadata successful
-        """
-
-        error_log_file = self.__project.get_file(error_log_name)
-        if not error_log_file:
-            log.error(
-                'Failed to retrieve visit error log file %s from project',
-                error_log_name)
-            return False
-
-        error_log_file = error_log_file.reload()
-        info = error_log_file.info if (error_log_file.info
-                                       and 'qc' in error_log_file.info) else {
-                                           'qc': {}
-                                       }
-
-        # TODO: decide whether we need to show this warning, commenting out for now
-        # self.__error_writer.write(
-        #     system_error(message=(
-        #         f'Found duplicate visit {visit_file_name}, exit submission pipeline'
-        #     ),
-        #                  error_type='warning'))
-
-        if self.__downstream_gears:
-            visit_file = subject.find_acquisition_file(
-                session_label=session,
-                acquisition_label=acquisition,
-                filename=visit_file_name)
-
-            if visit_file and visit_file.info_exists:
-                visit_file = visit_file.reload()
-
-                for ds_gear in self.__downstream_gears:
-                    ds_gear_metadata = visit_file.info.get('qc', {}).get(
-                        ds_gear, {})
-                    if not ds_gear_metadata:
-                        gear_state = 'FAIL'
-                        self.__error_writer.write(
-                            system_error(message=(
-                                f'QC metadata not found for gear {ds_gear} in the '
-                                f'existing duplicate visit file {visit_file_name}'
-                            ),
-                                         error_type='warning'))
-                        continue
-
-                    info['qc'][ds_gear] = ds_gear_metadata
-            else:
-                gear_state = 'FAIL'
-                self.__error_writer.write(
-                    system_error(message=(
-                        'No QC metadata available in the '
-                        f'existing duplicate visit file {visit_file_name}'),
-                                 error_type='warning'))
-        else:
-            log.warning('No downstream gears defined for current gear %s',
-                        self.__gear_name)
-
-        # add current gear
-        info["qc"][self.__gear_name] = {
-            "validation": {
-                "state": gear_state.upper(),
-                "data": self.__error_writer.errors()
-            }
-        }
-
-        try:
-            error_log_file.update_info(info)
-        except ApiException as error:
-            log.error(error)
-            return False
-
-        return True
-
     def __update_visit_error_log(self,
                                  *,
                                  error_log_name: str,
@@ -338,12 +239,7 @@ class FormJSONUploader:
 
         success = True
         for subject_lbl, visits_info in participant_records.items():
-            subject = self.__project.find_subject(subject_lbl)
-            if not subject:
-                log.info(
-                    'NACCID %s does not exist in project %s/%s, creating a new subject',
-                    subject_lbl, self.__project.group, self.__project.label)
-                subject = self.__project.add_subject(subject_lbl)
+            subject = self.__project.add_subject(subject_lbl)
 
             for log_file, record in visits_info.items():
                 self.__error_writer.clear()
@@ -371,18 +267,11 @@ class FormJSONUploader:
                     continue
 
                 # No error and no new file (i.e. duplicate file exists)
+                # this cannot happen as duplicate visits detected earlier in the process
                 if not new_file:
-                    if not self.__copy_downstream_gears_metadata(
-                            error_log_name=log_file,
-                            visit_file_name=visit_file_name,
-                            subject=subject,
-                            session=session_label,
-                            acquisition=acq_label):
-                        log.warning(
-                            'Failed to copy downstream gear metadata to error log file '
-                            ' %s from existing visit file %s', log_file,
-                            visit_file_name)
-                        success = False
+                    log.error('Existing duplicate visit file %s',
+                              visit_file_name)
+                    success = False
                     continue
 
                 if not update_file_info_metadata(new_file, record):

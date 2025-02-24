@@ -139,13 +139,13 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         module_name = self.__file_input.get_module_name_from_file_suffix()
         if not module_name:
             raise GearExecutionError(
-                "Expect module suffix to input file name: "
+                "Expect module suffix in input file name: "
                 f"{self.__file_input.filename}")
 
         return NACCIDLookupVisitor(adcid=adcid,
                                    identifiers=identifiers,
                                    output_file=output_file,
-                                   module_name=module_name,
+                                   module_name=module_name.lower(),
                                    error_writer=error_writer,
                                    date_field=self.__date_field,
                                    gear_name=self.__gear_name,

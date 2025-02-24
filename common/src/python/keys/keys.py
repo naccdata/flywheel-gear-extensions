@@ -100,3 +100,5 @@ class SysErrorCodes:
     UDS_NOT_APPROVED = 'preprocess-019'
     MISSING_UDS_V3 = 'preprocess-020'
     MISSING_UDS_I4 = 'preprocess-021'
+    DUPLICATE_VISIT = 'preprocess-022'
+    LOWER_VISITNUM = 'preprocess-023'
