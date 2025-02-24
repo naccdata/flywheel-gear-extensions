@@ -1,5 +1,4 @@
 """Utility functions."""
-
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -11,6 +10,22 @@ from flywheel.rest import ApiException
 log = logging.getLogger(__name__)
 
 
+def is_duplicate_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> bool:
+    """Check whether the two python dicts are identical.
+
+    Args:
+        dict1: First dictionary
+        dict2: Second dictionary
+
+    Returns:
+        True if a duplicate detected, else false
+    """
+
+    sorted_dict1 = sorted(dict1.items())
+    sorted_dict2 = sorted(dict2.items())
+    return (sorted_dict1 == sorted_dict2)
+
+
 def is_duplicate_record(record1: str,
                         record2: str,
                         content_type: Optional[str] = None) -> bool:
@@ -19,7 +34,7 @@ def is_duplicate_record(record1: str,
     Args:
         record1: First record
         record2: Second record
-
+        content_type (optional): content type
     Returns:
         True if a duplicate detected, else false
     """
@@ -28,9 +43,7 @@ def is_duplicate_record(record1: str,
         return (record1 == record2)
 
     try:
-        dict1 = sorted(json.loads(record1).items())
-        dict2 = sorted(json.loads(record2).items())
-        return (dict1 == dict2)
+        return is_duplicate_dict(json.loads(record1), json.loads(record2))
     except json.JSONDecodeError as error:
         log.warning('Error in converting records to JSON format - %s', error)
         return False

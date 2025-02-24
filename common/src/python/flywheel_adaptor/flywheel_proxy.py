@@ -1321,7 +1321,8 @@ class ProjectAdaptor:
         """
         subject = self.find_subject(label)
         if subject:
-            log.info(f"Subject {label} already exists")
+            log.info(
+                f"Subject {label} already exists in {self.group}/{self.label}")
             return subject
 
         return SubjectAdaptor(self._project.add_subject(label=label))
