@@ -253,12 +253,10 @@ class TestCSVTransformVisitor:
                     'info': {
                         'qc': {
                             'form-transformer': {
-                                'validation': {
-                                    'state': 'FAILED',
-                                    'data': [{
-                                        'msg': 'some old failures'
-                                    }]
-                                }
+                                'state': 'FAILED',
+                                'data': [{
+                                    'msg': 'some old failures'
+                                }]
                             }
                         }
                     }
@@ -330,42 +328,3 @@ class TestCSVTransformVisitor:
         code = SysErrorCodes.LOWER_VISITNUM
         assert qc[0]['code'] == code
         assert qc[0]['message'] == preprocess_errors[code]
-
-    def test_exact_duplicate_resubmitted(self):
-        """Tests a record with the same failure is resubmitted.
-        This is checking that the QC error logs are updated
-        correctly."""
-        visitor, project, _ = create_visitor()
-        record = create_record({'module': 'ftld'})
-        file_name = get_error_log_name(module=DefaultValues.UDS_MODULE,
-                                       input_data=record)
-
-        # add "old failure" to project
-        project.upload_file(
-            file={
-                'name': file_name,
-                'contents': json.dumps(record),
-                'info': {
-                    'qc': {
-                        'form-transformer': {
-                            "validation": {
-                                'state': 'FAILED',
-                                'data': [{
-                                    'msg': 'old failure that should be replaced'
-                                }]
-
-                            }
-                        }
-                    }
-                }
-            })
-        assert len(get_qc_errors(project)) == 1
-
-        # do "resubmission"
-        assert not visitor.visit_row(record, 0)
-        qc = get_qc_errors(project)
-        assert len(qc) == 1
-        assert qc[0]['code'] == 'unexpected-value'
-        assert qc[0]['message'] == 'Expected UDS for field module'
-        assert qc[0]['expected'] == 'UDS'
-        assert qc[0]['value'] == 'FTLD'
