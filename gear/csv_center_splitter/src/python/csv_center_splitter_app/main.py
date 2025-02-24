@@ -1,6 +1,6 @@
 """Defines csv_center_splitter."""
 import logging
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, Dict, Iterable, List, Optional, Set, TextIO
 
 from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -20,9 +20,11 @@ log = logging.getLogger(__name__)
 class CSVVisitorCenterSplitter(CSVVisitor):
     """Class for visiting each row in CSV."""
 
-    def __init__(self, adcid_key: str, error_writer: ListErrorWriter):
+    def __init__(self, *, adcid_key: str, include: Set[str],
+                 error_writer: ListErrorWriter):
         """Initializer."""
         self.__adcid_key: str = adcid_key
+        self.__include = include
         self.__error_writer: ListErrorWriter = error_writer
         self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
         self.__headers: List[str] = []
@@ -89,6 +91,9 @@ class CSVVisitorCenterSplitter(CSVVisitor):
             self.__error_writer.write(error)
             return False
 
+        if adcid not in self.__include:
+            return True  # skip center not explicitly included
+
         if adcid not in self.split_data:
             self.split_data[adcid] = []
 
@@ -98,7 +103,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
 
 def generate_project_map(
         proxy: FlywheelProxy,
-        centers: List[str],
+        centers: Iterable[str],
         target_project: str,
         staging_project_id: Optional[str] = None) -> Dict[str, Any]:
     """Generates the project map.
@@ -128,7 +133,7 @@ def generate_project_map(
     # FW project for upload, and filter as needed
     return build_project_map(proxy=proxy,
                              destination_label=target_project,
-                             center_filter=centers)
+                             center_filter=list(centers))
 
 
 def run(*,
@@ -139,8 +144,7 @@ def run(*,
         adcid_key: str,
         target_project: str,
         staging_project_id: Optional[str] = None,
-        include: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
+        include: Optional[Set[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -158,11 +162,13 @@ def run(*,
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
         include: Centers to include
-        exclude: Centers to exclude
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
-    visitor = CSVVisitorCenterSplitter(adcid_key, error_writer)
+    centers: Set[str] = include if include else set()
+    visitor = CSVVisitorCenterSplitter(adcid_key=adcid_key,
+                                       include=centers,
+                                       error_writer=error_writer)
     success = read_csv(input_file=input_file,
                        error_writer=error_writer,
                        visitor=visitor,
@@ -175,12 +181,6 @@ def run(*,
         for x in error_writer.errors():
             log.error(x['message'])
         return
-
-    centers = visitor.centers
-    if include:
-        centers = [x for x in centers if x in include]
-    if exclude:
-        centers = [x for x in centers if x not in exclude]
 
     project_map = generate_project_map(proxy=proxy,
                                        centers=centers,
