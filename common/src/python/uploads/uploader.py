@@ -111,22 +111,34 @@ class JSONUploader:
             subject = self.__project.add_subject(subject_label)
 
             for record in record_list:
-                try:
-                    subject.upload_acquisition_file(
-                        session_label=self.__session_template.instantiate(
-                            record),
-                        acquisition_label=self.__acquisition_template.
-                        instantiate(record),
-                        filename=self.__filename_template.instantiate(
-                            record, environment=self.__environment),
-                        contents=json.dumps(record),
-                        content_type='application/json')
-                except SubjectError as error:
-                    raise UploaderError(error) from error
-                except ValueError as error:
-                    raise UploaderError(error) from error
+                self.upload_record(subject, record)
 
         return success
+
+    def upload_record(self, subject: SubjectAdaptor,
+                      record: Dict[str, Any]) -> None:
+        """Uploads the serialized record to the subject with the session,
+        acquisition, and file determined by the template of this object.
+
+        Args:
+          subject: the subject
+          record: the record data
+        Raises:
+          UploaderError if a failure occurs during the upload
+        """
+        try:
+            subject.upload_acquisition_file(
+                session_label=self.__session_template.instantiate(record),
+                acquisition_label=self.__acquisition_template.instantiate(
+                    record),
+                filename=self.__filename_template.instantiate(
+                    record, environment=self.__environment),
+                contents=json.dumps(record),
+                content_type='application/json')
+        except SubjectError as error:
+            raise UploaderError(error) from error
+        except ValueError as error:
+            raise UploaderError(error) from error
 
 
 class FormJSONUploader:
