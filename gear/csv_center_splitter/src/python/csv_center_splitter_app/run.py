@@ -1,6 +1,6 @@
 """Entry script for csv_center_splitter."""
 import logging
-from typing import List, Optional
+from typing import Optional, Set
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -25,20 +25,17 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
     """Visitor for the CSV Center Splitter gear."""
 
     def __init__(self,
+                 *,
                  client: ClientWrapper,
                  file_input: InputFileWrapper,
                  adcid_key: str,
                  target_project: str,
+                 include: Set[str],
+                 exclude: Set[str],
                  staging_project_id: Optional[str] = None,
-                 include: Optional[List[str]] = None,
-                 exclude: Optional[List[str]] = None,
                  delimiter: str = ',',
                  local_run: bool = False):
         super().__init__(client=client)
-
-        if (include and exclude and set(include).intersection(set(exclude))):
-            raise GearExecutionError(
-                "Include and exclude lists cannot overlap")
 
         self.__file_input = file_input
         self.__adcid_key = adcid_key
@@ -81,8 +78,11 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
-        include = context.config.get('include', '')
-        exclude = context.config.get('exclude', '')
+        include = set(parse_string_to_list(context.config.get('include', '')))
+        exclude = set(parse_string_to_list(context.config.get('exclude', '')))
+        if include.intersection(exclude):
+            raise GearExecutionError(
+                "Include and exclude lists cannot overlap")
 
         delimiter = context.config.get('delimiter', ',')
         local_run = context.config.get('local_run', False)
@@ -93,8 +93,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             adcid_key=adcid_key,
             target_project=target_project,
             staging_project_id=staging_project_id,
-            include=parse_string_to_list(include),
-            exclude=parse_string_to_list(exclude),
+            include=include,
+            exclude=exclude,
             delimiter=delimiter,
             local_run=local_run)
 
@@ -114,6 +114,18 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 raise GearExecutionError(
                     f'Failed to find the input file: {error}') from error
 
+        centers = {
+            str(adcid)
+            for adcid in self.admin_group('nacc').get_adcids()
+        }
+        if self.__include:
+            centers = {adcid for adcid in centers if adcid in self.__include}
+        if self.__exclude:
+            centers = {
+                adcid
+                for adcid in centers if adcid not in self.__exclude
+            }
+
         with open(self.__file_input.filepath, mode='r', encoding='utf8') as fh:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=fw_path)
@@ -125,8 +137,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 adcid_key=self.__adcid_key,
                 target_project=self.__target_project,
                 staging_project_id=self.__staging_project_id,
-                include=self.__include,
-                exclude=self.__exclude,
+                include=centers,
                 delimiter=self.__delimiter)
 
 
