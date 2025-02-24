@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.1
+
+* Allows underscore in GUID
+  
 ## 1.0.9
 * Adds `preserve_case` configuration value (default `false`) to allow preserving case of header keys in output file
 * Refactors to use `InputFileWrapper.get_parent_project`
