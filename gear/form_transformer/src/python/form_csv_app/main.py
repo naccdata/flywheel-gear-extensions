@@ -577,6 +577,9 @@ def run(*,
         downstream_gears=downstream_gears)
 
     result = result and visitor.process_current_batch()
+    if not result:
+        error_writer.clear()
+        error_writer.write(partially_failed_file_error())
 
     if not len(visitor.transformed_records) > 0:
         return result
