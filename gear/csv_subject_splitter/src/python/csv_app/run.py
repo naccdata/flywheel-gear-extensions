@@ -96,7 +96,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                   encoding='utf-8') as csv_file:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=proxy.get_lookup_path(file))
-            success = run(input_file=csv_file,
+            success = run(proxy=proxy,
+                          hierarchy_client=hierarchy_client,
+                          input_file=csv_file,
                           destination=ProjectAdaptor(project=project,
                                                      proxy=proxy),
                           environment={'filename': self.__file_input.basename},
