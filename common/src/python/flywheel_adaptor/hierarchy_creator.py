@@ -1,5 +1,6 @@
 from typing import Literal, Optional
 
+from flywheel.rest import ApiException
 from fw_client.client import FWClient
 from pydantic import BaseModel, Field, ValidationError
 
@@ -86,6 +87,21 @@ class ProjectHierarchyResponse(BaseModel):
     session: Optional[SessionUpsertResponse] = None
     acquisition: Optional[AcquisitionUpsertResponse] = None
 
+    def has_subject_conflict(self) -> bool:
+        return self.subject.upsert_result == 'conflicts'
+
+    def has_session_conflict(self) -> bool:
+        if not self.session:
+            return False
+
+        return self.session.upsert_result == 'conflicts'
+
+    def has_acquisition_conflict(self) -> bool:
+        if not self.acquisition:
+            return False
+
+        return self.acquisition.upsert_result == 'conflicts'
+
 
 class SubjectHierarchy(BaseModel):
     """Defines class for subject/session/acquisition hierarchy."""
@@ -107,16 +123,22 @@ class SubjectHierarchy(BaseModel):
           None if any of those values are missing or response indicates a conflict
           occurred.
         """
-        if project_hierarchy.subject.upsert_result == 'conflicts':
-            return None
+        if project_hierarchy.has_subject_conflict():
+            raise HierarchyCreationError('Conflicts creating subject %s',
+                                         project_hierarchy.subject.label)
         if not project_hierarchy.session:
-            return None
-        if project_hierarchy.session.upsert_result == 'conflicts':
-            return None
+            raise HierarchyCreationError('Session not created for subject %s',
+                                         project_hierarchy.subject.label)
+        if project_hierarchy.has_session_conflict():
+            raise HierarchyCreationError('Conflicts creating session %s',
+                                         project_hierarchy.session.label)
         if not project_hierarchy.acquisition:
-            return None
-        if project_hierarchy.acquisition.upsert_result == 'conflicts':
-            return None
+            raise HierarchyCreationError('Acquisition not created in %s/%s',
+                                         project_hierarchy.subject.label,
+                                         project_hierarchy.session.label)
+        if project_hierarchy.has_acquisition_conflict():
+            raise HierarchyCreationError('Conflicts creating acquisition %s',
+                                         project_hierarchy.acquisition.label)
 
         return SubjectHierarchy(
             subject_id=project_hierarchy.subject.id,
@@ -151,13 +173,24 @@ class HierarchyCreationClient:
             subject=SubjectUpsertRequest(label=subject_label),
             session=SessionUpsertRequest(label=session_label),
             acquisition=AcquisitionUpsertRequest(label=acquisition_label))
-        response = self.__fw_client.post(
-            url=f"/api/projects/{project.id}/upsert-hierarchy",
-            json=request.model_dump(exclude_none=True))
+
+        try:
+            response = self.__fw_client.post(
+                url=f"/api/projects/{project.id}/upsert-hierarchy",
+                json=request.model_dump(exclude_none=True))
+        except ApiException as error:
+            raise HierarchyCreationError(
+                'Failure creating hierarchy: '
+                f'{project.label}/{subject_label}/{session_label}/'
+                f'{acquisition_label}: {error}') from error
 
         try:
             result = ProjectHierarchyResponse.model_validate(response)
-        except ValidationError:
-            return None
+        except ValidationError as error:
+            raise HierarchyCreationError(error) from error
 
         return SubjectHierarchy.create(result)
+
+
+class HierarchyCreationError(Exception):
+    """Exception for project hierarchy creation."""
