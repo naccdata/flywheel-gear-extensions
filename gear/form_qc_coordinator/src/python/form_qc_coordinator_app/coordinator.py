@@ -231,7 +231,7 @@ class QCCoordinator():
 
         Args:
             ptid: PTID for this visit
-            visit_file: Flyhweel file object for the visit
+            visit_file: Flywheel file object for the visit
             visitdate: visit date
             error_obj: error metadata to report
         """

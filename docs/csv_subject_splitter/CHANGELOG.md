@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.3
+
+* Changes splitter so that file is uploaded for each row rather than saving all rows and then uploading
+
 ## 1.0.2
 
 * Updates `ProjectAdaptor.add_subject` to return the subject if it already exists
