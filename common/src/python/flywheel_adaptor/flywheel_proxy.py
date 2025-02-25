@@ -471,7 +471,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=settings)
+                             json=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
