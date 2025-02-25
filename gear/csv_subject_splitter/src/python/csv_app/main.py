@@ -1,8 +1,7 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, TextIO
+from typing import Any, Dict, List, TextIO
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -12,7 +11,7 @@ from outputs.errors import (
     empty_field_error,
     missing_field_error,
 )
-from uploads.uploader import JSONUploader, UploadTemplateInfo
+from uploads.uploader import JSONUploader, UploaderError, UploadTemplateInfo
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +19,11 @@ log = logging.getLogger(__name__)
 class CSVSplitVisitor(CSVVisitor):
     """Class to transform a participant visit CSV record."""
 
-    def __init__(self, *, req_fields: List[str],
-                 records: DefaultDict[str, List[Dict[str, Any]]],
-                 error_writer: ErrorWriter) -> None:
+    def __init__(self, *, req_fields: List[str], project: ProjectAdaptor,
+                 uploader: JSONUploader, error_writer: ErrorWriter) -> None:
         self.__req_fields = req_fields
-        self.__records = records
+        self.__project = project
+        self.__uploader = uploader
         self.__error_writer = error_writer
 
     def visit_header(self, header: List[str]) -> bool:
@@ -68,8 +67,13 @@ class CSVSplitVisitor(CSVVisitor):
                 empty_fields, line_num))
             return False
 
-        subject_lbl = row[FieldNames.NACCID]
-        self.__records[subject_lbl].append(row)
+        subject = self.__project.add_subject(row[FieldNames.NACCID])
+        try:
+            self.__uploader.upload_record(subject=subject, record=row)
+        except UploaderError as error:
+            log.error("Error (line: %s): %s", line_num, str(error))
+            # TODO: save error details for notification email
+            return False
 
         return True
 
@@ -83,7 +87,7 @@ def run(*, input_file: TextIO, destination: ProjectAdaptor,
         environment: Dict[str, Any], template_map: UploadTemplateInfo,
         error_writer: ErrorWriter) -> bool:
     """Reads records from the input file and creates a JSON file for each.
-    Uploads the JSON file to the respective aquisition in Flywheel.
+    Uploads the JSON file to the respective acquisition in Flywheel.
 
     Args:
         input_file: the input file
@@ -94,24 +98,14 @@ def run(*, input_file: TextIO, destination: ProjectAdaptor,
     Returns:
         bool: True if upload successful
     """
-
-    subject_record_map: DefaultDict[str, List[Dict[str,
-                                                   Any]]] = defaultdict(list)
-    visitor = CSVSplitVisitor(req_fields=[FieldNames.NACCID],
-                              records=subject_record_map,
-                              error_writer=error_writer)
     result = read_csv(input_file=input_file,
                       error_writer=error_writer,
-                      visitor=visitor)
+                      visitor=CSVSplitVisitor(req_fields=[FieldNames.NACCID],
+                                              project=destination,
+                                              uploader=JSONUploader(
+                                                  project=destination,
+                                                  template_map=template_map,
+                                                  environment=environment),
+                                              error_writer=error_writer))
 
-    if not len(subject_record_map) > 0:
-        return result
-
-    uploader = JSONUploader(project=destination,
-                            template_map=template_map,
-                            environment=environment)
-    upload_status = uploader.upload(subject_record_map)
-    if not upload_status:
-        notify_upload_errors()
-
-    return result and upload_status
+    return result

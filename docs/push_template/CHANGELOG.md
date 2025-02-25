@@ -4,6 +4,10 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+## 1.0.4
+
+* Updates template pattern regex to `^((\w+(?:-[\w]+)*)-)?(\w+)-template$` (previously `^((\w+)-)?(\w+)-template$`) which allows matches on data types with dashes in them
+
 ## 1.0.3
 
 * Updates to support distribution projects

@@ -5,8 +5,11 @@ from typing import Any, DefaultDict, Dict, List
 
 import pytest
 from csv_app.main import CSVSplitVisitor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import read_csv
 from outputs.errors import StreamErrorWriter
+from uploads.uploader import JSONUploader
 
 
 def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
@@ -83,18 +86,49 @@ def nonvisit_data_stream(valid_nonvisit_table):
     yield stream
 
 
+class MockUploader(JSONUploader):
+
+    def __init__(self):
+        self.__records: DefaultDict[str, List[Dict[str,
+                                                   Any]]] = defaultdict(list)
+
+    def upload_record(self, subject: SubjectAdaptor,
+                      record: Dict[str, Any]) -> None:
+        self.__records[subject.id].append(record)
+
+
+class MockSubject(SubjectAdaptor):
+
+    def __init__(self, label: str):
+        self.__id = label
+
+    @property
+    def id(self):
+        return self.__id
+
+
+class MockProject(ProjectAdaptor):
+
+    def __init__(self):
+        pass
+
+    def add_subject(self, label: str) -> MockSubject:
+        return MockSubject(label)
+
+
 class TestCSVSplitVisitor:
     """Tests csv-subject transformation."""
 
     def test_missing_column_headers(self, missing_columns_stream):
         """test missing expected column headers."""
         err_stream = StringIO()
-        records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
         error_writer = StreamErrorWriter(stream=err_stream,
                                          container_id='dummy',
                                          fw_path='dummy/dummy')
         visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  records=records,
+                                  uploader=MockUploader(),
+                                  project=MockProject(),
                                   error_writer=error_writer)
 
         no_errors = read_csv(input_file=missing_columns_stream,
@@ -106,12 +140,13 @@ class TestCSVSplitVisitor:
     def test_valid_visit(self, visit_data_stream):
         """Test case where data corresponds to form completed at visit."""
         err_stream = StringIO()
-        records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
         error_writer = StreamErrorWriter(stream=err_stream,
                                          container_id='dummy',
                                          fw_path='dummy/dummy')
         visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  records=records,
+                                  uploader=MockUploader(),
+                                  project=MockProject(),
                                   error_writer=error_writer)
         no_errors = read_csv(input_file=visit_data_stream,
                              error_writer=error_writer,
@@ -122,12 +157,13 @@ class TestCSVSplitVisitor:
     def test_valid_nonvisit(self, nonvisit_data_stream):
         """Test case where data does not correspond to visit."""
         err_stream = StringIO()
-        records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
         error_writer = StreamErrorWriter(stream=err_stream,
                                          container_id='dummy',
                                          fw_path='dummy/dummy')
         visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  records=records,
+                                  uploader=MockUploader(),
+                                  project=MockProject(),
                                   error_writer=error_writer)
         no_errors = read_csv(input_file=nonvisit_data_stream,
                              error_writer=error_writer,

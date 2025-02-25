@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.2
+
+* Allows underscore in GUID
+  
 ## 1.1.1
 * Fixes CSV line number in error reports (exclude header row)
 * Updates pre-processing error codes

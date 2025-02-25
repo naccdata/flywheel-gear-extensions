@@ -144,6 +144,15 @@ class NACCGroup(CenterAdaptor):
                 return adcid
         return None
 
+    def get_adcids(self) -> List[int]:
+        """Returns the list of ADCIDs for all centers.
+
+        Returns:
+          the list of ADCIDs
+        """
+        center_map = self.get_center_map()
+        return list(center_map.centers.keys())
+
     def get_center(self, adcid: int) -> Optional[CenterGroup]:
         """Returns the center group for the given ADCID.
 

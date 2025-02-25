@@ -2,7 +2,7 @@
     "name": "csv-subject-splitter",
     "label": "CSV Subject Splitter",
     "description": "Converts rows of CSV file to subject JSON files based on NACCID",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/csv-subject-splitter:1.0.1"
+            "image": "naccdata/csv-subject-splitter:1.0.3"
         },
         "flywheel": {
             "suite": "Curation",
@@ -37,23 +37,10 @@
         }
     },
     "config": {
-        "hierarchy_labels" : {
-            "description": "the string templates for session/acquisition/filename",
-            "type": "object",
-            "default": {
-                "session": {
-                    "template": "filename",
-                    "transform": "upper"
-                },
-                "acquisition": {
-                    "template": "filename",
-                    "transform": "upper"
-                },
-                "filename": {
-                    "template": "filename",
-                    "transform": "lower"
-                }
-            }
+        "hierarchy_labels": {
+            "description": "The string templates for session/acquisition/filename (represented as a JSON string)",
+            "type": "string",
+            "default": "{\"session\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"acquisition\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"filename\": {\"template\": \"$filename\",\"transform\": \"lower\"}}"
         }
     },
     "command": "/bin/run"

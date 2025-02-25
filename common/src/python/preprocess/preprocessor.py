@@ -1,12 +1,13 @@
 """Module to implement form data pre-processing checks."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
-from datastore.forms_store import FormsStore
+from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
+from utils.utils import is_duplicate_dict
 
 log = logging.getLogger(__name__)
 
@@ -94,9 +95,56 @@ class FormPreprocessor():
 
         return True
 
+    def __compare_visit_order(self, *, fvp_record: Dict[str, Any],
+                              date_field: str, ivp_date: str,
+                              ivp_visitnum: str, line_num: int) -> bool:
+        """Check whether the FVP visit date and visit number is greater than
+        the IVP visit date and visit number.
+
+        Args:
+            fvp_record: followup visit packet
+            date_field: visit date column for the module
+            ivp_date: visit date of the IVP record
+            ivp_visitnum: visit numbers of the IVP record
+            line_num: Batch CSV file line number
+
+        Returns:
+            bool: True if records are in correct order
+        """
+        correct_order = True
+        if ivp_date >= fvp_record[date_field]:
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=date_field,
+                    value=fvp_record[date_field],
+                    line=line_num,
+                    error_code=SysErrorCodes.LOWER_FVP_VISITDATE,
+                    ptid=fvp_record[FieldNames.PTID],
+                    visitnum=fvp_record[FieldNames.VISITNUM]))
+            correct_order = False
+
+        if ivp_visitnum >= fvp_record[FieldNames.VISITNUM]:
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.VISITNUM,
+                    value=fvp_record[FieldNames.VISITNUM],
+                    line=line_num,
+                    error_code=SysErrorCodes.LOWER_FVP_VISITNUM,
+                    ptid=fvp_record[FieldNames.PTID],
+                    visitnum=fvp_record[FieldNames.VISITNUM]))
+            correct_order = False
+
+        return correct_order
+
     def __check_initial_visit(  # noqa: C901
-            self, *, subject_lbl: str, input_record: Dict[str, Any],
-            module: str, module_configs: ModuleConfigs, line_num: int) -> bool:
+            self,
+            *,
+            subject_lbl: str,
+            input_record: Dict[str, Any],
+            module: str,
+            module_configs: ModuleConfigs,
+            line_num: int,
+            ivp_record: Optional[Dict[str, Any]] = None) -> bool:
         """Initial visit validations (missing, duplicate, multiple, etc)
 
         Args:
@@ -105,6 +153,7 @@ class FormPreprocessor():
             module: module label
             module_configs: module configurations
             line_num: line number in CSV file
+            ivp_record (optional): IVP packet, if found in current batch, else None
 
         Returns:
             bool: False if any of the validations fail
@@ -117,6 +166,14 @@ class FormPreprocessor():
                 return True
 
             if packet in module_configs.followup_packets:
+                if ivp_record:
+                    return self.__compare_visit_order(
+                        fvp_record=input_record,
+                        date_field=module_configs.date_field,
+                        ivp_date=ivp_record[module_configs.date_field],
+                        ivp_visitnum=ivp_record[FieldNames.VISITNUM],
+                        line_num=line_num)
+
                 log.error('%s - %s',
                           preprocess_errors[SysErrorCodes.MISSING_IVP], packet)
                 self.__error_writer.write(
@@ -168,8 +225,8 @@ class FormPreprocessor():
 
         initial_packet = initial_packets[0] if initial_packets else None
 
-        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
+        visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         packet_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}'
 
         if packet in module_configs.followup_packets:
@@ -184,31 +241,12 @@ class FormPreprocessor():
                         visitnum=input_record[FieldNames.VISITNUM]))
                 return False
 
-            if initial_packet[date_lbl] >= input_record[
-                    module_configs.date_field]:
-                self.__error_writer.write(
-                    preprocessing_error(
-                        field=module_configs.date_field,
-                        value=input_record[module_configs.date_field],
-                        line=line_num,
-                        error_code=SysErrorCodes.LOWER_FVP_VISITDATE,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM]))
-                return False
-
-            if initial_packet[visitnum_lbl] >= input_record[
-                    FieldNames.VISITNUM]:
-                self.__error_writer.write(
-                    preprocessing_error(
-                        field=FieldNames.VISITNUM,
-                        value=input_record[FieldNames.VISITNUM],
-                        line=line_num,
-                        error_code=SysErrorCodes.LOWER_FVP_VISITNUM,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM]))
-                return False
-
-            return True
+            return self.__compare_visit_order(
+                fvp_record=input_record,
+                date_field=module_configs.date_field,
+                ivp_date=initial_packet[date_lbl],
+                ivp_visitnum=initial_packet[visitnum_lbl],
+                line_num=line_num)
 
         if packet in module_configs.initial_packets and initial_packet:
             # allow if this is an update to the existing initial visit packet
@@ -410,10 +448,15 @@ class FormPreprocessor():
 
         return True
 
-    def __check_udsv4_initial_visit(self, *, subject_lbl: str,
-                                    input_record: Dict[str, Any], module: str,
-                                    module_configs: ModuleConfigs,
-                                    line_num: int) -> bool:
+    def __check_udsv4_initial_visit(  # noqa: C901
+            self,
+            *,
+            subject_lbl: str,
+            input_record: Dict[str, Any],
+            module: str,
+            module_configs: ModuleConfigs,
+            line_num: int,
+            ivp_record: Optional[Dict[str, Any]] = None) -> bool:
         """Validate UDSv4 I4 packet requirements.
 
         Args:
@@ -422,6 +465,7 @@ class FormPreprocessor():
             module: module label
             module_configs: module configurations
             line_num: line number in CSV file
+            ivp_record (optional): IVP packet, if found in current batch, else None
 
         Returns:
             bool: False, if validations fail
@@ -472,6 +516,11 @@ class FormPreprocessor():
         # If participant has UDSv3 visits and trying to submit FVP packet
         # check whether an I4 packet already submitted for the participant
         if packet == DefaultValues.UDS_F_PACKET:
+            # if I4 packet is in current batch, return True
+            if ivp_record and ivp_record[
+                    FieldNames.PACKET] == DefaultValues.UDS_I4_PACKET:
+                return True
+
             i4_visits = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
                 module=module,
@@ -617,14 +666,88 @@ class FormPreprocessor():
 
         return True
 
-    def preprocess(self, *, input_record: Dict[str, Any], module: str,
-                   line_num: int) -> bool:
+    def is_existing_visit(self, *, input_record: Dict[str, Any],
+                          module: str) -> bool:
+        """Check for existing visits.
+
+        Args:
+            input_record: input visit record
+            module (str): module
+
+        Raises:
+            PreprocessingException: If issues occur while checking for existing visits
+
+        Returns:
+            bool: True if a matching visit found
+        """
+        module_configs = self.__module_info.get(module)
+        if not module_configs:
+            raise PreprocessingException(
+                f'No configurations found for module {module}')
+
+        subject_lbl = input_record[self.__primary_key]
+        date_field = module_configs.date_field
+        log.info('Running existing visit check for subject %s/%s/%s',
+                 subject_lbl, module, input_record[date_field])
+
+        filters = []
+        filters.append(
+            FormFilter(field=date_field,
+                       value=input_record[date_field],
+                       operator='='))
+        filters.append(
+            FormFilter(field=FieldNames.VISITNUM,
+                       value=input_record[FieldNames.VISITNUM],
+                       operator='='))
+        filters.append(
+            FormFilter(field=FieldNames.PACKET,
+                       value=input_record[FieldNames.PACKET],
+                       operator='='))
+
+        existing_visits = self.__forms_store.query_form_data_with_custom_filters(
+            subject_lbl=subject_lbl,
+            module=module,
+            legacy=False,
+            order_by=date_field,
+            list_filters=filters)
+
+        if not existing_visits:
+            return False
+
+        # This cannot happen
+        if len(existing_visits) > 1:
+            raise PreprocessingException(
+                'More than one matching visit exist for '
+                f'{subject_lbl}/{module}/{input_record[date_field]}')
+
+        existing_visit_info = existing_visits[0]
+        existing_visit = self.__forms_store.get_visit_data(
+            file_name=existing_visit_info['file.name'],
+            acq_id=existing_visit_info['file.parents.acquisition'])
+        if not existing_visit:
+            raise PreprocessingException(
+                'Failed to retrieve existing visit '
+                f'{subject_lbl}/{module}/{input_record[date_field]}')
+
+        if is_duplicate_dict(input_record, existing_visit):
+            input_record['file_id'] = existing_visit_info['file.id']
+            return True
+
+        return False
+
+    def preprocess(self,
+                   *,
+                   input_record: Dict[str, Any],
+                   module: str,
+                   line_num: int,
+                   ivp_record: Optional[Dict[str, Any]] = None) -> bool:
         """Run pre-processing checks for the input record.
 
         Args:
             input_record: input visit record
             module: module label
             line_num: line number in CSV file
+            ivp_record (optional): IVP packet, if found in current batch, else None
 
         Returns:
             bool: True, if input record pass the pre-processing checks
@@ -639,7 +762,8 @@ class FormPreprocessor():
                 f'No configurations found for module {module}')
 
         subject_lbl = input_record[self.__primary_key]
-        log.info('Running preprocessing checks for subject %s', subject_lbl)
+        log.info('Running preprocessing checks for subject %s/%s', subject_lbl,
+                 module)
 
         if not self.__is_accepted_version(module_configs=module_configs,
                                           module=module,
@@ -657,14 +781,16 @@ class FormPreprocessor():
                                           input_record=input_record,
                                           module=module,
                                           module_configs=module_configs,
-                                          line_num=line_num):
+                                          line_num=line_num,
+                                          ivp_record=ivp_record):
             return False
 
         if not self.__check_udsv4_initial_visit(subject_lbl=subject_lbl,
                                                 input_record=input_record,
                                                 module=module,
                                                 module_configs=module_configs,
-                                                line_num=line_num):
+                                                line_num=line_num,
+                                                ivp_record=ivp_record):
             return False
 
         if not self.__check_visitdate_visitnum(subject_lbl=subject_lbl,

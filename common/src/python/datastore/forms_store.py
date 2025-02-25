@@ -18,6 +18,12 @@ class FormsStoreException(Exception):
     pass
 
 
+class FormFilter(BaseModel):
+    field: str
+    value: str
+    operator: SearchOperator
+
+
 class FormQueryArgs(BaseModel):
     """Make pydantic model for query arguments to make them easier to pass
     around."""
@@ -69,7 +75,7 @@ class FormsStore():
             qc_gear: Optional[str] = None,
             extra_columns: Optional[List[str]] = None,
             find_all: bool = False) -> Optional[List[Dict[str, str]]]:
-        """Retrieve previous visit records for the specified project/subject.
+        """Retrieve previous visit records for the specified subject/module.
 
         Args:
             subject_lbl: Flywheel subject label
@@ -160,6 +166,81 @@ class FormsStore():
             return None
 
         return sorted(visits, key=lambda d: d[search_col], reverse=True)
+
+    def query_form_data_with_custom_filters(
+        self,
+        *,
+        subject_lbl: str,
+        module: str,
+        legacy: bool,
+        order_by: str,
+        list_filters: Optional[List[FormFilter]] = None
+    ) -> Optional[List[Dict[str, str]]]:
+        """Retrieve previous visits matching the specified filters for the
+        specified subject/module.
+
+        Args:
+            subject_lbl: Flywheel subject label
+            module: module name
+            legacy: whether to query legacy project or not
+            order_by: field to sort the records
+            list_filters (optional): List of filters to apply on the records
+
+        Returns:
+            List[Dict] (optional): List of visits matching the filters,
+                                sorted in descending order or None
+
+        Raises:
+            FormsStoreException: If there are issues with querying the datastore
+        """
+
+        if legacy and not self.__legacy_project:
+            log.warning('Legacy project not provided for group %s',
+                        self.__ingest_project.group)
+            return None
+
+        project = self.__legacy_project if legacy else self.__ingest_project
+        if not project:  # this cannot happen
+            raise FormsStoreException(
+                f'Project not found to query data for subject {subject_lbl}/{module}'
+            )
+
+        subject = project.find_subject(subject_lbl)
+        if not subject:
+            log.warning('Subject %s is not found in project %s/%s',
+                        subject_lbl, project.group, project.label)
+            return None
+
+        # Dataview to retrieve the previous visits
+        title = ('Visits for '
+                 f'{project.group}/{project.label}/{subject_lbl}/{module}')
+
+        orderby_col = f'{MetadataKeys.FORM_METADATA_PATH}.{order_by}'
+        columns = [
+            'file.name', 'file.file_id', "file.parents.acquisition",
+            "file.parents.session", orderby_col
+        ]
+
+        filters = f'acquisition.label={module}'
+        if list_filters:
+            for filter_obj in list_filters:
+                column_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{filter_obj.field}'
+                if filter_obj.field != order_by:
+                    columns.append(column_lbl)
+                filters += f',{column_lbl}{filter_obj.operator}{filter_obj.value}'
+
+        log.info('Searching for visits matching with filters: %s', filters)
+
+        visits = self.__proxy.get_matching_acquisition_files_info(
+            container_id=subject.id,
+            dv_title=title,
+            columns=columns,
+            filters=filters)
+
+        if not visits:
+            return None
+
+        return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
     def get_visit_data(self, *, file_name: str,
                        acq_id: str) -> dict[str, str] | None:

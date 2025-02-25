@@ -1,7 +1,9 @@
 """Entrypoint script for the csv-subject splitter app."""
 
+import json
 import logging
 import sys
+from json.decoder import JSONDecodeError
 from typing import Dict, Optional
 
 from flywheel.rest import ApiException
@@ -51,8 +53,6 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         Raises:
           GearExecutionError if any expected inputs are missing
         """
-        assert parameter_store, "Parameter store expected"
-
         client = ContextClient.create(context=context)
 
         file_input = InputFileWrapper.create(input_name='input_file',
@@ -62,6 +62,12 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         hierarchy_labels = context.config.get('hierarchy_labels')
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
+
+        try:
+            hierarchy_labels = json.loads(hierarchy_labels)
+        except (JSONDecodeError, TypeError, ValueError) as error:
+            raise GearExecutionError(f"Failed to load JSON string: {error}") \
+                from error
 
         return CsvToJsonVisitor(client=client,
                                 file_input=file_input,

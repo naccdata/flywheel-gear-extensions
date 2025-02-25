@@ -21,15 +21,20 @@
     "editor.detectIndentation": false,
     "cSpell.words": [
         "adcid",
+        "adcids",
         "apoe",
         "coid",
         "comanage",
         "coperson",
         "devcontainer",
+        "FTLD",
         "NACC",
         "naccadc",
         "naccid",
         "oidcsub",
-        "ptid"
+        "popleft",
+        "ptid",
+        "visitdate",
+        "visitnum"
     ]
 }
