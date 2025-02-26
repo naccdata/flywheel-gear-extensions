@@ -33,7 +33,7 @@ class SymbolTable(MutableMapping):
             table = obj
 
     def __getitem__(self, key: str) -> Optional[Any]:
-        value = self.__table
+        value: Any | Dict[str, Any] | None = self.__table
         key_list = key.split('.')
         while key_list:
             sub_key = key_list.pop(0)
