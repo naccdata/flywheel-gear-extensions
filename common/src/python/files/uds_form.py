@@ -25,9 +25,14 @@ def datetime_from_form_date(date_string: str) -> datetime:
 
     return datetime.strptime(date_string, "%m/%d/%Y")
 
-def create_naccnihr(race: Optional[int], racex: Optional[str],  # noqa: C901
-                    racesec: Optional[int], racesecx: Optional[str],
-                    raceter: Optional[int], raceterx: Optional[str]) -> int:
+
+def create_naccnihr(
+        race: Optional[int],
+        racex: Optional[str],  # noqa: C901
+        racesec: Optional[int],
+        racesecx: Optional[str],
+        raceter: Optional[int],
+        raceterx: Optional[str]) -> int:
 
     if not race:
         return 99

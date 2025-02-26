@@ -3,7 +3,6 @@
 import logging
 from typing import Any, Dict
 
-from flywheel.models.file_entry import FileEntry
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 
 from uds_curator_app.uds_curator import UDSFileCurator
