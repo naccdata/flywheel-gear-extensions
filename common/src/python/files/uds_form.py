@@ -1,38 +1,19 @@
 """Defines the form class for UDSv3 forms."""
 import logging
-import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import Optional
+
+from dates.dates import datetime_from_form_date
 
 from files.form import Form
 
 log = logging.getLogger(__name__)
 
 
-def datetime_from_form_date(date_string: str) -> datetime:
-    """Converts date string to datetime based on format.
-
-    Expects either `%Y-%m-%d` or `%m/%d/%Y`.
-
-    Args:
-      date_string: the date string
-    Returns:
-      the date as datetime
-    """
-    if re.match(r"\d{4}-\d{2}-\d{2}", date_string):
-        return datetime.strptime(date_string, "%Y-%m-%d")
-
-    return datetime.strptime(date_string, "%m/%d/%Y")
-
-
-def create_naccnihr(
-        race: Optional[int],
-        racex: Optional[str],  # noqa: C901
-        racesec: Optional[int],
-        racesecx: Optional[str],
-        raceter: Optional[int],
-        raceterx: Optional[str]) -> int:
+def create_naccnihr(race: Optional[int], racex: Optional[str],
+                    racesec: Optional[int], racesecx: Optional[str],
+                    raceter: Optional[int], raceterx: Optional[str]) -> int:
 
     if not race:
         return 99
@@ -267,7 +248,8 @@ def create_naccnihr(
     if raceterx:
         multipx = 1 if race == 1 and raceter == 50 and raceterx == "Irish" else multipx
     if racesecx and raceterx:
-        multipx = 1 if race == 50 and racesecx == "German" and raceterx == "Central American Indian" else multipx
+        multipx = 1 if (race == 50 and racesecx == "German"
+                        and raceterx == "Central American Indian") else multipx
     if raceterx:
         multipx = 1 if race == 3 and raceterx == "Irish" else multipx
     if racesecx:
@@ -276,8 +258,10 @@ def create_naccnihr(
     if raceterx:
         multipx = 1 if race == 1 and raceterx == "NATIVE AMERICAN" else multipx
     if racesecx and raceterx:
-        multipx = 1 if race == 5 and racesecx == "Portuguese" and raceterx == "Slovene" else multipx
-        multipx = 1 if race == 5 and racesecx == "Korean" and raceterx == "Portuguese" else multipx
+        multipx = 1 if (race == 5 and racesecx == "Portuguese"
+                        and raceterx == "Slovene") else multipx
+        multipx = 1 if (race == 5 and racesecx == "Korean"
+                        and raceterx == "Portuguese") else multipx
     if racesecx:
         multipx = 1 if race == 1 and racesecx == "West Indian" else multipx
         multipx = 1 if racesecx.lower() in multiple_race_responses else multipx
@@ -338,6 +322,10 @@ def create_naccnihr(
 
 class UDSV3Form(Form):
     """Class for curation of UDSv3 forms."""
+
+    @classmethod
+    def create(cls, form: Form) -> 'UDSV3Form':
+        return form  # type: ignore
 
     def is_initial_visit(self) -> bool:
         """Indicates whether this form represents an initial visit packet.
