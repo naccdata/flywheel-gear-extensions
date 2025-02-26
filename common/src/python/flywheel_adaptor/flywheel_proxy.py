@@ -2,6 +2,7 @@
 """Defines project creation functions for calls to Flywheel."""
 import json
 import logging
+from codecs import StreamReader
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
@@ -25,7 +26,7 @@ from flywheel.models.roles_role_assignment import RolesRoleAssignment
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from fw_client import FWClient
+from fw_client.client import FWClient
 from fw_utils import AttrDict
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
@@ -662,7 +663,7 @@ class FlywheelProxy:
         builder = builder.missing_data_strategy('drop-row')
         view = builder.build()
 
-        with self.__fw.read_view_data(view, container_id) as resp:
+        with self.read_view_data(view, container_id) as resp:
             try:
                 result = json.load(resp)
             except JSONDecodeError as error:
@@ -674,6 +675,10 @@ class FlywheelProxy:
             return None
 
         return result['data']
+
+    def read_view_data(self, view: DataView,
+                       container_id: str) -> StreamReader:
+        return self.__fw.read_view_data(view, container_id)
 
     def lookup(self, path):
         """Perform a path based lookup of a single node in the Flywheel
@@ -1271,6 +1276,9 @@ class ProjectAdaptor:
         view_id = self._fw.add_dataview(project=self._project,
                                         viewinput=view_template)
         return view_id.id
+
+    def read_dataview(self, view: DataView) -> StreamReader:
+        return self._fw.read_view_data(view, self._project.id)
 
     def get_info(self) -> Dict[str, Any]:
         """Returns the info object for this project.
