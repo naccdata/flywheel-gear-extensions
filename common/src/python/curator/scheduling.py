@@ -1,14 +1,20 @@
 from datetime import date
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from dataview.dataview import ColumnModel, make_builder
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit.utils.curator import FileCurator
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from pydantic import BaseModel, ValidationError
 from scheduling.min_heap import MinHeap
 
+from curator.form_curator import FormCurator
+
 
 class FileModel(BaseModel):
+    """Defines data model for columns returned from the project form curator
+    data model.
+
+    Objects are ordered by visit date.
+    """
     filename: str
     file_id: str
     acquisition_id: str
@@ -38,8 +44,9 @@ class ViewResponseModel(BaseModel):
 
 class ProjectFormCurator:
 
-    def __init__(self, heap: MinHeap[FileModel]) -> None:
-        self.__heap = heap
+    def __init__(self, proxy: FlywheelProxy, heap_map: Dict[str,MinHeap[FileModel]]) -> None:
+        self.__proxy = proxy
+        self.__heap_map = heap_map
 
     @classmethod
     def create(cls, project: ProjectAdaptor) -> Optional['ProjectFormCurator']:
@@ -68,15 +75,28 @@ class ProjectFormCurator:
             try:
                 response_model = ViewResponseModel.model_validate_json(
                     response_data)
-            except ValidationError:
-                # TODO: throw exception
-                return None
+            except ValidationError as error:
+                raise ProjectCurationError(
+                    f'Error curating project {project.label}: {error}') from error
 
-        heap = MinHeap[FileModel]()
+        subject_heap_map = {}
         for file_info in response_model.data:
+            heap = subject_heap_map.get(file_info.subject_id, MinHeap[FileModel]())
             heap.push(file_info)
 
-        return ProjectFormCurator(heap=heap)
+        return ProjectFormCurator(proxy=project.proxy, heap_map=subject_heap_map)
 
-    def apply(self, curator: FileCurator) -> None:
-        pass
+    def apply(self, curator: FormCurator) -> None:
+        # iterate over heaps for individual subjects and curate files
+        # potential namespace conflicts are at subject level
+        for heap in self.__heap_map.values():
+            # this could be an independent process
+            while len(heap) > 0:
+                file_info = heap.pop()
+                if not file_info:
+                    continue
+                file_entry = self.__proxy.get_file(file_info.file_id)
+                curator.curate_container(file_entry)
+
+class ProjectCurationError(Exception):
+    """Exception for errors curating project files"""
