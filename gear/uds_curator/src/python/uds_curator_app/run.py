@@ -1,7 +1,6 @@
 """Entry script for UDS Curator."""
 
 import logging
-
 from typing import Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
@@ -10,9 +9,11 @@ from gear_execution.gear_execution import (
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
+    InputFileWrapper,
 )
-from uds_curator_app.main import run
 from inputs.parameter_store import ParameterStore
+
+from uds_curator_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -20,8 +21,9 @@ log = logging.getLogger(__name__)
 class UDSCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self, client: ClientWrapper):
+    def __init__(self, client: ClientWrapper, input_file: InputFileWrapper):
         super().__init__(client=client)
+        self.__input_file = input_file
 
     @classmethod
     def create(
@@ -41,11 +43,14 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         """
 
         client = ContextClient.create(context=context)
+        input_file = InputFileWrapper.create(input_name='input_file',
+                                             context=context)
+        assert input_file, "missing expected input, input_file"
 
-        return UDSCuratorVisitor(client=client)
+        return UDSCuratorVisitor(client=client, input_file=input_file)
 
     def run(self, context: GearToolkitContext) -> None:
-        run(proxy=self.proxy)
+        run(context=context, input_file=self.__input_file.file_input)
 
 
 def main():
