@@ -19,7 +19,7 @@ class NPv11Form(Form):
         the date time value for the NP visit, None if not found
         """
         visit_datetime = None
-        visit_date = self.get_metadata("formdate_np")
+        visit_date = self.get_variable("formdate_np")
         if visit_date:
             visit_datetime = datetime_from_form_date(visit_date)
         return visit_datetime
