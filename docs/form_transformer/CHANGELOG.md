@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Cross-validates the records within the batch CSV file
+
 ## 1.1.2
 * Changes the transformation schema format to only include unique fields
 * Adds LBD/FTLD pre-processing checks

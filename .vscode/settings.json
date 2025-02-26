@@ -21,6 +21,7 @@
     "editor.detectIndentation": false,
     "cSpell.words": [
         "adcid",
+        "adcids",
         "apoe",
         "coid",
         "comanage",
@@ -36,6 +37,8 @@
         "oidcsub",
         "popleft",
         "ptid",
+        "visitdate",
+        "visitnum",
         "viewinput",
         "visitdate",
         "visitnum"

@@ -14,7 +14,9 @@ def error_writer():
 @pytest.fixture(scope='function')
 def visitor(error_writer):
     """Creates a CSVVisitorCenterSplitter for testing."""
-    visitor = CSVVisitorCenterSplitter('adcid', error_writer)
+    visitor = CSVVisitorCenterSplitter(adcid_key='adcid',
+                                       include={'0', '1', '2'},
+                                       error_writer=error_writer)
     assert visitor.visit_header(['adcid', 'data'])
     return visitor
 
@@ -41,6 +43,10 @@ def merged_csv_data():
     }, {
         'adcid': '',
         'data': 'world',
+        'extra': ''
+    }, {
+        'adcid': '9',
+        'data': 'not-included',
         'extra': ''
     }]
 

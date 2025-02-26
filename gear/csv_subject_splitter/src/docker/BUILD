@@ -6,4 +6,4 @@ docker_image(name="csv-subject-splitter",
                  ":manifest",
                  "gear/csv_subject_splitter/src/python/csv_app:bin"
              ],
-             image_tags=["1.0.1", "latest"])
+             image_tags=["1.0.3", "latest"])

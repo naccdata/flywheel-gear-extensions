@@ -472,7 +472,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=settings)
+                             json=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -1319,13 +1319,20 @@ class ProjectAdaptor:
         return info
 
     def add_subject(self, label: str) -> SubjectAdaptor:
-        """Adds a subject with the given label.
+        """Adds a subject with the given label. If the subject already exists,
+        returns it instead.
 
         Args:
           label: the subject label
         Returns:
           the created Subject object
         """
+        subject = self.find_subject(label)
+        if subject:
+            log.info(
+                f"Subject {label} already exists in {self.group}/{self.label}")
+            return subject
+
         return SubjectAdaptor(self._project.add_subject(label=label))
 
     def find_subject(self, label: str) -> Optional[SubjectAdaptor]:
