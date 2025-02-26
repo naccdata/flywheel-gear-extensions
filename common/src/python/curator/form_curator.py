@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from dates.dates import get_localized_timestamp
 from files.form import Form
@@ -8,29 +8,65 @@ from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.session import Session
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit.utils.curator import FileCurator
+from flywheel_gear_toolkit.context.context import GearToolkitContext
+from flywheel_gear_toolkit.utils.curator import Curator
 
 log = logging.getLogger(__name__)
 
 
-class FormCurator(FileCurator):
+class FormCurator(Curator):
     """Curator for form files."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, context: Optional[GearToolkitContext] = None) -> None:
+        super().__init__(context)  # type: ignore
+        self.__file_entry: Optional[FileEntry] = None
 
-    def curate_file(self, file_: Dict[str, Any]):
+    def set_file_entry(self, file_entry: Optional[FileEntry]) -> None:
+        self.__file_entry = file_entry
+
+    def get_file_entry(self) -> Optional[FileEntry]:
+        return self.__file_entry
+
+    @abstractmethod
+    def get_form(self) -> Optional[Form]:
+        """Returns the form for the file entry."""
+        return None
+
+    def curate_container(self, file_object: Dict[str, Any]):
+        if hasattr(file_object, "container_type"):
+            return
+
+        file_entry = self.get_file(file_object)
+        self.set_file_entry(file_entry)
+        self.curate_file(file_entry)
+        subject = self.get_subject(file_entry)
+        self.curate_subject(subject)
+        self.set_file_entry(None)
+
+    def curate_file(self, file_entry: FileEntry):
         """Curate form data.
 
         Args:
           file_: JSON data for file
         """
-        file_entry = self.get_file(file_)
-        self.curate_form(file_entry)
+        form = self.get_form()
+        if not form:
+            return
+
+        self.curate_form(form)
 
     @abstractmethod
-    def curate_form(self, file_entry: FileEntry):
+    def curate_form(self, form: Form):
         """Curates data for the form.
+
+        Args:
+          file_entry: the file entry for the form
+        """
+        pass
+
+    @abstractmethod
+    def curate_subject(self, subject: Subject):
+        """Curates data for the subject.
 
         Args:
           file_entry: the file entry for the form
