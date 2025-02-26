@@ -16,5 +16,5 @@ def run(*, context: GearToolkitContext, input_file: Dict[str, Any]) -> None:
     Args:
         proxy: the proxy for the Flywheel instance
     """
-    curator = UDSFileCurator(context=context, write_report=False)
-    curator.curate_file(input_file)
+    curator = UDSFileCurator(context=context)
+    curator.curate_container(input_file)
