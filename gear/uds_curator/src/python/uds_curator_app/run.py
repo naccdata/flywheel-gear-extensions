@@ -50,7 +50,8 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         return UDSCuratorVisitor(client=client, input_file=input_file)
 
     def run(self, context: GearToolkitContext) -> None:
-        run(context=context, input_file=self.__input_file.file_input)
+        file_entry = self.__input_file.file_entry(context)
+        run(context=context, input_file=file_entry)
 
 
 def main():
