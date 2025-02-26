@@ -24,6 +24,10 @@ class Form(ABC):
         return self.__file_object.get("info", {}).get("forms",
                                                       {}).get("json").get(key)
 
+    def get_info(self) -> Dict[str, Any]:
+        """Returns the info object for the file of this form."""
+        return self.__file_object.info
+
     def update_info(self, values: Dict[str, Any]) -> None:
         """Updates the custom info for the file of this form.
 
