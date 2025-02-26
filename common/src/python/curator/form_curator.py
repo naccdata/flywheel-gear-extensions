@@ -32,11 +32,7 @@ class FormCurator(Curator):
         """Returns the form for the file entry."""
         return None
 
-    def curate_container(self, file_object: Dict[str, Any]):
-        if hasattr(file_object, "container_type"):
-            return
-
-        file_entry = self.get_file(file_object)
+    def curate_container(self, file_entry: FileEntry):
         self.set_file_entry(file_entry)
         self.curate_file(file_entry)
         subject = self.get_subject(file_entry)
