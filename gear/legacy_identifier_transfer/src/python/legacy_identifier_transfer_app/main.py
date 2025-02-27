@@ -156,7 +156,8 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
         try:
             if enrollment_project.find_subject(label=naccid):
                 log.warning(
-                    'Subject with NACCID %s already exists - skipping creation', naccid)
+                    'Subject with NACCID %s already exists - skipping creation',
+                    naccid)
                 skipped_count += 1
                 continue
 

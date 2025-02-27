@@ -71,20 +71,23 @@ def mock_enrollment_project():
 
 @pytest.fixture
 def mock_form_store():
-    record = {
-        FieldNames.MODULE: 'uds',
-        FieldNames.FORMVER: '3.0',
-        FieldNames.VISITNUM: '1',
-        FieldNames.NACCID: 'NACC123456',
-        FieldNames.PTID: 'PTID1',
-        FieldNames.PACKET: 'I',
-        DATE_FIELD: '2025-01-01'
-    }
 
     forms_store = MockFormsStore(date_field=DATE_FIELD)
-    forms_store.add_subject(subject_lbl=record[FieldNames.NACCID],
-                            form_data=record,
-                            file_name=f"{record[FieldNames.NACCID]}.json")
+
+    for i in range(1, 5):
+        record = {
+            FieldNames.MODULE: 'uds',
+            FieldNames.FORMVER: '3.0',
+            FieldNames.VISITNUM: '1',
+            FieldNames.NACCID: f'NACC{100000+i}',
+            FieldNames.PTID: f'PTID{i}',
+            FieldNames.PACKET: 'I',
+            DATE_FIELD: '2025-01-01'
+        }
+
+        forms_store.add_subject(subject_lbl=record[FieldNames.NACCID],
+                                form_data=record,
+                                file_name=f"{record[FieldNames.NACCID]}.json")
 
     return forms_store
 
@@ -94,8 +97,8 @@ def test_process_success(mock_enrollment_project, mock_form_store):
     mock_enrollment_project.find_subject.return_value = None
 
     identifiers = {
-        'NACC123456':
-        IdentifierObject(naccid='NACC123456',
+        'NACC100001':
+        IdentifierObject(naccid='NACC100001',
                          adcid=123,
                          ptid='PTID1',
                          guid='GUID1',
@@ -115,7 +118,8 @@ def test_process_success(mock_enrollment_project, mock_form_store):
 def test_process_validation_error(mock_enrollment_project, mock_form_store):
     # Setup
     mock_identifier = Mock()
-    mock_identifier.configure_mock(**{'naccid': 'NACC123456', 'ptid': 'PTID1'})
+    mock_identifier.configure_mock(**{'naccid': 'NACC100002', 'ptid': 'PTID2'})
+    mock_enrollment_project.find_subject.return_value = None
 
     validation_error = ValidationError.from_exception_data(
         title='Validation Error',
@@ -130,7 +134,7 @@ def test_process_validation_error(mock_enrollment_project, mock_form_store):
 
     type(mock_identifier).adcid = PropertyMock(side_effect=validation_error)
 
-    identifiers = {'NACC123456': mock_identifier}
+    identifiers = {'NACC100002': mock_identifier}
 
     # Execute
     result = process_legacy_identifiers(
@@ -148,14 +152,14 @@ def test_process_dry_run(mock_enrollment_project, mock_form_store):
 
     mock_identifier = create_autospec(IdentifierObject)
     mock_identifier.configure_mock(**{
-        'naccid': 'NACC123456',
+        'naccid': 'NACC100003',
         'adcid': 123,
-        'ptid': 'PTID1',
-        'guid': 'GUID1'
+        'ptid': 'PTID3',
+        'guid': 'GUID3'
     })
 
     identifiers: Mapping[str, IdentifierObject] = {
-        'NACC123456': mock_identifier
+        'NACC100003': mock_identifier
     }
 
     # Execute
