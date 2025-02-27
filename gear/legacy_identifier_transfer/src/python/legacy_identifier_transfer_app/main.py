@@ -80,7 +80,7 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
             continue
 
         if enrollment_project.find_subject(label=record.naccid):
-            log.error(
+            log.warning(
                 'Subject with NACCID %s already exists - skipping creation',
                 record.naccid)
             skipped_count += 1
@@ -158,7 +158,6 @@ def process_legacy_identifiers(
 
 
 def run(*,
-        adcid: int,
         identifiers: Dict[str, IdentifierObject],
         enrollment_project: EnrollmentProject,
         dry_run: bool = True) -> bool:
@@ -182,7 +181,7 @@ def run(*,
         )
 
         if not success:
-            log.error("No changes made due to errors in identifier processing")
+            log.error("Error(s) occurred while importing legacy identifiers")
             return False
 
         log.info("Processed %d legacy identifiers", len(identifiers))

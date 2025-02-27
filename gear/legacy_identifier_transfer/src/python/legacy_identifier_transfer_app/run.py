@@ -120,12 +120,23 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
                                                client=client,
                                                identifiers_mode=mode)
 
-    def __get_adcid(self, project_id: str) -> Optional[int]:
+    def __get_adcid(self, group_id: str) -> Optional[int]:
+        """Get ADCID for the specified center.
+
+        Args:
+            group_id: Flywheel Group ID
+
+        Raises:
+            GearExecutionError: if admin group not found
+
+        Returns:
+            Optional[int]: ADCID for the center or None
+        """
         try:
             admin_group = self.admin_group(admin_id=self.__admin_id)
             if not admin_group:
                 raise GearExecutionError("No admin group found")
-            return admin_group.get_adcid(project_id)
+            return admin_group.get_adcid(group_id)
         except ApiException as error:
             log.error(f"Error getting ADCID: {error}")
             return None
@@ -156,10 +167,11 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         log.info(f"group_id: {group_id}")
 
         adcid = self.__get_adcid(group_id)
-        log.info(f"ADCID: {adcid}")
-
         if adcid is None:
-            raise GearExecutionError('Unable to determine center ID for group')
+            raise GearExecutionError(
+                f'Unable to determine ADCID for group {group_id}')
+
+        log.info(f"ADCID: {adcid}")
 
         # Get all identifiers for given adcid
         try:
@@ -188,8 +200,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         enrollment_project = EnrollmentProject.create_from(project)
         log.info(f"Enrollment project: {enrollment_project.label}")
 
-        run(adcid=adcid,
-            identifiers=identifiers,
+        run(identifiers=identifiers,
             enrollment_project=enrollment_project,
             dry_run=self.__dry_run)
         pass
