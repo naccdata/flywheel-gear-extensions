@@ -44,7 +44,8 @@ class ViewResponseModel(BaseModel):
 
 class ProjectFormCurator:
 
-    def __init__(self, proxy: FlywheelProxy, heap_map: Dict[str,MinHeap[FileModel]]) -> None:
+    def __init__(self, proxy: FlywheelProxy,
+                 heap_map: Dict[str, MinHeap[FileModel]]) -> None:
         self.__proxy = proxy
         self.__heap_map = heap_map
 
@@ -77,14 +78,17 @@ class ProjectFormCurator:
                     response_data)
             except ValidationError as error:
                 raise ProjectCurationError(
-                    f'Error curating project {project.label}: {error}') from error
+                    f'Error curating project {project.label}: {error}'
+                ) from error
 
         subject_heap_map = {}
         for file_info in response_model.data:
-            heap = subject_heap_map.get(file_info.subject_id, MinHeap[FileModel]())
+            heap = subject_heap_map.get(file_info.subject_id,
+                                        MinHeap[FileModel]())
             heap.push(file_info)
 
-        return ProjectFormCurator(proxy=project.proxy, heap_map=subject_heap_map)
+        return ProjectFormCurator(proxy=project.proxy,
+                                  heap_map=subject_heap_map)
 
     def apply(self, curator: FormCurator) -> None:
         # iterate over heaps for individual subjects and curate files
@@ -98,5 +102,6 @@ class ProjectFormCurator:
                 file_entry = self.__proxy.get_file(file_info.file_id)
                 curator.curate_container(file_entry)
 
+
 class ProjectCurationError(Exception):
-    """Exception for errors curating project files"""
+    """Exception for errors curating project files."""

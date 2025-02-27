@@ -215,7 +215,7 @@ class InputFileWrapper:
         if file_input["base"] != "file":
             raise GearExecutionError(
                 f"The specified input {input_name} is not a file")
-        
+
         return InputFileWrapper(file_input=file_input)
 
     def get_validation_objects(self) -> List[Dict[str, Any]]:
