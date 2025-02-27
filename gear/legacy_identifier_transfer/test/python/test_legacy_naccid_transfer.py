@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 import pytest
 from enrollment.enrollment_project import EnrollmentProject
 from identifiers.model import IdentifierObject
+from keys.keys import FieldNames
 from legacy_identifier_transfer_app.main import (
     LegacyEnrollmentCollection,
     process_legacy_identifiers,
@@ -13,9 +14,8 @@ from legacy_identifier_transfer_app.main import (
 from pydantic import ValidationError
 from test_mocks.mock_forms_store import MockFormsStore
 
-# global date field and form_store
-DATE_FIELD = 'visitdate'
-forms_store = MockFormsStore(date_field=DATE_FIELD)
+# global date field
+DATE_FIELD = FieldNames.DATE_COLUMN
 
 
 class TestLegacyEnrollmentBatch:
@@ -69,7 +69,27 @@ def mock_enrollment_project():
     return mock
 
 
-def test_process_success(mock_enrollment_project, ):
+@pytest.fixture
+def mock_form_store():
+    record = {
+        FieldNames.MODULE: 'uds',
+        FieldNames.FORMVER: '3.0',
+        FieldNames.VISITNUM: '1',
+        FieldNames.NACCID: 'NACC123456',
+        FieldNames.PTID: 'PTID1',
+        FieldNames.PACKET: 'I',
+        DATE_FIELD: '2025-01-01'
+    }
+
+    forms_store = MockFormsStore(date_field=DATE_FIELD)
+    forms_store.add_subject(subject_lbl=record[FieldNames.NACCID],
+                            form_data=record,
+                            file_name=f"{record[FieldNames.NACCID]}.json")
+
+    return forms_store
+
+
+def test_process_success(mock_enrollment_project, mock_form_store):
     # Setup
     mock_enrollment_project.find_subject.return_value = None
 
@@ -85,15 +105,14 @@ def test_process_success(mock_enrollment_project, ):
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        forms_store=forms_store,
-        enrollment_project=mock_enrollment_project,
-    )
+        forms_store=mock_form_store,
+        enrollment_project=mock_enrollment_project)
 
     # Assert
     assert result is True
 
 
-def test_process_validation_error(mock_enrollment_project):
+def test_process_validation_error(mock_enrollment_project, mock_form_store):
     # Setup
     mock_identifier = Mock()
     mock_identifier.configure_mock(**{'naccid': 'NACC123456', 'ptid': 'PTID1'})
@@ -116,34 +135,33 @@ def test_process_validation_error(mock_enrollment_project):
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        forms_store=forms_store,
-        enrollment_project=mock_enrollment_project,
-    )
+        forms_store=mock_form_store,
+        enrollment_project=mock_enrollment_project)
 
     # Assert
     assert result is False
 
 
-def test_process_dry_run(mock_enrollment_project):
+def test_process_dry_run(mock_enrollment_project, mock_form_store):
     # Setup
     mock_enrollment_project.find_subject.return_value = None
 
     mock_identifier = create_autospec(IdentifierObject)
     mock_identifier.configure_mock(**{
-        'naccid': 'NACC654321',
+        'naccid': 'NACC123456',
         'adcid': 123,
         'ptid': 'PTID1',
         'guid': 'GUID1'
     })
 
     identifiers: Mapping[str, IdentifierObject] = {
-        'NACC654321': mock_identifier
+        'NACC123456': mock_identifier
     }
 
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        forms_store=forms_store,
+        forms_store=mock_form_store,
         enrollment_project=mock_enrollment_project,
         dry_run=True)
 
