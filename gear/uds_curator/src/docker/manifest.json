@@ -14,11 +14,11 @@
     },
     "custom": {
         "gear-builder": {
-            "category": "converter",
+            "category": "analysis",
             "image": "naccdata/uds-curator:0.0.1"
         },
         "flywheel": {
-            "suite": "Utility",
+            "suite": "Curation",
             "show-job": true
         }
     },
@@ -26,11 +26,6 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
-        },
-        "input_file": {
-            "description": "The input file",
-            "base": "file",
-            "optional": false
         }
     },
     "config": {
