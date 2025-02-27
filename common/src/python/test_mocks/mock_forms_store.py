@@ -59,17 +59,13 @@ class MockFormsStore(FormsStore):
         date_col_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{self.__date_field}'
         for file, form_data in self.__subjects[subject_lbl][module].items():
             result.append({
-                'file.name':
-                file,
-                'file.parents.acquisition':
-                module,
+                'file.name': file,
+                'file.parents.acquisition': module,
                 date_col_lbl: form_data[self.__date_field],
                 'file.id': 'dummy-id'
             })
 
-        return sorted(result,
-                      key=lambda x: x[date_col_lbl],
-                      reverse=True)
+        return sorted(result, key=lambda x: x[date_col_lbl], reverse=True)
 
     def query_form_data_with_custom_filters(
             self, **kwargs) -> Optional[List[Dict[str, str]]]:
