@@ -15,7 +15,7 @@ from test_mocks.mock_forms_store import MockFormsStore
 
 # global date field and form_store
 DATE_FIELD = 'visitdate'
-form_store = MockFormsStore(date_field=DATE_FIELD)
+forms_store = MockFormsStore(date_field=DATE_FIELD)
 
 
 class TestLegacyEnrollmentBatch:
@@ -85,7 +85,7 @@ def test_process_success(mock_enrollment_project, ):
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        form_store=form_store,
+        forms_store=forms_store,
         enrollment_project=mock_enrollment_project,
     )
 
@@ -116,7 +116,7 @@ def test_process_validation_error(mock_enrollment_project):
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        form_store=form_store,
+        forms_store=forms_store,
         enrollment_project=mock_enrollment_project,
     )
 
@@ -143,7 +143,7 @@ def test_process_dry_run(mock_enrollment_project):
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        form_store=form_store,
+        forms_store=forms_store,
         enrollment_project=mock_enrollment_project,
         dry_run=True)
 
