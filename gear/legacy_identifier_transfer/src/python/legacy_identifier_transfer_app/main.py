@@ -75,18 +75,10 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
     """
     success_count = 0
     error_count = 0
-    skipped_count = 0
     for record in record_collection:
         if not record.naccid:
             error_count += 1
             log.error('Missing NACCID for record: %s', record)
-            continue
-
-        if enrollment_project.find_subject(label=record.naccid):
-            log.warning(
-                'Subject with NACCID %s already exists - skipping creation',
-                record.naccid)
-            skipped_count += 1
             continue
 
         if not dry_run:
@@ -106,8 +98,7 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
 
     if error_count:
         log.error('Failed to process %d records', error_count)
-    if skipped_count:
-        log.warning('Skipped %d records', skipped_count)
+
     log.info('Successfully processed %d records', success_count)
     return error_count == 0  # Returns True only if no errors occurred
 
@@ -160,8 +151,15 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
     record_collection = LegacyEnrollmentCollection()
 
     success = True
+    skipped_count = 0
     for naccid, identifier in identifiers.items():
         try:
+            if enrollment_project.find_subject(label=naccid):
+                log.warning(
+                    'Subject with NACCID %s already exists - skipping creation', naccid)
+                skipped_count += 1
+                continue
+
             enrollment_date = get_enrollment_date(subject_id=naccid,
                                                   forms_store=forms_store)
             if not enrollment_date:
@@ -189,6 +187,9 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
                               str(error['loc'][0]), error['msg'],
                               str(error.get('input', '')))
             success = False
+
+    if skipped_count > 0:
+        log.warning('Skipped %d records', skipped_count)
 
     if not record_collection:
         log.warning('No valid legacy identifiers to process')
