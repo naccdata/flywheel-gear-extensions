@@ -3,13 +3,15 @@
 import logging
 from typing import Optional
 
+from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
+from flywheel_gear_toolkit.context.context import Container
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
-    InputFileWrapper,
+    GearExecutionError,
 )
 from inputs.parameter_store import ParameterStore
 
@@ -21,9 +23,9 @@ log = logging.getLogger(__name__)
 class UDSCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self, client: ClientWrapper, input_file: InputFileWrapper):
+    def __init__(self, client: ClientWrapper, destination: Container):
         super().__init__(client=client)
-        self.__input_file = input_file
+        self.__destination = destination
 
     @classmethod
     def create(
@@ -43,15 +45,22 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         """
 
         client = ContextClient.create(context=context)
-        input_file = InputFileWrapper.create(input_name='input_file',
-                                             context=context)
-        assert input_file, "missing expected input, input_file"
+        try:
+            destination = context.get_destination_container()
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Cannot find destination container: {error}') from error
+        if destination.container_type != 'project':  # type: ignore
+            raise GearExecutionError("Destination container must be a project")
 
-        return UDSCuratorVisitor(client=client, input_file=input_file)
+        return UDSCuratorVisitor(client=client, destination=destination)
 
     def run(self, context: GearToolkitContext) -> None:
-        file_entry = self.__input_file.file_entry(context)
-        run(context=context, input_file=file_entry)
+        proxy = self.__client.get_proxy()
+        project = proxy.get_project_by_id(
+            self.__destination.id)  # type: ignore
+
+        run(context=context, project=project)  # type: ignore
 
 
 def main():
