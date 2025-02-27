@@ -1,6 +1,5 @@
 """Tests for the legacy-identifier-transfer gear."""
 import logging
-from datetime import datetime
 from typing import Mapping
 from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 
@@ -12,6 +11,11 @@ from legacy_identifier_transfer_app.main import (
     process_legacy_identifiers,
 )
 from pydantic import ValidationError
+from test_mocks.mock_forms_store import MockFormsStore
+
+# global date field and form_store
+DATE_FIELD = 'visitdate'
+form_store = MockFormsStore(date_field=DATE_FIELD)
 
 
 class TestLegacyEnrollmentBatch:
@@ -77,12 +81,11 @@ def test_process_success(mock_enrollment_project, ):
                          guid='GUID1',
                          naccadc=123)
     }
-    enrollment_date = datetime.now()
 
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        enrollment_date=enrollment_date,
+        form_store=form_store,
         enrollment_project=mock_enrollment_project,
     )
 
@@ -109,12 +112,11 @@ def test_process_validation_error(mock_enrollment_project):
     type(mock_identifier).adcid = PropertyMock(side_effect=validation_error)
 
     identifiers = {'NACC123456': mock_identifier}
-    enrollment_date = datetime.now()
 
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        enrollment_date=enrollment_date,
+        form_store=form_store,
         enrollment_project=mock_enrollment_project,
     )
 
@@ -137,12 +139,11 @@ def test_process_dry_run(mock_enrollment_project):
     identifiers: Mapping[str, IdentifierObject] = {
         'NACC654321': mock_identifier
     }
-    enrollment_date = datetime.now()
 
     # Execute
     result = process_legacy_identifiers(
         identifiers=identifiers,
-        enrollment_date=enrollment_date,
+        form_store=form_store,
         enrollment_project=mock_enrollment_project,
         dry_run=True)
 
