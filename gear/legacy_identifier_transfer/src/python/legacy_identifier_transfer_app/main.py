@@ -4,11 +4,13 @@ import logging
 from datetime import datetime
 from typing import Dict, Mapping, Optional
 
-from datastore.forms_store import FormsStore
+from datastore.forms_store import FormFilter, FormsStore
+from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.model import CenterIdentifiers, IdentifierObject
+from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -50,9 +52,9 @@ def validate_and_create_record(
     center_identifiers = CenterIdentifiers(adcid=identifier.adcid,
                                            ptid=identifier.ptid)
     record = EnrollmentRecord(
-        center_identifier=center_identifiers,
         naccid=identifier.naccid,
         guid=identifier.guid,
+        center_identifier=center_identifiers,
         start_date=enrollment_date,
     )
     return record
@@ -110,8 +112,34 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
     return error_count == 0  # Returns True only if no errors occurred
 
 
-def get_enrollment_date(naccid: str) -> Optional[datetime]:
-    return None
+def get_enrollment_date(subject_id: str,
+                        forms_store: FormsStore) -> Optional[datetime]:
+
+    ivp_filter = FormFilter(field=FieldNames.PACKET,
+                            value=DefaultValues.UDS_I_PACKET,
+                            operator="=")
+    initial_visits = forms_store.query_form_data_with_custom_filters(
+        subject_lbl=subject_id,
+        module=DefaultValues.UDS_MODULE,
+        legacy=True,
+        order_by=FieldNames.DATE_COLUMN,
+        list_filters=[ivp_filter])
+
+    ivp_packet = initial_visits[0] if initial_visits else None
+
+    if not ivp_packet:
+        return None
+
+    date_col_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.DATE_COLUMN}'
+
+    try:
+        enroll_date = parse_date(date_string=ivp_packet[date_col_lbl],
+                                 formats=[DEFAULT_DATE_FORMAT])
+        return enroll_date
+    except DateFormatException:
+        log.error('Unable to parse initial visit date %s for subject %s',
+                  ivp_packet[date_col_lbl], subject_id)
+        return None
 
 
 def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
@@ -134,7 +162,8 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
     success = True
     for naccid, identifier in identifiers.items():
         try:
-            enrollment_date = get_enrollment_date(naccid)
+            enrollment_date = get_enrollment_date(subject_id=naccid,
+                                                  forms_store=forms_store)
             if not enrollment_date:
                 log.error('Failed to find the enrollment date for NACCID %s',
                           naccid)
