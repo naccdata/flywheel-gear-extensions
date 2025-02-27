@@ -17,7 +17,7 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from utils.utils import parse_string_to_list
 
-from .main import run, FormCurator
+from .main import run, AttributeCurator
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -75,11 +75,11 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext):
         """Run the attribute curation visitor."""
 
-        curator = FormCurator(context,
-                              self.__curation_schema_uri,
-                              self.__form_date_key,
-                              self.__aggregation_containers,
-                              self.__apply_containers)
+        curator = AttributeCurator(context,
+                                   self.__curation_schema_uri,
+                                   self.__form_date_key,
+                                   self.__aggregation_containers,
+                                   self.__apply_containers)
 
         run(proxy=self.proxy,
             curator=curator,

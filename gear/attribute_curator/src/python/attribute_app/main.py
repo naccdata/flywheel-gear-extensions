@@ -15,12 +15,13 @@ from gear_execution.gear_execution import (
 )
 from s3.s3_client import S3BucketReader
 
-from nacc_form_validator.normalization import NACCNormalizer
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.utils.symbol_table import SymbolTable
 
 log = logging.getLogger(__name__)
 
 
-class FormCurator():
+class AttributeCurator:
 
     def __init__(self,
                  context: GearToolkitContext,
@@ -29,44 +30,36 @@ class FormCurator():
                  aggregation_containers: List[str],
                  apply_containers: List[str]):
         self.context = context
-        self.curation_schema = self.__load_from_s3(curation_schema_uri)
-        self.form_date_key = form_date_key
         self.aggregation_containers = aggregation_containers
         self.apply_containers = apply_containers
+        self.form_date_key = form_date_key
 
-    def curate(self, document: Dict[Any, Any], file) -> Dict[Any, Any]:
-        """Curates the file. Returns the curated results
-        as a SymbolTable.
+        schema = self.__load_from_s3(curation_schema_uri)
+        self.__deriver = AttributeDeriver(
+            schema=schema, form_date_key=self.form_date_key)
+
+    def curate(self, document: SymbolTable) -> SymbolTable:
+        """Curates the file. Returns the curated results.
 
         Args:
             
             file_: JSON data for file
         """
         log.info("Curating data")
-        #log.info(json.dumps(self.curation_schema, indent=4))
-
-        normalizer = NACCNormalizer(schema=self.curation_schema)
-        if not self.form_date_key:
-            form_date = datetime.fromisoformat(file['modified']).date()
-            normalizer.execute(document, form_date=form_date)
-        else:
-            normalizer.execute(document, form_date_key=self.form_date_key)
-
-        if normalizer.errors:
-            log.error(f"Deriver encountered errors: {normalizer.errors}")
-            return
-
-        curated_file = normalizer.derived_document
-        return normalizer.uncompress_document(curated_file)
-
+        try:
+            return self.__deriver.derive(document)
+        except Exception as e:
+            log.error(f"Deriver encountered errors: {e}")
+        
+        return None
 
     def aggregate_metadata(self,
                            parents: Dict[str, str],
                            target_containers: Optional[List[str]] = None
-                           ) -> Dict[Any, Any]:
+                           ) -> SymbolTable:
         """Aggregate metadata from all aggregation containers into
         a SymbolTable, the top key is the container level. Skips if there
-        is no corresponding parent.
+        is no corresponding parent or metadata to update.
 
         Args:
             parents: Parent container_ids, pulled from file_object
@@ -103,7 +96,7 @@ class FormCurator():
         return table
 
     def apply_metadata(self,
-                       table: Dict[Any, Any],
+                       table: SymbolTable,
                        parents: Dict[str, object],
                        target_containers: Optional[List[str]] = None) -> None:
         """Applies metadata to the specified parent containers. Currently
@@ -158,13 +151,14 @@ class FormCurator():
 
 def run(*,
         proxy: FlywheelProxy,
-        curator: FormCurator,
+        curator: AttributeCurator,
         file_input: InputFileWrapper):
     """Runs ADD DETAIL process.
 
     Args:
       proxy: the proxy for the Flywheel instance
     """
+    # TODO: iterate over files instead of having a file input
     try:
         file = proxy.get_file(file_input.file_id)
     except ApiException as error:
@@ -176,11 +170,15 @@ def run(*,
 
     document = curator.aggregate_metadata(file.parents)
     document['file'] = {'info': file.info}
-    curated_data = curator.curate(document, file)
+    curation = curator.curate(document)
+
+    if not curation:
+        raise GearExecutionError(
+            f"Curation failed for {file_input.filename}")
 
     if proxy.dry_run:
-        log.info(f"DRY RUN: Curated data: {json.dumps(curated_data, indent=4)}")
+        log.info(f"DRY RUN: Curated data: {json.dumps(curation.to_dict(), indent=4)}")
     else:
-        log.info(json.dumps(curated_data, indent=4))
+        log.info(json.dumps(curation.to_dict(), indent=4))
         log.info("Curation completed successfully, applying data")
-        curator.apply_metadata(curated_data, file.parents)
+        curator.apply_metadata(curation, file.parents)

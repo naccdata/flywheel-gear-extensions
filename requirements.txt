@@ -24,4 +24,5 @@ types-PyYAML>=6.0.12
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
-nacc_form_validator@ file:///workspaces/flywheel-gear-extensions/dist/nacc_form_validator-1.0.0-py3-none-any.whl
+nacc_form_validator@ file:///workspaces/flywheel-gear-extensions/dist/nacc_form_validator-0.6.0-py3-none-any.whl
+nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-0.0.1-py3-none-any.whl
