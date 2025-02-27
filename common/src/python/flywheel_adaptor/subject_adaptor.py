@@ -25,7 +25,7 @@ class SubjectError(Exception):
 
 
 class VisitInfo(BaseModel):
-    """Class to represent file information for a particpant visit."""
+    """Class to represent file information for a participant visit."""
     model_config = ConfigDict(populate_by_name=True,
                               alias_generator=AliasGenerator(alias=kebab_case))
 
@@ -40,7 +40,7 @@ class ParticipantVisits(BaseModel):
                               alias_generator=AliasGenerator(alias=kebab_case))
 
     participant: str  # Flywheel subject label
-    module: str  # module label (Flywheel aquisition label)
+    module: str  # module label (Flywheel acquisition label)
     visits: List[VisitInfo]
 
     @classmethod
@@ -50,8 +50,8 @@ class ParticipantVisits(BaseModel):
         """Create from input data and visit file details.
 
         Args:
-            filename: Flywheel aquisition file name
-            file_id: Flywheel aquisition file ID
+            filename: Flywheel acquisition file name
+            file_id: Flywheel acquisition file ID
             input_record: input visit data
 
         Returns:
@@ -69,8 +69,8 @@ class ParticipantVisits(BaseModel):
         """Add a new visit to the list of visits for this participant.
 
         Args:
-            filename: Flywheel aquisition file name
-            file_id: Flywheel aquisition file ID
+            filename: Flywheel acquisition file name
+            file_id: Flywheel acquisition file ID
             visitdate: visit date
         """
         visit_info = VisitInfo(filename=filename,
@@ -150,7 +150,7 @@ class SubjectAdaptor:
         """Returns the last failed visit for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
 
         Returns:
             Optional[VisitInfo]: Last failed visit if exists
@@ -174,7 +174,7 @@ class SubjectAdaptor:
         """Update last failed visit info for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
             failed_visit: failed visit info
         """
 
@@ -189,7 +189,7 @@ class SubjectAdaptor:
         """Reset last failed visit info for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
         """
 
         # make sure to load the existing metadata first and then modify
@@ -198,7 +198,7 @@ class SubjectAdaptor:
         module_info[MetadataKeys.FAILED] = {}
         updates = {module: module_info}
         # Note: have to use update_info() here for reset to take effect
-        # Using update() will not delete any exsisting data
+        # Using update() will not delete any existing data
         self._subject.update_info(updates)
 
     def upload_file(self, file_spec: FileSpec) -> Optional[List[Dict]]:
@@ -223,8 +223,8 @@ class SubjectAdaptor:
     def upload_acquisition_file(
             self,
             *,
-            session_lbl: str,
-            acq_lbl: str,
+            session_label: str,
+            acquisition_label: str,
             filename: str,
             contents: str,
             content_type: str,
@@ -233,8 +233,8 @@ class SubjectAdaptor:
         Creates new containers if session/acquisition does not exist.
 
         Args:
-            session_lbl: Flywheel session label
-            acq_lbl: Flywheel acquisition label
+            session_label: Flywheel session label
+            acquisition_label: Flywheel acquisition label
             filename: file name
             contents: file contents
             content_type: contents type
@@ -247,27 +247,28 @@ class SubjectAdaptor:
             SubjectError: if any error occurred while upload
         """
 
-        session = self.find_session(session_lbl)
+        session = self.find_session(session_label)
         if not session:
             log.info(
                 'Session %s does not exist in subject %s, creating a new session',
-                session_lbl, self.label)
-            session = self.add_session(session_lbl)
+                session_label, self.label)
+            session = self.add_session(session_label)
 
-        acquisition = session.acquisitions.find_first(f'label={acq_lbl}')
+        acquisition = session.acquisitions.find_first(
+            f'label={acquisition_label}')
         if not acquisition:
             log.info(
                 'Acquisition %s does not exist in session %s, '
-                'creating a new acquisition', acq_lbl, session_lbl)
-            acquisition = session.add_acquisition(label=acq_lbl)
+                'creating a new acquisition', acquisition_label, session_label)
+            acquisition = session.add_acquisition(label=acquisition_label)
 
         if skip_duplicates:
             existing_file = acquisition.get_file(filename)
             if existing_file and is_duplicate_record(
                     contents, existing_file.read(), content_type):
-                log.warning(
-                    'Duplicate visit file %s already exists in subject %s',
-                    filename, self.label)
+                log.warning('Duplicate file %s already exists at %s/%s/%s',
+                            filename, self.label, session_label,
+                            acquisition_label)
                 return None
 
         record_file_spec = FileSpec(name=filename,
@@ -280,5 +281,51 @@ class SubjectAdaptor:
             return acquisition.get_file(filename)
         except ApiException as error:
             raise SubjectError(
-                f'Failed to upload file {filename} to subject {self.label} - {error}'
+                f'Failed to upload file {filename} to '
+                f'{self.label}/{session_label}/{acquisition_label}: {error}'
             ) from error
+
+    def get_acquisition_file_name(self,
+                                  *,
+                                  session: str,
+                                  acquisition: str,
+                                  extension: Optional[str] = 'json',
+                                  connector: Optional[str] = '_') -> str:
+        """Generate filename in desired format.
+
+        Args:
+            session_label: Flywheel session label
+            acquisition_label: Flywheel acquisition label
+            extension (optional): file extension. Defaults to 'json'.
+            connector (optional): connecting character, Defaults to '_'
+
+        Returns:
+            str: generated filename
+        """
+        return f'{self.label}{connector}{session}{connector}{acquisition}.{extension}'
+
+    def find_acquisition_file(self, *, session_label: str,
+                              acquisition_label: str,
+                              filename: str) -> Optional[FileEntry]:
+        """Find a file matches with given session/acquisition/filename in this
+        subject.
+
+        Args:
+            session_label: Flywheel session label
+            acquisition_label: Flywheel acquisition label
+            filename: file name
+
+        Returns:
+            FileEntry(optional): Flywheel container for the file or None
+        """
+
+        session = self.find_session(session_label)
+        if not session:
+            return None
+
+        acquisition = session.acquisitions.find_first(
+            f'label={acquisition_label}')
+        if not acquisition:
+            return None
+
+        return acquisition.get_file(filename)

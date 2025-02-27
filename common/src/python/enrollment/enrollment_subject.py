@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import Optional
 
-from flywheel.file_spec import FileSpec
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
-from identifiers.model import GUID_PATTERN, NACCID_PATTERN
-from pydantic import BaseModel, Field, ValidationError
+from identifiers.model import CenterFields, GUIDField, NACCIDField
+from keys.keys import DefaultValues
+from pydantic import BaseModel, ValidationError
 
 from enrollment.enrollment_transfer import (
     Demographics,
@@ -15,12 +15,8 @@ from enrollment.enrollment_transfer import (
 )
 
 
-class IdentifierInfoRecord(BaseModel):
+class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
-    adcid: int = Field(ge=0)
-    ptid: str = Field(max_length=10)
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(max_length=13, pattern=GUID_PATTERN)
     update_date: datetime
 
 
@@ -97,26 +93,22 @@ class EnrollmentSubject(SubjectAdaptor):
     def upload_enrollment(self, record: EnrollmentRecord) -> None:
         """Uploads a file for the enrollment record to this subject.
 
-        The record is saved as a JSON file
-        `enrollment_transfer/enrollment/enrollment.json`
-        under this subject.
+        The record is saved as a JSON file under this subject.
 
         Args:
           record: the enrollment record
         """
-        session = self.sessions.find_first('label=enrollment_transfer')
-        if not session:
-            session = self.add_session(label="enrollment_transfer")
-
-        acquisition = session.acquisitions.find_first("label=enrollment")
-        if not acquisition:
-            acquisition = session.add_acquisition(label="enrollment")
-
-        record_file_spec = FileSpec(
-            name='enrollment.json',
+        formdate = record.start_date.strftime("%Y-%m-%d")
+        session_label = f'{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}'
+        self.upload_acquisition_file(
+            session_label=session_label,
+            acquisition_label=DefaultValues.ENROLLMENT_MODULE,
+            filename=self.get_acquisition_file_name(
+                session=session_label,
+                acquisition=DefaultValues.ENROLLMENT_MODULE),
             contents=record.model_dump_json(exclude_none=True),
-            content_type='application/json')
-        acquisition.upload_file(record_file_spec)
+            content_type='application/json',
+            skip_duplicates=False)
 
     def get_demographics_info(self) -> Optional[Demographics]:
         """Returns the demographics info object for this subject.

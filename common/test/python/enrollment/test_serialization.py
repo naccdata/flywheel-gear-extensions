@@ -1,10 +1,11 @@
 """Tests serialization of enrollment/transfer form data."""
 
+from datetime import datetime
 from typing import Dict
 
 import pytest
 from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
-from enrollment.enrollment_transfer import EnrollmentRecord
+from enrollment.enrollment_transfer import EnrollmentRecord, TransferRecord
 from identifiers.model import CenterIdentifiers
 from pydantic import ValidationError
 
@@ -74,3 +75,39 @@ class TestEnrollmentSerialization:
                     'type'] == 'datetime_from_date_parsing'
                 if error['type'] == 'string_pattern_mismatch':
                     assert error['loc'][0] == 'guid'
+
+
+class TestTransferRecord:
+
+    def test_complete_record(self):
+        transfer = {
+            "date": datetime.today(),
+            "initials": "bk",
+            "center_identifiers": {
+                "adcid": 0,
+                "ptid": "11111"
+            },
+            "previous_identifiers": {
+                "adcid": 0,
+                "ptid": "22222"
+            },
+            "naccid": "NACC000000"
+        }
+        try:
+            assert TransferRecord.model_validate(transfer)
+        except ValidationError:
+            assert False, "transfer record validation failed"  # noqa: B011
+
+    def test_incomplete_record(self):
+        transfer = {
+            "date": datetime.today(),
+            "initials": "bk",
+            "center_identifiers": {
+                "adcid": 0,
+                "ptid": "11111"
+            }
+        }
+        try:
+            assert TransferRecord.model_validate(transfer)
+        except ValidationError:
+            assert False, "transfer record validation failed"  # noqa: B011

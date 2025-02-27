@@ -2,7 +2,7 @@
     "name": "identifier-provisioning",
     "label": "Identifier Provisioning",
     "description": "Gear for provisioning NACCIDs from Enrollment forms",
-    "version": "0.1.7",
+    "version": "1.1.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-provisioning:0.1.7"
+            "image": "naccdata/identifier-provisioning:1.1.2"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -37,7 +37,7 @@
         }
     },
     "config": {
-        "identifier_mode": {
+        "database_mode": {
             "description": "Whether to create identifiers in dev or prod database",
             "type": "string",
             "default": "dev"
@@ -55,7 +55,7 @@
         "enrollment_module": {
             "description": "Enrollment form module name",
             "type": "string",
-            "default": "enrollv1"
+            "default": "enroll"
         }
     },
     "command": "/bin/run"

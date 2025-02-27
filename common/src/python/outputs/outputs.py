@@ -1,7 +1,8 @@
 """Defines utilities for writing data files."""
 
 from abc import ABC, abstractmethod
-from csv import DictWriter
+from csv import QUOTE_MINIMAL, DictWriter
+from io import StringIO
 from typing import Any, Dict, List, Optional, TextIO
 
 SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
@@ -14,7 +15,8 @@ class CSVWriter:
     def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
         self.__writer = DictWriter(stream,
                                    fieldnames=fieldnames,
-                                   dialect='unix')
+                                   dialect='unix',
+                                   quoting=QUOTE_MINIMAL)
         self.__header_written = False
 
     def __write_header(self):
@@ -72,3 +74,23 @@ class ListJSONWriter(JSONWriter):
           List of dictionary objects
         """
         return self.__objects
+
+
+def write_csv_to_stream(headers: List[str], data: List[Dict[str,
+                                                            Any]]) -> StringIO:
+    """Takes a header and data pair and uses CSVWriter to write the CSV
+    contents to a StringIO stream.
+
+    Args:
+        headers: The header values
+        data: The data values, expected to be a list of JSON dicts
+
+    Returns:
+        StringIO object containing the contents.
+    """
+    stream = StringIO()
+    writer = CSVWriter(stream, headers)
+    for row in data:
+        writer.write(row)
+
+    return stream

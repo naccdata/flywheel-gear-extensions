@@ -1,0 +1,86 @@
+{
+    "name": "csv-center-splitter",
+    "label": "CSV Center Splitter",
+    "description": "Splits a CSV by center ID",
+    "version": "0.1.2",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/csv-center-splitter:0.1.2"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The input CSV",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "adcid_key": {
+            "description": "Column name from the input CSV with the ADCIDs",
+            "type": "string"
+        },
+        "target_project": {
+            "description": "Target project name to write the split results to; each ADCID in the split results is expected to have a project",
+            "type": "string",
+            "default": ""
+        },
+        "staging_project_id": {
+            "description": "Staging project ID to stage all results to; overrides target_project",
+            "type": "string",
+            "default": ""
+        },
+        "include": {
+            "description": "Comma-delimited list of ADCIDs to include in the split. Will ignore all others.",
+            "type": "string",
+            "default": ""
+        },
+        "exclude": {
+            "description": "Comma-delimited list of ADCIDs to exclude in the split. Will evaluate all others.",
+            "type": "string",
+            "default": ""
+        },
+        "delimiter": {
+            "description": "The input file delimiter",
+            "type": "string",
+            "default": ","
+        },
+        "local_run": {
+            "description": "Set to true if executing on a local input file",
+            "type": "boolean",
+            "default": false
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        }
+    },
+    "command": "/bin/run"
+}

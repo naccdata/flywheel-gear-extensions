@@ -1,13 +1,17 @@
 """Module defining utilities for gear execution."""
 
 import logging
+import os
 import re
 import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+import flywheel
 from centers.nacc_group import NACCGroup
 from flywheel.client import Client
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from fw_client import FWClient
@@ -160,6 +164,12 @@ class InputFileWrapper:
         return self.file_input['location']['name']
 
     @property
+    def basename(self) -> str:
+        """Returns the base name of the file name."""
+        (basename, extension) = os.path.splitext(self.filename)
+        return basename
+
+    @property
     def filepath(self) -> str:
         """Returns the file path."""
         return self.file_input['location']['path']
@@ -185,12 +195,13 @@ class InputFileWrapper:
           GearExecutionError if there is no input with the name
         """
         file_input = context.get_input(input_name)
+        is_optional = context.manifest.get("inputs",
+                                           {}).get(input_name,
+                                                   {}).get("optional", False)
+
         if not file_input:
-            is_optional = context.manifest.get("inputs", {}).get(
-                input_name, {}).get("optional", False)
             if is_optional:
                 return None
-
             raise GearExecutionError(f'Missing input file {input_name}')
 
         if file_input["base"] != "file":
@@ -223,11 +234,38 @@ class InputFileWrapper:
             str(optional): module name if a match found, else None
         """
         module = None
-        pattern = '^.*-([a-z]+v[0-9])\\.(\\bcsv\\b|\\bjson\\b)$'
+        pattern = '^.*-([a-z_]*)\\.(csv|json)$'
         if match := re.search(pattern, self.filename, re.IGNORECASE):
-            module = match.group(1)
+            file_suffix = match.group(1)
+            if file_suffix:
+                # remove any extra suffixes added by previous gears
+                module = file_suffix.split('_')[0]
 
         return module
+
+    def get_parent_project(
+            self,
+            proxy: FlywheelProxy,
+            file: Optional[FileEntry] = None) -> flywheel.Project:
+        """Gets the parent project that owns this file.
+
+        Args:
+            proxy: The Flywheel proxy
+            file: (optional) the Flywheel FileEntry representing this file
+        """
+        if not file:
+            try:
+                file = proxy.get_file(self.file_id)
+            except ApiException as error:
+                raise GearExecutionError(
+                    f'Failed to find the input file: {error}') from error
+
+        project = proxy.get_project_by_id(file.parents.project)
+        if not project:
+            raise GearExecutionError(
+                f'Failed to find the project with ID {file.parents.project}')
+
+        return project
 
 
 # pylint: disable=too-few-public-methods

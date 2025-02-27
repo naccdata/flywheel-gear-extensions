@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import pytest
 from inputs.csv_reader import CSVVisitor, read_csv
-from outputs.errors import StreamErrorWriter
+from outputs.errors import StreamErrorWriter, invalid_header_error
 
 
 # pylint: disable=(redefined-outer-name)
@@ -63,7 +63,19 @@ def data_stream():
                                    [1, '2', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
-    stream.seek(0)
+    yield stream
+
+
+# pylint: disable=(redefined-outer-name)
+@pytest.fixture(scope="function")
+def case_stream():
+    """Create data stream with different case headeres."""
+    data: List[List[str | int]] = [[
+        'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
+        "CAPITAL VAR WITH SPACES"
+    ], [1, '1', 8, 9, 10, 11]]
+    stream = StringIO()
+    write_to_stream(data, stream)
     yield stream
 
 
@@ -79,11 +91,41 @@ def empty(stream) -> bool:
 class DummyVisitor(CSVVisitor):
     """Dummy CSV Visitor class for testing."""
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self):
+        self.header = None
+        self.rows = []
 
     def visit_header(self, header: List[str]) -> bool:
+        self.header = header
         return header is not None
+
+    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        self.rows.append(row)
+        return row is not None
+
+
+class NonNumericHeaderVisitor(CSVVisitor):
+    """Dummy CSV Visitor class for testing, which explicitly says the header
+    cannot be numeric."""
+
+    def __init__(self, error_writer: StreamErrorWriter):
+        """Initializer."""
+        self.__error_writer = error_writer
+
+    def visit_header(self, header: List[str]) -> bool:
+        """Visit header - cannot contain numeric values."""
+
+        for x in header:
+            try:
+                float(x)
+            except ValueError:
+                continue
+
+            error = invalid_header_error(message="Header cannot be numeric")
+            self.__error_writer.write(error)
+            return False
+
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         return row is not None
@@ -110,19 +152,55 @@ class TestCSVReader:
         row = next(reader)
         assert row['message'] == 'Empty input file'
 
-    def test_no_header_stream(self, no_header_stream):
-        """Test stream without header row."""
+    def test_invalid_header_stream(self, no_header_stream):
+        """Test stream with invalid header row."""
         err_stream = StringIO()
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy-path')
+        visitor = NonNumericHeaderVisitor(error_writer)
+
         success = read_csv(input_file=no_header_stream,
-                           error_writer=StreamErrorWriter(
-                               stream=err_stream,
-                               container_id='dummy',
-                               fw_path='dummy-path'),
-                           visitor=DummyVisitor())
+                           error_writer=error_writer,
+                           visitor=visitor)
         assert not success
         assert not empty(err_stream)
         err_stream.seek(0)
         reader = csv.DictReader(err_stream, dialect='unix')
         assert reader.fieldnames
         row = next(reader)
-        assert row['message'] == 'No file header found'
+        assert row['message'] == 'Header cannot be numeric'
+
+    def test_preserve_case_true(self, case_stream):
+        """Test preserve case is True."""
+        err_stream = StringIO()
+        visitor = DummyVisitor()
+        success = read_csv(input_file=case_stream,
+                           error_writer=StreamErrorWriter(
+                               stream=err_stream,
+                               container_id='dummy',
+                               fw_path='dummy-path'),
+                           visitor=visitor,
+                           preserve_case=True)
+        assert success
+        assert empty(err_stream)
+        assert visitor.header == \
+            ['adcid', 'ptid', 'var1', "CAPITALVAR",
+             "var with spaces", "CAPITAL VAR WITH SPACES"]
+
+    def test_preserve_case_false(self, case_stream):
+        """Test preserve case is False."""
+        err_stream = StringIO()
+        visitor = DummyVisitor()
+        success = read_csv(input_file=case_stream,
+                           error_writer=StreamErrorWriter(
+                               stream=err_stream,
+                               container_id='dummy',
+                               fw_path='dummy-path'),
+                           visitor=visitor,
+                           preserve_case=False)
+        assert success
+        assert empty(err_stream)
+        assert visitor.header == \
+            ['adcid', 'ptid', 'var1', "capitalvar",
+             "var_with_spaces", "capital_var_with_spaces"]

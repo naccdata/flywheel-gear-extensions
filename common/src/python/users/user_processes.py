@@ -97,15 +97,13 @@ class NotificationClient:
           user_entry: the user entry for the user
         """
         assert user_entry.auth_email, "user entry must have auth email"
-        if self.__should_send(user_entry):
-            self.__client.send(
-                configuration_set_name=self.__configuration_set_name,
-                destination=DestinationModel(
-                    to_addresses=[user_entry.email],
-                    cc_addresses=[user_entry.auth_email]),
-                template="user-creation",
-                template_data=TemplateDataModel(
-                    firstname=user_entry.first_name, url=self.__portal_url))
+        self.__client.send(
+            configuration_set_name=self.__configuration_set_name,
+            destination=DestinationModel(to_addresses=[user_entry.email],
+                                         cc_addresses=[user_entry.auth_email]),
+            template="user-creation",
+            template_data=TemplateDataModel(firstname=user_entry.first_name,
+                                            url=self.__portal_url))
 
     def __should_send(self, user_entry: ActiveUserEntry) -> bool:
         """Determines whether to send a notification.
@@ -288,17 +286,37 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         Args:
           entry: the user entry
         """
+
+        registry_person = self.__env.user_registry.find_by_registry_id(
+            entry.registry_id)
+
+        # this cannot happen, user should have been claimed if it reaches this step
+        if not registry_person or not registry_person.organization_email_addresses:
+            log.error(
+                'Failed to find a claimed user with Registry ID %s and email %s',
+                entry.registry_id, entry.email)
+            return
+
         fw_user = self.__env.proxy.find_user(entry.registry_id)
         if not fw_user:
             log.error('Failed to add user %s with ID %s', entry.email,
                       entry.registry_id)
             return
 
-        assert entry.auth_email, "user entry must have auth email"
-
         self.__update_email(user=fw_user, email=entry.email)
+
+        auth_email = registry_person.organization_email_addresses[0].mail
+        if entry.auth_email and not registry_person.has_matching_auth_email(
+                entry.auth_email):
+            log.warning(
+                'Registry ID %s is claimed with email %s - provided auth email is %s',
+                entry.registry_id,
+                auth_email,
+                entry.auth_email,
+            )
+
         self.__authorize_user(user=fw_user,
-                              auth_email=entry.auth_email,
+                              auth_email=auth_email,
                               center_id=entry.adcid,
                               authorizations=entry.authorizations)
 
@@ -410,6 +428,8 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
             if not self.__add_user(entry):
                 return
 
+            self.__created_queue.enqueue(entry)
+
             log.info('Added user %s', entry.registry_id)
 
         fw_user = self.__env.proxy.find_user(entry.registry_id)
@@ -417,9 +437,6 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error('Failed to find user %s with ID %s', entry.email,
                       entry.registry_id)
             return
-
-        if not fw_user.firstlogin:
-            self.__created_queue.enqueue(entry)
 
         self.__update_queue.enqueue(entry)
 
@@ -533,7 +550,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __add_to_registry(self, *, user_entry: UserEntry) -> List[Identifier]:
         """Adds a user to the registry using the user entry data.
 
-        Note: the comanage API was not returning any identifers last checked
+        Note: the comanage API was not returning any identifiers last checked
 
         Args:
         user_entry: the user directory entry

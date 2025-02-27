@@ -1,0 +1,71 @@
+{
+    "name": "form-transformer",
+    "label": "Form CSV to JSON Transformer",
+    "description": "Form specific transformation from CSV to JSON",
+    "version": "1.2.0",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/form-transformer:1.2.0"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "a CSV file with NACCIDs",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "transform_file": {
+            "description": "A JSON file with transform data",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        }
+    },
+    "config": {
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
+        "downstream_gears": {
+            "description": "Comma-delimited list of downstream gears",
+            "type": "string",
+            "default": "form-qc-coordinator,form-qc-checker"
+        }
+    },
+    "command": "/bin/run"
+}

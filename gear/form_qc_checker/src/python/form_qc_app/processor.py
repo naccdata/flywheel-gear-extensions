@@ -6,22 +6,23 @@ from abc import ABC, abstractmethod
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Literal, Mapping, Optional
 
-from flywheel import Project
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
-    SubjectAdaptor,
     SubjectError,
     VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.keys import FieldNames
+from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     JSONLocation,
     ListErrorWriter,
     empty_field_error,
     empty_file_error,
+    get_error_log_name,
     malformed_file_error,
     previous_visit_failed_error,
     system_error,
+    update_error_log_and_qc_metadata,
 )
 
 from form_qc_app.definitions import DefinitionsLoader
@@ -36,20 +37,28 @@ class FileProcessor(ABC):
     """Abstract class for processing the input file and running data quality
     checks."""
 
-    def __init__(self, *, pk_field: str, module: str,
-                 error_writer: ListErrorWriter) -> None:
+    def __init__(self, *, pk_field: str, module: str, date_field: str,
+                 project: ProjectAdaptor, error_writer: ListErrorWriter,
+                 gear_name: str) -> None:
         self._pk_field = pk_field
         self._module = module
+        self._date_field = date_field
+        self._project = project
         self._error_writer = error_writer
+        self._gear_name = gear_name
+        self._error_log_template = {
+            "ptid": FieldNames.PTID,
+            "visitdate": self._date_field
+        }
 
     @abstractmethod
-    def validate_input(self, *, input_wrapper: InputFileWrapper,
-                       project: Optional[Project]) -> Optional[Dict[str, Any]]:
+    def validate_input(
+            self, *,
+            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
         """Validates the input file before proceeding with data quality checks.
 
         Args:
             input_wrapper: Wrapper object for gear input file
-            project: Flywheel project container
 
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict
@@ -81,22 +90,67 @@ class FileProcessor(ABC):
             validator: Helper class for validating a input record
 
         Returns:
-            bool: True if the file passed validation
+           bool: True if input passed validation
 
         Raises:
-            GearExecutionError: if errors occured while processing the input file
+            GearExecutionError: if errors occurred while processing the input file
         """
+
+    def update_visit_error_log(self,
+                               *,
+                               input_record: Dict[str, Any],
+                               qc_passed: bool,
+                               reset_metadata: bool = False) -> bool:
+        """Update error log file for the visit and store error metadata in
+        file.info.qc.
+
+        Args:
+            input_record: input visit record
+            qc_passed: whether the visit passed QC checks
+            reset_metadata: reset metadata from previous runs, set True for first gear
+
+        Returns:
+            bool: True if error log updated successfully, else False
+        """
+        error_log_name = get_error_log_name(
+            module=self._module,
+            input_data=input_record,
+            naming_template=self._error_log_template)
+
+        if not error_log_name or not update_error_log_and_qc_metadata(
+                error_log_name=error_log_name,
+                destination_prj=self._project,
+                gear_name=self._gear_name,
+                state='PASS' if qc_passed else 'FAIL',
+                errors=self._error_writer.errors(),
+                reset_metadata=reset_metadata):
+            log.warning('Failed to update error log for record %s, %s',
+                        input_record[self._pk_field],
+                        input_record[self._date_field])
+            return False
+
+        return True
 
 
 class JSONFileProcessor(FileProcessor):
     """Class for processing JSON input file."""
 
-    def __init__(self, *, pk_field: str, module: str, date_field: str,
-                 error_writer: ListErrorWriter) -> None:
-        self.__date_field = date_field
+    def __init__(self,
+                 *,
+                 pk_field: str,
+                 module: str,
+                 date_field: str,
+                 project: ProjectAdaptor,
+                 error_writer: ListErrorWriter,
+                 gear_name: str,
+                 supplement_data: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(pk_field=pk_field,
                          module=module,
-                         error_writer=error_writer)
+                         date_field=date_field,
+                         project=project,
+                         error_writer=error_writer,
+                         gear_name=gear_name)
+        self.__supplement_data = supplement_data
 
     def __has_failed_visits(self) -> FailedStatus:
         """Check whether the participant has any failed previous visits.
@@ -105,14 +159,14 @@ class JSONFileProcessor(FileProcessor):
             FailedStatus: Literal['NONE', 'SAME', 'DIFFERENT']
 
         Raises:
-            GearExecutionError: If error occured while checking for previous visits
+            GearExecutionError: If error occurred while checking for previous visits
         """
         try:
             failed_visit = self.__subject.get_last_failed_visit(self._module)
         except SubjectError as error:
             raise GearExecutionError(error) from error
 
-        visitdate = self.__input_record[self.__date_field]
+        visitdate = self.__input_record[self._date_field]
 
         if failed_visit:
             same_file = (failed_visit.file_id and failed_visit.file_id
@@ -145,15 +199,15 @@ class JSONFileProcessor(FileProcessor):
 
         return 'NONE'
 
-    def validate_input(self, *, input_wrapper: InputFileWrapper,
-                       project: Optional[Project]) -> Optional[Dict[str, Any]]:
+    def validate_input(
+            self, *,
+            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
         """Validates a JSON input file for a participant visit. Check whether
         all required fields are present in the input data. Check whether
         primary key matches with the Flywheel subject label in the project.
 
         Args:
             input_wrapper: Wrapper object for gear input file
-            project: Flywheel project container
 
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict
@@ -174,20 +228,19 @@ class JSONFileProcessor(FileProcessor):
             self._error_writer.write(empty_field_error(self._pk_field))
             return None
 
-        if not input_data.get(self.__date_field):
-            self._error_writer.write(empty_field_error(self.__date_field))
+        if not input_data.get(self._date_field):
+            self._error_writer.write(empty_field_error(self._date_field))
             return None
 
         if not input_data.get(FieldNames.FORMVER):
             self._error_writer.write(empty_field_error(FieldNames.FORMVER))
             return None
 
-        assert project, "Project required"
         subject_lbl = input_data[self._pk_field]
-        subject = project.subjects.find_first(f'label={subject_lbl}')
+        subject = self._project.find_subject(subject_lbl)
         if not subject:
             message = ('Failed to retrieve subject '
-                       f'{subject_lbl} in project {project.label}')
+                       f'{subject_lbl} in project {self._project.label}')
             log.error(message)
             self._error_writer.write(
                 system_error(message, JSONLocation(key_path=self._pk_field)))
@@ -196,7 +249,7 @@ class JSONFileProcessor(FileProcessor):
         self.__input_record = input_data
         self.__file_id = input_wrapper.file_id
         self.__filename = input_wrapper.filename
-        self.__subject = SubjectAdaptor(subject)
+        self.__subject = subject
 
         return self.__input_record
 
@@ -210,7 +263,6 @@ class JSONFileProcessor(FileProcessor):
         Args:
             rule_def_loader: Helper class to load rule definitions
             input_data: Input data record
-
         Returns:
             rule definition schema, code mapping schema (optional)
 
@@ -221,10 +273,25 @@ class JSONFileProcessor(FileProcessor):
         optional_forms = rule_def_loader.get_optional_forms_submission_status(
             input_data=input_data, module=self._module)
 
+        skip_forms = []
+        # Check which form is submitted for C2/C2T and skip the definition for other
+        if self._module == DefaultValues.UDS_MODULE:
+            c2c2t_mode = None
+            try:  # noqa: SIM105
+                c2c2t_mode = int(input_data.get(FieldNames.C2C2T, 2))
+            except ValueError:
+                pass
+
+            skip_forms = ['c2'] if c2c2t_mode == DefaultValues.C2TMODE else [
+                'c2t'
+            ]
+
         return rule_def_loader.load_definition_schemas(
             input_data=input_data,
             module=self._module,
-            optional_forms=optional_forms)
+            optional_forms=optional_forms,
+            skip_forms=skip_forms,
+            supplement_data=self.__supplement_data)
 
     def process_input(self, *, validator: RecordValidator) -> bool:
         """Process the JSON record for the participant visit.
@@ -233,13 +300,15 @@ class JSONFileProcessor(FileProcessor):
             validator: Helper class for validating the input record
 
         Returns:
-            bool: True if the record passed validation
+            bool: True if input passed validation
 
         Raises:
-            GearExecutionError: if errors occured while processing the input record
+            GearExecutionError: if errors occurred while processing the input record
         """
 
         valid = False
+
+        visitdate = self.__input_record[self._date_field]
 
         # check whether there are any pending visits for this participant/module
         failed_visit = self.__has_failed_visits()
@@ -247,15 +316,23 @@ class JSONFileProcessor(FileProcessor):
         # if there are no failed visits or last failed visit is the current visit
         # run error checks on visit file
         if failed_visit in ['NONE', 'SAME']:
-            valid = validator.process_data_record(record=self.__input_record)
+            # merge supplement input if provided,
+            # any duplicate fields should be replaced by current input
+            valid = validator.process_data_record(
+                record=(self.__supplement_data | self.__input_record
+                        ) if self.__supplement_data else self.__input_record)
             if not valid:
-                visit_info = VisitInfo(
-                    filename=self.__filename,
-                    file_id=self.__file_id,
-                    visitdate=self.__input_record[self.__date_field])
+                visit_info = VisitInfo(filename=self.__filename,
+                                       file_id=self.__file_id,
+                                       visitdate=visitdate)
                 self.__subject.set_last_failed_visit(self._module, visit_info)
-            # reset failed visit metadta in Flyhweel
+            # reset failed visit metadata in Flywheel
             elif failed_visit == 'SAME':
                 self.__subject.reset_last_failed_visit(self._module)
+
+        if not self.update_visit_error_log(input_record=self.__input_record,
+                                           qc_passed=valid):
+            raise GearExecutionError('Failed to update error log for visit '
+                                     f'{self.__subject.label}, {visitdate}')
 
         return valid

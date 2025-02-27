@@ -2,8 +2,7 @@
 from typing import Optional
 
 import pytest
-import yaml
-from projects.study import Center, Study, StudyVisitor
+from projects.study import Study, StudyVisitor
 
 
 class DummyVisitor(StudyVisitor):
@@ -22,63 +21,6 @@ class DummyVisitor(StudyVisitor):
 
     def visit_study(self, study: Study) -> None:
         self.project_name = study.name
-
-
-# pylint: disable=(no-self-use)
-class TestCenter:
-    """Tests for projects.Center."""
-
-    def test_object(self):
-        """Sanity check on object creation and properties."""
-        center = Center(tags=['adcid-7'],
-                        name="Alpha ADRC",
-                        center_id='alpha-adrc',
-                        adcid=7)
-        assert 'adcid-7' in center.tags
-        assert center.name == "Alpha ADRC"
-        assert center.is_active()
-        assert center.center_id == 'alpha-adrc'
-
-    def test_create(self):
-        """Check that create method creates object correctly."""
-        center = Center.create({
-            'tags': ['adcid-7'],
-            'name': 'Alpha ADRC',
-            'center-id': 'alpha-adrc',
-            'adcid': 7,
-            'is-active': True
-        })
-        center2 = Center(tags=['adcid-7'],
-                         name="Alpha ADRC",
-                         center_id='alpha-adrc',
-                         adcid=7)
-        assert center == center2
-
-        with pytest.raises(KeyError):
-            Center.create({})
-
-    def test_apply(self):
-        """Test that visitor applied."""
-        visitor = DummyVisitor()
-        center = Center(tags=['adcid-1'],
-                        name="Dummy Center",
-                        center_id="dummy",
-                        adcid=1)
-        center.apply(visitor)
-        assert visitor.center_id == "dummy"
-
-    def test_create_from_yaml(self):
-        center_yaml = ("adcid: 16\n"
-                       "name: University of California, Davis\n"
-                       "center-id: ucdavis\n"
-                       "is-active: True")
-        center_gen = yaml.safe_load_all(center_yaml)
-        center = Center.create(next(iter(center_gen)))
-        center2 = Center(tags=['adcid-16'],
-                         name="University of California, Davis",
-                         center_id='ucdavis',
-                         adcid=16)
-        assert center == center2
 
 
 class TestStudy:

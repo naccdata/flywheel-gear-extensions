@@ -2,7 +2,7 @@
     "name": "form-qc-checker",
     "label": "Form QC Checker",
     "description": "Gear to check form data as JSON with QC rule set",
-    "version": "1.0.4",
+    "version": "1.2.6",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-qc-checker:1.0.4"
+            "image": "naccdata/form-qc-checker:1.2.6"
         },
         "flywheel": {
             "suite": "Curation",
@@ -29,6 +29,25 @@
         "form_data_file": {
             "description": "The form data JSON file",
             "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "supplement_data_file": {
+            "description": "Optional input file for supplement module",
+            "base": "file",
+            "optional": true,
             "type": {
                 "enum": [
                     "source code"
@@ -52,30 +71,15 @@
             "type": "string",
             "default": "/redcap/aws/qcchecks"
         },
-        "primary_key": {
-            "description": "Primary key field (variable) for the form data project.",
-            "type": "string",
-            "default": "naccid"
-        },
         "strict_mode": {
             "description": "Validation mode. If false, input data variables that are not in the rule definitions are skipped from validation.",
             "type": "boolean",
             "default": false
         },
-        "legacy_project_label": {
-            "description": "The label of the Flywheel project where legacy data stored.",
+        "admin_group": {
+            "description": "Name of the admin group",
             "type": "string",
-            "default": "retrospective-form"
-        },
-        "date_field": {
-            "description": "Variable name of the visit date field for the module (used to sort the participant visits)",
-            "type": "string",
-            "default": "visitdate"
-        },
-        "tag": {
-            "description": "The tag to be added on input file upon job completion.",
-            "type": "string",
-            "default": "form-qc-checker"
+            "default": "nacc"
         }
     },
     "command": "/bin/run"

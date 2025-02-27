@@ -48,10 +48,14 @@ class MessageComponent(BaseModel):
     charset: str = Field('utf-8')
 
 
-class TemplateDataModel(BaseModel):
+class BaseTemplateModel(BaseModel):
+    """Base templte model for messages for the boto3 SES client."""
+    email_address: Optional[str] = None\
+
+
+class TemplateDataModel(BaseTemplateModel):
     """Defines a model for messages for the boto3 SES client."""
     firstname: str
-    email_address: Optional[str] = None
     url: Optional[str] = None
 
 
@@ -67,11 +71,12 @@ class EmailClient:
         configuration_set_name: str,
         destination: DestinationModel,
         template: str,
-        template_data: TemplateDataModel,
+        template_data: BaseTemplateModel,
     ) -> str:
         """Sends the message to the destination from the source address.
 
         Args:
+          configuration_set_name: name of the configuration set
           destination: the DestinationModel with email addresses
           template: the name of the SES template
           template_data: the MessageContentModel with message content
@@ -92,6 +97,37 @@ class EmailClient:
 
         except ClientError as error:
             log.error("Failed to send email")
+            raise EmailSendError(error) from error
+
+        message_id = response['MessageId']
+        log.info("Sent mail %s", message_id)
+        return message_id
+
+    def send_raw(self, destinations: List[str], subject: str,
+                 body: str) -> str:
+        """Sends a plain text raw email that doesn't require any templating.
+        Mainly for internal use.
+
+        Args:
+          destinations: The list of destinations
+          subject: The email subject
+          body: The email body
+        Returns:
+          the message ID if successfully sent
+        """
+        raw_msg = f'From: {self.__source}\n' \
+            + f"To: {', '.join(destinations)}\n" \
+            + f'Subject: {subject}\n' \
+            + 'MIME-Version: 1.0\n' \
+            + 'Content-Type: text/plain\n' \
+            + body
+        try:
+            response = self.__client.send_raw_email(
+                Source=self.__source,
+                Destinations=destinations,
+                RawMessage={'Data': raw_msg})
+        except ClientError as error:
+            log.error("Failed to send raw email")
             raise EmailSendError(error) from error
 
         message_id = response['MessageId']

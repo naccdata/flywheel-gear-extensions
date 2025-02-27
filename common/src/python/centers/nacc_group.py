@@ -1,7 +1,6 @@
 """Singleton class representing NACC with a FW group."""
-
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from flywheel.models.group import Group
 from flywheel.models.user import User
@@ -11,47 +10,20 @@ from redcap.redcap_repository import REDCapParametersRepository
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_group import CenterGroup
+from centers.center_info import CenterInfo, CenterMapInfo
 
 log = logging.getLogger(__name__)
 
 
-class CenterInfo(BaseModel):
-    """Represents information about a center in nacc/metadata project.
+class LegacyModuleInfo(BaseModel):
+    """Represents information about a legacy module in nacc/metadata project.
 
     Attributes:
-        adcid (int): The ADC ID of the center.
-        name (str): The name of the center.
-        group (str): The group ID of the center.
-        active (bool): Active or inactive status.
+        legacy_label (str): Label of the legacy module.
+        legacy_orderby (str): Orderby field for legacy module
     """
-    adcid: int
-    name: str
-    group: str
-    active: bool
-
-
-class CenterMapInfo(BaseModel):
-    """Represents the center map in nacc/metadata project."""
-    centers: Dict[int, CenterInfo]
-
-    def add(self, adcid: int, center_info: CenterInfo) -> None:
-        """Adds the center info to the map.
-
-        Args:
-            adcid: The ADC ID of the center.
-            center_info: The center info object.
-        """
-        self.centers[adcid] = center_info
-
-    def get(self, adcid: int) -> Optional[CenterInfo]:
-        """Gets the center info for the given ADCID.
-
-        Args:
-            adcid: The ADC ID of the center.
-        Returns:
-            The center info for the center. None if no info is found.
-        """
-        return self.centers.get(adcid, None)
+    legacy_label: str
+    legacy_orderby: str
 
 
 class NACCGroup(CenterAdaptor):
@@ -119,11 +91,16 @@ class NACCGroup(CenterAdaptor):
                        name=group_label,
                        group=group_id,
                        active=active))
-        metadata.update_info(center_map.model_dump())
+        exclude = {'centers': {'__all__': {'tags'}}}
+        metadata.update_info(center_map.model_dump(exclude=exclude))
 
-    def get_center_map(self) -> CenterMapInfo:
+    def get_center_map(self,
+                       center_filter: Optional[List[str]] = None
+                       ) -> CenterMapInfo:
         """Returns the adcid-group map.
 
+        Args:
+            center_filter: Optional list of ADCIDs to filter on for a mapping subset
         Returns:
           dictionary mapping adcid to adcid-group label correspondence
         """
@@ -133,6 +110,18 @@ class NACCGroup(CenterAdaptor):
         if not info:
             return CenterMapInfo(centers={})
 
+        if center_filter:
+            log.info(
+                f"Filtering mapping to the following centers: {center_filter}")
+            if 'centers' not in info:
+                log.error("Expected 'centers' attribute in metadata info")
+                return CenterMapInfo(centers={})
+
+            info['centers'] = {
+                adcid: data
+                for adcid, data in info['centers'].items()
+                if adcid in center_filter
+            }
         try:
             center_map = CenterMapInfo.model_validate(info)
         except ValidationError as error:
@@ -154,6 +143,15 @@ class NACCGroup(CenterAdaptor):
             if center_info.group == group_id:
                 return adcid
         return None
+
+    def get_adcids(self) -> List[int]:
+        """Returns the list of ADCIDs for all centers.
+
+        Returns:
+          the list of ADCIDs
+        """
+        center_map = self.get_center_map()
+        return list(center_map.centers.keys())
 
     def get_center(self, adcid: int) -> Optional[CenterGroup]:
         """Returns the center group for the given ADCID.

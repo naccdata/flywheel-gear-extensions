@@ -13,9 +13,9 @@ from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
-from projects.study import Center, Study
+from projects.study import Study
 from projects.template_project import TemplateProject
-from pydantic import AliasGenerator, BaseModel, ConfigDict, ValidationError
+from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap.redcap_project import CENTER_USER_ROLE
 from redcap.redcap_repository import REDCapParametersRepository
 from serialization.case import kebab_case
@@ -23,6 +23,7 @@ from users.authorizations import AuthMap
 from users.nacc_directory import Authorizations
 
 from centers.center_adaptor import CenterAdaptor
+from centers.center_info import CenterInfo
 
 log = logging.getLogger(__name__)
 
@@ -34,8 +35,9 @@ class CenterGroup(CenterAdaptor):
                  proxy: FlywheelProxy) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages = ['ingest', 'retrospective', 'sandbox',
-                                'distribution']
+        self.__ingest_stages = [
+            'ingest', 'retrospective', 'sandbox', 'distribution'
+        ]
         self.__adcid = adcid
         self.__is_active = active
         self.__center_portal: Optional[ProjectAdaptor] = None
@@ -92,24 +94,25 @@ class CenterGroup(CenterAdaptor):
 
     @classmethod
     def create_from_center(cls, *, proxy: FlywheelProxy,
-                           center: Center) -> 'CenterGroup':
+                           center: CenterInfo) -> 'CenterGroup':
         """Creates a CenterGroup from a center object.
 
         Args:
-          center: the study center
-          proxy: the flywheel proxy object
+          center: CenterInfo object, the study center
+          proxy: The flywheel proxy object
         Returns:
           the CenterGroup for the center
         """
-        group = proxy.get_group(group_label=center.name,
-                                group_id=center.center_id)
+        group = proxy.get_group(group_label=center.name, group_id=center.group)
         assert group, "No group for center"
-        center_group = CenterGroup(adcid=center.adcid,
-                                   active=center.is_active(),
-                                   group=group,
-                                   proxy=proxy)
 
-        tags = list(center.tags)
+        center_group = CenterGroup(
+            adcid=center.adcid,
+            active=center.active,  # type: ignore
+            group=group,
+            proxy=proxy)
+
+        tags = list(center.tags)  # type: ignore
         adcid_tag = f"adcid-{center.adcid}"
         if adcid_tag not in tags:
             tags.append(adcid_tag)
@@ -120,7 +123,7 @@ class CenterGroup(CenterAdaptor):
         metadata_project.add_admin_users(center_group.get_user_access())
         metadata_project.update_info({
             'adcid': center.adcid,
-            'active': center.is_active()
+            'active': center.active
         })
 
         center_group.add_center_portal()
@@ -496,19 +499,29 @@ class CenterGroup(CenterAdaptor):
                 authorizations=authorizations)
 
         ingest_projects = study_info.ingest_projects
+        log.info('Adding user to %s ingest projects', len(ingest_projects))
         for project in ingest_projects.values():
             self.__add_user_roles_to_project(user=user,
                                              project_id=project.project_id,
                                              auth_map=auth_map,
                                              authorizations=authorizations)
+            # Above method returns False when no change in permissions
+            # TODO - fix that and add to REDCap if only above successful
 
-            # if not isinstance(project, FormIngestProjectMetadata):
-            #     continue
+            if not isinstance(project, FormIngestProjectMetadata):
+                log.info(
+                    'Skipping ingest project %s/%s/%s, no linked REDCap project.',
+                    authorizations.study_id, self.label, project.project_label)
+                continue
 
-            # self.__add_user_to_redcap_project(user=user,
-            #                                   auth_email=auth_email,
-            #                                   form_ingest_project=project,
-            #                                   authorizations=authorizations)
+            # If user added successfully, add the user to REDCap project (if any)
+            log.info('Setting REDCap permissions for ingest project %s/%s/%s',
+                     authorizations.study_id, self.label,
+                     project.project_label)
+            self.__add_user_to_redcap_project(user=user,
+                                              auth_email=auth_email,
+                                              form_ingest_project=project,
+                                              authorizations=authorizations)
 
         metadata_project = self.get_metadata()
         if metadata_project:
@@ -595,6 +608,8 @@ class CenterGroup(CenterAdaptor):
             submission_type = redcap_metadata.get_submission_type()
             # User doesn't have submission privileges for this module
             if submission_type not in activities:
+                log.info('Skipping %s due to insufficient user permissions %s',
+                         submission_type, activities)
                 continue
 
             redcap_project = self.__redcap_param_repo.get_redcap_project(
@@ -835,10 +850,29 @@ class REDCapProjectInput(BaseModel):
     projects: List[REDCapFormProjectMetadata]
 
 
+class StudyREDCapProjectsList(RootModel):
+    """List of REDCap ingest projects metadata for a given study."""
+
+    root: List[REDCapProjectInput]
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __getitem__(self, item) -> REDCapProjectInput:
+        return self.root[item]
+
+    def __len__(self):
+        return len(self.root)
+
+    def append(self, entry: REDCapProjectInput) -> None:
+        """Appends the redcap project metadata to the list."""
+        self.root.append(entry)
+
+
 class REDCapModule(BaseModel):
     """Information required to create a REDCap project for a module.
 
-    label: module name (udsv4, ftldv4, etc.)
+    label: module name (uds, ftld, etc.)
     title: REDCap project title (this will be prefixed with center name)
     template[Optional]: XML template filename prefix (if different from label)
     """

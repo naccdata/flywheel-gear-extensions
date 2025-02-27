@@ -2,7 +2,7 @@
 import logging
 from typing import Dict, Optional
 
-from botocore.exceptions import ClientError, ParamValidationError
+from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
 from ssm_parameter_store import EC2ParameterStore
 from typing_extensions import Type, TypedDict, TypeVar
@@ -333,7 +333,8 @@ class ParameterStore:
                                         Overwrite=True)
         except Exception as error:
             raise ParameterError(
-                f"Failed to store parameters at {param_path}") from error
+                f"Failed to store parameters at {param_path}: {error}"
+            ) from error
 
     def get_comanage_parameters(self, param_path: str) -> CoManageParameters:
         """Pulls comanage parameters from the SSM parameter store at the given

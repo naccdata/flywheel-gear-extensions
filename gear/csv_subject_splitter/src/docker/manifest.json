@@ -1,0 +1,47 @@
+{
+    "name": "csv-subject-splitter",
+    "label": "CSV Subject Splitter",
+    "description": "Converts rows of CSV file to subject JSON files based on NACCID",
+    "version": "1.0.3",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/csv-subject-splitter:1.0.3"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "a CSV file with NACCIDs",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
+        }
+    },
+    "config": {
+        "hierarchy_labels": {
+            "description": "The string templates for session/acquisition/filename (represented as a JSON string)",
+            "type": "string",
+            "default": "{\"session\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"acquisition\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"filename\": {\"template\": \"$filename\",\"transform\": \"lower\"}}"
+        }
+    },
+    "command": "/bin/run"
+}
