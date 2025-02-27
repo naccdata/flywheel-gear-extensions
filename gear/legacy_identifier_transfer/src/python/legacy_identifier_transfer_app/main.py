@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Mapping, Optional
 
+from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
 from gear_execution.gear_execution import GearExecutionError
@@ -109,17 +110,20 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
     return error_count == 0  # Returns True only if no errors occurred
 
 
-def process_legacy_identifiers(
-        identifiers: Mapping[str, IdentifierObject],
-        enrollment_date: datetime,  # Added parameter for enrollment date
-        enrollment_project: EnrollmentProject,
-        dry_run: bool = True) -> bool:
+def get_enrollment_date(naccid: str) -> Optional[datetime]:
+    return None
+
+
+def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
+                               enrollment_project: EnrollmentProject,
+                               forms_store: FormsStore,
+                               dry_run: bool = True) -> bool:
     """Process legacy identifiers and create enrollment records.
 
     Args:
         identifiers: Dictionary of legacy identifiers
-        enrollment_date: Date to use as start_date for enrollments
         enrollment_project: Project to add enrollments to
+        forms_store: Class to retrieve form data from Flywheel ingest project
         dry_run: If True, do not actually add enrollments to Flywheel
 
     Returns:
@@ -127,8 +131,16 @@ def process_legacy_identifiers(
     """
     record_collection = LegacyEnrollmentCollection()
 
+    success = True
     for naccid, identifier in identifiers.items():
         try:
+            enrollment_date = get_enrollment_date(naccid)
+            if not enrollment_date:
+                log.error('Failed to find the enrollment date for NACCID %s',
+                          naccid)
+                success = False
+                continue
+
             record = validate_and_create_record(naccid, identifier,
                                                 enrollment_date)
             if record:
@@ -147,11 +159,11 @@ def process_legacy_identifiers(
                     log.error('Validation error in field %s: %s (value: %s)',
                               str(error['loc'][0]), error['msg'],
                               str(error.get('input', '')))
-            return False
+            success = False
 
     if not record_collection:
         log.warning('No valid legacy identifiers to process')
-        return True
+        return success
 
     return process_record_collection(record_collection, enrollment_project,
                                      dry_run)
@@ -160,12 +172,14 @@ def process_legacy_identifiers(
 def run(*,
         identifiers: Dict[str, IdentifierObject],
         enrollment_project: EnrollmentProject,
+        forms_store: FormsStore,
         dry_run: bool = True) -> bool:
     """Runs legacy identifier enrollment process.
 
     Args:
         identifiers: Dictionary of identifier objects from legacy system
         enrollment_project: Project to add enrollments to
+        forms_store: Class to retrieve form data from Flywheel ingest project
 
     Returns:
         bool: True if processing was successful, False otherwise
@@ -174,9 +188,8 @@ def run(*,
     try:
         success = process_legacy_identifiers(
             identifiers=identifiers,
-            # TODO: refactor identifiers API to get actual enrollment date?
-            enrollment_date=datetime.now(),
             enrollment_project=enrollment_project,
+            forms_store=forms_store,
             dry_run=dry_run,
         )
 
@@ -192,4 +205,5 @@ def run(*,
     except Exception as error:
         log.error("Unexpected error during processing: %s", str(error))
         raise GearExecutionError(str(error)) from error
+
     return True
