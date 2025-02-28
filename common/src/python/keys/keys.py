@@ -45,6 +45,7 @@ class DefaultValues:
     GEARBOT_USER_ID = 'nacc-flywheel-gear@uw.edu'
     NACC_GROUP_ID = 'nacc'
     METADATA_PRJ_LBL = 'metadata'
+    ACCEPTED_PRJ_LBL = 'accepted'
     ADMIN_PROJECT = 'project-admin'
     SESSION_LBL_PRFX = 'FORMS-VISIT-'
     ENRL_SESSION_LBL_PRFX = 'ENROLLMENT-TRANSFER-'
