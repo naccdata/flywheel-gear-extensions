@@ -134,3 +134,4 @@ class TestAPOETransformerCSVVisitor:
             assert error['message'].startswith(
                 'Required field(s)')
             assert error['message'].endswith('cannot be blank')
+        assert not visitor.transformed_data
