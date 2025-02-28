@@ -589,7 +589,7 @@ class FlywheelProxy:
         """
         return self.__fw.lookup(f'gears/{gear_name}')
 
-    def find_job(self, search_str: str) -> Optional[Job]:
+    def find_job(self, search_str: str, **kwargs) -> Optional[Job]:
         """Find the first Job matching the search string.
 
         Args:
@@ -598,7 +598,7 @@ class FlywheelProxy:
         Returns:
             Job: Flywheel Job object if found, else None
         """
-        return self.__fw.jobs.find_first(search_str)
+        return self.__fw.jobs.find_first(search_str, **kwargs)
 
     def find_jobs(self, search_str: str) -> List[Job]:
         """Find all jobs matching the search string.

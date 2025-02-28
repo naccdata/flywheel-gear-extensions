@@ -1,19 +1,20 @@
 """Entry script for Ingest to Accepted Transfer."""
 
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
+from centers.center_info import CenterInfo
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
 )
+from ingest_accepted_transfer_app.main import run
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-
-from ingest_accepted_transfer_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -70,8 +71,50 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
             time_interval=context.config.get("time_interval", 7),
             batch_size=context.config.get("batch_size", 10000))
 
+    def __get_center_ids(self) -> Optional[List[str]]:
+        """Get the list of Center IDs from metadata project.
+
+        Returns:
+            Optional[List[str]]: list of Center IDs if found
+        """
+        nacc_group = self.admin_group(admin_id=self.__admin_id)
+        centers: Dict[int, CenterInfo] = nacc_group.get_center_map().centers
+        if not centers:
+            return None
+
+        exclude_groups = ['sample-center', 'allftd']
+        exclude_suffix = ('dlb', 'dvcid', 'leads', 'ftld')
+
+        center_ids = [
+            center.group for center in centers.values()
+            if center.group not in exclude_groups
+            and not center.group.endswith(exclude_suffix)
+        ]
+        return center_ids
+
     def run(self, context: GearToolkitContext) -> None:
-        run(proxy=self.proxy)
+        """Invoke the ingest to accepted copy app.
+
+        Args:
+            context: the gear execution context
+
+        Raises:
+            GearExecutionError if errors occur while copying data
+        """
+
+        centers = self.__get_center_ids()
+        if not centers:
+            raise GearExecutionError(
+                'Center information not found in '
+                f'{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}')
+
+        run(proxy=self.proxy,
+            centers=centers,
+            ingest_project_lbl=self.__ingest_project,
+            accepted_project_lbl=self.__accepted_project,
+            time_interval=self.__time_interval,
+            batch_size=self.__batch_size,
+            dry_run=context.config.get("dry_run", False))
 
 
 def main():
