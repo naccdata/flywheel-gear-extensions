@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.1.4 (Unreleased)
+## 0.1.4
 
+* Updates to add original `A1/A2` fields to output data
 * Refactors to use `InputFileWrapper.get_parent_project`
 
 ## 0.1.3
