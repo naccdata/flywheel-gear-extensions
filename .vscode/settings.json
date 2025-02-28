@@ -23,6 +23,8 @@
         "adcid",
         "adcids",
         "apoe",
+        "birthmo",
+        "birthyr",
         "cdrglob",
         "coid",
         "comanage",
@@ -33,6 +35,7 @@
         "FTLD",
         "NACC",
         "naccadc",
+        "naccage",
         "naccid",
         "naccnihr",
         "oidcsub",
@@ -44,6 +47,8 @@
         "raceter",
         "raceterx",
         "racex",
+        "UDSv3",
+        "UDSv4",
         "visitdate",
         "visitnum"
     ]
