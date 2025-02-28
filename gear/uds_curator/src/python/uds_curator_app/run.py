@@ -56,12 +56,12 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 "Expect destination to be an analysis object")
 
-        parent = destination.parents.get('project')  # type: ignore
-        if not parent:
+        parent_id = destination.parents.get('project')  # type: ignore
+        if not parent_id:
             raise GearExecutionError(
                 f'Cannot find parent project for: {destination.id}'  # type: ignore
             )
-        fw_project = proxy.get_project_by_id(parent.id)  # type: ignore
+        fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
         if not fw_project:
             raise GearExecutionError("Destination project not found")
 
