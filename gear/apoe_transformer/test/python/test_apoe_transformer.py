@@ -88,10 +88,9 @@ class TestAPOETransformerCSVVisitor:
             'a2': 'FF'
         }
 
-    def test_visit_row_drops_extra_fields(self, visitor, apoe_headers):
-        """Test that the visit_row method drops unexpected fields in output."""
+    def test_visit_row_extra_fields(self, visitor, apoe_headers):
+        """Test that the visit_row method keeps unexpected fields in output."""
         visitor.visit_header(apoe_headers)
-
         data = {
             'Adcid': 3,
             'Ptid': 3,
@@ -117,7 +116,6 @@ class TestAPOETransformerCSVVisitor:
     def test_encoding_missing(self, visitor, apoe_headers, list_handler):
         """Test when a1 or a2 is set to None."""
         visitor.visit_header(apoe_headers)
-
         data = {
             'Adcid': 3,
             'Ptid': 3,
@@ -131,7 +129,6 @@ class TestAPOETransformerCSVVisitor:
         errors = list_handler.get_logs()
         assert len(errors) == 2
         for error in errors:
-            assert error['message'].startswith(
-                'Required field(s)')
+            assert error['message'].startswith('Required field(s)')
             assert error['message'].endswith('cannot be blank')
         assert not visitor.transformed_data
