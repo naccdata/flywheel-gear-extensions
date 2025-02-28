@@ -2,7 +2,7 @@
     "name": "uds-curator",
     "label": "UDS Curator",
     "description": "Curation of UDS derived data for MQT project",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/uds-curator:0.0.2"
+            "image": "naccdata/uds-curator:0.0.3"
         },
         "flywheel": {
             "suite": "Curation",
