@@ -4,8 +4,8 @@ import logging
 from typing import Optional
 
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
-from flywheel_gear_toolkit.context.context import Container
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -23,9 +23,9 @@ log = logging.getLogger(__name__)
 class UDSCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self, client: ClientWrapper, destination: Container):
+    def __init__(self, *, client: ClientWrapper, project: ProjectAdaptor):
         super().__init__(client=client)
-        self.__destination = destination
+        self.__project = project
 
     @classmethod
     def create(
@@ -45,6 +45,8 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         """
 
         client = ContextClient.create(context=context)
+        proxy = client.get_proxy()
+
         try:
             destination = context.get_destination_container()
         except ApiException as error:
@@ -53,14 +55,16 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         if destination.container_type != 'project':  # type: ignore
             raise GearExecutionError("Destination container must be a project")
 
-        return UDSCuratorVisitor(client=client, destination=destination)
+        fw_project = proxy.get_project_by_id(destination.id) # type: ignore
+        if not fw_project:
+            raise GearExecutionError("Destination project not found")
+
+        project = ProjectAdaptor(project=fw_project, proxy=proxy)   # type: ignore
+
+        return UDSCuratorVisitor(client=client, project=project) # type: ignore
 
     def run(self, context: GearToolkitContext) -> None:
-        proxy = self.__client.get_proxy()
-        project = proxy.get_project_by_id(
-            self.__destination.id)  # type: ignore
-
-        run(context=context, project=project)  # type: ignore
+        run(context=context, project=self.__project)  # type: ignore
 
 
 def main():
