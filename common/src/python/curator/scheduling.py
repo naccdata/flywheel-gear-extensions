@@ -86,7 +86,8 @@ class ProjectFormCurator:
             ],
             container='acquisition',
             filename="*.json",
-            filter_str='file.classification.type=|[UDS,LBD,FTLD]')
+            filter_str='file.classification.type=|[UDS]')
+            # filter_str='file.classification.type=|[UDS,LBD,FTLD]')
         view = builder.build()
 
         with project.read_dataview(view) as response:
