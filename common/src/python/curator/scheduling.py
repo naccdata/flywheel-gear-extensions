@@ -50,8 +50,8 @@ class ViewResponseModel(BaseModel):
 
 
 class ProjectFormCurator:
-    """Defines a curator for applying a FormCurator to the files in a project.
-    """
+    """Defines a curator for applying a FormCurator to the files in a
+    project."""
 
     def __init__(self, proxy: FlywheelProxy,
                  heap_map: Dict[str, MinHeap[FileModel]]) -> None:
@@ -61,9 +61,9 @@ class ProjectFormCurator:
     @classmethod
     def create(cls, project: ProjectAdaptor) -> 'ProjectFormCurator':
         """Creates a ProjectFormCurator for the projects.
-        
+
         Pulls information for all of the files in the project.
-        
+
         Args:
           project: the project
         Returns:
@@ -87,7 +87,7 @@ class ProjectFormCurator:
             container='acquisition',
             filename="*.json",
             filter_str='file.classification.type=|[UDS]')
-            # filter_str='file.classification.type=|[UDS,LBD,FTLD]')
+        # filter_str='file.classification.type=|[UDS,LBD,FTLD]')
         view = builder.build()
 
         with project.read_dataview(view) as response:
@@ -135,12 +135,12 @@ class ProjectFormCurator:
 
         def curate_subject(heap: MinHeap[FileModel]) -> None:
             """Defines a task function for curating the files captured in the
-            heap. 
+            heap.
 
             Uses the context of the outer apply method to create the curator.
-            
+
             Assumes the files are all under the sample user.
-            
+
             Args:
               heap: the min heap of file model objects
             """

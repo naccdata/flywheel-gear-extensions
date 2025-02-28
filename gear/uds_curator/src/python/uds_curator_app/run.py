@@ -52,16 +52,24 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
         except ApiException as error:
             raise GearExecutionError(
                 f'Cannot find destination container: {error}') from error
-        if destination.container_type != 'project':  # type: ignore
-            raise GearExecutionError("Destination container must be a project")
+        if destination.container_type != 'analysis':  # type: ignore
+            raise GearExecutionError(
+                "Expect destination to be an analysis object")
 
-        fw_project = proxy.get_project_by_id(destination.id) # type: ignore
+        parent = destination.parents.get('project')  # type: ignore
+        if not parent:
+            raise GearExecutionError(
+                f'Cannot find parent project for: {destination.id}'  # type: ignore
+            )
+        fw_project = proxy.get_project_by_id(parent.id)  # type: ignore
         if not fw_project:
             raise GearExecutionError("Destination project not found")
 
-        project = ProjectAdaptor(project=fw_project, proxy=proxy)   # type: ignore
+        project = ProjectAdaptor(project=fw_project,
+                                 proxy=proxy)  # type: ignore
 
-        return UDSCuratorVisitor(client=client, project=project) # type: ignore
+        return UDSCuratorVisitor(client=client,
+                                 project=project)  # type: ignore
 
     def run(self, context: GearToolkitContext) -> None:
         run(context=context, project=self.__project)  # type: ignore
