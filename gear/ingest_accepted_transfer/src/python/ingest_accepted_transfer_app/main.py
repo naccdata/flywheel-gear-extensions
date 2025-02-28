@@ -39,6 +39,18 @@ class Element:
 
 def trigger_copy_for_center(proxy: FlywheelProxy, gear_name: str,
                             center: Element) -> Optional[str]:
+    """Trigger the ingest to accepted copy for specified center.
+
+    Args:
+        proxy: Flywheel proxy
+        gear_name: copy gear name
+        center: center information
+
+    Returns:
+        Optional[str]: gear job id or None
+    """
+
+    # TODO: get copy gear configs from configs file
     job_id = trigger_gear(proxy=proxy,
                           gear_name=gear_name,
                           config={
@@ -55,11 +67,20 @@ def trigger_copy_for_center(proxy: FlywheelProxy, gear_name: str,
     return job_id
 
 
-def get_batch(minheap: List[Element], batch_size: int) -> List[Element]:
+def get_batch(centers: List[Element], batch_size: int) -> List[Element]:
+    """Get a batch of centers depending on number of acquisition files.
+
+    Args:
+        centers: list of centers in the ascending order of acquisition files
+        batch_size: number of acquisition files to queue for one batch
+
+    Returns:
+        List[Element]: current batch
+    """
     batch = []
     total_count = 0
-    while len(minheap) > 0 and total_count < batch_size:
-        element = heappop(minheap)
+    while len(centers) > 0 and total_count < batch_size:
+        element = heappop(centers)
         batch.append(element)
         total_count += element.count
     return batch
@@ -67,8 +88,16 @@ def get_batch(minheap: List[Element], batch_size: int) -> List[Element]:
 
 def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
                            failed_list: List[str]):
+    """Checks the job completion status of the jobs in current batch Keeps
+    polling job status until all jobs in the current batch complete.
+
+    Args:
+        proxy: Flywheel proxy
+        jobs_list: list of job ids in current batch
+        failed_list: list of failed jobs
+    """
     if not jobs_list:
-        return True
+        return
 
     for job_id in jobs_list:
         if not JobPoll.is_job_complete(proxy, job_id):
@@ -77,10 +106,19 @@ def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
 
 def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
                         batch_size: int, gear_name: str):
+    """Schedule the centers in batches depending on number of acquisitions
+    files in the ingest project and batch size.
 
-    failed_list = []
-    jobs_list = []
-    batch = get_batch(minheap=centers, batch_size=batch_size)
+    Args:
+        proxy: Flywheel proxy
+        centers: list of centers to copy data
+        batch_size: number of acquisition files to queue for one batch
+        gear_name: copy gear name
+    """
+
+    failed_list: List[str] = []
+    jobs_list: List[str] = []
+    batch = get_batch(centers=centers, batch_size=batch_size)
     while len(batch) > 0:
         log.info('Batch size: %s', len(batch))
         for center in batch:
@@ -92,6 +130,7 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
             if not job_id:
                 log.error('Failed to trigger gear %s for  %s/%s', gear_name,
                           group_id, project_lbl)
+                continue
 
             log.info('Gear %s queued for %s/%s - Job ID %s', gear_name,
                      group_id, project_lbl, job_id)
@@ -105,7 +144,7 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         # all the jobs in current batch are finished when it gets to this point
         jobs_list.clear()
 
-        batch = get_batch(minheap=centers, batch_size=batch_size)
+        batch = get_batch(centers=centers, batch_size=batch_size)
 
     if len(failed_list) > 0:
         log.error('Failed %s ingest to accepted copy jobs: %s',
@@ -114,6 +153,18 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
 
 def get_centers_to_copy(proxy: FlywheelProxy, center_ids: List[str],
                         time_interval: int, copy_gear: str) -> List[str]:
+    """Get the list of centers to copy data matching with the given time
+    interval.
+
+    Args:
+        proxy: Flywheel proxy
+        center_ids: list of centers to copy data
+        time_interval: time interval in days between the copy gear runs
+        copy_gear: copy gear name
+
+    Returns:
+        List[str]: list of center ids
+    """
 
     today = date.today()
     centers_to_copy = []
@@ -153,7 +204,7 @@ def run(*, proxy: FlywheelProxy, centers: List[str], ingest_project_lbl: str,
         time_interval=time_interval,
         copy_gear=copy_gear) if time_interval > 0 else centers
 
-    minheap = []
+    minheap: List[Element] = []
     for center_id in centers_to_copy:
         try:
             ingest_project = proxy.lookup(f"{center_id}/{ingest_project_lbl}")
