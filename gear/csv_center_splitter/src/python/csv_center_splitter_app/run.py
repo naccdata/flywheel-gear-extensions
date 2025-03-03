@@ -85,7 +85,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         # for including/excluding
         include = set(parse_string_to_list(context.config.get('include', '')))
         exclude = set(parse_string_to_list(context.config.get('exclude', '')))
-        if include.intersection(exclude):
+        if include and exclude and include.intersection(exclude):
             raise GearExecutionError(
                 "Include and exclude lists cannot overlap")
 

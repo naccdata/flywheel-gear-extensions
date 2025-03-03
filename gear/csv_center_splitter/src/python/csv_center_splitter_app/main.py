@@ -168,9 +168,8 @@ def run(*,
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
-    centers: Set[str] = include if include else set()
     visitor = CSVVisitorCenterSplitter(adcid_key=adcid_key,
-                                       include=centers,
+                                       include=include if include else set(),
                                        error_writer=error_writer)
     success = read_csv(input_file=input_file,
                        error_writer=error_writer,
@@ -185,6 +184,8 @@ def run(*,
             log.error(x['message'])
         return
 
+    # filter to centers that were actually found
+    centers = [adcid for adcid in visitor.split_data]
     project_map = generate_project_map(proxy=proxy,
                                        centers=centers,
                                        target_project=target_project,
@@ -203,16 +204,15 @@ def run(*,
             f"Missing {target_project} projects for the following " +
             f"ADCIDs: {missing_projects}")
 
-    log.info(f"Writing split results for the following ADCIDs: {centers}")
-
-    batched_centers = [adcid for adcid in visitor.split_data]
     if not batch_size:  # just make one big chunk
         batch_size = len(visitor.split_data)
 
     batched_centers = [
-        batched_centers[i:i + batch_size]
-        for i in range(0, len(batched_centers), batch_size)
+        centers[i:i + batch_size] for i in range(0, len(centers), batch_size)
     ]
+
+    log.info("Writing split results for the following ADCIDs " +
+             f"in {len(batched_centers)} batches: {batched_centers}")
 
     # write results to each center's project
     for i, batch in enumerate(batched_centers, start=1):
