@@ -44,6 +44,7 @@ def validate_and_create_record(
         naccid: str, identifier: IdentifierObject,
         enrollment_date: datetime) -> Optional[EnrollmentRecord]:
     """Validate identifier and create an enrollment record."""
+
     if naccid != identifier.naccid:
         log.error('NACCID mismatch: key %s != value %s', naccid,
                   identifier.naccid)
@@ -51,12 +52,12 @@ def validate_and_create_record(
 
     center_identifiers = CenterIdentifiers(adcid=identifier.adcid,
                                            ptid=identifier.ptid)
-    record = EnrollmentRecord(
-        naccid=identifier.naccid,
-        guid=identifier.guid,
-        center_identifier=center_identifiers,
-        start_date=enrollment_date,
-    )
+    record = EnrollmentRecord(naccid=identifier.naccid,
+                              guid=identifier.guid,
+                              center_identifier=center_identifiers,
+                              start_date=enrollment_date,
+                              legacy=True)
+
     return record
 
 
