@@ -40,21 +40,12 @@ class UDSFileCurator(FormCurator):
         super().__init__(context)
         self.__symbol_table = SymbolTable()
 
-    # def get_subject(self, file_entry: FileEntry) -> Subject:
-    #     """Get the subject for the file entry.
-
-    #     Args:
-    #       file_entry: the file entry
-    #     Returns:
-    #       the Subject for the file entry
-    #     """
-    #     parents_subject = file_entry.parents.get("subject")
-    #     return self.context.client.get_subject(parents_subject)
-
     def curate_form(self, form: Form) -> None:
         """Computes and sets derived variables for the form."""
         if not form:
             return
+
+        log.debug("UDS Curator: form: %s", form.get_file_id())
 
         uds_form = UDSV3Form.create(form)
 
@@ -149,6 +140,8 @@ class UDSFileCurator(FormCurator):
         if not form:
             return
 
+        log.debug("UDS curator: subject: %s", subject.id)
+
         self.__symbol_table['subject.info'] = subject.info
 
         self.insert_form_version(
@@ -186,18 +179,3 @@ class UDSFileCurator(FormCurator):
 
         subject.update(info=self.__symbol_table.get('subject.info', {}))
 
-    # def curate_file(self, file_: Dict[str, Any]) -> None:
-    #     """Performs curation on the file object and corresponding subject."""
-
-    #     file_entry = self.get_file_entry(file_)
-    #     subject = self.get_subject(file_entry)
-
-    #     self.__symbol_table['file.info'] = file_entry.info
-    #     self.__symbol_table['subject.info'] = subject.info
-
-    #     form = UDSV3Form(file_entry)
-    #     if not form.is_form(name='uds'):
-    #         return
-
-    #     self.curate_form(form)
-    #     self.curate_subject(subject=subject, form=form)
