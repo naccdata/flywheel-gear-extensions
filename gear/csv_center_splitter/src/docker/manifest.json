@@ -74,7 +74,7 @@
         "downstream_gears": {
             "description": "If scheduling, comma-delimited string of downstream gears to wait for",
             "type": "string",
-            "default": "csv-subject-splitter"
+            "default": "csv-subject-splitter,form-importer"
         },
         "delimiter": {
             "description": "The input file delimiter",
