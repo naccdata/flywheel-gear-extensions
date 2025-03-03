@@ -66,6 +66,16 @@
             "type": "string",
             "default": ""
         },
+        "batch_size": {
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others. If not provided will write all at once.",
+            "type": "integer",
+            "default": ""
+        },
+        "downstream_gears": {
+            "description": "If scheduling, comma-delimited string of downstream gears to wait for",
+            "type": "string",
+            "default": "csv-subject-splitter"
+        },
         "delimiter": {
             "description": "The input file delimiter",
             "type": "string",

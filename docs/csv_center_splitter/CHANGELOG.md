@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.0
+
+* Adds scheduling/batching functionality
+
 ## 0.1.2
 
 * Adds `include` and `exclude` config options to include/exclude centers as needed
