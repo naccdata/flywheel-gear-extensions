@@ -1,16 +1,16 @@
-import multiprocessing
-import os
+"""Scheduling for project curation."""
+import logging
 from datetime import date
-from multiprocessing import Pool
-from typing import Dict, List, Type, TypeVar
+from typing import Dict, List, TypeVar
 
 from dataview.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from flywheel_gear_toolkit.context.context import GearToolkitContext
 from pydantic import BaseModel, ValidationError
 from scheduling.min_heap import MinHeap
 
 from curator.form_curator import FormCurator
+
+log = logging.getLogger(__name__)
 
 C = TypeVar('C', bound=FormCurator)
 
@@ -86,7 +86,7 @@ class ProjectFormCurator:
             ],
             container='acquisition',
             filename="*.json",
-            filter_str='file.classification.type=|[UDS]')
+            filter_str='acquisition.label=|[UDS]')
         # filter_str='file.classification.type=|[UDS,LBD,FTLD]')
         view = builder.build()
 
@@ -100,29 +100,32 @@ class ProjectFormCurator:
                     f'Error curating project {project.label}: {error}'
                 ) from error
 
-        subject_heap_map = {}
+        log.info("Curating %s files in %s/%s",
+                 len(response_model.data), project.group, project.label)
+
+        subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
         for file_info in response_model.data:
             heap = subject_heap_map.get(file_info.subject_id,
                                         MinHeap[FileModel]())
             heap.push(file_info)
+            subject_heap_map[file_info.subject_id] = heap
 
         return ProjectFormCurator(proxy=project.proxy,
                                   heap_map=subject_heap_map)
 
-    def __compute_cores(self) -> int:
-        """Attempts to compute the number of cores available for processes.
+    # def __compute_cores(self) -> int:
+    #     """Attempts to compute the number of cores available for processes.
 
-        Apparently, sometimes multiprocessing.cpu_count() returns the
-        number of active cores as opposed to the actual cores. Stack
-        Overflow claims the solution on Linux is to query the process,
-        which needs to pid. So, just asking the os, and multiprocessing.
-        """
-        os_cpu_count = os.cpu_count()
-        os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
-        return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
+    #     Apparently, sometimes multiprocessing.cpu_count() returns the
+    #     number of active cores as opposed to the actual cores. Stack
+    #     Overflow claims the solution on Linux is to query the process,
+    #     which needs to pid. So, just asking the os, and multiprocessing.
+    #     """
+    #     os_cpu_count = os.cpu_count()
+    #     os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
+    #     return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self, curator_type: Type[C],
-              context: GearToolkitContext) -> None:
+    def apply(self, curator: FormCurator) -> None:
         """Applies a FormCurator to the form files in this curator.
 
         Builds a curator of the type given with the context to avoid shared
@@ -149,15 +152,21 @@ class ProjectFormCurator:
                 if not file_info:
                     continue
                 file_entry = self.__proxy.get_file(file_info.file_id)
-                curator = curator_type(context=context)
                 curator.curate_container(file_entry)
 
-        process_count = max(4, self.__compute_cores())
-        with Pool(processes=process_count) as pool:
-            for heap in self.__heap_map.values():
-                pool.apply_async(curate_subject, (heap, ))
-            pool.close()
-            pool.join()
+        log.info("Start curator for %s subjects", len(self.__heap_map))
+        # TODO: get multiprocessing working. Didn't update metadata
+        # process_count = max(4, self.__compute_cores())
+        # with Pool(processes=process_count) as pool:
+        #     for subject_id, heap in self.__heap_map.items():
+        #         log.info("Curating files for subject %s", subject_id)
+        #         pool.apply_async(curate_subject, (heap, ))
+        #     pool.close()
+        #     pool.join()
+
+        for subject_id, heap in self.__heap_map.items():
+            log.info("Curating files for subject %s", subject_id)
+            curate_subject(heap)
 
 
 class ProjectCurationError(Exception):
