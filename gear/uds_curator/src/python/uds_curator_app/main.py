@@ -23,4 +23,4 @@ def run(*, context: GearToolkitContext, project: ProjectAdaptor) -> None:
     except ProjectCurationError as error:
         raise GearExecutionError(error) from error
 
-    curator.apply(curator_type=UDSFileCurator, context=context)
+    curator.apply(curator=UDSFileCurator(context))
