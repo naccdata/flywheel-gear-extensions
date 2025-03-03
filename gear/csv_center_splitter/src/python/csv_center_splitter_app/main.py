@@ -147,7 +147,7 @@ def run(*,
         staging_project_id: Optional[str] = None,
         include: Optional[Set[str]] = None,
         batch_size: Optional[int] = None,
-        gears_list: Optional[List[str]] = None,
+        downstream_gears: Optional[List[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -209,8 +209,10 @@ def run(*,
     if not batch_size:  # just make one big chunk
         batch_size = len(visitor.split_data)
 
-    batched_centers = [batched_centers[i:i + batch_size]
-        for i in range(0, len(batched_centers), batch_size)]
+    batched_centers = [
+        batched_centers[i:i + batch_size]
+        for i in range(0, len(batched_centers), batch_size)
+    ]
 
     # write results to each center's project
     for i, batch in enumerate(batched_centers, start=1):
@@ -225,7 +227,8 @@ def run(*,
 
             log.info(
                 f"Uploading {filename} for project {project.label} "  # type: ignore
-                + f"ADCID {adcid} with project ID {project.id}")  # type: ignore
+                +
+                f"ADCID {adcid} with project ID {project.id}")  # type: ignore
 
             contents = write_csv_to_stream(headers=visitor.headers,
                                            data=data).getvalue()
@@ -241,10 +244,9 @@ def run(*,
                 log.info(f"Successfully uploaded {filename}")
 
         if not proxy.dry_run:
-            search_str = JobPoll.generate_search_str(
+            search_str = JobPoll.generate_search_string(
                 project_ids_list=project_ids_list,
                 gears_list=downstream_gears,
-                states_list=['running', 'pending']
-            )
+                states_list=['running', 'pending'])
 
             JobPoll.wait_for_pipeline(proxy, search_str)

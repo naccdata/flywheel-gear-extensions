@@ -1,6 +1,6 @@
 """Entry script for csv_center_splitter."""
 import logging
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -91,7 +91,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         # for scheduling
         batch_size = context.config.get('batch_size', None)
-        downstream_gears = parse_string_to_list(context.config.get('downstream_gears', ''))
+        downstream_gears = parse_string_to_list(
+            context.config.get('downstream_gears', ''))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -100,7 +101,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         except (TypeError, GearExecutionError) as e:
             raise GearExecutionError(
-                f"Batch size must be a non-negative integer: {batch_size}")
+                f"Batch size must be a non-negative integer: {batch_size}"
+            ) from e
 
         delimiter = context.config.get('delimiter', ',')
         local_run = context.config.get('local_run', False)

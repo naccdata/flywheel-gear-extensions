@@ -102,7 +102,7 @@ class JobPoll:
         return result.rstrip(',')
 
     @staticmethod
-    def wait_for_pipeline(proxy: FlywheelProxy,  search_str: str) -> None:
+    def wait_for_pipeline(proxy: FlywheelProxy, search_str: str) -> None:
         """Wait for a pipeline to finish executing before continuing.
 
         Args:
