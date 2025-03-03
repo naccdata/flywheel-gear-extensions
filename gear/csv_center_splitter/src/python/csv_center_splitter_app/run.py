@@ -90,7 +90,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 "Include and exclude lists cannot overlap")
 
         # for scheduling
-        batch_size = context.config.get('batch_size', None)
+        batch_size = context.config.get('batch_size', 1)
         downstream_gears = parse_string_to_list(
             context.config.get('downstream_gears', ''))
 

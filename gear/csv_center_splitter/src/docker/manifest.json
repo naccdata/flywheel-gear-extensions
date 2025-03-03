@@ -67,9 +67,9 @@
             "default": ""
         },
         "batch_size": {
-            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others. If not provided will write all at once.",
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others.",
             "type": "integer",
-            "default": ""
+            "default": 1
         },
         "downstream_gears": {
             "description": "If scheduling, comma-delimited string of downstream gears to wait for",
