@@ -178,4 +178,3 @@ class UDSFileCurator(FormCurator):
             self.set_latest(**assignment, update_date=update_date)
 
         subject.update(info=self.__symbol_table.get('subject.info', {}))
-

@@ -100,8 +100,8 @@ class ProjectFormCurator:
                     f'Error curating project {project.label}: {error}'
                 ) from error
 
-        log.info("Curating %s files in %s/%s",
-                 len(response_model.data), project.group, project.label)
+        log.info("Curating %s files in %s/%s", len(response_model.data),
+                 project.group, project.label)
 
         subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
         for file_info in response_model.data:
