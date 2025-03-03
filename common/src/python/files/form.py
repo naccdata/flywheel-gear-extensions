@@ -12,6 +12,10 @@ class Form(ABC):
     def __init__(self, file_object: FileEntry) -> None:
         self.__file_object = file_object
 
+    def get_file_id(self) -> str:
+        """Returns the file ID for the form file."""
+        return self.__file_object.id
+
     def get_variable(self, key: str) -> Optional[Any]:
         """Get the data value for the specified key from the form data file.
 
