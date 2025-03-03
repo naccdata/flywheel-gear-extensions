@@ -27,6 +27,8 @@
         "coid",
         "comanage",
         "coperson",
+        "dataview",
+        "dataviews",
         "devcontainer",
         "formver",
         "FTLD",
@@ -37,6 +39,7 @@
         "oidcsub",
         "popleft",
         "ptid",
+        "viewinput",
         "visitdate",
         "visitnum"
     ]
