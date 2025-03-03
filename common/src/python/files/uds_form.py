@@ -11,9 +11,10 @@ from files.form import Form
 log = logging.getLogger(__name__)
 
 
-def create_naccnihr(race: Optional[int], racex: Optional[str],
-                    racesec: Optional[int], racesecx: Optional[str],
-                    raceter: Optional[int], raceterx: Optional[str]) -> int:
+def create_naccnihr(  # noqa: C901
+        race: Optional[int], racex: Optional[str], racesec: Optional[int],
+        racesecx: Optional[str], raceter: Optional[int],
+        raceterx: Optional[str]) -> int:
 
     if not race:
         return 99
