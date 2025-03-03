@@ -118,12 +118,12 @@ class JSONUploader:
         for subject_label, record_list in records.items():
 
             for record in record_list:
-                self.upload_record(subject_label, record)
+                self.upload_record(subject_label=subject_label, record=record)
 
         return success
 
-    def upload_record(self, subject_label: str, record: Dict[str,
-                                                             Any]) -> None:
+    def upload_record(self, *, subject_label: str, record: Dict[str,
+                                                                Any]) -> None:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
