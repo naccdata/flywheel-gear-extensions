@@ -72,6 +72,8 @@ class UDSCuratorVisitor(GearExecutionEnvironment):
                                  project=project)  # type: ignore
 
     def run(self, context: GearToolkitContext) -> None:
+        log.info("Curating project: %s/%s", self.__project.group,
+                 self.__project.label)
         run(context=context, project=self.__project)  # type: ignore
 
 
