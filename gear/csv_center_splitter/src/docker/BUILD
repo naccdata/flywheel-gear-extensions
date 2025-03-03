@@ -7,4 +7,4 @@ docker_image(
         ":manifest",
         "gear/csv_center_splitter/src/python/csv_center_splitter_app:bin"
     ],
-    image_tags=["0.2.0b", "latest"])
+    image_tags=["0.2.0", "latest"])
