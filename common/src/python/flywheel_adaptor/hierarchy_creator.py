@@ -150,7 +150,7 @@ class HierarchyCreationClient:
     """Defines a FW client adaptor specifically for creating hierarchy
     containers in a project."""
 
-    def __init__(self, device_key: str, device_id: str):
+    def __init__(self, device_key: str, device_id: str = "hierarchy-curator"):
         self.__fw_client = FWClient(api_key=device_key)
         self.__device_id = device_id
 
