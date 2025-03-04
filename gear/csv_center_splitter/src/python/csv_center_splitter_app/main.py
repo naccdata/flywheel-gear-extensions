@@ -144,9 +144,9 @@ def run(*,
         error_writer: ListErrorWriter,
         adcid_key: str,
         target_project: str,
+        batch_size: int,
         staging_project_id: Optional[str] = None,
         include: Optional[Set[str]] = None,
-        batch_size: Optional[int] = None,
         downstream_gears: Optional[List[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
@@ -161,6 +161,7 @@ def run(*,
         adcid_key: The name of the header column the ADCID is listed under
         target_project: The FW target project name to write results to for
                         each ADCID
+        batch_size: Number of centers to put in each batch for scheduling
 
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
@@ -204,9 +205,6 @@ def run(*,
             f"Missing {target_project} projects for the following " +
             f"ADCIDs: {missing_projects}")
 
-    if not batch_size:  # just make one big chunk
-        batch_size = len(visitor.split_data)
-
     batched_centers = [
         centers[i:i + batch_size] for i in range(0, len(centers), batch_size)
     ]
@@ -223,7 +221,6 @@ def run(*,
             data = visitor.split_data[adcid]
             project = project_map[f'adcid-{adcid}']
             filename = f'{adcid}_{input_filename}'
-            project_ids_list.append(project.id)
 
             log.info(
                 f"Uploading {filename} for project {project.label} "  # type: ignore
@@ -239,11 +236,13 @@ def run(*,
 
             if proxy.dry_run:
                 log.info(f"DRY RUN: Would have uploaded {filename}")
-            else:
-                project.upload_file(file_spec)  # type: ignore
-                log.info(f"Successfully uploaded {filename}")
+                continue
 
-        if not proxy.dry_run:
+            project.upload_file(file_spec)  # type: ignore
+            project_ids_list.append(project.id)
+            log.info(f"Successfully uploaded {filename}")
+
+        if project_ids_list:
             search_str = JobPoll.generate_search_string(
                 project_ids_list=project_ids_list,
                 gears_list=downstream_gears,

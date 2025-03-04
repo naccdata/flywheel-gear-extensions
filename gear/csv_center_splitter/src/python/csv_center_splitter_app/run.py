@@ -32,8 +32,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                  target_project: str,
                  include: Set[str],
                  exclude: Set[str],
+                 batch_size: int,
                  staging_project_id: Optional[str] = None,
-                 batch_size: Optional[int] = None,
                  downstream_gears: Optional[List[str]] = None,
                  delimiter: str = ',',
                  local_run: bool = False):
@@ -96,7 +96,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         try:
             batch_size = int(batch_size) if batch_size else None
-            if batch_size is not None and batch_size <= 0:
+            if batch_size is None or batch_size <= 0:
                 raise GearExecutionError()
 
         except (TypeError, GearExecutionError) as e:
@@ -158,8 +158,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
                 adcid_key=self.__adcid_key,
                 target_project=self.__target_project,
-                staging_project_id=self.__staging_project_id,
                 batch_size=self.__batch_size,
+                staging_project_id=self.__staging_project_id,
                 downstream_gears=self.__downstream_gears,
                 include=centers,
                 delimiter=self.__delimiter)
