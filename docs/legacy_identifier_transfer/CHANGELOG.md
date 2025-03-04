@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 0.1.0
 * Sets the enrollment date to the initial visit date for the subject.
+* Adds `legacy` flag to enrollment record
   
 ## 0.0.4
 * Cleans up logging, adds error handling to ID creation process.
