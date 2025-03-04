@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.0.4
+## 0.1.0
 * Sets the enrollment date to the initial visit date for the subject.
   
 ## 0.0.4

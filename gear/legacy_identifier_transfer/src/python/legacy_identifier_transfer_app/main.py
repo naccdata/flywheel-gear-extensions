@@ -134,10 +134,11 @@ def get_enrollment_date(subject_id: str,
         return None
 
 
-def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
-                               enrollment_project: EnrollmentProject,
-                               forms_store: FormsStore,
-                               dry_run: bool = True) -> bool:
+def process_legacy_identifiers(  # noqa: C901
+        identifiers: Mapping[str, IdentifierObject],
+        enrollment_project: EnrollmentProject,
+        forms_store: FormsStore,
+        dry_run: bool = True) -> bool:
     """Process legacy identifiers and create enrollment records.
 
     Args:
@@ -153,6 +154,7 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
 
     success = True
     skipped_count = 0
+    failed_count = 0
     for naccid, identifier in identifiers.items():
         try:
             if enrollment_project.find_subject(label=naccid):
@@ -165,9 +167,11 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
             enrollment_date = get_enrollment_date(subject_id=naccid,
                                                   forms_store=forms_store)
             if not enrollment_date:
-                log.error('Failed to find the enrollment date for NACCID %s',
-                          naccid)
+                log.error(
+                    'Failed to find the enrollment date for NACCID %s PTID %s ADCID %s',
+                    naccid, identifier.ptid, identifier.adcid)
                 success = False
+                failed_count += 1
                 continue
 
             record = validate_and_create_record(naccid, identifier,
@@ -192,6 +196,10 @@ def process_legacy_identifiers(identifiers: Mapping[str, IdentifierObject],
 
     if skipped_count > 0:
         log.warning('Skipped %d records', skipped_count)
+
+    if failed_count > 0:
+        log.error('Failed to find enrollment date for %d records',
+                  failed_count)
 
     if not record_collection:
         log.warning('No valid legacy identifiers to process')

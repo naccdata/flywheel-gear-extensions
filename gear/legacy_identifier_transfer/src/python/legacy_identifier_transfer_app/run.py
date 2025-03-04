@@ -76,7 +76,8 @@ def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
     if dest_container.container_type == 'project':
         project_id = dest_container.id
         group_id = dest_container.group
-    elif dest_container.container_type in ('subject', 'session', 'acquisition'):
+    elif dest_container.container_type in ('subject', 'session',
+                                           'acquisition'):
         project_id = dest_container.parents.project
         group_id = dest_container.parents.group
     else:
