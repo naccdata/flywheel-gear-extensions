@@ -13,11 +13,10 @@
 ```mermaid
 flowchart LR
     subgraph study/ingest
-        A(CSV) -- Identifier Lookup --> B(CSV w/ADCID)
-        B -- Split by Center --> C(center CSV)
-        
+        A@{ shape: doc, label: "CSV" } -- Identifier Lookup --> B@{ shape: doc, label: "CSV w/ADCID" }
     end
     subgraph center/distribution
+        B -- Split by Center --> C(center CSV)
         C -- Split by subject --> D(participant JSON)
         D --> E(file metadata)
     end
