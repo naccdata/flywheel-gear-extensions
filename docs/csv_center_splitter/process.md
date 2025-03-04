@@ -12,17 +12,13 @@
 
 ```mermaid
 flowchart LR
-    
     subgraph study/ingest
-        A --> B
-        B --> C
-        C --> D
+        A(CSV) -- Identifier Lookup --> B(CSV w/ADCID)
+        B -- Split by Center --> C(center CSV)
+        
     end
     subgraph center/distribution
-        D --> E
-        E --> F
-        F --> G
-        G --> H
-        H --> I
+        C -- Split by subject --> D(participant JSON)
+        D --> E(file metadata)
     end
 ```
