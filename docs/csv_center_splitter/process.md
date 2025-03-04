@@ -12,15 +12,7 @@
 
 ```mermaid
 flowchart LR
-     A@{ shape: doc, label: "CSV" }
-     B@{ shape: rect, label: "Identifier Lookup" }
-     C@{ shape: doc, label: "CSV w/ADCID" }
-     D@{ shape: rect, label: "Center Splitter" }
-     E@{ shape: docs, label: "center CSV" }
-     F@{ shape: processes, label: "Subject Splitter" }
-     G@{ shape: docs, label: "participant JSON" }
-     H@{ shape: processes, label: "Importer" }
-     I@{ shape: docs, label: "file metadata" }     
+    
     subgraph study/ingest
         A --> B
         B --> C
