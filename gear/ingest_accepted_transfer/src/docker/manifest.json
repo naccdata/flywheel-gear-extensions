@@ -2,7 +2,7 @@
     "name": "ingest-accepted-transfer",
     "label": "Ingest to Accepted Transfer",
     "description": "Soft copy form data from ingest projects to respective accepted projects",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/ingest-accepted-transfer:0.0.1"
+            "image": "naccdata/ingest-accepted-transfer:0.0.2"
         },
         "flywheel": {
             "suite": "Utility",
@@ -25,6 +25,15 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
+        },
+        "batch_configs_file": {
+            "description": "A JSON file with batch run configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -43,25 +52,20 @@
             "type": "string",
             "default": "nacc"
         },
-        "ingest_project": {
-            "description": "Label of the ingest project",
+        "exclude_centers": {
+            "description": "Comma separated list of centers to exclude from batch run",
             "type": "string",
-            "default": "retrospective-form"
+            "optional": true
         },
-        "accepted_project": {
-            "description": "Label of the accepted project",
+        "exclude_studies": {
+            "description": "Comma separated list of study suffixes to exclude from batch run",
             "type": "string",
-            "default": "accepted"
+            "optional": true
         },
         "time_interval": {
             "description": "Time interval in days between the runs (input -1 to ignore)",
             "type": "integer",
             "default": 7
-        },
-        "batch_size": {
-            "description": "Number of acquisition files for one batch",
-            "type": "integer",
-            "default": 10000
         }
     },
     "command": "/bin/run"
