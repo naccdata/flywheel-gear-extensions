@@ -2,7 +2,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Optional
+from typing import Any, Dict, Literal, Optional
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, SerializeAsAny, ValidationError
 from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)
+
+BatchMode = Literal['projects', 'files']
 
 
 class GearConfigs(BaseModel):
@@ -59,6 +61,102 @@ class GearInfo(BaseModel):
             return None
 
         return gear_configs
+
+
+class BatchRunInfo(BaseModel):
+    """Class to represent batch run information."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    source: str
+    target: Optional[str] = None
+    substitute: bool = False
+    batch_mode: BatchMode
+    batch_size: int
+    gear_name: str
+    gear_configs: Dict[str, Any]
+
+    @classmethod
+    def load_from_file(cls,
+                       configs_file_path: str) -> Optional['BatchRunInfo']:
+        """Load BatchRunInfo from configs file.
+
+        Args:
+            configs_file_path: The path to the batch configs JSON file
+
+        Returns:
+            The BatchRunInfo object if valid, else None
+        """
+
+        try:
+            with open(configs_file_path, mode='r',
+                      encoding='utf-8') as file_obj:
+                configs_data = json.load(file_obj)
+        except (FileNotFoundError, JSONDecodeError, TypeError) as error:
+            log.error('Failed to read the batch run configs file %s: %s',
+                      configs_file_path, error)
+            return None
+
+        try:
+            return cls.model_validate(configs_data)
+        except ValidationError as error:
+            log.error('Batch run configs file %s not in expected format: %s',
+                      configs_file_path, error)
+            return None
+
+    def get_gear_configs(self,
+                         configs_class=GearConfigs,
+                         **kwargs) -> Optional[GearConfigs]:
+        """Get the gear configs from batch run info gear template. Substitute
+        config keys with kwargs if `substitute`=true.
+
+        e.g. If batch run configs defined as follows
+        {
+            "source": "retrospective-form",
+            "target": "accepted",
+            "substitute": true,
+            "batch_mode": "files",
+            "batch_size": 100000,
+            "gear_name": "test-gear",
+            "gear_configs": {
+                "source_id": "{{source}}",
+                "destination_id": "{{target}}",
+                "dry_run": true
+            }
+        }
+
+        Pass kwargs as source=<source id>, target=<target id>
+
+        Args:
+            configs_class(optional): The specific GearConfigs class to use
+            kwargs: keyword arguments for each key to be replaced in configs
+
+        Returns:
+            Optional[GearConfigs]: Gear configs object of provided config class or None
+        """
+        if self.substitute:
+            log.info('Substituting configs for gear %s', self.gear_name)
+            for field, value in self.gear_configs.__dict__.items():
+                if isinstance(value, str) and value.startswith(
+                        '{{') and value.endswith('}}'):
+                    key = value.replace('{', "").replace('}', "")
+                    if key not in kwargs:
+                        log.error(
+                            'Error in substituting config %s: %s - '
+                            'substitute value not provided for key %s', field,
+                            value, key)
+                        return None
+
+                    log.info('Replaced config %s: %s with %s=%s', field, value,
+                             key, kwargs[key])
+                    self.gear_configs[field] = kwargs[key]
+
+        try:
+            return configs_class.model_validate(self.gear_configs)
+        except ValidationError as error:
+            log.error('Configs for gear %s is not in expected format %s: %s',
+                      self.gear_name, configs_class, error)
+            return None
 
 
 def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
