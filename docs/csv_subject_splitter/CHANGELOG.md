@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## untagged
+
+* Changes JSONUploader to use the FW project-hierarchy-upsert API endpoint.
+  This requires a device API key, which is stored in the AWS parameter store.
+  So the gear must be run as a gearbot ("credentials condor") on FW.
+  
+  However, the gear does not use the gearbot API key.
+
 ## 1.0.3
 
 * Changes splitter so that file is uploaded for each row rather than saving all rows and then uploading
