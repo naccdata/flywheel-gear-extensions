@@ -1,4 +1,4 @@
-"""Defines Ingest Accepted Transfer."""
+"""Defines batch scheduling."""
 
 import logging
 from datetime import date, timedelta
@@ -150,8 +150,8 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
 
     if len(failed_list) > 0:
-        log.error('Failed %s ingest to accepted copy jobs: %s',
-                  len(failed_list), str(failed_list))
+        log.error('Failed %s gear jobs: %s', len(failed_list),
+                  str(failed_list))
 
 
 def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
@@ -186,7 +186,7 @@ def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
 
 def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
         batch_configs: BatchRunInfo, dry_run: bool):
-    """Runs the ingest to accepted transfer process.
+    """Runs the batch scheduling process.
 
     Args:
         proxy: Flywheel proxy

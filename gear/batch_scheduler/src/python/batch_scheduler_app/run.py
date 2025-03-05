@@ -1,4 +1,4 @@
-"""Entry script for Ingest to Accepted Transfer."""
+"""Entry script for batch scheduler."""
 
 import logging
 from typing import Dict, List, Optional
@@ -14,16 +14,17 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from gear_execution.gear_trigger import BatchRunInfo
-from ingest_accepted_transfer_app.main import run
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from utils.utils import parse_string_to_list
 
+from batch_scheduler_app.main import run
+
 log = logging.getLogger(__name__)
 
 
-class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
-    """Visitor for the Ingest Accepted Transfer gear."""
+class BatchSchedulerVisitor(GearExecutionEnvironment):
+    """Visitor for the batch-scheduler gear."""
 
     def __init__(self, *, client: ClientWrapper, admin_id: str,
                  config_input: InputFileWrapper, exclude_centers: List[str],
@@ -49,8 +50,8 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
         cls,
         context: GearToolkitContext,
         parameter_store: Optional[ParameterStore] = None
-    ) -> 'IngestAcceptedTransferVisitor':
-        """Creates a Ingest Accepted Transfer execution visitor.
+    ) -> 'BatchSchedulerVisitor':
+        """Creates a batch scheduler execution visitor.
 
         Args:
             context: The gear context.
@@ -78,7 +79,7 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
         log.info('Skipping centers %s', exclude_centers_list)
         log.info('Skipping studies %s', exclude_studies_list)
 
-        return IngestAcceptedTransferVisitor(
+        return BatchSchedulerVisitor(
             client=client,
             admin_id=context.config.get("admin_group",
                                         DefaultValues.NACC_GROUP_ID),
@@ -109,13 +110,13 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
         return center_ids
 
     def run(self, context: GearToolkitContext) -> None:
-        """Invoke the ingest to accepted copy app.
+        """Invoke the batch scheduler app.
 
         Args:
             context: the gear execution context
 
         Raises:
-            GearExecutionError if errors occur while copying data
+            GearExecutionError if errors occur while running batch schedule
         """
 
         centers = self.__get_center_ids()
@@ -138,9 +139,9 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
 
 
 def main():
-    """Main method for Ingest Accepted Transfer."""
+    """Main method for batch scheduler."""
 
-    GearEngine().run(gear_type=IngestAcceptedTransferVisitor)
+    GearEngine().run(gear_type=BatchSchedulerVisitor)
 
 
 if __name__ == "__main__":
