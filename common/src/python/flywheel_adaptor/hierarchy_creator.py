@@ -19,20 +19,17 @@ class Source(BaseModel):
 
 
 class SubjectUpsertRequest(BaseModel):
-    """Defines subject request object in project upsert.
-    """
+    """Defines subject request object in project upsert."""
     label: str = Field('', max_length=64, min_length=1)
 
 
 class SessionUpsertRequest(BaseModel):
-    """Defines session request object in project upsert.
-    """
+    """Defines session request object in project upsert."""
     label: str = Field('', min_length=1)
 
 
 class AcquisitionUpsertRequest(BaseModel):
-    """Defines acquisition request object in project upsert.
-    """
+    """Defines acquisition request object in project upsert."""
     label: str = Field('', min_length=1, max_length=128)
 
 
@@ -53,6 +50,7 @@ class BaseUpsertResponse(BaseModel):
     label: Optional[str] = None
     upsert_result: UpsertResult
 
+
 class SubjectUpsertResponse(BaseUpsertResponse):
     """Defines subject response object for project hierarchy upsert.
 
@@ -66,7 +64,6 @@ class SessionUpsertResponse(BaseUpsertResponse):
     Note: actual response includes _uid which is ignored by pydantic, but not used here.
           Keeping response models separate to allow fleshing them out later.
     """
-
 
 
 class AcquisitionUpsertResponse(BaseUpsertResponse):
