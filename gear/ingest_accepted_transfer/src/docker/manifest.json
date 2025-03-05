@@ -55,11 +55,13 @@
         "exclude_centers": {
             "description": "Comma separated list of centers to exclude from batch run",
             "type": "string",
+            "default": "allftd",
             "optional": true
         },
         "exclude_studies": {
             "description": "Comma separated list of study suffixes to exclude from batch run",
             "type": "string",
+            "default": "dlb,dvcid,ftld,leads",
             "optional": true
         },
         "time_interval": {

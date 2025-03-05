@@ -56,10 +56,14 @@ def trigger_gear_for_center(proxy: FlywheelProxy, batch_configs: BatchRunInfo,
 
     gear_configs = batch_configs.get_gear_configs(source=center.source.id,
                                                   target=center.target.id)
+    if not gear_configs:
+        log.error('Error in retrieving gear configs for center %s',
+                  center.source.label)
+        return None
 
     job_id = trigger_gear(proxy=proxy,
                           gear_name=batch_configs.gear_name,
-                          config=gear_configs,
+                          config=gear_configs.model_dump(),
                           inputs={},
                           destination=center.source)
 
