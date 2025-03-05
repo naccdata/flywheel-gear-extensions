@@ -20,24 +20,18 @@ class Source(BaseModel):
 
 class SubjectUpsertRequest(BaseModel):
     """Defines subject request object in project upsert.
-
-    Note: pydantic hides fields with underscores, so exclude _id field.
     """
     label: str = Field('', max_length=64, min_length=1)
 
 
 class SessionUpsertRequest(BaseModel):
     """Defines session request object in project upsert.
-
-    Note: pydantic hides fields with underscores, so exclude _id field.
     """
     label: str = Field('', min_length=1)
 
 
 class AcquisitionUpsertRequest(BaseModel):
     """Defines acquisition request object in project upsert.
-
-    Note: pydantic hides fields with underscores, so exclude _id field.
     """
     label: str = Field('', min_length=1, max_length=128)
 
@@ -54,31 +48,33 @@ class ProjectHierarchyRequest(BaseModel):
 UpsertResult = Literal['created', 'updated', 'ignored', 'conflicts']
 
 
-class SubjectUpsertResponse(BaseModel):
-    """Defines subject response object for project hierarchy upsert."""
+class BaseUpsertResponse(BaseModel):
     id: str = Field(..., alias="_id")
     label: Optional[str] = None
     upsert_result: UpsertResult
 
+class SubjectUpsertResponse(BaseUpsertResponse):
+    """Defines subject response object for project hierarchy upsert.
 
-class SessionUpsertResponse(BaseModel):
+    Keeping response models separate to allow fleshing them out.
+    """
+
+
+class SessionUpsertResponse(BaseUpsertResponse):
     """Defines session response object for project hierarchy upsert.
 
     Note: actual response includes _uid which is ignored by pydantic, but not used here.
+          Keeping response models separate to allow fleshing them out later.
     """
-    id: str = Field(..., alias="_id")
-    label: Optional[str] = None
-    upsert_result: UpsertResult
 
 
-class AcquisitionUpsertResponse(BaseModel):
+
+class AcquisitionUpsertResponse(BaseUpsertResponse):
     """Defines acquisition response object for project hierarchy upsert.
 
     Note: actual response includes _uid which is ignored by pydantic, but not used here.
+          Keeping response models separate to allow fleshing them out later.
     """
-    id: str = Field(..., alias="_id")
-    label: Optional[str] = None
-    upsert_result: UpsertResult
 
 
 class ProjectHierarchyResponse(BaseModel):
