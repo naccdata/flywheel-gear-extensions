@@ -8,6 +8,7 @@ from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.errors import (
     LogErrorWriter,
+    empty_field_error,
     missing_field_error,
 )
 from outputs.outputs import write_csv_to_stream
@@ -66,9 +67,7 @@ class APOETransformerCSVVisitor(CSVVisitor):
         if missing:
             return False
 
-        self.__header = [
-            column for column in header if column not in ['a1', 'a2']
-        ]
+        self.__header = header
         self.__header.append('apoe')
 
         return True
@@ -84,10 +83,22 @@ class APOETransformerCSVVisitor(CSVVisitor):
             True if the row is valid and transformed successfully, else False
         """
         row = {k.strip().lower(): v for k, v in row.items()}
-        a1, a2 = row.pop('a1'), row.pop('a2')
-        pair = (a1.strip().upper(), a2.strip().upper())
-        row['apoe'] = APOE_ENCODINGS.get(pair, 9)
 
+        missing = []
+        pair = []
+        for field in ['a1', 'a2']:
+            value = row.get(field)
+            if not value:
+                error = empty_field_error(field)
+                self.__error_writer.write(error)
+                missing.append(field)
+            else:
+                pair.append(value.strip().upper())
+
+        if missing:
+            return False
+
+        row['apoe'] = APOE_ENCODINGS.get(tuple(pair), 9)  # type: ignore
         self.__transformed_data.append(row)
         return True
 
