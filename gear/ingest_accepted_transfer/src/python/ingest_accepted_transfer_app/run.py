@@ -11,10 +11,13 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
 )
+from gear_execution.gear_trigger import BatchRunInfo
 from ingest_accepted_transfer_app.main import run
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
@@ -23,23 +26,23 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
     """Visitor for the Ingest Accepted Transfer gear."""
 
     def __init__(self, *, client: ClientWrapper, admin_id: str,
-                 ingest_project: str, accepted_project: str,
-                 time_interval: int, batch_size: int):
+                 config_input: InputFileWrapper, exclude_centers: List[str],
+                 exclude_studies: List[str], time_interval: int):
         """
         Args:
             client: Flywheel SDK client wrapper
             admin_id: admin group id
-            ingest_project: ingest project label
-            accepted_project: accepted project label
+            config_input: batch run configs file wrapper
+            exclude_centers: list of centers to exclude from batch run
+            exclude_studies: list of study suffixes to exclude from batch run
             time_interval: time interval in days between the runs (input -1 to ignore)
-            batch_size: number of acquisition files to queue for one batch
         """
         super().__init__(client=client)
         self.__admin_id = admin_id
-        self.__ingest_project = ingest_project
-        self.__accepted_project = accepted_project
+        self.__config_input = config_input
+        self.__exclude_centers = exclude_centers
+        self.__exclude_studies = exclude_studies
         self.__time_interval = time_interval
-        self.__batch_size = batch_size
 
     @classmethod
     def create(
@@ -60,16 +63,24 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
 
         client = ContextClient.create(context=context)
 
+        batch_configs_input = InputFileWrapper.create(
+            input_name='batch_configs_file', context=context)
+        assert batch_configs_input, "missing expected input, batch_configs_file"
+
+        exclude_centers = parse_string_to_list(
+            context.config.get("exclude_centers", None))
+
+        exclude_studies = parse_string_to_list(
+            context.config.get("exclude_studies", None))
+
         return IngestAcceptedTransferVisitor(
             client=client,
             admin_id=context.config.get("admin_group",
                                         DefaultValues.NACC_GROUP_ID),
-            ingest_project=context.config.get("ingest_project",
-                                              DefaultValues.LEGACY_PRJ_LABEL),
-            accepted_project=context.config.get(
-                "accepted_project", DefaultValues.ACCEPTED_PRJ_LBL),
-            time_interval=context.config.get("time_interval", 7),
-            batch_size=context.config.get("batch_size", 10000))
+            config_input=batch_configs_input,
+            exclude_centers=exclude_centers,
+            exclude_studies=exclude_studies,
+            time_interval=context.config.get("time_interval", 7))
 
     def __get_center_ids(self) -> Optional[List[str]]:
         """Get the list of Center IDs from metadata project.
@@ -80,16 +91,16 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
         nacc_group = self.admin_group(admin_id=self.__admin_id)
         centers: Dict[int, CenterInfo] = nacc_group.get_center_map().centers
         if not centers:
-            return None
-
-        exclude_groups = ['sample-center', 'allftd']
-        exclude_suffix = ('dlb', 'dvcid', 'leads', 'ftld')
+            raise GearExecutionError(
+                'Center information not found in '
+                f'{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}')
 
         center_ids = [
             center.group for center in centers.values()
-            if center.group not in exclude_groups
-            and not center.group.endswith(exclude_suffix)
+            if center.group not in self.__exclude_centers
+            and not center.group.endswith(tuple(self.__exclude_studies))
         ]
+
         return center_ids
 
     def run(self, context: GearToolkitContext) -> None:
@@ -104,16 +115,20 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
 
         centers = self.__get_center_ids()
         if not centers:
-            raise GearExecutionError(
-                'Center information not found in '
-                f'{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}')
+            log.warning(
+                "Did not find any centers matching with specified configs")
+            return
+
+        batch_configs = BatchRunInfo.load_from_file(
+            self.__config_input.filepath)
+        if not batch_configs:
+            raise GearExecutionError('Error in parsing batch run configs file '
+                                     f'{self.__config_input.filename}')
 
         run(proxy=self.proxy,
             centers=centers,
-            ingest_project_lbl=self.__ingest_project,
-            accepted_project_lbl=self.__accepted_project,
             time_interval=self.__time_interval,
-            batch_size=self.__batch_size,
+            batch_configs=batch_configs,
             dry_run=context.config.get("dry_run", False))
 
 

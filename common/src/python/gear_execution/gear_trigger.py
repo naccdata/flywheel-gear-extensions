@@ -125,7 +125,7 @@ class BatchRunInfo(BaseModel):
             }
         }
 
-        Pass kwargs as source=<source id>, target=<target id>
+        Pass kwargs as source="source id", target="target id"
 
         Args:
             configs_class(optional): The specific GearConfigs class to use
