@@ -67,19 +67,24 @@ class IngestAcceptedTransferVisitor(GearExecutionEnvironment):
             input_name='batch_configs_file', context=context)
         assert batch_configs_input, "missing expected input, batch_configs_file"
 
-        exclude_centers = parse_string_to_list(
-            context.config.get("exclude_centers", None))
+        exclude_centers = context.config.get("exclude_centers", None)
+        exclude_centers_list = parse_string_to_list(
+            exclude_centers) if exclude_centers else []
 
-        exclude_studies = parse_string_to_list(
-            context.config.get("exclude_studies", None))
+        exclude_studies = context.config.get("exclude_studies", None)
+        exclude_studies_list = parse_string_to_list(
+            exclude_studies) if exclude_studies else []
+
+        log.info('Skipping centers %s', exclude_centers_list)
+        log.info('Skipping studies %s', exclude_studies_list)
 
         return IngestAcceptedTransferVisitor(
             client=client,
             admin_id=context.config.get("admin_group",
                                         DefaultValues.NACC_GROUP_ID),
             config_input=batch_configs_input,
-            exclude_centers=exclude_centers,
-            exclude_studies=exclude_studies,
+            exclude_centers=exclude_centers_list,
+            exclude_studies=exclude_studies_list,
             time_interval=context.config.get("time_interval", 7))
 
     def __get_center_ids(self) -> Optional[List[str]]:
