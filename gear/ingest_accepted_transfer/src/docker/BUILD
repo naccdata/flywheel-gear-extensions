@@ -7,4 +7,4 @@ docker_image(
         ":manifest",
         "gear/ingest_accepted_transfer/src/python/ingest_accepted_transfer_app:bin"
     ],
-    image_tags=["0.0.1", "latest"])
+    image_tags=["0.0.2", "latest"])

@@ -2,7 +2,7 @@
     "name": "ingest-accepted-transfer",
     "label": "Ingest to Accepted Transfer",
     "description": "Soft copy form data from ingest projects to respective accepted projects",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/ingest-accepted-transfer:0.0.1"
+            "image": "naccdata/ingest-accepted-transfer:0.0.2"
         },
         "flywheel": {
             "suite": "Utility",
