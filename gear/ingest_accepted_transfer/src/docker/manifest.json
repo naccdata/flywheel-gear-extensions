@@ -55,13 +55,13 @@
         },
         "time_interval": {
             "description": "Time interval in days between the runs (input -1 to ignore)",
-            "type": "int",
-            "default": "7"
+            "type": "integer",
+            "default": 7
         },
         "batch_size": {
             "description": "Number of acquisition files for one batch",
-            "type": "int",
-            "default": "10000"
+            "type": "integer",
+            "default": 10000
         }
     },
     "command": "/bin/run"
