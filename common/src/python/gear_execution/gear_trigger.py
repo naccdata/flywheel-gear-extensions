@@ -51,10 +51,18 @@ class GearInfo(BaseModel):
                       configs_file_path, error)
             return None
 
+        if 'configs' not in configs_data:
+            log.error('No gear config data found')
+            return None
+
+        input_configs = configs_data.get('configs')
+        if not input_configs:
+            log.error('No gear configs data found')
+            return None
+
         try:
-            configs_data[
-                'configs'] = configs_class.model_validate(  # type: ignore
-                    configs_data.get('configs', {}))  # type: ignore
+            configs_data['configs'] = configs_class.model_validate(
+                input_configs)
             gear_configs = cls.model_validate(configs_data)
         except ValidationError as error:
             log.error('Gear config data not in expected format - %s', error)
