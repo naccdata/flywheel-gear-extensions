@@ -227,19 +227,31 @@ class InputFileWrapper:
                 return True
         return False
 
-    def get_module_name_from_file_suffix(self) -> Optional[str]:
+    def get_module_name_from_file_suffix(
+            self,
+            separator: str = "-",
+            allowed: str = "a-z_",
+            extension: str = "csv",
+            split: Optional[str] = '_') -> Optional[str]:
         """Get the module name from file suffix.
+
+        Args:
+            separator: suffix separator, defaults to "-".
+            allowed: characters allowed in suffix, defaults to "a-z_".
+            extension: file extension, defaults to "csv"
+            split (optional): character to split the suffix, defaults to '_'.
+                            (set to None if not required)
 
         Returns:
             str(optional): module name if a match found, else None
         """
         module = None
-        pattern = '^.*-([a-z_]*)\\.(csv|json)$'
+        pattern = f'^.*{separator}([{allowed}]*)\\.{extension}$'
         if match := re.search(pattern, self.filename, re.IGNORECASE):
             file_suffix = match.group(1)
             if file_suffix:
                 # remove any extra suffixes added by previous gears
-                module = file_suffix.split('_')[0]
+                module = file_suffix.split(split)[0] if split else file_suffix
 
         return module
 
