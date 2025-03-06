@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/legacy-identifier-transfer:0.1.0"
+            "image": "naccdata/legacy-identifier-transfer:1.0.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
