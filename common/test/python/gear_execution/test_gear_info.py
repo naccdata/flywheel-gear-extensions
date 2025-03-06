@@ -24,15 +24,12 @@ class TestGearInfo:
         # assert that when empty fails/returns None
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'empty-file.json')) is None
-        """
-        CH - removed this test
-        made apikey_path_prefix optional to support non-gearbot gears
 
         # assert without apikey_path_prefix fails/returns None
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'no-configs.json')) is None
         assert GearInfo.load_from_file(
-            str(TEST_FILES_DIR / 'empty-configs.json')) is None """
+            str(TEST_FILES_DIR / 'empty-configs.json')) is None
 
         # now assert that it matches
         result = GearInfo.load_from_file(
