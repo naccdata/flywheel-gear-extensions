@@ -2,6 +2,8 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.7
+* Updates `nacc-form-validator` to 0.5.1
 
 ## 1.2.6
 * Refactor  `DatastoreHelper` class to use common package
