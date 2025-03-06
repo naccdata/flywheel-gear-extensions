@@ -25,7 +25,7 @@ from flywheel.models.roles_role_assignment import RolesRoleAssignment
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from fw_client import FWClient
+from fw_client.client import FWClient
 from fw_utils import AttrDict
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
