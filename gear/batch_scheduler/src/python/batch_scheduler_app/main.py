@@ -146,7 +146,7 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         # clear the jobs list
         # all the jobs in current batch are finished when it gets to this point
         jobs_list.clear()
-
+        log.info('Number of remaining centers: %s', len(centers))
         batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
 
     if len(failed_list) > 0:
