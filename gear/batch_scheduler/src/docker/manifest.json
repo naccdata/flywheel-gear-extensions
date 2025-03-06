@@ -2,7 +2,7 @@
     "name": "batch-scheduler",
     "label": "Batch Scheduler",
     "description": "A gear to schedule batch runs of another gear",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/batch-scheduler:0.0.1"
+            "image": "naccdata/batch-scheduler:0.0.2"
         },
         "flywheel": {
             "suite": "Utility",

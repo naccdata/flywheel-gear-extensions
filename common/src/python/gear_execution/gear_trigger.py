@@ -19,7 +19,7 @@ class GearConfigs(BaseModel):
     """Class to represent base gear configs."""
     model_config = ConfigDict(populate_by_name=True, extra='allow')
 
-    apikey_path_prefix: str
+    apikey_path_prefix: Optional[str] = None
 
 
 class GearInfo(BaseModel):
