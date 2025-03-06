@@ -152,7 +152,17 @@ def run(  # noqa: C901
         raise GearExecutionError(
             f'Unsupported input file type {input_wrapper.file_type}')
 
-    module = input_wrapper.get_module_name_from_file_suffix()
+    if file_type == 'json':
+        separator = "_"
+        allowed = "a-z"
+        split = None
+    else:
+        separator = "-"
+        allowed = "a-z_"
+        split = '_'
+
+    module = input_wrapper.get_module_name_from_file_suffix(
+        separator=separator, allowed=allowed, split=split, extension=file_type)
     if not module:
         raise GearExecutionError(
             f'Failed to extract module information from file {input_wrapper.filename}'
