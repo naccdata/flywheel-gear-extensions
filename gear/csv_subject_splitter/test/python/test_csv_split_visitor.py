@@ -55,7 +55,7 @@ def missing_columns_stream(missing_columns_table):
 
 @pytest.fixture(scope="module")
 def valid_visit_table():
-    yield [['module', 'formver', 'naccid', 'visitnum', 'dummyvar'],
+    yield [['module', 'formver', 'naccid', 'visitnum', 'dummy-var'],
            ['UDS', '4', 'NACC000000', '1', '888']]
 
 
@@ -69,18 +69,18 @@ def visit_data_stream(valid_visit_table):
 
 
 @pytest.fixture(scope="module")
-def valid_nonvisit_table():
-    yield [['module', 'formver', 'naccid', 'visitdate', 'dummyvar'],
+def valid_non_visit_table():
+    yield [['module', 'formver', 'naccid', 'visitdate', 'dummy-var'],
            ['NP', '11', 'NACC0000000', '2003-10-2', '888']]
 
 
 @pytest.fixture(scope="function")
-def nonvisit_data_stream(valid_nonvisit_table):
+def non_visit_data_stream(valid_non_visit_table):
     """Data stream for valid non-visit.
 
     Non-visit has date instead of visit number
     """
-    data = valid_nonvisit_table
+    data = valid_non_visit_table
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -92,9 +92,9 @@ class MockUploader(JSONUploader):
         self.__records: DefaultDict[str, List[Dict[str,
                                                    Any]]] = defaultdict(list)
 
-    def upload_record(self, subject: SubjectAdaptor,
-                      record: Dict[str, Any]) -> None:
-        self.__records[subject.id].append(record)
+    def upload_record(self, subject_label: str, record: Dict[str,
+                                                             Any]) -> None:
+        self.__records[subject_label].append(record)
 
 
 class MockSubject(SubjectAdaptor):
@@ -154,7 +154,7 @@ class TestCSVSplitVisitor:
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
 
-    def test_valid_nonvisit(self, nonvisit_data_stream):
+    def test_valid_non_visit(self, non_visit_data_stream):
         """Test case where data does not correspond to visit."""
         err_stream = StringIO()
         # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -165,7 +165,7 @@ class TestCSVSplitVisitor:
                                   uploader=MockUploader(),
                                   project=MockProject(),
                                   error_writer=error_writer)
-        no_errors = read_csv(input_file=nonvisit_data_stream,
+        no_errors = read_csv(input_file=non_visit_data_stream,
                              error_writer=error_writer,
                              visitor=visitor)
 

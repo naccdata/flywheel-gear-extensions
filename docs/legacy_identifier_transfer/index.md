@@ -20,6 +20,8 @@ The gear can be configured with the following options:
   Default: `prod`.
 - `apikey_path_prefix` -- the instance specific AWS parameter path prefix for apikey.
   Default: `/prod/flywheel/gearbot`.
+- `legacy_ingest_label` -- Legacy ingest project label in Flywheel.
+  Default": `retrospective-form`
 
 ## Processing
 

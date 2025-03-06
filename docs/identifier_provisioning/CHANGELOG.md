@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.4
+* Fixes a bug in retrieving module label from file suffix
+
 ## 1.1.3
 * Adds `legacy` flag to enrollment record
   

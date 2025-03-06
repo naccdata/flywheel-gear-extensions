@@ -2,7 +2,8 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.1.0
+## 1.0.0
+* Production release
 * Sets the enrollment date to the initial visit date for the subject.
 * Adds `legacy` flag to enrollment record
   

@@ -6,7 +6,12 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 import yaml
 from flywheel.file_spec import FileSpec
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_adaptor.hierarchy_creator import (
+    HierarchyCreationClient,
+    HierarchyCreationError,
+)
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
     SubjectAdaptor,
@@ -88,10 +93,14 @@ class JSONUploader:
 
     def __init__(self,
                  *,
+                 proxy: FlywheelProxy,
                  project: ProjectAdaptor,
+                 hierarchy_client: HierarchyCreationClient,
                  environment: Optional[Dict[str, Any]] = None,
                  template_map: UploadTemplateInfo) -> None:
+        self.__proxy = proxy
         self.__project = project
+        self.__hierarchy_client = hierarchy_client
         self.__session_template = template_map.session
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
@@ -107,15 +116,14 @@ class JSONUploader:
         """
         success = True
         for subject_label, record_list in records.items():
-            subject = self.__project.add_subject(subject_label)
 
             for record in record_list:
-                self.upload_record(subject, record)
+                self.upload_record(subject_label=subject_label, record=record)
 
         return success
 
-    def upload_record(self, subject: SubjectAdaptor,
-                      record: Dict[str, Any]) -> None:
+    def upload_record(self, *, subject_label: str, record: Dict[str,
+                                                                Any]) -> None:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
@@ -125,19 +133,34 @@ class JSONUploader:
         Raises:
           UploaderError if a failure occurs during the upload
         """
+        session_label = self.__session_template.instantiate(record)
+        acquisition_label = self.__acquisition_template.instantiate(record)
         try:
-            subject.upload_acquisition_file(
-                session_label=self.__session_template.instantiate(record),
-                acquisition_label=self.__acquisition_template.instantiate(
-                    record),
-                filename=self.__filename_template.instantiate(
-                    record, environment=self.__environment),
-                contents=json.dumps(record),
-                content_type='application/json')
-        except SubjectError as error:
-            raise UploaderError(error) from error
-        except ValueError as error:
-            raise UploaderError(error) from error
+            file_ancestors = self.__hierarchy_client.create_hierarchy(
+                project=self.__project,
+                subject_label=subject_label,
+                session_label=session_label,
+                acquisition_label=acquisition_label)
+        except HierarchyCreationError as error:
+            raise UploaderError(
+                'Failed to create hierarchy for '
+                f'{subject_label}/{session_label}/{acquisition_label}: {error}'
+            ) from error
+
+        acquisition = self.__proxy.get_acquisition(
+            file_ancestors.acquisition_id)  # type: ignore
+        filename = self.__filename_template.instantiate(
+            record, environment=self.__environment)
+        record_file_spec = FileSpec(name=filename,
+                                    contents=json.dumps(record),
+                                    content_type='application/json')
+        try:
+            acquisition.upload_file(record_file_spec)
+        except ApiException as error:
+            raise UploaderError(
+                f'Failed to upload file {filename} to '
+                f'{subject_label}/{session_label}/{acquisition_label}: {error}'
+            ) from error
 
 
 class FormJSONUploader:
