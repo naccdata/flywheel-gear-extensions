@@ -148,7 +148,7 @@ class BatchRunInfo(BaseModel):
             log.info('Substituting configs for gear %s', self.gear_name)
             # make a copy
             configs = dict(self.gear_configs)
-            for field, value in configs.__dict__.items():
+            for field, value in configs.items():
                 if isinstance(value, str) and value.startswith(
                         '{{') and value.endswith('}}'):
                     key = value.replace('{', "").replace('}', "")
