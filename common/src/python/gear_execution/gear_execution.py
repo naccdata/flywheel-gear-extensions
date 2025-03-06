@@ -14,7 +14,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
-from fw_client import FWClient
+from fw_client.client import FWClient
 from inputs.parameter_store import ParameterError, ParameterStore
 
 log = logging.getLogger(__name__)
