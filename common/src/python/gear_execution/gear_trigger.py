@@ -106,7 +106,7 @@ class BatchRunInfo(BaseModel):
 
     def get_gear_configs(self,
                          configs_class=GearConfigs,
-                         **kwargs) -> Optional[GearConfigs]:
+                         **kwargs) -> Optional[Dict[str, Any]]:
         """Get the gear configs from batch run info gear template. Substitute
         config keys with kwargs if `substitute`=true.
 
@@ -132,11 +132,15 @@ class BatchRunInfo(BaseModel):
             kwargs: keyword arguments for each key to be replaced in configs
 
         Returns:
-            Optional[GearConfigs]: Gear configs object of provided config class or None
+            Optional[Dict[str, Any]]: Gear configs dict or None
         """
+
+        configs = self.gear_configs
         if self.substitute:
             log.info('Substituting configs for gear %s', self.gear_name)
-            for field, value in self.gear_configs.__dict__.items():
+            # make a copy
+            configs = dict(self.gear_configs)
+            for field, value in configs.__dict__.items():
                 if isinstance(value, str) and value.startswith(
                         '{{') and value.endswith('}}'):
                     key = value.replace('{', "").replace('}', "")
@@ -149,14 +153,16 @@ class BatchRunInfo(BaseModel):
 
                     log.info('Replaced config %s: %s with %s=%s', field, value,
                              key, kwargs[key])
-                    self.gear_configs[field] = kwargs[key]
+                    configs[field] = kwargs[key]
 
         try:
-            return configs_class.model_validate(self.gear_configs)
+            configs_class.model_validate(configs)
         except ValidationError as error:
             log.error('Configs for gear %s is not in expected format %s: %s',
                       self.gear_name, configs_class, error)
             return None
+
+        return configs
 
 
 def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:

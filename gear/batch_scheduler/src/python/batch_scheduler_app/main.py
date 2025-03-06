@@ -63,7 +63,7 @@ def trigger_gear_for_center(proxy: FlywheelProxy, batch_configs: BatchRunInfo,
 
     job_id = trigger_gear(proxy=proxy,
                           gear_name=batch_configs.gear_name,
-                          config=gear_configs.model_dump(),
+                          config=gear_configs,
                           inputs={},
                           destination=center.source)
 
