@@ -2,7 +2,7 @@ boto3>=1.28.53
 boto3-stubs[boto3]
 botocore
 flywheel-gear-toolkit>=0.2
-flywheel-sdk==19.4.0
+flywheel-sdk==19.4.0 # setting to 19.4.0 until sites updated to 20.x
 fw-client>=0.7.0
 fw-utils>=3
 types-jinja2>=2.11.9

@@ -6,4 +6,4 @@ docker_image(name="form-transformer",
                  ":manifest",
                  "gear/form_transformer/src/python/form_csv_app:bin"
              ],
-             image_tags=["1.2.1a", "latest"])
+             image_tags=["1.2.1", "latest"])
