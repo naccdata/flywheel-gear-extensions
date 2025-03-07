@@ -63,7 +63,7 @@ class MockFormsStore(FormsStore):
                 module,
                 f'file.forms.json.{self.__date_field}':
                 form_data['visitdate'],
-                'file.id':
+                'file.file_id':
                 'dummy-id'
             })
 
