@@ -730,7 +730,7 @@ class FormPreprocessor():
                 f'{subject_lbl}/{module}/{input_record[date_field]}')
 
         if is_duplicate_dict(input_record, existing_visit):
-            input_record['file_id'] = existing_visit_info['file.id']
+            input_record['file_id'] = existing_visit_info['file.file_id']
             return True
 
         return False
