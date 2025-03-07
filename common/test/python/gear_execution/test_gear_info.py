@@ -20,10 +20,12 @@ class TestGearInfo:
 
     def test_basic_create(self):
         """Test a basic create with default GearConfigs class."""
-        # assert that when empty/without apikey_path_prefix this
-        # fails/returns None
+
+        # assert that when empty fails/returns None
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'empty-file.json')) is None
+
+        # assert without apikey_path_prefix fails/returns None
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'no-configs.json')) is None
         assert GearInfo.load_from_file(
