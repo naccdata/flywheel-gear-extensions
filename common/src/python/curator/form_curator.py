@@ -33,6 +33,7 @@ class FormCurator(Curator):
         return None
 
     def curate_container(self, file_entry: FileEntry):
+        log.info('curating container %s', file_entry.id)
         self.set_file_entry(file_entry)
         self.curate_file(file_entry)
         subject = self.get_subject(file_entry)

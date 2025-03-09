@@ -1,6 +1,8 @@
 """Scheduling for project curation."""
 import logging
 from datetime import date
+import multiprocessing
+import os
 from typing import Dict, List, TypeVar
 
 from dataview.dataview import ColumnModel, make_builder
@@ -113,17 +115,17 @@ class ProjectFormCurator:
         return ProjectFormCurator(proxy=project.proxy,
                                   heap_map=subject_heap_map)
 
-    # def __compute_cores(self) -> int:
-    #     """Attempts to compute the number of cores available for processes.
+    def __compute_cores(self) -> int:
+        """Attempts to compute the number of cores available for processes.
 
-    #     Apparently, sometimes multiprocessing.cpu_count() returns the
-    #     number of active cores as opposed to the actual cores. Stack
-    #     Overflow claims the solution on Linux is to query the process,
-    #     which needs to pid. So, just asking the os, and multiprocessing.
-    #     """
-    #     os_cpu_count = os.cpu_count()
-    #     os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
-    #     return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
+        Apparently, sometimes multiprocessing.cpu_count() returns the
+        number of active cores as opposed to the actual cores. Stack
+        Overflow claims the solution on Linux is to query the process,
+        which needs to pid. So, just asking the os, and multiprocessing.
+        """
+        os_cpu_count = os.cpu_count()
+        os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
+        return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
     def apply(self, curator: FormCurator) -> None:
         """Applies a FormCurator to the form files in this curator.
@@ -147,6 +149,7 @@ class ProjectFormCurator:
             Args:
               heap: the min heap of file model objects
             """
+            log.info('In curate_subject()')
             while len(heap) > 0:
                 file_info = heap.pop()
                 if not file_info:
@@ -156,17 +159,17 @@ class ProjectFormCurator:
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
         # TODO: get multiprocessing working. Didn't update metadata
-        # process_count = max(4, self.__compute_cores())
-        # with Pool(processes=process_count) as pool:
-        #     for subject_id, heap in self.__heap_map.items():
-        #         log.info("Curating files for subject %s", subject_id)
-        #         pool.apply_async(curate_subject, (heap, ))
-        #     pool.close()
-        #     pool.join()
+        process_count = max(4, self.__compute_cores())
+        with multiprocessing.Pool(processes=process_count) as pool:
+            for subject_id, heap in self.__heap_map.items():
+                log.info("Curating files for subject %s", subject_id)
+                pool.apply_async(curate_subject, (heap, ))
+            pool.close()
+            pool.join()
 
-        for subject_id, heap in self.__heap_map.items():
-            log.info("Curating files for subject %s", subject_id)
-            curate_subject(heap)
+        # for subject_id, heap in self.__heap_map.items():
+        #     log.info("Curating files for subject %s", subject_id)
+        #     curate_subject(heap)
 
 
 class ProjectCurationError(Exception):
