@@ -98,6 +98,7 @@ class EnrollmentRecord(GUIDField, OptionalNACCIDField):
     end_date: Optional[datetime] = None
     transfer_from: Optional[TransferRecord] = None
     transfer_to: Optional[TransferRecord] = None
+    legacy: Optional[bool] = False
 
     def query_object(self) -> IdentifierQueryObject:
         """Creates an object for creating identifiers in the repository.
