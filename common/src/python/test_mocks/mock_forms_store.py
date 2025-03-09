@@ -59,10 +59,14 @@ class MockFormsStore(FormsStore):
         date_col_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{self.__date_field}'
         for file, form_data in self.__subjects[subject_lbl][module].items():
             result.append({
-                'file.name': file,
-                'file.parents.acquisition': module,
-                date_col_lbl: form_data[self.__date_field],
-                'file.id': 'dummy-id'
+                'file.name':
+                file,
+                'file.parents.acquisition':
+                module,
+                f'file.forms.json.{self.__date_field}':
+                form_data['visitdate'],
+                'file.file_id':
+                'dummy-id'
             })
 
         return sorted(result, key=lambda x: x[date_col_lbl], reverse=True)
