@@ -205,13 +205,13 @@ def process_legacy_identifiers(  # noqa: C901
                               str(error['loc'][0]), error['msg'],
                               str(error.get('input', '')))
             success = False
+            failed_count += 1
 
     if skipped_count > 0:
-        log.warning('Skipped %d records', skipped_count)
+        log.warning('Number of skipped records: %s', skipped_count)
 
     if failed_count > 0:
-        log.error('Failed to find enrollment date for %d records',
-                  failed_count)
+        log.error('Number of failed records: %s', failed_count)
 
     if not record_collection:
         log.warning('No valid legacy identifiers to process')
@@ -250,7 +250,6 @@ def run(*,
             return False
 
         log.info("Processed %d legacy identifiers", len(identifiers))
-
     except GearExecutionError as error:
         log.error("Error during gear execution: %s", str(error))
         return False
