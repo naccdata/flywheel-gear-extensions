@@ -117,6 +117,18 @@ def get_enrollment_date(subject_id: str,
         order_by=FieldNames.DATE_COLUMN,
         list_filters=[ivp_filter])
 
+    # If no UDS IVP found check for MDS visit
+    if not initial_visits:
+        initial_visits = forms_store.query_form_data_with_custom_filters(
+            subject_lbl=subject_id,
+            module=DefaultValues.MDS_MODULE,
+            legacy=True,
+            order_by=FieldNames.DATE_COLUMN)
+
+    if initial_visits and len(initial_visits) > 1:
+        log.error('Multiple IVP/MDS packets found for subject %s', subject_id)
+        return None
+
     ivp_packet = initial_visits[0] if initial_visits else None
 
     if not ivp_packet:
