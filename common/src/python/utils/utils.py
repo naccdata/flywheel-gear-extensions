@@ -92,7 +92,7 @@ def parse_string_to_list(input_str: str,
         The parsed list
     """
     if not input_str:
-        input_str = ''
+        return []
 
     if to_lower:
         return [x.strip().lower() for x in input_str.split(delimiter)]

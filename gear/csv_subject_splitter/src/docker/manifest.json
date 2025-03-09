@@ -41,6 +41,11 @@
             "description": "The string templates for session/acquisition/filename (represented as a JSON string)",
             "type": "string",
             "default": "{\"session\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"acquisition\": {\"template\": \"$filename\",\"transform\": \"upper\"},\"filename\": {\"template\": \"$filename\",\"transform\": \"lower\"}}"
+        },
+        "device_key_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot-hierarchy-upsert"
         }
     },
     "command": "/bin/run"

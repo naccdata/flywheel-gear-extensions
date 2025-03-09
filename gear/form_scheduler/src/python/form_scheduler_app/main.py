@@ -30,27 +30,6 @@ from .form_scheduler_queue import FormSchedulerQueue
 log = logging.getLogger(__name__)
 
 
-def wait_for_submission_pipeline(proxy: FlywheelProxy,
-                                 search_str: str) -> None:
-    """Wait for the submission pipeline to finish executing before continuing.
-
-    Args:
-        proxy: the proxy for the Flywheel instance
-        search_str: The search string to search for the submission pipeline
-    """
-    running = True
-    while running:
-        job = proxy.find_job(search_str)
-        if job:
-            log.info(f"A submission pipeline with current job {job.id} is " +
-                     "running, waiting for completion")
-            # at least for now we don't really care about the state
-            # of other submission pipelines, we just wait for it to finish
-            JobPoll.poll_job_status(job)
-        else:
-            running = False
-
-
 def run(*,
         proxy: FlywheelProxy,
         queue: FormSchedulerQueue,
@@ -100,7 +79,7 @@ def run(*,
             #    This should actually not happen as it would mean that this gear
             #    instance is not the owner/trigger of this submission pipeline,
             #    but left in as a safeguard
-            wait_for_submission_pipeline(proxy, search_str)
+            JobPoll.wait_for_pipeline(proxy, search_str)
 
             # b. Pull the next CSV from queue and clear the queue tags
             file = subqueue.pop(0)
@@ -137,7 +116,7 @@ def run(*,
                          inputs=inputs)
 
             # d. wait for the above submission pipeline to finish
-            wait_for_submission_pipeline(proxy, search_str)
+            JobPoll.wait_for_pipeline(proxy, search_str)
 
             # e. send email to user who uploaded the file that their
             #    submission pipeline has completed

@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -17,7 +18,7 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from inputs.parameter_store import ParameterStore
+from inputs.parameter_store import ParameterError, ParameterStore
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
 from uploads.uploader import UploadTemplateInfo
@@ -31,9 +32,11 @@ log = logging.getLogger(__name__)
 class CsvToJsonVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the csv-subject-splitter app."""
 
-    def __init__(self, client: ClientWrapper, file_input: InputFileWrapper,
+    def __init__(self, client: ClientWrapper, device_key: str,
+                 file_input: InputFileWrapper,
                  hierarchy_labels: Dict[str, str]) -> None:
         self.__client = client
+        self.__device_key = device_key
         self.__file_input = file_input
         self.__hierarchy_labels = hierarchy_labels
 
@@ -59,6 +62,17 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                                              context=context)
         assert file_input, "create raises exception if missing expected input"
 
+        device_key_prefix = context.config.get('device_key_path_prefix')
+        if not device_key_prefix:
+            raise GearExecutionError('Device key path prefix required')
+
+        assert parameter_store, "Parameter store expected"
+        try:
+            device_key = parameter_store.get_api_key(
+                path_prefix=device_key_prefix)
+        except ParameterError as error:
+            raise GearExecutionError(error) from error
+
         hierarchy_labels = context.config.get('hierarchy_labels')
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
@@ -70,6 +84,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 from error
 
         return CsvToJsonVisitor(client=client,
+                                device_key=device_key,
                                 file_input=file_input,
                                 hierarchy_labels=hierarchy_labels)
 
@@ -82,7 +97,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
         proxy = self.__client.get_proxy()
         file_id = self.__file_input.file_id
-
+        hierarchy_client = HierarchyCreationClient(self.__device_key)
         try:
             file = proxy.get_file(file_id)
         except ApiException as error:
@@ -96,7 +111,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                   encoding='utf-8') as csv_file:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=proxy.get_lookup_path(file))
-            success = run(input_file=csv_file,
+            success = run(proxy=proxy,
+                          hierarchy_client=hierarchy_client,
+                          input_file=csv_file,
                           destination=ProjectAdaptor(project=project,
                                                      proxy=proxy),
                           environment={'filename': self.__file_input.basename},

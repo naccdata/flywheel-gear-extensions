@@ -6,6 +6,7 @@ from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
+from jobs.job_poll import JobPoll
 from outputs.errors import (
     ListErrorWriter,
     empty_field_error,
@@ -143,8 +144,10 @@ def run(*,
         error_writer: ListErrorWriter,
         adcid_key: str,
         target_project: str,
+        batch_size: int,
         staging_project_id: Optional[str] = None,
         include: Optional[Set[str]] = None,
+        downstream_gears: Optional[List[str]] = None,
         delimiter: str = ','):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -158,6 +161,7 @@ def run(*,
         adcid_key: The name of the header column the ADCID is listed under
         target_project: The FW target project name to write results to for
                         each ADCID
+        batch_size: Number of centers to put in each batch for scheduling
 
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
@@ -165,9 +169,8 @@ def run(*,
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
-    centers: Set[str] = include if include else set()
     visitor = CSVVisitorCenterSplitter(adcid_key=adcid_key,
-                                       include=centers,
+                                       include=include if include else set(),
                                        error_writer=error_writer)
     success = read_csv(input_file=input_file,
                        error_writer=error_writer,
@@ -182,6 +185,8 @@ def run(*,
             log.error(x['message'])
         return
 
+    # filter to centers that were actually found
+    centers = [adcid for adcid in visitor.split_data]
     project_map = generate_project_map(proxy=proxy,
                                        centers=centers,
                                        target_project=target_project,
@@ -200,29 +205,47 @@ def run(*,
             f"Missing {target_project} projects for the following " +
             f"ADCIDs: {missing_projects}")
 
-    log.info(f"Writing split results for the following ADCIDs: {centers}")
+    batched_centers = [
+        centers[i:i + batch_size] for i in range(0, len(centers), batch_size)
+    ]
+
+    log.info("Writing split results for the following ADCIDs " +
+             f"in {len(batched_centers)} batches: {batched_centers}")
 
     # write results to each center's project
-    for adcid, data in visitor.split_data.items():
-        if adcid not in centers:
-            continue
+    for i, batch in enumerate(batched_centers, start=1):
+        log.info(f"Running batch {i} of {len(batched_centers)}")
+        project_ids_list = []
 
-        project = project_map[f'adcid-{adcid}']
-        filename = f'{adcid}_{input_filename}'
+        for adcid in batch:
+            data = visitor.split_data[adcid]
+            project = project_map[f'adcid-{adcid}']
+            filename = f'{adcid}_{input_filename}'
 
-        log.info(
-            f"Uploading {filename} for project {project.label} "  # type: ignore
-            + f"ADCID {adcid} with project ID {project.id}")  # type: ignore
+            log.info(
+                f"Uploading {filename} for project {project.label} "  # type: ignore
+                +
+                f"ADCID {adcid} with project ID {project.id}")  # type: ignore
 
-        contents = write_csv_to_stream(headers=visitor.headers,
-                                       data=data).getvalue()
-        file_spec = FileSpec(name=filename,
-                             contents=contents,
-                             content_type="text/csv",
-                             size=len(contents))
+            contents = write_csv_to_stream(headers=visitor.headers,
+                                           data=data).getvalue()
+            file_spec = FileSpec(name=filename,
+                                 contents=contents,
+                                 content_type="text/csv",
+                                 size=len(contents))
 
-        if proxy.dry_run:
-            log.info(f"DRY RUN: Would have uploaded {filename}")
-        else:
+            if proxy.dry_run:
+                log.info(f"DRY RUN: Would have uploaded {filename}")
+                continue
+
             project.upload_file(file_spec)  # type: ignore
+            project_ids_list.append(project.id)
             log.info(f"Successfully uploaded {filename}")
+
+        if project_ids_list:
+            search_str = JobPoll.generate_search_string(
+                project_ids_list=project_ids_list,
+                gears_list=downstream_gears,
+                states_list=['running', 'pending'])
+
+            JobPoll.wait_for_pipeline(proxy, search_str)

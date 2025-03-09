@@ -100,3 +100,23 @@ class JobPoll:
             result = f'parents.project=|[{",".join(project_ids_list)}],{result}'
 
         return result.rstrip(',')
+
+    @staticmethod
+    def wait_for_pipeline(proxy: FlywheelProxy, search_str: str) -> None:
+        """Wait for a pipeline to finish executing before continuing.
+
+        Args:
+            proxy: the proxy for the Flywheel instance
+            search_str: The search string to search for the pipeline
+        """
+        running = True
+        while running:
+            job = proxy.find_job(search_str)
+            if job:
+                log.info(f"A pipeline with current job {job.id} is " +
+                         "running, waiting for completion")
+                # at least for now we don't really care about the state
+                # of other submission pipelines, we just wait for it to finish
+                JobPoll.poll_job_status(job)
+            else:
+                running = False

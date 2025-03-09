@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.1
+* Fixes a bug in retrieving module label from file suffix
+  
 ## 1.2.0
 * Cross-validates the records within the batch CSV file
 

@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
-from fw_client import FWClient
+from fw_client.client import FWClient
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
