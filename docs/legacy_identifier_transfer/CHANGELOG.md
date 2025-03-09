@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.1
+* Sets the enrollment date to MDS visit date if no UDS initial visit available.
+
 ## 1.0.0
 * Production release
 * Sets the enrollment date to the initial visit date for the subject.
