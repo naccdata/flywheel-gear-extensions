@@ -42,6 +42,8 @@ class DefaultValues:
     LEGACY_PRJ_LABEL = 'retrospective-form'
     ENROLLMENT_MODULE = 'ENROLL'
     UDS_MODULE = 'UDS'
+    MDS_MODULE = 'MDS'
+    BDS_MODULE = 'BDS'
     GEARBOT_USER_ID = 'nacc-flywheel-gear@uw.edu'
     NACC_GROUP_ID = 'nacc'
     METADATA_PRJ_LBL = 'metadata'
