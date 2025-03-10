@@ -109,7 +109,8 @@ def test_process_success(mock_enrollment_project, mock_form_store):
     result = process_legacy_identifiers(
         identifiers=identifiers,
         forms_store=mock_form_store,
-        enrollment_project=mock_enrollment_project)
+        enrollment_project=mock_enrollment_project,
+        failed_ids=[])
 
     # Assert
     assert result is True
@@ -140,7 +141,8 @@ def test_process_validation_error(mock_enrollment_project, mock_form_store):
     result = process_legacy_identifiers(
         identifiers=identifiers,
         forms_store=mock_form_store,
-        enrollment_project=mock_enrollment_project)
+        enrollment_project=mock_enrollment_project,
+        failed_ids=[])
 
     # Assert
     assert result is False
@@ -167,6 +169,7 @@ def test_process_dry_run(mock_enrollment_project, mock_form_store):
         identifiers=identifiers,
         forms_store=mock_form_store,
         enrollment_project=mock_enrollment_project,
+        failed_ids=[],
         dry_run=True)
 
     # Assert

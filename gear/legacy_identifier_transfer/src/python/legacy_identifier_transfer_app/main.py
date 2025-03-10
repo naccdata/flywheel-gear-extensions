@@ -121,11 +121,11 @@ def get_enrollment_date(subject_id: str,
         order_by=FieldNames.DATE_COLUMN,
         list_filters=[ivp_filter])
 
-    # If no UDS IVP found check for MDS visit
+    # If no UDS IVP found check for MDS or BDS visit
     if not initial_visits:
         initial_visits = forms_store.query_form_data_with_custom_filters(
             subject_lbl=subject_id,
-            module=DefaultValues.MDS_MODULE,
+            module=[DefaultValues.MDS_MODULE, DefaultValues.BDS_MODULE],
             legacy=True,
             order_by=FieldNames.DATE_COLUMN)
 
@@ -255,7 +255,7 @@ def run(*,
         forms_store: FormsStore,
         sender_email: str,
         target_emails: List[str],
-        dry_run: bool = False) -> bool:
+        dry_run: bool = True) -> bool:
     """Runs legacy identifier enrollment process.
 
     Args:
