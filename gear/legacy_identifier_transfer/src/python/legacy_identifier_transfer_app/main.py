@@ -245,7 +245,7 @@ def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
     subject = f'Legacy identifier transfer failure for {group_lbl}/{project_lbl}'
     body = f'Failed to transfer {failed_count} legacy identifiers ' \
         + f'to project {group_lbl}/{project_lbl}.\n' \
-        + 'Check the job error log for the list of failed IDs.\n'
+        + 'Check the job error log for the list of failed IDs.\n\n'
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
 
