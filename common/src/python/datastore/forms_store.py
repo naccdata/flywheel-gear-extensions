@@ -171,7 +171,7 @@ class FormsStore():
         self,
         *,
         subject_lbl: str,
-        module: str,
+        module: str | List[str],
         legacy: bool,
         order_by: str,
         list_filters: Optional[List[FormFilter]] = None
@@ -181,7 +181,7 @@ class FormsStore():
 
         Args:
             subject_lbl: Flywheel subject label
-            module: module name
+            module: module name (or list of module names)
             legacy: whether to query legacy project or not
             order_by: field to sort the records
             list_filters (optional): List of filters to apply on the records
@@ -221,7 +221,15 @@ class FormsStore():
             "file.parents.session", orderby_col
         ]
 
-        filters = f'acquisition.label={module}'
+        comp_op = "="
+        modules = module
+        # remove spaces for OR search (=|)
+        if isinstance(module, List):
+            modules = f"[{','.join(module)}]"
+            comp_op = DefaultValues.FW_SEARCH_OR
+
+        filters = f'acquisition.label{comp_op}{modules}'
+
         if list_filters:
             for filter_obj in list_filters:
                 column_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{filter_obj.field}'

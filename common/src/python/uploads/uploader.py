@@ -274,7 +274,10 @@ class FormJSONUploader:
 
         success = True
         for subject_lbl, visits_info in participant_records.items():
-            subject = self.__project.add_subject(subject_lbl)
+            subject = self.__project.find_subject(label=subject_lbl)
+            if not subject:
+                log.info('Adding new subject %s', subject_lbl)
+                subject = self.__project.add_subject(subject_lbl)
 
             for log_file, record in visits_info.items():
                 self.__error_writer.clear()
