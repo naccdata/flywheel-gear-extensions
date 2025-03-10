@@ -230,7 +230,7 @@ def process_legacy_identifiers(  # noqa: C901
 
 
 def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
-               project_lbl: str, failed_ids: List[str]) -> None:
+               project_lbl: str, failed_count: int) -> None:
     """Send a raw email notifying target emails of the error.
 
     Args:
@@ -238,13 +238,14 @@ def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
         target_emails: The target email(s)
         group_lbl: Flywheel group label
         project_lbl: Flywheel project label
-        failed_ids: List of identifiers that failed processing
+        failed_count: Number of identifiers that failed processing
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
     subject = f'Legacy identifier transfer failure for {group_lbl}/{project_lbl}'
-    body = 'Failed to transfer the following list of identifiers ' \
-        + f'to project {group_lbl}/{project_lbl}:\n\n {failed_ids}'
+    body = f'Failed to transfer {failed_count} legacy identifiers ' \
+        + f'to project {group_lbl}/{project_lbl}.\n' \
+        + 'Check the job error log for the list of failed IDs.\n'
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
 
@@ -280,12 +281,13 @@ def run(*,
             dry_run=dry_run)
 
         if len(failed_ids) > 0:
+            log.error("List of failed IDs: %s", failed_ids)
             log.error("Number of failed records: %s", len(failed_ids))
             send_email(sender_email=sender_email,
                        target_emails=target_emails,
                        group_lbl=enrollment_project.group,
                        project_lbl=enrollment_project.label,
-                       failed_ids=failed_ids)
+                       failed_count=len(failed_ids))
 
         if not success:
             log.error("Error(s) occurred while importing legacy identifiers")
