@@ -194,7 +194,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             raise GearExecutionError(error) from error
 
         if not identifiers:
-            raise GearExecutionError('Unable to load center participant IDs')
+            raise GearExecutionError(
+                f'Unable to load identifiers for center {group_id} - ADCID {adcid}'
+            )
 
         # Initialize enrollment project adapter
         group = self.proxy.find_group(group_id=group_id)
@@ -223,11 +225,17 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         forms_store = FormsStore(ingest_project=project,
                                  legacy_project=legacy_project)
 
+        sender_email = context.config.get('sender_email',
+                                          'no-reply@naccdata.org')
+        target_emails = context.config.get('target_emails', 'nacchelp@uw.edu')
+        target_emails = [x.strip() for x in target_emails.split(',')]
+
         run(identifiers=identifiers,
             enrollment_project=enrollment_project,
             forms_store=forms_store,
+            sender_email=sender_email,
+            target_emails=target_emails,
             dry_run=self.__dry_run)
-        pass
 
 
 def main():

@@ -52,6 +52,16 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "sender_email": {
+            "description": "Email to send error reports from",
+            "type": "string",
+            "default": "no-reply@naccdata.org"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of emails to send error reports to",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
         }
     },
     "command": "/bin/run"

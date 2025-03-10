@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Mapping, Optional
+from typing import Dict, List, Mapping, Optional
 
 from datastore.forms_store import FormFilter, FormsStore
 from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
@@ -11,6 +11,7 @@ from enrollment.enrollment_transfer import EnrollmentRecord
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
+from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -63,12 +64,13 @@ def validate_and_create_record(
 
 def process_record_collection(record_collection: LegacyEnrollmentCollection,
                               enrollment_project: EnrollmentProject,
-                              dry_run: bool) -> bool:
+                              failed_ids: List[str], dry_run: bool) -> bool:
     """Process a collection of enrollment records.
 
     Args:
         record_collection: Collection of legacy enrollment records to process
         enrollment_project: Project where enrollments will be added
+        failed_ids: List of identifiers that failed processing
         dry_run: If True, simulate execution without making changes
 
     Returns:
@@ -82,25 +84,27 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
             log.error('Missing NACCID for record: %s', record)
             continue
 
-        if not dry_run:
-            try:
-                subject = enrollment_project.add_subject(record.naccid)
-                subject.add_enrollment(record)
-                log.info('Created enrollment for subject %s', record.naccid)
-                success_count += 1
-            except Exception as e:
-                log.error('Failed to create enrollment for %s: %s',
-                          record.naccid, str(e))
-                error_count += 1
-        else:
+        if dry_run:
             log.info('Dry run: would create enrollment for subject %s',
                      record.naccid)
             success_count += 1
+            continue
+
+        try:
+            subject = enrollment_project.add_subject(record.naccid)
+            subject.add_enrollment(record)
+            success_count += 1
+        except Exception as e:
+            log.error('Failed to create enrollment record for %s: %s',
+                      record.naccid, str(e))
+            failed_ids.append(record.naccid)
+            error_count += 1
 
     if error_count:
-        log.error('Failed to process %d records', error_count)
+        log.error('Failed to import %d records', error_count)
 
-    log.info('Successfully processed %d records', success_count)
+    log.info('Successfully imported %d legacy enrollment records',
+             success_count)
     return error_count == 0  # Returns True only if no errors occurred
 
 
@@ -150,6 +154,7 @@ def process_legacy_identifiers(  # noqa: C901
         identifiers: Mapping[str, IdentifierObject],
         enrollment_project: EnrollmentProject,
         forms_store: FormsStore,
+        failed_ids: List[str],
         dry_run: bool = True) -> bool:
     """Process legacy identifiers and create enrollment records.
 
@@ -157,6 +162,7 @@ def process_legacy_identifiers(  # noqa: C901
         identifiers: Dictionary of legacy identifiers
         enrollment_project: Project to add enrollments to
         forms_store: Class to retrieve form data from Flywheel ingest project
+        failed_ids: List of identifiers that failed processing
         dry_run: If True, do not actually add enrollments to Flywheel
 
     Returns:
@@ -183,6 +189,7 @@ def process_legacy_identifiers(  # noqa: C901
                     'Failed to find the enrollment date for NACCID %s PTID %s ADCID %s',
                     naccid, identifier.ptid, identifier.adcid)
                 success = False
+                failed_ids.append(naccid)
                 failed_count += 1
                 continue
 
@@ -190,9 +197,6 @@ def process_legacy_identifiers(  # noqa: C901
                                                 enrollment_date)
             if record:
                 record_collection.add(record)
-                log.info(
-                    'Found legacy enrollment for NACCID %s (ADCID: %s, PTID: %s)',
-                    identifier.naccid, identifier.adcid, identifier.ptid)
         except ValidationError as validation_error:
             for error in validation_error.errors():
                 if error['type'] == 'string_pattern_mismatch':
@@ -205,51 +209,88 @@ def process_legacy_identifiers(  # noqa: C901
                               str(error['loc'][0]), error['msg'],
                               str(error.get('input', '')))
             success = False
+            failed_ids.append(naccid)
             failed_count += 1
 
     if skipped_count > 0:
         log.warning('Number of skipped records: %s', skipped_count)
 
     if failed_count > 0:
-        log.error('Number of failed records: %s', failed_count)
+        log.error('Number of records that failed validation: %s', failed_count)
 
     if not record_collection:
         log.warning('No valid legacy identifiers to process')
         return success
 
-    return process_record_collection(record_collection, enrollment_project,
-                                     dry_run)
+    return success and process_record_collection(
+        record_collection=record_collection,
+        enrollment_project=enrollment_project,
+        failed_ids=failed_ids,
+        dry_run=dry_run)
+
+
+def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
+               project_lbl: str, failed_ids: List[str]) -> None:
+    """Send a raw email notifying target emails of the error.
+
+    Args:
+        sender_email: The sender email
+        target_emails: The target email(s)
+        group_lbl: Flywheel group label
+        project_lbl: Flywheel project label
+        failed_ids: List of identifiers that failed processing
+    """
+    client = EmailClient(client=create_ses_client(), source=sender_email)
+
+    subject = f'Legacy identifier transfer failure for {group_lbl}/{project_lbl}'
+    body = 'Failed to transfer the following list of identifiers ' \
+        + f'to project {group_lbl}/{project_lbl}:\n\n {failed_ids}'
+
+    client.send_raw(destinations=target_emails, subject=subject, body=body)
 
 
 def run(*,
         identifiers: Dict[str, IdentifierObject],
         enrollment_project: EnrollmentProject,
         forms_store: FormsStore,
-        dry_run: bool = True) -> bool:
+        sender_email: str,
+        target_emails: List[str],
+        dry_run: bool = False) -> bool:
     """Runs legacy identifier enrollment process.
 
     Args:
         identifiers: Dictionary of identifier objects from legacy system
         enrollment_project: Project to add enrollments to
         forms_store: Class to retrieve form data from Flywheel ingest project
+        sender_email: The sender email
+        target_emails: The target email(s)
+        dry_run(optional): Whether to do a dry run. Default False
 
     Returns:
         bool: True if processing was successful, False otherwise
     """
 
     try:
+        failed_ids: List[str] = []
         success = process_legacy_identifiers(
             identifiers=identifiers,
             enrollment_project=enrollment_project,
             forms_store=forms_store,
-            dry_run=dry_run,
-        )
+            failed_ids=failed_ids,
+            dry_run=dry_run)
+
+        if len(failed_ids) > 0:
+            log.error("Number of failed records: %s", len(failed_ids))
+            send_email(sender_email=sender_email,
+                       target_emails=target_emails,
+                       group_lbl=enrollment_project.group,
+                       project_lbl=enrollment_project.label,
+                       failed_ids=failed_ids)
 
         if not success:
             log.error("Error(s) occurred while importing legacy identifiers")
             return False
 
-        log.info("Processed %d legacy identifiers", len(identifiers))
     except GearExecutionError as error:
         log.error("Error during gear execution: %s", str(error))
         return False
