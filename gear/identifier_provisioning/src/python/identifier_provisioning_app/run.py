@@ -53,7 +53,8 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                                              context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        admin_id = context.config.get("admin_group", "nacc")
+        admin_id = context.config.get("admin_group",
+                                      DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("database_mode", "prod")
 
         return IdentifierProvisioningVisitor(client=client,
