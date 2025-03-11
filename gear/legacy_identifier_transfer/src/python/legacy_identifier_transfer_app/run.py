@@ -225,9 +225,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         forms_store = FormsStore(ingest_project=project,
                                  legacy_project=legacy_project)
 
-        sender_email = context.config.get('sender_email',
-                                          'no-reply@naccdata.org')
-        target_emails = context.config.get('target_emails', 'nacchelp@uw.edu')
+        sender_email = context.config.get('sender_email', 'nacchelp@uw.edu')
+        target_emails = context.config.get('target_emails', 'nacc_dev@uw.edu')
         target_emails = [x.strip() for x in target_emails.split(',')]
 
         run(identifiers=identifiers,

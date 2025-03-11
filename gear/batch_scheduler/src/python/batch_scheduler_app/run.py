@@ -131,8 +131,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             raise GearExecutionError('Error in parsing batch run configs file '
                                      f'{self.__config_input.filename}')
 
-        sender_email = context.config.get('sender_email',
-                                          'no-reply@naccdata.org')
+        sender_email = context.config.get('sender_email', 'nacchelp@uw.edu')
         target_emails = context.config.get('target_emails', 'nacc_dev@uw.edu')
         target_emails = [x.strip() for x in target_emails.split(',')]
 
