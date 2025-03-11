@@ -74,8 +74,8 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         config = context.config
         ingest_project_label = config.get('ingest_project_label',
                                           'ingest-form')
-        sender_email = config.get('sender_email', 'no-reply@naccdata.org')
-        target_emails = config.get('target_emails', 'nacchelp@uw.edu')
+        sender_email = config.get('sender_email', 'nacchelp@uw.edu')
+        target_emails = config.get('target_emails', 'nacc_dev@uw.edu')
         target_emails = [x.strip() for x in target_emails.split(',')]
 
         return LegacySanityCheckVisitor(

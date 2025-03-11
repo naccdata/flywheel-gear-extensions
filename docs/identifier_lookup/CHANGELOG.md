@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.11
+* Fixes a bug in retrieving module label from file suffix
+  
 ## 1.0.10
-
 * Allows underscore in GUID
   
 ## 1.0.9
