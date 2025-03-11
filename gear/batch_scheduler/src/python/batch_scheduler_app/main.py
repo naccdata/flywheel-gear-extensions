@@ -10,6 +10,7 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import BatchRunInfo, trigger_gear
 from jobs.job_poll import JobPoll
+from notifications.email import EmailClient, create_ses_client
 
 log = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
 
 
 def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
-                        batch_configs: BatchRunInfo):
+                        batch_configs: BatchRunInfo, failed_jobs: List[str]):
     """Schedule the centers in batches depending on the batch mode and batch
     size.
 
@@ -116,6 +117,7 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         proxy: Flywheel proxy
         centers: list of centers to copy data
         batch_configs: batch run configurations
+        failed_jobs: list of failed job IDs
     """
 
     failed_list: List[str] = []
@@ -184,8 +186,28 @@ def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
     return centers_to_copy
 
 
+def send_email(sender_email: str, target_emails: List[str], gear_name: str,
+               failed_count: int) -> None:
+    """Send a raw email notifying target emails of the error.
+
+    Args:
+        sender_email: The sender email
+        target_emails: The target email(s)
+        gear_name: Name of the gear triggered by scheduler
+        failed_count: Number of failed gear jobs
+    """
+    client = EmailClient(client=create_ses_client(), source=sender_email)
+
+    subject = f'Batch Scheduler - One or more {gear_name} gear jobs failed'
+    body = f'Number of {gear_name} gear jobs failed: {failed_count}.' \
+        + 'Check the batch-scheduler error log for the list of failed jobs.\n\n'
+
+    client.send_raw(destinations=target_emails, subject=subject, body=body)
+
+
 def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
-        batch_configs: BatchRunInfo, dry_run: bool):
+        batch_configs: BatchRunInfo, sender_email: str,
+        target_emails: List[str], dry_run: bool):
     """Runs the batch scheduling process.
 
     Args:
@@ -193,6 +215,8 @@ def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
         centers: list of centers to copy data
         time_interval: time interval in days between the runs (input -1 to ignore)
         batch_configs: configurations for batch run
+        sender_email: The sender email for error notification
+        target_emails: The target email(s) to be notified
         dry_run: whether to do a dry run
     """
 
@@ -234,6 +258,18 @@ def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
         log.info('dry run, not running the gear')
         return
 
+    failed_jobs: List[str] = []
     schedule_batch_copy(proxy=proxy,
                         centers=minheap,
-                        batch_configs=batch_configs)
+                        batch_configs=batch_configs,
+                        failed_jobs=failed_jobs)
+
+    if len(failed_jobs) > 0:
+        log.error("List of failed %s gear jobs: %s", batch_configs.gear_name,
+                  failed_jobs)
+        log.error("Number of failed %s gear jobs: %s", batch_configs.gear_name,
+                  len(failed_jobs))
+        send_email(sender_email=sender_email,
+                   target_emails=target_emails,
+                   gear_name=batch_configs.gear_name,
+                   failed_count=len(failed_jobs))

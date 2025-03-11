@@ -66,6 +66,16 @@
             "description": "Time interval in days between the runs (input -1 to ignore)",
             "type": "integer",
             "default": 7
+        },
+        "sender_email": {
+            "description": "Email to send error reports from",
+            "type": "string",
+            "default": "no-reply@naccdata.org"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of emails to send error reports to",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
         }
     },
     "command": "/bin/run"
