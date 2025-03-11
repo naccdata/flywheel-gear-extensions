@@ -244,7 +244,7 @@ def send_email(sender_email: str, target_emails: List[str], gear_name: str,
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
     subject = f'Batch Scheduler - One or more {gear_name} gear jobs failed'
-    body = f'Number of {gear_name} gear jobs failed: {failed_count}.' \
+    body = f'Number of {gear_name} gear jobs failed: {failed_count}.\n' \
         + 'Check the batch-scheduler error log for the list of failed jobs.\n\n'
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
