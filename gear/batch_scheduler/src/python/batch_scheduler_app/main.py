@@ -168,6 +168,8 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
 
         return failed_jobs
 
+    return None
+
 
 def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
                          time_interval: int, gear_name: str) -> List[str]:
