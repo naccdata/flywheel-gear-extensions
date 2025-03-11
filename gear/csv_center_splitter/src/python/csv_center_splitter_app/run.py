@@ -1,6 +1,6 @@
 """Entry script for csv_center_splitter."""
 import logging
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -32,7 +32,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                  target_project: str,
                  include: Set[str],
                  exclude: Set[str],
+                 batch_size: int,
                  staging_project_id: Optional[str] = None,
+                 downstream_gears: Optional[List[str]] = None,
                  delimiter: str = ',',
                  local_run: bool = False):
         super().__init__(client=client)
@@ -43,6 +45,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__staging_project_id = staging_project_id
         self.__include = include
         self.__exclude = exclude
+        self.__batch_size = batch_size
+        self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
         self.__local_run = local_run
 
@@ -78,11 +82,27 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
+        # for including/excluding
         include = set(parse_string_to_list(context.config.get('include', '')))
         exclude = set(parse_string_to_list(context.config.get('exclude', '')))
-        if include.intersection(exclude):
+        if include and exclude and include.intersection(exclude):
             raise GearExecutionError(
                 "Include and exclude lists cannot overlap")
+
+        # for scheduling
+        batch_size = context.config.get('batch_size', 1)
+        downstream_gears = parse_string_to_list(
+            context.config.get('downstream_gears', ''))
+
+        try:
+            batch_size = int(batch_size) if batch_size else None
+            if batch_size is None or batch_size <= 0:
+                raise GearExecutionError()
+
+        except (TypeError, GearExecutionError) as e:
+            raise GearExecutionError(
+                f"Batch size must be a non-negative integer: {batch_size}"
+            ) from e
 
         delimiter = context.config.get('delimiter', ',')
         local_run = context.config.get('local_run', False)
@@ -95,6 +115,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             staging_project_id=staging_project_id,
             include=include,
             exclude=exclude,
+            batch_size=batch_size,
+            downstream_gears=downstream_gears,
             delimiter=delimiter,
             local_run=local_run)
 
@@ -136,7 +158,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
                 adcid_key=self.__adcid_key,
                 target_project=self.__target_project,
+                batch_size=self.__batch_size,
                 staging_project_id=self.__staging_project_id,
+                downstream_gears=self.__downstream_gears,
                 include=centers,
                 delimiter=self.__delimiter)
 

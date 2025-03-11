@@ -205,8 +205,12 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             if response.statusCode != 200:
                 raise IdentifierRepositoryError(response.body)
 
-            response_object = ListResponseObject.model_validate_json(
-                response.body)
+            try:
+                response_object = ListResponseObject.model_validate_json(
+                    response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
             identifier_list += response_object.data
             read_length = len(response_object.data)
             index += limit
