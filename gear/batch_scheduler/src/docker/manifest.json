@@ -2,7 +2,7 @@
     "name": "batch-scheduler",
     "label": "Batch Scheduler",
     "description": "A gear to schedule batch runs of another gear",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/batch-scheduler:1.0.0"
+            "image": "naccdata/batch-scheduler:1.1.0"
         },
         "flywheel": {
             "suite": "Utility",
@@ -70,12 +70,12 @@
         "sender_email": {
             "description": "Email to send error reports from",
             "type": "string",
-            "default": "no-reply@naccdata.org"
+            "default": "nacchelp@uw.edu"
         },
         "target_emails": {
             "description": "Comma-delimited list of emails to send error reports to",
             "type": "string",
-            "default": "nacchelp@uw.edu"
+            "default": "nacc_dev@uw.edu"
         }
     },
     "command": "/bin/run"
