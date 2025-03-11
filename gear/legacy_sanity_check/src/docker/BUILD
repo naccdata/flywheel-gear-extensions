@@ -7,4 +7,4 @@ docker_image(
         ":manifest",
         "gear/legacy_sanity_check/src/python/legacy_sanity_check_app:bin"
     ],
-    image_tags=["0.1.3", "latest"])
+    image_tags=["1.0.0", "latest"])
