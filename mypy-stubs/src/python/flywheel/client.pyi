@@ -152,3 +152,7 @@ class Client:
     # return: JobOutput
     def get_job(self, job_id, **kwargs):
         ...
+
+    # return: InsertedId
+    def retry_job(self, job_id, **kwargs):
+        ...

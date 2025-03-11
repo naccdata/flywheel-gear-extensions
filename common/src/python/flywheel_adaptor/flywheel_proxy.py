@@ -589,6 +589,23 @@ class FlywheelProxy:
         """
         return self.__fw.lookup(f'gears/{gear_name}')
 
+    def retry_job(self, job_id: str) -> Optional[str]:
+        """Retry a job.
+
+        The job must have a state of 'failed', and must not have already been retried.
+
+        Args:
+            job_id: ID of the job to retry
+
+        Returns:
+            Optional[str]: ID of the new job or None
+        """
+        try:
+            return self.__fw.retry_job(job_id)
+        except ApiException as error:
+            log.error('Failed to retry the job %s - %s', job_id, error)
+            return None
+
     def find_job(self, search_str: str, **kwargs) -> Optional[Job]:
         """Find the first Job matching the search string.
 

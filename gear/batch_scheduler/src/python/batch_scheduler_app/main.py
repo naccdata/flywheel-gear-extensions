@@ -1,10 +1,11 @@
 """Defines batch scheduling."""
 
 import logging
+import time
 from datetime import date, timedelta
 from functools import total_ordering
 from heapq import heappop, heappush
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -109,7 +110,7 @@ def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
 
 
 def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
-                        batch_configs: BatchRunInfo, failed_jobs: List[str]):
+                        batch_configs: BatchRunInfo) -> Optional[List[str]]:
     """Schedule the centers in batches depending on the batch mode and batch
     size.
 
@@ -117,7 +118,9 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         proxy: Flywheel proxy
         centers: list of centers to copy data
         batch_configs: batch run configurations
-        failed_jobs: list of failed job IDs
+
+    Returns:
+        Optional[List[str]]: list of failed job IDs if any
     """
 
     failed_list: List[str] = []
@@ -152,8 +155,18 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
         batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
 
     if len(failed_list) > 0:
-        log.error('Failed %s gear jobs: %s', len(failed_list),
+        log.error('Retrying %s failed gear jobs: %s', len(failed_list),
                   str(failed_list))
+        new_jobs, failed_jobs = retry_failed_jobs(
+            proxy=proxy,
+            failed_ids=failed_list,
+            batch_size=batch_configs.batch_size)
+        if new_jobs:
+            check_batch_run_status(proxy=proxy,
+                                   jobs_list=new_jobs,
+                                   failed_list=failed_jobs)
+
+        return failed_jobs
 
 
 def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
@@ -184,6 +197,36 @@ def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
         centers_to_copy.append(center)
 
     return centers_to_copy
+
+
+def retry_failed_jobs(proxy: FlywheelProxy, failed_ids: List[str],
+                      batch_size: int) -> Tuple[List[str], List[str]]:
+    """Retry the failed jobs.
+
+    Args:
+        proxy: Flywheel proxy object
+        failed_ids: List of failed job IDs to retry
+        batch_size: Number of jobs to retry in one batch
+
+    Returns:
+        Tuple[List[str], List[str]]: List of new job IDs, List of failed retries
+    """
+    new_jobs: List[str] = []
+    failed_retries: List[str] = []
+    num_retried = 0
+    wait_time = (batch_size / 5) * 60
+    for failed_id in failed_ids:
+        new_job = proxy.retry_job(failed_id)
+        if new_job:
+            new_jobs.append(new_job)
+            num_retried += 1
+        else:
+            failed_retries.append(failed_id)
+
+        if num_retried % batch_size == 0:
+            time.sleep(wait_time)  # wait before starting the next batch
+
+    return new_jobs, failed_retries
 
 
 def send_email(sender_email: str, target_emails: List[str], gear_name: str,
@@ -258,13 +301,11 @@ def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
         log.info('dry run, not running the gear')
         return
 
-    failed_jobs: List[str] = []
-    schedule_batch_copy(proxy=proxy,
-                        centers=minheap,
-                        batch_configs=batch_configs,
-                        failed_jobs=failed_jobs)
+    failed_jobs = schedule_batch_copy(proxy=proxy,
+                                      centers=minheap,
+                                      batch_configs=batch_configs)
 
-    if len(failed_jobs) > 0:
+    if failed_jobs and len(failed_jobs) > 0:
         log.error("List of failed %s gear jobs: %s", batch_configs.gear_name,
                   failed_jobs)
         log.error("Number of failed %s gear jobs: %s", batch_configs.gear_name,
