@@ -1,30 +1,39 @@
 {
-    "name": "legacy-identifier-transfer",
-    "label": "Legacy Identifier Transfer",
-    "description": "Handles retrieving legacy NACCIDs from identifiers-api and provisioning identifiers in Flywheel.",
-    "version": "1.1.2",
+    "name": "batch-scheduler",
+    "label": "Batch Scheduler",
+    "description": "A gear to schedule batch runs of another gear",
+    "version": "1.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
     "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions/legacy_identifier_transfer",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
     },
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/legacy-identifier-transfer:1.1.2"
+            "image": "naccdata/batch-scheduler:1.1.0"
         },
         "flywheel": {
-            "suite": "NACC Admin Gears",
+            "suite": "Utility",
             "show-job": true
         }
     },
     "inputs": {
         "api-key": {
             "base": "api-key"
+        },
+        "batch_configs_file": {
+            "description": "A JSON file with batch run configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -33,25 +42,30 @@
             "type": "boolean",
             "default": false
         },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
         "admin_group": {
             "description": "Name of the admin group",
             "type": "string",
             "default": "nacc"
         },
-        "identifiers_mode": {
-            "description": "Whether to retrieve identifiers from dev or prod database",
+        "exclude_centers": {
+            "description": "Comma separated list of centers to exclude from batch run",
             "type": "string",
-            "default": "prod"
+            "optional": true
         },
-        "legacy_ingest_label": {
-            "description": "Legacy ingest project label in Flywheel",
+        "exclude_studies": {
+            "description": "Comma separated list of study suffixes to exclude from batch run",
             "type": "string",
-            "default": "retrospective-form"
+            "optional": true
         },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
+        "time_interval": {
+            "description": "Time interval in days between the runs (input -1 to ignore)",
+            "type": "integer",
+            "default": 7
         },
         "sender_email": {
             "description": "Email to send error reports from",

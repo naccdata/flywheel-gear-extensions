@@ -68,7 +68,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         queue_tags = parse_string_to_list(context.config.get(
             'queue_tags', None),
                                           to_lower=False)
-        source_email = context.config.get('source_email', None)
+        source_email = context.config.get('source_email', 'nacchelp@uw.edu')
 
         portal_url = None
         if source_email:

@@ -2,7 +2,7 @@
     "name": "legacy-sanity-check",
     "label": "Legacy Sanity Check",
     "description": "Runs sanity checks on legacy ingest projects",
-    "version": "0.1.3",
+    "version": "1.0.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/legacy-sanity-check:0.1.3"
+            "image": "naccdata/legacy-sanity-check:1.0.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -54,12 +54,12 @@
         "sender_email": {
             "description": "Email to send error reports from",
             "type": "string",
-            "default": "no-reply@naccdata.org"
+            "default": "nacchelp@uw.edu"
         },
         "target_emails": {
             "description": "Comma-delimited list of emails to send error reports to",
             "type": "string",
-            "default": "nacchelp@uw.edu"
+            "default": "nacc_dev@uw.edu"
         },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",

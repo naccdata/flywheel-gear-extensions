@@ -1,0 +1,16 @@
+{
+    "source": "retrospective-form",
+    "target": "accepted",
+    "substitute": true,
+    "batch_mode": "files",
+    "batch_size": 100000,
+    "gear_name": "duplicate-aware-project-copy",
+    "gear_configs": {
+        "debug": false,
+        "destination_project": "{{target}}",
+        "duplicate_check_projects": "{{target}}",
+        "modified_match_fields": "file.hash",
+        "required_match_fields": "file.name, file.hash",
+        "tag_to_copy": "file-validator-PASS"
+    }
+}
