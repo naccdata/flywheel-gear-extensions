@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, RootModel
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
 NACCID_PATTERN = r"^NACC\d{6}$"
-PTID_PATTERN = r"^[a-zA-Z0-9-]{1,10}$"
+PTID_PATTERN = r"^.{1,10}$"  # Relaxing PTID format only to check max length
 
 
 class GUIDField(BaseModel):
