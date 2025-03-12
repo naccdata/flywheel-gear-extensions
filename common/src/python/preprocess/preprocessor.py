@@ -78,15 +78,18 @@ class FormPreprocessor():
             bool: True if packet code is valid
         """
 
-        version = input_record[FieldNames.FORMVER]
-        if version not in module_configs.versions:
+        version = float(input_record[FieldNames.FORMVER])
+        accepted_versions = [
+            float(version) for version in module_configs.versions
+        ]
+        if version not in accepted_versions:
             log.error('%s - %s/%s',
                       preprocess_errors[SysErrorCodes.INVALID_VERSION], module,
                       version)
             self.__error_writer.write(
                 preprocessing_error(
                     field=FieldNames.PACKET,
-                    value=version,
+                    value=str(version),
                     line=line_num,
                     error_code=SysErrorCodes.INVALID_VERSION,
                     ptid=input_record[FieldNames.PTID],
