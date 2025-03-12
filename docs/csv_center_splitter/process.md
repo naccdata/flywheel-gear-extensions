@@ -29,8 +29,8 @@ flowchart LR
         A@{ shape: rect, label: "CSV" } -- Identifier Lookup --> B@{ shape: rect, label: "CSV\nw/ADCID" }
     end
     subgraph center/distribution
-        B -- Split by\nADCID --> C@{ shape: processes, label: "center\nCSVs" }
-        C -- Split by\nNACCID --> D@{ shape: processes, label: "participant\nJSON" }
+        B -- Split by ADCID --> C@{ shape: processes, label: "center\nCSVs" }
+        C -- Split by NACCID --> D@{ shape: processes, label: "participant\nJSON" }
         D -- import --> E@{ shape: processes, label: "file\nmetadata" }
     end
 ```
