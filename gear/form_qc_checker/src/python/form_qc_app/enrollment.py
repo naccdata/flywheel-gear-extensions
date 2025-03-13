@@ -140,7 +140,8 @@ class EnrollmentFormVisitor(CSVVisitor):
                 empty_fields, line_num))
             if self.__validator:
                 self.__processor.update_visit_error_log(input_record=row,
-                                                        qc_passed=False)
+                                                        qc_passed=False,
+                                                        reset_metadata=True)
             return False
 
         valid = True
