@@ -5,6 +5,7 @@ flywheel-gear-toolkit>=0.2
 flywheel-sdk==19.4.0 # setting to 19.4.0 until sites updated to 20.x
 fw-client>=0.7.0
 fw-utils>=3
+inflection>=0.5.1
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]>=5.0.15
 pandas>=2.1.1
