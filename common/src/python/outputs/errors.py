@@ -56,7 +56,7 @@ preprocess_errors = {
     "Provided FORMVER is not in the list of " +
     "accepted versions for this module",
     SysErrorCodes.INVALID_PTID:
-    "PTID must be string of non-whitespace, printable characters max length of 10",
+    "PTID must be no more than 10 characters",
     SysErrorCodes.INVALID_MODULE:
     "Provided MODULE is not in the list of currently accepted modules",
     SysErrorCodes.MISSING_IVP:

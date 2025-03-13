@@ -13,6 +13,8 @@ from csv import DictReader
 from io import StringIO
 from typing import Any, Dict, List, Mapping, Optional
 
+from configs.ingest_configs import FormProjectConfigs
+from datastore.forms_store import FormsStore
 from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -26,6 +28,7 @@ from outputs.errors import (
     unknown_field_error,
 )
 from outputs.outputs import CSVWriter
+from preprocess.preprocessor import FormPreprocessor
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.processor import FileProcessor
@@ -180,13 +183,14 @@ class CSVFileProcessor(FileProcessor):
         self.__input: Optional[InputFileWrapper] = None
 
     def validate_input(
-            self, *,
-            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
+            self, *, input_wrapper: InputFileWrapper,
+            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
         """Validates a CSV input file. Check whether all required fields are
         present in the header and the first data row.
 
         Args:
             input_wrapper: Wrapper object for gear input file
+            form_configs: Form ingest configurations
 
         Returns:
             Dict[str, Any]: None if required info missing, else first row as dict
@@ -209,7 +213,27 @@ class CSVFileProcessor(FileProcessor):
 
             file_obj.seek(0)
             reader = DictReader(file_obj)
-            return next(reader)
+            first_row = next(reader)
+
+            preprocessor = FormPreprocessor(
+                primary_key=self._pk_field,
+                forms_store=FormsStore(ingest_project=self._project,
+                                       legacy_project=None),
+                module_info=form_configs.module_configs,
+                error_writer=self._error_writer)
+
+            module_configs = form_configs.module_configs.get(self._module)
+            if not module_configs:
+                raise GearExecutionError(
+                    f'No configurations found for module {self._module}')
+            if not preprocessor.is_accepted_version(
+                    input_record=first_row,
+                    module=self._module,
+                    module_configs=module_configs,
+                    line_num=1):
+                return None
+
+            return first_row
 
     def load_schema_definitions(
         self, rule_def_loader: DefinitionsLoader, input_data: Dict[str, Any]

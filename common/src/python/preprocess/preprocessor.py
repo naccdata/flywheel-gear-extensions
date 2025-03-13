@@ -62,9 +62,9 @@ class FormPreprocessor():
 
         return True
 
-    def __is_accepted_version(self, *, input_record: Dict[str, Any],
-                              module: str, module_configs: ModuleConfigs,
-                              line_num: int) -> bool:
+    def is_accepted_version(self, *, input_record: Dict[str, Any], module: str,
+                            module_configs: ModuleConfigs,
+                            line_num: int) -> bool:
         """Validate whether the provided version matches with an expected
         version for the module.
 
@@ -75,7 +75,7 @@ class FormPreprocessor():
             line_num: line number in CSV file
 
         Returns:
-            bool: True if packet code is valid
+            bool: True if form version is valid
         """
 
         version = float(input_record[FieldNames.FORMVER])
@@ -87,13 +87,13 @@ class FormPreprocessor():
                       preprocess_errors[SysErrorCodes.INVALID_VERSION], module,
                       version)
             self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.PACKET,
-                    value=str(version),
-                    line=line_num,
-                    error_code=SysErrorCodes.INVALID_VERSION,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM]))
+                preprocessing_error(field=FieldNames.FORMVER,
+                                    value=str(version),
+                                    line=line_num,
+                                    error_code=SysErrorCodes.INVALID_VERSION,
+                                    ptid=input_record.get(FieldNames.PTID),
+                                    visitnum=input_record.get(
+                                        FieldNames.VISITNUM)))
             return False
 
         return True
@@ -768,10 +768,10 @@ class FormPreprocessor():
         log.info('Running preprocessing checks for subject %s/%s', subject_lbl,
                  module)
 
-        if not self.__is_accepted_version(module_configs=module_configs,
-                                          module=module,
-                                          input_record=input_record,
-                                          line_num=line_num):
+        if not self.is_accepted_version(module_configs=module_configs,
+                                        module=module,
+                                        input_record=input_record,
+                                        line_num=line_num):
             return False
 
         if not self.__is_accepted_packet(module_configs=module_configs,
