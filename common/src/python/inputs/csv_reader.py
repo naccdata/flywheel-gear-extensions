@@ -80,7 +80,10 @@ def read_csv(*,
     # visitor should handle errors for invalid headers/rows
     headers = list(reader.fieldnames)
     if not preserve_case:
-        headers = [x.strip().lower().replace(' ', '_') for x in headers]
+        headers = [
+            x.strip().lower().replace(' ', '_').replace('-', '_')
+            for x in headers
+        ]
 
     success = visitor.visit_header(headers)
     if not success:
