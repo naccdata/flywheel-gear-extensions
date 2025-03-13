@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from csv import DictReader, Error
 from typing import Any, Dict, List, Optional, TextIO
 
-import inflection
 from outputs.errors import (
     ErrorWriter,
     ListErrorWriter,
@@ -82,7 +81,8 @@ def read_csv(*,
     headers = list(reader.fieldnames)
     if not preserve_case:
         headers = [
-            inflection.underscore(x.strip()).replace(' ', '_') for x in headers
+            x.strip().lower().replace(' ', '_').replace('-', '_')
+            for x in headers
         ]
 
     success = visitor.visit_header(headers)
@@ -93,7 +93,8 @@ def read_csv(*,
         for count, record in enumerate(reader):
             if not preserve_case:
                 record = {
-                    inflection.underscore(key.strip()).replace(' ', '_'): value
+                    key.strip().lower().replace(' ', '_').replace('-', '_'):
+                    value
                     for key, value in record.items()
                 }
 
