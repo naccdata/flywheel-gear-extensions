@@ -87,7 +87,7 @@ def notify_upload_errors():
 def run(*, proxy: FlywheelProxy, hierarchy_client: HierarchyCreationClient,
         input_file: TextIO, destination: ProjectAdaptor,
         environment: Dict[str, Any], template_map: UploadTemplateInfo,
-        error_writer: ErrorWriter) -> bool:
+        error_writer: ErrorWriter, preserve_case: bool) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.
 
@@ -97,6 +97,7 @@ def run(*, proxy: FlywheelProxy, hierarchy_client: HierarchyCreationClient,
         environment: dictionary of variables describing environment for labels
         template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
+        preserve_case: Whether or not to preserve header case
     Returns:
         bool: True if upload successful
     """
@@ -111,6 +112,7 @@ def run(*, proxy: FlywheelProxy, hierarchy_client: HierarchyCreationClient,
                               project=destination,
                               template_map=template_map,
                               environment=environment),
-                          error_writer=error_writer))
+                          error_writer=error_writer),
+                      preserve_case=preserve_case)
 
     return result
