@@ -231,7 +231,8 @@ def run(  # noqa: C901
                                           error_writer=error_writer,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
+    input_data = file_processor.validate_input(
+        input_wrapper=input_wrapper, form_configs=form_project_configs)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,
