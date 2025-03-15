@@ -72,8 +72,7 @@ def case_stream():
     """Create data stream with different case headeres."""
     data: List[List[str | int]] = [[
         'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
-        "CAPITAL VAR WITH SPACES ", "mixedCase-TestIO-whatever",
-        "3RD"
+        "CAPITAL VAR WITH SPACES ", "mixedCase-TestIO-whatever", "3RD"
     ], [1, '1', 8, 9, 10, 11]]
     stream = StringIO()
     write_to_stream(data, stream)
