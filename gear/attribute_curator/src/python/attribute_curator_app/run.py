@@ -3,8 +3,6 @@
 import logging
 from typing import List, Optional
 
-from attribute_curator.main import CurationType, run
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -13,10 +11,12 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
-    InputFileWrapper
+    InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from utils.utils import parse_string_to_list
+
+from attribute_curator_app.main import CurationType, run
 
 log = logging.getLogger(__name__)
 
@@ -24,13 +24,9 @@ log = logging.getLogger(__name__)
 class AttributeCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self,
-                 client: ClientWrapper,
-                 project: ProjectAdaptor,
-                 derive_rules: InputFileWrapper,
-                 date_key: str,
-                 acquisition_labels: List[str],
-                 curation_type: CurationType):
+    def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
+                 derive_rules: InputFileWrapper, date_key: str,
+                 acquisition_labels: List[str], curation_type: CurationType):
         super().__init__(client=client)
         self.__project = project
         self.__derive_rules = derive_rules
@@ -67,13 +63,15 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         derive_rules = InputFileWrapper.create(input_name='derive_rules',
                                                context=context)
+        if not derive_rules:
+            raise GearExecutionError("Derive rules CSV required")
+
         fw_project = derive_rules.get_parent_project(proxy=proxy)
 
         if not fw_project:
             raise GearExecutionError("Destination project not found")
 
-        project = ProjectAdaptor(project=fw_project,
-                                 proxy=proxy)
+        project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         try:
             curation_type = CurationType(

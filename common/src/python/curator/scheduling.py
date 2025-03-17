@@ -12,14 +12,11 @@ from scheduling.min_heap import MinHeap
 
 from curator.form_curator import FormCurator
 
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
-
 log = logging.getLogger(__name__)
 
 C = TypeVar('C', bound=FormCurator)
 
 
-# TODO - need to generalize for non-UDS cases (e.g. SCAN)
 class FileModel(BaseModel):
     """Defines data model for columns returned from the project form curator
     data model.
@@ -60,11 +57,8 @@ class ProjectCurationScheduler:
         self.__heap_map = heap_map
 
     @classmethod
-    def create(cls,
-               project: ProjectAdaptor,
-               date_key: str,
-               acquisition_labels: List[str],
-               supplement_labels: Optional[List[str]] = None) -> 'ProjectCurationScheduler':
+    def create(cls, project: ProjectAdaptor, date_key: str,
+               acquisition_labels: List[str]) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -73,31 +67,32 @@ class ProjectCurationScheduler:
           project: the project
           date_key: Date key to order forms by
           acquisition_labels: Acquisition labels to filter by
-          supplement_labels: Supplement labels to ADD to 
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
         filter_str = None
         if acquisition_labels:
-            filter_str = f'acquisition.label=|[{''.join(x.strip()
-                                                for x in acquisition_labels)}]'
+            acqs = ''.join(x.strip() for x in acquisition_labels)
+            filter_str = f'acquisition.label=|[{acqs}]'
 
-        builder = make_builder(
-            label='form-curation-scheduling',
-            description='Lists form files for curation',
-            columns=[
-                ColumnModel(data_key="file.name", label="filename"),
-                ColumnModel(data_key="file.file_id", label="file_id"),
-                ColumnModel(data_key="file.parents.acquisition",
-                            label="acquisition_id"),
-                ColumnModel(data_key="file.parents.subject",
-                            label="subject_id"),
-                ColumnModel(data_key=date_key,
-                            label="order_date")
-            ],
-            container='acquisition',
-            filename="*.json",
-            filter_str=filter_str)
+        builder = make_builder(label='form-curation-scheduling',
+                               description='Lists form files for curation',
+                               columns=[
+                                   ColumnModel(data_key="file.name",
+                                               label="filename"),
+                                   ColumnModel(data_key="file.file_id",
+                                               label="file_id"),
+                                   ColumnModel(
+                                       data_key="file.parents.acquisition",
+                                       label="acquisition_id"),
+                                   ColumnModel(data_key="file.parents.subject",
+                                               label="subject_id"),
+                                   ColumnModel(data_key=date_key,
+                                               label="order_date")
+                               ],
+                               container='acquisition',
+                               filename="*.json",
+                               filter_str=filter_str)
         view = builder.build()
 
         with project.read_dataview(view) as response:

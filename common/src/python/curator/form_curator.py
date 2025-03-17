@@ -1,15 +1,10 @@
 import logging
-from abc import abstractmethod
-from typing import Any, Dict, Optional
 
-from dates.dates import get_localized_timestamp
-from files.form import Form
-from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
-from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel_gear_toolkit.context.context import GearToolkitContext
-from flywheel_gear_toolkit.utils.curator import Curator
+from nacc_attribute_deriver.attribute_deriver import NACCAttributeDeriver
+from nacc_attribute_deriver.symbol_table import SymbolTable
 
 log = logging.getLogger(__name__)
 
@@ -17,8 +12,7 @@ log = logging.getLogger(__name__)
 class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self,
-                 context: GearToolKitContext,
+    def __init__(self, context: GearToolkitContext,
                  deriver: NACCAttributeDeriver) -> None:
         self.__context = context
         self.__deriver = deriver
@@ -34,12 +28,14 @@ class FormCurator:
         parents_subject = file_entry.parents.get("subject")
         return self.__context.client.get_subject(parents_subject)
 
-    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+    def get_table(self, subject: Subject,
+                  file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.
 
         In it's most basic form, just grabs file.info and subject.info;
         more specific subclasses should grab additional information as
-        needed (e.g. for UDS also needs to grab a corresponding NP form.)
+        needed (e.g. for UDS also needs to grab a corresponding NP
+        form.)
         """
         # need to reload since info isn't automatically loaded
         subject = subject.reload()
@@ -55,8 +51,8 @@ class FormCurator:
         """Applies the curated information back to FW.
 
         In its most basic form, grabs subject.info and copies it back up
-        to the subject. Subclasses that may need to apply additional data
-        should override as needed.
+        to the subject. Subclasses that may need to apply additional
+        data should override as needed.
         """
         subject.update(info=table.get('subject.info', {}))
 
@@ -77,21 +73,22 @@ class FormCurator:
 class UDSFormCurator(FormCurator):
     """UDS Form curator - also needs to grab NP."""
 
-    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+    def get_table(self, subject: Subject,
+                  file_entry: FileEntry) -> SymbolTable:
         """Get table - also needs to grab NP data."""
         table = super().get_table(subject, file_entry)
-        
+
         # TODO: easier way to find?
-        for session in subject.sessions():
+        for session in subject.sessions():  # type: ignore
             if session.label.startswith('NP-'):
                 # only one NP form
                 acq = session.acquisitions()
                 assert len(acq) == 1 and len(acq[0].files) == 1, \
                     f"More than one NP form found for {subject.label}"
-                np_form = self.__context.client.get_file(acq[0].files[0].file_id).info
+                np_form = self.__context.client.get_file(
+                    acq[0].files[0].file_id).info
                 table['file.info.np'] = np_form['forms']['json']
                 return table
 
         log.warning(f"No NP form found for {subject.label}")
         return table
-
