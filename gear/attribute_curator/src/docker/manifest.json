@@ -46,6 +46,15 @@
             "description": "Comma-deliminated string of acquisition labels to filter by; if not provided, curates over all acquisitions",
             "type": "string",
             "default": ""
+        },
+        "curation_type": {
+            "description": "Curation type - determines curation gear",
+            "type": "string",
+            "default": "general",
+            "enum": [
+                "general",
+                "uds",
+            ]
         }
     },
     "command": "/bin/run"

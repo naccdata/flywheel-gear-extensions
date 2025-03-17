@@ -3,7 +3,7 @@
 import logging
 from typing import List, Optional
 
-from attribute_curator.main import run
+from attribute_curator.main import CurationType, run
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -29,12 +29,14 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
                  project: ProjectAdaptor,
                  derive_rules: InputFileWrapper,
                  date_key: str,
-                 acquisition_labels: List[str]):
+                 acquisition_labels: List[str],
+                 curation_type: CurationType):
         super().__init__(client=client)
         self.__project = project
         self.__derive_rules = derive_rules
         self.__date_key = date_key
         self.__acquisition_labels = acquisition_labels
+        self.__curation_type = curation_type
 
     @classmethod
     def create(
@@ -73,11 +75,18 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         project = ProjectAdaptor(project=fw_project,
                                  proxy=proxy)
 
+        try:
+            curation_type = CurationType(
+                context.config.get('curation_type', 'General'))
+        except ValueError as error:
+            raise GearExecutionError(error) from error
+
         return AttributeCuratorVisitor(client=client,
                                        project=project,
                                        derive_rules=derive_rules,
                                        date_key=date_key,
-                                       acquisition_labels=acquisition_labels)
+                                       acquisition_labels=acquisition_labels,
+                                       curation_type=curation_type)
 
     def run(self, context: GearToolkitContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group,
@@ -87,7 +96,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             project=self.__project,
             derive_rules=self.__derive_rules,
             date_key=self.__date_key,
-            acquisition_labels=self.__acquisition_labels)
+            acquisition_labels=self.__acquisition_labels,
+            curation_type=self.__curation_type)
 
 
 def main():

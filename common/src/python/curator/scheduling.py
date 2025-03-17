@@ -63,7 +63,8 @@ class ProjectCurationScheduler:
     def create(cls,
                project: ProjectAdaptor,
                date_key: str,
-               acquisition_labels: List[str]) -> 'ProjectCurationScheduler':
+               acquisition_labels: List[str],
+               supplement_labels: Optional[List[str]] = None) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -72,6 +73,7 @@ class ProjectCurationScheduler:
           project: the project
           date_key: Date key to order forms by
           acquisition_labels: Acquisition labels to filter by
+          supplement_labels: Supplement labels to ADD to 
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """

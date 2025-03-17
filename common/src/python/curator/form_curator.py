@@ -46,9 +46,9 @@ class FormCurator:
         file_entry = file_entry.reload()
 
         # add the metadata
-        table = SymbolTable()
-        table.update(subject.info)
-        table.update(file_entry.info)
+        table = SymbolTable({})
+        table['subject.info'] = subject.info
+        table['file.info'] = file_entry.info
         return table
 
     def apply_curation(self, subject: Subject, table: SymbolTable) -> None:
@@ -72,3 +72,26 @@ class FormCurator:
 
         self.__deriver.curate(table)
         self.apply_curation(subject, table)
+
+
+class UDSFormCurator(FormCurator):
+    """UDS Form curator - also needs to grab NP."""
+
+    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+        """Get table - also needs to grab NP data."""
+        table = super().get_table(subject, file_entry)
+        
+        # TODO: easier way to find?
+        for session in subject.sessions():
+            if session.label.startswith('NP-'):
+                # only one NP form
+                acq = session.acquisitions()
+                assert len(acq) == 1 and len(acq[0].files) == 1, \
+                    f"More than one NP form found for {subject.label}"
+                np_form = self.__context.client.get_file(acq[0].files[0].file_id).info
+                table['file.info.np'] = np_form['forms']['json']
+                return table
+
+        log.warning(f"No NP form found for {subject.label}")
+        return table
+
