@@ -47,13 +47,17 @@ class FormCurator:
         table['file.info'] = file_entry.info
         return table
 
-    def apply_curation(self, subject: Subject, table: SymbolTable) -> None:
+    def apply_curation(self,
+                       subject: Subject,
+                       file_entry: FileEntry,
+                       table: SymbolTable) -> None:
         """Applies the curated information back to FW.
 
-        In its most basic form, grabs subject.info and copies it back up
-        to the subject. Subclasses that may need to apply additional
-        data should override as needed.
+        In its most basic form, grabs file.info.derived subject.info and copies
+        it back up to the file/subject. Subclasses that may need to apply
+        additional data should override as needed.
         """
+        file_entry.update(info=table.get('file.info.derived', {}))
         subject.update(info=table.get('subject.info', {}))
 
     def curate_container(self, file_entry: FileEntry):
@@ -67,7 +71,7 @@ class FormCurator:
         table = self.get_table(subject, file_entry)
 
         self.__deriver.curate(table)
-        self.apply_curation(subject, table)
+        self.apply_curation(subject, file_entry, table)
 
 
 class UDSFormCurator(FormCurator):

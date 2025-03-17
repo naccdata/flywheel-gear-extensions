@@ -99,8 +99,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
 
 def main():
-    """Main method for UDS Curator."""
-
+    """Main method for Attribute Curator."""
     GearEngine().run(gear_type=AttributeCuratorVisitor)
 
 
