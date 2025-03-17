@@ -12,23 +12,25 @@ from scheduling.min_heap import MinHeap
 
 from curator.form_curator import FormCurator
 
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+
 log = logging.getLogger(__name__)
 
 C = TypeVar('C', bound=FormCurator)
 
 
+# TODO - need to generalize for non-UDS cases (e.g. SCAN)
 class FileModel(BaseModel):
     """Defines data model for columns returned from the project form curator
     data model.
 
-    Objects are ordered by visit date.
+    Objects are ordered by order date.
     """
     filename: str
     file_id: str
     acquisition_id: str
     subject_id: str
-    module: str
-    visitdate: date
+    order_date: date
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, FileModel):
@@ -40,10 +42,7 @@ class FileModel(BaseModel):
         if not isinstance(other, FileModel):
             return False
 
-        if self.module == 'UDS' and other.module != 'UDS':
-            return False
-
-        return self.visitdate < other.visitdate
+        return self.order_date < other.order_date
 
 
 class ViewResponseModel(BaseModel):
@@ -51,7 +50,7 @@ class ViewResponseModel(BaseModel):
     data: List[FileModel]
 
 
-class ProjectFormCurator:
+class ProjectCurationScheduler:
     """Defines a curator for applying a FormCurator to the files in a
     project."""
 
@@ -61,16 +60,26 @@ class ProjectFormCurator:
         self.__heap_map = heap_map
 
     @classmethod
-    def create(cls, project: ProjectAdaptor) -> 'ProjectFormCurator':
-        """Creates a ProjectFormCurator for the projects.
+    def create(cls,
+               project: ProjectAdaptor,
+               date_key: str,
+               acquisition_labels: List[str]) -> 'ProjectCurationScheduler':
+        """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
 
         Args:
           project: the project
+          date_key: Date key to order forms by
+          acquisition_labels: Acquisition labels to filter by
         Returns:
-          the ProjectFormCurator for the form files in the project
+          the ProjectCurationScheduler for the form files in the project
         """
+        filter_str = None
+        if acquisition_labels:
+            filter_str = f'acquisition.label=|[{''.join(x.strip()
+                                                for x in acquisition_labels)}]'
+
         builder = make_builder(
             label='form-curation-scheduling',
             description='Lists form files for curation',
@@ -81,15 +90,12 @@ class ProjectFormCurator:
                             label="acquisition_id"),
                 ColumnModel(data_key="file.parents.subject",
                             label="subject_id"),
-                ColumnModel(data_key="file.info.forms.json.module",
-                            label="module"),
-                ColumnModel(data_key='file.info.forms.json.visitdate',
-                            label="visitdate")
+                ColumnModel(data_key=date_key,
+                            label="order_date")
             ],
             container='acquisition',
             filename="*.json",
-            filter_str='acquisition.label=|[UDS]')
-        # filter_str='file.classification.type=|[UDS,LBD,FTLD]')
+            filter_str=filter_str)
         view = builder.build()
 
         with project.read_dataview(view) as response:
@@ -112,8 +118,8 @@ class ProjectFormCurator:
             heap.push(file_info)
             subject_heap_map[file_info.subject_id] = heap
 
-        return ProjectFormCurator(proxy=project.proxy,
-                                  heap_map=subject_heap_map)
+        return ProjectCurationScheduler(proxy=project.proxy,
+                                        heap_map=subject_heap_map)
 
     def __compute_cores(self) -> int:
         """Attempts to compute the number of cores available for processes.
@@ -149,7 +155,6 @@ class ProjectFormCurator:
             Args:
               heap: the min heap of file model objects
             """
-            log.info('In curate_subject()')
             while len(heap) > 0:
                 file_info = heap.pop()
                 if not file_info:
@@ -159,17 +164,17 @@ class ProjectFormCurator:
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
         # TODO: get multiprocessing working. Didn't update metadata
-        process_count = max(4, self.__compute_cores())
-        with multiprocessing.Pool(processes=process_count) as pool:
-            for subject_id, heap in self.__heap_map.items():
-                log.info("Curating files for subject %s", subject_id)
-                pool.apply_async(curate_subject, (heap, ))
-            pool.close()
-            pool.join()
+        # process_count = max(4, self.__compute_cores())
+        # with Pool(processes=process_count) as pool:
+        #     for subject_id, heap in self.__heap_map.items():
+        #         log.info("Curating files for subject %s", subject_id)
+        #         pool.apply_async(curate_subject, (heap, ))
+        #     pool.close()
+        #     pool.join()
 
-        # for subject_id, heap in self.__heap_map.items():
-        #     log.info("Curating files for subject %s", subject_id)
-        #     curate_subject(heap)
+        for subject_id, heap in self.__heap_map.items():
+            log.info("Curating files for subject %s", subject_id)
+            curate_subject(heap)
 
 
 class ProjectCurationError(Exception):

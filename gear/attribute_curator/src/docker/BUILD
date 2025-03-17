@@ -3,6 +3,6 @@ file(name="manifest", source="manifest.json")
 docker_image(name="uds-curator",
              source="Dockerfile",
              dependencies=[
-                 ":manifest", "gear/uds_curator/src/python/uds_curator_app:bin"
+                 ":manifest", "gear/attribute_curator/src/python/attribute_curator:bin"
              ],
-             image_tags=["0.0.14", "latest"])
+             image_tags=["0.0.1", "latest"])

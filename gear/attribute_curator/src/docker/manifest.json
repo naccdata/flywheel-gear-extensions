@@ -1,8 +1,8 @@
 {
-    "name": "uds-curator",
-    "label": "UDS Curator",
-    "description": "Curation of UDS derived data for MQT project",
-    "version": "0.0.14",
+    "name": "attribute-curator",
+    "label": "Attribute Curator",
+    "description": "Curation of derived data for MQT project",
+    "version": "0.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/uds-curator:0.0.14"
+            "image": "naccdata/attribute-curator:0.0.1"
         },
         "flywheel": {
             "suite": "Curation",
@@ -33,6 +33,19 @@
             "description": "Whether to do a dry run",
             "type": "boolean",
             "default": false
+        },
+        "derive_rules": {
+            "description": "CSV file containing the derivation rules",
+            "type": "string"
+        },
+        "date_key": {
+            "description": "Date key to order data by",
+            "type": "string"
+        },
+        "acquisition_labels": {
+            "description": "Comma-deliminated string of acquisition labels to filter by; if not provided, curates over all acquisitions",
+            "type": "string",
+            "default": ""
         }
     },
     "command": "/bin/run"
