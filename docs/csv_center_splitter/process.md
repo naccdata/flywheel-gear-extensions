@@ -11,14 +11,9 @@ This is the general framework for handling CSV files for one or both of these pu
 
 The basic steps are the following
 
-1. Ingest: 
-   1. 
-   2. Within study ingest project
-      
-   3. 
-2. Within center/project
-   1. Split rows in center-specific CSV by NACCID to create JSON file attached to subject
-   2. 
+1. Ingest CSV file
+2. Split CSV file by center
+3. Split center-specific files by subject
 
 And, are discussed in more detail below
 
