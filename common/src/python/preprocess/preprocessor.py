@@ -116,6 +116,8 @@ class FormPreprocessor():
         """
 
         if not module_configs.optional_forms:
+            log.warning('Optional forms information not defined for module %s',
+                        module)
             return True
 
         version = float(input_record[FieldNames.FORMVER])
@@ -125,18 +127,10 @@ class FormPreprocessor():
             version=str(version), packet=packet)
 
         if not optional_forms:
-            log.error('%s - %s/%s/%s',
-                      preprocess_errors[SysErrorCodes.MISSING_OPTIONAL_FORMS],
-                      module, version, packet)
-            self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.PACKET,
-                    value=packet,
-                    line=line_num,
-                    error_code=SysErrorCodes.MISSING_OPTIONAL_FORMS,
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM)))
-            return False
+            log.warning(
+                'Optional forms information not available for %s/%s/%s',
+                module, version, packet)
+            return True
 
         found_all = True
         missing_vars = []

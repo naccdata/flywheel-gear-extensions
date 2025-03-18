@@ -77,8 +77,6 @@ preprocess_errors = {
     SysErrorCodes.LOWER_VISITNUM:
     "Packet with higher visit date (VISITDATE) " +
     "must also have a higher visit number (VISITNUM)",
-    SysErrorCodes.MISSING_OPTIONAL_FORMS:
-    "Cannot find the list of optional forms for the given form version and packet",
     SysErrorCodes.MISSING_SUBMISSION_STATUS:
     "Missing submission status (MODE<form name> variable) for one or more optional form"
 }
