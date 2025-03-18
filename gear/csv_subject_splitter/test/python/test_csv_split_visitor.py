@@ -105,10 +105,11 @@ class MockUploader(JSONUploader):
                                                    Any]]] = defaultdict(list)
         self.__skip_duplicates = skip_duplicates
 
-    def upload_record(self,
-                      subject_label: str,
-                      record: Dict[str, Any],
-                      ) -> None:
+    def upload_record(
+        self,
+        subject_label: str,
+        record: Dict[str, Any],
+    ) -> None:
 
         if self.__skip_duplicates and record in self.__records[subject_label]:
             return
