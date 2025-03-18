@@ -13,6 +13,7 @@ from outputs.errors import (
     missing_header_error,
     partially_failed_file_error,
 )
+from utils.snakecase import snakecase
 
 
 class CSVVisitor(ABC):
@@ -80,10 +81,7 @@ def read_csv(*,
     # visitor should handle errors for invalid headers/rows
     headers = list(reader.fieldnames)
     if not preserve_case:
-        headers = [
-            x.strip().lower().replace(' ', '_').replace('-', '_')
-            for x in headers
-        ]
+        headers = [snakecase(x.strip()) for x in headers]
 
     success = visitor.visit_header(headers)
     if not success:
@@ -93,8 +91,7 @@ def read_csv(*,
         for count, record in enumerate(reader):
             if not preserve_case:
                 record = {
-                    key.strip().lower().replace(' ', '_').replace('-', '_'):
-                    value
+                    snakecase(key.strip()): value
                     for key, value in record.items()
                 }
 
