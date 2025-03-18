@@ -205,4 +205,4 @@ class TestCSVReader:
         assert visitor.header == \
             ['adcid', 'ptid', 'var1', "capitalvar",
              "var_with_spaces", "capital_var_with_spaces",
-             "mixedcase_testio_whatever", "3rd"]
+             "mixed_case_test_io_whatever", "3rd"]
