@@ -96,8 +96,7 @@ class UDSFormCurator(FormCurator):
                 acq = session.acquisitions()
                 assert len(acq) == 1 and len(acq[0].files) == 1, \
                     f"More than one NP form found for {subject.label}"
-                np_form = self.client.get_file(
-                    acq[0].files[0].file_id).info
+                np_form = self.client.get_file(acq[0].files[0].file_id).info
                 table['file.info.np'] = np_form['forms']['json']
                 return table
 
