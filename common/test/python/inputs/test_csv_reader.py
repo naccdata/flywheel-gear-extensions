@@ -72,7 +72,7 @@ def case_stream():
     """Create data stream with different case headeres."""
     data: List[List[str | int]] = [[
         'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
-        "CAPITAL VAR WITH SPACES"
+        "CAPITAL VAR WITH SPACES ", "mixedCase-TestIO-whatever", "3RD"
     ], [1, '1', 8, 9, 10, 11]]
     stream = StringIO()
     write_to_stream(data, stream)
@@ -186,7 +186,8 @@ class TestCSVReader:
         assert empty(err_stream)
         assert visitor.header == \
             ['adcid', 'ptid', 'var1', "CAPITALVAR",
-             "var with spaces", "CAPITAL VAR WITH SPACES"]
+             "var with spaces", "CAPITAL VAR WITH SPACES ",
+             "mixedCase-TestIO-whatever", "3RD"]
 
     def test_preserve_case_false(self, case_stream):
         """Test preserve case is False."""
@@ -203,4 +204,5 @@ class TestCSVReader:
         assert empty(err_stream)
         assert visitor.header == \
             ['adcid', 'ptid', 'var1', "capitalvar",
-             "var_with_spaces", "capital_var_with_spaces"]
+             "var_with_spaces", "capital_var_with_spaces",
+             "mixed_case_test_io_whatever", "3rd"]

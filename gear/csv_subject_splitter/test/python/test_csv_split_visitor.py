@@ -68,6 +68,18 @@ def visit_data_stream(valid_visit_table):
     yield stream
 
 
+@pytest.fixture(scope="function")
+def visit_data_stream_duplicates(valid_visit_table):
+    """Create mock data stream with duplicates."""
+    data = valid_visit_table
+    for _ in range(3):
+        data.append(data[-1])
+
+    stream = StringIO()
+    write_to_stream(data, stream)
+    yield stream
+
+
 @pytest.fixture(scope="module")
 def valid_non_visit_table():
     yield [['module', 'formver', 'naccid', 'visitdate', 'dummy-var'],
@@ -88,13 +100,25 @@ def non_visit_data_stream(valid_non_visit_table):
 
 class MockUploader(JSONUploader):
 
-    def __init__(self):
+    def __init__(self, skip_duplicates: bool = True):
         self.__records: DefaultDict[str, List[Dict[str,
                                                    Any]]] = defaultdict(list)
+        self.__skip_duplicates = skip_duplicates
 
-    def upload_record(self, subject_label: str, record: Dict[str,
-                                                             Any]) -> None:
+    def upload_record(
+        self,
+        subject_label: str,
+        record: Dict[str, Any],
+    ) -> None:
+
+        if self.__skip_duplicates and record in self.__records[subject_label]:
+            return
+
         self.__records[subject_label].append(record)
+
+    @property
+    def records(self):
+        return self.__records
 
 
 class MockSubject(SubjectAdaptor):
@@ -171,3 +195,24 @@ class TestCSVSplitVisitor:
 
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
+
+    def test_duplicates(self, visit_data_stream_duplicates):
+        """Test uploading duplicate visits only results in 1 record."""
+        err_stream = StringIO()
+        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy/dummy')
+        uploader = MockUploader()
+        visitor = CSVSplitVisitor(req_fields=['naccid'],
+                                  uploader=uploader,
+                                  project=MockProject(),
+                                  error_writer=error_writer)
+
+        no_errors = read_csv(input_file=visit_data_stream_duplicates,
+                             error_writer=error_writer,
+                             visitor=visitor)
+
+        assert no_errors, "expect no errors"
+        assert empty(err_stream), "expect error stream to be empty"
+        assert len(uploader.records) == 1
