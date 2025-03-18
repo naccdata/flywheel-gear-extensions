@@ -263,13 +263,13 @@ class SubjectAdaptor:
             acquisition = session.add_acquisition(label=acquisition_label)
 
         return upload_to_acquisition(acquisition=acquisition,
-                                         filename=filename,
-                                         contents=contents,
-                                         content_type=content_type,
-                                         subject_label=self.label,
-                                         session_label=session_label,
-                                         acquisition_label=acquisition_label,
-                                         skip_duplicates=skip_duplicates)
+                                     filename=filename,
+                                     contents=contents,
+                                     content_type=content_type,
+                                     subject_label=self.label,
+                                     session_label=session_label,
+                                     acquisition_label=acquisition_label,
+                                     skip_duplicates=skip_duplicates)
 
     def get_acquisition_file_name(self,
                                   *,

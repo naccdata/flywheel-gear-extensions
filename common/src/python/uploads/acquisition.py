@@ -51,15 +51,14 @@ def is_duplicate_record(record1: str,
     # TODO: Handle other content types
 
 
-def upload_to_acquisition(
-        acquisition: Acquisition,
-        filename: str,
-        contents: str,
-        content_type: str,
-        subject_label: str,
-        session_label: str,
-        acquisition_label: str,
-        skip_duplicates: bool = True) -> Optional[FileEntry]:
+def upload_to_acquisition(acquisition: Acquisition,
+                          filename: str,
+                          contents: str,
+                          content_type: str,
+                          subject_label: str,
+                          session_label: str,
+                          acquisition_label: str,
+                          skip_duplicates: bool = True) -> Optional[FileEntry]:
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
         if existing_file and is_duplicate_record(

@@ -157,13 +157,13 @@ class JSONUploader:
             record, environment=self.__environment)
 
         upload_to_acquisition(acquisition=acquisition,
-                                  filename=filename,
-                                  contents=json.dumps(record),
-                                  content_type='application/json',
-                                  subject_label=subject_label,
-                                  session_label=session_label,
-                                  acquisition_label=acquisition_label,
-                                  skip_duplicates=self.__skip_duplicates)
+                              filename=filename,
+                              contents=json.dumps(record),
+                              content_type='application/json',
+                              subject_label=subject_label,
+                              session_label=session_label,
+                              acquisition_label=acquisition_label,
+                              skip_duplicates=self.__skip_duplicates)
 
 
 class FormJSONUploader:
