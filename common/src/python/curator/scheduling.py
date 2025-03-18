@@ -127,43 +127,37 @@ class ProjectFormCurator:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self, curator: FormCurator) -> None:
-        """Applies a FormCurator to the form files in this curator.
+    def _curate_subject(self, heap: MinHeap[FileModel],
+                        curator: FormCurator) -> None:
+        """Defines a task function for curating the files captured in the heap.
 
-        Builds a curator of the type given with the context to avoid shared
-        state across curators.
+        Assumes the files are all under the same participant.
 
         Args:
-          curator_type: a FormCurator subclass
-          context: the gear context
+          heap: the min heap of file model objects for the participant
+          curator: a FormCurator subclass
         """
 
-        def curate_subject(heap: MinHeap[FileModel]) -> None:
-            """Defines a task function for curating the files captured in the
-            heap.
+        while len(heap) > 0:
+            file_info = heap.pop()
+            if not file_info:
+                continue
+            file_entry = self.__proxy.get_file(file_info.file_id)
+            curator.curate_container(file_entry)
 
-            Uses the context of the outer apply method to create the curator.
+    def apply(self, curator: FormCurator) -> None:
+        """Applies a FormCurator to the form files in this project.
 
-            Assumes the files are all under the sample user.
-
-            Args:
-              heap: the min heap of file model objects
-            """
-            log.info('In curate_subject()')
-            while len(heap) > 0:
-                file_info = heap.pop()
-                if not file_info:
-                    continue
-                file_entry = self.__proxy.get_file(file_info.file_id)
-                curator.curate_container(file_entry)
+        Args:
+          curator: a FormCurator subclass
+        """
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
-        # TODO: get multiprocessing working. Didn't update metadata
         process_count = max(4, self.__compute_cores())
         with multiprocessing.Pool(processes=process_count) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)
-                pool.apply_async(curate_subject, (heap, ))
+                pool.apply_async(self._curate_subject, (heap, curator))
             pool.close()
             pool.join()
 
