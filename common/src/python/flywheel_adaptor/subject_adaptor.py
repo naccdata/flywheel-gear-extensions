@@ -15,7 +15,7 @@ from flywheel.rest import ApiException
 from keys.keys import FieldNames, MetadataKeys
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
-from utils.utils import handle_acquisition_upload
+from uploads.acquisition import handle_acquisition_upload
 
 log = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
-from utils.utils import is_duplicate_dict
+from uploads.acquisition import is_duplicate_dict
 
 log = logging.getLogger(__name__)
 

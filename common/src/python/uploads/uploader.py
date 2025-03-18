@@ -24,7 +24,9 @@ from outputs.errors import (
     update_error_log_and_qc_metadata,
 )
 from pydantic import BaseModel, Field
-from utils.utils import handle_acquisition_upload, update_file_info_metadata
+from utils.utils import update_file_info_metadata
+
+from uploads.acquisition import handle_acquisition_upload
 
 log = logging.getLogger(__name__)
 
