@@ -15,7 +15,7 @@ from flywheel.rest import ApiException
 from keys.keys import FieldNames, MetadataKeys
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
-from uploads.acquisition import handle_acquisition_upload
+from uploads.acquisition import upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -262,7 +262,7 @@ class SubjectAdaptor:
                 'creating a new acquisition', acquisition_label, session_label)
             acquisition = session.add_acquisition(label=acquisition_label)
 
-        return handle_acquisition_upload(acquisition=acquisition,
+        return upload_to_acquisition(acquisition=acquisition,
                                          filename=filename,
                                          contents=contents,
                                          content_type=content_type,

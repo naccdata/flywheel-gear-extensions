@@ -26,7 +26,7 @@ from outputs.errors import (
 from pydantic import BaseModel, Field
 from utils.utils import update_file_info_metadata
 
-from uploads.acquisition import handle_acquisition_upload
+from uploads.acquisition import upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +98,8 @@ class JSONUploader:
                  project: ProjectAdaptor,
                  hierarchy_client: HierarchyCreationClient,
                  environment: Optional[Dict[str, Any]] = None,
-                 template_map: UploadTemplateInfo) -> None:
+                 template_map: UploadTemplateInfo,
+                 skip_duplicates: bool = True) -> None:
         self.__proxy = proxy
         self.__project = project
         self.__hierarchy_client = hierarchy_client
@@ -106,6 +107,7 @@ class JSONUploader:
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
         self.__environment = environment if environment else {}
+        self.__skip_duplicates = skip_duplicates
 
     def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
@@ -123,10 +125,8 @@ class JSONUploader:
 
         return success
 
-    def upload_record(self,
-                      subject_label: str,
-                      record: Dict[str, Any],
-                      skip_duplicates: bool = True) -> None:
+    def upload_record(self, subject_label: str, record: Dict[str,
+                                                             Any]) -> None:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
@@ -156,14 +156,14 @@ class JSONUploader:
         filename = self.__filename_template.instantiate(
             record, environment=self.__environment)
 
-        handle_acquisition_upload(acquisition=acquisition,
+        upload_to_acquisition(acquisition=acquisition,
                                   filename=filename,
                                   contents=json.dumps(record),
                                   content_type='application/json',
                                   subject_label=subject_label,
                                   session_label=session_label,
                                   acquisition_label=acquisition_label,
-                                  skip_duplicates=skip_duplicates)
+                                  skip_duplicates=self.__skip_duplicates)
 
 
 class FormJSONUploader:

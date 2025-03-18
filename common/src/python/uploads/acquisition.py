@@ -51,7 +51,7 @@ def is_duplicate_record(record1: str,
     # TODO: Handle other content types
 
 
-def handle_acquisition_upload(
+def upload_to_acquisition(
         acquisition: Acquisition,
         filename: str,
         contents: str,
