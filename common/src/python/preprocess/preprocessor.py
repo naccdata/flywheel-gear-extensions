@@ -98,6 +98,72 @@ class FormPreprocessor():
 
         return True
 
+    def __check_optional_forms_status(self, *, input_record: Dict[str, Any],
+                                      module: str,
+                                      module_configs: ModuleConfigs,
+                                      line_num: int) -> bool:
+        """Validate whether the submission status filled for optional forms for
+        the respective module/version/packet.
+
+        Args:
+            module: module label
+            module_configs: module configurations
+            input_record: input record
+            line_num: line number in CSV file
+
+        Returns:
+            bool: True if submission status filled for all optional forms
+        """
+
+        if not module_configs.optional_forms:
+            return True
+
+        version = float(input_record[FieldNames.FORMVER])
+        packet = input_record[FieldNames.PACKET]
+
+        optional_forms = module_configs.optional_forms.get_optional_forms(
+            version=str(version), packet=packet)
+
+        if not optional_forms:
+            log.error('%s - %s/%s/%s',
+                      preprocess_errors[SysErrorCodes.MISSING_OPTIONAL_FORMS],
+                      module, version, packet)
+            self.__error_writer.write(
+                preprocessing_error(
+                    field=FieldNames.PACKET,
+                    value=packet,
+                    line=line_num,
+                    error_code=SysErrorCodes.MISSING_OPTIONAL_FORMS,
+                    ptid=input_record.get(FieldNames.PTID),
+                    visitnum=input_record.get(FieldNames.VISITNUM)))
+            return False
+
+        found_all = True
+        missing_vars = []
+        for form in optional_forms:
+            modevar = f'mode{form.lower()}'
+            mode = str(input_record.get(modevar, ''))
+            if not mode.strip():
+                missing_vars.append(modevar)
+                found_all = False
+
+        if not found_all:
+            log.error(
+                '%s - %s/%s/%s - %s',
+                preprocess_errors[SysErrorCodes.MISSING_SUBMISSION_STATUS],
+                module, version, packet, missing_vars)
+            self.__error_writer.write(
+                preprocessing_error(
+                    field='MODExx',
+                    value='',
+                    line=line_num,
+                    error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
+                    ptid=input_record.get(FieldNames.PTID),
+                    visitnum=input_record.get(FieldNames.VISITNUM)))
+            return False
+
+        return True
+
     def __compare_visit_order(self, *, fvp_record: Dict[str, Any],
                               date_field: str, ivp_date: str,
                               ivp_visitnum: str, line_num: int) -> bool:
@@ -778,6 +844,13 @@ class FormPreprocessor():
                                          module=module,
                                          input_record=input_record,
                                          line_num=line_num):
+            return False
+
+        if not self.__check_optional_forms_status(
+                module_configs=module_configs,
+                module=module,
+                input_record=input_record,
+                line_num=line_num):
             return False
 
         if not self.__check_initial_visit(subject_lbl=subject_lbl,
