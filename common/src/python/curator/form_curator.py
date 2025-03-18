@@ -17,6 +17,10 @@ class FormCurator:
         self.__context = context
         self.__deriver = deriver
 
+    @property
+    def client(self):
+        return self.__context.client
+
     def get_subject(self, file_entry: FileEntry) -> Subject:
         """Get the subject for the file entry.
 
@@ -26,7 +30,7 @@ class FormCurator:
           the Subject for the file entry
         """
         parents_subject = file_entry.parents.get("subject")
-        return self.__context.client.get_subject(parents_subject)
+        return self.client.get_subject(parents_subject)
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
@@ -59,9 +63,9 @@ class FormCurator:
         subject_info = table.get('subject.info')
 
         if derived_file_info:
-            file_entry.update(info={'derived': derived_file_info})
+            file_entry.update_info({'derived': derived_file_info})
         if subject_info:
-            subject.update(info=subject_info)
+            subject.update_info(subject_info)
 
     def curate_container(self, file_entry: FileEntry):
         """Curate the given container.
@@ -92,7 +96,7 @@ class UDSFormCurator(FormCurator):
                 acq = session.acquisitions()
                 assert len(acq) == 1 and len(acq[0].files) == 1, \
                     f"More than one NP form found for {subject.label}"
-                np_form = self.__context.client.get_file(
+                np_form = self.client.get_file(
                     acq[0].files[0].file_id).info
                 table['file.info.np'] = np_form['forms']['json']
                 return table
