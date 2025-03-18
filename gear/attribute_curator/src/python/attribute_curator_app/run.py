@@ -1,8 +1,12 @@
 """Entry script for UDS Curator."""
 
 import logging
+from enum import Enum
+from pathlib import Path
 from typing import Optional
 
+from curator.form_curator import FormCurator, UDSFormCurator
+from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -14,10 +18,17 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 
-from attribute_curator_app.main import CurationType, run
+from attribute_curator_app.main import run
 
 log = logging.getLogger(__name__)
+
+
+class CurationType(str, Enum):
+
+    GENERAL = 'general'
+    UDS = 'uds'
 
 
 class AttributeCuratorVisitor(GearExecutionEnvironment):
@@ -88,12 +99,29 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group,
                  self.__project.label)
 
-        run(context=context,
-            project=self.__project,
-            derive_rules=self.__derive_rules,
-            date_key=self.__date_key,
-            filename_pattern=self.__filename_pattern,
-            curation_type=self.__curation_type)
+        deriver = AttributeDeriver(date_key=self.__date_key,
+                                   rules_file=Path(
+                                       self.__derive_rules.filepath))
+
+        #             TODO: this is kind of a hack, and mostly just done
+        # to distinguish when we need to grab an NP form for UDS
+        # - will require us to add to this list/factory for each
+        # distinguishable curation type though. better way to
+        # generalize?
+        if self.__curation_type.value == CurationType.UDS:
+            curator = UDSFormCurator(context=context, deriver=deriver)
+        else:
+            curator = FormCurator(context=context, deriver=deriver)
+
+        try:
+            scheduler = ProjectCurationScheduler.create(
+                project=self.__project,
+                date_key=self.__date_key,
+                filename_pattern=self.__filename_pattern)
+        except ProjectCurationError as error:
+            raise GearExecutionError(error) from error
+
+        run(curator=curator, scheduler=scheduler)
 
 
 def main():
