@@ -34,7 +34,7 @@ class SiteTable:
         Returns:
           a wrapper object for the data frame or None if no center id column
         """
-        table_data = pd.read_csv(object_data)
+        table_data = pd.read_csv(object_data, dtype=object)
 
         if 'ADCID' in table_data.columns:
             site_id_name = 'ADCID'
