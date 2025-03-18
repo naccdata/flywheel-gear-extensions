@@ -33,12 +33,14 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the csv-subject-splitter app."""
 
     def __init__(self, client: ClientWrapper, device_key: str,
-                 file_input: InputFileWrapper,
-                 hierarchy_labels: Dict[str, str]) -> None:
+                 file_input: InputFileWrapper, hierarchy_labels: Dict[str,
+                                                                      str],
+                 preserve_case: bool) -> None:
         self.__client = client
         self.__device_key = device_key
         self.__file_input = file_input
         self.__hierarchy_labels = hierarchy_labels
+        self.__preserve_case = preserve_case
 
     @classmethod
     def create(
@@ -83,10 +85,13 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             raise GearExecutionError(f"Failed to load JSON string: {error}") \
                 from error
 
+        preserve_case = context.config.get("preserve_case", False)
+
         return CsvToJsonVisitor(client=client,
                                 device_key=device_key,
                                 file_input=file_input,
-                                hierarchy_labels=hierarchy_labels)
+                                hierarchy_labels=hierarchy_labels,
+                                preserve_case=preserve_case)
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the CSV to JSON Transformer app.
@@ -118,7 +123,8 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                                                      proxy=proxy),
                           environment={'filename': self.__file_input.basename},
                           template_map=template_map,
-                          error_writer=error_writer)
+                          error_writer=error_writer,
+                          preserve_case=self.__preserve_case)
 
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name='validation',
@@ -151,7 +157,7 @@ def main():
     """Gear main method to transform CSV where row is participant data to set
     of JSON files, one per participant."""
 
-    GearEngine().run(gear_type=CsvToJsonVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=CsvToJsonVisitor)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 import yaml
 from flywheel.file_spec import FileSpec
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -26,6 +25,8 @@ from outputs.errors import (
 )
 from pydantic import BaseModel, Field
 from utils.utils import update_file_info_metadata
+
+from uploads.acquisition import upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +98,8 @@ class JSONUploader:
                  project: ProjectAdaptor,
                  hierarchy_client: HierarchyCreationClient,
                  environment: Optional[Dict[str, Any]] = None,
-                 template_map: UploadTemplateInfo) -> None:
+                 template_map: UploadTemplateInfo,
+                 skip_duplicates: bool = True) -> None:
         self.__proxy = proxy
         self.__project = project
         self.__hierarchy_client = hierarchy_client
@@ -105,6 +107,7 @@ class JSONUploader:
         self.__acquisition_template = template_map.acquisition
         self.__filename_template = template_map.filename
         self.__environment = environment if environment else {}
+        self.__skip_duplicates = skip_duplicates
 
     def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
@@ -122,8 +125,8 @@ class JSONUploader:
 
         return success
 
-    def upload_record(self, *, subject_label: str, record: Dict[str,
-                                                                Any]) -> None:
+    def upload_record(self, subject_label: str, record: Dict[str,
+                                                             Any]) -> None:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
@@ -131,7 +134,7 @@ class JSONUploader:
           subject: the subject
           record: the record data
         Raises:
-          UploaderError if a failure occurs during the upload
+          UploaderError or ApiException if a failure occurs during the upload
         """
         session_label = self.__session_template.instantiate(record)
         acquisition_label = self.__acquisition_template.instantiate(record)
@@ -151,16 +154,15 @@ class JSONUploader:
             file_ancestors.acquisition_id)  # type: ignore
         filename = self.__filename_template.instantiate(
             record, environment=self.__environment)
-        record_file_spec = FileSpec(name=filename,
-                                    contents=json.dumps(record),
-                                    content_type='application/json')
-        try:
-            acquisition.upload_file(record_file_spec)
-        except ApiException as error:
-            raise UploaderError(
-                f'Failed to upload file {filename} to '
-                f'{subject_label}/{session_label}/{acquisition_label}: {error}'
-            ) from error
+
+        upload_to_acquisition(acquisition=acquisition,
+                              filename=filename,
+                              contents=json.dumps(record),
+                              content_type='application/json',
+                              subject_label=subject_label,
+                              session_label=session_label,
+                              acquisition_label=acquisition_label,
+                              skip_duplicates=self.__skip_duplicates)
 
 
 class FormJSONUploader:
