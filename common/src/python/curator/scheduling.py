@@ -87,8 +87,6 @@ class ProjectCurationScheduler:
                                ],
                                container='acquisition',
                                filename=filename_pattern)
-                               # this seems to not work well/reliably on regex, crashes? use filename pattern instead
-                               #filter_str=filter_str)
         view = builder.build()
 
         with project.read_dataview(view) as response:

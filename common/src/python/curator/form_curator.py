@@ -47,15 +47,13 @@ class FormCurator:
         table['file.info'] = file_entry.info
         return table
 
-    def apply_curation(self,
-                       subject: Subject,
-                       file_entry: FileEntry,
+    def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.
 
-        In its most basic form, grabs file.info.derived subject.info and copies
-        it back up to the file/subject. Subclasses that may need to apply
-        additional data should override as needed.
+        In its most basic form, grabs file.info.derived subject.info and
+        copies it back up to the file/subject. Subclasses that may need
+        to apply additional data should override as needed.
         """
         derived_file_info = table.get('file.info.derived')
         subject_info = table.get('subject.info')

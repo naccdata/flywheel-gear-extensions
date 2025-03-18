@@ -1,7 +1,7 @@
 """Entry script for UDS Curator."""
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -14,7 +14,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from utils.utils import parse_string_to_list
 
 from attribute_curator_app.main import CurationType, run
 

@@ -1,8 +1,6 @@
 """Defines Attribute Curator."""
-
 import logging
 from enum import Enum
-from typing import List
 from pathlib import Path
 
 from curator.form_curator import FormCurator, UDSFormCurator
@@ -25,8 +23,8 @@ class CurationType(str, Enum):
 
 
 def run(context: GearToolkitContext, project: ProjectAdaptor,
-        derive_rules: InputFileWrapper, date_key: str,
-        filename_pattern: str, curation_type: CurationType) -> None:
+        derive_rules: InputFileWrapper, date_key: str, filename_pattern: str,
+        curation_type: CurationType) -> None:
     """Runs the Attribute Curator process.
 
     Args:
