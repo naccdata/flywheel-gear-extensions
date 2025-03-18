@@ -3,6 +3,7 @@
 import logging
 from enum import Enum
 from typing import List
+from pathlib import Path
 
 from curator.form_curator import FormCurator, UDSFormCurator
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -25,7 +26,7 @@ class CurationType(str, Enum):
 
 def run(context: GearToolkitContext, project: ProjectAdaptor,
         derive_rules: InputFileWrapper, date_key: str,
-        acquisition_labels: List[str], curation_type: CurationType) -> None:
+        filename_pattern: str, curation_type: CurationType) -> None:
     """Runs the Attribute Curator process.
 
     Args:
@@ -33,7 +34,7 @@ def run(context: GearToolkitContext, project: ProjectAdaptor,
         project: The project to be curated over
         deriver_rules: CSV file containing the derivation rules
         date_key: Date key to order data by
-        acquisition_labels: Acquisition labels to filter by
+        filename_pattern: Filename pattern to match on
         curation_type: Whether or not this is an UDS form
             TODO: this is kind of a hack, and mostly just done
             to distinguish when we need to grab an NP form for UDS
@@ -41,7 +42,8 @@ def run(context: GearToolkitContext, project: ProjectAdaptor,
             distinguishable curation type though. better way to
             generalize?
     """
-    deriver = AttributeDeriver(date_key=date_key, rules_file=derive_rules)
+    deriver = AttributeDeriver(date_key=date_key,
+                               rules_file=Path(derive_rules.filepath))
 
     if curation_type.value == CurationType.UDS:
         curator = UDSFormCurator(context=context, deriver=deriver)
@@ -52,7 +54,7 @@ def run(context: GearToolkitContext, project: ProjectAdaptor,
         scheduler = ProjectCurationScheduler.create(
             project=project,
             date_key=date_key,
-            acquisition_labels=acquisition_labels)
+            filename_pattern=filename_pattern)
     except ProjectCurationError as error:
         raise GearExecutionError(error) from error
 

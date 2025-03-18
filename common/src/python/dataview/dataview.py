@@ -36,4 +36,5 @@ def make_builder(*,
                           include_ids=False,
                           include_labels=False,
                           error_column=False)
-    return builder.missing_data_strategy('drop-row')
+    builder.missing_data_strategy('drop-row')
+    return builder

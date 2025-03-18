@@ -58,7 +58,7 @@ class ProjectCurationScheduler:
 
     @classmethod
     def create(cls, project: ProjectAdaptor, date_key: str,
-               acquisition_labels: List[str]) -> 'ProjectCurationScheduler':
+               filename_pattern: str) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -66,17 +66,12 @@ class ProjectCurationScheduler:
         Args:
           project: the project
           date_key: Date key to order forms by
-          acquisition_labels: Acquisition labels to filter by
+          filename_pattern: Filename pattern to match on
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
-        filter_str = None
-        if acquisition_labels:
-            acqs = ''.join(x.strip() for x in acquisition_labels)
-            filter_str = f'acquisition.label=|[{acqs}]'
-
-        builder = make_builder(label='form-curation-scheduling',
-                               description='Lists form files for curation',
+        builder = make_builder(label='attribute-curation-scheduling',
+                               description='Lists files for curation',
                                columns=[
                                    ColumnModel(data_key="file.name",
                                                label="filename"),
@@ -91,8 +86,9 @@ class ProjectCurationScheduler:
                                                label="order_date")
                                ],
                                container='acquisition',
-                               filename="*.json",
-                               filter_str=filter_str)
+                               filename=filename_pattern)
+                               # this seems to not work well/reliably on regex, crashes? use filename pattern instead
+                               #filter_str=filter_str)
         view = builder.build()
 
         with project.read_dataview(view) as response:
@@ -158,6 +154,7 @@ class ProjectCurationScheduler:
                     continue
                 file_entry = self.__proxy.get_file(file_info.file_id)
                 curator.curate_container(file_entry)
+            raise ValueError("TODO: stop for testing")
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
         # TODO: get multiprocessing working. Didn't update metadata

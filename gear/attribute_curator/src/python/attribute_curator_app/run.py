@@ -26,12 +26,12 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
     def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
                  derive_rules: InputFileWrapper, date_key: str,
-                 acquisition_labels: List[str], curation_type: CurationType):
+                 filename_pattern: str, curation_type: CurationType):
         super().__init__(client=client)
         self.__project = project
         self.__derive_rules = derive_rules
         self.__date_key = date_key
-        self.__acquisition_labels = acquisition_labels
+        self.__filename_pattern = filename_pattern
         self.__curation_type = curation_type
 
     @classmethod
@@ -58,8 +58,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         if not date_key:
             raise GearExecutionError("Date key required")
 
-        acquisition_labels = parse_string_to_list(
-            context.config.get('acquisition_labels', None))
+        filename_pattern = context.config.get('filename_pattern', "*.json")
 
         derive_rules = InputFileWrapper.create(input_name='derive_rules',
                                                context=context)
@@ -83,7 +82,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
                                        project=project,
                                        derive_rules=derive_rules,
                                        date_key=date_key,
-                                       acquisition_labels=acquisition_labels,
+                                       filename_pattern=filename_pattern,
                                        curation_type=curation_type)
 
     def run(self, context: GearToolkitContext) -> None:
@@ -94,7 +93,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             project=self.__project,
             derive_rules=self.__derive_rules,
             date_key=self.__date_key,
-            acquisition_labels=self.__acquisition_labels,
+            filename_pattern=self.__filename_pattern,
             curation_type=self.__curation_type)
 
 

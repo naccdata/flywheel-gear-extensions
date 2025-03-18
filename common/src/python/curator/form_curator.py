@@ -3,7 +3,7 @@ import logging
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel_gear_toolkit.context.context import GearToolkitContext
-from nacc_attribute_deriver.attribute_deriver import NACCAttributeDeriver
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
 log = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
     def __init__(self, context: GearToolkitContext,
-                 deriver: NACCAttributeDeriver) -> None:
+                 deriver: AttributeDeriver) -> None:
         self.__context = context
         self.__deriver = deriver
 
@@ -57,8 +57,13 @@ class FormCurator:
         it back up to the file/subject. Subclasses that may need to apply
         additional data should override as needed.
         """
-        file_entry.update(info=table.get('file.info.derived', {}))
-        subject.update(info=table.get('subject.info', {}))
+        derived_file_info = table.get('file.info.derived')
+        subject_info = table.get('subject.info')
+
+        if derived_file_info:
+            file_entry.update(info={'derived': derived_file_info})
+        if subject_info:
+            subject.update(info=subject_info)
 
     def curate_container(self, file_entry: FileEntry):
         """Curate the given container.

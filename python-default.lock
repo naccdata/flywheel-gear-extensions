@@ -2003,7 +2003,7 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "9f90d2839fb491a7c550f6ef25d089797aaffa0a3442b8d466a55631d4799822",
+              "hash": "c60a2847c0ec55d24d673637a030237efb790cfaef684fd56364e7ff09ee9e3b",
               "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-0.0.1.dev1-py3-none-any.whl"
             }
           ],

@@ -26,6 +26,15 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
+        },
+        "derive_rules": {
+            "description": "CSV file containing the derivation rules",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data"
+                ]
+            }
         }
     },
     "config": {
@@ -34,18 +43,14 @@
             "type": "boolean",
             "default": false
         },
-        "derive_rules": {
-            "description": "CSV file containing the derivation rules",
-            "type": "string"
-        },
         "date_key": {
             "description": "Date key to order data by",
             "type": "string"
         },
-        "acquisition_labels": {
-            "description": "Comma-deliminated string of acquisition labels to filter by; if not provided, curates over all acquisitions",
+        "filename_pattern": {
+            "description": "Filename pattern to match on",
             "type": "string",
-            "default": ""
+            "default": "*.json"
         },
         "curation_type": {
             "description": "Curation type - determines curation gear",
