@@ -202,6 +202,7 @@ def run(  # noqa: C901
 
     rule_def_loader = DefinitionsLoader(s3_client=s3_client,
                                         error_writer=error_writer,
+                                        module_configs=module_configs,
                                         strict=strict)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)

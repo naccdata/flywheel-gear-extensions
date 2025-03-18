@@ -7,8 +7,9 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
+from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, FieldNames
-from outputs.errors import ListErrorWriter, empty_field_error, system_error
+from outputs.errors import ListErrorWriter, empty_field_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -25,20 +26,21 @@ class DefinitionsLoader:
                  *,
                  s3_client: S3BucketReader,
                  error_writer: ListErrorWriter,
+                 module_configs: ModuleConfigs,
                  strict: bool = True):
         """
 
         Args:
             s3_bucket (S3BucketReader): S3 bucket to load rule definitions
             error_writer: error writer object to output error metadata
+            module_configs: form ingest configs for the module
             strict (optional): Validation mode, defaults to True
         """
 
         self.__s3_bucket = s3_client
         self.__error_writer = error_writer
+        self.__module_configs = module_configs
         self.__strict = strict
-        # optional forms file in S3 bucket
-        self.__opfname = f'{DefaultValues.QC_JSON_DIR}/optional_forms.json'
 
     def __get_s3_prefix(
         self,
@@ -260,25 +262,9 @@ class DefinitionsLoader:
             DefinitionException: If failed to get optional forms submission status
         """
 
-        s3_client = self.__s3_bucket
-        try:
-            optional_forms_def = json.load(s3_client.read_data(self.__opfname))
-        except s3_client.exceptions.NoSuchKey as error:
-            message = (f'Optional forms file {self.__opfname} '
-                       f'not found in S3 bucket {s3_client.bucket_name}')
-            self.__error_writer.write(system_error(message, None))
-            raise DefinitionException(message) from error
-        except s3_client.exceptions.InvalidObjectState as error:
-            message = f'Unable to access optional forms file {self.__opfname}: {error}'
-            self.__error_writer.write(system_error(message, None))
-            raise DefinitionException(message) from error
-        except (JSONDecodeError, TypeError) as error:
-            message = f'Error in reading optional forms file {self.__opfname}: {error}'
-            self.__error_writer.write(system_error(message, None))
-            raise DefinitionException(message) from error
-
-        if not optional_forms_def:
-            log.warning('Optional forms information not defined')
+        if not self.__module_configs.optional_forms:
+            log.warning('Optional forms information not defined for module %s',
+                        module)
             return None
 
         formver = str(float(input_data.get(FieldNames.FORMVER, 0.0)))
@@ -286,33 +272,33 @@ class DefinitionsLoader:
         # some modules may not have separate packet codes, set to 'D' for default
         packet = input_data.get(FieldNames.PACKET, 'D')
 
-        try:
-            optional_forms: List[str] = optional_forms_def[module][formver][
-                packet]
-        except KeyError:
-            log.warning('Optional forms info not available for %s/%s/%s',
-                        module, formver, packet)
+        optional_forms = self.__module_configs.optional_forms.get_optional_forms(
+            version=formver, packet=packet)
+
+        if not optional_forms:
+            log.warning(
+                'Optional forms information not available for %s/%s/%s',
+                module, formver, packet)
             return None
 
         missing = []
         submission_status = {}
         for form in optional_forms:
-            mode_var = f'{FieldNames.MODE}{form}'
-            if not input_data.get(mode_var):
+            mode_var = f'{FieldNames.MODE}{form.lower()}'
+            mode = str(input_data.get(mode_var, ''))
+            if not mode.strip():
                 if self.__strict:
-                    # TODO - change this to qc system error
-                    self.__error_writer.write(empty_field_error(mode_var))
                     missing.append(mode_var)
                 else:
                     submission_status[form] = False
+
                 continue
 
-            submission_status[form] = (int(input_data.get(mode_var, -1))
-                                       != DefaultValues.NOTFILLED)
+            submission_status[form] = (int(mode) != DefaultValues.NOTFILLED)
 
         if missing:
+            self.__error_writer.write(empty_field_error(set(missing)))
             raise DefinitionException(
-                f'Missing fields {missing} required to validate optional forms'
-            )
+                f'Missing optional forms submission status fields {missing}')
 
         return submission_status

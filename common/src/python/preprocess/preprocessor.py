@@ -141,10 +141,10 @@ class FormPreprocessor():
         found_all = True
         missing_vars = []
         for form in optional_forms:
-            modevar = f'mode{form.lower()}'
-            mode = str(input_record.get(modevar, ''))
+            mode_var = f'{FieldNames.MODE}{form.lower()}'
+            mode = str(input_record.get(mode_var, ''))
             if not mode.strip():
-                missing_vars.append(modevar)
+                missing_vars.append(mode_var)
                 found_all = False
 
         if not found_all:
