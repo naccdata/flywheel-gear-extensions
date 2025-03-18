@@ -152,7 +152,6 @@ class ProjectCurationScheduler:
                     continue
                 file_entry = self.__proxy.get_file(file_info.file_id)
                 curator.curate_container(file_entry)
-            raise ValueError("TODO: stop for testing")
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
         # TODO: get multiprocessing working. Didn't update metadata
