@@ -100,16 +100,17 @@ def non_visit_data_stream(valid_non_visit_table):
 
 class MockUploader(JSONUploader):
 
-    def __init__(self):
+    def __init__(self, skip_duplicates: bool = True):
         self.__records: DefaultDict[str, List[Dict[str,
                                                    Any]]] = defaultdict(list)
+        self.__skip_duplicates = skip_duplicates
 
     def upload_record(self,
                       subject_label: str,
                       record: Dict[str, Any],
-                      skip_duplicates: bool = True) -> None:
+                      ) -> None:
 
-        if skip_duplicates and record in self.__records[subject_label]:
+        if self.__skip_duplicates and record in self.__records[subject_label]:
             return
 
         self.__records[subject_label].append(record)

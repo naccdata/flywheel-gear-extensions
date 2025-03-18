@@ -133,7 +133,6 @@ class JSONUploader:
         Args:
           subject: the subject
           record: the record data
-          skip_duplicates: Whether or not to skip duplicates
         Raises:
           UploaderError or ApiException if a failure occurs during the upload
         """
