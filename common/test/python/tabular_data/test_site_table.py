@@ -1,6 +1,7 @@
 """Tests for tabular_data.site_table.SiteTable."""
 import csv
 from io import StringIO
+from typing import Any, List
 
 import pytest
 from tabular_data.site_table import SiteTable
@@ -40,7 +41,8 @@ def adcid_data_stream():
 @pytest.fixture(scope='function')
 def type_data_stream():
     """Create data frame for table column with expected int values."""
-    data = [['ADCID', 'expected_int'], ['4', 1], ['4', 2], ['4', None]]
+    data: List[List[Any]] = [['ADCID', 'expected_int'], ['4', 1], ['4', 2],
+                             ['4', None]]
     stream = StringIO()
     writer = csv.writer(stream,
                         delimiter=',',
