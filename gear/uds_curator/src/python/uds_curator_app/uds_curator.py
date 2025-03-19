@@ -7,8 +7,8 @@ from curator.form_curator import FormCurator
 from curator.symbol_table import SymbolTable
 from files.form import Form
 from files.uds_form import UDSV3Form, datetime_from_form_date
+from flywheel import Client
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit import GearToolkitContext
 
 log = logging.getLogger(__name__)
 # log.setLevel("DEBUG")
@@ -36,8 +36,8 @@ class UDSFileCurator(FormCurator):
       - replace object if session date is newer
     """
 
-    def __init__(self, context: GearToolkitContext) -> None:  # type: ignore
-        super().__init__(context)
+    def __init__(self, sdk_client: Optional[Client] = None) -> None:
+        super().__init__(sdk_client)
         self.__symbol_table = SymbolTable()
 
     def curate_form(self, form: Form) -> None:

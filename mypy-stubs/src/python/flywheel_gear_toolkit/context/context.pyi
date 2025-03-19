@@ -63,6 +63,9 @@ class GearToolkitContext:
     def open_output(self, name: str, mode: str, encoding: str) -> TextIO:
         ...
 
+    def get_client(self) -> Client:
+        ...
+
     @property
     def metadata(self) -> Metadata:
         ...

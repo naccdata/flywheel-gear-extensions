@@ -1,14 +1,13 @@
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from dates.dates import get_localized_timestamp
 from files.form import Form
-from flywheel.models.acquisition import Acquisition
+from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.session import Session
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit.context.context import GearToolkitContext
 from flywheel_gear_toolkit.utils.curator import Curator
 
 log = logging.getLogger(__name__)
@@ -17,8 +16,9 @@ log = logging.getLogger(__name__)
 class FormCurator(Curator):
     """Curator for form files."""
 
-    def __init__(self, context: Optional[GearToolkitContext] = None) -> None:
-        super().__init__(context)  # type: ignore
+    def __init__(self, sdk_client: Optional[Client] = None) -> None:
+        super().__init__()  # type: ignore
+        self.__sdk_client = sdk_client
         self.__file_entry: Optional[FileEntry] = None
 
     def set_file_entry(self, file_entry: Optional[FileEntry]) -> None:
@@ -32,7 +32,9 @@ class FormCurator(Curator):
         """Returns the form for the file entry."""
         return None
 
-    def curate_container(self, file_entry: FileEntry):
+    def curate_container(self, file_id: str):
+        assert self.__sdk_client
+        file_entry = self.__sdk_client.get_file(file_id)
         log.info('curating container %s', file_entry.id)
         self.set_file_entry(file_entry)
         self.curate_file(file_entry)
@@ -70,21 +72,25 @@ class FormCurator(Curator):
         """
         pass
 
-    def get_file(self, file_object: Dict[str, Any]) -> FileEntry:
-        """Get the file entry for the file object.
+    # commenting this out since it's not used anywhere
+    # can't use the gear context object in curator since it's not picklable
+    # doesn't work with multiprocessing
 
-        Args:
-          file_object: JSON data for file
-        Returns:
-          the file entry for the file described
-        """
-        file_hierarchy = file_object.get("hierarchy")
-        assert file_hierarchy
-        acquisition = self.context.get_container_from_ref(file_hierarchy)
-        assert isinstance(acquisition, Acquisition)
+    # def get_file(self, file_object: Dict[str, Any]) -> FileEntry:
+    #     """Get the file entry for the file object.
 
-        filename = self.context.get_input_filename("file-input")
-        return acquisition.get_file(filename)
+    #     Args:
+    #       file_object: JSON data for file
+    #     Returns:
+    #       the file entry for the file described
+    #     """
+    #     file_hierarchy = file_object.get("hierarchy")
+    #     assert file_hierarchy
+    #     acquisition = self.context.get_container_from_ref(file_hierarchy)
+    #     assert isinstance(acquisition, Acquisition)
+
+    #     filename = self.context.get_input_filename("file-input")
+    #     return acquisition.get_file(filename)
 
     def get_session(self, file_entry: FileEntry) -> Session:
         """Get the session for the file entry.
@@ -94,10 +100,10 @@ class FormCurator(Curator):
         Returns:
           the Session for the file entry
         """
-        client = self.context.client
-        assert client
+
+        assert self.__sdk_client
         parents_session = file_entry.parents.get("session")
-        return client.get_session(parents_session)
+        return self.__sdk_client.get_session(parents_session)
 
     def get_subject(self, file_entry: FileEntry) -> Subject:
         """Get the subject for the file entry.
@@ -107,8 +113,10 @@ class FormCurator(Curator):
         Returns:
           the Subject for the file entry
         """
+
+        assert self.__sdk_client
         parents_subject = file_entry.parents.get("subject")
-        return self.context.client.get_subject(parents_subject)
+        return self.__sdk_client.get_subject(parents_subject)
 
 
 def curate_session_timestamp(session: Session, form: Form):
