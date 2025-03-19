@@ -105,3 +105,4 @@ class SysErrorCodes:
     MISSING_UDS_I4 = 'preprocess-021'
     DUPLICATE_VISIT = 'preprocess-022'
     LOWER_VISITNUM = 'preprocess-023'
+    MISSING_SUBMISSION_STATUS = 'preprocess-024'
