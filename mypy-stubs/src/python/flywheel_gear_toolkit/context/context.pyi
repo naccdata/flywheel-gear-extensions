@@ -1,13 +1,16 @@
 from typing import Any, Dict, List, Optional, TextIO, Union
+
 from flywheel.client import Client
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.group import Group
+from flywheel.models.project import Project
 from flywheel.models.session import Session
+from flywheel.models.subject import Subject
 from flywheel_gear_toolkit.utils.metadata import Metadata
 
 # container type names are listed in flywheel.models.container_type
-Container = Union[Acquisition, Session, Group]
+Container = Union[Acquisition, Session, Subject, Project, Group, FileEntry]
 
 
 class GearToolkitContext:
@@ -58,6 +61,9 @@ class GearToolkitContext:
         ...
 
     def open_output(self, name: str, mode: str, encoding: str) -> TextIO:
+        ...
+
+    def get_client(self) -> Client:
         ...
 
     @property
