@@ -7,7 +7,7 @@ from flywheel.models.session import Session
 from flywheel_gear_toolkit.utils.metadata import Metadata
 
 # container type names are listed in flywheel.models.container_type
-Container = Union[Acquisition, Session, Group]
+Container = Union[Acquisition, Session, Group, FileEntry]
 
 
 class GearToolkitContext:
