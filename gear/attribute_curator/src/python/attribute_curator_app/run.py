@@ -64,7 +64,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
-        date_key = context.config.get('date_key', None)
+        date_key = context.config.get('date_key', 'file.modified')
         if not date_key:
             raise GearExecutionError("Date key required")
 
@@ -99,11 +99,13 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group,
                  self.__project.label)
 
-        deriver = AttributeDeriver(date_key=self.__date_key,
+        date_key = None if not self.__date_key.startswith('file.info.') \
+            else self.__date_key
+        deriver = AttributeDeriver(date_key=date_key,
                                    rules_file=Path(
                                        self.__derive_rules.filepath))
 
-        #             TODO: this is kind of a hack, and mostly just done
+        # TODO: this is kind of a hack, and mostly just done
         # to distinguish when we need to grab an NP form for UDS
         # - will require us to add to this list/factory for each
         # distinguishable curation type though. better way to

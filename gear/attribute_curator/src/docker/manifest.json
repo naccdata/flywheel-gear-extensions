@@ -44,8 +44,9 @@
             "default": false
         },
         "date_key": {
-            "description": "Date key to order data by",
-            "type": "string"
+            "description": "Date key to order data by; defaults to ordering by the file's modified date",
+            "type": "string",
+            "default": "file.modified"
         },
         "filename_pattern": {
             "description": "Filename pattern to match on",

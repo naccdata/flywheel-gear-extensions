@@ -1,13 +1,13 @@
 """Scheduling for project curation."""
 import logging
-from datetime import date
+from datetime import date, datetime
 import multiprocessing
 import os
 from typing import Dict, List, TypeVar
 
 from dataview.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 from scheduling.min_heap import MinHeap
 
 from curator.form_curator import FormCurator
@@ -40,6 +40,15 @@ class FileModel(BaseModel):
             return False
 
         return self.order_date < other.order_date
+
+    @field_validator("order_date", mode='before')
+    def datetime_to_date(cls, value: str) -> date | str:
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError:
+            pass
+
+        return value
 
 
 class ViewResponseModel(BaseModel):
