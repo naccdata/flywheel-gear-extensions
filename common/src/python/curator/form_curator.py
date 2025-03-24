@@ -1,25 +1,31 @@
 import logging
+from enum import Enum
 
+from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit.context.context import GearToolkitContext
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
 log = logging.getLogger(__name__)
 
 
+class CurationType(str, Enum):
+
+    GENERAL = 'general'
+    UDS = 'uds'
+
+
 class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self, context: GearToolkitContext,
-                 deriver: AttributeDeriver) -> None:
-        self.__context = context
+    def __init__(self, sdk_client: Client, deriver: AttributeDeriver) -> None:
+        self.__sdk_client = sdk_client
         self.__deriver = deriver
 
     @property
     def client(self):
-        return self.__context.client
+        return self.__sdk_client
 
     def get_subject(self, file_entry: FileEntry) -> Subject:
         """Get the subject for the file entry.
@@ -67,13 +73,16 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
-    def curate_container(self, file_entry: FileEntry):
-        """Curate the given container.
+    def curate_file(self, file_id: str):
+        """Curate the given file.
 
         Args:
-            file_entry: File to curate
+            file_id: File ID curate
         """
-        log.info('curating container %s', file_entry.id)
+
+        log.info('curating file %s', file_id)
+        file_entry = self.__sdk_client.get_file(file_id)
+
         subject = self.get_subject(file_entry)
         table = self.get_table(subject, file_entry)
 

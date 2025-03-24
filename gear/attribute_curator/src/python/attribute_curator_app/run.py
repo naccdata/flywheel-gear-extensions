@@ -1,11 +1,10 @@
 """Entry script for UDS Curator."""
 
 import logging
-from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from curator.form_curator import FormCurator, UDSFormCurator
+from curator.form_curator import CurationType
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -23,12 +22,6 @@ from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from attribute_curator_app.main import run
 
 log = logging.getLogger(__name__)
-
-
-class CurationType(str, Enum):
-
-    GENERAL = 'general'
-    UDS = 'uds'
 
 
 class AttributeCuratorVisitor(GearExecutionEnvironment):
@@ -105,16 +98,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
                                    rules_file=Path(
                                        self.__derive_rules.filepath))
 
-        # TODO: this is kind of a hack, and mostly just done
-        # to distinguish when we need to grab an NP form for UDS
-        # - will require us to add to this list/factory for each
-        # distinguishable curation type though. better way to
-        # generalize?
-        if self.__curation_type.value == CurationType.UDS:
-            curator = UDSFormCurator(context=context, deriver=deriver)
-        else:
-            curator = FormCurator(context=context, deriver=deriver)
-
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
@@ -123,7 +106,10 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        run(curator=curator, scheduler=scheduler)
+        run(context=context,
+            deriver=deriver,
+            curation_type=self.__curation_type,
+            scheduler=scheduler)
 
 
 def main():

@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, TextIO, Union
+
 from flywheel.client import Client
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
@@ -58,6 +59,9 @@ class GearToolkitContext:
         ...
 
     def open_output(self, name: str, mode: str, encoding: str) -> TextIO:
+        ...
+
+    def get_client(self) -> Client:
         ...
 
     @property
