@@ -3,7 +3,28 @@
 from typing import Dict, List, Optional
 
 from keys.keys import DefaultValues
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
+
+
+class OptionalFormsConfigs(RootModel):
+    root: Dict[str, Dict[str, List[str]]]
+
+    def get_optional_forms(self, version: str,
+                           packet: str) -> Optional[List[str]]:
+        """Get the list of optional forms for the specified version and packet.
+
+        Args:
+            version: form version
+            packet: packet code
+
+        Returns:
+            Optional[List[str]]: List of optional form names if found
+        """
+        if not self.root:
+            return None
+
+        version_configs = self.root.get(version, {})
+        return version_configs.get(packet)
 
 
 class SupplementModuleConfigs(BaseModel):
@@ -21,6 +42,7 @@ class ModuleConfigs(BaseModel):
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
+    optional_forms: Optional[OptionalFormsConfigs] = None
 
 
 class FormProjectConfigs(BaseModel):

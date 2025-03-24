@@ -16,11 +16,42 @@
                 "F"
             ],
             "versions": [
-                "4"
+                "4.0"
             ],
             "date_field": "visitdate",
             "legacy_module": "UDS",
-            "legacy_date": "visitdate"
+            "legacy_date": "visitdate",
+            "optional_forms": {
+                "4.0": {
+                    "I": [
+                        "a1a",
+                        "a2",
+                        "b1",
+                        "b3",
+                        "b5",
+                        "b6",
+                        "b7"
+                    ],
+                    "I4": [
+                        "a1a",
+                        "a2",
+                        "b1",
+                        "b3",
+                        "b5",
+                        "b6",
+                        "b7"
+                    ],
+                    "F": [
+                        "a1a",
+                        "a2",
+                        "b1",
+                        "b3",
+                        "b5",
+                        "b6",
+                        "b7"
+                    ]
+                }
+            }
         },
         "LBD": {
             "initial_packets": [
@@ -30,15 +61,27 @@
                 "FL"
             ],
             "versions": [
-                "3",
+                "3.0",
                 "3.1"
             ],
             "date_field": "visitdate",
             "legacy_module": "LBD",
             "legacy_date": "visitdate",
+            "optional_forms": {
+                "3.1": {
+                    "IL": [
+                        "b2l",
+                        "b6l"
+                    ],
+                    "FL": [
+                        "b2l",
+                        "b6l"
+                    ]
+                }
+            },
             "supplement_module": {
                 "label": "UDS",
-                "version": "4",
+                "version": "4.0",
                 "date_field": "visitdate",
                 "exact_match": true
             }
@@ -51,14 +94,30 @@
                 "FF"
             ],
             "versions": [
-                "3"
+                "3.0"
             ],
             "date_field": "visitdate",
             "legacy_module": "FTLD",
             "legacy_date": "visitdate",
+            "optional_forms": {
+                "3.0": {
+                    "IF": [
+                        "a3a",
+                        "c4f",
+                        "c5f",
+                        "c6f"
+                    ],
+                    "FF": [
+                        "a3a",
+                        "c4f",
+                        "c5f",
+                        "c6f"
+                    ]
+                }
+            },
             "supplement_module": {
                 "label": "UDS",
-                "version": "4",
+                "version": "4.0",
                 "date_field": "visitdate",
                 "exact_match": true
             }

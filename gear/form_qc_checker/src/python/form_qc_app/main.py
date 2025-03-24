@@ -202,6 +202,7 @@ def run(  # noqa: C901
 
     rule_def_loader = DefinitionsLoader(s3_client=s3_client,
                                         error_writer=error_writer,
+                                        module_configs=module_configs,
                                         strict=strict)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
@@ -231,7 +232,8 @@ def run(  # noqa: C901
                                           error_writer=error_writer,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
+    input_data = file_processor.validate_input(
+        input_wrapper=input_wrapper, form_configs=form_project_configs)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,

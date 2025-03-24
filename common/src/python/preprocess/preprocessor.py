@@ -62,9 +62,9 @@ class FormPreprocessor():
 
         return True
 
-    def __is_accepted_version(self, *, input_record: Dict[str, Any],
-                              module: str, module_configs: ModuleConfigs,
-                              line_num: int) -> bool:
+    def is_accepted_version(self, *, input_record: Dict[str, Any], module: str,
+                            module_configs: ModuleConfigs,
+                            line_num: int) -> bool:
         """Validate whether the provided version matches with an expected
         version for the module.
 
@@ -75,22 +75,85 @@ class FormPreprocessor():
             line_num: line number in CSV file
 
         Returns:
-            bool: True if packet code is valid
+            bool: True if form version is valid
         """
 
-        version = input_record[FieldNames.FORMVER]
-        if version not in module_configs.versions:
+        version = float(input_record[FieldNames.FORMVER])
+        accepted_versions = [
+            float(version) for version in module_configs.versions
+        ]
+        if version not in accepted_versions:
             log.error('%s - %s/%s',
                       preprocess_errors[SysErrorCodes.INVALID_VERSION], module,
                       version)
             self.__error_writer.write(
+                preprocessing_error(field=FieldNames.FORMVER,
+                                    value=str(version),
+                                    line=line_num,
+                                    error_code=SysErrorCodes.INVALID_VERSION,
+                                    ptid=input_record.get(FieldNames.PTID),
+                                    visitnum=input_record.get(
+                                        FieldNames.VISITNUM)))
+            return False
+
+        return True
+
+    def __check_optional_forms_status(self, *, input_record: Dict[str, Any],
+                                      module: str,
+                                      module_configs: ModuleConfigs,
+                                      line_num: int) -> bool:
+        """Validate whether the submission status filled for optional forms for
+        the respective module/version/packet.
+
+        Args:
+            module: module label
+            module_configs: module configurations
+            input_record: input record
+            line_num: line number in CSV file
+
+        Returns:
+            bool: True if submission status filled for all optional forms
+        """
+
+        if not module_configs.optional_forms:
+            log.warning('Optional forms information not defined for module %s',
+                        module)
+            return True
+
+        version = float(input_record[FieldNames.FORMVER])
+        packet = input_record[FieldNames.PACKET]
+
+        optional_forms = module_configs.optional_forms.get_optional_forms(
+            version=str(version), packet=packet)
+
+        if not optional_forms:
+            log.warning(
+                'Optional forms information not available for %s/%s/%s',
+                module, version, packet)
+            return True
+
+        found_all = True
+        missing_vars = []
+        for form in optional_forms:
+            mode_var = f'{FieldNames.MODE}{form.lower()}'
+            mode = str(input_record.get(mode_var, ''))
+            if not mode.strip():
+                missing_vars.append(mode_var)
+                found_all = False
+
+        if not found_all:
+            log.error(
+                '%s - %s/%s/%s - %s',
+                preprocess_errors[SysErrorCodes.MISSING_SUBMISSION_STATUS],
+                module, version, packet, missing_vars)
+            self.__error_writer.write(
                 preprocessing_error(
-                    field=FieldNames.PACKET,
-                    value=version,
+                    field='MODExx',
+                    value='',
                     line=line_num,
-                    error_code=SysErrorCodes.INVALID_VERSION,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM]))
+                    error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
+                    ptid=input_record.get(FieldNames.PTID),
+                    visitnum=input_record.get(FieldNames.VISITNUM)))
             return False
 
         return True
@@ -765,16 +828,23 @@ class FormPreprocessor():
         log.info('Running preprocessing checks for subject %s/%s', subject_lbl,
                  module)
 
-        if not self.__is_accepted_version(module_configs=module_configs,
-                                          module=module,
-                                          input_record=input_record,
-                                          line_num=line_num):
+        if not self.is_accepted_version(module_configs=module_configs,
+                                        module=module,
+                                        input_record=input_record,
+                                        line_num=line_num):
             return False
 
         if not self.__is_accepted_packet(module_configs=module_configs,
                                          module=module,
                                          input_record=input_record,
                                          line_num=line_num):
+            return False
+
+        if not self.__check_optional_forms_status(
+                module_configs=module_configs,
+                module=module,
+                input_record=input_record,
+                line_num=line_num):
             return False
 
         if not self.__check_initial_visit(subject_lbl=subject_lbl,
