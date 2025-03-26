@@ -1,6 +1,7 @@
 {
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.typeCheckingMode": "basic",
+    "ruff.configuration": "/workspaces/flywheel-gear-extensions/ruff.toml",
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,
