@@ -49,3 +49,9 @@ formatter = "yapf"
 
 [pytest]
 args=["-vv"]
+
+# TODO: REMOVE WHEN DEV TESTING IS DONE
+[python-repos]
+find_links = [
+    "file:///workspaces/flywheel-gear-extensions/dist/"
+]
