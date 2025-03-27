@@ -6,6 +6,7 @@ from typing import Optional
 
 from curator.form_curator import CurationType
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -64,6 +65,21 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         fw_project = derive_rules.get_parent_project(proxy=proxy)
 
+        try:
+            destination = context.get_destination_container()
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Cannot find destination container: {error}') from error
+        if destination.container_type != 'analysis':  # type: ignore
+            raise GearExecutionError(
+                "Expect destination to be an analysis object")
+
+        parent_id = destination.parents.get('project')  # type: ignore
+        if not parent_id:
+            raise GearExecutionError(
+                f'Cannot find parent project for: {destination.id}'  # type: ignore
+            )
+        fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
         if not fw_project:
             raise GearExecutionError("Destination project not found")
 
