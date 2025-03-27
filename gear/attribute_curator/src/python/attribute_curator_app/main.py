@@ -1,7 +1,7 @@
 """Defines Attribute Curator."""
 import logging
 
-from curator.form_curator import CurationType, FormCurator, UDSFormCurator
+from curator.form_curator import FormCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver

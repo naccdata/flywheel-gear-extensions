@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from curator.form_curator import CurationType
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
