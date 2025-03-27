@@ -10,12 +10,6 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 log = logging.getLogger(__name__)
 
 
-class CurationType(str, Enum):
-
-    GENERAL = 'general'
-    UDS = 'uds'
-
-
 class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
@@ -89,25 +83,4 @@ class FormCurator:
         self.__deriver.curate(table)
         self.apply_curation(subject, file_entry, table)
 
-
-class UDSFormCurator(FormCurator):
-    """UDS Form curator - also needs to grab NP."""
-
-    def get_table(self, subject: Subject,
-                  file_entry: FileEntry) -> SymbolTable:
-        """Get table - also needs to grab NP data."""
-        table = super().get_table(subject, file_entry)
-
-        # TODO: easier way to find?
-        for session in subject.sessions():  # type: ignore
-            if session.label.startswith('NP-'):
-                # only one NP form
-                acq = session.acquisitions()
-                assert len(acq) == 1 and len(acq[0].files) == 1, \
-                    f"More than one NP form found for {subject.label}"
-                np_form = self.client.get_file(acq[0].files[0].file_id).info
-                table['file.info.np'] = np_form['forms']['json']
-                return table
-
-        log.warning(f"No NP form found for {subject.label}")
-        return table
+    
