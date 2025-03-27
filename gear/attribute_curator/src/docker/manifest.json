@@ -43,24 +43,10 @@
             "type": "boolean",
             "default": false
         },
-        "date_key": {
-            "description": "Date key to order data by; defaults to ordering by the file's modified date",
-            "type": "string",
-            "default": "file.modified"
-        },
         "filename_pattern": {
             "description": "Filename pattern to match on",
             "type": "string",
             "default": "*.json"
-        },
-        "curation_type": {
-            "description": "Curation type - determines curation gear",
-            "type": "string",
-            "default": "general",
-            "enum": [
-                "general",
-                "uds"
-            ]
         }
     },
     "command": "/bin/run"
