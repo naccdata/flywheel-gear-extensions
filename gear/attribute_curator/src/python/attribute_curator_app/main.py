@@ -10,7 +10,6 @@ log = logging.getLogger(__name__)
 
 
 def run(context: GearToolkitContext, deriver: AttributeDeriver,
-        curation_type: CurationType,
         scheduler: ProjectCurationScheduler) -> None:
     """Runs the Attribute Curator process.
 
@@ -21,12 +20,4 @@ def run(context: GearToolkitContext, deriver: AttributeDeriver,
         scheduler: Schedules the files to be curated
     """
 
-    # TODO: this is kind of a hack, and mostly just done
-    # to distinguish when we need to grab an NP form for UDS
-    # - will require us to add to this list/factory for each
-    # distinguishable curation type though. better way to
-    # generalize?
-    curator = (UDSFormCurator
-               if curation_type.value == CurationType.UDS else FormCurator)
-
-    scheduler.apply(context=context, curator_type=curator, deriver=deriver)
+    scheduler.apply(context=context, curator_type=FormCurator, deriver=deriver)
