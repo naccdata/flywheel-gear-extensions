@@ -1,5 +1,4 @@
 import logging
-from enum import Enum
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -82,5 +81,3 @@ class FormCurator:
 
         self.__deriver.curate(table)
         self.apply_curation(subject, file_entry, table)
-
-    
