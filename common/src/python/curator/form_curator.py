@@ -1,9 +1,10 @@
 import logging
+import re
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
 log = logging.getLogger(__name__)
@@ -79,5 +80,40 @@ class FormCurator:
         subject = self.get_subject(file_entry)
         table = self.get_table(subject, file_entry)
 
-        self.__deriver.curate(table)
+        scope = determine_scope(file_entry.name)
+        self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
+
+
+def determine_scope(filename: str) -> ScopeLiterals:
+    """Maps the file name to a scope symbol for the attribute deriver.
+
+    Args:
+        filename: the name of the file
+    Returns:
+        the scope name matching the file
+    """
+    pattern = (
+        r"^"
+        r"(?P<np>.+_NP\.json)|"
+        r"(?P<mds>.+_MDS\.json)|"
+        r"(?P<milestone>.+_MLST\.json)|"
+        r"(?P<apoe>.+apoe_genotype\.json)|"
+        r"(?P<niagads_availability>.+niagads_availability\.json)|"
+        r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
+        r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
+        r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
+        r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
+        # r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
+        r"(?P<uds>.+_UDS\.json)"
+        r"$")
+    match = re.match(pattern, filename)
+    if not match:
+        raise ValueError(f"unexpected file name {filename}")
+
+    groups = match.groupdict()
+    names = {key for key in groups if groups.get(key) is not None}
+    if len(names) != 1:
+        raise ValueError(f"error matching file name {filename}")
+
+    return names.pop()  # type: ignore
