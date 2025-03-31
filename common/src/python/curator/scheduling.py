@@ -4,7 +4,8 @@ from datetime import date, datetime
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Dict, List, Type, TypeVar
+import re
+from typing import Dict, List, Literal, Optional, Type, TypeVar
 
 from curator.form_curator import FormCurator
 from dataview.dataview import ColumnModel, make_builder
@@ -29,7 +30,74 @@ class FileModel(BaseModel):
     file_id: str
     acquisition_id: str
     subject_id: str
-    order_date: date
+    modified_date: date
+    visit_date: Optional[date]
+    study_date: Optional[date]
+    scan_date: Optional[date]
+    scandate: Optional[date]
+    scandt: Optional[date]
+
+    @property
+    def visit_pass(self) -> Literal['pass0', 'pass1']:
+        """Returns the "pass" for the file; determining when the relative order
+        of when the file should be visited.
+
+        Passes are based on the dependency of attributes over the files.
+        The pass is determined by matching the file with a regular expression.
+
+        Order of curation is indicated by inverse lexicographical ordering on
+        the pass name.
+        This is done to avoid having to maintain the total ordering without
+        having to rename the pass if more constraints are added.
+
+        As it is, UDS must be curated last; after every other file.
+        So there are two classes: 'pass0' for UDS, and 'pass1' for everything else.
+        """
+        pattern = (
+            r"^"
+            r"(?P<pass1>.+("
+            r"_NP|_MDS|_MLST|"
+            r"apoe_genotype|niagads_availability|"
+            r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
+            r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+"
+            r")\.json)|"
+            r"(?P<pass0>.+_UDS\.json)"
+            r"$")
+        match = re.match(pattern, self.filename)
+        if not match:
+            raise ValueError(f"unexpected file name {self.filename}")
+
+        groups = match.groupdict()
+        names = {key for key in groups if groups.get(key) is not None}
+        if len(names) != 1:
+            raise ValueError(f"error matching file name {self.filename}")
+
+        return names.pop()  # type: ignore
+
+    @property
+    def order_date(self) -> date:
+        """Returns the date to be used for ordering this file.
+
+        Checks for form visit date, then scan date, and then file modification date.
+
+        Returns:
+          the date to be used to compare this file for ordering
+        """
+        if self.visit_date:
+            return self.visit_date
+        if self.study_date:
+            return self.study_date
+        if self.scan_date:
+            return self.scan_date
+        if self.scandate:
+            return self.scandate
+        if self.scandt:
+            return self.scandt
+        if self.modified_date:
+            return self.modified_date
+
+        raise ValueError(
+            f"file {self.filename} {self.file_id} has no associated date")
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, FileModel):
@@ -38,13 +106,33 @@ class FileModel(BaseModel):
         return self.file_id == other.file_id
 
     def __lt__(self, other) -> bool:
+        """Order the objects by order class and date.
+
+        First, use inverse order on order-class: if the class is greater
+        than, the object is less than. Second, order by date.
+        """
         if not isinstance(other, FileModel):
+            return False
+
+        # Note: this inverts the order on the order_class
+        if self.visit_pass > other.visit_pass:
+            return True
+        if self.visit_pass < other.visit_pass:
             return False
 
         return self.order_date < other.order_date
 
-    @field_validator("order_date", mode='before')
-    def datetime_to_date(cls, value: str) -> date | str:
+    @field_validator("modified_date",
+                     "visit_date",
+                     "study_date",
+                     "scan_date",
+                     "scandate",
+                     "scandt",
+                     mode='before')
+    def datetime_to_date(cls, value: Optional[str]) -> Optional[date | str]:
+        if not value:
+            return None
+
         try:
             return datetime.fromisoformat(value).date()
         except ValueError:
@@ -103,36 +191,44 @@ class ProjectCurationScheduler:
         self.__heap_map = heap_map
 
     @classmethod
-    def create(cls, project: ProjectAdaptor, date_key: str,
+    def create(cls, project: ProjectAdaptor,
                filename_pattern: str) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
 
+        Note:Columns must correspond to fields of FileModel.
+
         Args:
           project: the project
-          date_key: Date key to order forms by
           filename_pattern: Filename pattern to match on
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
-        builder = make_builder(label='attribute-curation-scheduling',
-                               description='Lists files for curation',
-                               columns=[
-                                   ColumnModel(data_key="file.name",
-                                               label="filename"),
-                                   ColumnModel(data_key="file.file_id",
-                                               label="file_id"),
-                                   ColumnModel(
-                                       data_key="file.parents.acquisition",
-                                       label="acquisition_id"),
-                                   ColumnModel(data_key="file.parents.subject",
-                                               label="subject_id"),
-                                   ColumnModel(data_key=date_key,
-                                               label="order_date")
-                               ],
-                               container='acquisition',
-                               filename=filename_pattern)
+        builder = make_builder(
+            label='attribute-curation-scheduling',
+            description='Lists files for curation',
+            columns=[
+                ColumnModel(data_key="file.name", label="filename"),
+                ColumnModel(data_key="file.file_id", label="file_id"),
+                ColumnModel(data_key="file.parents.acquisition",
+                            label="acquisition_id"),
+                ColumnModel(data_key="file.parents.subject",
+                            label="subject_id"),
+                ColumnModel(data_key='file.info.forms.json.visitdate',
+                            label="visit_date"),
+                ColumnModel(data_key="file.modified", label="modified_date"),
+                ColumnModel(data_key="file.info.raw.study_date",
+                            label="study_date"),
+                ColumnModel(data_key="file.info.raw.scan_date",
+                            label="scan_date"),
+                ColumnModel(data_key="file.info.raw.scandate",
+                            label="scandate"),
+                ColumnModel(data_key="file.info.raw.scandt", label="scandt")
+            ],
+            container='acquisition',
+            filename=filename_pattern,
+            missing_data_strategy='none')
         view = builder.build()
 
         with project.read_dataview(view) as response:
