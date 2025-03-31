@@ -1,7 +1,6 @@
 """Entry script for UDS Curator."""
 
 import logging
-from pathlib import Path
 from typing import Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -28,8 +27,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
     def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
-                 derive_rules: InputFileWrapper,
-                 filename_pattern: str):
+                 derive_rules: InputFileWrapper, filename_pattern: str):
         super().__init__(client=client)
         self.__project = project
         self.__derive_rules = derive_rules
@@ -93,20 +91,16 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group,
                  self.__project.label)
 
-        deriver = AttributeDeriver(rules_file=Path(
-                                       self.__derive_rules.filepath))
+        deriver = AttributeDeriver()
 
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                date_key=self.__date_key,
                 filename_pattern=self.__filename_pattern)
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        run(context=context,
-            deriver=deriver,
-            scheduler=scheduler)
+        run(context=context, deriver=deriver, scheduler=scheduler)
 
 
 def main():
