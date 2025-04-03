@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.2
+* Upgrades to dependencies
+  
 ## 1.3.1
 * Moves the optional forms list to ingest configurations
 
