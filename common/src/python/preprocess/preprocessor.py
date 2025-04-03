@@ -8,6 +8,7 @@ from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
 from uploads.acquisition import is_duplicate_dict
+from utils.sort import get_min_value
 
 log = logging.getLogger(__name__)
 
@@ -158,44 +159,57 @@ class FormPreprocessor():
 
         return True
 
-    def __compare_visit_order(self, *, fvp_record: Dict[str, Any],
-                              date_field: str, ivp_date: str,
-                              ivp_visitnum: str, line_num: int) -> bool:
-        """Check whether the FVP visit date and visit number is greater than
-        the IVP visit date and visit number.
+    def __compare_visit_order(self, *, current_record: Dict[str, Any],
+                              date_field: str, date_to_compare: str,
+                              visitnum_to_compare: str, date_error: str,
+                              visitnum_error: str, line_num: int) -> bool:
+        """Check whether the current visit date and visit number is greater
+        than the provided visit date and visit number.
 
         Args:
-            fvp_record: followup visit packet
+            current_record: record to validate
             date_field: visit date column for the module
-            ivp_date: visit date of the IVP record
-            ivp_visitnum: visit numbers of the IVP record
+            date_to_compare: visit date to compare with
+            visitnum_to_compare: visit number to compare with
+            date_error: error code to report if dates are not in order
+            visitnum_error: error code to report if visit numbers are not in order
             line_num: Batch CSV file line number
 
         Returns:
             bool: True if records are in correct order
         """
         correct_order = True
-        if ivp_date >= fvp_record[date_field]:
+        ptid = current_record[FieldNames.PTID]
+        current_visitnum = current_record[FieldNames.VISITNUM]
+        current_date = current_record[date_field]
+
+        if date_to_compare >= current_date:
             self.__error_writer.write(
-                preprocessing_error(
-                    field=date_field,
-                    value=fvp_record[date_field],
-                    line=line_num,
-                    error_code=SysErrorCodes.LOWER_FVP_VISITDATE,
-                    ptid=fvp_record[FieldNames.PTID],
-                    visitnum=fvp_record[FieldNames.VISITNUM]))
+                preprocessing_error(field=date_field,
+                                    value=current_date,
+                                    line=line_num,
+                                    error_code=date_error,
+                                    ptid=ptid,
+                                    visitnum=current_visitnum))
             correct_order = False
 
-        if ivp_visitnum >= fvp_record[FieldNames.VISITNUM]:
+        if get_min_value([visitnum_to_compare,
+                          current_visitnum]) == current_visitnum:
             self.__error_writer.write(
-                preprocessing_error(
-                    field=FieldNames.VISITNUM,
-                    value=fvp_record[FieldNames.VISITNUM],
-                    line=line_num,
-                    error_code=SysErrorCodes.LOWER_FVP_VISITNUM,
-                    ptid=fvp_record[FieldNames.PTID],
-                    visitnum=fvp_record[FieldNames.VISITNUM]))
+                preprocessing_error(field=FieldNames.VISITNUM,
+                                    value=current_visitnum,
+                                    line=line_num,
+                                    error_code=visitnum_error,
+                                    ptid=ptid,
+                                    visitnum=current_visitnum))
             correct_order = False
+
+        if not correct_order:
+            log.error(
+                'Incorrect visit order for PID %s: '
+                'compared visitnum=%s, date=%s - submitted visitnum=%s, date=%s',
+                ptid, visitnum_to_compare, date_to_compare, current_visitnum,
+                current_date)
 
         return correct_order
 
@@ -231,10 +245,12 @@ class FormPreprocessor():
             if packet in module_configs.followup_packets:
                 if ivp_record:
                     return self.__compare_visit_order(
-                        fvp_record=input_record,
+                        current_record=input_record,
                         date_field=module_configs.date_field,
-                        ivp_date=ivp_record[module_configs.date_field],
-                        ivp_visitnum=ivp_record[FieldNames.VISITNUM],
+                        date_to_compare=ivp_record[module_configs.date_field],
+                        visitnum_to_compare=ivp_record[FieldNames.VISITNUM],
+                        date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
+                        visitnum_error=SysErrorCodes.LOWER_FVP_VISITNUM,
                         line_num=line_num)
 
                 log.error('%s - %s',
@@ -305,10 +321,12 @@ class FormPreprocessor():
                 return False
 
             return self.__compare_visit_order(
-                fvp_record=input_record,
+                current_record=input_record,
                 date_field=module_configs.date_field,
-                ivp_date=initial_packet[date_lbl],
-                ivp_visitnum=initial_packet[visitnum_lbl],
+                date_to_compare=initial_packet[date_lbl],
+                visitnum_to_compare=initial_packet[visitnum_lbl],
+                date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
+                visitnum_error=SysErrorCodes.LOWER_FVP_VISITNUM,
                 line_num=line_num)
 
         if packet in module_configs.initial_packets and initial_packet:
@@ -511,7 +529,7 @@ class FormPreprocessor():
 
         return True
 
-    def __check_udsv4_initial_visit(  # noqa: C901
+    def __check_udsv4_initial_visit(
             self,
             *,
             subject_lbl: str,
@@ -612,29 +630,15 @@ class FormPreprocessor():
         # check whether the I4 packet visit date and visit num higher than latest UDSv3
         if packet == DefaultValues.UDS_I4_PACKET:
             date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
-            if legacy_visit[date_field_lbl] >= input_record[
-                    module_configs.date_field]:
-                self.__error_writer.write(
-                    preprocessing_error(
-                        field=module_configs.date_field,
-                        value=input_record[module_configs.date_field],
-                        line=line_num,
-                        error_code=SysErrorCodes.LOWER_I4_VISITDATE,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM]))
-                return False
-
             visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
-            if legacy_visit[visitnum_lbl] >= input_record[FieldNames.VISITNUM]:
-                self.__error_writer.write(
-                    preprocessing_error(
-                        field=FieldNames.VISITNUM,
-                        value=input_record[FieldNames.VISITNUM],
-                        line=line_num,
-                        error_code=SysErrorCodes.LOWER_I4_VISITNUM,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM]))
-                return False
+            return self.__compare_visit_order(
+                current_record=input_record,
+                date_field=module_configs.date_field,
+                date_to_compare=legacy_visit[date_field_lbl],
+                visitnum_to_compare=legacy_visit[visitnum_lbl],
+                date_error=SysErrorCodes.LOWER_I4_VISITDATE,
+                visitnum_error=SysErrorCodes.LOWER_I4_VISITNUM,
+                line_num=line_num)
 
         return True
 

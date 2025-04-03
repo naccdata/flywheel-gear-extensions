@@ -7,6 +7,7 @@ fw-client>=0.7.0
 fw-utils>=3
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]>=5.0.15
+natsort
 pandas>=2.1.1
 pandas-stubs>=2.0.3
 pydantic>=2.5.2

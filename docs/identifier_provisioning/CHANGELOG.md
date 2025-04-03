@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.1
+* Upgrades to dependencies
+  
 ## 1.2.0
 * Relaxes the PTID format check
   
