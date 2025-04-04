@@ -55,11 +55,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         filename_pattern = context.config.get('filename_pattern', "*.json")
 
-        derive_rules = InputFileWrapper.create(input_name='derive_rules',
-                                               context=context)
-        if not derive_rules:
-            raise GearExecutionError("Derive rules CSV required")
-
         fw_project = derive_rules.get_parent_project(proxy=proxy)
 
         try:

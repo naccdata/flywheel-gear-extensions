@@ -2,7 +2,7 @@
     "name": "attribute-curator",
     "label": "Attribute Curator",
     "description": "Curation of derived data for MQT project",
-    "version": "0.0.1a",
+    "version": "0.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/attribute-curator:0.0.1a"
+            "image": "naccdata/attribute-curator:0.1.0"
         },
         "flywheel": {
             "suite": "Curation",
@@ -26,15 +26,6 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
-        },
-        "derive_rules": {
-            "description": "CSV file containing the derivation rules",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "tabular data"
-                ]
-            }
         }
     },
     "config": {
