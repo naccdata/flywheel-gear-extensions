@@ -104,7 +104,9 @@ def determine_scope(filename: str) -> ScopeLiterals:
         r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
         r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
         r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
-        # r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
+        r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
+        r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
+        r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
         r"(?P<uds>.+_UDS\.json)"
         r"$")
     match = re.match(pattern, filename)
