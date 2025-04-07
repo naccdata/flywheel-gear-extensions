@@ -13,7 +13,6 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
-    InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -27,10 +26,9 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
     def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
-                 derive_rules: InputFileWrapper, filename_pattern: str):
+                 filename_pattern: str):
         super().__init__(client=client)
         self.__project = project
-        self.__derive_rules = derive_rules
         self.__filename_pattern = filename_pattern
 
     @classmethod
@@ -55,8 +53,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         filename_pattern = context.config.get('filename_pattern', "*.json")
 
-        fw_project = derive_rules.get_parent_project(proxy=proxy)
-
         try:
             destination = context.get_destination_container()
         except ApiException as error:
@@ -79,7 +75,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         return AttributeCuratorVisitor(client=client,
                                        project=project,
-                                       derive_rules=derive_rules,
                                        filename_pattern=filename_pattern)
 
     def run(self, context: GearToolkitContext) -> None:
