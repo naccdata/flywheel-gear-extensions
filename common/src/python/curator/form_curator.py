@@ -93,22 +93,21 @@ def determine_scope(filename: str) -> ScopeLiterals:
     Returns:
         the scope name matching the file
     """
-    pattern = (
-        r"^"
-        r"(?P<np>.+_NP\.json)|"
-        r"(?P<mds>.+_MDS\.json)|"
-        r"(?P<milestone>.+_MLST\.json)|"
-        r"(?P<apoe>.+apoe_genotype\.json)|"
-        r"(?P<niagads_availability>.+niagads_availability\.json)|"
-        r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
-        r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
-        r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
-        r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
-        r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
-        r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
-        r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
-        r"(?P<uds>.+_UDS\.json)"
-        r"$")
+    pattern = (r"^"
+               r"(?P<np>.+_NP\.json)|"
+               r"(?P<mds>.+_MDS\.json)|"
+               r"(?P<milestone>.+_MLST\.json)|"
+               r"(?P<apoe>.+apoe_genotype\.json)|"
+               r"(?P<niagads_availability>.+niagads_availability\.json)|"
+               r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
+               r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
+               r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
+               r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
+               r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
+               r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
+               r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
+               r"(?P<uds>.+_UDS\.json)"
+               r"$")
     match = re.match(pattern, filename)
     if not match:
         raise ValueError(f"unexpected file name {filename}")
