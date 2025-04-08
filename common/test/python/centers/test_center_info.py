@@ -38,7 +38,7 @@ def dummy_center():
 @pytest.fixture(scope='function')
 def dummy_center_map(dummy_center):
     """Generate dummy CenterMapInfo for general testing."""
-    return CenterMapInfo(centers={7: dummy_center})
+    return CenterMapInfo(centers={'7': dummy_center})
 
 
 # pylint: disable=(no-self-use)
