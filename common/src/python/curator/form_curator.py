@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Optional
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -81,11 +82,15 @@ class FormCurator:
         table = self.get_table(subject, file_entry)
 
         scope = determine_scope(file_entry.name)
+        if not scope:
+            log.warning("ignoring unexpected file %s", file_entry.name)
+            return
+
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
 
 
-def determine_scope(filename: str) -> ScopeLiterals:
+def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     """Maps the file name to a scope symbol for the attribute deriver.
 
     Args:
@@ -110,7 +115,7 @@ def determine_scope(filename: str) -> ScopeLiterals:
                r"$")
     match = re.match(pattern, filename)
     if not match:
-        raise ValueError(f"unexpected file name {filename}")
+        return None
 
     groups = match.groupdict()
     names = {key for key in groups if groups.get(key) is not None}

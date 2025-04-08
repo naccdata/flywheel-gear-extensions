@@ -59,7 +59,7 @@ class FileModel(BaseModel):
             r"_NP|_MDS|_MLST|"
             r"apoe_genotype|niagads_availability|"
             r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
-            r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+"
+            r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
             r")\.json)|"
             r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
