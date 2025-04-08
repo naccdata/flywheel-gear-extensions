@@ -38,7 +38,7 @@ class FileModel(BaseModel):
     scandt: Optional[date]
 
     @property
-    def visit_pass(self) -> Literal['pass0', 'pass1']:
+    def visit_pass(self) -> Optional[Literal['pass0', 'pass1']]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -62,11 +62,11 @@ class FileModel(BaseModel):
             r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+"
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
             r")\.json)|"
-            r"(?P<pass0>.+_UDS\.json)"
+            r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
             r"$")
         match = re.match(pattern, self.filename)
         if not match:
-            raise ValueError(f"unexpected file name {self.filename}")
+            return None
 
         groups = match.groupdict()
         names = {key for key in groups if groups.get(key) is not None}
@@ -114,6 +114,10 @@ class FileModel(BaseModel):
         """
         if not isinstance(other, FileModel):
             return False
+        if not self.visit_pass or not other.visit_pass:
+            raise ValueError(
+                f"Cannot compare values {self.visit_pass} with {other.visit_pass}"
+            )
 
         # Note: this inverts the order on the order_class
         if self.visit_pass > other.visit_pass:
@@ -247,6 +251,10 @@ class ProjectCurationScheduler:
 
         subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
         for file_info in response_model.data:
+            if not file_info.visit_pass:
+                log.warning("ignoring unexpected file %s", file_info.filename)
+                continue
+
             heap = subject_heap_map.get(file_info.subject_id,
                                         MinHeap[FileModel]())
             heap.push(file_info)
