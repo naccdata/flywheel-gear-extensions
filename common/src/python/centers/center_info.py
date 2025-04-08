@@ -73,6 +73,27 @@ class CenterMapInfo(BaseModel):
         """
         return self.centers.get(str(adcid), None)
 
+    def get_adcid(self, group_id: str) -> Optional[int]:
+        """Returns the ADCID for the center group.
+
+        Args:
+          group_id: the ID for the center group
+        Returns:
+          the ADCID for the center
+        """
+        for adcid, center_info in self.centers.items():
+            if center_info.group == group_id:
+                return int(adcid)
+        return None
+
+    def get_adcids(self) -> List[int]:
+        """Returns the list of ADCIDs for all centers.
+
+        Returns:
+          the list of ADCIDs
+        """
+        return [int(adcid) for adcid in self.centers]
+
     def group_ids(self, center_ids: Optional[List[int]] = None) -> Set[str]:
         """Returns the set of group IDs for the centers in this center map.
 
