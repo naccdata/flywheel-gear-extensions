@@ -1,9 +1,8 @@
 """Entry script for batch scheduler."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from centers.center_info import CenterInfo
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -95,16 +94,17 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             Optional[List[str]]: list of Center IDs if found
         """
         nacc_group = self.admin_group(admin_id=self.__admin_id)
-        centers: Dict[int, CenterInfo] = nacc_group.get_center_map().centers
-        if not centers:
+        center_groups = nacc_group.get_center_map().group_ids()
+
+        if not center_groups:
             raise GearExecutionError(
                 'Center information not found in '
                 f'{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}')
 
         center_ids = [
-            center.group for center in centers.values()
-            if center.group not in self.__exclude_centers
-            and not center.group.endswith(tuple(self.__exclude_studies))
+            group_id for group_id in center_groups
+            if group_id not in self.__exclude_centers
+            and not group_id.endswith(tuple(self.__exclude_studies))
         ]
 
         return center_ids
