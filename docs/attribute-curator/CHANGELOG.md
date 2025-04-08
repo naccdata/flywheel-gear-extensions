@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.3
+
+* Ignores unexpected files instead of throwing an exception.
+* Fixes regular expression used to identify curation passes by file name.
+* Updates nacc-attribute-deriver to v1.2.1
+  
 ## 0.1.0
 
 * Initial release for curator gear using the nacc-attribute-deriver package.
