@@ -1,5 +1,5 @@
 """Models representing center information and center mappings."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from projects.study import StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field, field_validator
@@ -52,7 +52,7 @@ class CenterInfo(BaseModel):
 
 class CenterMapInfo(BaseModel):
     """Represents the center map in nacc/metadata project."""
-    centers: Dict[int, CenterInfo]
+    centers: Dict[str, CenterInfo]
 
     def add(self, adcid: int, center_info: CenterInfo) -> None:
         """Adds the center info to the map.
@@ -61,7 +61,7 @@ class CenterMapInfo(BaseModel):
             adcid: The ADC ID of the center.
             center_info: The center info object.
         """
-        self.centers[adcid] = center_info
+        self.centers[str(adcid)] = center_info
 
     def get(self, adcid: int) -> Optional[CenterInfo]:
         """Gets the center info for the given ADCID.
@@ -71,4 +71,50 @@ class CenterMapInfo(BaseModel):
         Returns:
             The center info for the center. None if no info is found.
         """
-        return self.centers.get(adcid, None)
+        return self.centers.get(str(adcid), None)
+
+    def group_ids(self, center_ids: Optional[List[int]] = None) -> Set[str]:
+        """Returns the set of group IDs for the centers in this center map.
+
+        If center_ids is provided, restricts the result to those with a center
+        ID in the list.
+
+        Args:
+          center_ids: the list of center IDs
+        Returns:
+          the set of group IDs
+        """
+        if center_ids:
+            keys = [str(adcid) for adcid in self.centers]
+        else:
+            keys = list(self.centers.keys())
+
+        return {
+            center.group  # type: ignore
+            for center in
+            [self.centers.get(key) for key in keys if key in self.centers]
+        }
+
+    def active_group_ids(self,
+                         center_ids: Optional[List[int]] = None) -> Set[str]:
+        """Returns the set of group IDs for active centers in this center map.
+
+        If center_ids is provided, restricts the result to those with an ID in
+        the list.
+
+        Args:
+          center_ids: the list of center IDs
+        Returns:
+          the set of group IDs
+        """
+        if center_ids:
+            keys = [str(adcid) for adcid in self.centers]
+        else:
+            keys = list(self.centers.keys())
+
+        return {
+            center.group  # type: ignore
+            for center in
+            [self.centers.get(key) for key in keys if key in self.centers]
+            if center.active  # type: ignore
+        }
