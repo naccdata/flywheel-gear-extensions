@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.4
+
+* Removes rows from ViewResponseModel where all fields are null
+* Fixes issue where multiprocessing was failing silently on exception
+
 ## 0.2.3
 
 * Ignores unexpected files instead of throwing an exception.
