@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 0.2.4
 
+* Updates `nacc_attribute_deriver` to `1.2.2`
 * Removes rows from ViewResponseModel where all fields are null
 * Fixes issue where multiprocessing was failing silently on exception
 

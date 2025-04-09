@@ -151,9 +151,18 @@ class ViewResponseModel(BaseModel):
     data: List[FileModel]
 
     @field_validator("data", mode='before')
-    def trim_data(cls, data: List[Dict[str, Any]]) -> List[FileModel]:
-        """Remove any rows that are completely empty."""
-        return [row for row in data if any(x is not None for x in row.values())]
+    def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove any rows that are completely empty, which can happen if the
+        filename pattern does not match.
+
+        Args:
+            data: List of retreived rows from the builder
+        Returns:
+            Trimmed data
+        """
+        return [
+            row for row in data if any(x is not None for x in row.values())
+        ]
 
 
 curator = None  # global curator object
