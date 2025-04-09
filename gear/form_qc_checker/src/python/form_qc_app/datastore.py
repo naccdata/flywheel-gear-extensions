@@ -61,9 +61,9 @@ class DatastoreHelper(Datastore):
         Returns:
             Optional[List[int]]: List of ADCIDs
         """
-        center_map = self.__admin_group.get_center_map()
-        if center_map and center_map.centers:
-            return list(center_map.centers.keys())
+        adcid_list = self.__admin_group.get_adcids()
+        if adcid_list:
+            return adcid_list
 
         log.error('Failed to retrieve the list of ADCIDs form admin group %s',
                   self.__admin_group.label)
