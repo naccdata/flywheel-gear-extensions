@@ -75,7 +75,7 @@ class FormCurator:
             file_id: File ID curate
         """
 
-        log.info('curating file %s', file_id)
+        log.info('looking up file %s', file_id)
         file_entry = self.__sdk_client.get_file(file_id)
 
         subject = self.get_subject(file_entry)
@@ -86,6 +86,7 @@ class FormCurator:
             log.warning("ignoring unexpected file %s", file_entry.name)
             return
 
+        log.info("curating file %s", file_entry.name)
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
 

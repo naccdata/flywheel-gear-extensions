@@ -5,7 +5,7 @@ import multiprocessing
 from multiprocessing.pool import Pool
 import os
 import re
-from typing import Dict, List, Literal, Optional, Type, TypeVar
+from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
 
 from curator.form_curator import FormCurator
 from dataview.dataview import ColumnModel, make_builder
@@ -150,6 +150,20 @@ class ViewResponseModel(BaseModel):
     """Defines the data model for a dataview response."""
     data: List[FileModel]
 
+    @field_validator("data", mode='before')
+    def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove any rows that are completely empty, which can happen if the
+        filename pattern does not match.
+
+        Args:
+            data: List of retrieved rows from the builder
+        Returns:
+            Trimmed data
+        """
+        return [
+            row for row in data if any(x is not None for x in row.values())
+        ]
+
 
 curator = None  # global curator object
 
@@ -290,6 +304,8 @@ class ProjectCurationScheduler:
         log.info("Start curator for %s subjects", len(self.__heap_map))
 
         process_count = max(4, self.__compute_cores())
+        results = []
+
         with Pool(processes=process_count,
                   initializer=initialize_worker,
                   initargs=(
@@ -299,8 +315,12 @@ class ProjectCurationScheduler:
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)
-                pool.apply_async(curate_subject, (heap, ))
+                results.append(pool.apply_async(curate_subject, (heap, )))
+
             pool.close()
+            for r in results:  # checks for exceptions
+                r.get()
+
             pool.join()
 
 
