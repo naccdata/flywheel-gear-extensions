@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.2
+* Fix center map key type
+  
 ## 1.2.1
 * Upgrades to dependencies
   
