@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.6
+* Fix center map index type
+  
 ## 1.0.5
 
 * Upgrades to dependencies
