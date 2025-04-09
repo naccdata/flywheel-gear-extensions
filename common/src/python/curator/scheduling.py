@@ -156,7 +156,7 @@ class ViewResponseModel(BaseModel):
         filename pattern does not match.
 
         Args:
-            data: List of retreived rows from the builder
+            data: List of retrieved rows from the builder
         Returns:
             Trimmed data
         """
