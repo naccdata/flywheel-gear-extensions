@@ -105,14 +105,17 @@ class TestCenterMapInfo:
 
     def test_creation(self, dummy_center, dummy_center_map):
         """Test creation."""
-        assert dummy_center_map.centers == {7: dummy_center}
+        assert dummy_center_map.centers == {'7': dummy_center}
 
         assert CenterMapInfo(centers={}).centers == {}
 
     def test_add(self, dummy_center, dummy_center_map):
         """Test adding."""
         dummy_center_map.add(8, dummy_center)
-        assert dummy_center_map.centers == {7: dummy_center, 8: dummy_center}
+        assert dummy_center_map.centers == {
+            '7': dummy_center,
+            '8': dummy_center
+        }
 
     def test_get(self, dummy_center, dummy_center_map):
         """Test getting."""
