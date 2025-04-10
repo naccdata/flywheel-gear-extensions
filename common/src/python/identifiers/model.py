@@ -18,13 +18,16 @@ class ADCIDField(BaseModel):
     adcid: int = Field(ge=0)
 
 
+def clean_ptid(value: str) -> str:
+    return value.strip().lstrip('0')
+
 class CenterFields(ADCIDField):
     """Base model for models with center ids."""
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
 
     @field_validator("ptid", mode="before")
     def clean_ptid(cls, value: str) -> str:
-        return value.strip().lstrip('0')
+        return clean_ptid(value)
 
 
 class NACCADCField(BaseModel):
