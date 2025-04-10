@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.3
+
+* Change handling of PTIDs so that are stripped of whitespace and leading zeros.
+  
 ## 1.2.2
 * Fix center map key type
   
