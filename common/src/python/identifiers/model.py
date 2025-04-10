@@ -1,11 +1,11 @@
 """Defines the Identifier data class."""
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, field_validator
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
 NACCID_PATTERN = r"^NACC\d{6}$"
-PTID_PATTERN = r"^[!-~]{1,10}$"  # Relaxing PTID format
+PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
 
 
 class GUIDField(BaseModel):
@@ -18,9 +18,17 @@ class ADCIDField(BaseModel):
     adcid: int = Field(ge=0)
 
 
+def clean_ptid(value: str) -> str:
+    return value.strip().lstrip('0')
+
+
 class CenterFields(ADCIDField):
     """Base model for models with center ids."""
-    ptid: str = Field(max_length=10)
+    ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
+
+    @field_validator("ptid", mode="before")
+    def clean_ptid(cls, value: str) -> str:
+        return clean_ptid(value)
 
 
 class NACCADCField(BaseModel):
