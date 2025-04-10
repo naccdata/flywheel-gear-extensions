@@ -1494,8 +1494,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "d53ed4ca0a3a13d4fe089ac92d78e35cc9df2a7d024add380287fda1861335f7",
-              "url": "https://files.pythonhosted.org/packages/ea/35/9732ed4f779dcc37265ca2b03400b1a54cc1a431b31125c054f6add9435e/flywheel_sdk-20.1.0-py2.py3-none-any.whl"
+              "hash": "478c36c2eed246f31b3fe02f3cfe3e4a85193ff4a6dced8684af1466e570cede",
+              "url": "https://files.pythonhosted.org/packages/49/dc/60d3fb696aef81049c238fcf7ff74e011b3acd55ac91b93bb28e6b10cb6f/flywheel_sdk-20.1.4-py2.py3-none-any.whl"
             }
           ],
           "project_name": "flywheel-sdk",
@@ -1509,7 +1509,7 @@
             "urllib3>=2.2.1"
           ],
           "requires_python": null,
-          "version": "20.1.0"
+          "version": "20.1.4"
         },
         {
           "artifacts": [
@@ -3078,19 +3078,19 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "7bcd649aedca3c41007ca5757096d3b3bdb454b73ca66970ddae6c2c2f541c8c",
-              "url": "https://files.pythonhosted.org/packages/c7/5b/9358ec92f9cd7ad865be76e346170a40e877af524f3718c02fb8fe182166/types_awscrt-0.25.7-py3-none-any.whl"
+              "hash": "176d320a26990efc057d4bf71396e05be027c142252ac48cc0d87aaea0704280",
+              "url": "https://files.pythonhosted.org/packages/da/c0/4708ee11a50d4e80c4dfb88dc2d6d69b1c296cd7397f1fe6352f119fd310/types_awscrt-0.26.1-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "e11298750c99647f7f3b98d6d6d648790096cd32d445fd0d49a6041a63336c9a",
-              "url": "https://files.pythonhosted.org/packages/fc/29/29cfb4acd07571e49a1781cd89a65846f6854913dfc8e91ca21b25209ceb/types_awscrt-0.25.7.tar.gz"
+              "hash": "aca96f889b3745c0e74f42f08f277fed3bf6e9baa2cf9b06a36f78d77720e504",
+              "url": "https://files.pythonhosted.org/packages/db/29/d0597055f1b700193463361b4b2284cf4548acbb10287d6253ce429728d5/types_awscrt-0.26.1.tar.gz"
             }
           ],
           "project_name": "types-awscrt",
           "requires_dists": [],
           "requires_python": ">=3.8",
-          "version": "0.25.7"
+          "version": "0.26.1"
         },
         {
           "artifacts": [
@@ -3226,19 +3226,19 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "4b6cf02909eb5495cfbc3f6e8fd49217e6cc7944e145cdda8caa3734777f9e69",
-              "url": "https://files.pythonhosted.org/packages/df/c5/e7a0b0f5ed69f94c8ab7379c599e6036886bffcde609969a5325f47f1332/typing_extensions-4.13.1-py3-none-any.whl"
+              "hash": "a439e7c04b49fec3e5d3e2beaa21755cadbbdc391694e28ccdd36ca4a1408f8c",
+              "url": "https://files.pythonhosted.org/packages/8b/54/b1ae86c0973cc6f0210b53d508ca3641fb6d0c56823f288d108bc7ab3cc8/typing_extensions-4.13.2-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "98795af00fb9640edec5b8e31fc647597b4691f099ad75f469a2616be1a76dff",
-              "url": "https://files.pythonhosted.org/packages/76/ad/cd3e3465232ec2416ae9b983f27b9e94dc8171d56ac99b345319a9475967/typing_extensions-4.13.1.tar.gz"
+              "hash": "e6c81219bd689f51865d9e372991c540bda33a0379d5573cddb9a3a23f7caaef",
+              "url": "https://files.pythonhosted.org/packages/f6/37/23083fcd6e35492953e8d2aaaa68b860eb422b34627b13f2ce3eb6106061/typing_extensions-4.13.2.tar.gz"
             }
           ],
           "project_name": "typing-extensions",
           "requires_dists": [],
           "requires_python": ">=3.8",
-          "version": "4.13.1"
+          "version": "4.13.2"
         },
         {
           "artifacts": [
@@ -3307,13 +3307,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df",
-              "url": "https://files.pythonhosted.org/packages/c8/19/4ec628951a74043532ca2cf5d97b7b14863931476d117c471e8e2b1eb39f/urllib3-2.3.0-py3-none-any.whl"
+              "hash": "4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813",
+              "url": "https://files.pythonhosted.org/packages/6b/11/cc635220681e93a0183390e26485430ca2c7b5f9d33b15c74c2861cb8091/urllib3-2.4.0-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d",
-              "url": "https://files.pythonhosted.org/packages/aa/63/e53da845320b757bf29ef6a9062f5c669fe997973f966045cb019c3f4b66/urllib3-2.3.0.tar.gz"
+              "hash": "414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466",
+              "url": "https://files.pythonhosted.org/packages/8a/78/16493d9c386d8e60e442a35feac5e00f0913c0f4b7c217c11e8ec2ff53e0/urllib3-2.4.0.tar.gz"
             }
           ],
           "project_name": "urllib3",
@@ -3325,7 +3325,7 @@
             "zstandard>=0.18.0; extra == \"zstd\""
           ],
           "requires_python": ">=3.9",
-          "version": "2.3.0"
+          "version": "2.4.0"
         },
         {
           "artifacts": [
