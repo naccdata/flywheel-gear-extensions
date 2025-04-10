@@ -21,6 +21,7 @@ class ADCIDField(BaseModel):
 def clean_ptid(value: str) -> str:
     return value.strip().lstrip('0')
 
+
 class CenterFields(ADCIDField):
     """Base model for models with center ids."""
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
