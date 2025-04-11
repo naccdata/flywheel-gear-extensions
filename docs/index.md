@@ -18,7 +18,7 @@ Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordi
     - SCAN metadata pipeline
 
 - Gears:
-  1. [apoe_transformer](apoe_transformer/index.md)
+  1. <del>[apoe_transformer](apoe_transformer/index.md)</del>
   2. [attribute_curator](attribute_curator/index.md)
   3. [batch_scheduler](batch_scheduler/index.md)
   4. [center_management](center_management/index.md)
