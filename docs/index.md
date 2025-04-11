@@ -8,11 +8,11 @@ Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordi
   - Center management
   - Project/Study management
   - Pipeline Management
-  - [User Management](./processes/user_management.md)
+  - [User Management](./processes/./processes/user_management.md)
   - [Data Aggregation and Curation](./processes/curation.md)
   - Data Pipelines
     - Batch scheduling
-    - [CSV pipelines](./csv_pipeline.md)
+    - [CSV pipelines](./processes/csv_pipeline.md)
     - Enrollment pipelines
     - Form pipeline
     - SCAN metadata pipeline
