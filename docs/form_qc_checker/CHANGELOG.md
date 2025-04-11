@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to pull REDCap API code from library instead
+
 ## 1.3.3
 * Fix center map key type
   

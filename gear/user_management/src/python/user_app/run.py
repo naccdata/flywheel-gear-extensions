@@ -18,7 +18,7 @@ from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
-from redcap.redcap_repository import REDCapParametersRepository
+from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
 from users.nacc_directory import UserEntry, UserFormatError
 from users.user_processes import (
