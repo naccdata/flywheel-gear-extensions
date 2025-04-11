@@ -2,6 +2,8 @@
 
 ## Processes
 
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/curation.md)
+
 ```mermaid
 flowchart LR
     A@{ shape: rect, label: "&laquo;project&raquo;\ningest/\ndistribution" }

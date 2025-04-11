@@ -32,6 +32,8 @@ On upload, ID transformations may be required to ensure the CSV has the the NACC
 
 ### Ingest processes
 
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/csv_pipeline.md#ingest-processes)
+
 ```mermaid
 flowchart LR
     subgraph study/ingest
@@ -59,6 +61,8 @@ The next step is to split rows of the CSV by ADCID and write center-specific row
 
 ### Center-splitting processes
 
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/csv_pipeline.md#center-splitting-processes)
+
 ```mermaid
 flowchart LR
     subgraph study/ingest
@@ -83,6 +87,8 @@ The final step is to split rows in the center-specific CSV by NACCID to create J
 After which the form-importer is run to load JSON into the file custom info.
 
 #### Participant splitting processes
+
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/csv_pipeline.md#participant-splitting-processes)
 
 ```mermaid
 flowchart LR
