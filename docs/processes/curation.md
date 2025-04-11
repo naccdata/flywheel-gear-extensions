@@ -8,7 +8,7 @@ flowchart LR
     B@{ shape: rect, label: "&laquo;project&raquo;\naccepted" }
     C@{ shape: processes, label: "soft-copy" }
     D@{ shape: processes, label: "curator" }
-    E@{ shape: processes, label: "copy" }
+    E@{ shape: processes, label: "soft-copy" }
     F@{ shape: rect, label: "&laquo;project&raquo;\nmaster-project" }
     A --> C
     C --> B
