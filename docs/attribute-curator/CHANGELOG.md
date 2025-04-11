@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.6
+
+* Moves the `get_subject` call to beginning of heap loop to avoid calling it for every file
+
 ## 0.2.5
 
 * Adds retry of 3 on curating file
