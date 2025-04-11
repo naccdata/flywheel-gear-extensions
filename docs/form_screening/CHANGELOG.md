@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.3
+* Upgrades to dependencies
+  
 ## 1.0.2
 * Updates pre-processing error codes
   

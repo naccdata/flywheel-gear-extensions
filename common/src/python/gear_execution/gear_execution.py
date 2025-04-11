@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 import flywheel
 from centers.nacc_group import NACCGroup
 from flywheel.client import Client
+from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
@@ -140,8 +141,15 @@ class GearBotClient:
 class InputFileWrapper:
     """Defines a gear execution visitor that takes an input file."""
 
-    def __init__(self, file_input: Dict[str, Dict[str, Any]]) -> None:
+    def __init__(self, file_input: Dict[str, Any]) -> None:
         self.file_input = file_input
+
+    def file_entry(self, context: GearToolkitContext) -> FileEntry:
+        file_hierarchy = self.file_input.get("hierarchy")
+        assert file_hierarchy
+        acquisition = context.get_container_from_ref(file_hierarchy)
+        assert isinstance(acquisition, Acquisition)
+        return acquisition.get_file(self.filename)
 
     @property
     def file_id(self) -> str:

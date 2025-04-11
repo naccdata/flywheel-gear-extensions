@@ -15,7 +15,7 @@ from flywheel.rest import ApiException
 from keys.keys import FieldNames, MetadataKeys
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
-from utils.utils import is_duplicate_record
+from uploads.acquisition import upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ class SubjectAdaptor:
             FileEntry(optional): Flywheel container for the newly uploaded file or None
 
         Raises:
-            SubjectError: if any error occurred while upload
+            ApiException: if any error occurred while upload
         """
 
         session = self.find_session(session_label)
@@ -262,28 +262,14 @@ class SubjectAdaptor:
                 'creating a new acquisition', acquisition_label, session_label)
             acquisition = session.add_acquisition(label=acquisition_label)
 
-        if skip_duplicates:
-            existing_file = acquisition.get_file(filename)
-            if existing_file and is_duplicate_record(
-                    contents, existing_file.read(), content_type):
-                log.warning('Duplicate file %s already exists at %s/%s/%s',
-                            filename, self.label, session_label,
-                            acquisition_label)
-                return None
-
-        record_file_spec = FileSpec(name=filename,
-                                    contents=contents,
-                                    content_type=content_type)
-
-        try:
-            acquisition.upload_file(record_file_spec)
-            acquisition = acquisition.reload()
-            return acquisition.get_file(filename)
-        except ApiException as error:
-            raise SubjectError(
-                f'Failed to upload file {filename} to '
-                f'{self.label}/{session_label}/{acquisition_label}: {error}'
-            ) from error
+        return upload_to_acquisition(acquisition=acquisition,
+                                     filename=filename,
+                                     contents=contents,
+                                     content_type=content_type,
+                                     subject_label=self.label,
+                                     session_label=session_label,
+                                     acquisition_label=acquisition_label,
+                                     skip_duplicates=skip_duplicates)
 
     def get_acquisition_file_name(self,
                                   *,

@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.1
+* Fix center map key type
+  
 ## 0.2.0
 
 * Adds scheduling/batching functionality

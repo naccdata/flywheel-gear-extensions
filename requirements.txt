@@ -2,11 +2,12 @@ boto3>=1.28.53
 boto3-stubs[boto3]
 botocore
 flywheel-gear-toolkit>=0.2
-flywheel-sdk==19.4.0 # setting to 19.4.0 until sites updated to 20.x
+flywheel-sdk>=20.0.0 
 fw-client>=0.7.0
 fw-utils>=3
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]>=5.0.15
+natsort
 pandas>=2.1.1
 pandas-stubs>=2.0.3
 pydantic>=2.5.2
@@ -25,3 +26,4 @@ urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
 nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.1/nacc_form_validator-0.5.1-py3-none-any.whl
+nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v1.2.2/nacc_attribute_deriver-1.2.2-py3-none-any.whl

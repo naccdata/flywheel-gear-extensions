@@ -10,7 +10,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject
+from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.errors import (
@@ -128,12 +128,13 @@ class NACCIDLookupVisitor(CSVVisitor):
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
-        identifier = self.__identifiers.get(row[FieldNames.PTID])
+        ptid = clean_ptid(row[FieldNames.PTID])
+        identifier = self.__identifiers.get(ptid)
         if not identifier:
             self.__error_writer.write(
                 identifier_error(
                     line=line_num,
-                    value=row[FieldNames.PTID],
+                    value=ptid,
                     message='No matching NACCID found for the given PTID'))
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False

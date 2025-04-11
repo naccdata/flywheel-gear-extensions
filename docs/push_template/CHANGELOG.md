@@ -4,6 +4,9 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+## 1.0.6
+* Fix center map key type
+
 ## 1.0.5
 
 * Changes call to FWClient.put for project app management to use parameter `json` instead of `data` for the payload.

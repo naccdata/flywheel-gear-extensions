@@ -169,6 +169,11 @@ The build is managed using [Pants](https://www.pantsbuild.org), and the gear can
 pants package src/docker::
 ```
 
+If you are building on macOS and get a permissions error for a cache file, you can set write permissions for the file in the error and rerun the package command.
+This error seems to be a bug related to the VirtioFS of the Docker virtual machine.
+A suggested alternative from pants is to setting the file sharing to gRPC FUSE.
+This setting is Docker Desktop under Settings/General/Virtual Machine Options.
+
 If you are building/running on macOS with an Apple Silicon chip, building a docker image with the correct architecture is a bit more involved. The following was added to the root BUILD file to support this, so should also handle all the gear builds, but you can update/change how its done for your specific gear.
 
 ```

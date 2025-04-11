@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.3
+
+* Fix validation of PTIDs to ensure they are stripped of whitespace and leading zeros.
+
+## 1.1.2
+* Fix center map key type
+  
+## 1.1.1
+* Upgrades to dependencies
+  
+## 1.1.0
+* Relaxes the PTID format check
+  
 ## 1.0.11
 * Fixes a bug in retrieving module label from file suffix
   

@@ -169,7 +169,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         if not dest_container:
             raise GearExecutionError("No destination container found")
 
-        log.info(f"Destination container: {dest_container.label}")
+        log.info(
+            f"Destination container: {dest_container.label}")  # type: ignore
 
         # Get Group and Project IDs, ADCID for group
         group_id, project_id = get_destination_group_and_project(

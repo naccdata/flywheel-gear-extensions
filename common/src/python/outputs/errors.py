@@ -56,7 +56,7 @@ preprocess_errors = {
     "Provided FORMVER is not in the list of " +
     "accepted versions for this module",
     SysErrorCodes.INVALID_PTID:
-    "PTID must be an alpha numeric code " + "that is no more than 10 digits",
+    "PTID must be no more than 10 characters",
     SysErrorCodes.INVALID_MODULE:
     "Provided MODULE is not in the list of currently accepted modules",
     SysErrorCodes.MISSING_IVP:
@@ -77,6 +77,8 @@ preprocess_errors = {
     SysErrorCodes.LOWER_VISITNUM:
     "Packet with higher visit date (VISITDATE) " +
     "must also have a higher visit number (VISITNUM)",
+    SysErrorCodes.MISSING_SUBMISSION_STATUS:
+    "Missing submission status (MODE<form name> variable) for one or more optional form"
 }
 
 
