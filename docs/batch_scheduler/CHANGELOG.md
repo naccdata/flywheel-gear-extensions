@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.2
+* Adds include_centers config
+  
 ## 1.1.1
 * Fixes center mapping key type
 
