@@ -2,22 +2,20 @@
 
 This document discusses the process(es) for handling CSV data that is submitted to NACC by a study or collaborating organization.
 
-## General framework
+The data in these files CSV files are processed for one or both of these purposes:
 
-This is the general framework for handling CSV files for one or both of these purposes:
-
-* distributing participant data to the centers, or
+* distributing participant data to the centers, and
 * attaching data to the subjects for participants for use in released data or query tool indexing.
 
-The basic steps are the following
+with the processing involving these steps
 
-1. Ingest CSV file
-2. Split CSV file by center
-3. Split center-specific files by subject
+1. [Ingest the CSV file](#ingest-csv-file)
+2. [Split the CSV file by center](#split-csv-by-center)
+3. [Split each center-specific files by subject](#split-center-csv-by-participant)
 
-And, are discussed in more detail below
+These are discussed in more detail below
 
-### Ingest
+## Ingest CSV File
 
 As the first step, a CSV containing data from all centers is uploaded to the study ingest.
 The study ingest is typically a study-specific ingest project of a center for the organization providing the data.
@@ -32,7 +30,7 @@ On upload, ID transformations may be required to ensure the CSV has the the NACC
    2. if data only has ADCID, PTID, do identifier lookup to insert NACCID
 
 
-#### Ingest processes
+### Ingest processes
 
 ```mermaid
 flowchart LR
@@ -41,12 +39,12 @@ flowchart LR
     end
 ```
 
-#### Gear: 
+### Gear: 
 
 [identifier-lookup](../identifier_lookup/): used to ensure both ADCID and NACCID are available for splitting purposes
 
 
-#### Variation
+### Variation
 
 The primary variation is where data is ingested.
 Ordinarily data is uploaded to an ingest project in Flywheel, but, in other cases, data is ingested into AWS S3.
@@ -55,11 +53,11 @@ In this scenario, transformation processes may occur in AWS before the data is t
 An example of this is SCAN, where data is transferred into the S3 bucket, and split by center and each file written into center-specific projects in Flywheel. 
 This uses a different set of gears up to the point where the files are saved in Flywheel.
 
-### Split by center
+## Split CSV by Center
 
 The next step is to split rows of the CSV by ADCID and write center-specific rows to a new CSV in a project in the group corresponding to the ADCID.
 
-#### Center-splitting processes
+### Center-splitting processes
 
 ```mermaid
 flowchart LR
@@ -71,15 +69,15 @@ flowchart LR
     end
 ```
 
-#### Gear: 
+### Gear: 
 
 [csv-center-splitter](../csv_center_splitter/): uses the ADCID to split the CSV and save the corresponding rows to a CSV file in a project of the center group
 
-#### Variation
+### Variation
 
 The CSV center splitter supports batching the splitting process to avoid scenarios where a large number of downstream jobs are created.
 
-### Split by participant
+## Split center CSV by participant
 
 The final step is to split rows in the center-specific CSV by NACCID to create JSON file attached to subject.
 After which the form-importer is run to load JSON into the file custom info.
@@ -94,12 +92,12 @@ flowchart LR
     end
 ```
 
-#### Gears:
+### Gears:
 * [csv-subject-splitter](../csv_subject_splitter/): uses the NACCID to split the center-level CSV into rows, writing each row as a JSON file attached to an acquisition under the subject
 * [form-importer](https://gitlab.com/flywheel-io/scientific-solutions/gears/form-importer): imports the JSON data and inserts it into the file custom information `file.info`
 
 
-#### Variation:
+### Variation:
 
 The form-importer allows specifying a prefix for importing values into the custom information.
 
