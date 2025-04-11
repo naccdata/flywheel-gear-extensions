@@ -1,12 +1,14 @@
 # Data Aggregation and Curation
 
+## Processes
+
 ```mermaid
 flowchart LR
-    A@{ shape: rect, label: "ingest/distribution" }
+    A@{ shape: rect, label: "ingest/\ndistribution" }
     B@{ shape: rect, label: "accepted" }
-    C@{ shape: rect, label: "soft-copy" }
-    D@{ shape: rect, label: "curator" }
-    E@{ shape: rect, label: "copy" }
+    C@{ shape: processes, label: "soft-copy" }
+    D@{ shape: processes, label: "curator" }
+    E@{ shape: processes, label: "copy" }
     F@{ shape: rect, label: "master" }
     A --> C
     C --> B
@@ -15,3 +17,8 @@ flowchart LR
     B --> E
     E --> F
 ```
+
+## Gears:
+
+- [soft-copy](https://gitlab.com/flywheel-io/scientific-solutions/gears/soft-copy)
+- [attribute-curator](../attribute-curator/)
