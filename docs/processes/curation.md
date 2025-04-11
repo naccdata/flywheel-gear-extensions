@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-    A@{ shape: rect, label: "ingest/\ndistribution" }
+    A@{ shape: rect, label: "&laquo;project&raquo;\ningest/\ndistribution" }
     B@{ shape: rect, label: "accepted" }
     C@{ shape: processes, label: "soft-copy" }
     D@{ shape: processes, label: "curator" }
