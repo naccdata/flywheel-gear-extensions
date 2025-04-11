@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/identifier_provisioning/src/python/identifier_provisioning_app:bin",
     ],
-    image_tags=["1.1.2", "latest"],
+    image_tags=["1.2.3", "latest"],
 )

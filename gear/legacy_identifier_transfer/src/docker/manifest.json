@@ -1,0 +1,68 @@
+{
+    "name": "legacy-identifier-transfer",
+    "label": "Legacy Identifier Transfer",
+    "description": "Handles retrieving legacy NACCIDs from identifiers-api and provisioning identifiers in Flywheel.",
+    "version": "1.1.3",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions/legacy_identifier_transfer",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/legacy-identifier-transfer:1.1.3"
+        },
+        "flywheel": {
+            "suite": "NACC Admin Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
+        "identifiers_mode": {
+            "description": "Whether to retrieve identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
+        "legacy_ingest_label": {
+            "description": "Legacy ingest project label in Flywheel",
+            "type": "string",
+            "default": "retrospective-form"
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
+        "sender_email": {
+            "description": "Email to send error reports from",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of emails to send error reports to",
+            "type": "string",
+            "default": "nacc_dev@uw.edu"
+        }
+    },
+    "command": "/bin/run"
+}

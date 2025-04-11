@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.2
+* Fixes a bug in visitnum comparison in pre-processing checks
+* Upgrades to dependencies
+  
+## 1.3.1
+* Moves the optional forms list to ingest configurations
+  
+## 1.3.0
+* Relaxes the PTID format check
+  
+## 1.2.1
+* Fixes a bug in retrieving module label from file suffix
+  
 ## 1.2.0
 * Cross-validates the records within the batch CSV file
 

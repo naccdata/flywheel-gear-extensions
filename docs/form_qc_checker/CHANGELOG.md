@@ -6,6 +6,25 @@ All notable changes to this gear are documented in this file.
 
 * Updates to pull REDCap API code from library instead
 
+## 1.3.3
+* Fix center map key type
+  
+## 1.3.2
+* Upgrades to dependencies
+  
+## 1.3.1
+* Moves the optional forms list to ingest configurations
+
+## 1.3.0
+* Relaxes the PTID format check
+* Adds form version validation for enrollment form QC process
+  
+## 1.2.8
+* Fixes a bug in retrieving module label from file suffix
+  
+## 1.2.7
+* Updates `nacc-form-validator` to 0.5.1
+
 ## 1.2.6
 * Refactor  `DatastoreHelper` class to use common package
   

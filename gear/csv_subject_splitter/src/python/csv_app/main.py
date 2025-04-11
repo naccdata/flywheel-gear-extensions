@@ -3,7 +3,8 @@
 import logging
 from typing import Any, Dict, List, TextIO
 
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.errors import (
@@ -67,9 +68,9 @@ class CSVSplitVisitor(CSVVisitor):
                 empty_fields, line_num))
             return False
 
-        subject = self.__project.add_subject(row[FieldNames.NACCID])
         try:
-            self.__uploader.upload_record(subject=subject, record=row)
+            self.__uploader.upload_record(subject_label=row[FieldNames.NACCID],
+                                          record=row)
         except UploaderError as error:
             log.error("Error (line: %s): %s", line_num, str(error))
             # TODO: save error details for notification email
@@ -83,9 +84,10 @@ def notify_upload_errors():
     pass
 
 
-def run(*, input_file: TextIO, destination: ProjectAdaptor,
+def run(*, proxy: FlywheelProxy, hierarchy_client: HierarchyCreationClient,
+        input_file: TextIO, destination: ProjectAdaptor,
         environment: Dict[str, Any], template_map: UploadTemplateInfo,
-        error_writer: ErrorWriter) -> bool:
+        error_writer: ErrorWriter, preserve_case: bool) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.
 
@@ -95,17 +97,22 @@ def run(*, input_file: TextIO, destination: ProjectAdaptor,
         environment: dictionary of variables describing environment for labels
         template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
+        preserve_case: Whether or not to preserve header case
     Returns:
         bool: True if upload successful
     """
     result = read_csv(input_file=input_file,
                       error_writer=error_writer,
-                      visitor=CSVSplitVisitor(req_fields=[FieldNames.NACCID],
-                                              project=destination,
-                                              uploader=JSONUploader(
-                                                  project=destination,
-                                                  template_map=template_map,
-                                                  environment=environment),
-                                              error_writer=error_writer))
+                      visitor=CSVSplitVisitor(
+                          req_fields=[FieldNames.NACCID],
+                          project=destination,
+                          uploader=JSONUploader(
+                              proxy=proxy,
+                              hierarchy_client=hierarchy_client,
+                              project=destination,
+                              template_map=template_map,
+                              environment=environment),
+                          error_writer=error_writer),
+                      preserve_case=preserve_case)
 
     return result

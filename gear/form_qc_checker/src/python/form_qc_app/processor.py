@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Literal, Mapping, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectError,
@@ -53,12 +54,13 @@ class FileProcessor(ABC):
 
     @abstractmethod
     def validate_input(
-            self, *,
-            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
+            self, *, input_wrapper: InputFileWrapper,
+            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
         """Validates the input file before proceeding with data quality checks.
 
         Args:
             input_wrapper: Wrapper object for gear input file
+            form_configs: Form ingest configurations for the module
 
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict
@@ -200,14 +202,15 @@ class JSONFileProcessor(FileProcessor):
         return 'NONE'
 
     def validate_input(
-            self, *,
-            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
+            self, *, input_wrapper: InputFileWrapper,
+            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
         """Validates a JSON input file for a participant visit. Check whether
         all required fields are present in the input data. Check whether
         primary key matches with the Flywheel subject label in the project.
 
         Args:
             input_wrapper: Wrapper object for gear input file
+            form_configs: Form ingest configurations
 
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict

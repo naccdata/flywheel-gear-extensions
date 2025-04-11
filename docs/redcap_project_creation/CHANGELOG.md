@@ -3,8 +3,12 @@
 All notable changes to this gear are documented in this file.
 
 ## Unreleased
+
 * Updates to pull REDCap API code from library instead
- 
+
+## 0.1.3
+* Fix center map key type
+
 ## 0.1.1 - 0.1.2
 * Saves updated REDCap metadata in a yaml file in admin project
 * Adds dry run option to scrape existing metadata and save to yaml file

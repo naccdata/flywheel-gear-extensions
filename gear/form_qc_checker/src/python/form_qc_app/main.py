@@ -152,7 +152,17 @@ def run(  # noqa: C901
         raise GearExecutionError(
             f'Unsupported input file type {input_wrapper.file_type}')
 
-    module = input_wrapper.get_module_name_from_file_suffix()
+    if file_type == 'json':
+        separator = "_"
+        allowed = "a-z"
+        split = None
+    else:
+        separator = "-"
+        allowed = "a-z_"
+        split = '_'
+
+    module = input_wrapper.get_module_name_from_file_suffix(
+        separator=separator, allowed=allowed, split=split, extension=file_type)
     if not module:
         raise GearExecutionError(
             f'Failed to extract module information from file {input_wrapper.filename}'
@@ -192,6 +202,7 @@ def run(  # noqa: C901
 
     rule_def_loader = DefinitionsLoader(s3_client=s3_client,
                                         error_writer=error_writer,
+                                        module_configs=module_configs,
                                         strict=strict)
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
@@ -221,7 +232,8 @@ def run(  # noqa: C901
                                           error_writer=error_writer,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
+    input_data = file_processor.validate_input(
+        input_wrapper=input_wrapper, form_configs=form_project_configs)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,

@@ -18,6 +18,7 @@ from enrollment.enrollment_transfer import (
 class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
     update_date: datetime
+    legacy: Optional[bool] = False
 
 
 class EnrollmentInfo(BaseModel):
@@ -87,7 +88,8 @@ class EnrollmentSubject(SubjectAdaptor):
             ptid=record.center_identifier.ptid,
             naccid=record.naccid,
             guid=record.guid,
-            update_date=record.start_date)
+            update_date=record.start_date,
+            legacy=record.legacy)
         self.update(EnrollmentInfo(enrollment=identifiers).model_dump())
 
     def upload_enrollment(self, record: EnrollmentRecord) -> None:

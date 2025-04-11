@@ -1,0 +1,44 @@
+{
+    "name": "attribute-curator",
+    "label": "Attribute Curator",
+    "description": "Curation of derived data for MQT project",
+    "version": "0.2.5",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "analysis",
+            "image": "naccdata/attribute-curator:0.2.5"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "read-only": false
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "filename_pattern": {
+            "description": "Filename pattern to match on",
+            "type": "string",
+            "default": "*.json"
+        }
+    },
+    "command": "/bin/run"
+}

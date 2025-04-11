@@ -2,6 +2,7 @@
 """Defines project creation functions for calls to Flywheel."""
 import json
 import logging
+from codecs import StreamReader
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
@@ -25,7 +26,7 @@ from flywheel.models.roles_role_assignment import RolesRoleAssignment
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from fw_client import FWClient
+from fw_client.client import FWClient
 from fw_utils import AttrDict
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
@@ -471,7 +472,7 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=settings)
+                             json=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -589,7 +590,24 @@ class FlywheelProxy:
         """
         return self.__fw.lookup(f'gears/{gear_name}')
 
-    def find_job(self, search_str: str) -> Optional[Job]:
+    def retry_job(self, job_id: str) -> Optional[str]:
+        """Retry a job.
+
+        The job must have a state of 'failed', and must not have already been retried.
+
+        Args:
+            job_id: ID of the job to retry
+
+        Returns:
+            Optional[str]: ID of the new job or None
+        """
+        try:
+            return self.__fw.retry_job(job_id)
+        except ApiException as error:
+            log.error('Failed to retry the job %s - %s', job_id, error)
+            return None
+
+    def find_job(self, search_str: str, **kwargs) -> Optional[Job]:
         """Find the first Job matching the search string.
 
         Args:
@@ -598,7 +616,7 @@ class FlywheelProxy:
         Returns:
             Job: Flywheel Job object if found, else None
         """
-        return self.__fw.jobs.find_first(search_str)
+        return self.__fw.jobs.find_first(search_str, **kwargs)
 
     def find_jobs(self, search_str: str) -> List[Job]:
         """Find all jobs matching the search string.
@@ -662,7 +680,7 @@ class FlywheelProxy:
         builder = builder.missing_data_strategy('drop-row')
         view = builder.build()
 
-        with self.__fw.read_view_data(view, container_id) as resp:
+        with self.read_view_data(view, container_id) as resp:
             try:
                 result = json.load(resp)
             except JSONDecodeError as error:
@@ -674,6 +692,10 @@ class FlywheelProxy:
             return None
 
         return result['data']
+
+    def read_view_data(self, view: DataView,
+                       container_id: str) -> StreamReader:
+        return self.__fw.read_view_data(view, container_id)
 
     def lookup(self, path):
         """Perform a path based lookup of a single node in the Flywheel
@@ -1272,6 +1294,9 @@ class ProjectAdaptor:
                                         viewinput=view_template)
         return view_id.id
 
+    def read_dataview(self, view: DataView) -> StreamReader:
+        return self._fw.read_view_data(view, self._project.id)
+
     def get_info(self) -> Dict[str, Any]:
         """Returns the info object for this project.
 
@@ -1311,20 +1336,13 @@ class ProjectAdaptor:
         return info
 
     def add_subject(self, label: str) -> SubjectAdaptor:
-        """Adds a subject with the given label. If the subject already exists,
-        returns it instead.
+        """Adds a subject with the given label.
 
         Args:
           label: the subject label
         Returns:
           the created Subject object
         """
-        subject = self.find_subject(label)
-        if subject:
-            log.info(
-                f"Subject {label} already exists in {self.group}/{self.label}")
-            return subject
-
         return SubjectAdaptor(self._project.add_subject(label=label))
 
     def find_subject(self, label: str) -> Optional[SubjectAdaptor]:
