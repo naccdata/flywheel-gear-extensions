@@ -23,4 +23,4 @@ flowchart LR
 ## Gears:
 
 - [soft-copy](https://gitlab.com/flywheel-io/scientific-solutions/gears/soft-copy)
-- [attribute-curator](../attribute-curator/)
+- [attribute-curator](../attribute-curator/index.md)

@@ -37,6 +37,10 @@ sequenceDiagram
     puller ->> Flywheel: write directory user file
 ```
 
+### Gear
+
+[pull-directory](../pull_directory/index.md)
+
 ## User management
 
 Updates to the NACC directory user file trigger a gear rule that runs the user management gear.
@@ -68,3 +72,7 @@ sequenceDiagram
         end
     end
 ```
+
+### Gear
+
+[user-management](../user_management/index.md)

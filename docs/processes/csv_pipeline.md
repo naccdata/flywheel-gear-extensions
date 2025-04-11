@@ -99,7 +99,7 @@ flowchart LR
 ```
 
 ### Gears:
-* [csv-subject-splitter](../csv_subject_splitter/): uses the NACCID to split the center-level CSV into rows, writing each row as a JSON file attached to an acquisition under the subject
+* [csv-subject-splitter](../csv_subject_splitter/index.md): uses the NACCID to split the center-level CSV into rows, writing each row as a JSON file attached to an acquisition under the subject
 * [form-importer](https://gitlab.com/flywheel-io/scientific-solutions/gears/form-importer): imports the JSON data and inserts it into the file custom information `file.info`
 
 
