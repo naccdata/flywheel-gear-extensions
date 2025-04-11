@@ -2,10 +2,16 @@
 
 ```mermaid
 flowchart LR
-    A@{ shape: rect, label:"ingest/distribution" } --> C@{ shape: rect, label:"soft-copy" }
-    C --> B@{ shape: rect, label:"accepted" }
-    B --> D@{ shape: rect, label:"curator" }
+    A@{ shape: rect, label: "ingest/distribution" }
+    B@{ shape: rect, label: "accepted" }
+    C@{ shape: rect, label: "soft-copy" }
+    D@{ shape: rect, label: "curator" }
+    E@{ shape: rect, label: "copy" }
+    F@{ shape: rect, label: "master" }
+    A --> C
+    C --> B
+    B --> D
     D --> B
-    B --> E@{ shape: rect, label:"copy" }
-    E --> F@{ shape: rect, label:"master" }
+    B --> E
+    E --> F
 ```
