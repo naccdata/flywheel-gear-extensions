@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.5
+
+* Adds retry of 3 on curating file
+
 ## 0.2.4
 
 * Updates `nacc_attribute_deriver` to `1.2.2`
