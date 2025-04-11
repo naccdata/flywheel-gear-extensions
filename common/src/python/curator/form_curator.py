@@ -5,6 +5,7 @@ from typing import Optional
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
+from flywheel.rest import ApiException
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
@@ -68,27 +69,39 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
-    def curate_file(self, file_id: str):
+    def curate_file(self, file_id: str, max_retries: int = 3):
         """Curate the given file.
 
         Args:
             file_id: File ID curate
+            retries: Max number of times to retry before giving up
         """
+        retries = 0
+        while retries <= max_retries:
+            try:
+                log.info('looking up file %s', file_id)
+                file_entry = self.__sdk_client.get_file(file_id)
 
-        log.info('looking up file %s', file_id)
-        file_entry = self.__sdk_client.get_file(file_id)
+                subject = self.get_subject(file_entry)
+                table = self.get_table(subject, file_entry)
 
-        subject = self.get_subject(file_entry)
-        table = self.get_table(subject, file_entry)
+                scope = determine_scope(file_entry.name)
+                if not scope:
+                    log.warning("ignoring unexpected file %s", file_entry.name)
+                    return
 
-        scope = determine_scope(file_entry.name)
-        if not scope:
-            log.warning("ignoring unexpected file %s", file_entry.name)
-            return
-
-        log.info("curating file %s", file_entry.name)
-        self.__deriver.curate(table, scope)
-        self.apply_curation(subject, file_entry, table)
+                log.info("curating file %s", file_entry.name)
+                self.__deriver.curate(table, scope)
+                self.apply_curation(subject, file_entry, table)
+                break
+            except ApiException as e:
+                retries += 1
+                if retries <= max_retries:
+                    log.warning(
+                        f"Encountered API error, retrying {retries}/{max_retries}"
+                    )
+                else:
+                    raise e
 
 
 def determine_scope(filename: str) -> Optional[ScopeLiterals]:
