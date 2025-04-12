@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.2.6
+## Unreleased
 
 * Moves the `get_subject` call to beginning of loop to avoid calling it for every file in the same subject-specific heap
 
