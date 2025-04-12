@@ -183,23 +183,25 @@ def initialize_worker(context: GearToolkitContext, curator_type: Type[C],
     curator = curator_type(sdk_client=sdk_client, deriver=deriver)
 
 
-def curate_subject(heap: MinHeap[FileModel]) -> None:
+def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     """Defines a task function for curating the files captured in the heap.
     Assumes the files are all under the same participant.
 
     Args:
-      heap: the min heap of file model objects for the participant
+        subject_id: ID of subject this heap belongs to
+        heap: the min heap of file model objects for the participant
     """
 
     global curator
     assert curator, 'curator object expected'
+    subject = curator.get_subject(subject_id)
 
     while len(heap) > 0:
         file_info = heap.pop()
         if not file_info:
             continue
 
-        curator.curate_file(file_info.file_id)
+        curator.curate_file(subject, file_info.file_id)
 
 
 class ProjectCurationScheduler:
@@ -315,7 +317,11 @@ class ProjectCurationScheduler:
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)
-                results.append(pool.apply_async(curate_subject, (heap, )))
+                results.append(
+                    pool.apply_async(curate_subject, (
+                        subject_id,
+                        heap,
+                    )))
 
             pool.close()
             for r in results:  # checks for exceptions
