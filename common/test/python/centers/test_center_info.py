@@ -29,10 +29,7 @@ class DummyVisitor(StudyVisitor):
 @pytest.fixture(scope='module')
 def dummy_center():
     """Generate dummy CenterInfo for general testing."""
-    return CenterInfo(adcid=7,
-                      name="Alpha ADRC",
-                      group='alpha-adrc',
-                      tags=('adcid-7', ))
+    return CenterInfo(adcid=7, name="Alpha ADRC", group='alpha-adrc')
 
 
 @pytest.fixture(scope='function')
@@ -47,7 +44,6 @@ class TestCenterInfo:
 
     def test_object(self, dummy_center):
         """Sanity check on object creation and properties."""
-        assert 'adcid-7' in dummy_center.tags
         assert dummy_center.name == "Alpha ADRC"
         assert dummy_center.active
         assert dummy_center.group == 'alpha-adrc'
@@ -57,7 +53,6 @@ class TestCenterInfo:
         matches."""
         center = CenterInfo(
             **{  # type: ignore
-                'tags': ('adcid-7', ),
                 'name': 'Alpha ADRC',
                 'center-id': 'alpha-adrc',
                 'adcid': 7,
@@ -71,8 +66,7 @@ class TestCenterInfo:
             CenterInfo()  # type: ignore
 
         with pytest.raises(ValidationError):
-            CenterInfo(tags=('adcid-7', ), name="Alpha ADRC",
-                       adcid=7)  # type: ignore
+            CenterInfo(name="Alpha ADRC", adcid=7)  # type: ignore
 
     def test_apply(self, dummy_center):
         """Test that visitor applied."""
@@ -95,8 +89,7 @@ class TestCenterInfo:
         assert repr(dummy_center) == ("Center(group=alpha-adrc, "
                                       "name=Alpha ADRC, "
                                       "adcid=7, "
-                                      "active=True, "
-                                      "tags=('adcid-7',)")
+                                      "active=True")
 
 
 # pylint: disable=(no-self-use)

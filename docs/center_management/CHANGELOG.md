@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates how tags are handled by the CenterInfo model
+
 ## 1.0.6
 * Fix center map index type
   
