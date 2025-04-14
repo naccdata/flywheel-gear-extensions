@@ -91,7 +91,7 @@ class NACCGroup(CenterAdaptor):
                        name=group_label,
                        group=group_id,
                        active=active))
-        metadata.update_info(center_map.model_dump(exclude=exclude))
+        metadata.update_info(center_map.model_dump())
 
     def get_center_map(self,
                        center_filter: Optional[List[str]] = None
