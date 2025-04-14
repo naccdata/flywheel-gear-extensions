@@ -21,7 +21,6 @@ def build_project_map(
     Args:
       proxy: the flywheel instance proxy
       destination_label: the project of center to map to
-      center_tag_pattern: the regex for adcid-tags
       center_filter: Optional list of ADCIDs to filter on for a mapping subset
     Returns:
       dictionary mapping from adcid to group

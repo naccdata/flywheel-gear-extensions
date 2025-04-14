@@ -5,9 +5,10 @@ array of centers:
     adcid - the ADC ID used to code data
     name - name of center
     is-active - whether center is active, has users if True
+    tags - (Optional) tags to add to center
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from centers.center_info import CenterInfo
 from flywheel_gear_toolkit import GearToolkitContext
@@ -68,13 +69,14 @@ class CenterCreationVisitor(GearExecutionEnvironment):
                                      new_only=context.config.get(
                                          "new_only", False))
 
-    def __get_center_list(self, center_file_path: str) -> List[CenterInfo]:
+    def __get_center_map(self,
+                         center_file_path: str) -> Dict[CenterInfo, List[str]]:
         """Get the centers from the file.
 
         Args:
           center_file_path: the path to the center file.
         Returns:
-          List of center objects
+          Map of CenterInfo objects to optional list of tags
         """
         try:
             with open(center_file_path, 'r', encoding='utf-8') as center_file:
@@ -86,7 +88,12 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         if not object_list:
             raise GearExecutionError('No centers found in center file')
 
-        return [CenterInfo(**center_doc) for center_doc in object_list]
+        center_map = {}
+        for center_doc in object_list:
+            tags = center_doc.pop('tags', None)
+            center_map[CenterInfo(**center_doc)] = tags
+
+        return center_map
 
     def run(self, context: GearToolkitContext) -> None:
         """Executes the gear.
@@ -99,7 +106,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         """
         run(proxy=self.proxy,
             admin_group=self.admin_group(admin_id=self.__admin_id),
-            center_list=self.__get_center_list(self.__center_filepath),
+            center_map=self.__get_center_map(self.__center_filepath),
             role_names=['curate', 'upload', 'gear-bot'],
             new_only=self.__new_only)
 

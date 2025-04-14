@@ -1,8 +1,8 @@
 """Models representing center information and center mappings."""
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 
 from projects.study import StudyVisitor
-from pydantic import AliasChoices, BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class CenterInfo(BaseModel):
@@ -14,7 +14,6 @@ class CenterInfo(BaseModel):
         group (str): The symbolic ID for the center
 
         active (bool): Optional, active or inactive status. Defaults to True.
-        tags (Tuple[str]): Optional, list of tags for the center
     """
     adcid: int
     name: str
@@ -23,27 +22,19 @@ class CenterInfo(BaseModel):
     active: Optional[bool] = Field(validation_alias=AliasChoices(
         'active', 'is-active', 'is_active'),
                                    default=True)
-    tags: Optional[Tuple[str, ...]] = ()
 
     def __repr__(self) -> str:
         return (f"Center(group={self.group}, "
                 f"name={self.name}, "
                 f"adcid={self.adcid}, "
-                f"active={self.active}, "
-                f"tags={self.tags}")
+                f"active={self.active}")
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, CenterInfo):
             return False
-        # compare everything except tags
+        # compare everything
         return (self.adcid == __o.adcid and self.group == __o.group
                 and self.name == __o.name and self.active == __o.active)
-
-    @field_validator("tags")
-    def set_tags(cls, tags: Tuple[Tuple[str], List[str]]) -> Tuple[str]:
-        if not tags:
-            return ()
-        return tuple(tags)  # type: ignore
 
     def apply(self, visitor: StudyVisitor):
         """Applies visitor to this Center."""
