@@ -5,6 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 1.0.5
 
 * Adds delimiter option
+* Does not uppercase extensions
 
 ## 1.0.4
 

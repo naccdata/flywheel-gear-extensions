@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
@@ -81,7 +82,11 @@ class LabelTemplate(BaseModel):
             return result.lower()
 
         if self.transform == 'upper':
-            return result.upper()
+            # for filenames need to be careful about not
+            # upper-casing the extension; can use pathlib
+            # even if it's not actually a file
+            file = Path(result)
+            return file.stem.upper() + file.suffix
 
         return result
 
