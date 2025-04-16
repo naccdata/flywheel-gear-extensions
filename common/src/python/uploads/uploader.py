@@ -41,6 +41,7 @@ class LabelTemplate(BaseModel):
     from file records."""
     template: str
     transform: Optional[Literal['upper', 'lower']] = Field(default=None)
+    delimiter: Optional[str] = Field(default=None)
 
     def instantiate(self,
                     record: Dict[str, Any],
@@ -72,6 +73,9 @@ class LabelTemplate(BaseModel):
             except KeyError as error:
                 raise ValueError(
                     f"Error creating label, missing column {error}") from error
+
+        if self.delimiter:
+            result = result.replace(' ', self.delimiter)
 
         if self.transform == 'lower':
             return result.lower()
