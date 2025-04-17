@@ -83,13 +83,13 @@ class FormCurator:
             try:
                 log.info('looking up file %s', file_id)
                 file_entry = self.__sdk_client.get_file(file_id)
-                table = self.get_table(subject, file_entry)
 
                 scope = determine_scope(file_entry.name)
                 if not scope:
                     log.warning("ignoring unexpected file %s", file_entry.name)
                     return
 
+                table = self.get_table(subject, file_entry)
                 log.info("curating file %s", file_entry.name)
                 self.__deriver.curate(table, scope)
                 self.apply_curation(subject, file_entry, table)
