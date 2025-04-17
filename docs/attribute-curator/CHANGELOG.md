@@ -5,6 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 0.2.7
 
 * Adds the `ncrad_samples` scope
+* Updates `nacc_attribute_deriver` to `1.2.3`
 
 ## 0.2.6
 
