@@ -7,17 +7,16 @@ import os
 import re
 from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
 
-from curator.form_curator import FormCurator
+from curator.curator import Curator
 from dataview.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from pydantic import BaseModel, ValidationError, field_validator
 from scheduling.min_heap import MinHeap
 
 log = logging.getLogger(__name__)
 
-C = TypeVar('C', bound=FormCurator)
+C = TypeVar('C', bound=Curator)
 
 
 class FileModel(BaseModel):
@@ -314,7 +313,7 @@ class ProjectCurationScheduler:
                   initargs=(
                       context,
                       curator_type,
-                      **curator_type_args,
+                      curator_type_args,
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)

@@ -1,13 +1,15 @@
-"""
-Defines a base abstract curator for scheduling.
-"""
+"""Defines a base abstract curator for scheduling."""
 import logging
-
+import re
 from abc import ABC, abstractmethod
-from flywheel import Client
-from flywheel.models.subject import Subject
+from typing import Optional
 
+from flywheel import Client
+from flywheel.models.file_entry import FileEntry
+from flywheel.models.subject import Subject
+from flywheel.rest import ApiException
 from nacc_attribute_deriver.symbol_table import SymbolTable
+from nacc_attribute_deriver.utils.scope import ScopeLiterals
 
 log = logging.getLogger(__name__)
 
@@ -86,13 +88,10 @@ class Curator(ABC):
                     raise e
 
     @abstractmethod
-    def execute(self,
-                subject: Subject,
-                file_entry: FileEntry,
-                table: SymbolTable,
-                scope: ScopeLiterals) -> None:
+    def execute(self, subject: Subject, file_entry: FileEntry,
+                table: SymbolTable, scope: ScopeLiterals) -> None:
         """Perform contents of curation.
-    
+
         Args:
             subject: Subject the file belongs to
             file_entry: FileEntry of file being curated

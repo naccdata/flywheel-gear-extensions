@@ -1,13 +1,11 @@
 import logging
-import re
-from typing import Optional
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel.rest import ApiException
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
+from nacc_attribute_deriver.utils.scope import ScopeLiterals
 
 from .curator import Curator
 
@@ -37,13 +35,10 @@ class FormCurator(Curator):
         if subject_info:
             subject.update_info(subject_info)
 
-    def execute(self,
-                subject: Subject,
-                file_entry: FileEntry,
-                table: SymbolTable,
-                scope: ScopeLiterals) -> None:
+    def execute(self, subject: Subject, file_entry: FileEntry,
+                table: SymbolTable, scope: ScopeLiterals) -> None:
         """Perform contents of curation.
-    
+
         Args:
             subject: Subject the file belongs to
             file_entry: FileEntry of file being curated

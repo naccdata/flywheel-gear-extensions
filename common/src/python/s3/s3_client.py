@@ -40,6 +40,7 @@ class S3BucketReader:
 
     def get_file_object(self, filename: str) -> Dict[str, Any]:
         """Get the file object.
+
         Args:
             filename: name of file
         """

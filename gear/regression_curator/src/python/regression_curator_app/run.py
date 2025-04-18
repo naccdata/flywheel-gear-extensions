@@ -1,7 +1,5 @@
 """Entry script for Regression Curator."""
-import json
 import logging
-
 from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -18,7 +16,8 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from outputs.errors import MPListErrorWriter
+from outputs.errors import FileError, MPListErrorWriter
+from outputs.outputs import write_csv_to_stream
 from utils.utils import parse_string_to_list
 
 from regression_curator_app.main import run
@@ -29,16 +28,15 @@ log = logging.getLogger(__name__)
 class RegressionCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the Regression Curator gear."""
 
-    def __init__(self, client: ClientWrapper,
-                 project: ProjectAdaptor,
-                 s3_qaf_file: str,
-                 keep_fields: List[str],
-                 filename_pattern: str):
+    def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
+                 s3_qaf_file: str, keep_fields: List[str],
+                 filename_pattern: str, error_outfile: str):
         super().__init__(client=client)
         self.__project = project
         self.__s3_qaf_file = s3_qaf_file
         self.__keep_fields = keep_fields
         self.__filename_pattern = filename_pattern
+        self.__error_outfile = error_outfile
 
     @classmethod
     def create(
@@ -64,18 +62,23 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         if not s3_qaf_file:
             raise GearExecutionError("s3_qaf_file required")
 
-        keep_fields = parse_string_to_list(context.config.get('keep_fields', ''))
+        keep_fields = parse_string_to_list(
+            context.config.get('keep_fields', ''))
         filename_pattern = context.config.get('filename_pattern', "*.json")
 
         proxy = client.get_proxy()
-        fw_project = get_project_by_destination(context=context, proxy=proxy)
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
+
+        error_outfile = context.config.get("error_outfile",
+                                           'regression_errors.csv')
 
         return RegressionCuratorVisitor(client=client,
                                         project=project,
                                         s3_qaf_file=s3_qaf_file,
                                         keep_fields=keep_fields,
-                                        filename_pattern=filename_pattern)
+                                        filename_pattern=filename_pattern,
+                                        error_outfile=error_outfile)
 
     def run(self, context: GearToolkitContext) -> None:
         try:
@@ -94,13 +97,26 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        run(proxy=self.proxy,
+        run(context=context,
             s3_qaf_file=self.__s3_qaf_file,
             keep_fields=self.__keep_fields,
             scheduler=scheduler,
             error_writer=error_writer)
 
         errors = list(error_writer.errors())
+
+        if errors:
+            log.error(
+                f"Errors detected, writing to output file {self.__error_outfile}"
+            )
+            headers = list(FileError.__fields__.keys())  # type: ignore
+            contents = write_csv_to_stream(headers=headers,
+                                           data=errors).getvalue()
+            file_spec = FileSpec(name=self.__error_outfile,
+                                 contents=contents,
+                                 content_type='text/csv',
+                                 size=len(contents))
+            self.__project.upload_file(file_spec)  # type: ignore
 
 
 def main():

@@ -47,6 +47,11 @@
             "type": "string",
             "default": "*.json"
         },
+        "error_outfile": {
+            "description": "Output file to write regression errors to",
+            "type": "string",
+            "default": "regression_errors.csv"
+        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter gearbot path prefix",
             "type": "string",

@@ -1,7 +1,7 @@
 """Defines Identifier Provisioning."""
 
 import logging
-from typing import Any, Dict, Iterator, List, Optional, TextIO
+from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
 
 from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
@@ -48,7 +48,7 @@ def update_record_level_error_log(*,
                                   qc_passed: bool,
                                   project: ProjectAdaptor,
                                   gear_name: str,
-                                  errors: List[Dict[str, Any]],
+                                  errors: MutableSequence[Dict[str, Any]],
                                   naming_template: Optional[Dict[str,
                                                                  str]] = None):
     """Update error log file for the visit and store error metadata in

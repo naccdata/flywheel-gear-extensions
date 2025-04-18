@@ -52,7 +52,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         proxy = client.get_proxy()
 
         filename_pattern = context.config.get('filename_pattern', "*.json")
-        fw_project = get_project_by_destination(context=context, proxy=proxy)
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         return AttributeCuratorVisitor(client=client,
