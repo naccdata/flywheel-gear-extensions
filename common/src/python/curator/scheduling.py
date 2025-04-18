@@ -168,19 +168,24 @@ class ViewResponseModel(BaseModel):
 curator = None  # global curator object
 
 
-def initialize_worker(context: GearToolkitContext, curator_type: Type[C],
-                      deriver: AttributeDeriver):
+def initialize_worker(context: GearToolkitContext,
+                      curator_type: Type[C],
+                      deriver: AttributeDeriver,
+                      force_curate: bool = False):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
     Args:
         context: GearToolkitContext
         curator_type: Type of FormCurator subclass to use for curation
+        force_curate: Curate file even if it's already been curated
     """
     # Create a curator object for each process with a new SDK client
     global curator
     sdk_client = context.get_client()
-    curator = curator_type(sdk_client=sdk_client, deriver=deriver)
+    curator = curator_type(sdk_client=sdk_client,
+                           deriver=deriver,
+                           force_curate=force_curate)
 
 
 def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
@@ -290,8 +295,11 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self, context: GearToolkitContext, curator_type: Type[C],
-              deriver: AttributeDeriver) -> None:
+    def apply(self,
+              context: GearToolkitContext,
+              curator_type: Type[C],
+              deriver: AttributeDeriver,
+              force_curate: bool = False) -> None:
         """Applies a FormCurator to the form files in this curator.
 
         Builds a curator of the type given with the context to avoid shared
@@ -301,6 +309,7 @@ class ProjectCurationScheduler:
           context: the gear context
           curator_type: a FormCurator subclass
           deriver: attribute deriver
+          force_curate: Curate file even if it's already been curated
         """
 
         log.info("Start curator for %s subjects", len(self.__heap_map))
@@ -314,6 +323,7 @@ class ProjectCurationScheduler:
                       context,
                       curator_type,
                       deriver,
+                      force_curate,
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)
