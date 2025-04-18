@@ -95,13 +95,12 @@ class FormCurator:
                 if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
                     log.info(f"{file_entry.name} already curated, skipping")
 
-                table = self.get_table(subject, file_entry)
-
                 scope = determine_scope(file_entry.name)
                 if not scope:
                     log.warning("ignoring unexpected file %s", file_entry.name)
                     return
 
+                table = self.get_table(subject, file_entry)
                 log.info("curating file %s", file_entry.name)
                 self.__deriver.curate(table, scope)
                 self.apply_curation(subject, file_entry, table)
@@ -129,6 +128,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
                r"(?P<mds>.+_MDS\.json)|"
                r"(?P<milestone>.+_MLST\.json)|"
                r"(?P<apoe>.+apoe_genotype\.json)|"
+               r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
                r"(?P<niagads_availability>.+niagads_availability\.json)|"
                r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
                r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
