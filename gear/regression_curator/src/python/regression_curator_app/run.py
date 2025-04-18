@@ -64,8 +64,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         if not s3_qaf_file:
             raise GearExecutionError("s3_qaf_file required")
 
-        keep_fields = parse_string_to_list(context.config.get('keep_fields', ''),
-                                           to_lower=False)
+        keep_fields = parse_string_to_list(context.config.get('keep_fields', ''))
         filename_pattern = context.config.get('filename_pattern', "*.json")
 
         proxy = client.get_proxy()
