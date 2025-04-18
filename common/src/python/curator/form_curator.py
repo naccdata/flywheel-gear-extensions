@@ -6,6 +6,7 @@ from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
+from keys.keys import GearTags
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
@@ -15,9 +16,13 @@ log = logging.getLogger(__name__)
 class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self, sdk_client: Client, deriver: AttributeDeriver) -> None:
+    def __init__(self,
+                 sdk_client: Client,
+                 deriver: AttributeDeriver,
+                 force_curate: bool = False) -> None:
         self.__sdk_client = sdk_client
         self.__deriver = deriver
+        self.__force_curate = force_curate
 
     @property
     def client(self):
@@ -68,6 +73,8 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
+        file_entry.add_tag(GearTags.CURATION_TAG)
+
     def curate_file(self,
                     subject: Subject,
                     file_id: str,
@@ -75,6 +82,7 @@ class FormCurator:
         """Curate the given file.
 
         Args:
+            subject: Subject the file is being curated under
             file_id: File ID curate
             retries: Max number of times to retry before giving up
         """
@@ -83,6 +91,9 @@ class FormCurator:
             try:
                 log.info('looking up file %s', file_id)
                 file_entry = self.__sdk_client.get_file(file_id)
+
+                if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
+                    log.info(f"{file_entry.name} already curated, skipping")
 
                 scope = determine_scope(file_entry.name)
                 if not scope:

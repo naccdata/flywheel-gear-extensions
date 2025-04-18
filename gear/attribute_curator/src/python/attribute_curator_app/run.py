@@ -25,11 +25,15 @@ log = logging.getLogger(__name__)
 class AttributeCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
-                 filename_pattern: str):
+    def __init__(self,
+                 client: ClientWrapper,
+                 project: ProjectAdaptor,
+                 filename_pattern: str,
+                 force_curate: bool = False):
         super().__init__(client=client)
         self.__project = project
         self.__filename_pattern = filename_pattern
+        self.__force_curate = force_curate
 
     @classmethod
     def create(
@@ -52,6 +56,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         proxy = client.get_proxy()
 
         filename_pattern = context.config.get('filename_pattern', "*.json")
+        force_curate = context.config.get('force_curate', False)
 
         try:
             destination = context.get_destination_container()
@@ -75,7 +80,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         return AttributeCuratorVisitor(client=client,
                                        project=project,
-                                       filename_pattern=filename_pattern)
+                                       filename_pattern=filename_pattern,
+                                       force_curate=force_curate)
 
     def run(self, context: GearToolkitContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group,
@@ -90,7 +96,10 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        run(context=context, deriver=deriver, scheduler=scheduler)
+        run(context=context,
+            deriver=deriver,
+            scheduler=scheduler,
+            force_curate=self.__force_curate)
 
 
 def main():

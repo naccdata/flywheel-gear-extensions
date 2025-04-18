@@ -38,6 +38,11 @@
             "description": "Filename pattern to match on",
             "type": "string",
             "default": "*.json"
+        },
+        "force_curate": {
+            "description": "Curate file even if it's already been curated",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"
