@@ -40,7 +40,7 @@
         "filename_pattern": {
             "description": "Filename pattern to match on",
             "type": "string",
-            "default": "*.json"
+            "default": "*UDS.json"
         },
         "error_outfile": {
             "description": "Output file to write regression errors to",
