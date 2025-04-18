@@ -12,9 +12,8 @@ from typing import Any, Dict
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 
+from curator.curator import Curator
 from outputs.errors import MPListErrorWriter, unexpected_value_error
-
-from .curator import Curator
 
 
 class RegressionCurator(Curator):

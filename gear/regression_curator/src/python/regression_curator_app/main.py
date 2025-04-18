@@ -2,10 +2,11 @@
 import logging
 from typing import Any, Dict
 
-from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from outputs.errors import MPListErrorWriter
+
+from .regression_curator import RegressionCurator
 
 log = logging.getLogger(__name__)
 
