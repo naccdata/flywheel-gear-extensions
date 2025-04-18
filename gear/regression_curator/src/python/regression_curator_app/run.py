@@ -2,21 +2,24 @@
 import json
 import logging
 
-from typing import Optional
+from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel import FileSpec
+from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    ContextClient,
+    GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
-    InputFileWrapper,
+    get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
 from outputs.errors import MPListErrorWriter
+from utils.utils import parse_string_to_list
 
 from regression_curator_app.main import run
 
@@ -27,10 +30,14 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the Regression Curator gear."""
 
     def __init__(self, client: ClientWrapper,
-                 baseline_file: InputFileWrapper,
+                 project: ProjectAdaptor,
+                 s3_qaf_file: str,
+                 keep_fields: List[str],
                  filename_pattern: str):
         super().__init__(client=client)
-        self.__baseline_file = baseline_file
+        self.__project = project
+        self.__s3_qaf_file = s3_qaf_file
+        self.__keep_fields = keep_fields
         self.__filename_pattern = filename_pattern
 
     @classmethod
@@ -50,64 +57,58 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
 
-        client = ContextClient.create(context=context)
+        client = GearBotClient.create(context=context,
+                                      parameter_store=parameter_store)
 
+        s3_qaf_file = context.config.get("s3_qaf_file", None)
+        if not s3_qaf_file:
+            raise GearExecutionError("s3_qaf_file required")
+
+        keep_fields = parse_string_to_list(context.config.get('keep_fields', ''),
+                                           to_lower=False)
         filename_pattern = context.config.get('filename_pattern', "*.json")
 
-        # TODO: add option to generate QAF baseline from S3 file directly,
-        # right now generated manually with an off-pipeline script
-        baseline_file = InputFileWrapper.create(input_name='baseline',
-                                                context=context)
+        proxy = client.get_proxy()
+        fw_project = get_project_by_destination(context=context, proxy=proxy)
+        project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         return RegressionCuratorVisitor(client=client,
-                                        baseline_file=baseline_file,
+                                        project=project,
+                                        s3_qaf_file=s3_qaf_file,
+                                        keep_fields=keep_fields,
                                         filename_pattern=filename_pattern)
 
     def run(self, context: GearToolkitContext) -> None:
-        file_id = self.__file_input.file_id
         try:
-            file = self.proxy.get_file(file_id)
-            fw_path = self.proxy.get_lookup_path(file)
+            fw_path = self.proxy.get_lookup_path(self.__project.id)
         except ApiException as error:
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
 
-        error_writer = MPListErrorWriter(container_id=file_id,
+        error_writer = MPListErrorWriter(container_id=self.__project.id,
                                          fw_path=fw_path)
-
-        project = self.__file_input.get_parent_project(self.proxy)
-        if not project:
-            raise GearExecutionError(
-                f'Could not grab parent project of {self.__file_input.filename}')
 
         try:
             scheduler = ProjectCurationScheduler.create(
-                project=project,
+                project=self.__project,
                 filename_pattern=self.__filename_pattern)
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        with open(self.__file_input.filepath, mode='r', encoding='utf-8') as fh:
-            baseline = json.loads(fh)
-            run(proxy=self.proxy,
-                baseline=baseline,
-                scheduler=scheduler,
-                error_writer=error_writer)
+        run(proxy=self.proxy,
+            s3_qaf_file=self.__s3_qaf_file,
+            keep_fields=self.__keep_fields,
+            scheduler=scheduler,
+            error_writer=error_writer)
 
         errors = list(error_writer.errors())
-        context.metadata.add_qc_result(self.__file_input.file_input,
-                                       name='validation',
-                                       state='PASS' if not errors else 'FAIL',
-                                       data=errors)
-        context.metadata.add_file_tags(self.__file_input.file_input,
-                                       tags=context.manifest.get(
-                                           'name', 'regression-curator'))
 
 
 def main():
     """Main method for Regression Curator."""
 
-    GearEngine().run(gear_type=RegressionCuratorVisitor)
+    GearEngine.create_with_parameter_store().run(
+        gear_type=RegressionCuratorVisitor)
 
 
 if __name__ == "__main__":

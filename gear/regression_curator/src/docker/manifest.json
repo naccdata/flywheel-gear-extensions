@@ -25,15 +25,6 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
-        },
-        "baseline": {
-            "description": "The baseline QAF JSON",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
         }
     },
     "config": {
@@ -42,10 +33,24 @@
             "type": "boolean",
             "default": false
         },
+        "s3_qaf_file": {
+            "description": "S3 URI to QAF file to use as the baseline",
+            "type": "string"
+        },
+        "keep_fields": {
+            "description": "Comma-deliminated list of additional fields to retain from the QAF aside from NACC* and visit date information",
+            "type": "string",
+            "default": ""
+        },
         "filename_pattern": {
             "description": "Filename pattern to match on",
             "type": "string",
             "default": "*.json"
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
         }
     },
     "command": "/bin/run"
