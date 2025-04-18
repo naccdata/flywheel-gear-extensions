@@ -56,7 +56,7 @@ class FileModel(BaseModel):
             r"^"
             r"(?P<pass1>.+("
             r"_NP|_MDS|_MLST|"
-            r"apoe_genotype|niagads_availability|"
+            r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
             r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
             r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
@@ -296,7 +296,7 @@ class ProjectCurationScheduler:
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
     def apply(self, context: GearToolkitContext, curator_type: Type[C],
-            curator_type_args: Dict[str, Any] = None) -> None:
+              curator_type_args: Dict[str, Any] = None) -> None:
         """Applies a FormCurator to the form files in this curator.
 
         Builds a curator of the type given with the context to avoid shared

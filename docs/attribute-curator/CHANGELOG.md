@@ -2,9 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 0.3.0 (unreleased)
 
 * Refactored to generalize curation/scheduling workflow
+* Adds the `ncrad_samples` scope
+* Adds a `curated` tag to each curated file, and will skip curation on subsequent passes if the file has this tag
 
 ## 0.2.6
 

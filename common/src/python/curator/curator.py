@@ -69,6 +69,9 @@ class Curator(ABC):
                 log.info('looking up file %s', file_id)
                 file_entry = self.__sdk_client.get_file(file_id)
 
+                if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
+                    log.info(f"{file_entry.name} already curated, skipping")
+
                 scope = determine_scope(file_entry.name)
                 if not scope:
                     log.warning("ignoring unexpected file %s", file_entry.name)
