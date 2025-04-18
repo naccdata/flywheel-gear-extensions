@@ -1,11 +1,15 @@
 """
 Defines a base abstract curator for scheduling.
 """
+import logging
+
 from abc import ABC, abstractmethod
 from flywheel import Client
 from flywheel.models.subject import Subject
 
 from nacc_attribute_deriver.symbol_table import SymbolTable
+
+log = logging.getLogger(__name__)
 
 
 class Curator(ABC):
@@ -46,7 +50,6 @@ class Curator(ABC):
         table['file.info'] = file_entry.info
         return table
 
-    @abstractmethod
     def curate_file(self,
                     subject: Subject,
                     file_id: str,
@@ -71,7 +74,7 @@ class Curator(ABC):
 
                 table = self.get_table(subject, file_entry)
                 log.info("curating file %s", file_entry.name)
-                self.execute(subject, file_entry, table)
+                self.execute(subject, file_entry, table, scope)
                 break
             except ApiException as e:
                 retries += 1
@@ -83,13 +86,18 @@ class Curator(ABC):
                     raise e
 
     @abstractmethod
-    def execute(self, subject: Subject, file_entry: FileEntry, table: SymbolTable):
+    def execute(self,
+                subject: Subject,
+                file_entry: FileEntry,
+                table: SymbolTable,
+                scope: ScopeLiterals) -> None:
         """Perform contents of curation.
     
         Args:
             subject: Subject the file belongs to
             file_entry: FileEntry of file being curated
             table: SymbolTable containing file/subject metadata.
+            scope: The scope of the file being curated
         """
         pass
 

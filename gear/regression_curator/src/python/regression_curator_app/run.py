@@ -14,8 +14,10 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from regression_curator_app.main import run
 from inputs.parameter_store import ParameterStore
+from outputs.errors import MPListErrorWriter
+
+from regression_curator_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +63,16 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                                         filename_pattern=filename_pattern)
 
     def run(self, context: GearToolkitContext) -> None:
+        file_id = self.__file_input.file_id
+        try:
+            file = self.proxy.get_file(file_id)
+            fw_path = self.proxy.get_lookup_path(file)
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Failed to find the input file: {error}') from error
+
+        error_writer = MPListErrorWriter(container_id=file_id,
+                                         fw_path=fw_path)
 
         project = self.__file_input.get_parent_project(self.proxy)
         if not project:
@@ -76,7 +88,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         with open(self.__file_input.filepath, mode='r', encoding='utf-8') as fh:
             baseline = json.loads(fh)
-            run(proxy=self.proxy, baseline=baseline, scheduler=scheduler)
+            run(proxy=self.proxy,
+                baseline=baseline,
+                scheduler=scheduler,
+                error_writer=error_writer)
 
 
 def main():

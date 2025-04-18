@@ -9,7 +9,7 @@ from flywheel.rest import ApiException
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
-from .curator import Curator, determine_scope
+from .curator import Curator
 
 log = logging.getLogger(__name__)
 
@@ -37,13 +37,18 @@ class FormCurator(Curator):
         if subject_info:
             subject.update_info(subject_info)
 
-    def execute(self, subject: Subject, file_entry: FileEntry, table: SymbolTable):
+    def execute(self,
+                subject: Subject,
+                file_entry: FileEntry,
+                table: SymbolTable,
+                scope: ScopeLiterals) -> None:
         """Perform contents of curation.
     
         Args:
             subject: Subject the file belongs to
             file_entry: FileEntry of file being curated
             table: SymbolTable containing file/subject metadata.
+            scope: The scope of the file being curated
         """
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
