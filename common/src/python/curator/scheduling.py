@@ -168,7 +168,7 @@ curator = None  # global curator object
 
 
 def initialize_worker(context: GearToolkitContext, curator_type: Type[C],
-                      **curator_type_args):
+                      curator_type_args: Dict[str, Any] = None):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
@@ -180,6 +180,9 @@ def initialize_worker(context: GearToolkitContext, curator_type: Type[C],
     # Create a curator object for each process with a new SDK client
     global curator
     sdk_client = context.get_client()
+
+    if curator_type_args is None:
+        curator_type_args = {}
     curator = curator_type(sdk_client=sdk_client, **curator_type_args)
 
 
@@ -226,6 +229,8 @@ class ProjectCurationScheduler:
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
+        log.info("Creating project dataview")
+
         builder = make_builder(
             label='attribute-curation-scheduling',
             description='Lists files for curation',
@@ -291,7 +296,7 @@ class ProjectCurationScheduler:
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
     def apply(self, context: GearToolkitContext, curator_type: Type[C],
-              **curator_type_args) -> None:
+            curator_type_args: Dict[str, Any] = None) -> None:
         """Applies a FormCurator to the form files in this curator.
 
         Builds a curator of the type given with the context to avoid shared

@@ -28,11 +28,6 @@
         }
     },
     "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
         "s3_qaf_file": {
             "description": "S3 URI to QAF file to use as the baseline",
             "type": "string"

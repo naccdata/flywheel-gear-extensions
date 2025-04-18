@@ -20,4 +20,5 @@ def run(context: GearToolkitContext, deriver: AttributeDeriver,
         scheduler: Schedules the files to be curated
     """
 
-    scheduler.apply(context=context, curator_type=FormCurator, deriver=deriver)
+    scheduler.apply(context=context, curator_type=FormCurator,
+                    curator_type_args={'deriver': deriver})

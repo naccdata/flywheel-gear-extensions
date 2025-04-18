@@ -82,7 +82,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearToolkitContext) -> None:
         try:
-            fw_path = self.proxy.get_lookup_path(self.__project.id)
+            fw_path = self.proxy.get_lookup_path(self.__project.project)
         except ApiException as error:
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
@@ -107,15 +107,16 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         if errors:
             log.error(
-                f"Errors detected, writing to output file {self.__error_outfile}"
+                f"Errors detected, writing errors to output file {self.__error_outfile}"
             )
-            headers = list(FileError.__fields__.keys())  # type: ignore
-            contents = write_csv_to_stream(headers=headers,
+            contents = write_csv_to_stream(headers=FileError.fieldnames(),
                                            data=errors).getvalue()
             file_spec = FileSpec(name=self.__error_outfile,
                                  contents=contents,
                                  content_type='text/csv',
                                  size=len(contents))
+
+            # TODO: is the project the right place to write this file to?
             self.__project.upload_file(file_spec)  # type: ignore
 
 
