@@ -26,8 +26,8 @@
         "api-key": {
             "base": "api-key"
         },
-        "input_file": {
-            "description": "The input file",
+        "baseline": {
+            "description": "The baseline QAF JSON",
             "base": "file",
             "type": {
                 "enum": [
@@ -42,10 +42,10 @@
             "type": "boolean",
             "default": false
         },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
+        "filename_pattern": {
+            "description": "Filename pattern to match on",
             "type": "string",
-            "default": "/prod/flywheel/gearbot"
+            "default": "*.json"
         }
     },
     "command": "/bin/run"

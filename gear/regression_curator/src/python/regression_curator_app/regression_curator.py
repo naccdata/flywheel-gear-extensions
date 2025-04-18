@@ -89,8 +89,10 @@ class RegressionCurator(Curator):
                 continue
 
             # compare as strings for simplicity
-            if str(value) != str(record[field]):
+            value = str(value)
+            expected = str(record[field])
+            if value != expected:
                 self.__error_writer.write(
                     unexpected_value_error(field=field,
-                                           value=str(value),
-                                           expected=str(record[field])))
+                                           value=value,
+                                           expected=expected))
