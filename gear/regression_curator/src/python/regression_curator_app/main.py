@@ -1,6 +1,6 @@
 """Defines Regression Curator."""
 import logging
-from typing import Any, Dict
+from typing import MutableMapping
 
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 def run(context: GearToolkitContext,
-        baseline: Dict[str, Any],
+        baseline: MutableMapping,
         scheduler: ProjectCurationScheduler,
         error_writer: MPListErrorWriter) -> None:
     """Runs the Attribute Curator process.

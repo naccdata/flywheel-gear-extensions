@@ -8,7 +8,11 @@ containing the QAF derived values for a given form/visit
 (e.g. any fields that start with NACC or key values such as
 as visit date.)
 """
-from typing import Any, Dict
+from typing import MutableMapping
+
+from flywheel import Client
+from flywheel.models.file_entry import FileEntry
+from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 
@@ -21,7 +25,7 @@ class RegressionCurator(Curator):
 
     def __init__(self,
                  sdk_client: Client,
-                 baseline: Dict[str, Any],
+                 baseline: MutableMapping,
                  error_writer: MPListErrorWriter) -> None:
         super().__init__(sdk_client)
         self.__baseline = SymbolTable(baseline)

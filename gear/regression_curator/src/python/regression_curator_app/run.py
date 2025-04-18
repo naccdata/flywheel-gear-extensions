@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
+from flywheel import FileSpec
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -92,6 +93,15 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                 baseline=baseline,
                 scheduler=scheduler,
                 error_writer=error_writer)
+
+        errors = list(error_writer.errors())
+        context.metadata.add_qc_result(self.__file_input.file_input,
+                                       name='validation',
+                                       state='PASS' if not errors else 'FAIL',
+                                       data=errors)
+        context.metadata.add_file_tags(self.__file_input.file_input,
+                                       tags=context.manifest.get(
+                                           'name', 'regression-curator'))
 
 
 def main():
