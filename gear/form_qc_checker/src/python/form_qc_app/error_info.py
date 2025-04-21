@@ -13,8 +13,8 @@ from outputs.errors import (
     system_error,
 )
 from pydantic import BaseModel, ValidationError
-from redcap.redcap_connection import REDCapConnectionError, REDCapReportConnection
-from redcap.redcap_project import REDCapProject
+from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 

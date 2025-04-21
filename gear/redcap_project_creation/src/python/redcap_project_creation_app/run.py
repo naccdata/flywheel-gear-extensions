@@ -22,11 +22,12 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.context_parser import ConfigParseError, get_config
-from inputs.parameter_store import ParameterError, ParameterStore, REDCapParameters
+from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import DefaultValues
 from pydantic import ValidationError
-from redcap.redcap_connection import REDCapSuperUserConnection
+from redcap_api.redcap_connection import REDCapSuperUserConnection
+from redcap_api.redcap_parameter_store import REDCapParameters
 
 from redcap_project_creation_app.main import run
 

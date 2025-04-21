@@ -11,12 +11,12 @@ from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
-from redcap.redcap_connection import (
+from redcap_api.redcap_connection import (
     REDCapConnection,
     REDCapConnectionError,
     REDCapReportConnection,
 )
-from redcap.redcap_project import REDCapProject
+from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 

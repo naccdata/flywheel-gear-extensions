@@ -4,25 +4,13 @@ from typing import Dict, Optional
 
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
+from redcap_api.redcap_parameter_store import REDCapParameters, REDCapReportParameters
 from ssm_parameter_store import EC2ParameterStore
 from typing_extensions import Type, TypedDict, TypeVar
 
 from inputs.environment import get_environment_variable
 
 log = logging.getLogger(__name__)
-
-
-class REDCapParameters(TypedDict):
-    """Dictionary type for parameters needed to access a REDCap project."""
-    url: str
-    token: str
-
-
-class REDCapReportParameters(TypedDict):
-    """Dictionary type for parameters needed to access a REDCap report."""
-    url: str
-    token: str
-    reportid: str
 
 
 class S3Parameters(TypedDict):

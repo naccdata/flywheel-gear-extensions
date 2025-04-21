@@ -5,6 +5,8 @@ from typing import Optional
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
+from flywheel.rest import ApiException
+from keys.keys import GearTags
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
@@ -14,24 +16,27 @@ log = logging.getLogger(__name__)
 class FormCurator:
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self, sdk_client: Client, deriver: AttributeDeriver) -> None:
+    def __init__(self,
+                 sdk_client: Client,
+                 deriver: AttributeDeriver,
+                 force_curate: bool = False) -> None:
         self.__sdk_client = sdk_client
         self.__deriver = deriver
+        self.__force_curate = force_curate
 
     @property
     def client(self):
         return self.__sdk_client
 
-    def get_subject(self, file_entry: FileEntry) -> Subject:
-        """Get the subject for the file entry.
+    def get_subject(self, subject_id: str) -> Subject:
+        """Get the subject for the given subject ID.
 
         Args:
-          file_entry: the file entry
+          subject_id: the subject ID
         Returns:
-          the Subject for the file entry
+          the corresponding Subject
         """
-        parents_subject = file_entry.parents.get("subject")
-        return self.client.get_subject(parents_subject)
+        return self.client.get_subject(subject_id)
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
@@ -68,27 +73,46 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
-    def curate_file(self, file_id: str):
+        file_entry.add_tag(GearTags.CURATION_TAG)
+
+    def curate_file(self,
+                    subject: Subject,
+                    file_id: str,
+                    max_retries: int = 3):
         """Curate the given file.
 
         Args:
+            subject: Subject the file is being curated under
             file_id: File ID curate
+            retries: Max number of times to retry before giving up
         """
+        retries = 0
+        while retries <= max_retries:
+            try:
+                log.info('looking up file %s', file_id)
+                file_entry = self.__sdk_client.get_file(file_id)
 
-        log.info('looking up file %s', file_id)
-        file_entry = self.__sdk_client.get_file(file_id)
+                if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
+                    log.info(f"{file_entry.name} already curated, skipping")
 
-        subject = self.get_subject(file_entry)
-        table = self.get_table(subject, file_entry)
+                scope = determine_scope(file_entry.name)
+                if not scope:
+                    log.warning("ignoring unexpected file %s", file_entry.name)
+                    return
 
-        scope = determine_scope(file_entry.name)
-        if not scope:
-            log.warning("ignoring unexpected file %s", file_entry.name)
-            return
-
-        log.info("curating file %s", file_entry.name)
-        self.__deriver.curate(table, scope)
-        self.apply_curation(subject, file_entry, table)
+                table = self.get_table(subject, file_entry)
+                log.info("curating file %s", file_entry.name)
+                self.__deriver.curate(table, scope)
+                self.apply_curation(subject, file_entry, table)
+                break
+            except ApiException as e:
+                retries += 1
+                if retries <= max_retries:
+                    log.warning(
+                        f"Encountered API error, retrying {retries}/{max_retries}"
+                    )
+                else:
+                    raise e
 
 
 def determine_scope(filename: str) -> Optional[ScopeLiterals]:
@@ -104,6 +128,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
                r"(?P<mds>.+_MDS\.json)|"
                r"(?P<milestone>.+_MLST\.json)|"
                r"(?P<apoe>.+apoe_genotype\.json)|"
+               r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
                r"(?P<niagads_availability>.+niagads_availability\.json)|"
                r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
                r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"

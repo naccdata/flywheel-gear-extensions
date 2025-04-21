@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.7 (unreleased)
+
+* Adds the `ncrad_samples` scope
+* Adds a `curated` tag to each curated file, and will skip curation on subsequent passes if the file has this tag
+
+## 0.2.6
+
+* Moves the `get_subject` call to beginning of loop to avoid calling it for every file in the same subject-specific heap
+
+## 0.2.5
+
+* Adds retry of 3 on curating file
+
 ## 0.2.4
 
 * Updates `nacc_attribute_deriver` to `1.2.2`

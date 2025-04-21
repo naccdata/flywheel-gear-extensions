@@ -12,7 +12,7 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.parameter_store import ParameterError, ParameterStore
-from redcap.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
 from yaml.representer import RepresenterError
 
 from directory_app.main import run

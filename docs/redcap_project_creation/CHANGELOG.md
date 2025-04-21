@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to pull REDCap API code from library instead
+
 ## 0.1.3
 * Fix center map key type
 
@@ -10,9 +14,6 @@ All notable changes to this gear are documented in this file.
 * Adds dry run option to scrape existing metadata and save to yaml file
   
 ## 0.1.0
-* First release
-  
-## Unreleased
 * Refactors main method to simplify code.
 * [#96](https://github.com/naccdata/flywheel-gear-extensions/pull/96) Automates REDCap user management
     * Adds the gearbot user with NACC developer permissions when creating a new project
