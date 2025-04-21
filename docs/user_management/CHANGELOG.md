@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.9
+
+* Fixes an error pulling the full list of coperson records when the record count
+  is a multiple of the page size.
+
 ## 1.4.8
 
 * Find the SSO authentication email from claimed registry record
