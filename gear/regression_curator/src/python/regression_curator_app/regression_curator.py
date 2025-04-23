@@ -75,18 +75,6 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        if subject.label not in self.__baseline:
-            msg = (
-                f"Subject {subject.label} not found in baseline, skipping " +
-                f"regression test on {file_entry.name}")
-            log.warning(msg)
-            self.__error_writer.write(
-                unexpected_value_error(field='naccid',
-                                       value=None,
-                                       expected=subject.label,
-                                       message=msg))
-            return
-
         # each subject in the baseline is mapped to a list of ordered records;
         # for UDS need to map the correct record based on visitdate
         # otherwise just grab the most recent record, which is assumed to have
@@ -104,6 +92,18 @@ class RegressionCurator(Curator):
         if (not derived_vars or not any(x.lower().startswith('nacc')
                                         for x in derived_vars)):
             log.info("No derived variables, skipping")
+            return
+
+        if subject.label not in self.__baseline:
+            if not derived_vars.get('affiliate', False):
+                msg = (
+                    f"Subject {subject.label} not found in baseline and not affiliate")
+                log.warning(msg)
+                self.__error_writer.write(
+                    unexpected_value_error(field='naccid',
+                                           value=None,
+                                           expected=subject.label,
+                                           message=msg))
             return
 
         record = None
@@ -124,7 +124,7 @@ class RegressionCurator(Curator):
         if not record:
             msg = (
                 f"Could not find matching record for {file_entry.name} " +
-                f"in baseline file with attributes {expected}, skipping")
+                f"in baseline file with attributes {expected}")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(field='naccid',
