@@ -75,12 +75,10 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        # TODO: affiliate check just for debugging, remove later
-        is_affilite = "IS AFFILIATE" if table.get('file.info.forms.json.sourcenw', None) in [2, "2"] else "IS NOT AN AFFILIATE"
         if subject.label not in self.__baseline:
             msg = (
                 f"Subject {subject.label} not found in baseline, skipping " +
-                f"regression test on {file_entry.name}: {is_affilite}")
+                f"regression test on {file_entry.name}")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(field='naccid',
@@ -126,7 +124,7 @@ class RegressionCurator(Curator):
         if not record:
             msg = (
                 f"Could not find matching record for {file_entry.name} " +
-                f"in baseline file with attributes {expected}, skipping. {is_affilite}")
+                f"in baseline file with attributes {expected}, skipping")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(field='naccid',
