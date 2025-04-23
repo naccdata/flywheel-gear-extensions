@@ -199,12 +199,18 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     assert curator, 'curator object expected'
     subject = curator.get_subject(subject_id)
 
+    curator.pre_process(subject)
+    processed_files: List[str] = []
+
     while len(heap) > 0:
         file_info = heap.pop()
         if not file_info:
             continue
 
         curator.curate_file(subject, file_info.file_id)
+        processed_files.append(file_info.file_id)
+
+    curator.post_process(subject, processed_files)
 
 
 class ProjectCurationScheduler:

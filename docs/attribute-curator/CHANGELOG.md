@@ -7,7 +7,7 @@ All notable changes to this gear are documented in this file.
 * Updates `nacc_attribute_deriver` to `1.2.3`, which fixes several bugs found while regression testing
 * Refactored to generalize curation/scheduling workflow
 * Adds the `ncrad_samples` scope
-* Adds a `curated` tag to each curated file, and will skip curation on subsequent passes if the file has this tag
+* Adds configuration to apply a tag to each curated file, and will skip curation on subsequent passes if the file has this tag
 
 ## 0.2.6
 

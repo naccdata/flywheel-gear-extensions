@@ -1,17 +1,14 @@
 import logging
+from typing import List
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-<<<<<<< HEAD
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
-=======
 from flywheel.rest import ApiException
-from keys.keys import GearTags
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
->>>>>>> main
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from utils.utils import retry
 
 from .curator import Curator
 
@@ -24,11 +21,12 @@ class FormCurator(Curator):
     def __init__(self,
                  sdk_client: Client,
                  deriver: AttributeDeriver,
+                 curation_tag: str,
                  force_curate: bool = False) -> None:
-        super().__init__(sdk_client)
-        self.__sdk_client = sdk_client
+        super().__init__(sdk_client=sdk_client,
+                         curation_tag=curation_tag,
+                         force_curate=force_curate)
         self.__deriver = deriver
-        self.__force_curate = force_curate
 
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
@@ -46,6 +44,8 @@ class FormCurator(Curator):
         if subject_info:
             subject.update_info(subject_info)
 
+        file_entry.add_tag(self.curation_tag)
+
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
         """Perform contents of curation.
@@ -58,3 +58,57 @@ class FormCurator(Curator):
         """
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
+
+    @retry
+    def pre_process(self, subject: Subject) -> None:
+        """Run pre-processing on the entire subject.
+        Clean up metadata as needed.
+
+        Args:
+            subject: Subject to pre-process
+        """
+        # if forcing new curation, wipe the subject metadata
+        # related to curation.
+        # TODO: this is kind of dangerous, might want to
+        # instead make this a manual job outside the gear, or
+        # only keep while MQT is being aggressively iterated on
+        if self.force_curate:
+            log.info(f"Force curation set to True, cleaning up {subject.label} metadata")
+            subject = subject.reload()
+            subject_info = subject.info
+            for field in ['cognitive.uds', 'demographics.uds', 'derived', 'genetics',
+                          'longitudinal-data.uds', 'neuropathology',
+                          'study-parameters.uds']:
+                subject.delete_info(field)
+
+    @retry
+    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+        """Run post-processing on the entire subject.
+
+        Run a second pass over all UDS forms and apply
+        cross-sectional values.
+
+        Args:
+            subject: Subject to pre-process
+            processed_files: List of file IDs that were processed
+        """
+        subject = subject.reload()
+        cs_derived = subject.info.get('derived', {}).get('cross-sectional', None)
+
+        if not cs_derived:
+            log.info("No cross-sectional derived variables to back-propogate")
+            return
+
+        log.info(f"Back-propogating cross-sectional variables for {subject.label}")
+        for file_id in processed_files:
+            file_entry = self.sdk_client.get_file(file_id)
+            
+            # ignore non-UDS files
+            if not file_entry.name.endswith('_UDS.json'):
+                continue
+
+            file_entry = file_entry.reload()
+
+            derived = file_entry.info.get('derived', {})
+            derived.update(cs_derived)
+            file_entry.update_info({'derived': derived})

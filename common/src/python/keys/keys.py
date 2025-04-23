@@ -106,7 +106,3 @@ class SysErrorCodes:
     DUPLICATE_VISIT = 'preprocess-022'
     LOWER_VISITNUM = 'preprocess-023'
     MISSING_SUBMISSION_STATUS = 'preprocess-024'
-
-
-class GearTags:
-    CURATION_TAG = 'curated'

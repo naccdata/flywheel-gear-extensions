@@ -2,7 +2,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -10,6 +10,7 @@ from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from utils.utils import retry
 
 log = logging.getLogger(__name__)
 
@@ -17,12 +18,25 @@ log = logging.getLogger(__name__)
 class Curator(ABC):
     """Base curator abstract class."""
 
-    def __init__(self, sdk_client: Client) -> None:
+    def __init__(self,
+                 sdk_client: Client,
+                 curation_tag: Optional[str] = None,
+                 force_curate: bool = False) -> None:
         self.__sdk_client = sdk_client
+        self.__curation_tag = curation_tag
+        self.__force_curate = force_curate
 
     @property
-    def client(self):
+    def sdk_client(self):
         return self.__sdk_client
+
+    @property
+    def curation_tag(self):
+        return self.__curation_tag
+
+    @property
+    def force_curate(self):
+        return self.__force_curate
 
     def get_subject(self, subject_id: str) -> Subject:
         """Get the subject for the given subject ID.
@@ -32,7 +46,7 @@ class Curator(ABC):
         Returns:
           the corresponding Subject
         """
-        return self.client.get_subject(subject_id)
+        return self.sdk_client.get_subject(subject_id)
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
@@ -52,43 +66,47 @@ class Curator(ABC):
         table['file.info'] = file_entry.info
         return table
 
-    def curate_file(self,
-                    subject: Subject,
-                    file_id: str,
-                    max_retries: int = 3) -> None:
+    @retry
+    def curate_file(self, subject: Subject, file_id: str) -> None:
         """Curates a file.
 
         Args:
             subject: Subject the file belongs to
             file_id: File ID curate
-            retries: Max number of times to retry before giving up
         """
-        retries = 0
-        while retries <= max_retries:
-            try:
-                log.info('looking up file %s', file_id)
-                file_entry = self.__sdk_client.get_file(file_id)
+        log.info('looking up file %s', file_id)
+        file_entry = self.sdk_client.get_file(file_id)
 
-                if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
-                    log.info(f"{file_entry.name} already curated, skipping")
+        if (self.curation_tag and not self.force_curate and
+            self.curation_tag in file_entry.tags):
+            log.info(f"{file_entry.name} already curated, skipping")
+            return
 
-                scope = determine_scope(file_entry.name)
-                if not scope:
-                    log.warning("ignoring unexpected file %s", file_entry.name)
-                    return
+        scope = determine_scope(file_entry.name)
+        if not scope:
+            log.warning("ignoring unexpected file %s", file_entry.name)
+            return
 
-                table = self.get_table(subject, file_entry)
-                log.info("curating file %s", file_entry.name)
-                self.execute(subject, file_entry, table, scope)
-                break
-            except ApiException as e:
-                retries += 1
-                if retries <= max_retries:
-                    log.warning(
-                        f"Encountered API error, retrying {retries}/{max_retries}"
-                    )
-                else:
-                    raise e
+        table = self.get_table(subject, file_entry)
+        log.info("curating file %s", file_entry.name)
+        self.execute(subject, file_entry, table, scope)
+
+    def pre_process(self, subject: Subject) -> None:
+        """Run pre-processing on the entire subject. Not required.
+
+        Args:
+            subject: Subject to pre-process
+        """
+        pass
+
+    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+        """Run post-processing on the entire subject. Not required.
+
+        Args:
+            subject: Subject to pre-process
+            processed_files: List of file IDs that were processed
+        """
+        pass
 
     @abstractmethod
     def execute(self, subject: Subject, file_entry: FileEntry,

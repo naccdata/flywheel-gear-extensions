@@ -75,9 +75,18 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
+        # TODO: affiliate check just for debugging, remove later
+        is_affilite = "IS AFFILIATE" if table.get('file.info.forms.json.sourcenw', None) in [2, "2"] else "IS NOT AN AFFILIATE"
         if subject.label not in self.__baseline:
-            log.warning(
-                f"Subject {subject.label} not found in baseline, skipping")
+            msg = (
+                f"Subject {subject.label} not found in baseline, skipping " +
+                f"regression test on {file_entry.name}: {is_affilite}")
+            log.warning(msg)
+            self.__error_writer.write(
+                unexpected_value_error(field='naccid',
+                                       value=None,
+                                       expected=subject.label,
+                                       message=msg))
             return
 
         # each subject in the baseline is mapped to a list of ordered records;
@@ -100,11 +109,14 @@ class RegressionCurator(Curator):
             return
 
         record = None
+        expected = subject.label
         # derived_vars = None
         if scope == 'uds':
             #derived_vars = table.get('file.info.derived', None)
+            visitdate = table['file.info.forms.json.visitdate']
+            expected = f"{expected} {visitdate}"
             for r in self.__baseline[subject.label]:
-                if table['file.info.forms.json.visitdate'] == r['visitdate']:
+                if visitdate == r['visitdate']:
                     record = r
                     break
         else:
@@ -112,9 +124,15 @@ class RegressionCurator(Curator):
             record = self.__baseline[subject.label][-1]
 
         if not record:
-            log.warning(
+            msg = (
                 f"Could not find matching record for {file_entry.name} " +
-                "in baseline file")
+                f"in baseline file with attributes {expected}, skipping. {is_affilite}")
+            log.warning(msg)
+            self.__error_writer.write(
+                unexpected_value_error(field='naccid',
+                                       value=None,
+                                       expected=expected,
+                                       message=msg))
             return
 
         self.compare_baseline(derived_vars, record)
