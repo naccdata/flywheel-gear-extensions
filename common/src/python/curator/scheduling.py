@@ -220,9 +220,12 @@ class ProjectCurationScheduler:
         self.__heap_map = heap_map
 
     @classmethod
-    def create(cls, project: ProjectAdaptor,
-               filename_pattern: str,
-               blacklist: Optional[List[str]] = None) -> 'ProjectCurationScheduler':
+    def create(
+            cls,
+            project: ProjectAdaptor,
+            filename_pattern: str,
+            blacklist: Optional[List[str]] = None
+    ) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -286,8 +289,7 @@ class ProjectCurationScheduler:
                 log.info(f"{subject_id} blacklisted, skipping")
                 continue
 
-            heap = subject_heap_map.get(subject_id,
-                                        MinHeap[FileModel]())
+            heap = subject_heap_map.get(subject_id, MinHeap[FileModel]())
             heap.push(file_info)
             subject_heap_map[subject_id] = heap
 

@@ -60,8 +60,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
-        blacklist_file = InputFileWrapper.create(
-            input_name='blacklist_file', context=context)
+        blacklist_file = InputFileWrapper.create(input_name='blacklist_file',
+                                                 context=context)
 
         filename_pattern = context.config.get('filename_pattern', "*.json")
         curation_tag = context.config.get('curation_tag', "attribute-curator")
@@ -102,7 +102,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         blacklist = None
         if self.__blacklist_file:
-            with open(self.__black_list.filepath, mode='r') as fh:
+            with open(self.__blacklist_file.filepath, mode='r') as fh:
                 blacklist = [x.strip() for x in fh.readlines()]
 
         try:
