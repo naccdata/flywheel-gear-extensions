@@ -8,7 +8,7 @@ from flywheel.rest import ApiException
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
-from utils.utils import retry
+from utils.decorators import api_retry
 
 from .curator import Curator
 
@@ -56,10 +56,15 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
+        # clear out file.info.derived if forcing curation
+        if self.force_curate:
+            for field in ['derived']:
+                file_entry.delete_info(field)
+
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
 
-    @retry
+    @api_retry
     def pre_process(self, subject: Subject) -> None:
         """Run pre-processing on the entire subject.
         Clean up metadata as needed.
@@ -74,14 +79,12 @@ class FormCurator(Curator):
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
             log.info(f"Force curation set to True, cleaning up {subject.label} metadata")
-            subject = subject.reload()
-            subject_info = subject.info
             for field in ['cognitive.uds', 'demographics.uds', 'derived', 'genetics',
                           'longitudinal-data.uds', 'neuropathology',
                           'study-parameters.uds']:
                 subject.delete_info(field)
 
-    @retry
+    @api_retry
     def post_process(self, subject: Subject, processed_files: List[str]) -> None:
         """Run post-processing on the entire subject.
 
@@ -96,7 +99,6 @@ class FormCurator(Curator):
         cs_derived = subject.info.get('derived', {}).get('cross-sectional', None)
 
         if not cs_derived:
-            log.info("No cross-sectional derived variables to back-propogate")
             return
 
         log.info(f"Back-propogating cross-sectional variables for {subject.label}")

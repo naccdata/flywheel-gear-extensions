@@ -74,22 +74,3 @@ def load_form_ingest_configurations(
 
     with open(config_file_path, mode='r', encoding='utf-8') as configs_file:
         return FormProjectConfigs.model_validate_json(configs_file.read())
-
-
-def retry(func, max_retries: int = 3):
-    """Decorator to handle retries."""
-    def wrapper(*args, **kwargs):
-        retries = 0
-        while retries <= max_retries:
-            try:
-                func(*args, **kwargs)
-                break
-            except ApiException as e:
-                retries += 1
-                if retries <= max_retries:
-                    log.warning(
-                        f"Encountered API error, retrying {retries}/{max_retries}"
-                    )
-                else:
-                    raise e
-    return wrapper

@@ -10,7 +10,7 @@ from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
-from utils.utils import retry
+from utils.decorators import api_retry
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class Curator(ABC):
         table['file.info'] = file_entry.info
         return table
 
-    @retry
+    @api_retry
     def curate_file(self, subject: Subject, file_id: str) -> None:
         """Curates a file.
 
@@ -74,7 +74,6 @@ class Curator(ABC):
             subject: Subject the file belongs to
             file_id: File ID curate
         """
-        log.info('looking up file %s', file_id)
         file_entry = self.sdk_client.get_file(file_id)
 
         if (self.curation_tag and not self.force_curate and
