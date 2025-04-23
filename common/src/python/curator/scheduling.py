@@ -171,6 +171,7 @@ curator = None  # global curator object
 def initialize_worker(context: GearToolkitContext,
                       curator_type: Type[C],
                       deriver: AttributeDeriver,
+                      curation_tag: str,
                       force_curate: bool = False):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
@@ -178,6 +179,7 @@ def initialize_worker(context: GearToolkitContext,
     Args:
         context: GearToolkitContext
         curator_type: Type of FormCurator subclass to use for curation
+        curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
     """
     # Create a curator object for each process with a new SDK client
@@ -185,6 +187,7 @@ def initialize_worker(context: GearToolkitContext,
     sdk_client = context.get_client()
     curator = curator_type(sdk_client=sdk_client,
                            deriver=deriver,
+                           curation_tag=curation_tag,
                            force_curate=force_curate)
 
 
@@ -218,7 +221,8 @@ class ProjectCurationScheduler:
 
     @classmethod
     def create(cls, project: ProjectAdaptor,
-               filename_pattern: str) -> 'ProjectCurationScheduler':
+               filename_pattern: str,
+               blacklist: Optional[List[str]] = None) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -228,6 +232,7 @@ class ProjectCurationScheduler:
         Args:
           project: the project
           filename_pattern: Filename pattern to match on
+          blacklist: List of subjects to ignore
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
@@ -276,10 +281,15 @@ class ProjectCurationScheduler:
                 log.warning("ignoring unexpected file %s", file_info.filename)
                 continue
 
-            heap = subject_heap_map.get(file_info.subject_id,
+            subject_id = file_info.subject_id
+            if blacklist and subject_id in blacklist:
+                log.info(f"{subject_id} blacklisted, skipping")
+                continue
+
+            heap = subject_heap_map.get(subject_id,
                                         MinHeap[FileModel]())
             heap.push(file_info)
-            subject_heap_map[file_info.subject_id] = heap
+            subject_heap_map[subject_id] = heap
 
         return ProjectCurationScheduler(heap_map=subject_heap_map)
 
@@ -299,6 +309,7 @@ class ProjectCurationScheduler:
               context: GearToolkitContext,
               curator_type: Type[C],
               deriver: AttributeDeriver,
+              curation_tag: str,
               force_curate: bool = False) -> None:
         """Applies a FormCurator to the form files in this curator.
 
@@ -309,6 +320,7 @@ class ProjectCurationScheduler:
           context: the gear context
           curator_type: a FormCurator subclass
           deriver: attribute deriver
+          curation_tag: Tag to apply to curated files
           force_curate: Curate file even if it's already been curated
         """
 
@@ -323,6 +335,7 @@ class ProjectCurationScheduler:
                       context,
                       curator_type,
                       deriver,
+                      curation_tag,
                       force_curate,
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
