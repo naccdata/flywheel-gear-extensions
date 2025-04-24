@@ -3,13 +3,12 @@ import csv
 import logging
 from typing import List, MutableMapping
 
+from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.errors import MPListErrorWriter
 from s3.s3_client import S3BucketReader
-
-from .regression_curator import RegressionCurator
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +35,8 @@ def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
 
 
 def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
-    """Localizes the QAF from S3 and converts to JSON. Only retains NACC*
-    and NGDS* derived variables, visitdate, and fields specified by the keep_fields
+    """Localizes the QAF from S3 and converts to JSON. Only retains NACC* and
+    NGDS* derived variables, visitdate, and fields specified by the keep_fields
     parameter. Assumes no case-sensitivity and converts headers to lowercase.
 
     Args:
@@ -62,7 +61,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     baseline: MutableMapping = {}
 
     num_records = 0
-    for line, row in enumerate(body.iter_lines()):
+    for row in body.iter_lines():
         row = row.decode('utf-8')
 
         if not header:
@@ -71,7 +70,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
             continue
 
         row = next(csv.DictReader([row], fieldnames=header, strict=True))
-        
+
         # grab subset of fields and create visitdate
         naccid = row['naccid']
         visitdate = (f"{int(row['visityr']):02d}-" +

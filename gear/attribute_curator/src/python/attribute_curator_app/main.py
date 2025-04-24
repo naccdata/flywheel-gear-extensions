@@ -24,7 +24,8 @@ def run(context: GearToolkitContext,
         curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
     """
-    scheduler.apply(context=context, curator_type=FormCurator,
+    scheduler.apply(context=context,
+                    curator_type=FormCurator,
                     curator_type_args={
                         'deriver': deriver,
                         'curation_tag': curation_tag,

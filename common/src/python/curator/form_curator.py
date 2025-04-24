@@ -4,8 +4,7 @@ from typing import List
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel.rest import ApiException
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -95,8 +94,8 @@ class FormCurator(Curator):
 
     @api_retry
     def pre_process(self, subject: Subject) -> None:
-        """Run pre-processing on the entire subject.
-        Clean up metadata as needed.
+        """Run pre-processing on the entire subject. Clean up metadata as
+        needed.
 
         Args:
             subject: Subject to pre-process
@@ -107,14 +106,19 @@ class FormCurator(Curator):
         # instead make this a manual job outside the gear, or
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
-            log.info(f"Force curation set to True, cleaning up {subject.label} metadata")
-            for field in ['cognitive.uds', 'demographics.uds', 'derived', 'genetics',
-                          'longitudinal-data.uds', 'neuropathology',
-                          'study-parameters.uds']:
+            log.info(
+                f"Force curation set to True, cleaning up {subject.label} metadata"
+            )
+            for field in [
+                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
+                    'longitudinal-data.uds', 'neuropathology',
+                    'study-parameters.uds'
+            ]:
                 subject.delete_info(field)
 
     @api_retry
-    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+    def post_process(self, subject: Subject,
+                     processed_files: List[str]) -> None:
         """Run post-processing on the entire subject.
 
         Run a second pass over all UDS forms and apply
@@ -125,15 +129,18 @@ class FormCurator(Curator):
             processed_files: List of file IDs that were processed
         """
         subject = subject.reload()
-        cs_derived = subject.info.get('derived', {}).get('cross-sectional', None)
+        cs_derived = subject.info.get('derived',
+                                      {}).get('cross-sectional', None)
 
         if not cs_derived:
             return
 
-        log.info(f"Back-propogating cross-sectional UDS variables for {subject.label}")
+        log.info(
+            f"Back-propogating cross-sectional UDS variables for {subject.label}"
+        )
         for file_id in processed_files:
             file_entry = self.sdk_client.get_file(file_id)
-            
+
             # ignore non-UDS files
             if not file_entry.name.endswith('_UDS.json'):
                 continue

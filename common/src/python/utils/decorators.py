@@ -1,7 +1,6 @@
-"""
-Utility decorators
-"""
+"""Utility decorators."""
 import logging
+
 from flywheel.rest import ApiException
 
 log = logging.getLogger(__name__)
@@ -9,6 +8,7 @@ log = logging.getLogger(__name__)
 
 def api_retry(func, max_retries: int = 3):
     """Decorator to handle Flywheel API retries."""
+
     def wrapper(*args, **kwargs):
         retries = 0
         while retries <= max_retries:
@@ -23,4 +23,5 @@ def api_retry(func, max_retries: int = 3):
                     )
                 else:
                     raise e
+
     return wrapper

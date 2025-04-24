@@ -7,7 +7,6 @@ from typing import List, Optional
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel.rest import ApiException
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -76,8 +75,8 @@ class Curator(ABC):
         """
         file_entry = self.sdk_client.get_file(file_id)
 
-        if (self.curation_tag and not self.force_curate and
-            self.curation_tag in file_entry.tags):
+        if (self.curation_tag and not self.force_curate
+                and self.curation_tag in file_entry.tags):
             log.info(f"{file_entry.name} already curated, skipping")
             return
 
@@ -96,16 +95,17 @@ class Curator(ABC):
         Args:
             subject: Subject to pre-process
         """
-        pass
+        return
 
-    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+    def post_process(self, subject: Subject,
+                     processed_files: List[str]) -> None:
         """Run post-processing on the entire subject. Not required.
 
         Args:
             subject: Subject to pre-process
             processed_files: List of file IDs that were processed
         """
-        pass
+        return
 
     @abstractmethod
     def execute(self, subject: Subject, file_entry: FileEntry,

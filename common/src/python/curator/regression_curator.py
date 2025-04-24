@@ -9,13 +9,14 @@ with NACC or key values such as as visit date.)
 import logging
 from typing import Any, Dict, MutableMapping
 
-from curator.curator import Curator
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from outputs.errors import MPListErrorWriter, unexpected_value_error
+
+from .curator import Curator
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +45,8 @@ class RegressionCurator(Curator):
         # compare
         for field, value in derived_vars.items():
             if field not in record:
-                log.warning(f"Derived metadata {field} not in baseline, skipping")
+                log.warning(
+                    f"Derived metadata {field} not in baseline, skipping")
                 continue
 
             # convert booleans to 0/1
@@ -56,14 +58,15 @@ class RegressionCurator(Curator):
             expected = str(record[field])
             if value != expected:
                 msg = (f"{record['naccid']} {record['visitdate']} " +
-                          f"field {field}: derived value {value} does not " +
-                          f"match expected value {expected}")
+                       f"field {field}: derived value {value} does not " +
+                       f"match expected value {expected}")
                 log.info(msg)
                 self.__error_writer.write(
-                    unexpected_value_error(field=field,
-                                           value=value,  # type: ignore
-                                           expected=expected,
-                                           message=msg))
+                    unexpected_value_error(
+                        field=field,
+                        value=value,  # type: ignore
+                        expected=expected,
+                        message=msg))
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
@@ -97,13 +100,15 @@ class RegressionCurator(Curator):
         if subject.label not in self.__baseline:
             if not derived_vars.get('affiliate', False):
                 msg = (
-                    f"Subject {subject.label} not found in baseline and not affiliate")
+                    f"Subject {subject.label} not found in baseline and not affiliate"
+                )
                 log.warning(msg)
                 self.__error_writer.write(
-                    unexpected_value_error(field='naccid',
-                                           value=None,  # type: ignore
-                                           expected=subject.label,
-                                           message=msg))
+                    unexpected_value_error(
+                        field='naccid',
+                        value=None,  # type: ignore
+                        expected=subject.label,
+                        message=msg))
             return
 
         record = None
@@ -122,15 +127,15 @@ class RegressionCurator(Curator):
             record = self.__baseline[subject.label][-1]
 
         if not record:
-            msg = (
-                f"Could not find matching record for {file_entry.name} " +
-                f"in baseline file with attributes {expected}")
+            msg = (f"Could not find matching record for {file_entry.name} " +
+                   f"in baseline file with attributes {expected}")
             log.warning(msg)
             self.__error_writer.write(
-                unexpected_value_error(field='naccid',
-                                       value=None,
-                                       expected=expected,
-                                       message=msg))
+                unexpected_value_error(
+                    field='naccid',
+                    value=None,  # type: ignore
+                    expected=expected,
+                    message=msg))
             return
 
         self.compare_baseline(derived_vars, record)
