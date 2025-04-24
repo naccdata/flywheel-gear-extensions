@@ -61,3 +61,6 @@ class Subject:
 
     def upload_file(self, file: FileSpec) -> List[Dict]:
         ...
+
+    def delete_info(self, *args, **kwargs):
+        ...

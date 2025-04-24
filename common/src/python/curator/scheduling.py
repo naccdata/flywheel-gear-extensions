@@ -168,7 +168,7 @@ curator = None  # global curator object
 
 
 def initialize_worker(context: GearToolkitContext, curator_type: Type[C],
-                      curator_type_args: Dict[str, Any] = None):
+                      curator_type_args: Optional[Dict[str, Any]] = None):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
@@ -311,7 +311,7 @@ class ProjectCurationScheduler:
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
     def apply(self, context: GearToolkitContext, curator_type: Type[C],
-              curator_type_args: Dict[str, Any] = None) -> None:
+              curator_type_args: Optional[Dict[str, Any]] = None) -> None:
         """Applies a FormCurator to the form files in this curator.
 
         Builds a curator of the type given with the context to avoid shared

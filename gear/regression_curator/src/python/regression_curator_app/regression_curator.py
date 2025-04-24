@@ -61,7 +61,7 @@ class RegressionCurator(Curator):
                 log.info(msg)
                 self.__error_writer.write(
                     unexpected_value_error(field=field,
-                                           value=value,
+                                           value=value,  # type: ignore
                                            expected=expected,
                                            message=msg))
 
@@ -101,7 +101,7 @@ class RegressionCurator(Curator):
                 log.warning(msg)
                 self.__error_writer.write(
                     unexpected_value_error(field='naccid',
-                                           value=None,
+                                           value=None,  # type: ignore
                                            expected=subject.label,
                                            message=msg))
             return
