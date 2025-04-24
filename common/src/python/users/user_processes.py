@@ -255,7 +255,7 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self.__notification_client = notification_client
 
     def visit(self, entry: RegisteredUserEntry) -> None:
-        """Processes the user entry by sendings a notification email.
+        """Processes the user entry by sending a notification email.
 
         Args:
           entry: the user entry
@@ -635,7 +635,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
 class UserProcess(BaseUserProcess[UserEntry]):
     """Defines the main process for handling directory user entries, which
-    splits the queue into active and inactive subqueues."""
+    splits the queue into active and inactive sub-queues."""
 
     def __init__(self, environment: UserProcessEnvironment) -> None:
         self.__active_queue: UserQueue[ActiveUserEntry] = UserQueue()

@@ -28,6 +28,39 @@ class FormCurator(Curator):
                          force_curate=force_curate)
         self.__deriver = deriver
 
+    @property
+    def client(self):
+        return self.__sdk_client
+
+    def get_subject(self, subject_id: str) -> Subject:
+        """Get the subject for the given subject ID.
+
+        Args:
+          subject_id: the subject ID
+        Returns:
+          the corresponding Subject
+        """
+        return self.client.get_subject(subject_id)
+
+    def get_table(self, subject: Subject,
+                  file_entry: FileEntry) -> SymbolTable:
+        """Returns the SymbolTable with all relevant information for curation.
+
+        In it's most basic form, just grabs file.info and subject.info;
+        more specific subclasses should grab additional information as
+        needed (e.g. for UDS also needs to grab a corresponding NP
+        form.)
+        """
+        # need to reload since info isn't automatically loaded
+        subject = subject.reload()
+        file_entry = file_entry.reload()
+
+        # add the metadata
+        table = SymbolTable({})
+        table['subject.info'] = subject.info
+        table['file.info'] = file_entry.info
+        return table
+
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.

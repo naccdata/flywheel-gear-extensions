@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
@@ -41,6 +42,7 @@ class LabelTemplate(BaseModel):
     from file records."""
     template: str
     transform: Optional[Literal['upper', 'lower']] = Field(default=None)
+    delimiter: Optional[str] = Field(default=None)
 
     def instantiate(self,
                     record: Dict[str, Any],
@@ -73,11 +75,18 @@ class LabelTemplate(BaseModel):
                 raise ValueError(
                     f"Error creating label, missing column {error}") from error
 
+        if self.delimiter:
+            result = result.replace(' ', self.delimiter)
+
         if self.transform == 'lower':
             return result.lower()
 
         if self.transform == 'upper':
-            return result.upper()
+            # for filenames need to be careful about not
+            # upper-casing the extension; can use pathlib
+            # even if it's not actually a file
+            file = Path(result)
+            return file.stem.upper() + file.suffix
 
         return result
 

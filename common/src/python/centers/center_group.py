@@ -93,13 +93,17 @@ class CenterGroup(CenterAdaptor):
                                              group=adaptor.group)
 
     @classmethod
-    def create_from_center(cls, *, proxy: FlywheelProxy,
-                           center: CenterInfo) -> 'CenterGroup':
+    def create_from_center(cls,
+                           *,
+                           proxy: FlywheelProxy,
+                           center: CenterInfo,
+                           tags: Optional[List[str]] = None) -> 'CenterGroup':
         """Creates a CenterGroup from a center object.
 
         Args:
           center: CenterInfo object, the study center
           proxy: The flywheel proxy object
+          tags: Tags to add, if specified
         Returns:
           the CenterGroup for the center
         """
@@ -112,7 +116,10 @@ class CenterGroup(CenterAdaptor):
             group=group,
             proxy=proxy)
 
-        tags = list(center.tags)  # type: ignore
+        # handle tags
+        if tags is None:
+            tags = []
+
         adcid_tag = f"adcid-{center.adcid}"
         if adcid_tag not in tags:
             tags.append(adcid_tag)

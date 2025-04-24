@@ -224,7 +224,8 @@ class UserRegistry:
                 coid=self.__coid,
                 co_person_message=person.as_coperson_message())
         except ApiException as error:
-            raise RegistryError(f"API call failed: {error}") from error
+            raise RegistryError(
+                f"API add_co_person call failed: {error}") from error
 
     def get(self, email: str) -> List[RegistryPerson]:
         """Returns the list of person objects with the email address.
@@ -286,40 +287,66 @@ class UserRegistry:
         self.__registry_map_by_id = {}
 
         limit = 100
-        page_index = 0
-        read_length = limit
+        page_index = 1
 
-        while read_length == limit:
+        remaining_count = self.__person_count()
+
+        while remaining_count > 0:
             try:
                 response = self.__api_instance.get_co_person(coid=self.__coid,
                                                              direction='asc',
                                                              limit=limit,
                                                              page=page_index)
             except ApiException as error:
-                raise RegistryError(f"API call failed: {error}") from error
+                raise RegistryError(
+                    f"API get_co_person call failed: {error}") from error
 
             person_list = self.__parse_response(response)
 
-            read_length = len(person_list)
+            remaining_count -= len(person_list)
             page_index += 1
 
             for person in person_list:
-                if not person.email_addresses:
-                    if not person.is_claimed():
-                        continue
+                self.__add_person(person)
 
-                    name = person.primary_name
-                    if name:
-                        self.__bad_claims[name].append(person)
+    def __add_person(self, person: RegistryPerson) -> None:
+        """Adds the person from the comanage registry to this registry object.
 
-                    continue
+        To be added the person must have email addresses and be claimed.
+        """
+        if not person.email_addresses:
+            if not person.is_claimed():
+                return
 
-                for address in person.email_addresses:
-                    self.__registry_map[address.mail].append(person)
+            name = person.primary_name
+            if name:
+                self.__bad_claims[name].append(person)
 
-                registry_id = person.registry_id()
-                if registry_id:
-                    self.__registry_map_by_id[registry_id] = person
+            return
+
+        for address in person.email_addresses:
+            self.__registry_map[address.mail].append(person)
+
+        registry_id = person.registry_id()
+        if registry_id:
+            self.__registry_map_by_id[registry_id] = person
+
+    def __person_count(self) -> int:
+        """Returns the count of coperson objects in the comanage registry.
+
+        Raises:
+          RegistryError if there is an API error
+        """
+        try:
+            response = self.__api_instance.get_co_person(coid=self.__coid)
+        except ApiException as error:
+            raise RegistryError(
+                f"Failed to read person count: {error}") from error
+
+        if not response.total_results:
+            return 0
+
+        return int(response.total_results)
 
     def __parse_response(
             self, response: GetCoPerson200Response) -> List[RegistryPerson]:

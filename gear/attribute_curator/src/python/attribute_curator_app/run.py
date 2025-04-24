@@ -12,6 +12,7 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
@@ -30,12 +31,14 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
                  project: ProjectAdaptor,
                  filename_pattern: str,
                  curation_tag: str,
-                 force_curate: bool = False):
+                 force_curate: bool = False,
+                 blacklist_file: Optional[InputFileWrapper] = None):
         super().__init__(client=client)
         self.__project = project
         self.__filename_pattern = filename_pattern
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
+        self.__blacklist_file = blacklist_file
 
     @classmethod
     def create(
@@ -57,6 +60,9 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
+        blacklist_file = InputFileWrapper.create(input_name='blacklist_file',
+                                                 context=context)
+
         filename_pattern = context.config.get('filename_pattern', "*.json")
         curation_tag = context.config.get('curation_tag', "attribute-curator")
         force_curate = context.config.get('force_curate', False)
@@ -69,7 +75,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
                                        project=project,
                                        filename_pattern=filename_pattern,
                                        curation_tag=curation_tag,
-                                       force_curate=force_curate)
+                                       force_curate=force_curate,
+                                       blacklist_file=blacklist_file)
 
     def run(self, context: GearToolkitContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group,
@@ -77,10 +84,16 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         deriver = AttributeDeriver()
 
+        blacklist = None
+        if self.__blacklist_file:
+            with open(self.__blacklist_file.filepath, mode='r') as fh:
+                blacklist = [x.strip() for x in fh.readlines()]
+
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern)
+                filename_pattern=self.__filename_pattern,
+                blacklist=blacklist)
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 

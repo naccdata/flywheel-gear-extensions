@@ -26,6 +26,16 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
+        },
+        "blacklist": {
+            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "text"
+                ]
+            }
         }
     },
     "config": {

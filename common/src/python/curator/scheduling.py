@@ -221,8 +221,12 @@ class ProjectCurationScheduler:
         self.__heap_map = heap_map
 
     @classmethod
-    def create(cls, project: ProjectAdaptor,
-               filename_pattern: str) -> 'ProjectCurationScheduler':
+    def create(
+            cls,
+            project: ProjectAdaptor,
+            filename_pattern: str,
+            blacklist: Optional[List[str]] = None
+    ) -> 'ProjectCurationScheduler':
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -232,6 +236,7 @@ class ProjectCurationScheduler:
         Args:
           project: the project
           filename_pattern: Filename pattern to match on
+          blacklist: List of subjects to ignore
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
@@ -282,10 +287,14 @@ class ProjectCurationScheduler:
                 log.warning("ignoring unexpected file %s", file_info.filename)
                 continue
 
-            heap = subject_heap_map.get(file_info.subject_id,
-                                        MinHeap[FileModel]())
+            subject_id = file_info.subject_id
+            if blacklist and subject_id in blacklist:
+                log.info(f"{subject_id} blacklisted, skipping")
+                continue
+
+            heap = subject_heap_map.get(subject_id, MinHeap[FileModel]())
             heap.push(file_info)
-            subject_heap_map[file_info.subject_id] = heap
+            subject_heap_map[subject_id] = heap
 
         return ProjectCurationScheduler(heap_map=subject_heap_map)
 
