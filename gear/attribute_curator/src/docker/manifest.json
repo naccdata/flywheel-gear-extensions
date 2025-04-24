@@ -26,6 +26,16 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
+        },
+        "blacklist": {
+            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "text"
+                ]
+            }
         }
     },
     "config": {
@@ -38,6 +48,11 @@
             "description": "Filename pattern to match on",
             "type": "string",
             "default": "*.json"
+        },
+        "curation_tag": {
+            "description": "Tag to apply to curated files",
+            "type": "string",
+            "default": "attribute-curator"
         },
         "force_curate": {
             "description": "Curate file even if it's already been curated",

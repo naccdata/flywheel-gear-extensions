@@ -6,7 +6,6 @@ from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
-from keys.keys import GearTags
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
 from nacc_attribute_deriver.symbol_table import SymbolTable
 
@@ -19,9 +18,11 @@ class FormCurator:
     def __init__(self,
                  sdk_client: Client,
                  deriver: AttributeDeriver,
+                 curation_tag: str,
                  force_curate: bool = False) -> None:
         self.__sdk_client = sdk_client
         self.__deriver = deriver
+        self.__curation_tag = curation_tag
         self.__force_curate = force_curate
 
     @property
@@ -73,7 +74,7 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
-        file_entry.add_tag(GearTags.CURATION_TAG)
+        file_entry.add_tag(self.__curation_tag)
 
     def curate_file(self,
                     subject: Subject,
@@ -92,7 +93,7 @@ class FormCurator:
                 log.info('looking up file %s', file_id)
                 file_entry = self.__sdk_client.get_file(file_id)
 
-                if GearTags.CURATION_TAG in file_entry.tags and not self.__force_curate:
+                if self.__curation_tag in file_entry.tags and not self.__force_curate:
                     log.info(f"{file_entry.name} already curated, skipping")
 
                 scope = determine_scope(file_entry.name)
