@@ -28,10 +28,6 @@ class FormCurator(Curator):
                          force_curate=force_curate)
         self.__deriver = deriver
 
-    @property
-    def client(self):
-        return self.__sdk_client
-
     def get_subject(self, subject_id: str) -> Subject:
         """Get the subject for the given subject ID.
 
@@ -40,7 +36,7 @@ class FormCurator(Curator):
         Returns:
           the corresponding Subject
         """
-        return self.client.get_subject(subject_id)
+        return self.sdk_client.get_subject(subject_id)
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
@@ -134,7 +130,7 @@ class FormCurator(Curator):
         if not cs_derived:
             return
 
-        log.info(f"Back-propogating cross-sectional variables for {subject.label}")
+        log.info(f"Back-propogating cross-sectional UDS variables for {subject.label}")
         for file_id in processed_files:
             file_entry = self.sdk_client.get_file(file_id)
             

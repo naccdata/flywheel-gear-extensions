@@ -27,7 +27,7 @@
             "base": "api-key",
             "read-only": false
         },
-        "blacklist": {
+        "blacklist_file": {
             "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
             "base": "file",
             "optional": true,
