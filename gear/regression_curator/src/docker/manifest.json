@@ -25,6 +25,16 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
+        },
+        "blacklist_file": {
+            "description": "Plain-text file containing the NACCIDs to blacklist from regression testing, one per line",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "text"
+                ]
+            }
         }
     },
     "config": {

@@ -13,6 +13,7 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
@@ -30,13 +31,15 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
     def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
                  s3_qaf_file: str, keep_fields: List[str],
-                 filename_pattern: str, error_outfile: str):
+                 filename_pattern: str, error_outfile: str,
+                 blacklist_file: Optional[InputFileWrapper]):
         super().__init__(client=client)
         self.__project = project
         self.__s3_qaf_file = s3_qaf_file
         self.__keep_fields = keep_fields
         self.__filename_pattern = filename_pattern
         self.__error_outfile = error_outfile
+        self.__blacklist_file = blacklist_file
 
     @classmethod
     def create(
@@ -73,12 +76,16 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         error_outfile = context.config.get("error_outfile",
                                            'regression_errors.csv')
 
+        blacklist_file = InputFileWrapper.create(input_name='blacklist_file',
+                                                 context=context)
+
         return RegressionCuratorVisitor(client=client,
                                         project=project,
                                         s3_qaf_file=s3_qaf_file,
                                         keep_fields=keep_fields,
                                         filename_pattern=filename_pattern,
-                                        error_outfile=error_outfile)
+                                        error_outfile=error_outfile,
+                                        blacklist_file=blacklist_file)
 
     def run(self, context: GearToolkitContext) -> None:
         try:
@@ -90,10 +97,16 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         error_writer = MPListErrorWriter(container_id=self.__project.id,
                                          fw_path=fw_path)
 
+        blacklist = None
+        if self.__blacklist_file:
+            with open(self.__blacklist_file.filepath, mode='r') as fh:
+                blacklist = [x.strip() for x in fh.readlines()]
+
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern)
+                filename_pattern=self.__filename_pattern,
+                blacklist=blacklist)
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
