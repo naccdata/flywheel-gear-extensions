@@ -2,11 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.2.7 (unreleased)
+## 0.2.7
 
 * Adds ability to blacklist NACCIDs from being curated
 * Adds the `ncrad_samples` scope
 * Adds configuration to apply a tag to each curated file, and will skip curation on subsequent passes if the file has this tag
+* Adds the `force_curate` config option to force curation regardless, which also wipes the curation metadata
 
 ## 0.2.6
 

@@ -204,6 +204,17 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     assert curator, 'curator object expected'
     subject = curator.get_subject(subject_id)
 
+    if curator.force_curate:
+        log.info(
+            f"Force curation set to True, cleaning up metadata for {subject.label}"
+        )
+        for field in [
+                'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
+                'longitudinal-data.uds', 'neuropathology',
+                'study-parameters.uds', 'imaging'
+        ]:
+            subject.delete_info(field)  # type: ignore
+
     while len(heap) > 0:
         file_info = heap.pop()
         if not file_info:
