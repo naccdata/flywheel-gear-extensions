@@ -36,7 +36,7 @@ class FormCurator(Curator):
             for field in ['derived']:
                 file_entry.delete_info(field)
 
-        super().get_table(subject, file_entry)
+        return super().get_table(subject, file_entry)
 
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
