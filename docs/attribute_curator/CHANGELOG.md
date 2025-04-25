@@ -6,9 +6,15 @@ All notable changes to this gear are documented in this file.
 
 * Updates `nacc_attribute_deriver` to `1.3.0`, which fixes several bugs found while regression testing
 * Refactored to generalize curation/scheduling workflow
-* Adds the `ncrad_samples` scope
+* Refactors to support pre/post-processing passes
+	* For Form Curator this is used to back-propogate cross-sectional variables
+
+## 0.2.7
+
 * Adds ability to blacklist NACCIDs from being curated
+* Adds the `ncrad_samples` scope
 * Adds configuration to apply a tag to each curated file, and will skip curation on subsequent passes if the file has this tag
+* Adds the `force_curate` config option to force curation regardless, which also wipes the curation metadata
 
 ## 0.2.6
 
