@@ -213,7 +213,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
                 'longitudinal-data.uds', 'neuropathology',
                 'study-parameters.uds', 'imaging'
         ]:
-            subject.delete_info(field)
+            subject.delete_info(field)  # type: ignore
 
     while len(heap) > 0:
         file_info = heap.pop()

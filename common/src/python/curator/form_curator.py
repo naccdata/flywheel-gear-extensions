@@ -29,7 +29,7 @@ class FormCurator:
     def client(self):
         return self.__sdk_client
 
-    @property:
+    @property
     def force_curate(self):
         return self.__force_curate
 
@@ -55,8 +55,8 @@ class FormCurator:
         # clean up metadata as needed
         if self.force_curate:
             for field in ['derived']:
-                file_entry.delete_info(field)
-        
+                file_entry.delete_info(field)  # type: ignore
+
         # need to reload since info isn't automatically loaded
         subject = subject.reload()
         file_entry = file_entry.reload()
