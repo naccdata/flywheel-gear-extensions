@@ -27,16 +27,6 @@ class FormCurator(Curator):
                          force_curate=force_curate)
         self.__deriver = deriver
 
-    def get_subject(self, subject_id: str) -> Subject:
-        """Get the subject for the given subject ID.
-
-        Args:
-          subject_id: the subject ID
-        Returns:
-          the corresponding Subject
-        """
-        return self.sdk_client.get_subject(subject_id)
-
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.
