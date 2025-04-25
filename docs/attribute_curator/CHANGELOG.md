@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.8
+
+* Fixes issue where `<container>.delete_info` fails if there is no metadata
+
 ## 0.2.7
 
 * Adds ability to blacklist NACCIDs from being curated
