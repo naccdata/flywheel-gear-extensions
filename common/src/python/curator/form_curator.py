@@ -29,6 +29,10 @@ class FormCurator:
     def client(self):
         return self.__sdk_client
 
+    @property:
+    def force_curate(self):
+        return self.__force_curate
+
     def get_subject(self, subject_id: str) -> Subject:
         """Get the subject for the given subject ID.
 
@@ -48,6 +52,11 @@ class FormCurator:
         needed (e.g. for UDS also needs to grab a corresponding NP
         form.)
         """
+        # clean up metadata as needed
+        if self.force_curate:
+            for field in ['derived']:
+                file_entry.delete_info(field)
+        
         # need to reload since info isn't automatically loaded
         subject = subject.reload()
         file_entry = file_entry.reload()
@@ -93,7 +102,7 @@ class FormCurator:
                 log.info('looking up file %s', file_id)
                 file_entry = self.__sdk_client.get_file(file_id)
 
-                if self.__curation_tag in file_entry.tags and not self.__force_curate:
+                if self.__curation_tag in file_entry.tags and not self.force_curate:
                     log.info(f"{file_entry.name} already curated, skipping")
 
                 scope = determine_scope(file_entry.name)
