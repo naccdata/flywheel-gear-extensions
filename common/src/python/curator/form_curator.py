@@ -40,21 +40,13 @@ class FormCurator(Curator):
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.
-
-        In it's most basic form, just grabs file.info and subject.info;
-        more specific subclasses should grab additional information as
-        needed (e.g. for UDS also needs to grab a corresponding NP
-        form.)
         """
-        # need to reload since info isn't automatically loaded
-        subject = subject.reload()
-        file_entry = file_entry.reload()
+        # clear out file.info.derived if forcing curation
+        if self.force_curate:
+            for field in ['derived']:
+                file_entry.delete_info(field)
 
-        # add the metadata
-        table = SymbolTable({})
-        table['subject.info'] = subject.info
-        table['file.info'] = file_entry.info
-        return table
+        super().get_table(subject, file_entry)
 
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
@@ -84,11 +76,6 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        # clear out file.info.derived if forcing curation
-        if self.force_curate:
-            for field in ['derived']:
-                file_entry.delete_info(field)
-
         self.__deriver.curate(table, scope)
         self.apply_curation(subject, file_entry, table)
 
