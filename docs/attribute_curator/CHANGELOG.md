@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.9
+
+* Wraps subject metadata wiping in retry block
+
 ## 0.2.8
 
 * Fixes issue where `<container>.delete_info` fails if there is no metadata

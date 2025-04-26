@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
 
 from curator.form_curator import FormCurator
 from dataview.dataview import ColumnModel, make_builder
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -204,18 +205,28 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     assert curator, 'curator object expected'
     subject = curator.get_subject(subject_id)
 
+    retries = 0
     if curator.force_curate:
-        subject = subject.reload()
-        if subject.info:
-            log.info(
-                f"Force curation set to True, cleaning up metadata for {subject.label}"
-            )
-            for field in [
-                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
-                    'longitudinal-data.uds', 'neuropathology',
-                    'study-parameters.uds', 'imaging'
-            ]:
-                subject.delete_info(field)  # type: ignore
+        while retries <= 3:
+            try:
+                subject = subject.reload()
+                if subject.info:
+                    log.info("Force curation set to True, " +
+                             "cleaning up metadata for {subject.label}")
+                    for field in [
+                            'cognitive.uds', 'demographics.uds', 'derived',
+                            'genetics', 'longitudinal-data.uds',
+                            'neuropathology', 'study-parameters.uds', 'imaging'
+                    ]:
+                        subject.delete_info(field)  # type: ignore
+
+                break
+            except ApiException as e:
+                retries += 1
+                if retries <= 3:
+                    log.warning(f"Encountered API error, retrying {retries}/3")
+                else:
+                    raise e
 
     while len(heap) > 0:
         file_info = heap.pop()
