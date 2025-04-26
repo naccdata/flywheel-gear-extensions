@@ -212,7 +212,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
                 subject = subject.reload()
                 if subject.info:
                     log.info("Force curation set to True, " +
-                             "cleaning up metadata for {subject.label}")
+                             f"cleaning up metadata for {subject.label}")
                     for field in [
                             'cognitive.uds', 'demographics.uds', 'derived',
                             'genetics', 'longitudinal-data.uds',
