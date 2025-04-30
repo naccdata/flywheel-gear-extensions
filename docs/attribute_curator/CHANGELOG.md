@@ -4,10 +4,11 @@ All notable changes to this gear are documented in this file.
 
 ## 0.3.0
 
+* Adds the `historic_apoe` namespace, which requires a 3rd pass category
 * Updates `nacc_attribute_deriver` to `1.3.0`, which fixes several bugs found while regression testing
 * Refactored to generalize curation/scheduling workflow
 * Refactors to support pre/post-processing passes
-	* For Form Curator this is used to back-propogate cross-sectional variables
+    * For Form Curator this is used to back-propogate cross-sectional variables
 
 ## 0.2.9
 

@@ -37,7 +37,7 @@ class FileModel(BaseModel):
     scandt: Optional[date]
 
     @property
-    def visit_pass(self) -> Optional[Literal['pass0', 'pass1']]:
+    def visit_pass(self) -> Optional[Literal['pass0', 'pass1', 'pass2']]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -50,13 +50,17 @@ class FileModel(BaseModel):
         having to rename the pass if more constraints are added.
 
         As it is, UDS must be curated last; after every other file.
-        So there are two classes: 'pass0' for UDS, and 'pass1' for everything else.
+        Historical APOE must be curated before the NCRAD APOE.
+        As such, there are currently 3 pass categories.
         """
         pattern = (
             r"^"
+            r"(?P<pass2>.+("
+            r"_historic_apoe_genotype"
+            r")\.json)|"
             r"(?P<pass1>.+("
             r"_NP|_MDS|_MLST|"
-            r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
+            r"^(?!.*historic).+apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
             r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
             r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
