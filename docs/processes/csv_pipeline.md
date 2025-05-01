@@ -27,7 +27,8 @@ sequenceDiagram
     participant importer as File<br/>Importer
 
     source ->> ingest: upload
-    ingest ->> lookup: lookup
+    ingest ->>+ lookup: lookup
+    lookup ->>- ingest: update
     alt file has center ID column
        ingest ->> csplitter: split
        loop each center
