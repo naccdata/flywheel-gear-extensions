@@ -13,7 +13,35 @@ with the processing involving these steps
 2. [Split the CSV file by center](#split-csv-by-center)
 3. [Split each center-specific files by subject](#split-center-csv-by-participant)
 
-These are discussed in more detail below
+These are discussed in more detail below.
+
+```mermaid
+sequenceDiagram
+    actor source as Data</br>Submitter
+    participant ingest as Ingest</br>Project
+    participant lookup as Identifier</br>Lookup
+    participant csplitter as Center</br>Splitter
+    participant distribution as Distribution</br>Project
+    participant ssplitter as Subject</br>Splitter
+    participant subject as Subject</br>Acquisition
+    participant importer as File</br>Importer
+
+    source ->> ingest: upload
+    ingest ->> lookup: lookup
+    alt file has center ID column
+       ingest ->> csplitter: split
+       loop each center
+          csplitter ->> distribution: distribute
+          alt file has subject ID column
+          distribution ->> ssplitter: split
+             loop each subject
+                ssplitter ->> subject
+                subject ->> importer: import
+              end
+          end
+       end
+    end
+```
 
 ## Ingest CSV File
 
