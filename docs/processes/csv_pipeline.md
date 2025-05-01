@@ -35,7 +35,7 @@ sequenceDiagram
           alt file has subject ID column
           distribution ->> ssplitter: split
              loop each subject
-                ssplitter ->> subject
+                ssplitter ->> subject: distribute
                 subject ->> importer: import
               end
           end
