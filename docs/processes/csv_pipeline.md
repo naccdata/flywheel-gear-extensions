@@ -17,14 +17,14 @@ These are discussed in more detail below.
 
 ```mermaid
 sequenceDiagram
-    actor source as Data</br>Submitter
-    participant ingest as Ingest</br>Project
-    participant lookup as Identifier</br>Lookup
-    participant csplitter as Center</br>Splitter
-    participant distribution as Distribution</br>Project
-    participant ssplitter as Subject</br>Splitter
-    participant subject as Subject</br>Acquisition
-    participant importer as File</br>Importer
+    actor source as Data<br/>Submitter
+    participant ingest as Ingest<br/>Project
+    participant lookup as Identifier<br/>Lookup
+    participant csplitter as Center<br/>Splitter
+    participant distribution as Distribution<br/>Project
+    participant ssplitter as Subject<br/>Splitter
+    participant subject as Subject<br/>Acquisition
+    participant importer as File<br/>Importer
 
     source ->> ingest: upload
     ingest ->> lookup: lookup
