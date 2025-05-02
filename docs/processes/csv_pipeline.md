@@ -70,6 +70,17 @@ flowchart LR
     end
 ```
 
+```mermaid
+sequenceDiagram
+    actor source as Data<br/>Submitter
+    participant ingest as Ingest<br/>Project
+    participant lookup as Identifier<br/>Lookup
+
+    source ->> ingest: upload
+    ingest ->>+ lookup: lookup
+    lookup ->>- ingest: update
+```
+
 ### Gear: 
 
 [identifier-lookup](../identifier_lookup/): used to ensure both ADCID and NACCID are available for splitting purposes
@@ -102,6 +113,21 @@ flowchart LR
     end
 ```
 
+```mermaid
+sequenceDiagram
+    participant ingest as Ingest<br/>Project
+    participant csplitter as Center<br/>Splitter
+    participant distribution as Distribution<br/>Project
+
+   ingest ->> csplitter: split
+    alt file has center ID column
+       loop each center
+          csplitter ->> distribution: distribute
+          alt file has subject ID column
+       end
+    end
+```
+
 ### Gear: 
 
 [csv-center-splitter](../csv_center_splitter/): uses the ADCID to split the CSV and save the corresponding rows to a CSV file in a project of the center group
@@ -124,6 +150,23 @@ flowchart LR
     subgraph center/distribution
         C -- Split by NACCID --> D@{ shape: processes, label: "participant\nJSON" }
         D -- import --> E@{ shape: processes, label: "file\nmetadata" }
+    end
+```
+
+
+```mermaid
+sequenceDiagram
+    participant distribution as Distribution<br/>Project
+    participant ssplitter as Subject<br/>Splitter
+    participant subject as Subject<br/>Acquisition
+    participant importer as File<br/>Importer
+
+    distribution ->> ssplitter: split
+    alt file has subject ID column
+       loop each subject
+          ssplitter ->> subject: distribute
+          subject ->> importer: import
+        end
     end
 ```
 
