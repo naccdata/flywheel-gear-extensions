@@ -115,17 +115,25 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant ingest as Ingest<br/>Project
-    participant csplitter as Center<br/>Splitter
-    participant distribution as Distribution<br/>Project
+   participant ingest as Ingest<br/>Project
+   participant csplitter as Center<br/>Splitter
+   participant distribution as Distribution<br/>Project
 
    ingest ->> csplitter: split
-    alt file has center ID column
-       loop each center
-          csplitter ->> distribution: distribute
-          alt file has subject ID column
-       end
-    end
+   alt file has center ID column
+      loop each center
+         csplitter ->> distribution: distribute
+         distribution ->> ssplitter: split
+         activate ssplitter
+         alt file has subject ID column
+            loop each subject
+               ssplitter ->> subject: distribute
+               subject ->> importer: import
+            end
+         end
+         deactivate ssplitter
+      end
+   end
 ```
 
 ### Gear: 
@@ -154,21 +162,7 @@ flowchart LR
 ```
 
 
-```mermaid
-sequenceDiagram
-    participant distribution as Distribution<br/>Project
-    participant ssplitter as Subject<br/>Splitter
-    participant subject as Subject<br/>Acquisition
-    participant importer as File<br/>Importer
 
-    distribution ->> ssplitter: split
-    alt file has subject ID column
-       loop each subject
-          ssplitter ->> subject: distribute
-          subject ->> importer: import
-        end
-    end
-```
 
 ### Gears:
 * [csv-subject-splitter](../csv_subject_splitter/index.md): uses the NACCID to split the center-level CSV into rows, writing each row as a JSON file attached to an acquisition under the subject
