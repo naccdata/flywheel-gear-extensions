@@ -168,16 +168,16 @@ class ViewResponseModel(BaseModel):
 curator = None  # global curator object
 
 
-def initialize_worker(curator: Curator):
+def initialize_worker(in_curator: Curator):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
     Args:
-        curator: Curator to use for curation
+        in_curator: Curator to use for curation
     """
     # Make the curator global for spawned process
     global curator
-    curator = curator
+    curator = in_curator
 
 
 def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:

@@ -59,6 +59,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     body = s3_client.get_file_object(filename)['Body']
     header = None
     baseline: MutableMapping = {}
+    duplicates = set()
 
     for row in body.iter_lines():
         row = row.decode('utf-8')
@@ -84,12 +85,19 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
         })
 
         key = f'{naccid}_{visitdate}'
-        if key in baseline:
-            raise ValueError(f"Duplicate key derived from QAF: {key}")
 
-        baseline[key] = row_data
+        # the duplicate situation shouldn't happen but apparently does exist in the QAF
+        # for now, drop as we can't accurately map it
+        if key in baseline:
+            log.warning(f"Duplicate key derived from QAF, dropping: {key}")
+            baseline.pop(key)
+            duplicates.add(key)  # in case there are triplicates or greater
+
+        if key not in duplicates:
+            baseline[key] = row_data
 
     log.info(f"Loaded {len(baseline)} records from QAF")
+
     return baseline
 
 
