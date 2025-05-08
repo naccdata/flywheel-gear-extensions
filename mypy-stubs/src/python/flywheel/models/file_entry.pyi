@@ -65,3 +65,6 @@ class FileEntry:
 
     def update(self, *args, **kwargs):
         ...
+
+    def delete_info(self, *args, **kwargs):
+        ...

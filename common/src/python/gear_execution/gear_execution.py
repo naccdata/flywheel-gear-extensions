@@ -393,3 +393,27 @@ class GearEngine:
         except GearExecutionError as error:
             log.error('Error: %s', error)
             sys.exit(1)
+
+
+def get_project_from_destination(context: GearToolkitContext,
+                                 proxy: FlywheelProxy) -> flywheel.Project:
+    """Gets parent project from destination container."""
+
+    try:
+        destination = context.get_destination_container()
+    except ApiException as error:
+        raise GearExecutionError(
+            f'Cannot find destination container: {error}') from error
+    if destination.container_type != 'analysis':  # type: ignore
+        raise GearExecutionError("Expect destination to be an analysis object")
+
+    parent_id = destination.parents.get('project')  # type: ignore
+    if not parent_id:
+        raise GearExecutionError(
+            f'Cannot find parent project for: {destination.id}'  # type: ignore
+        )
+    fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
+    if not fw_project:
+        raise GearExecutionError("Destination project not found")
+
+    return fw_project

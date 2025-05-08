@@ -556,7 +556,7 @@ class FlywheelProxy:
             'group', 'project', 'subject', 'session', 'acquisition', 'analysis'
         ]
         for level in levels:
-            ancestor_id = ancestors[level]
+            ancestor_id = ancestors.get(level, None)
             if ancestor_id:
                 # gears invoked by a gear rule does not have access to group
                 if level == 'group':
