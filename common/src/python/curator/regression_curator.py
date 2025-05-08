@@ -70,7 +70,7 @@ class RegressionCurator(Curator):
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
-        """Perform contents of curation.
+        """Perform contents of curation. Assumes UDS data.
 
         Args:
             subject: Subject the file belongs to
@@ -78,63 +78,39 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        # each subject in the baseline is mapped to a list of ordered records;
-        # for UDS need to map the correct record based on visitdate
-        # otherwise just grab the most recent record, which is assumed to have
-        # all the derived variables propogated to it
-        # additionally, if the scope is UDS, then we compare derived variables
-        # on the file otherwise, compare derived variables on the subject
+        # skip if not UDS, no derived variables, or no visitdate found
+        if scope != 'uds':
+            log.info(f"{file_entry.name} is a not an UDS form, skipping")
+            return
 
-        # TODO: in general need to figure out a better mapping. since everything
-        # is lumped together this will likely check the same subject-level variables
-        # multiple times over. maybe it's better to only look at file-level derived
-        # variables? which will result in only UDS being looked at, which
-        # might be fine
         derived_vars = table.get('file.info.derived', None)
-        # if no derived variables, skip
         if (not derived_vars or not any(x.lower().startswith('nacc')
                                         for x in derived_vars)):
-            log.info("No derived variables, skipping")
+            log.info(
+                f"No derived variables found for {file_entry.name}, skipping")
             return
 
-        if subject.label not in self.__baseline:
-            if not derived_vars.get('affiliate', False):
-                msg = (
-                    f"Subject {subject.label} not found in baseline and not affiliate"
-                )
-                log.warning(msg)
-                self.__error_writer.write(
-                    unexpected_value_error(
-                        field='naccid',
-                        value=None,  # type: ignore
-                        expected=subject.label,
-                        message=msg))
+        visitdate = table.get("file.info.forms.json.visitdate")
+        if not visitdate:
+            log.info(f"No visitdate found for {file_entry.name}, skipping")
             return
 
-        record = None
-        expected = subject.label
-        # derived_vars = None
-        if scope == 'uds':
-            #derived_vars = table.get('file.info.derived', None)
-            visitdate = table['file.info.forms.json.visitdate']
-            expected = f"{expected} {visitdate}"
-            for r in self.__baseline[subject.label]:
-                if visitdate == r['visitdate']:
-                    record = r
-                    break
-        else:
-            #derived_vars = table.get('subject.info.derived', None)
-            record = self.__baseline[subject.label][-1]
-
+        # ensure in QAF baseline - if not affiliate, report error
+        key = f'{subject.label}_{visitdate}'
+        record = self.__baseline.get(key)
         if not record:
+            if 'affiliate' in subject.tags:
+                log.info(f"{subject.label} is an affiliate, skipping")
+                return
+
             msg = (f"Could not find matching record for {file_entry.name} " +
-                   f"in baseline file with attributes {expected}")
+                   f"in baseline file with NACCID and visitdate: {key}")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(
                     field='naccid',
                     value=None,  # type: ignore
-                    expected=expected,
+                    expected=key,
                     message=msg))
             return
 

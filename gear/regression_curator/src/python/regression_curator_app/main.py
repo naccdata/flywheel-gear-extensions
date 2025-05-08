@@ -60,7 +60,6 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     header = None
     baseline: MutableMapping = {}
 
-    num_records = 0
     for row in body.iter_lines():
         row = row.decode('utf-8')
 
@@ -84,12 +83,13 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
             if k in keep_fields or k.startswith('nacc') or k.startswith('ngds')
         })
 
-        if naccid not in baseline:
-            baseline[naccid] = []
-        baseline[naccid].append(row_data)
-        num_records += 1
+        key = f'{naccid}_{visitdate}'
+        if key in baseline:
+            raise ValueError(f"Duplicate key derived from QAF: {key}")
 
-    log.info(f"Loaded {num_records} records from QAF")
+        baseline[key] = row_data
+
+    log.info(f"Loaded {len(baseline)} records from QAF")
     return baseline
 
 
