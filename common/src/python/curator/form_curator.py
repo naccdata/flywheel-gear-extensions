@@ -29,8 +29,8 @@ class FormCurator(Curator):
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
-        """Returns the SymbolTable with all relevant information for curation.
-        """
+        """Returns the SymbolTable with all relevant information for
+        curation."""
         # clear out file.info.derived if forcing curation
         if self.force_curate:
             for field in ['derived']:
