@@ -113,7 +113,7 @@ class FormCurator(Curator):
             return
 
         log.info(
-            f"Back-propogating cross-sectional UDS variables for {subject.label}"
+            f"Back-propagating cross-sectional UDS variables for {subject.label}"
         )
         for file_id in processed_files:
             file_entry = self.sdk_client.get_file(file_id)
