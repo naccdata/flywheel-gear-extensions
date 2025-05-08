@@ -1,13 +1,13 @@
 """Defines Regression Curator."""
 import csv
 import logging
-from typing import List, MutableMapping
+from typing import List, MutableMapping, Set
 
 from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.errors import MPListErrorWriter
+from outputs.errors import MPListErrorWriter, unexpected_value_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -34,7 +34,8 @@ def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
     return header
 
 
-def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
+def localize_qaf(s3_qaf_file: str, keep_fields: List[str],
+                 error_writer: MPListErrorWriter) -> MutableMapping:
     """Localizes the QAF from S3 and converts to JSON. Only retains NACC* and
     NGDS* derived variables, visitdate, and fields specified by the keep_fields
     parameter. Assumes no case-sensitivity and converts headers to lowercase.
@@ -42,6 +43,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     Args:
         s3_qaf_file: S3 QAF file to pull baseline from
         keep_fields: Additional fields to retain from the QAF
+        error_writer: MPListErrorWriter to write errors to
     Returns:
         Baseline mapping from NACCID to list of entries from the QAF
     """
@@ -59,7 +61,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     body = s3_client.get_file_object(filename)['Body']
     header = None
     baseline: MutableMapping = {}
-    duplicates = set()
+    duplicates: Set[str] = set()
 
     for row in body.iter_lines():
         row = row.decode('utf-8')
@@ -89,7 +91,14 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
         # the duplicate situation shouldn't happen but apparently does exist in the QAF
         # for now, drop as we can't accurately map it
         if key in baseline:
-            log.warning(f"Duplicate key derived from QAF, dropping: {key}")
+            msg = f"Duplicate key derived from QAF, dropping: {key}"
+            log.warning(msg)
+            error_writer.write(
+                unexpected_value_error(field="naccid",
+                                       value=key,
+                                       expected="unique key",
+                                       message=msg))
+
             baseline.pop(key)
             duplicates.add(key)  # in case there are triplicates or greater
 
@@ -113,7 +122,7 @@ def run(context: GearToolkitContext, s3_qaf_file: str, keep_fields: List[str],
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
     """
-    baseline = localize_qaf(s3_qaf_file, keep_fields)
+    baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer)
 
     curator = RegressionCurator(sdk_client=context.get_client(),
                                 baseline=baseline,

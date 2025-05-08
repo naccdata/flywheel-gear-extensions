@@ -64,7 +64,7 @@ class RegressionCurator(Curator):
                 self.__error_writer.write(
                     unexpected_value_error(
                         field=field,
-                        value=value,  # type: ignore
+                        value=value,
                         expected=expected,
                         message=msg))
 
