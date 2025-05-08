@@ -3,6 +3,7 @@ import csv
 import logging
 from typing import List, MutableMapping
 
+from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
@@ -11,6 +12,21 @@ from outputs.errors import MPListErrorWriter
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
+
+
+def localize_s3_file(s3_file: str) -> StreamingBody:
+    """Localizess the S3 file and returns the StreamingBody."""
+    log.info(f"Localizing file from {s3_qaf_file}")
+    s3_qaf_file = s3_qaf_file.strip().replace('s3://', '')
+    s3_bucket = '/'.join(s3_qaf_file.split('/')[:-1])
+    filename = s3_qaf_file.split('/')[-1]
+
+    s3_client = S3BucketReader.create_from_environment(s3_bucket)
+    if not s3_client:
+        raise GearExecutionError(f'Unable to access S3 bucket {s3_bucket}')
+
+    # return body
+    return s3_client.get_file_object(filename)['Body']
 
 
 def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
@@ -45,21 +61,12 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     Returns:
         Baseline mapping from NACCID to list of entries from the QAF
     """
-    log.info(f"Localizing QAF from {s3_qaf_file}")
-    s3_qaf_file = s3_qaf_file.strip().replace('s3://', '')
-    s3_bucket = '/'.join(s3_qaf_file.split('/')[:-1])
-    filename = s3_qaf_file.split('/')[-1]
-
-    s3_client = S3BucketReader.create_from_environment(s3_bucket)
-    if not s3_client:
-        raise GearExecutionError(f'Unable to access S3 bucket {s3_bucket}')
-
-    # the QAF is extremely large, so stream and process by line
-    # by only retaining a subset of fields, should help reduce size
-    body = s3_client.get_file_object(filename)['Body']
+    body = localize_s3_file(s3_qaf_file)
     header = None
     baseline: MutableMapping = {}
 
+    # the QAF is extremely large, so stream and process by line
+    # by only retaining a subset of fields, should help reduce size
     num_records = 0
     for row in body.iter_lines():
         row = row.decode('utf-8')
@@ -89,9 +96,44 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
         baseline[naccid].append(row_data)
         num_records += 1
 
-    log.info(f"Loaded {num_records} records from QAF")
+    log.info(f"Loaded {num_records} records from QAF baseline")
     return baseline
 
+
+def localize_mqt(s3_mqt_file: str) -> MutableMapping:
+    """Localizes the MQT baseline from S3 and converts to JSON.
+    Assumes no case-sensitivity and converts headers to lowercase.
+
+    Args:
+        s3_mqt_file: S3 QAF file to pull baseline from
+    Returns:
+        Baseline mapping from NACCID to list of entries from the MQT project
+    """
+    body = localize_s3_file(s3_qaf_file)
+    header = None
+    baseline: MutableMapping = {}
+
+    # the MQT isn't as large but should also be streamed
+    # in this case we read in all the columns though
+    for row in body.iter_lines():
+        row = row.decode('utf-8')
+
+        if not header:
+            row = next(csv.reader([row]))
+            header = process_header(row, keep_fields)
+            continue
+
+        row = next(csv.DictReader([row], fieldnames=header, strict=True))
+        naccid = row['naccid']
+
+        # there should only be one record for each naccid in MQT
+        if naccid in baseline:
+            raise ValueError(f"Duplicate records found for {naccid}")
+
+        baseline[naccid] = row_data
+
+    log.info(f"Loaded {len(baseline)} records from MQT baseline")
+    return baseline
 
 def run(context: GearToolkitContext,
         s3_qaf_file: str,
