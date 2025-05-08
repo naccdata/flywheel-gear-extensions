@@ -15,6 +15,7 @@ from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from outputs.errors import MPListErrorWriter, unexpected_value_error
+from utils.decorators import api_retry
 
 from .curator import Curator
 
@@ -24,29 +25,36 @@ log = logging.getLogger(__name__)
 class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
-    def __init__(self, sdk_client: Client, baseline: MutableMapping,
+    def __init__(self,
+                 sdk_client: Client,
+                 qaf_baseline: MutableMapping,
+                 mqt_baseline: MutableMapping,
                  error_writer: MPListErrorWriter) -> None:
         super().__init__(sdk_client)
-        self.__baseline = SymbolTable(baseline)
+        self.__qaf_baseline = SymbolTable(qaf_baseline)
+        self.__mqt_baseline = SymbolTable(mqt_baseline)
+
         self.__error_writer = error_writer
 
-    def compare_baseline(self, derived_vars: Dict[str, Any],
-                         record: Dict[str, Any]) -> None:
-        """Compare the derived variables to the baseline.
+    def compare_baseline(self, found_vars: Dict[str, Any],
+                         record: Dict[str, Any],
+                         prefix: str) -> None:
+        """Compare derived/curated variables to the baseline.
 
         Args:
-            derived_vars: Derived variables stored in file metadata
+            found_vars: Found variables to compare to baseline
             record: Baseline record to compare to
+            prefix: Field prefix
         """
-        # make all lowercase for consistency
-        derived_vars = {k.lower(): v for k, v in derived_vars.items()}
-        record = {k.lower(): v for k, v in record.items()}
+        # make all lowercase for consistency and SymbolTables for indexing
+        found_vars = SymbolTable({k.lower(): v for k, v in found_vars.items()})
+        record = SymbolTable({k.lower(): v for k, v in record.items()})
 
         # compare
-        for field, value in derived_vars.items():
+        for field, value in found_vars.items():
             if field not in record:
                 log.warning(
-                    f"Derived metadata {field} not in baseline, skipping")
+                    f"Field {field} not in baseline, skipping")
                 continue
 
             # convert booleans to 0/1
@@ -57,20 +65,28 @@ class RegressionCurator(Curator):
             value = str(value)
             expected = str(record[field])
             if value != expected:
-                msg = (f"{record['naccid']} {record['visitdate']} " +
-                       f"field {field}: derived value {value} does not " +
-                       f"match expected value {expected}")
+                msg = record["naccid"]
+                if 'visitdate' in record:
+                    msg = f"{msg} {record['visitdate']}"
+
+                if prefix.startswith('file'):
+                    msg = f"{record['naccid']} {record['visitdate']}"
+                else:
+                    msg = f"{record['naccid']}"
+
+                msg = (f"{msg} field {field}: found value {value} " +
+                       f"does not match expected value {expected}")
                 log.info(msg)
                 self.__error_writer.write(
                     unexpected_value_error(
-                        field=field,
+                        field=f'{prefix}.{field}',
                         value=value,  # type: ignore
                         expected=expected,
                         message=msg))
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
-        """Perform contents of curation.
+        """Performs file-level regression testing.
 
         Args:
             subject: Subject the file belongs to
@@ -82,25 +98,17 @@ class RegressionCurator(Curator):
         # for UDS need to map the correct record based on visitdate
         # otherwise just grab the most recent record, which is assumed to have
         # all the derived variables propogated to it
-        # additionally, if the scope is UDS, then we compare derived variables
-        # on the file otherwise, compare derived variables on the subject
-
-        # TODO: in general need to figure out a better mapping. since everything
-        # is lumped together this will likely check the same subject-level variables
-        # multiple times over. maybe it's better to only look at file-level derived
-        # variables? which will result in only UDS being looked at, which
-        # might be fine
         derived_vars = table.get('file.info.derived', None)
         # if no derived variables, skip
         if (not derived_vars or not any(x.lower().startswith('nacc')
                                         for x in derived_vars)):
-            log.info("No derived variables, skipping")
+            log.info("No file derived variables, skipping")
             return
 
-        if subject.label not in self.__baseline:
+        if subject.label not in self.__qaf_baseline:
             if not derived_vars.get('affiliate', False):
                 msg = (
-                    f"Subject {subject.label} not found in baseline and not affiliate"
+                    f"Subject {subject.label} not found in baseline QAF and not affiliate"
                 )
                 log.warning(msg)
                 self.__error_writer.write(
@@ -113,22 +121,20 @@ class RegressionCurator(Curator):
 
         record = None
         expected = subject.label
-        # derived_vars = None
+
         if scope == 'uds':
-            #derived_vars = table.get('file.info.derived', None)
             visitdate = table['file.info.forms.json.visitdate']
             expected = f"{expected} {visitdate}"
-            for r in self.__baseline[subject.label]:
+            for r in self.__qaf_baseline[subject.label]:
                 if visitdate == r['visitdate']:
                     record = r
                     break
         else:
-            #derived_vars = table.get('subject.info.derived', None)
-            record = self.__baseline[subject.label][-1]
+            record = self.__qaf_baseline[subject.label][-1]
 
         if not record:
             msg = (f"Could not find matching record for {file_entry.name} " +
-                   f"in baseline file with attributes {expected}")
+                   f"in baseline QAF file with attributes {expected}")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(
@@ -138,4 +144,35 @@ class RegressionCurator(Curator):
                     message=msg))
             return
 
-        self.compare_baseline(derived_vars, record)
+        self.compare_baseline(derived_vars, record, prefix='file.info.derived')
+
+    @api_retry
+    def post_process(self, subject: Subject,
+                     processed_files: List[str]) -> None:
+        """Run post-processing on the entire subject. Compares subject.info.
+
+        Args:
+            subject: Subject to pre-process
+            processed_files: List of file IDs that were processed
+        """
+        subject = subject.reload()
+        if not subject.info:
+            log.info("No subject derived variables, skipping")
+            return
+
+        # means subject hasn't been curated before - might not
+        # be worth reporting in the long run but for now over report
+        if subject.label not in self.__mqt_baseline:
+            msg = f"Could not find curated subject {subject.label} in MQT baseline"
+            log.warning(msg)
+
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field='subject.label',
+                    value=None,  # type: ignore
+                    expected=subject.label,
+                    message=msg))
+            return
+
+        record = self.__mqt_baseline[subject.label]
+        self.compare_baseline(subject.info, record, prefix='subject.info')

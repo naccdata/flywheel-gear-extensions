@@ -93,7 +93,10 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     return baseline
 
 
-def run(context: GearToolkitContext, s3_qaf_file: str, keep_fields: List[str],
+def run(context: GearToolkitContext,
+        s3_qaf_file: str,
+        s3_mqt_file: str,
+        keep_fields: List[str],
         scheduler: ProjectCurationScheduler,
         error_writer: MPListErrorWriter) -> None:
     """Runs the Attribute Curator process.
@@ -101,14 +104,17 @@ def run(context: GearToolkitContext, s3_qaf_file: str, keep_fields: List[str],
     Args:
         context: gear context
         s3_qaf_file: S3 QAF file to pull baseline from
+        s3_mqt_file: S3 MQT file to pull baseline from
         keep_fields: Additional fields to retain from the QAF
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
     """
-    baseline = localize_qaf(s3_qaf_file, keep_fields)
+    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields)
+    mqt_baseline = localize_mqt(s3_mqt_file)
+
     scheduler.apply(context=context,
                     curator_type=RegressionCurator,
                     curator_type_args={
-                        'baseline': baseline,
+                        'qaf_baseline': qaf_baseline,
                         'error_writer': error_writer
                     })

@@ -38,6 +38,7 @@ class FormCurator(Curator):
 
         return super().get_table(subject, file_entry)
 
+    @api_retry
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.
