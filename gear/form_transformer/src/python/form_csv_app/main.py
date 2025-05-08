@@ -201,7 +201,7 @@ class CSVTransformVisitor(CSVVisitor):
             # process in order of visit date
             sorted_visits = sorted(visits.items())
             ivp_packet = None
-            prev_visit_num = None
+            prev_visit_nums = []
             for visitdate, list_visits in sorted_visits:
                 self.__error_writer.clear()
 
@@ -215,41 +215,28 @@ class CSVTransformVisitor(CSVVisitor):
                 line_num = list_visits[0].pop('linenumber')
                 transformed_row = list_visits[0]
 
-                is_ivp = False
-                if transformed_row[
-                        FieldNames.
-                        PACKET] in self.__module_configs.initial_packets:
-                    is_ivp = True
+                is_ivp = transformed_row[
+                    FieldNames.PACKET] in self.__module_configs.initial_packets
                 visit_num = transformed_row[FieldNames.VISITNUM]
 
                 # check the validity of visit numbers within current batch
-                if not prev_visit_num or prev_visit_num < visit_num:
-                    prev_visit_num = visit_num
-                elif prev_visit_num == visit_num:
-                    self.__error_writer.write(
-                        preprocessing_error(
-                            field=FieldNames.VISITNUM,
-                            value=transformed_row[FieldNames.VISITNUM],
-                            line=line_num,
-                            error_code=SysErrorCodes.DIFF_VISITDATE,
-                            ptid=transformed_row[FieldNames.PTID],
-                            visitnum=transformed_row[FieldNames.VISITNUM]))
-                    success = False
-                    self.__update_visit_error_log(input_record=transformed_row,
-                                                  qc_passed=False)
-                    continue
+                if visit_num not in prev_visit_nums:
+                    prev_visit_nums.append(visit_num)
                 else:
                     self.__error_writer.write(
                         preprocessing_error(
                             field=FieldNames.VISITNUM,
-                            value=transformed_row[FieldNames.VISITNUM],
+                            value=visit_num,
                             line=line_num,
-                            error_code=SysErrorCodes.LOWER_VISITNUM,
+                            error_code=SysErrorCodes.DIFF_VISITDATE,
                             ptid=transformed_row[FieldNames.PTID],
-                            visitnum=transformed_row[FieldNames.VISITNUM]))
+                            visitnum=visit_num))
+                    success = False
                     self.__update_visit_error_log(input_record=transformed_row,
                                                   qc_passed=False)
-                    success = False
+                    log.error(
+                        'Duplicate visit numbers in current batch for %s:%s:%s',
+                        transformed_row[FieldNames.PTID], visitdate, visit_num)
                     continue
 
                 if not self.__preprocessor.preprocess(
@@ -265,18 +252,20 @@ class CSVTransformVisitor(CSVVisitor):
                     success = False
                     continue
 
-                if is_ivp:
-                    ivp_packet = transformed_row
-
                 # for the records that passed transformation, only obtain the log name
                 # error metadata will be updated when the acquisition file is uploaded
                 error_log_name = self.__update_visit_error_log(
                     input_record=transformed_row, qc_passed=True, update=False)
                 if not error_log_name:
+                    log.error(
+                        'Failed to get error log name for line %s - visitdate %s',
+                        line_num, visitdate)
                     success = False
                     continue
 
                 self.__transformed[subject][error_log_name] = transformed_row
+                if is_ivp:
+                    ivp_packet = transformed_row
 
         return success
 

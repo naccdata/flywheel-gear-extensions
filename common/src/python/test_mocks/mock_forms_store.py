@@ -43,7 +43,7 @@ class MockFormsStore(FormsStore):
         self.__subjects[subject_lbl][module][file_name] = form_data
 
     def is_new_subject(self, subject_lbl: str) -> bool:
-        return subject_lbl in self.__subjects
+        return subject_lbl not in self.__subjects
 
     def query_form_data(self, subject_lbl: str, module: str,
                         **kwargs) -> Optional[List[Dict[str, str]]]:

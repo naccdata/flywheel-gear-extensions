@@ -54,8 +54,9 @@ def create_visitor(
 
     # transformer
     if transform_schema:
-        transformer_factory = TransformerFactory(FieldTransformations.\
-            model_validate_json(json.dumps(transform_schema)))
+        transformer_factory = TransformerFactory(
+            FieldTransformations.model_validate_json(
+                json.dumps(transform_schema)))
     else:
         transformer_factory = TransformerFactory(FieldTransformations())
 
@@ -108,14 +109,14 @@ def create_record(data: Dict[str, Any]):
         data: Data to add for specific test
     """
     record = {
+        FieldNames.NACCID: 'dummy-naccid',
         FieldNames.MODULE: 'uds',
         FieldNames.FORMVER: '4.0',
         FieldNames.VISITNUM: '1',
+        FieldNames.PACKET: 'I',
+        FieldNames.PTID: 'dummy-ptid',
         DATE_FIELD: '2025-01-01',
-        'naccid': 'dummy-naccid',
-        'dummy': 'dummy_val',
-        'ptid': 'dummy-ptid',
-        'packet': 'I'
+        'dummy': 'dummy_val'
     }
 
     record.update(data)
@@ -311,20 +312,40 @@ class TestCSVTransformVisitor:
         assert qc[0]['code'] == code
         assert qc[0]['message'] == preprocess_errors[code]
 
-    def test_current_batch_lower_visit_num(self):
-        """Tests invalid visit numbers correctly raises error.
+    # def test_current_batch_lower_visit_num(self):
+    #     """Tests invalid visit numbers correctly raises error.
 
-        In this case only one of the rows is marked "invalid".
-        """
+    #     In this case only one of the rows is marked "invalid".
+    #     """
+    #     visitor, project, _ = create_visitor()
+    #     record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
+    #     assert visitor.visit_row(record, 0)
+    #     record = create_record({'visitnum': "5", 'visitdate': '2024-01-01'})
+    #     assert visitor.visit_row(record, 1)
+
+    #     assert not visitor.process_current_batch()
+    #     qc = get_qc_errors(project)
+    #     assert len(qc) == 1
+    #     code = SysErrorCodes.LOWER_VISITNUM
+    #     assert qc[0]['code'] == code
+    #     assert qc[0]['message'] == preprocess_errors[code]
+
+    def test_non_numeric_visitnum(self):
+        """Tests non-numeric visit numbers."""
         visitor, project, _ = create_visitor()
-        record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
+        record = create_record({
+            'ptid': 'new-ptid1',
+            'packet': 'I',
+            'visitnum': '1N',
+            'visitdate': '2023-01-01'
+        })
         assert visitor.visit_row(record, 0)
-        record = create_record({'visitnum': "5", 'visitdate': '2024-01-01'})
+        record = create_record({
+            'ptid': 'new-ptid1',
+            'packet': 'F',
+            'visitnum': '1F',
+            'visitdate': '2025-01-01'
+        })
         assert visitor.visit_row(record, 1)
 
-        assert not visitor.process_current_batch()
-        qc = get_qc_errors(project)
-        assert len(qc) == 1
-        code = SysErrorCodes.LOWER_VISITNUM
-        assert qc[0]['code'] == code
-        assert qc[0]['message'] == preprocess_errors[code]
+        assert visitor.process_current_batch()
