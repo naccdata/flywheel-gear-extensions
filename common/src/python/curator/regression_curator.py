@@ -16,6 +16,7 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from outputs.errors import MPListErrorWriter, unexpected_value_error
 from utils.decorators import api_retry
+from utils.utils import flatten_dict
 
 from .curator import Curator
 
@@ -39,7 +40,8 @@ class RegressionCurator(Curator):
     def compare_baseline(self, found_vars: Dict[str, Any],
                          record: Dict[str, Any],
                          prefix: str) -> None:
-        """Compare derived/curated variables to the baseline.
+        """Compare derived/curated variables to the baseline. Assumes
+        both found_vars and record are flat dicts.
 
         Args:
             found_vars: Found variables to compare to baseline
@@ -47,8 +49,8 @@ class RegressionCurator(Curator):
             prefix: Field prefix
         """
         # make all lowercase for consistency and SymbolTables for indexing
-        found_vars = SymbolTable({k.lower(): v for k, v in found_vars.items()})
-        record = SymbolTable({k.lower(): v for k, v in record.items()})
+        found_vars = {k.lower(): v for k, v in found_vars.items()}
+        record = {k.lower(): v for k, v in record.items()}
 
         # compare
         for field, value in found_vars.items():
@@ -147,13 +149,11 @@ class RegressionCurator(Curator):
         self.compare_baseline(derived_vars, record, prefix='file.info.derived')
 
     @api_retry
-    def post_process(self, subject: Subject,
-                     processed_files: List[str]) -> None:
-        """Run post-processing on the entire subject. Compares subject.info.
+    def pre_process(self, subject: Subject) -> None:
+        """Run pre-processing on the entire subject. Compares subject.info.
 
         Args:
             subject: Subject to pre-process
-            processed_files: List of file IDs that were processed
         """
         subject = subject.reload()
         if not subject.info:
@@ -175,4 +175,6 @@ class RegressionCurator(Curator):
             return
 
         record = self.__mqt_baseline[subject.label]
-        self.compare_baseline(subject.info, record, prefix='subject.info')
+        found_vars = flatten_dict(subject.info)
+
+        self.compare_baseline(found_vars, record, prefix='subject.info')

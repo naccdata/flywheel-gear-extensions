@@ -102,7 +102,7 @@ class Curator(ABC):
         """Run post-processing on the entire subject. Not required.
 
         Args:
-            subject: Subject to pre-process
+            subject: Subject to post-process
             processed_files: List of file IDs that were processed
         """
         return
