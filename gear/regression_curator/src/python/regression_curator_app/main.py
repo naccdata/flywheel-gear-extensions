@@ -106,9 +106,9 @@ def run(context: GearToolkitContext, s3_qaf_file: str, keep_fields: List[str],
         error_writer: Multi-processing error writer
     """
     baseline = localize_qaf(s3_qaf_file, keep_fields)
-    scheduler.apply(context=context,
-                    curator_type=RegressionCurator,
-                    curator_type_args={
-                        'baseline': baseline,
-                        'error_writer': error_writer
-                    })
+
+    curator = RegressionCurator(sdk_client=context.get_client(),
+                                baseline=baseline,
+                                error_writer=error_writer)
+
+    scheduler.apply(curator=curator)
