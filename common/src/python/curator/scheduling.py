@@ -5,18 +5,15 @@ import multiprocessing
 from multiprocessing.pool import Pool
 import os
 import re
-from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
+from typing import Any, Dict, List, Literal, Optional
 
 from curator.curator import Curator
 from dataview.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
 from pydantic import BaseModel, ValidationError, field_validator
 from scheduling.min_heap import MinHeap
 
 log = logging.getLogger(__name__)
-
-C = TypeVar('C', bound=Curator)
 
 
 class FileModel(BaseModel):
@@ -171,24 +168,16 @@ class ViewResponseModel(BaseModel):
 curator = None  # global curator object
 
 
-def initialize_worker(context: GearToolkitContext,
-                      curator_type: Type[C],
-                      curator_type_args: Optional[Dict[str, Any]] = None):
+def initialize_worker(in_curator: Curator):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
     Args:
-        context: GearToolkitContext
-        curator_type: Type of FormCurator subclass to use for curation
-        curator_type_args: Arguments to instantiate the FormCurator subclass
+        in_curator: Curator to use for curation
     """
-    # Create a curator object for each process with a new SDK client
+    # Make the curator global for spawned process
     global curator
-    sdk_client = context.get_client()
-
-    if curator_type_args is None:
-        curator_type_args = {}
-    curator = curator_type(sdk_client=sdk_client, **curator_type_args)
+    curator = in_curator
 
 
 def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
@@ -315,21 +304,12 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self,
-              context: GearToolkitContext,
-              curator_type: Type[C],
-              curator_type_args: Optional[Dict[str, Any]] = None) -> None:
-        """Applies a FormCurator to the form files in this curator.
-
-        Builds a curator of the type given with the context to avoid shared
-        state across curators.
+    def apply(self, curator: Curator) -> None:
+        """Applies a Curator to the form files in this curator.
 
         Args:
-          context: the gear context
-          curator_type: a FormCurator subclass
-          curator_type_args: Arguments to instantiate curator_type
+          curator: a Curator subclass
         """
-
         log.info("Start curator for %s subjects", len(self.__heap_map))
 
         process_count = max(4, self.__compute_cores())
@@ -337,11 +317,7 @@ class ProjectCurationScheduler:
 
         with Pool(processes=process_count,
                   initializer=initialize_worker,
-                  initargs=(
-                      context,
-                      curator_type,
-                      curator_type_args,
-                  )) as pool:
+                  initargs=(curator, )) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating files for subject %s", subject_id)
                 results.append(

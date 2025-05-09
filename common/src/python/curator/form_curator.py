@@ -29,8 +29,8 @@ class FormCurator(Curator):
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
-        """Returns the SymbolTable with all relevant information for curation.
-        """
+        """Returns the SymbolTable with all relevant information for
+        curation."""
         # clear out file.info.derived if forcing curation
         if self.force_curate:
             for field in ['derived']:
@@ -114,7 +114,7 @@ class FormCurator(Curator):
             return
 
         log.info(
-            f"Back-propogating cross-sectional UDS variables for {subject.label}"
+            f"Back-propagating cross-sectional UDS variables for {subject.label}"
         )
         for file_id in processed_files:
             file_entry = self.sdk_client.get_file(file_id)

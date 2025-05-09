@@ -23,6 +23,10 @@ class Subject:
         ...
 
     @property
+    def tags(self) -> List[str]:
+        ...
+
+    @property
     def type(self) -> str:
         ...
 

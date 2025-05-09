@@ -1,14 +1,14 @@
 """Defines Regression Curator."""
 import csv
 import logging
-from typing import List, MutableMapping
+from typing import List, MutableMapping, Set
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.errors import MPListErrorWriter
+from outputs.errors import MPListErrorWriter, unexpected_value_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -50,7 +50,8 @@ def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
     return header
 
 
-def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
+def localize_qaf(s3_qaf_file: str, keep_fields: List[str],
+                 error_writer: MPListErrorWriter) -> MutableMapping:
     """Localizes the QAF from S3 and converts to JSON. Only retains NACC* and
     NGDS* derived variables, visitdate, and fields specified by the keep_fields
     parameter. Assumes no case-sensitivity and converts headers to lowercase.
@@ -58,16 +59,17 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
     Args:
         s3_qaf_file: S3 QAF file to pull baseline from
         keep_fields: Additional fields to retain from the QAF
+        error_writer: MPListErrorWriter to write errors to
     Returns:
         Baseline mapping from NACCID to list of entries from the QAF
     """
     body = localize_s3_file(s3_qaf_file)
     header = None
     baseline: MutableMapping = {}
+    duplicates: Set[str] = set()
 
     # the QAF is extremely large, so stream and process by line
     # by only retaining a subset of fields, should help reduce size
-    num_records = 0
     for row in body.iter_lines():
         row = row.decode('utf-8')
 
@@ -80,7 +82,7 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
 
         # grab subset of fields and create visitdate
         naccid = row['naccid']
-        visitdate = (f"{int(row['visityr']):02d}-" +
+        visitdate = (f"{int(row['visityr']):04d}-" +
                      f"{int(row['visitmo']):02d}-" +
                      f"{int(row['visitday']):02d}")
 
@@ -91,10 +93,24 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str]) -> MutableMapping:
             if k in keep_fields or k.startswith('nacc') or k.startswith('ngds')
         })
 
-        if naccid not in baseline:
-            baseline[naccid] = []
-        baseline[naccid].append(row_data)
-        num_records += 1
+        key = f'{naccid}_{visitdate}'
+
+        # the duplicate situation shouldn't happen but apparently does exist in the QAF
+        # for now, drop as we can't accurately map it
+        if key in baseline:
+            msg = f"Duplicate key derived from QAF, dropping: {key}"
+            log.warning(msg)
+            error_writer.write(
+                unexpected_value_error(field="naccid",
+                                       value=key,
+                                       expected="unique key",
+                                       message=msg))
+
+            baseline.pop(key)
+            duplicates.add(key)  # in case there are triplicates or greater
+
+        if key not in duplicates:
+            baseline[key] = row_data
 
     log.info(f"Loaded {num_records} records from QAF baseline")
     return baseline
@@ -135,6 +151,7 @@ def localize_mqt(s3_mqt_file: str) -> MutableMapping:
     log.info(f"Loaded {len(baseline)} records from MQT baseline")
     return baseline
 
+
 def run(context: GearToolkitContext,
         s3_qaf_file: str,
         s3_mqt_file: str,
@@ -151,12 +168,11 @@ def run(context: GearToolkitContext,
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
     """
-    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields)
+    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer)
     mqt_baseline = localize_mqt(s3_mqt_file)
 
-    scheduler.apply(context=context,
-                    curator_type=RegressionCurator,
-                    curator_type_args={
-                        'qaf_baseline': qaf_baseline,
-                        'error_writer': error_writer
-                    })
+    curator = RegressionCurator(sdk_client=context.get_client(),
+                                baseline=baseline,
+                                error_writer=error_writer)
+
+    scheduler.apply(curator=curator)
