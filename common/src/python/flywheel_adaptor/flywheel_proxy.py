@@ -2,6 +2,7 @@
 """Defines project creation functions for calls to Flywheel."""
 import json
 import logging
+import re
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Iterable, List, Mapping, Optional
@@ -1041,7 +1042,7 @@ class ProjectAdaptor:
         """
         self._project.update(description=description)
 
-    def get_file(self, name: str):
+    def get_file(self, name: str) -> FileEntry:
         """Gets the file from the enclosed project.
 
         Args:
@@ -1372,3 +1373,21 @@ class ProjectAdaptor:
             return SubjectAdaptor(subject)
 
         return None
+
+    def find_files(self, pattern: str) -> List[FileEntry]:
+        """Finds the file(s) that match the given pattern.
+
+        Args:
+          pattern: filename pattern to match on
+        Returns:
+          List of files that match pattern. May be empty
+        """
+        files: List[FileEntry] = []
+        pattern = re.compile(pattern)
+
+        for file in self._project.files:
+            filename = file['name']
+            if pattern.match(filename):
+                files.append(file)
+
+        return files
