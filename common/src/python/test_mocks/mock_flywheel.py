@@ -49,7 +49,8 @@ class MockProject(ProjectAdaptor):
         """Get files."""
         return self.__files
 
-    def get_file(self, name: str, *args, **kwargs) -> Optional[MockFile]:
+    def get_file(  # type: ignore
+            self, name: str, *args, **kwargs) -> Optional[MockFile]:
         """Get the file if it exists."""
         return self.__files.get(name, None)
 

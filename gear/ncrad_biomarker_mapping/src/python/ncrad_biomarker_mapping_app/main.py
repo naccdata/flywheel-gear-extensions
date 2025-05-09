@@ -1,12 +1,11 @@
 """Defines NCRAD Biomarker Mapping."""
 import logging
 import re
-from io import StringIO
-from typing import Any, Dict, List, TextIO
+from typing import Any, Dict, List, Optional, TextIO
 
 from flywheel import FileSpec
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.errors import (
     ListErrorWriter,
@@ -15,6 +14,7 @@ from outputs.errors import (
     unexpected_value_error,
 )
 from outputs.outputs import write_csv_to_stream
+from projects.project_mapper import build_project_map
 
 log = logging.getLogger(__name__)
 
@@ -28,28 +28,32 @@ class NCRADCSVVisitor(CSVVisitor):
 
     def __init__(self, error_writer: ListErrorWriter) -> None:
         """Initializer."""
-        self.__error_writer: ListErrorWriter = error_writer
-        self.__headers: List[str] = []
-        self.__data: List[Dict[str, Any]] = []
+        self.error_writer: ListErrorWriter = error_writer
+        self.headers: List[str] = []
+        self.data: List[Dict[str, Any]] = []
 
-    @property
-    def headers(self) -> List[str]:
-        return self.__headers
+    def create_file_spec(self, name: str, adcid: str) -> FileSpec:
+        """Creates file spec from the data.
 
-    @property
-    def data(self) -> List[Dict[str, Any]]:
-        return self.__data
+        Args:
+            name: Filename
+            adcid: ADCID to prefix if filename does not already start
+                with it
+        Returns:
+            FileSpec
+        """
+        contents = write_csv_to_stream(headers=self.headers,
+                                       data=self.data).getvalue()
+        if not name.startswith(adcid):
+            name = f"{adcid}_{name}"
 
-    @property
-    def error_writer(self) -> ListErrorWriter:
-        return self.__error_writer
+        return FileSpec(name=name,
+                        contents=contents,
+                        content_type="text/csv",
+                        size=len(contents))
 
-    def get_read_contents(self) -> StringIO:
-        """Returns the read and validated contents."""
-        return write_csv_to_stream(headers=self.__headers,
-                                   data=self.__data)
-
-    def get_plate_num(self, row: Dict[str, Any], line_num: int) -> Optional[int]:
+    def get_plate_num(self, row: Dict[str, Any],
+                      line_num: int) -> Optional[int]:
         """Grabs the plate number from the row.
 
         Args:
@@ -71,52 +75,55 @@ class NCRADCSVVisitor(CSVVisitor):
         if plate_num is None:
             # did not get plate number, report error
             error = unexpected_value_error(
-                field=PLATE_LAYOUT_KEY,
+                field=self.PLATE_LAYOUT_KEY,
                 value=plate,
-                expected=PLATE_PATTERN,
+                expected=str(self.PLATE_PATTERN),
                 line=line_num,
                 message=f"Invalid or missing plate layout: {plate}")
-            self.__error_writer.write(error)
+            self.error_writer.write(error)
 
         return plate_num
 
 
 class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
-    """Visitor for the NCRAD Biomarker CSV"""
-
-    # expected headers (assumes CSV center splitter was
-    # run before this and normalized the header names)
-    # these fields cannot be null
-    EXPECTED_FIELDS = [
-        'adcid',  # transformed
-        'ptid',   # transformed
-        'barcode',
-        'kit_number',
-        'collection_date',
-        'patient_id'
-    ]
+    """Visitor for the NCRAD Biomarker CSV."""
 
     def __init__(self, error_writer: ListErrorWriter):
         """Initiailzer."""
         super().__init__(error_writer)
-        self.__adcid: int = None
+        self.__adcid: str | None = None
         self.__is_plate_data: bool = False
         self.__plates: List[int] = []
+
+        # expected headers (assumes CSV center splitter was
+        # run before this and normalized the header names)
+        # these fields cannot be null
+        self.__expected_headers: List[str] = [
+            'adcid',  # transformed
+            'ptid',  # transformed
+            'barcode',
+            'kit_number',
+            'collection_date',
+            'patient_id'
+        ]
 
     @property
     def plates(self) -> List[int]:
         return self.__plates
 
+    @property
+    def adcid(self) -> str | None:
+        return self.__adcid
+
     def visit_header(self, header: List[str]) -> bool:
-        """Normalizes header and verifies it is as expected.
-        Also determines if this is plate/well data by existence
-        of the plate layout key
+        """Normalizes header and verifies it is as expected. Also determines if
+        this is plate/well data by existence of the plate layout key.
 
         Args:
             header: Header list to verify
         Returns:
             True if the header is valid, False otherwise
-        """ 
+        """
         for i, field in enumerate(header):
             # transform these fields
             if field == 'adrc_site':
@@ -124,7 +131,7 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
             if field == 'pt_id':
                 header[i] = 'ptid'
 
-        missing = set(self.EXPECTED_FIELDS) - set(header)
+        missing = set(self.__expected_headers) - set(header)
         if missing:
             for field in missing:
                 error = missing_field_error(field)
@@ -133,11 +140,15 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
 
         self.headers = header
         self.__is_plate_data = self.PLATE_LAYOUT_KEY in self.headers
+        if self.__is_plate_data:
+            self.__expected_headers.append(self.PLATE_LAYOUT_KEY)
 
         return True
 
-    def check_required_fields(self, row: Dict[str, Any], line_num: int) -> bool:
+    def check_required_fields(self, row: Dict[str, Any],
+                              line_num: int) -> bool:
         """Checks required fields.
+
         Args:
           row: The dictionary for a row from a CSV file
           line_num: The line number of the row
@@ -145,12 +156,9 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
           True if the row was processed without error, False otherwise
         """
         success = True
-        expected_fields = self.EXPECTED_FIELDS
-        if self.__is_plate_data:
-            expected_fields = expected_fields + [self.PLATE_LAYOUT_KEY]
 
         # check required headers
-        for field in expected_fields:
+        for field in self.__expected_headers:
             if not row[field]:
                 success = False
                 error = empty_field_error(
@@ -160,10 +168,10 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
                 self.error_writer.write(error)
 
         # check ADCID - use first one found as expected value
-        row_adcid = row['adcid']
+        row_adcid = row['adcid'].strip()
         if not self.__adcid:
             self.__adcid = row_adcid
-        elif not row_adcid == self.__adcid:
+        elif row_adcid != self.__adcid:
             error = unexpected_value_error(
                 field='adcid',
                 value=row_adcid,
@@ -177,8 +185,8 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visit the dictionary for a row. Checks all fields in
-        EXPECTED_HEADERS are non-empty, and that all ADCIDs match. If
-        plate layout, keep track of plates.
+        EXPECTED_HEADERS are non-empty, and that all ADCIDs match. If plate
+        layout, keep track of plates.
 
         Args:
           row: The dictionary for a row from a CSV file
@@ -194,7 +202,7 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
             plate_num = self.get_plate_num(row, line_num)
             if plate_num is None:
                 return False
-            
+
             self.__plates.append(plate_num)
 
         self.data.append(row)
@@ -204,8 +212,7 @@ class NCRADBiomarkerCSVVisitor(NCRADCSVVisitor):
 class NCRADBiomarkerQCCSVVisitor(NCRADCSVVisitor):
     """Visitor for biomarker QC CSV."""
 
-    def __init__(self,
-                 plates: List[int],
+    def __init__(self, plates: List[int],
                  error_writer: ListErrorWriter) -> None:
         """Initializer."""
         super().__init__(error_writer)
@@ -229,8 +236,8 @@ class NCRADBiomarkerQCCSVVisitor(NCRADCSVVisitor):
         return result
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
-        """Visit the dictionary for a row. Only keeps if plate
-        number is in plates, or all if no plates specified.
+        """Visit the dictionary for a row. Only keeps if plate number is in
+        plates, or all if no plates specified.
 
         Args:
           row: The dictionary for a row from a CSV file
@@ -251,20 +258,22 @@ class NCRADBiomarkerQCCSVVisitor(NCRADCSVVisitor):
         return True
 
 
-def run(proxy: FlywheelProxy,
-        biomarker_file: TextIO,
-        qc_file: TextIO,
-        error_writer: ListErrorWriter) -> Tuple[StringIO, StringIO]:
-    """Runs the NCRAD Biomarker Mapping process. Visits
-    both the biomarker and QC NCRAD files.
+def run(proxy: FlywheelProxy, biomarker_file: TextIO, qc_file: TextIO,
+        biomarker_filename: str, qc_filename: str,
+        error_writer: ListErrorWriter, target_project: str) -> bool:
+    """Runs the NCRAD Biomarker Mapping process. Visits both the biomarker and
+    QC NCRAD files.
 
     Args:
         proxy: the proxy for the Flywheel instance
         biomarker_file: Input biomarker data
         qc_file: Corresponding QC file
+        biomarker_filename: Name to give output biomarker file
+        qc_filename: Name to give output QC file
         error_writer: ListErrorWriter to write errors to
+        target_project: Target project to write results to
     Returns:
-        Tuple containing the contents for Biomarker and QC files
+        Whether or not the files were read successfully
     """
     bio_visitor = NCRADBiomarkerCSVVisitor(error_writer=error_writer)
     success = read_csv(input_file=biomarker_file,
@@ -287,6 +296,31 @@ def run(proxy: FlywheelProxy,
         log.error("Failed to read or split biomarker QC CSV")
         return False
 
+    # find target project to upload results to
+    adcid = bio_visitor.adcid
+    if adcid is None:
+        raise GearExecutionError(
+            "Could not determine ADCID from biomarker file")
 
-    biomarker_contents = visitor.get_read_contents()
-    return biomarker_contents, qc_contents
+    project_map = build_project_map(proxy=proxy,
+                                    destination_label=target_project,
+                                    center_filter=[adcid])
+    project = project_map.get(f'adcid-{adcid}')
+    if not project:
+        raise GearExecutionError(
+            f'Failed to find {target_project} for ADCID {adcid}')
+
+    bio_spec = bio_visitor.create_file_spec(biomarker_filename, adcid)
+    qc_spec = qc_visitor.create_file_spec(qc_filename, adcid)
+
+    if proxy.dry_run:
+        log.info(
+            f"DRY RUN: Would have written the following files to {project.id}")
+        for file in [bio_spec, qc_spec]:
+            log.info(f"DRY RUN: {file.name}")
+    else:
+        for file in [bio_spec, qc_spec]:
+            project.upload_file(file)  # type: ignore
+            log.info(f"Wrote {file.name} to {project.id}")
+
+    return True

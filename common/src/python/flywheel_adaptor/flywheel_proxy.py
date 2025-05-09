@@ -1374,18 +1374,18 @@ class ProjectAdaptor:
 
         return None
 
-    def find_files(self, pattern: str) -> List[FileEntry]:
+    def find_files(self, raw_pattern: str) -> List[FileEntry]:
         """Finds the file(s) that match the given pattern.
 
         Args:
-          pattern: filename pattern to match on
+          raw_pattern: Raw filename pattern to match on
         Returns:
           List of files that match pattern. May be empty
         """
         files: List[FileEntry] = []
-        pattern = re.compile(pattern)
+        pattern = re.compile(raw_pattern)
 
-        for file in self._project.files:
+        for file in self._project.files:  # type: ignore
             filename = file['name']
             if pattern.match(filename):
                 files.append(file)
