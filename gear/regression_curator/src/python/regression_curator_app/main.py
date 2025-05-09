@@ -144,7 +144,7 @@ def localize_mqt(s3_mqt_file: str) -> MutableMapping:
 
         # there should only be one record for each naccid in MQT
         if naccid in baseline:
-            raise ValueError(f"Duplicate records found for {naccid}")
+            raise GearExecutionError(f"Duplicate records found for {naccid}")
 
         baseline[naccid] = row_data
 
@@ -153,8 +153,8 @@ def localize_mqt(s3_mqt_file: str) -> MutableMapping:
 
 
 def run(context: GearToolkitContext,
-        s3_qaf_file: str,
-        s3_mqt_file: str,
+        s3_qaf_file: str | None,
+        s3_mqt_file: str | None,
         keep_fields: List[str],
         scheduler: ProjectCurationScheduler,
         error_writer: MPListErrorWriter) -> None:
@@ -168,11 +168,18 @@ def run(context: GearToolkitContext,
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
     """
-    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer)
-    mqt_baseline = localize_mqt(s3_mqt_file)
+    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer) \
+        if s3_qaf_file is not None else {}
+    
+    mqt_baseline = localize_mqt(s3_mqt_file) \
+        if s3_mqt_file is not None else {}
+
+    if not qaf_baseline and not mqt_baseline:
+        raise GearExecutionError("No records found in QAF or MQT baselines")
 
     curator = RegressionCurator(sdk_client=context.get_client(),
-                                baseline=baseline,
+                                qaf_baseline=qaf_baseline,
+                                mqt_baseline=mqt_baseline,
                                 error_writer=error_writer)
 
     scheduler.apply(curator=curator)

@@ -32,8 +32,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
     def __init__(self,
                  client: ClientWrapper,
                  project: ProjectAdaptor,
-                 s3_qaf_file: str,
-                 s3_mqt_file: str,
+                 s3_qaf_file: str | None,
+                 s3_mqt_file: str | None,
                  keep_fields: List[str],
                  filename_pattern: str,
                  error_outfile: str,
@@ -68,12 +68,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                                       parameter_store=parameter_store)
 
         s3_qaf_file = context.config.get("s3_qaf_file", None)
-        if not s3_qaf_file:
-            raise GearExecutionError("s3_qaf_file required")
-
         s3_mqt_file = context.config.get("s3_mqt_file", None)
-        if not s3_mqt_file:
-            raise GearExecutionError("s3_mqt_file required")
+
+        if not s3_qaf_file and not s3_mqt_file:
+            raise GearExecutionError("At least one of s3_qaf_file or s3_mqt_file required")
 
         keep_fields = parse_string_to_list(
             context.config.get('keep_fields', ''))

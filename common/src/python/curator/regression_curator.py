@@ -81,23 +81,14 @@ class RegressionCurator(Curator):
                 log.info(msg)
                 self.__error_writer.write(
                     unexpected_value_error(
-<<<<<<< HEAD
                         field=f'{prefix}.{field}',
-                        value=value,  # type: ignore
-=======
-                        field=field,
                         value=value,
->>>>>>> feature/regression-curation-gear
                         expected=expected,
                         message=msg))
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
-<<<<<<< HEAD
-        """Performs file-level regression testing.
-=======
         """Perform contents of curation. Assumes UDS data.
->>>>>>> feature/regression-curation-gear
 
         Args:
             subject: Subject the file belongs to
@@ -105,53 +96,17 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-<<<<<<< HEAD
-        # each subject in the baseline is mapped to a list of ordered records;
-        # for UDS need to map the correct record based on visitdate
-        # otherwise just grab the most recent record, which is assumed to have
-        # all the derived variables propogated to it
-=======
+        if not self.__qaf_baseline:
+            return
+
         # skip if not UDS, no derived variables, or no visitdate found
         if scope != 'uds':
             log.info(f"{file_entry.name} is a not an UDS form, skipping")
             return
 
->>>>>>> feature/regression-curation-gear
         derived_vars = table.get('file.info.derived', None)
         if (not derived_vars or not any(x.lower().startswith('nacc')
                                         for x in derived_vars)):
-<<<<<<< HEAD
-            log.info("No file derived variables, skipping")
-            return
-
-        if subject.label not in self.__qaf_baseline:
-            if not derived_vars.get('affiliate', False):
-                msg = (
-                    f"Subject {subject.label} not found in baseline QAF and not affiliate"
-                )
-                log.warning(msg)
-                self.__error_writer.write(
-                    unexpected_value_error(
-                        field='naccid',
-                        value=None,  # type: ignore
-                        expected=subject.label,
-                        message=msg))
-            return
-
-        record = None
-        expected = subject.label
-
-        if scope == 'uds':
-            visitdate = table['file.info.forms.json.visitdate']
-            expected = f"{expected} {visitdate}"
-            for r in self.__qaf_baseline[subject.label]:
-                if visitdate == r['visitdate']:
-                    record = r
-                    break
-        else:
-            record = self.__qaf_baseline[subject.label][-1]
-
-=======
             log.info(
                 f"No derived variables found for {file_entry.name}, skipping")
             return
@@ -164,18 +119,13 @@ class RegressionCurator(Curator):
         # ensure in QAF baseline - if not affiliate, report error
         key = f'{subject.label}_{visitdate}'
         record = self.__baseline.get(key)
->>>>>>> feature/regression-curation-gear
         if not record:
             if 'affiliate' in subject.tags:
                 log.info(f"{subject.label} is an affiliate, skipping")
                 return
 
             msg = (f"Could not find matching record for {file_entry.name} " +
-<<<<<<< HEAD
-                   f"in baseline QAF file with attributes {expected}")
-=======
-                   f"in baseline file with NACCID and visitdate: {key}")
->>>>>>> feature/regression-curation-gear
+                   f"in QAF baseline file with NACCID and visitdate: {key}")
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(
@@ -194,6 +144,9 @@ class RegressionCurator(Curator):
         Args:
             subject: Subject to pre-process
         """
+        if not self.__mqt_baseline:
+            return
+
         subject = subject.reload()
         if not subject.info:
             log.info("No subject derived variables, skipping")
