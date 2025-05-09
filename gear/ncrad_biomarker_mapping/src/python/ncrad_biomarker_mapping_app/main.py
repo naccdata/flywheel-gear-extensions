@@ -313,14 +313,14 @@ def run(proxy: FlywheelProxy, biomarker_file: TextIO, qc_file: TextIO,
     bio_spec = bio_visitor.create_file_spec(biomarker_filename, adcid)
     qc_spec = qc_visitor.create_file_spec(qc_filename, adcid)
 
-    if proxy.dry_run:
-        log.info(
-            f"DRY RUN: Would have written the following files to {project.id}")
-        for file in [bio_spec, qc_spec]:
-            log.info(f"DRY RUN: {file.name}")
-    else:
-        for file in [bio_spec, qc_spec]:
-            project.upload_file(file)  # type: ignore
-            log.info(f"Wrote {file.name} to {project.id}")
+    # write results to target project
+    for file in [bio_spec, qc_spec]:
+        if proxy.dry_run:
+            log.info(
+                f"DRY RUN: Would have written {file.name} to {project.id}")
+            continue
+
+        project.upload_file(file)  # type: ignore
+        log.info(f"Wrote {file.name} to {project.id}")
 
     return True
