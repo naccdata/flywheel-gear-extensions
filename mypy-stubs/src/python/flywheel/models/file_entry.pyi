@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from flywheel.models.container_parents import ContainerParents
+from flywheel.models.file_origin import FileOrigin
 
 
 class FileEntry:
@@ -50,11 +51,18 @@ class FileEntry:
     def tags(self) -> List[str]:
         ...
 
+    @property
+    def origin(self) -> FileOrigin:
+        ...
+
     @tags.setter
     def tags(self, tags: List[str]):
         ...
 
     def add_tag(self, tag, **kwargs):
+        ...
+
+    def add_tags(self, tags, **kwargs):
         ...
 
     def delete_tag(self, tag, **kwargs):

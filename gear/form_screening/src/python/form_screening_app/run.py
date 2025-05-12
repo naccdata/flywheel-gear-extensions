@@ -1,5 +1,6 @@
 """Entry script for Form Screening."""
 import logging
+import time
 from typing import List, Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
@@ -13,7 +14,6 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
-from outputs.errors import ListErrorWriter
 from utils.utils import parse_string_to_list
 
 from form_screening_app.main import FormSchedulerGearConfigs, run
@@ -55,6 +55,25 @@ class FormScreeningVisitor(GearExecutionEnvironment):
 
         file_input = InputFileWrapper.create(input_name='input_file',
                                              context=context)
+
+        if not file_input:
+            raise GearExecutionError(
+                "Gear config input_file not specified or not found")
+
+        gear_name = context.manifest.get('name', 'form-screening')
+
+        # We save the formatted file with same name as input file
+        # To prevent gear rules running into a loop check whether the file is screened
+        # Check the file origin to identify whether the file is updated by a gear job
+        file_entry = file_input.file_entry(context=context)
+        if file_entry.origin.type != 'user':
+            time.sleep(30)
+            file_entry = file_entry.reload()
+            if gear_name in file_entry.tags:
+                log.info("Input file %s already screened and formatted",
+                         file_entry.name)
+            exit(0)
+
         config_file_path = context.get_input_path(
             'scheduler_gear_configs_file')
 
@@ -87,23 +106,13 @@ class FormScreeningVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the Form Screening app."""
-        file = self.proxy.get_file(self.__file_input.file_id)
-        error_writer = ListErrorWriter(
-            container_id=self.__file_input.file_id,
-            fw_path=self.proxy.get_lookup_path(file))
 
-        success = run(proxy=self.proxy,
-                      context=context,
-                      file_input=self.__file_input,
-                      accepted_modules=self.__accepted_modules,
-                      queue_tags=self.__queue_tags,
-                      scheduler_gear=self.__scheduler_gear,
-                      error_writer=error_writer)
-
-        context.metadata.add_qc_result(self.__file_input.file_input,
-                                       name='validation',
-                                       state='PASS' if success else 'FAIL',
-                                       data=error_writer.errors())
+        run(proxy=self.proxy,
+            context=context,
+            file_input=self.__file_input,
+            accepted_modules=self.__accepted_modules,
+            queue_tags=self.__queue_tags,
+            scheduler_gear=self.__scheduler_gear)
 
 
 def main():
