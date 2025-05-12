@@ -6,4 +6,4 @@ docker_image(name="form-screening",
                  ":manifest",
                  "gear/form_screening/src/python/form_screening_app:bin"
              ],
-             image_tags=["1.0.3", "latest"])
+             image_tags=["1.1.0h", "latest"])
