@@ -1,5 +1,6 @@
 """Entry script for Regression Curator."""
 import logging
+from multiprocessing import Manager
 from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -17,7 +18,7 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from outputs.errors import FileError, MPListErrorWriter
+from outputs.errors import FileError, ListErrorWriter
 from outputs.outputs import write_csv_to_stream
 from utils.utils import parse_string_to_list
 
@@ -94,8 +95,9 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f'Failed to find the input file: {error}') from error
 
-        error_writer = MPListErrorWriter(container_id=self.__project.id,
-                                         fw_path=fw_path)
+        error_writer = ListErrorWriter(container_id=self.__project.id,
+                                       fw_path=fw_path,
+                                       errors=Manager().list())
 
         blacklist = None
         if self.__blacklist_file:

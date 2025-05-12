@@ -5,7 +5,6 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Handler, Logger
-from multiprocessing import Manager
 from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
@@ -439,13 +438,6 @@ class ListErrorWriter(UserErrorWriter):
     def clear(self):
         """Clear the errors list."""
         self.__errors.clear()
-
-
-class MPListErrorWriter(ListErrorWriter):
-    """ListErrorWriter for multiprocessing."""
-
-    def __init__(self, container_id: str, fw_path: str) -> None:
-        super().__init__(container_id, fw_path, Manager().list())
 
 
 class ListHandler(Handler):

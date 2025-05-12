@@ -14,7 +14,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
-from outputs.errors import MPListErrorWriter, unexpected_value_error
+from outputs.errors import ListErrorWriter, unexpected_value_error
 
 from .curator import Curator
 
@@ -25,7 +25,7 @@ class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
     def __init__(self, sdk_client: Client, baseline: MutableMapping,
-                 error_writer: MPListErrorWriter) -> None:
+                 error_writer: ListErrorWriter) -> None:
         super().__init__(sdk_client)
         self.__baseline = SymbolTable(baseline)
         self.__error_writer = error_writer
@@ -62,11 +62,10 @@ class RegressionCurator(Curator):
                        f"match expected value {expected}")
                 log.info(msg)
                 self.__error_writer.write(
-                    unexpected_value_error(
-                        field=field,
-                        value=value,
-                        expected=expected,
-                        message=msg))
+                    unexpected_value_error(field=field,
+                                           value=value,
+                                           expected=expected,
+                                           message=msg))
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
