@@ -24,7 +24,7 @@ class SubmissionCompleteTemplateModel(BaseTemplateModel):
 
 def send_email(proxy: FlywheelProxy, email_client: EmailClient,
                file: FileOutput, project: Project,
-               portal_url: URLParameter) -> None:  # type: ignore
+               portal_url: URLParameter) -> None:
     """Sends an email notifying user that their submission pipeline has
     completed.
 
@@ -36,7 +36,14 @@ def send_email(proxy: FlywheelProxy, email_client: EmailClient,
         portal_url: The portal URL
     """
     # If the user does not exist, we cannot send an email
-    user = proxy.find_user(file.origin.id)
+    user_id = file.info.get('uploader')
+    if not user_id:
+        log.warning(
+            "Uploader ID not available in file %s, cannot send completion email",
+            file.name)
+        return
+
+    user = proxy.find_user(user_id)
     if not user:
         log.warning(
             "Owner of the file does not match a user on Flywheel, will " +
