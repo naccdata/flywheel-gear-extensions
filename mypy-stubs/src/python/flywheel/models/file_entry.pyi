@@ -48,11 +48,11 @@ class FileEntry:
         ...
 
     @property
-    def tags(self) -> List[str]:
+    def origin(self) -> FileOrigin:
         ...
 
     @property
-    def origin(self) -> FileOrigin:
+    def tags(self) -> List[str]:
         ...
 
     @tags.setter
