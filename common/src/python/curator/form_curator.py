@@ -95,8 +95,8 @@ class FormCurator(Curator):
                     f"Force curation set to True, cleaning up {subject.label} metadata"
                 )
                 for field in [
-                        'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
-                        'longitudinal-data.uds', 'neuropathology',
+                        'cognitive.uds', 'demographics.uds', 'derived',
+                        'genetics', 'longitudinal-data.uds', 'neuropathology',
                         'study-parameters.uds'
                 ]:
                     subject.delete_info(field)

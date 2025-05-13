@@ -82,7 +82,8 @@ class Curator(ABC):
 
         scope = determine_scope(file_entry.name)
         if not scope:
-            log.warning("could not determine scope for %s, skipping", file_entry.name)
+            log.warning("could not determine scope for %s, skipping",
+                        file_entry.name)
             return
 
         table = self.get_table(subject, file_entry)

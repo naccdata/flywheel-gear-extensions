@@ -53,7 +53,7 @@ class FileModel(BaseModel):
         # need to handle historic apoe separately as it does not work well with regex
         if 'historic_apoe_genotype' in self.filename:
             return 'pass2'
-        
+
         pattern = (
             r"^"
             r"(?P<pass1>.+("
