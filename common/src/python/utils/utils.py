@@ -1,6 +1,6 @@
 """Utility functions."""
 import logging
-from typing import Any, Dict, List, MutableMapping
+from typing import Any, Dict, List, MutableMapping, Optional
 
 from configs.ingest_configs import FormProjectConfigs
 from flywheel.models.file_entry import FileEntry
@@ -37,7 +37,7 @@ def update_file_info_metadata(file: FileEntry,
     return True
 
 
-def parse_string_to_list(input_str: str,
+def parse_string_to_list(input_str: Optional[str],
                          to_lower: bool = True,
                          delimiter: str = ',') -> List[str]:
     """Parses a comma delimited string to a list.

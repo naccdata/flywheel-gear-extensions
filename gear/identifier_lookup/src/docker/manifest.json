@@ -48,7 +48,7 @@
             "default": "nacc"
         },
         "database_mode": {
-            "description": "Whether to create identifiers in dev or prod database",
+            "description": "Whether to lookup identifiers from dev or prod database",
             "type": "string",
             "default": "prod"
         },

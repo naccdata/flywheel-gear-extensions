@@ -441,13 +441,6 @@ class ListErrorWriter(UserErrorWriter):
         self.__errors.clear()
 
 
-class MPListErrorWriter(ListErrorWriter):
-    """ListErrorWriter for multiprocessing."""
-
-    def __init__(self, container_id: str, fw_path: str) -> None:
-        super().__init__(container_id, fw_path, Manager().list())
-
-
 class ListHandler(Handler):
     """Defines a handler to keep track of logged info."""
 

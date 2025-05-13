@@ -8,7 +8,6 @@ from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import ListErrorWriter, preprocess_errors, preprocessing_error
 from uploads.acquisition import is_duplicate_dict
-from utils.sort import get_min_value
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +165,9 @@ class FormPreprocessor():
         """Check whether the current visit date and visit number is greater
         than the provided visit date and visit number.
 
+        Note: CH 050225 - removed visitnum order check to support centers
+        already using visitnum scheme that doesn't follow natural order
+
         Args:
             current_record: record to validate
             date_field: visit date column for the module
@@ -193,16 +195,18 @@ class FormPreprocessor():
                                     visitnum=current_visitnum))
             correct_order = False
 
-        if get_min_value([visitnum_to_compare,
-                          current_visitnum]) == current_visitnum:
-            self.__error_writer.write(
-                preprocessing_error(field=FieldNames.VISITNUM,
-                                    value=current_visitnum,
-                                    line=line_num,
-                                    error_code=visitnum_error,
-                                    ptid=ptid,
-                                    visitnum=current_visitnum))
-            correct_order = False
+        # CH - commenting out visitnum order check
+
+        # if get_min_value([visitnum_to_compare,
+        #                   current_visitnum]) == current_visitnum:
+        #     self.__error_writer.write(
+        #         preprocessing_error(field=FieldNames.VISITNUM,
+        #                             value=current_visitnum,
+        #                             line=line_num,
+        #                             error_code=visitnum_error,
+        #                             ptid=ptid,
+        #                             visitnum=current_visitnum))
+        #     correct_order = False
 
         if not correct_order:
             log.error(
@@ -236,6 +240,7 @@ class FormPreprocessor():
             bool: False if any of the validations fail
         """
 
+        date_field = module_configs.date_field
         packet = input_record[FieldNames.PACKET]
 
         if self.__forms_store.is_new_subject(subject_lbl):
@@ -253,8 +258,12 @@ class FormPreprocessor():
                         visitnum_error=SysErrorCodes.LOWER_FVP_VISITNUM,
                         line_num=line_num)
 
-                log.error('%s - %s',
-                          preprocess_errors[SysErrorCodes.MISSING_IVP], packet)
+                log.error(
+                    'Missing IVP or incorrect visit order in current batch '
+                    'for PTID %s-%s:%s:%s', input_record[FieldNames.PTID],
+                    input_record[date_field],
+                    input_record[FieldNames.VISITNUM], packet)
+
                 self.__error_writer.write(
                     preprocessing_error(
                         field=FieldNames.PACKET,
@@ -263,9 +272,9 @@ class FormPreprocessor():
                         error_code=SysErrorCodes.MISSING_IVP,
                         ptid=input_record[FieldNames.PTID],
                         visitnum=input_record[FieldNames.VISITNUM]))
+
                 return False
 
-        date_field = module_configs.date_field
         initial_packets = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
@@ -627,7 +636,7 @@ class FormPreprocessor():
                 return False
 
         # If participant has UDSv3 visits and trying to submit I4 packet
-        # check whether the I4 packet visit date and visit num higher than latest UDSv3
+        # check whether the I4 packet visit date is higher than the latest UDSv3 date
         if packet == DefaultValues.UDS_I4_PACKET:
             date_field_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{date_field}'
             visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'

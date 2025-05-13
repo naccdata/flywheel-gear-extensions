@@ -84,15 +84,23 @@ class FormCurator(Curator):
         # instead make this a manual job outside the gear, or
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
-            log.info(
-                f"Force curation set to True, cleaning up {subject.label} metadata"
-            )
-            for field in [
-                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
-                    'longitudinal-data.uds', 'neuropathology',
-                    'study-parameters.uds'
-            ]:
-                subject.delete_info(field)
+
+            # TODO: this needs to be done due to an issue with upsert-hierarchy
+            # not creating the info object correctly, so calling delete_info
+            # on a subject without info raises an exception.
+            # sent support ticket to FW to see if this is something they
+            # can resolve on their end
+            subject = subject.reload()
+            if subject.info:
+                log.info(
+                    f"Force curation set to True, cleaning up {subject.label} metadata"
+                )
+                for field in [
+                        'cognitive.uds', 'demographics.uds', 'derived',
+                        'genetics', 'longitudinal-data.uds', 'neuropathology',
+                        'study-parameters.uds'
+                ]:
+                    subject.delete_info(field)
 
     @api_retry
     def post_process(self, subject: Subject,

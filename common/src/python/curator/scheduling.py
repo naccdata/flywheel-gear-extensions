@@ -50,6 +50,10 @@ class FileModel(BaseModel):
         Historical APOE must be curated before the NCRAD APOE.
         As such, there are currently 3 pass categories.
         """
+        # need to handle historic apoe separately as it does not work well with regex
+        if 'historic_apoe_genotype' in self.filename:
+            return 'pass2'
+
         pattern = (
             r"^"
             r"(?P<pass2>.+("

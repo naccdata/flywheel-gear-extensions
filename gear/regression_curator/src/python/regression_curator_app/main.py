@@ -8,7 +8,7 @@ from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.errors import MPListErrorWriter, unexpected_value_error
+from outputs.errors import ListErrorWriter, unexpected_value_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
 
 
 def localize_qaf(s3_qaf_file: str, keep_fields: List[str],
-                 error_writer: MPListErrorWriter) -> MutableMapping:
+                 error_writer: ListErrorWriter) -> MutableMapping:
     """Localizes the QAF from S3 and converts to JSON. Only retains NACC* and
     NGDS* derived variables, visitdate, and fields specified by the keep_fields
     parameter. Assumes no case-sensitivity and converts headers to lowercase.
@@ -157,7 +157,7 @@ def run(context: GearToolkitContext,
         s3_mqt_file: str | None,
         keep_fields: List[str],
         scheduler: ProjectCurationScheduler,
-        error_writer: MPListErrorWriter) -> None:
+        error_writer: ListErrorWriter) -> None:
     """Runs the Attribute Curator process.
 
     Args:

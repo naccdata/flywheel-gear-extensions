@@ -82,8 +82,8 @@ class Curator(ABC):
 
         scope = determine_scope(file_entry.name)
         if not scope:
-            log.warning("ignoring unexpected file %s", file_entry.name)
-            return
+            log.warning("could not determine scope for %s, skipping",
+                        file_entry.name)
 
         table = self.get_table(subject, file_entry)
         log.info("curating file %s", file_entry.name)
@@ -129,12 +129,16 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     Returns:
         the scope name matching the file
     """
+    # need to handle historic apoe separately as it does not work well with regex
+    if 'historic_apoe_genotype' in filename:
+        return 'historic_apoe'
+
     pattern = (r"^"
                r"(?P<np>.+_NP\.json)|"
                r"(?P<mds>.+_MDS\.json)|"
                r"(?P<milestone>.+_MLST\.json)|"
-               r"(?P<historic_apoe>.+historic_apoe_genotype\.json)|"
-               r"(?P<apoe>^(?!.*historic).+apoe_genotype\.json$)|"
+               r"(?P<apoe>.+apoe_genotype\.json)|"
+               r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
                r"(?P<niagads_availability>.+niagads_availability\.json)|"
                r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
                r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
