@@ -5,7 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Handler, Logger
-from typing import Any, Dict, List, Literal, Optional, TextIO
+from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
@@ -202,7 +202,7 @@ def malformed_file_error(error: str) -> FileError:
 def unexpected_value_error(field: str,
                            value: str,
                            expected: str,
-                           line: int,
+                           line: Optional[int] = None,
                            message: Optional[str] = None) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -217,11 +217,13 @@ def unexpected_value_error(field: str,
     """
     error_message = message if message else (
         f'Expected {expected} for field {field}')
+
     return FileError(error_type='error',
                      error_code='unexpected-value',
                      value=value,
                      expected=expected,
-                     location=CSVLocation(line=line, column_name=field),
+                     location=CSVLocation(line=line, column_name=str(field))
+                     if line else JSONLocation(key_path=str(field)),
                      message=error_message)
 
 
@@ -407,9 +409,13 @@ class StreamErrorWriter(UserErrorWriter):
 class ListErrorWriter(UserErrorWriter):
     """Collects FileErrors to file metadata."""
 
-    def __init__(self, container_id: str, fw_path: str) -> None:
+    def __init__(
+            self,
+            container_id: str,
+            fw_path: str,
+            errors: Optional[MutableSequence[Dict[str, Any]]] = None) -> None:
         super().__init__(container_id, fw_path)
-        self.__errors: List[Dict[str, Any]] = []
+        self.__errors = [] if errors is None else errors
 
     def write(self, error: FileError, set_timestamp: bool = True) -> None:
         """Captures error for writing to metadata.
@@ -421,7 +427,7 @@ class ListErrorWriter(UserErrorWriter):
         self.prepare_error(error, set_timestamp)
         self.__errors.append(error.model_dump(by_alias=True))
 
-    def errors(self) -> List[Dict[str, Any]]:
+    def errors(self) -> MutableSequence[Dict[str, Any]]:
         """Returns serialized list of accumulated file errors.
 
         Returns:
@@ -453,7 +459,7 @@ def update_error_log_and_qc_metadata(*,
                                      destination_prj: ProjectAdaptor,
                                      gear_name: str,
                                      state: str,
-                                     errors: List[Dict[str, Any]],
+                                     errors: MutableSequence[Dict[str, Any]],
                                      reset_metadata: bool = False) -> bool:
     """Update project level error log file and store error metadata in
     file.info.qc.

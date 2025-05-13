@@ -1,7 +1,7 @@
 """Utilities for using S3 client."""
 import logging
 from io import StringIO
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import boto3
 from botocore.config import Config
@@ -38,15 +38,22 @@ class S3BucketReader:
         """Expose name of bucket."""
         return self.__bucket
 
+    def get_file_object(self, filename: str) -> Dict[str, Any]:
+        """Get the file object.
+
+        Args:
+            filename: name of file
+        """
+        return self.__client.get_object(Bucket=self.__bucket, Key=filename)
+
     def read_data(self, filename: str) -> StringIO:
         """Reads the file object from S3 with bucket name and file name.
 
         Args:
-        file_name: name of file
+            filename: name of file
         """
 
-        file_obj = self.__client.get_object(Bucket=self.__bucket, Key=filename)
-
+        file_obj = self.get_file_object(filename)
         return StringIO(file_obj['Body'].read().decode('utf-8'))
 
     def read_directory(self, prefix: str) -> dict[str, dict]:

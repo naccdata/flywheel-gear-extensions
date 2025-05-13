@@ -8,7 +8,7 @@ validator) for validating the inputs.
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, MutableSequence, Optional
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
@@ -40,13 +40,14 @@ from form_qc_app.validate import RecordValidator
 log = logging.getLogger(__name__)
 
 
-def update_input_file_qc_status(*,
-                                gear_context: GearToolkitContext,
-                                gear_name: str,
-                                input_wrapper: InputFileWrapper,
-                                file: FileEntry,
-                                qc_passed: bool,
-                                errors: Optional[List[Dict[str, Any]]] = None):
+def update_input_file_qc_status(
+        *,
+        gear_context: GearToolkitContext,
+        gear_name: str,
+        input_wrapper: InputFileWrapper,
+        file: FileEntry,
+        qc_passed: bool,
+        errors: Optional[MutableSequence[Dict[str, Any]]] = None):
     """Write validation status to input file metadata and add gear tag.
     Detailed errors for each visit is recorded in the error log for the visit.
 
