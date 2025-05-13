@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from flywheel.finder import Finder
+from flywheel.models.file_output import FileOutput
 from flywheel.models.subject import Subject
 
 from ..file_spec import FileSpec
@@ -49,6 +50,10 @@ class Project:
 
     @property
     def subjects(self) -> Finder[Subject]:
+        ...
+
+    @property
+    def files(self) -> List[FileOutput]:
         ...
 
     # TODO: determine return type
