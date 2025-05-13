@@ -1,4 +1,3 @@
-
 class FileOrigin:
 
     @property
