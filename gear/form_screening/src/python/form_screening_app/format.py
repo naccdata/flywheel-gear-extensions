@@ -57,7 +57,7 @@ class CSVFormatterVisitor(CSVVisitor):
         """
 
         out_row = {
-            key: value
+            key.lower(): value
             for key, value in row.items() if key.lower() not in REDCapKeys
         }
 
