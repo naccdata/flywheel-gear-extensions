@@ -35,14 +35,14 @@ def send_email(proxy: FlywheelProxy, email_client: EmailClient,
         project: The ProjectOutput; will pull details from it
         portal_url: The portal URL
     """
-    # If the user does not exist, we cannot send an email
+
     user_id = file.info.get('uploader')
     if not user_id:
-        log.warning(
-            "Uploader ID not available in file %s, cannot send completion email",
-            file.name)
-        return
+        log.warning("Uploader ID not available in file custom info for %s",
+                    file.name)
+        user_id = file.origin.id
 
+    # If the user does not exist, we cannot send an email
     user = proxy.find_user(user_id)
     if not user:
         log.warning(
