@@ -64,14 +64,11 @@ class FormScreeningVisitor(GearExecutionEnvironment):
 
         # We save the formatted file with same name as input file
         # To prevent gear rules running into a loop check whether the file is screened
-        # Check the file origin to identify whether the file is updated by a gear job
+        time.sleep(15)
         file_entry = file_input.file_entry(context=context)
-        if file_entry.origin.type != 'user':
-            time.sleep(30)
-            file_entry = file_entry.reload()
-            if gear_name in file_entry.tags:
-                log.info("Input file %s already screened and formatted",
-                         file_entry.name)
+        if gear_name in file_entry.tags:
+            log.info("Input file %s already screened and formatted",
+                     file_entry.name)
             exit(0)
 
         config_file_path = context.get_input_path(

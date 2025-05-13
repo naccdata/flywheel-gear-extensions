@@ -1,9 +1,9 @@
 """Defines Form Screening."""
 import logging
-import time
 from io import StringIO
 from typing import Any, Dict, List
 
+from flywheel import FileEntry, FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
@@ -95,7 +95,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
     gear_name = context.manifest.get('name', 'form-screening')
     queue_tags.append(gear_name)
 
-    # save the original uploader's ID in custom info
+    # save the original uploader's ID in custom info (for email notification)
     file = file.reload()
     log.info("Original file version: %s", file.version)
     info: Dict[str, Any] = {
@@ -113,39 +113,29 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
     contents = out_stream.getvalue()
     if len(contents) > 0:
         log.info("Saving file %s in UTF-8", file_input.filename)
-        # Note: u
-        with context.open_output(file_input.filename,
-                                 mode='w',
-                                 encoding='utf-8') as out_file:
-            out_file.write(contents)
-            out_file.close()
+        file_spec = FileSpec(name=file_input.filename,
+                             contents=str.encode(contents).decode(),
+                             content_type='text/csv',
+                             size=len(contents))
+
+        # Note: use project.upload_file() instead of context.open_output()
+        # Adding the tags/info didn't work with context.open_output()
+        # It adds the tags/info to original version of the file instead of new version
+        # even after reloading project and file
+        try:
+            updated_file: FileEntry = project.upload_file(file_spec)[0]
+            log.info("New file version: %s", updated_file.version)
+            updated_file.add_tags(tags=queue_tags)
+            updated_file.update_info(info)
+            log.info(f"Added the following tags to input file: {queue_tags}")
+        except ApiException as error:
+            raise GearExecutionError(
+                f'Failed to update file {file_input.filename}: {error}'
+            ) from error
     else:
         log.info("Contents empty, will not write output file %s",
                  file_input.filename)
         return
-
-    time.sleep(30)
-    project = project.reload()
-    # updated_file = project.get_file(file_input.filename)
-    updated_file = proxy.get_file(file_input.file_id)
-    updated_file = updated_file.reload()
-    log.info("New file version: %s", updated_file.version)
-
-    # add the specified tags and QC metadata to updated file
-    # context.metadata.add_file_tags(updated_file, tags=queue_tags)
-    # context.metadata.add_qc_result(updated_file,
-    #                                name='validation',
-    #                                state='PASS',
-    #                                data={})
-
-    try:
-        updated_file.add_tags(tags=queue_tags)
-        updated_file.update_info(info)
-        log.info(f"Added the following tags to input file: {queue_tags}")
-    except ApiException as error:
-        raise GearExecutionError(
-            'Error in updating tags/metadata in file %s: %s',
-            updated_file.name, error) from error
 
     # check if the scheduler gear is pending/running
     log.info(f"Checking status of {scheduler_gear.gear_name}")
@@ -166,4 +156,4 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                  config=scheduler_gear.configs.model_dump(),
                  destination=project)
 
-    return True
+    return

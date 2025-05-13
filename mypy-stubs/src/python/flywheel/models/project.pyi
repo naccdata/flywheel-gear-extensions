@@ -76,7 +76,7 @@ class Project:
         ...
 
     # TODO: determine return type
-    def upload_file(self, file: FileSpec) -> FileEntry:
+    def upload_file(self, file: FileSpec) -> List[FileEntry]:
         ...
 
     def update_info(self, *args: Dict[str, Any]) -> None:
