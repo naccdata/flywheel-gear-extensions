@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-
+## 1.0.4
+* Updates retrieving receiver's email address for submission completion notifications
+  
 ## 1.0.3
 * Upgrades to dependencies
   

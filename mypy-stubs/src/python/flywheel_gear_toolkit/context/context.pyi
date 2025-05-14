@@ -71,3 +71,7 @@ class GearToolkitContext:
     @property
     def manifest(self) -> Dict[str, Any]:
         ...
+
+    @property
+    def output_dir(self):
+        ...

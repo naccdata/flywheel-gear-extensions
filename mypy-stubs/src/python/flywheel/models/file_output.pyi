@@ -1,10 +1,10 @@
+from datetime import datetime
 from typing import Any, Dict, List
 
-from flywheel.models.container_parents import ContainerParents
 from flywheel.models.file_origin import FileOrigin
 
 
-class FileEntry:
+class FileOutput:
 
     @property
     def id(self) -> str:
@@ -16,20 +16,6 @@ class FileEntry:
 
     @property
     def mimetype(self) -> str:
-        ...
-
-    def get(self, key, default=None) -> Dict[str, Any]:
-        ...
-
-    @property
-    def hash(self) -> str:
-        ...
-
-    @property
-    def parents(self) -> ContainerParents:
-        ...
-
-    def read(self) -> str:
         ...
 
     @property
@@ -44,9 +30,6 @@ class FileEntry:
     def info(self) -> Dict[str, Any]:
         ...
 
-    def reload(self) -> FileEntry:
-        ...
-
     @property
     def origin(self) -> FileOrigin:
         ...
@@ -55,8 +38,11 @@ class FileEntry:
     def tags(self) -> List[str]:
         ...
 
-    @tags.setter
-    def tags(self, tags: List[str]):
+    @property
+    def modified(self) -> datetime:
+        ...
+
+    def reload(self) -> FileOutput:
         ...
 
     def add_tag(self, tag, **kwargs):
@@ -66,13 +52,4 @@ class FileEntry:
         ...
 
     def delete_tag(self, tag, **kwargs):
-        ...
-
-    def update_info(self, *args, **kwargs):
-        ...
-
-    def update(self, *args, **kwargs):
-        ...
-
-    def delete_info(self, *args, **kwargs):
         ...

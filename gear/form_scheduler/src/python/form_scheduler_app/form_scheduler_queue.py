@@ -2,9 +2,8 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
-from flywheel.models.file_output import FileOutput  # type: ignore
-from flywheel.models.project_output import ProjectOutput  # type: ignore
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel import Project
+from flywheel.models.file_output import FileOutput
 
 MODULE_PATTERN = re.compile(r"^.+-([a-zA-Z]+)(\..+)$")
 
@@ -13,17 +12,14 @@ class FormSchedulerQueue:
     """Class to define a queue for each accepted module, with prioritization
     allowed."""
 
-    def __init__(self, proxy: FlywheelProxy, module_order: List[str],
-                 queue_tags: List[str]) -> None:
+    def __init__(self, module_order: List[str], queue_tags: List[str]) -> None:
         """Initializer.
 
         Args:
-            proxy: the proxy for the Flywheel instance
             module_order: The modules and the order to process them in
             queue_tags: The queue tags to filter project files for
                 to determine which need to be queued
         """
-        self.__proxy = proxy
         self.__module_order = module_order
         self.__index = -1
         self.queue_tags = set(queue_tags)  # make set for comparison later
@@ -33,7 +29,7 @@ class FormSchedulerQueue:
         }
 
     def add_files(self,
-                  project: ProjectOutput,
+                  project: Project,
                   file_extensions: Optional[List[str]] = None) -> int:
         """Add the files (filtered by queue tags) to queue.
 
@@ -46,7 +42,7 @@ class FormSchedulerQueue:
         if not file_extensions:
             file_extensions = ['.csv']
 
-        files = [
+        files: List[FileOutput] = [
             x for x in project.files if self.queue_tags.issubset(set(x.tags))
         ]
         num_files = 0

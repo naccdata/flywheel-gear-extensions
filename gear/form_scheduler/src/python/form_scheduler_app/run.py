@@ -118,8 +118,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                                    source=self.__source_email) \
             if self.__source_email else None
 
-        queue = FormSchedulerQueue(proxy=self.proxy,
-                                   module_order=self.__module_order,
+        queue = FormSchedulerQueue(module_order=self.__module_order,
                                    queue_tags=self.__queue_tags)
 
         run(proxy=self.proxy,

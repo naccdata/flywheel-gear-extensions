@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.0
+* Formats the input file: remove BOM, change headers to uppercase, remove REDCap specific columns
+  
 ## 1.0.3
 * Upgrades to dependencies
   
