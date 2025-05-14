@@ -67,7 +67,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         curation_tag = context.config.get('curation_tag', "attribute-curator")
         force_curate = context.config.get('force_curate', False)
 
-        fw_project = get_project_from_destination(context=context, proxy=proxy)
+        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        fw_project = proxy.get_project_by_id("67f44bfc7c1a8db5864c0ad3")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         return AttributeCuratorVisitor(client=client,

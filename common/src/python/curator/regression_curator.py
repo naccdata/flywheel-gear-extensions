@@ -52,7 +52,7 @@ class RegressionCurator(Curator):
             record: Baseline record to compare to
             prefix: Field prefix
         """
-        # make all lowercase for consistency and SymbolTables for indexing
+        # make all lowercase for consistency
         found_vars = {k.lower(): v for k, v in found_vars.items()}
         record = {k.lower(): v for k, v in record.items()}
 
@@ -146,7 +146,8 @@ class RegressionCurator(Curator):
             return
 
         # means subject hasn't been curated before - might not
-        # be worth reporting in the long run but for now over report
+        # be worth reporting in the long run but for now over report,
+        # can be used as an indicator of new subjects
         if subject.label not in self.__mqt_baseline:
             msg = f"Could not find curated subject {subject.label} in MQT baseline"
             log.warning(msg)
