@@ -1,18 +1,17 @@
 """Defines Form Screening."""
 import logging
+import os
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from flywheel import FileEntry, FileSpec
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
+from gear_execution.gear_execution import InputFileWrapper
 from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
 from keys.keys import FieldNames, SysErrorCodes
-from outputs.errors import ListErrorWriter, preprocessing_error
+from outputs.errors import ListErrorWriter, empty_file_error, preprocessing_error
 
 from form_screening_app.format import CSVFormatterVisitor
 
@@ -28,9 +27,37 @@ class FormSchedulerGearConfigs(GearConfigs):
     portal_url_path: str
 
 
+def save_output(context: GearToolkitContext,
+                outfilename: str,
+                contents: str,
+                tags: Optional[List[str]] = None,
+                info: Optional[Dict[str, Any]] = None):
+    """Saves the output file and add tags/metadata if any.
+
+    Args:
+        context: gear context
+        outfilename: output file name
+        contents: output contents
+        tags (optional): tag(s) to add to output file. Defaults to None.
+        info (optional): custom info to add to output file. Defaults to None.
+    """
+    log.info("Saving file %s in UTF-8", outfilename)
+    out_file_path = os.path.join(context.output_dir, outfilename)
+    with context.open_output(out_file_path, mode='w',
+                             encoding='utf-8') as out_file:
+        out_file.write(contents)
+
+    if tags:
+        context.metadata.add_file_tags(file_=out_file_path, tags=tags)
+
+    if info:
+        context.update_file_metadata(file_=out_file_path, info=info)
+
+
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         file_input: InputFileWrapper, accepted_modules: List[str],
-        queue_tags: List[str], scheduler_gear: GearInfo):
+        queue_tags: List[str],
+        scheduler_gear: GearInfo) -> Optional[List[Dict[str, Any]]]:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules; if so, tags the file with the specified tags, and run the
     form-scheduler gear if it's not already running. If the suffix does not
@@ -48,6 +75,9 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         accepted_modules: List of accepted modules (case-insensitive)
         queue_tags: List of tags to add if the file passes prescreening
         scheduler_gear: GearInfo of the scheduler gear to trigger
+
+    Returns:
+        List of errors if file didn't pass screening checks
     """
     module = file_input.basename.split('-')[-1]
 
@@ -63,11 +93,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                                 line=0,
                                 error_code=SysErrorCodes.INVALID_MODULE))
 
-        context.metadata.add_qc_result(file_input.file_input,
-                                       name='validation',
-                                       state='FAIL',
-                                       data=error_writer.errors())
-        return
+        return error_writer.errors()
 
     if proxy.dry_run:
         log.info(
@@ -75,7 +101,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
             queue_tags)
         return
 
-    project = file_input.get_parent_project(proxy=proxy)
+    project = file_input.get_parent_project(proxy=proxy, file=file)
     out_stream = StringIO()
     formatter_visitor = CSVFormatterVisitor(output_stream=out_stream)
 
@@ -86,18 +112,19 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                            visitor=formatter_visitor)
 
         if not success:
-            context.metadata.add_qc_result(file_input.file_input,
-                                           name='validation',
-                                           state='FAIL',
-                                           data=error_writer.errors())
-            return
+            return error_writer.errors()
+
+    contents = out_stream.getvalue()
+    if not len(contents) > 0:
+        log.warning("Contents empty, will not write output file %s",
+                    file_input.filename)
+        error_writer.write(empty_file_error())
+        return error_writer.errors()
 
     gear_name = context.manifest.get('name', 'form-screening')
     queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)
-    file = file.reload()
-    log.info("Original file version: %s", file.version)
     info: Dict[str, Any] = {
         "uploader": file.origin.id,
         "qc": {
@@ -110,32 +137,12 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         }
     }
 
-    contents = out_stream.getvalue()
-    if len(contents) > 0:
-        log.info("Saving file %s in UTF-8", file_input.filename)
-        file_spec = FileSpec(name=file_input.filename,
-                             contents=str.encode(contents).decode(),
-                             content_type='text/csv',
-                             size=len(contents))
-
-        # Note: use project.upload_file() instead of context.open_output()
-        # Adding the tags/info didn't work with context.open_output()
-        # It adds the tags/info to original version of the file instead of new version
-        # even after reloading project and file
-        try:
-            updated_file: FileEntry = project.upload_file(file_spec)[0]
-            log.info("New file version: %s", updated_file.version)
-            updated_file.add_tags(tags=queue_tags)
-            updated_file.update_info(info)
-            log.info(f"Added the following tags to input file: {queue_tags}")
-        except ApiException as error:
-            raise GearExecutionError(
-                f'Failed to update file {file_input.filename}: {error}'
-            ) from error
-    else:
-        log.info("Contents empty, will not write output file %s",
-                 file_input.filename)
-        return
+    # save output file and add tags/metadata
+    save_output(context=context,
+                contents=contents,
+                outfilename=file_input.filename,
+                tags=queue_tags,
+                info=info)
 
     # check if the scheduler gear is pending/running
     log.info(f"Checking status of {scheduler_gear.gear_name}")
