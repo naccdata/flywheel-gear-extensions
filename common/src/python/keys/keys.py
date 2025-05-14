@@ -1,5 +1,9 @@
 """Frequently accessed field names, labels, and default values."""
 
+REDCapKeys = [
+    'redcap_event_name', 'redcap_repeat_instance', 'redcap_repeat_instrument'
+]
+
 
 class FieldNames:
     """Class to store frequently accessed field names."""
