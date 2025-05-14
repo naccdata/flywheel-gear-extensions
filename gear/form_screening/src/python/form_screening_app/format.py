@@ -38,12 +38,10 @@ class CSVFormatterVisitor(CSVVisitor):
         Returns:
           True
         """
-        self.__header = [column.strip().lower() for column in header]
-
-        for key in REDCapKeys:
-            if key in self.__header:
-                self.__header.remove(key)
-
+        self.__header = [
+            column.strip().lower() for column in header
+            if column.lower() not in REDCapKeys
+        ]
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
