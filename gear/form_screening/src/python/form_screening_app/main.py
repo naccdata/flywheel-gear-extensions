@@ -48,10 +48,11 @@ def save_output(context: GearToolkitContext,
         out_file.write(contents)
 
     if tags or info:
-        context.metadata.update_file_metadata(file_=outfilename,
-                                              container_type='project',
-                                              tags=tags,
-                                              info=info)
+        context.metadata.update_file_metadata(
+            file_=outfilename,
+            container_type=context.destination['type'],
+            tags=tags,
+            info=info)
 
 
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
