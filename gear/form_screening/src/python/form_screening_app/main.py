@@ -57,7 +57,7 @@ def save_output(context: GearToolkitContext,
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         file_input: InputFileWrapper, accepted_modules: List[str],
         queue_tags: List[str],
-        scheduler_gear: GearInfo) -> Optional[List[Dict[str, Any]]]:
+        scheduler_gear: GearInfo) -> Optional[ListErrorWriter]:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules; if so, tags the file with the specified tags, and run the
     form-scheduler gear if it's not already running. If the suffix does not
@@ -77,7 +77,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         scheduler_gear: GearInfo of the scheduler gear to trigger
 
     Returns:
-        List of errors if file didn't pass screening checks
+        ListErrorWriter(optional): If file didn't pass screening checks
     """
     module = file_input.basename.split('-')[-1]
 
@@ -93,7 +93,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                                 line=0,
                                 error_code=SysErrorCodes.INVALID_MODULE))
 
-        return error_writer.errors()
+        return error_writer
 
     if proxy.dry_run:
         log.info(
@@ -112,14 +112,14 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                            visitor=formatter_visitor)
 
         if not success:
-            return error_writer.errors()
+            return error_writer
 
     contents = out_stream.getvalue()
     if not len(contents) > 0:
         log.warning("Contents empty, will not write output file %s",
                     file_input.filename)
         error_writer.write(empty_file_error())
-        return error_writer.errors()
+        return error_writer
 
     gear_name = context.manifest.get('name', 'form-screening')
     queue_tags.append(gear_name)

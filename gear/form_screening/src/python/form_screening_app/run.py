@@ -110,18 +110,18 @@ class FormScreeningVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None:
         """Runs the Form Screening app."""
 
-        errors = run(proxy=self.proxy,
-                     context=context,
-                     file_input=self.__file_input,
-                     accepted_modules=self.__accepted_modules,
-                     queue_tags=self.__queue_tags,
-                     scheduler_gear=self.__scheduler_gear)
+        error_writer = run(proxy=self.proxy,
+                           context=context,
+                           file_input=self.__file_input,
+                           accepted_modules=self.__accepted_modules,
+                           queue_tags=self.__queue_tags,
+                           scheduler_gear=self.__scheduler_gear)
 
-        if errors:
+        if error_writer:
             context.metadata.add_qc_result(self.__file_input.file_input,
                                            name='validation',
                                            state='FAIL',
-                                           data=errors)
+                                           data=error_writer.errors())
 
 
 def main():
