@@ -47,11 +47,11 @@ def save_output(context: GearToolkitContext,
                              encoding='utf-8') as out_file:
         out_file.write(contents)
 
-    if tags:
-        context.metadata.add_file_tags(file_=out_file_path, tags=tags)
-
-    if info:
-        context.update_file_metadata(file_=out_file_path, info=info)
+    if tags or info:
+        context.metadata.update_file_metadata(file_=outfilename,
+                                              container_type='project',
+                                              tags=tags,
+                                              info=info)
 
 
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
@@ -99,7 +99,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         log.info(
             "DRY RUN: file passes prescreening, would format the file and add tags %s",
             queue_tags)
-        return
+        return None
 
     project = file_input.get_parent_project(proxy=proxy, file=file)
     out_stream = StringIO()
@@ -154,7 +154,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
 
     if proxy.find_job(search_str):
         log.info("Scheduler gear already running, exiting")
-        return
+        return None
 
     log.info(f"No {scheduler_gear.gear_name} gears running, triggering")
     # otherwise invoke the gear
@@ -163,4 +163,4 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                  config=scheduler_gear.configs.model_dump(),
                  destination=project)
 
-    return
+    return None

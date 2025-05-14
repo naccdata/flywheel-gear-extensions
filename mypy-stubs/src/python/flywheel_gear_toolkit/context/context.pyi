@@ -75,12 +75,3 @@ class GearToolkitContext:
     @property
     def output_dir(self):
         ...
-
-    def update_file_metadata(
-        self,
-        file_: Any,
-        deep: bool = True,
-        container_type: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        ...
