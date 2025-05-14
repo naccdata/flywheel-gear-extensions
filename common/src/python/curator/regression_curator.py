@@ -43,6 +43,10 @@ class RegressionCurator(Curator):
         """Compare derived/curated variables to the baseline. Assumes
         both found_vars and record are flat dicts.
 
+        Always checks found vs record, but not the other way around,
+        so will not account for variables that may be missing in the
+        found vars.
+
         Args:
             found_vars: Found variables to compare to baseline
             record: Baseline record to compare to
@@ -67,16 +71,11 @@ class RegressionCurator(Curator):
             value = str(value)
             expected = str(record[field])
             if value != expected:
-                msg = record["naccid"]
-                if 'visitdate' in record:
-                    msg = f"{msg} {record['visitdate']}"
-
+                identifier = record["naccid"]
                 if prefix.startswith('file'):
-                    msg = f"{record['naccid']} {record['visitdate']}"
-                else:
-                    msg = f"{record['naccid']}"
+                    identifier = f"{identifier} {record['visitdate']}"
 
-                msg = (f"{msg} field {field}: found value {value} " +
+                msg = (f"{identifier} field {field}: found value {value} " +
                        f"does not match expected value {expected}")
                 log.info(msg)
                 self.__error_writer.write(
