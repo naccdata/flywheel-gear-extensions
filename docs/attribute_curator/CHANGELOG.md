@@ -5,6 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 0.3.1
 
 * Updates how the SDK client is set for multiprocessing - gives each worker its own instance
+* Fixes bug with decorator `api_retry` not returning the returned function value
 
 ## 0.3.0
 

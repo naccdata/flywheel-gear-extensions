@@ -8,6 +8,7 @@ from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel_gear_toolkit import GearToolkitContext
+from gear_execution.gear_execution import GearExecutionError
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -59,7 +60,11 @@ class Curator(ABC):
         Returns:
           the corresponding Subject
         """
-        return self.sdk_client.get_subject(subject_id)
+        subject = self.sdk_client.get_subject(subject_id)
+        if not subject:
+            raise GearExecutionError(f"Unable to get subject: {subject_id}")
+
+        return subject
 
     @api_retry
     def get_table(self, subject: Subject,

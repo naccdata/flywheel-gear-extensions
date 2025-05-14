@@ -34,6 +34,7 @@ class FormCurator(Curator):
 
         return super().get_table(subject, file_entry)
 
+    @api_retry
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.
@@ -80,7 +81,7 @@ class FormCurator(Curator):
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
 
-            # TODO: this needs to be done due to an issue with upsert-hierarchy
+            # TODO: need to reload due to an issue with upsert-hierarchy
             # not creating the info object correctly, so calling delete_info
             # on a subject without info raises an exception.
             # sent support ticket to FW to see if this is something they
