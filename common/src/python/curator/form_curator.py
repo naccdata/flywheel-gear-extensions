@@ -1,7 +1,6 @@
 import logging
 from typing import List
 
-from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -18,13 +17,10 @@ class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
     def __init__(self,
-                 sdk_client: Client,
                  deriver: AttributeDeriver,
                  curation_tag: str,
                  force_curate: bool = False) -> None:
-        super().__init__(sdk_client=sdk_client,
-                         curation_tag=curation_tag,
-                         force_curate=force_curate)
+        super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__deriver = deriver
 
     def get_table(self, subject: Subject,

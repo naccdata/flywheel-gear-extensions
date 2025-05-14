@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.1
+
+* Updates how the SDK client is set for multiprocessing - gives each worker its own instance
+
 ## 0.3.0
 
 * Adds the `historic_apoe` namespace, which requires a 3rd pass category
