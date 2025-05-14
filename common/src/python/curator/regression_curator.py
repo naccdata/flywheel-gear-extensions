@@ -25,12 +25,7 @@ class RegressionCurator(Curator):
 
     def __init__(self, baseline: MutableMapping,
                  error_writer: ListErrorWriter) -> None:
-        """Initializer.
-
-        Sets force_curate to true since in this case we are always
-        regression testing.
-        """
-        super().__init__(force_curate=True)
+        super().__init__()
         self.__baseline = SymbolTable(baseline)
         self.__error_writer = error_writer
 
