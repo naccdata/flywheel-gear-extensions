@@ -96,9 +96,6 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        if not self.__qaf_baseline:
-            return
-
         # skip if not UDS, no derived variables, or no visitdate found
         if scope != 'uds':
             log.info(f"{file_entry.name} is a not an UDS form, skipping")
@@ -144,9 +141,6 @@ class RegressionCurator(Curator):
         Args:
             subject: Subject to pre-process
         """
-        if not self.__mqt_baseline:
-            return
-
         subject = subject.reload()
         if not subject.info:
             log.info("No subject derived variables, skipping")
