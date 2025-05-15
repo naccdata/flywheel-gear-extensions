@@ -60,11 +60,7 @@ class Curator(ABC):
         Returns:
           the corresponding Subject
         """
-        subject = self.sdk_client.get_subject(subject_id)
-        if not subject:
-            raise GearExecutionError(f"Unable to get subject: {subject_id}")
-
-        return subject
+        return self.sdk_client.get_subject(subject_id)
 
     @api_retry
     def get_table(self, subject: Subject,
