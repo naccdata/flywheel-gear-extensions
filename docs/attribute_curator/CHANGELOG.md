@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.1
+
+* Updates how the SDK client is set for multiprocessing - gives each worker its own instance
+* Updates to keep track of files that failed to be curated instead of just immediately dying, and report at end
+* Fixes bug with decorator `api_retry` not returning the returned function value
+
 ## 0.3.0
 
 * Adds the `historic_apoe` namespace, which requires a 3rd pass category

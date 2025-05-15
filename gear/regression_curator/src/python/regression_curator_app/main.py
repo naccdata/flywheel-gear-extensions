@@ -174,9 +174,9 @@ def run(context: GearToolkitContext,
     if not qaf_baseline or not mqt_baseline:
         raise GearExecutionError("No records found in QAF or MQT baselines")
 
-    curator = RegressionCurator(sdk_client=context.get_client(),
-                                qaf_baseline=qaf_baseline,
+    curator = RegressionCurator(qaf_baseline=qaf_baseline,
                                 mqt_baseline=mqt_baseline,
                                 error_writer=error_writer)
 
-    scheduler.apply(curator=curator)
+
+    scheduler.apply(curator=curator, context=context)
