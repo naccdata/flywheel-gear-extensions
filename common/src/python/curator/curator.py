@@ -8,7 +8,6 @@ from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import GearExecutionError
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry

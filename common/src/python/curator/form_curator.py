@@ -1,9 +1,9 @@
 import logging
+from multiprocessing import Manager
 from typing import List, MutableMapping
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from multiprocessing import Manager
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
@@ -61,8 +61,8 @@ class FormCurator(Curator):
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
-        """Perform contents of curation. Keeps track of files that
-        failed to be curated.
+        """Perform contents of curation. Keeps track of files that failed to be
+        curated.
 
         Args:
             subject: Subject the file belongs to

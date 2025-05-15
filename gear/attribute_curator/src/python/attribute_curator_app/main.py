@@ -35,4 +35,5 @@ def run(context: GearToolkitContext,
     if curator.failed_files:
         log.error(json.dumps(curator.failed_files, indent=4))
         raise GearExecutionError(
-            f"Failed to curate {len(curation.failed_files)} files, see above error logs")
+            f"Failed to curate {len(curator.failed_files)} files, see above error logs"
+        )
