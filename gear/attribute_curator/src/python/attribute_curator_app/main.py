@@ -1,9 +1,11 @@
 """Defines Attribute Curator."""
+import json
 import logging
 
 from curator.form_curator import FormCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
+from gear_execution.gear_execution import GearExecutionError
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 
 log = logging.getLogger(__name__)
@@ -29,3 +31,8 @@ def run(context: GearToolkitContext,
                           force_curate=force_curate)
 
     scheduler.apply(curator=curator, context=context)
+
+    if curator.failed_files:
+        log.error(json.dumps(curator.failed_files, indent=4))
+        raise GearExecutionError(
+            f"Failed to curate {len(curation.failed_files)} files, see above error logs")
