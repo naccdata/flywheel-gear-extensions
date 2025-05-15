@@ -124,8 +124,6 @@ def run(context: GearToolkitContext, s3_qaf_file: str, keep_fields: List[str],
     """
     baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer)
 
-    curator = RegressionCurator(sdk_client=context.get_client(),
-                                baseline=baseline,
-                                error_writer=error_writer)
+    curator = RegressionCurator(baseline=baseline, error_writer=error_writer)
 
-    scheduler.apply(curator=curator)
+    scheduler.apply(curator=curator, context=context)
