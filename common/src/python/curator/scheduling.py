@@ -57,12 +57,9 @@ class FileModel(BaseModel):
 
         pattern = (
             r"^"
-            r"(?P<pass2>.+("
-            r"_historic_apoe_genotype"
-            r")\.json)|"
             r"(?P<pass1>.+("
             r"_NP|_MDS|_MLST|"
-            r"^(?!.*historic).+apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
+            r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
             r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
             r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
