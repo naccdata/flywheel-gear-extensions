@@ -25,19 +25,18 @@ log = logging.getLogger(__name__)
 class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
-    def __init__(self,
-                 qaf_baseline: MutableMapping,
+    def __init__(self, qaf_baseline: MutableMapping,
                  mqt_baseline: MutableMapping,
                  error_writer: ListErrorWriter) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
         self.__mqt_baseline = SymbolTable(mqt_baseline)
+        self.__error_writer = error_writer
 
     def compare_baseline(self, found_vars: Dict[str, Any],
-                         record: Dict[str, Any],
-                         prefix: str) -> None:
-        """Compare derived/curated variables to the baseline. Assumes
-        both found_vars and record are flat dicts.
+                         record: Dict[str, Any], prefix: str) -> None:
+        """Compare derived/curated variables to the baseline. Assumes both
+        found_vars and record are flat dicts.
 
         Always checks found vs record, but not the other way around,
         so will not account for variables that may be missing in the
@@ -55,8 +54,7 @@ class RegressionCurator(Curator):
         # compare
         for field, value in found_vars.items():
             if field not in record:
-                log.warning(
-                    f"Field {field} not in baseline, skipping")
+                log.warning(f"Field {field} not in baseline, skipping")
                 continue
 
             # convert booleans to 0/1
@@ -72,14 +70,13 @@ class RegressionCurator(Curator):
                     identifier = f"{identifier} {record['visitdate']}"
 
                 msg = (f"{identifier} field {field}: found value {value} " +
-                       f"does not match expected value {expected}")
+                       f"does not match baseline value {expected}")
                 log.info(msg)
                 self.__error_writer.write(
-                    unexpected_value_error(
-                        field=f'{prefix}.{field}',
-                        value=value,
-                        expected=expected,
-                        message=msg))
+                    unexpected_value_error(field=f'{prefix}.{field}',
+                                           value=value,
+                                           expected=expected,
+                                           message=msg))
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
@@ -110,7 +107,7 @@ class RegressionCurator(Curator):
 
         # ensure in QAF baseline - if not affiliate, report error
         key = f'{subject.label}_{visitdate}'
-        record = self.__baseline.get(key)
+        record = self.__qaf_baseline.get(key)
         if not record:
             if 'affiliate' in subject.tags:
                 log.info(f"{subject.label} is an affiliate, skipping")

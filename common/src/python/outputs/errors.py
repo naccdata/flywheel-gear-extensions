@@ -5,7 +5,6 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Handler, Logger
-from multiprocessing import Manager
 from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date

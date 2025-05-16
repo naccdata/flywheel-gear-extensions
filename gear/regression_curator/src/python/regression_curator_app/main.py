@@ -1,7 +1,8 @@
 """Defines Regression Curator."""
 import csv
 import logging
-from typing import List, MutableMapping, Set
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
@@ -14,73 +15,133 @@ from s3.s3_client import S3BucketReader
 log = logging.getLogger(__name__)
 
 
-def localize_s3_file(s3_file: str) -> StreamingBody:
-    """Localizess the S3 file and returns the StreamingBody."""
-    log.info(f"Localizing file from {s3_qaf_file}")
-    s3_qaf_file = s3_qaf_file.strip().replace('s3://', '')
-    s3_bucket = '/'.join(s3_qaf_file.split('/')[:-1])
-    filename = s3_qaf_file.split('/')[-1]
+class BaselineLocalizer(ABC):
+    """Abstract method to handle localizing baselines from S3."""
 
-    s3_client = S3BucketReader.create_from_environment(s3_bucket)
-    if not s3_client:
-        raise GearExecutionError(f'Unable to access S3 bucket {s3_bucket}')
+    def __init__(self,
+                 s3_file: str,
+                 error_writer: ListErrorWriter,
+                 keep_fields: Optional[List[str]] = None) -> None:
+        self.s3_file = s3_file
+        self.error_writer = error_writer
+        self.keep_fields = keep_fields if keep_fields else []
 
-    # return body
-    return s3_client.get_file_object(filename)['Body']
+    def localize_s3_file(self) -> StreamingBody:
+        """Localizess the S3 file and returns the StreamingBody."""
+        log.info(f"Localizing file from {self.s3_file}")
+
+        stripped_s3_file = self.s3_file.strip().replace('s3://', '')
+        s3_parts = stripped_s3_file.split('/')
+
+        if len(s3_parts) < 2:
+            raise GearExecutionError(f"Invalid S3 key: {self.s3_file}")
+
+        s3_bucket = s3_parts[0]
+        key = '/'.join(s3_parts[1:])
+
+        s3_client = S3BucketReader.create_from_environment(s3_bucket)
+        if not s3_client:
+            raise GearExecutionError(f'Unable to access S3 bucket {s3_bucket}')
+
+        # return body
+        return s3_client.get_file_object(key)['Body']
+
+    def process_header(self, header: List[str]) -> List[str]:
+        """Process the header line. Assumes no case-sensitivity and converts
+        all to lowercase.
+
+        Args:
+            header: Header line to process
+        Returns:
+            Processed header
+        """
+        header = [x.strip().lower() for x in header]
+        missing = []
+        for required in self.keep_fields:
+            if required not in header:
+                missing.append(required)
+
+        if missing:
+            raise GearExecutionError(
+                f'Required field(s) not found in {self.s3_file} header: {missing}'
+            )
+
+        return header
+
+    def localize(self) -> Dict[str, str]:
+        """Localize the file and generate the baseline.
+
+        Returns:
+            Localized baseline as a dict
+        """
+        body = self.localize_s3_file()
+        header = None
+        baseline: Dict[str, str] = {}
+        duplicates: Set[str] = set()
+
+        # the baselines are extremely large, so stream and process by line
+        for line in body.iter_lines():
+            raw_row = line.decode('utf-8')
+
+            if not header:
+                row = next(csv.reader([raw_row]))
+                header = self.process_header(row)
+                continue
+
+            row = next(
+                csv.DictReader([raw_row], fieldnames=header, strict=True))
+            key, data = self.process_row(row)
+
+            if key in baseline:
+                duplicates.add(key)
+                msg = f"Duplicate key found in {self.s3_file}, dropping: {key}"
+                log.warning(msg)
+                self.error_writer.write(
+                    unexpected_value_error(field="naccid",
+                                           value=key,
+                                           expected="unique key",
+                                           message=msg))
+                continue
+
+            baseline[key] = data
+
+        # remove duplicates from baseline
+        for dup in duplicates:
+            baseline.pop(dup)
+
+        if not baseline:
+            raise GearExecutionError(
+                f"No usable records found in {self.s3_file}")
+
+        log.info(f"Loaded {len(baseline)} records from QAF baseline")
+        return baseline
+
+    @abstractmethod
+    def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
+        """Process the given row.
+
+        Args:
+            row: Row to process
+        Returns:
+            Tuple containing processed key and row data
+        """
+        pass
 
 
-def process_header(header: List[str], keep_fields: List[str]) -> List[str]:
-    """Process the header line.
+class QAFBaselineLocalizer(BaselineLocalizer):
+    """Class to handle localizing the QAF."""
 
-    Args:
-        header: Header line to process
-        keep_fields: Required fields in the header.
-    """
-    header = [x.lower() for x in header]
-    missing = []
-    for required in keep_fields:
-        if required not in header:
-            missing.append(required)
+    def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
+        """Process each row from the QAF. Only retains NACC* and NGDS* derived
+        variables, visitdate, and fields specified by the keep_fields
+        parameter.
 
-    if missing:
-        raise GearExecutionError(
-            f'Required fields not found in QAF header: {missing}')
-
-    # make lowercase
-    return header
-
-
-def localize_qaf(s3_qaf_file: str, keep_fields: List[str],
-                 error_writer: ListErrorWriter) -> MutableMapping:
-    """Localizes the QAF from S3 and converts to JSON. Only retains NACC* and
-    NGDS* derived variables, visitdate, and fields specified by the keep_fields
-    parameter. Assumes no case-sensitivity and converts headers to lowercase.
-
-    Args:
-        s3_qaf_file: S3 QAF file to pull baseline from
-        keep_fields: Additional fields to retain from the QAF
-        error_writer: MPListErrorWriter to write errors to
-    Returns:
-        Baseline mapping from NACCID to list of entries from the QAF
-    """
-    body = localize_s3_file(s3_qaf_file)
-    header = None
-    baseline: MutableMapping = {}
-    duplicates: Set[str] = set()
-
-    # the QAF is extremely large, so stream and process by line
-    # by only retaining a subset of fields, should help reduce size
-    for row in body.iter_lines():
-        row = row.decode('utf-8')
-
-        if not header:
-            row = next(csv.reader([row]))
-            header = process_header(row, keep_fields)
-            continue
-
-        row = next(csv.DictReader([row], fieldnames=header, strict=True))
-
-        # grab subset of fields and create visitdate
+        Args:
+            row: Row to process
+        Returns:
+            Tuple containing processed key and row data
+        """
+        # create visitdate to make unique keys
         naccid = row['naccid']
         visitdate = (f"{int(row['visityr']):04d}-" +
                      f"{int(row['visitmo']):02d}-" +
@@ -89,74 +150,37 @@ def localize_qaf(s3_qaf_file: str, keep_fields: List[str],
         row_data = {'visitdate': visitdate}
         row_data.update({
             k: v
-            for k, v in row.items()
-            if k in keep_fields or k.startswith('nacc') or k.startswith('ngds')
+            for k, v in row.items() if k in self.keep_fields
+            or k.startswith('nacc') or k.startswith('ngds')
         })
 
         key = f'{naccid}_{visitdate}'
-
-        # the duplicate situation shouldn't happen but apparently does exist in the QAF
-        # for now, drop as we can't accurately map it
-        if key in baseline:
-            msg = f"Duplicate key derived from QAF, dropping: {key}"
-            log.warning(msg)
-            error_writer.write(
-                unexpected_value_error(field="naccid",
-                                       value=key,
-                                       expected="unique key",
-                                       message=msg))
-
-            baseline.pop(key)
-            duplicates.add(key)  # in case there are triplicates or greater
-
-        if key not in duplicates:
-            baseline[key] = row_data
-
-    log.info(f"Loaded {num_records} records from QAF baseline")
-    return baseline
+        return key, row_data
 
 
-def localize_mqt(s3_mqt_file: str) -> MutableMapping:
-    """Localizes the MQT baseline from S3 and converts to JSON.
-    Assumes no case-sensitivity and converts headers to lowercase.
+class MQTBaselineLocalizer(BaselineLocalizer):
+    """Class to handle localizing the MQT."""
 
-    Args:
-        s3_mqt_file: S3 QAF file to pull baseline from
-    Returns:
-        Baseline mapping from NACCID to list of entries from the MQT project
-    """
-    body = localize_s3_file(s3_qaf_file)
-    header = None
-    baseline: MutableMapping = {}
+    def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
+        """Process each row from the MQT baseline.
 
-    # the MQT isn't as large but should also be streamed
-    # in this case we read in all the columns though
-    for row in body.iter_lines():
-        row = row.decode('utf-8')
+        Args:
+            row: Row to process
+        Returns:
+            Tuple containing processed key and row data
+        """
+        # need to convert string booleans to string 0/1s
+        for k, v in row.items():
+            if v.lower() == 'true':
+                row[k] = '1'
+            elif v.lower() == 'false':
+                row[k] = '0'
 
-        if not header:
-            row = next(csv.reader([row]))
-            header = process_header(row, keep_fields)
-            continue
-
-        row = next(csv.DictReader([row], fieldnames=header, strict=True))
-        naccid = row['naccid']
-
-        # there should only be one record for each naccid in MQT
-        if naccid in baseline:
-            raise GearExecutionError(f"Duplicate records found for {naccid}")
-
-        baseline[naccid] = row_data
-
-    log.info(f"Loaded {len(baseline)} records from MQT baseline")
-    return baseline
+        return row['naccid'], row
 
 
-def run(context: GearToolkitContext,
-        s3_qaf_file: str,
-        s3_mqt_file: str,
-        keep_fields: List[str],
-        scheduler: ProjectCurationScheduler,
+def run(context: GearToolkitContext, s3_qaf_file: str, s3_mqt_file: str,
+        keep_fields: List[str], scheduler: ProjectCurationScheduler,
         error_writer: ListErrorWriter) -> None:
     """Runs the Attribute Curator process.
 
@@ -168,15 +192,15 @@ def run(context: GearToolkitContext,
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
     """
-    qaf_baseline = localize_qaf(s3_qaf_file, keep_fields, error_writer)
-    mqt_baseline = localize_mqt(s3_mqt_file)
+    qaf_baseline = QAFBaselineLocalizer(s3_file=s3_qaf_file,
+                                        error_writer=error_writer,
+                                        keep_fields=keep_fields).localize()
 
-    if not qaf_baseline or not mqt_baseline:
-        raise GearExecutionError("No records found in QAF or MQT baselines")
+    mqt_baseline = MQTBaselineLocalizer(s3_file=s3_mqt_file,
+                                        error_writer=error_writer).localize()
 
     curator = RegressionCurator(qaf_baseline=qaf_baseline,
                                 mqt_baseline=mqt_baseline,
                                 error_writer=error_writer)
-
 
     scheduler.apply(curator=curator, context=context)

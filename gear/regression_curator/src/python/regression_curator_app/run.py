@@ -73,7 +73,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         for file in [s3_qaf_file, s3_mqt_file]:
             if not file:
-                raise GearExecutionError("Required baseline file (QAF/MQT) missing")
+                raise GearExecutionError(
+                    "Required baseline file (QAF/MQT) missing")
 
         keep_fields = parse_string_to_list(
             context.config.get('keep_fields', ''))

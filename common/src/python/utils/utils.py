@@ -1,6 +1,6 @@
 """Utility functions."""
 import logging
-from typing import Any, Dict, List, MutableMapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional, Tuple
 
 from configs.ingest_configs import FormProjectConfigs
 from flywheel.models.file_entry import FileEntry
@@ -79,7 +79,7 @@ def load_form_ingest_configurations(
 def flatten_dict(dictionary: MutableMapping,
                  parent_key: str = '',
                  separator: str = '.') -> Dict[str, Any]:
-    """Flattens a dictionary recursively
+    """Flattens a dictionary recursively.
 
     Args:
         dictionary: Dict to flatten
@@ -89,11 +89,12 @@ def flatten_dict(dictionary: MutableMapping,
     Returns:
         Flattened dict
     """
-    items = []
+    items: List[Tuple[str, Any]] = []
     for key, value in dictionary.items():
         new_key = parent_key + separator + key if parent_key else key
         if isinstance(value, MutableMapping):
-            items.extend(flatten_dict(value, new_key, separator=separator).items())
+            items.extend(
+                flatten_dict(value, new_key, separator=separator).items())
         else:
             items.append((new_key, value))
     return dict(items)
