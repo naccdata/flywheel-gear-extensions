@@ -6,6 +6,7 @@ Baseline is a dict mapping each NACCID to a list of dicts containing the
 QAF derived values for a given form/visit (e.g. any fields that start
 with NACC or key values such as as visit date.)
 """
+import ast  # type: ignore
 import logging
 from typing import Any, Dict, MutableMapping
 
@@ -32,6 +33,34 @@ class RegressionCurator(Curator):
         self.__qaf_baseline = SymbolTable(qaf_baseline)
         self.__mqt_baseline = SymbolTable(mqt_baseline)
         self.__error_writer = error_writer
+
+    def compare_as_lists(self, value: str, expected: str) -> bool:
+        """Checks if the values look like lists; if so, compare as sets to
+        ignore ordering.
+
+        Args:
+            value: Value to compare
+            expected: Expected value to compare
+        Returns:
+            False if they are not both lists or still do not match
+        """
+        # check if they look like lists just based on brackets
+        if not all(
+                x.startswith('[') and x.endswith(']')
+                for x in [value, expected]):
+            return False
+
+        # try to literal_eval as lists, and check they are in fact lists
+        expected_as_list = ast.literal_eval(expected)
+        value_as_list = ast.literal_eval(value)
+
+        if not all(
+                isinstance(x, list)
+                for x in [value_as_list, expected_as_list]):
+            return False
+
+        # compare as sets
+        return set(value_as_list) == set(expected_as_list)
 
     def compare_baseline(self, found_vars: Dict[str, Any],
                          record: Dict[str, Any], prefix: str) -> None:
@@ -61,10 +90,12 @@ class RegressionCurator(Curator):
             if isinstance(value, bool):
                 value = int(value)
 
-            # compare as strings for simplicity
             value = str(value)
             expected = str(record[field])
-            if value != expected:
+            result = (value == expected) or self.compare_as_lists(
+                value, expected)
+
+            if not result:
                 identifier = record["naccid"]
                 if prefix.startswith('file'):
                     identifier = f"{identifier} {record['visitdate']}"
