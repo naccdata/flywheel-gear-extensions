@@ -30,13 +30,19 @@ log = logging.getLogger(__name__)
 class RegressionCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the Regression Curator gear."""
 
-    def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
-                 s3_qaf_file: str, keep_fields: List[str],
-                 filename_pattern: str, error_outfile: str,
-                 blacklist_file: Optional[InputFileWrapper]):
+    def __init__(self,
+                 client: ClientWrapper,
+                 project: ProjectAdaptor,
+                 s3_qaf_file: str,
+                 s3_mqt_file: str,
+                 keep_fields: List[str],
+                 filename_pattern: str,
+                 error_outfile: str,
+                 blacklist_file: Optional[InputFileWrapper] = None):
         super().__init__(client=client)
         self.__project = project
         self.__s3_qaf_file = s3_qaf_file
+        self.__s3_mqt_file = s3_mqt_file
         self.__keep_fields = keep_fields
         self.__filename_pattern = filename_pattern
         self.__error_outfile = error_outfile
@@ -63,8 +69,12 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                                       parameter_store=parameter_store)
 
         s3_qaf_file = context.config.get("s3_qaf_file", None)
-        if not s3_qaf_file:
-            raise GearExecutionError("s3_qaf_file required")
+        s3_mqt_file = context.config.get("s3_mqt_file", None)
+
+        for file in [s3_qaf_file, s3_mqt_file]:
+            if not file:
+                raise GearExecutionError(
+                    "Required baseline file (QAF/MQT) missing")
 
         keep_fields = parse_string_to_list(
             context.config.get('keep_fields', ''))
@@ -83,6 +93,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         return RegressionCuratorVisitor(client=client,
                                         project=project,
                                         s3_qaf_file=s3_qaf_file,
+                                        s3_mqt_file=s3_mqt_file,
                                         keep_fields=keep_fields,
                                         filename_pattern=filename_pattern,
                                         error_outfile=error_outfile,
@@ -114,6 +125,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         run(context=context,
             s3_qaf_file=self.__s3_qaf_file,
+            s3_mqt_file=self.__s3_mqt_file,
             keep_fields=self.__keep_fields,
             scheduler=scheduler,
             error_writer=error_writer)
