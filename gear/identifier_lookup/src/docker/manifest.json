@@ -34,6 +34,15 @@
                     "tabular data"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -56,11 +65,6 @@
             "description": "The instance specific AWS parameter gearbot path prefix",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
-        },
-        "date_field": {
-            "description": "Variable name of the visit date field for the module",
-            "type": "string",
-            "default": "visitdate"
         },
         "direction": {
             "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",

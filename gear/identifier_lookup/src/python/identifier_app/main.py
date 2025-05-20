@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, TextIO
 
+from configs.ingest_configs import ModuleConfigs
 from enrollment.enrollment_transfer import CenterValidator
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -38,8 +39,8 @@ class NACCIDLookupVisitor(CSVVisitor):
                  identifiers: Dict[str, IdentifierObject],
                  output_file: TextIO,
                  module_name: str,
+                 module_configs: ModuleConfigs,
                  error_writer: ListErrorWriter,
-                 date_field: str,
                  gear_name: str,
                  project: Optional[ProjectAdaptor] = None) -> None:
         """
@@ -48,8 +49,8 @@ class NACCIDLookupVisitor(CSVVisitor):
             identifiers: the map from PTID to Identifier object
             output_file: the data output stream
             module_name: the module name for the form
+            module_configs: form ingest configurations for the module
             error_writer: the error output writer
-            date_field: visit date field for the module
             gear_name: gear name
             project: Flywheel project adaptor
         """
@@ -57,19 +58,16 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__module_name = module_name
-        self.__date_field = date_field
+        self.__module_configs = module_configs
         self.__project = project
         self.__gear_name = gear_name
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
         self.__validator = CenterValidator(center_id=adcid,
                                            error_writer=error_writer)
-        self.__req_fields = {
-            FieldNames.PTID, FieldNames.ADCID, self.__date_field
-        }
         self.__error_log_template = {
             "ptid": FieldNames.PTID,
-            "visitdate": self.__date_field
+            "visitdate": self.__module_configs.date_field
         }
 
     def __get_writer(self) -> CSVWriter:
@@ -97,9 +95,11 @@ class NACCIDLookupVisitor(CSVVisitor):
           True if required fields occur in the header, False otherwise
         """
 
-        if not self.__req_fields.issubset(set(header)):
-            self.__error_writer.write(missing_field_error(self.__req_fields))
-            return False
+        if self.__module_configs.required_fields:
+            req_fields = set(self.__module_configs.required_fields)
+            if not req_fields.issubset(set(header)):
+                self.__error_writer.write(missing_field_error(req_fields))
+                return False
 
         self.__header = header
         self.__header.append(FieldNames.NACCID)
@@ -182,7 +182,7 @@ class NACCIDLookupVisitor(CSVVisitor):
                 reset_metadata=True):
             raise GearExecutionError(
                 'Failed to update error log for visit '
-                f'{input_record[FieldNames.PTID]}, {input_record[self.__date_field]}'
+                f'{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}'
             )
 
 
