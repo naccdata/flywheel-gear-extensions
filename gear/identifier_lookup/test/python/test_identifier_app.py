@@ -4,6 +4,7 @@ from io import StringIO
 from typing import Any, List
 
 import pytest
+from configs.ingest_configs import ModuleConfigs
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from outputs.errors import ListErrorWriter
@@ -55,9 +56,10 @@ def no_ids_stream():
 @pytest.fixture(scope="function")
 def data_stream():
     """Create valid data stream with header row."""
-    data: List[List[str | int]] = [['adcid', 'ptid', 'visitdate', 'var1'],
-                                   [1, '1', '2024-12-31', 8],
-                                   [1, '2', '2024-12-31', 99]]
+    data: List[List[str | int]] = [[
+        'adcid', 'ptid', 'visitdate', 'visitnum', 'packet', 'formver', 'var1'
+    ], [1, '1', '2024-12-31', '1', 'I', '4.0', 8],
+                                   [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     stream.seek(0)
@@ -107,7 +109,52 @@ def empty(stream) -> bool:
     return not bool(stream.readline())
 
 
+def uds_ingest_configs() -> ModuleConfigs:
+    """Create form ingest configs for UDS module."""
+    module_configs = {
+        "naming_templates": {
+            "session": {
+                "template": "FORMS-VISIT-${visitnum}",
+                "transform": "upper"
+            },
+            "acquisition": {
+                "template": "${module}",
+                "transform": "upper"
+            },
+            "filename": {
+                "template": "${subject}_${session}_${module}.json",
+                "transform": "upper"
+            },
+            "errorlog": {
+                "template": "${ptid}_${visitdate}_${module}_qc-status.log"
+            }
+        },
+        "required_fields":
+        ["ptid", "adcid", "visitnum", "visitdate", "packet", "formver"],
+        "initial_packets": ["I", "I4"],
+        "followup_packets": ["F"],
+        "versions": ["4.0"],
+        "date_field":
+        "visitdate",
+        "legacy_module":
+        "UDS",
+        "legacy_date":
+        "visitdate",
+        "optional_forms": {
+            "4.0": {
+                "I": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
+                "I4": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
+                "F": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"]
+            }
+        }
+    }
+
+    return ModuleConfigs.model_validate(module_configs)
+
+
 # pylint: disable=no-self-use,redefined-outer-name
+
+
 class TestIdentifierLookup:
     """Tests for the identifier-lookup-gear app."""
 
@@ -123,8 +170,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -143,8 +190,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -163,8 +210,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -183,8 +230,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert success
@@ -212,8 +259,8 @@ class TestIdentifierLookup:
                           adcid=1,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
