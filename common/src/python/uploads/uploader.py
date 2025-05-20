@@ -25,9 +25,8 @@ from outputs.errors import (
     update_error_log_and_qc_metadata,
 )
 from pydantic import BaseModel, Field
-from utils.utils import update_file_info_metadata
 
-from uploads.acquisition import upload_to_acquisition
+from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -96,6 +95,7 @@ class UploadTemplateInfo(BaseModel):
     session: LabelTemplate
     acquisition: LabelTemplate
     filename: LabelTemplate
+    errorlog: Optional[LabelTemplate] = None
 
 
 class JSONUploader:
