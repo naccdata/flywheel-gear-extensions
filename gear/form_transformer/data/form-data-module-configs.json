@@ -8,6 +8,31 @@
     "legacy_project_label": "retrospective-form",
     "module_configs": {
         "UDS": {
+            "naming_templates": {
+                "session": {
+                    "template": "FORMS-VISIT-${visitnum}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${module}.json",
+                    "transform": "upper"
+                },
+                "errorlog": {
+                    "template": "${ptid}_${visitdate}_${module}_qc-status.log"
+                }
+            },
+            "required_fields": [
+                "ptid",
+                "adcid",
+                "visitnum",
+                "visitdate",
+                "packet",
+                "formver"
+            ],
             "initial_packets": [
                 "I",
                 "I4"

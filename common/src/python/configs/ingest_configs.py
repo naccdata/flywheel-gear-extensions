@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from keys.keys import DefaultValues
 from pydantic import BaseModel, RootModel
+from uploads.uploader import UploadTemplateInfo
 
 
 class OptionalFormsConfigs(RootModel):
@@ -39,6 +40,8 @@ class ModuleConfigs(BaseModel):
     followup_packets: List[str]
     versions: List[str]
     date_field: str
+    naming_templates: UploadTemplateInfo
+    required_fields: Optional[List[str]] = None
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
