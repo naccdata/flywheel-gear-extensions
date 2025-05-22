@@ -6,6 +6,7 @@ import sys
 from json.decoder import JSONDecodeError
 from typing import Dict, Optional
 
+from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
@@ -21,7 +22,6 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterError, ParameterStore
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
-from uploads.uploader import UploadTemplateInfo
 
 from csv_app.main import run
 

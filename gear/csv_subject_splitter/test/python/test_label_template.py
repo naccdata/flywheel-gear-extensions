@@ -1,4 +1,4 @@
-from uploads.uploader import LabelTemplate
+from configs.ingest_configs import LabelTemplate
 
 
 class TestLabelTemplate:
