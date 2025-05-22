@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, TextIO
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
 from enrollment.enrollment_transfer import CenterValidator
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -65,10 +65,6 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__writer: Optional[CSVWriter] = None
         self.__validator = CenterValidator(center_id=adcid,
                                            error_writer=error_writer)
-        self.__error_log_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": self.__module_configs.date_field
-        }
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -166,10 +162,15 @@ class NACCIDLookupVisitor(CSVVisitor):
                 'Parent project not specified to upload visit error log')
             return
 
+        errorlog_template = (self.__module_configs.errorlog_template
+                             if self.__module_configs.errorlog_template else
+                             ErrorLogTemplate(
+                                 id_field=FieldNames.PTID,
+                                 date_field=self.__module_configs.date_field))
         error_log_name = get_error_log_name(
             module=self.__module_name,
             input_data=input_record,
-            naming_template=self.__error_log_template)
+            errorlog_template=errorlog_template)
 
         # This is first gear in pipeline validating individual rows
         # therefore, clear metadata from previous runs `reset_metadata=True`

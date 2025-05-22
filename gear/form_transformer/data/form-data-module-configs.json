@@ -8,7 +8,7 @@
     "legacy_project_label": "retrospective-form",
     "module_configs": {
         "UDS": {
-            "naming_templates": {
+            "hierarchy_labels": {
                 "session": {
                     "template": "FORMS-VISIT-${visitnum}",
                     "transform": "upper"
@@ -20,10 +20,13 @@
                 "filename": {
                     "template": "${subject}_${session}_${module}.json",
                     "transform": "upper"
-                },
-                "errorlog": {
-                    "template": "${ptid}_${visitdate}_${module}_qc-status.log"
                 }
+            },
+            "errorlog_template": {
+                "id_field": "ptid",
+                "date_field": "visitdate",
+                "suffix": "qc-status",
+                "extension": "log"
             },
             "required_fields": [
                 "ptid",

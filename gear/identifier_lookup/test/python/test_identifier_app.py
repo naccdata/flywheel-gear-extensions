@@ -59,7 +59,7 @@ def data_stream():
     data: List[List[str | int]] = [[
         'adcid', 'ptid', 'visitdate', 'visitnum', 'packet', 'formver', 'var1'
     ], [1, '1', '2024-12-31', '1', 'I', '4.0', 8],
-                                   [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
+        [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     stream.seek(0)
@@ -112,7 +112,7 @@ def empty(stream) -> bool:
 def uds_ingest_configs() -> ModuleConfigs:
     """Create form ingest configs for UDS module."""
     module_configs = {
-        "naming_templates": {
+        "hierarchy_labels": {
             "session": {
                 "template": "FORMS-VISIT-${visitnum}",
                 "transform": "upper"
@@ -124,9 +124,6 @@ def uds_ingest_configs() -> ModuleConfigs:
             "filename": {
                 "template": "${subject}_${session}_${module}.json",
                 "transform": "upper"
-            },
-            "errorlog": {
-                "template": "${ptid}_${visitdate}_${module}_qc-status.log"
             }
         },
         "required_fields":

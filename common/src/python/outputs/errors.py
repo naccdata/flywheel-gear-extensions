@@ -7,6 +7,7 @@ from datetime import datetime as dt
 from logging import Handler, Logger
 from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
+from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
 from flywheel.rest import ApiException
@@ -530,27 +531,24 @@ def get_error_log_name(
         *,
         module: str,
         input_data: Dict[str, Any],
-        naming_template: Optional[Dict[str, str]] = None) -> Optional[str]:
+        errorlog_template: Optional[ErrorLogTemplate] = None) -> Optional[str]:
     """Derive error log name based on visit data.
 
     Args:
         module: module label
         input_data: input visit record
-        naming_template (optional): error log naming template for module
+        errorlog_template (optional): error log naming template for module
 
     Returns:
         str (optional): error log name or None
     """
 
-    if not naming_template:
-        naming_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": FieldNames.DATE_COLUMN
-        }
+    if not errorlog_template:
+        errorlog_template = ErrorLogTemplate(id_field=FieldNames.PTID,
+                                             date_field=FieldNames.DATE_COLUMN)
 
-    ptid = input_data.get(naming_template.get('ptid', FieldNames.PTID))
-    visitdate = input_data.get(
-        naming_template.get('visitdate', FieldNames.DATE_COLUMN))
+    ptid = input_data.get(errorlog_template.id_field)
+    visitdate = input_data.get(errorlog_template.date_field)
 
     if not ptid or not visitdate:
         return None
@@ -560,4 +558,6 @@ def get_error_log_name(
     if not normalized_date:
         return None
 
-    return f'{ptid}_{normalized_date}_{module.lower()}_qc-status.log'
+    return (
+        f'{ptid}_{normalized_date}_{module.lower()}_{errorlog_template.suffix}.{errorlog_template.extension}'
+    )

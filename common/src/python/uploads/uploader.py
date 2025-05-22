@@ -1,11 +1,10 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
-from string import Template
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 import yaml
+from configs.ingest_configs import UploadTemplateInfo
 from flywheel.file_spec import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
@@ -24,7 +23,6 @@ from outputs.errors import (
     system_error,
     update_error_log_and_qc_metadata,
 )
-from pydantic import BaseModel, Field
 
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
 
@@ -34,68 +32,6 @@ log = logging.getLogger(__name__)
 class VisitMapping(TypedDict):
     subject: SubjectAdaptor
     visits: ParticipantVisits
-
-
-class LabelTemplate(BaseModel):
-    """Defines a string template object for generating labels using input data
-    from file records."""
-    template: str
-    transform: Optional[Literal['upper', 'lower']] = Field(default=None)
-    delimiter: Optional[str] = Field(default=None)
-
-    def instantiate(self,
-                    record: Dict[str, Any],
-                    *,
-                    environment: Optional[Dict[str, Any]] = None) -> str:
-        """Instantiates the template using the data from the record matching
-        the variables in the template. Converts the generated label to upper or
-        lower case if indicated for the template.
-
-        Args:
-          record: data record
-          env: environment variable settings
-        Returns:
-          the result of substituting values from the record.
-        Raises:
-          ValueError if a variable in the template does not occur in the record
-        """
-        result = self.template
-        try:
-            result = Template(self.template).substitute(record)
-        except KeyError as error:
-            if not environment:
-                raise ValueError(
-                    f"Error creating label, missing column {error}") from error
-
-        if environment:
-            try:
-                result = Template(result).substitute(environment)
-            except KeyError as error:
-                raise ValueError(
-                    f"Error creating label, missing column {error}") from error
-
-        if self.delimiter:
-            result = result.replace(' ', self.delimiter)
-
-        if self.transform == 'lower':
-            return result.lower()
-
-        if self.transform == 'upper':
-            # for filenames need to be careful about not
-            # upper-casing the extension; can use pathlib
-            # even if it's not actually a file
-            file = Path(result)
-            return file.stem.upper() + file.suffix
-
-        return result
-
-
-class UploadTemplateInfo(BaseModel):
-    """Defines model for label template input."""
-    session: LabelTemplate
-    acquisition: LabelTemplate
-    filename: LabelTemplate
-    errorlog: Optional[LabelTemplate] = None
 
 
 class JSONUploader:
