@@ -137,8 +137,10 @@ class QCCoordinator():
 
         error_log_name = get_error_log_name(module=self.__module,
                                             input_data={
-                                                'ptid': ptid,
-                                                'visitdate': visitdate
+                                                f'{FieldNames.PTID}':
+                                                ptid,
+                                                f'{FieldNames.DATE_COLUMN}':
+                                                visitdate
                                             })
 
         project = self.__proxy.get_project_by_id(

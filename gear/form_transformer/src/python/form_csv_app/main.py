@@ -4,10 +4,9 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, SysErrorCodes
 from outputs.errors import (
@@ -53,19 +52,19 @@ class CSVTransformVisitor(CSVVisitor):
         self.__transformer: Optional[BaseRecordTransformer] = None
 
         self.__date_field = self.__module_configs.date_field
-        # TODO - set required fields in module configs template
-        self.__req_fields = [
-            self.__id_column, self.__date_field, FieldNames.MODULE,
-            FieldNames.VISITNUM, FieldNames.FORMVER
-        ]
-        if self.__id_column != FieldNames.PTID:
-            self.__req_fields.append(FieldNames.PTID)
 
-        # TODO - set this in module configs template
-        self.__error_log_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": self.__date_field
-        }
+        self.__req_fields = self.__module_configs.required_fields
+        if self.__id_column not in self.__req_fields:
+            self.__req_fields.append(self.__id_column)
+        if FieldNames.MODULE not in self.__req_fields:
+            self.__req_fields.append(FieldNames.MODULE)
+        if self.__date_field not in self.__req_fields:
+            self.__req_fields.append(self.__date_field)
+
+        self.__errorlog_template = (
+            self.__module_configs.errorlog_template
+            if self.__module_configs.errorlog_template else ErrorLogTemplate(
+                id_field=FieldNames.PTID, date_field=self.__date_field))
 
         self.__existing_visits: DefaultDict[str, List[Dict[
             str, Any]]] = defaultdict(list)
@@ -102,10 +101,6 @@ class CSVTransformVisitor(CSVVisitor):
                 missing_field_error(set(self.__req_fields)))
             return False
 
-        if FieldNames.MODULE not in header:
-            raise GearExecutionError(
-                'Module information not found in the input file')
-
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
@@ -125,7 +120,7 @@ class CSVTransformVisitor(CSVVisitor):
         found_all = True
         empty_fields = set()
         for field in self.__req_fields:
-            if field not in row or not row[field]:
+            if row.get(field) is None:
                 empty_fields.add(field)
                 found_all = False
 
@@ -338,7 +333,7 @@ class CSVTransformVisitor(CSVVisitor):
         error_log_name = get_error_log_name(
             module=self.module,
             input_data=input_record,
-            naming_template=self.__error_log_template)
+            errorlog_template=self.__errorlog_template)
 
         if not update or not error_log_name:
             return error_log_name
@@ -383,7 +378,7 @@ class CSVTransformVisitor(CSVVisitor):
         error_log_name = get_error_log_name(
             module=self.module,
             input_data=input_record,
-            naming_template=self.__error_log_template)
+            errorlog_template=self.__errorlog_template)
 
         if not error_log_name:
             return False

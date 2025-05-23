@@ -110,7 +110,7 @@ class ModuleConfigs(BaseModel):
     versions: List[str]
     date_field: str
     hierarchy_labels: UploadTemplateInfo
-    required_fields: Optional[List[str]] = None
+    required_fields: List[str]
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
     supplement_module: Optional[SupplementModuleConfigs] = None

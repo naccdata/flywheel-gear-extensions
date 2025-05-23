@@ -223,6 +223,7 @@ def run(  # noqa: C901
                                            date_field=date_field,
                                            project=project_adaptor,
                                            error_writer=error_writer,
+                                           form_configs=form_project_configs,
                                            gear_name=gear_name,
                                            supplement_data=supplement_record)
     else:  # For enrollment form processing
@@ -231,10 +232,10 @@ def run(  # noqa: C901
                                           date_field=date_field,
                                           project=project_adaptor,
                                           error_writer=error_writer,
+                                          form_configs=form_project_configs,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(
-        input_wrapper=input_wrapper, form_configs=form_project_configs)
+    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,

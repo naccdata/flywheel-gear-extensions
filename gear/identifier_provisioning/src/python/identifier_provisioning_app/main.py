@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
 
+from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
@@ -43,14 +44,14 @@ from pydantic import ValidationError
 log = logging.getLogger(__name__)
 
 
-def update_record_level_error_log(*,
-                                  input_record: Dict[str, Any],
-                                  qc_passed: bool,
-                                  project: ProjectAdaptor,
-                                  gear_name: str,
-                                  errors: MutableSequence[Dict[str, Any]],
-                                  naming_template: Optional[Dict[str,
-                                                                 str]] = None):
+def update_record_level_error_log(
+        *,
+        input_record: Dict[str, Any],
+        qc_passed: bool,
+        project: ProjectAdaptor,
+        gear_name: str,
+        errors: MutableSequence[Dict[str, Any]],
+        errorlog_template: Optional[ErrorLogTemplate] = None):
     """Update error log file for the visit and store error metadata in
     file.info.qc.
 
@@ -60,15 +61,19 @@ def update_record_level_error_log(*,
         project: Flywheel project adaptor
         gear_name: gear that generated errors
         errors: list of error objects, expected to be JSON dicts
-        naming_template (optional): error log naming template for module
+        errorlog_template (optional): error log naming template for module
 
     Returns:
         bool: True if error log updated successfully, else False
     """
 
+    if not errorlog_template:
+        errorlog_template = ErrorLogTemplate(
+            id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE)
+
     error_log_name = get_error_log_name(module=DefaultValues.ENROLLMENT_MODULE,
                                         input_data=input_record,
-                                        naming_template=naming_template)
+                                        errorlog_template=errorlog_template)
 
     if not error_log_name or not update_error_log_and_qc_metadata(
             error_log_name=error_log_name,
@@ -451,10 +456,6 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer, repo=repo, transfer_info=transfer_info)
         self.__validator = CenterValidator(center_id=center_id,
                                            error_writer=error_writer)
-        self.__error_log_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": FieldNames.ENRLFRM_DATE
-        }
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares visitor to work with CSV file with given header.
@@ -500,8 +501,7 @@ class ProvisioningVisitor(CSVVisitor):
                     qc_passed=False,
                     project=self.__project,
                     gear_name=self.__gear_name,
-                    errors=self.__error_writer.errors(),
-                    naming_template=self.__error_log_template)
+                    errors=self.__error_writer.errors())
                 return False
 
             if is_new_enrollment(row):
@@ -513,8 +513,7 @@ class ProvisioningVisitor(CSVVisitor):
                         qc_passed=False,
                         project=self.__project,
                         gear_name=self.__gear_name,
-                        errors=self.__error_writer.errors(),
-                        naming_template=self.__error_log_template)
+                        errors=self.__error_writer.errors())
                 return success
         except IdentifierRepositoryError as error:
             message = (
@@ -526,26 +525,22 @@ class ProvisioningVisitor(CSVVisitor):
                                  field=FieldNames.PTID,
                                  value=row[FieldNames.PTID],
                                  line=line_num))
-            update_record_level_error_log(
-                input_record=row,
-                qc_passed=False,
-                project=self.__project,
-                gear_name=self.__gear_name,
-                errors=self.__error_writer.errors(),
-                naming_template=self.__error_log_template)
+            update_record_level_error_log(input_record=row,
+                                          qc_passed=False,
+                                          project=self.__project,
+                                          gear_name=self.__gear_name,
+                                          errors=self.__error_writer.errors())
             return False
 
         # No further processing implemented for transfers, so update visit level log
         # TODO - need to change when processing transfers implemented
         success = self.__transfer_in_visitor.visit_row(row=row,
                                                        line_num=line_num)
-        update_record_level_error_log(
-            input_record=row,
-            qc_passed=success,
-            project=self.__project,
-            gear_name=self.__gear_name,
-            errors=self.__error_writer.errors(),
-            naming_template=self.__error_log_template)
+        update_record_level_error_log(input_record=row,
+                                      qc_passed=success,
+                                      project=self.__project,
+                                      gear_name=self.__gear_name,
+                                      errors=self.__error_writer.errors())
         return success
 
 

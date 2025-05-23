@@ -4,10 +4,10 @@ from io import StringIO
 from typing import Any, List
 
 import pytest
-from configs.ingest_configs import ModuleConfigs
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from outputs.errors import ListErrorWriter
+from test_mocks.mock_configs import uds_ingest_configs
 
 
 @pytest.fixture(scope="function")
@@ -59,7 +59,7 @@ def data_stream():
     data: List[List[str | int]] = [[
         'adcid', 'ptid', 'visitdate', 'visitnum', 'packet', 'formver', 'var1'
     ], [1, '1', '2024-12-31', '1', 'I', '4.0', 8],
-        [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
+                                   [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     stream.seek(0)
@@ -107,46 +107,6 @@ def empty(stream) -> bool:
     """
     stream.seek(0)
     return not bool(stream.readline())
-
-
-def uds_ingest_configs() -> ModuleConfigs:
-    """Create form ingest configs for UDS module."""
-    module_configs = {
-        "hierarchy_labels": {
-            "session": {
-                "template": "FORMS-VISIT-${visitnum}",
-                "transform": "upper"
-            },
-            "acquisition": {
-                "template": "${module}",
-                "transform": "upper"
-            },
-            "filename": {
-                "template": "${subject}_${session}_${module}.json",
-                "transform": "upper"
-            }
-        },
-        "required_fields":
-        ["ptid", "adcid", "visitnum", "visitdate", "packet", "formver"],
-        "initial_packets": ["I", "I4"],
-        "followup_packets": ["F"],
-        "versions": ["4.0"],
-        "date_field":
-        "visitdate",
-        "legacy_module":
-        "UDS",
-        "legacy_date":
-        "visitdate",
-        "optional_forms": {
-            "4.0": {
-                "I": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
-                "I4": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
-                "F": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"]
-            }
-        }
-    }
-
-    return ModuleConfigs.model_validate(module_configs)
 
 
 # pylint: disable=no-self-use,redefined-outer-name

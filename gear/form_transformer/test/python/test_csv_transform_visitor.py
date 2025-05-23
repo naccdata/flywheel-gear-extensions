@@ -3,7 +3,6 @@ checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from configs.ingest_configs import ModuleConfigs
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
 from outputs.errors import (
@@ -12,6 +11,7 @@ from outputs.errors import (
     preprocess_errors,
 )
 from preprocess.preprocessor import FormPreprocessor
+from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_flywheel import MockProject
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
@@ -61,13 +61,7 @@ def create_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     # just use UDS for testing
-    module_configs = ModuleConfigs(initial_packets=['I', 'I4'],
-                                   followup_packets=['F'],
-                                   versions=['4.0'],
-                                   date_field=DATE_FIELD,
-                                   legacy_module=DefaultValues.UDS_MODULE,
-                                   legacy_date=DATE_FIELD)
-
+    module_configs = uds_ingest_configs()
     form_store = MockFormsStore(date_field=DATE_FIELD)
     project = MockProject()
 
@@ -94,8 +88,9 @@ def create_visitor(
     # have the visitor visit the header already so
     # individual tests don't have to do it
     assert visitor.visit_header([
-        'naccid', DATE_FIELD, FieldNames.MODULE, FieldNames.VISITNUM,
-        FieldNames.FORMVER, FieldNames.PTID
+        FieldNames.NACCID, DATE_FIELD, FieldNames.MODULE, FieldNames.VISITNUM,
+        FieldNames.FORMVER, FieldNames.PTID, FieldNames.ADCID,
+        FieldNames.PACKET
     ])
     assert not error_writer.errors()
 
@@ -115,7 +110,15 @@ def create_record(data: Dict[str, Any]):
         FieldNames.VISITNUM: '1',
         FieldNames.PACKET: 'I',
         FieldNames.PTID: 'dummy-ptid',
+        FieldNames.ADCID: 0,
         DATE_FIELD: '2025-01-01',
+        'modea1a': 0,
+        'modea2': 0,
+        'modeb1': 0,
+        'modeb3': 0,
+        'modeb5': 0,
+        'modeb6': 0,
+        'modeb7': 0,
         'dummy': 'dummy_val'
     }
 
