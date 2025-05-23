@@ -79,7 +79,16 @@
                         "b7"
                     ]
                 }
-            }
+            },
+            "preprocess_checks": [
+                "duplicate-record",
+                "version",
+                "packet",
+                "optional-forms",
+                "ivp",
+                "udsv4-ivp",
+                "visit-conflict"
+            ]
         },
         "LBD": {
             "initial_packets": [

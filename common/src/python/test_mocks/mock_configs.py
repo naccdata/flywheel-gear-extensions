@@ -37,7 +37,11 @@ def uds_ingest_configs() -> ModuleConfigs:
                 "I4": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
                 "F": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"]
             }
-        }
+        },
+        "preprocess_checks": [
+            "duplicate-record", "version", "packet", "optional-forms", "ivp",
+            "udsv4-ivp", "visit-conflict"
+        ]
     }
 
     return ModuleConfigs.model_validate(module_configs)

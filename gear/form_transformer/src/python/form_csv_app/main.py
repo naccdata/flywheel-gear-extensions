@@ -8,7 +8,7 @@ from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
-from keys.keys import FieldNames, SysErrorCodes
+from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
 from outputs.errors import (
     ListErrorWriter,
     empty_field_error,
@@ -150,8 +150,11 @@ class CSVTransformVisitor(CSVVisitor):
         # if existing visit add to duplicate visit list and skip processing further
         # error logs will be updated later when processing the list of duplicates
         subject_lbl = transformed_row[self.__id_column]
-        if self.__preprocessor.is_existing_visit(input_record=transformed_row,
-                                                 module=self.module):
+        if (self.__module_configs.preprocess_checks
+                and PreprocessingChecks.DUPLICATE_RECORD
+                in self.__module_configs.preprocess_checks
+                and self.__preprocessor.is_existing_visit(
+                    input_record=transformed_row, module=self.module)):
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
 
@@ -199,6 +202,7 @@ class CSVTransformVisitor(CSVVisitor):
             prev_visit_nums = []
             for visitdate, list_visits in sorted_visits:
                 self.__error_writer.clear()
+                is_ivp = False
 
                 # report duplicate visits within current batch
                 if len(list_visits) > 1:
@@ -210,29 +214,34 @@ class CSVTransformVisitor(CSVVisitor):
                 line_num = list_visits[0].pop('linenumber')
                 transformed_row = list_visits[0]
 
-                is_ivp = transformed_row[
-                    FieldNames.PACKET] in self.__module_configs.initial_packets
-                visit_num = transformed_row[FieldNames.VISITNUM]
+                if (self.__module_configs.preprocess_checks
+                        and PreprocessingChecks.VISIT_CONFLICT
+                        in self.__module_configs.preprocess_checks):
+                    is_ivp = transformed_row[
+                        FieldNames.
+                        PACKET] in self.__module_configs.initial_packets
+                    visit_num = transformed_row[FieldNames.VISITNUM]
 
-                # check the validity of visit numbers within current batch
-                if visit_num not in prev_visit_nums:
-                    prev_visit_nums.append(visit_num)
-                else:
-                    self.__error_writer.write(
-                        preprocessing_error(
-                            field=FieldNames.VISITNUM,
-                            value=visit_num,
-                            line=line_num,
-                            error_code=SysErrorCodes.DIFF_VISITDATE,
-                            ptid=transformed_row[FieldNames.PTID],
-                            visitnum=visit_num))
-                    success = False
-                    self.__update_visit_error_log(input_record=transformed_row,
-                                                  qc_passed=False)
-                    log.error(
-                        'Duplicate visit numbers in current batch for %s:%s:%s',
-                        transformed_row[FieldNames.PTID], visitdate, visit_num)
-                    continue
+                    # check the validity of visit numbers within current batch
+                    if visit_num not in prev_visit_nums:
+                        prev_visit_nums.append(visit_num)
+                    else:
+                        self.__error_writer.write(
+                            preprocessing_error(
+                                field=FieldNames.VISITNUM,
+                                value=visit_num,
+                                line=line_num,
+                                error_code=SysErrorCodes.DIFF_VISITDATE,
+                                ptid=transformed_row[FieldNames.PTID],
+                                visitnum=visit_num))
+                        success = False
+                        self.__update_visit_error_log(
+                            input_record=transformed_row, qc_passed=False)
+                        log.error(
+                            'Duplicate visit numbers in current batch for %s:%s:%s',
+                            transformed_row[FieldNames.PTID], visitdate,
+                            visit_num)
+                        continue
 
                 if not self.__preprocessor.preprocess(
                         input_record=transformed_row,
@@ -490,7 +499,7 @@ class CSVTransformVisitor(CSVVisitor):
         input_record = None
         for record in duplicate_records:
             input_record = record
-            packet = record[FieldNames.PACKET]
+            packet = record.get(FieldNames.PACKET)
             visitdate = record[self.__date_field]
             line_num = record.pop('linenumber', None)
             log.error('%s - %s/%s/%s/%s',
@@ -501,8 +510,8 @@ class CSVTransformVisitor(CSVVisitor):
                                     value=visitdate,
                                     line=line_num,
                                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                                    ptid=record[FieldNames.PTID],
-                                    visitnum=record[FieldNames.VISITNUM]))
+                                    ptid=record.get(FieldNames.PTID),
+                                    visitnum=record.get(FieldNames.VISITNUM)))
 
         # use the last record since all records have the same PTID, visitdate
         self.__update_visit_error_log(

@@ -115,6 +115,7 @@ class ModuleConfigs(BaseModel):
     legacy_date: Optional[str] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
+    preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
 
 
