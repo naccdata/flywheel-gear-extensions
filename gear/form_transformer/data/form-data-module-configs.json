@@ -18,8 +18,7 @@
                     "transform": "upper"
                 },
                 "filename": {
-                    "template": "${subject}_${session}_${module}.json",
-                    "transform": "upper"
+                    "template": "${subject}_${session}_${acquisition}.json"
                 }
             },
             "errorlog_template": {

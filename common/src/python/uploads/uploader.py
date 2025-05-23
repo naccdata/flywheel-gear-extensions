@@ -16,7 +16,7 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import FieldNames
 from outputs.errors import (
     FileError,
     ListErrorWriter,
@@ -111,12 +111,15 @@ class JSONUploader:
 
 
 class FormJSONUploader:
+    """Class to upload form data record to an acquisition as JSON file."""
 
     def __init__(self, project: ProjectAdaptor, module: str, gear_name: str,
+                 hierarchy_labels: UploadTemplateInfo,
                  error_writer: ListErrorWriter) -> None:
         self.__project = project
         self.__module = module
         self.__gear_name = gear_name
+        self.__hierarchy_labels = hierarchy_labels
         self.__error_writer = error_writer
         self.__pending_visits: Dict[str, VisitMapping] = {}
 
@@ -228,13 +231,18 @@ class FormJSONUploader:
 
             for log_file, record in visits_info.items():
                 self.__error_writer.clear()
-                session_label = DefaultValues.SESSION_LBL_PRFX + \
-                    record[FieldNames.VISITNUM]
+                session_label = self.__hierarchy_labels.session.instantiate(
+                    record=record)
+                acq_label = self.__hierarchy_labels.acquisition.instantiate(
+                    record=record)
+                visit_file_name = self.__hierarchy_labels.filename.instantiate(
+                    record=record,
+                    environment={
+                        'subject': subject_lbl,
+                        'session': session_label,
+                        'acquisition': acq_label
+                    })
 
-                acq_label = record[FieldNames.MODULE].upper()
-
-                visit_file_name = subject.get_acquisition_file_name(
-                    session=session_label, acquisition=acq_label)
                 try:
                     new_file = subject.upload_acquisition_file(
                         session_label=session_label,

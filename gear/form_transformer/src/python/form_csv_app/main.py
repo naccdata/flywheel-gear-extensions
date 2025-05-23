@@ -577,10 +577,12 @@ def run(*,
     if not len(visitor.transformed_records) > 0:
         return result
 
-    uploader = FormJSONUploader(project=destination,
-                                module=visitor.module,
-                                gear_name=gear_name,
-                                error_writer=error_writer)
+    uploader = FormJSONUploader(
+        project=destination,
+        module=visitor.module,
+        gear_name=gear_name,
+        hierarchy_labels=module_configs.hierarchy_labels,
+        error_writer=error_writer)
     upload_status = uploader.upload(
         visitor.transformed_records)  # type: ignore
     if not upload_status:
