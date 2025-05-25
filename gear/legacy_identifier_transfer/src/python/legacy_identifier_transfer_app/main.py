@@ -227,11 +227,10 @@ def process_legacy_identifiers(  # noqa: C901
         log.warning('No valid legacy identifiers to process')
         return success
 
-    return process_record_collection(
-        record_collection=record_collection,
-        enrollment_project=enrollment_project,
-        failed_ids=failed_ids,
-        dry_run=dry_run) and success
+    return process_record_collection(record_collection=record_collection,
+                                     enrollment_project=enrollment_project,
+                                     failed_ids=failed_ids,
+                                     dry_run=dry_run) and success
 
 
 def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
