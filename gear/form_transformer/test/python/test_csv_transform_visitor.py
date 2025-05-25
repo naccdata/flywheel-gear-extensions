@@ -126,6 +126,27 @@ def create_record(data: Dict[str, Any]):
     return record
 
 
+def create_milestones_record(data: Dict[str, Any]):
+    """Create milestones record with default values, then append test-specific data.
+
+    Args:
+        data: Data to add for specific test
+    """
+    record = {
+        FieldNames.NACCID: 'dummy-naccid',
+        FieldNames.MODULE: 'mlst',
+        FieldNames.FORMVER: '3.0',
+        FieldNames.PACKET: 'M',
+        FieldNames.PTID: 'dummy-ptid',
+        FieldNames.ADCID: 0,
+        DATE_FIELD: '2025-01-01',
+        'dummy': 'dummy_val'
+    }
+
+    record.update(data)
+    return record
+
+
 def get_qc_errors(project: MockProject):
     """Get the first QC error from mock project.
 

@@ -3,6 +3,42 @@
 from configs.ingest_configs import ModuleConfigs
 
 
+def milestone_ingest_configs() -> ModuleConfigs:
+    """Create form ingest configs for Milestones form."""
+    module_configs = {
+        "hierarchy_labels": {
+            "session": {
+                "template": "MILESTONE-${visitdate}",
+                "transform": "upper"
+            },
+            "acquisition": {
+                "template": "${module}",
+                "transform": "upper"
+            },
+            "filename": {
+                "template": "${subject}_${session}_${acquisition}.json",
+                "transform": "upper"
+            }
+        },
+        "required_fields":
+        ["ptid", "adcid", "visitdate", "packet", "formver"],
+        "initial_packets": ["M"],
+        "followup_packets": [],
+        "versions": ["3.0"],
+        "date_field": "visitdate",
+        "preprocess_checks": [
+            "duplicate-record", "version", "packet", "supplement-module"
+        ],
+        "supplement_module": {
+            "label": "UDS",
+            "date_field": "visitdate",
+            "exact_match": False
+        }
+    }
+
+    return ModuleConfigs.model_validate(module_configs)
+
+
 def uds_ingest_configs() -> ModuleConfigs:
     """Create form ingest configs for UDS module."""
     module_configs = {
@@ -16,7 +52,7 @@ def uds_ingest_configs() -> ModuleConfigs:
                 "transform": "upper"
             },
             "filename": {
-                "template": "${subject}_${session}_${module}.json",
+                "template": "${subject}_${session}_${acquisition}.json",
                 "transform": "upper"
             }
         },
