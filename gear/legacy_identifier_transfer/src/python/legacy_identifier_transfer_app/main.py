@@ -76,6 +76,10 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
     Returns:
         bool: True if processing was successful with no errors
     """
+
+    log.info('Trying to import %d legacy enrollment records',
+             len(record_collection))
+
     success_count = 0
     error_count = 0
     for record in record_collection:
@@ -105,6 +109,7 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
 
     log.info('Successfully imported %d legacy enrollment records',
              success_count)
+
     return error_count == 0  # Returns True only if no errors occurred
 
 
@@ -218,15 +223,15 @@ def process_legacy_identifiers(  # noqa: C901
     if failed_count > 0:
         log.error('Number of records that failed validation: %s', failed_count)
 
-    if not record_collection:
+    if not len(record_collection) > 0:
         log.warning('No valid legacy identifiers to process')
         return success
 
-    return success and process_record_collection(
+    return process_record_collection(
         record_collection=record_collection,
         enrollment_project=enrollment_project,
         failed_ids=failed_ids,
-        dry_run=dry_run)
+        dry_run=dry_run) and success
 
 
 def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
@@ -281,8 +286,8 @@ def run(*,
             dry_run=dry_run)
 
         if len(failed_ids) > 0:
+            log.error("Total number of failed records: %s", len(failed_ids))
             log.error("List of failed IDs: %s", failed_ids)
-            log.error("Number of failed records: %s", len(failed_ids))
             send_email(sender_email=sender_email,
                        target_emails=target_emails,
                        group_lbl=enrollment_project.group,
