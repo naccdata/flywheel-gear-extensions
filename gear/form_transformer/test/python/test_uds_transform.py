@@ -1,4 +1,4 @@
-"""Tests the CSVTransformVisitor Mainly tests the batch CSV records error
+"""Tests the UDS CSVTransformVisitor, mainly tests the batch CSV records error
 checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
@@ -36,7 +36,7 @@ def run_header_test(visitor: CSVTransformVisitor,
         "Missing one or more required field(s)")
 
 
-def create_visitor(
+def create_uds_visitor(
     test_header: bool = False,
     transform_schema: Optional[Dict[str, Any]] = None
 ) -> Tuple[CSVTransformVisitor, MockProject, MockFormsStore]:
@@ -126,27 +126,6 @@ def create_record(data: Dict[str, Any]):
     return record
 
 
-def create_milestones_record(data: Dict[str, Any]):
-    """Create milestones record with default values, then append test-specific data.
-
-    Args:
-        data: Data to add for specific test
-    """
-    record = {
-        FieldNames.NACCID: 'dummy-naccid',
-        FieldNames.MODULE: 'mlst',
-        FieldNames.FORMVER: '3.0',
-        FieldNames.PACKET: 'M',
-        FieldNames.PTID: 'dummy-ptid',
-        FieldNames.ADCID: 0,
-        DATE_FIELD: '2025-01-01',
-        'dummy': 'dummy_val'
-    }
-
-    record.update(data)
-    return record
-
-
 def get_qc_errors(project: MockProject):
     """Get the first QC error from mock project.
 
@@ -165,16 +144,16 @@ def get_qc_errors(project: MockProject):
     return error_file.info['qc']['form-transformer']['validation']['data']
 
 
-class TestCSVTransformVisitor:
-    """Tests the CSVTransformVisitor."""
+class TestUDSTransform:
+    """Tests the UDS transforms and pre-processing checks."""
 
     def test_visit_header(self):
         """Test visit_header."""
-        create_visitor(test_header=True)
+        create_uds_visitor(test_header=True)
 
     def test_bad_row(self):
         """Test row is missing required fields."""
-        visitor, project, _ = create_visitor()
+        visitor, project, _ = create_uds_visitor()
         record = create_record({})
         record.pop('naccid')
         assert not visitor.visit_row(record, 0)
@@ -187,7 +166,7 @@ class TestCSVTransformVisitor:
 
     def test_mismatched_modules(self):
         """Test records in CSV belong to different modules."""
-        visitor, project, _ = create_visitor()
+        visitor, project, _ = create_uds_visitor()
         record = create_record({'module': 'ftld'})
         assert not visitor.visit_row(record, 0)
         record = create_record({'module': 'lbd'})
@@ -222,7 +201,7 @@ class TestCSVTransformVisitor:
                 }
             }]
         }
-        visitor, project, _ = create_visitor(transform_schema=schema)
+        visitor, project, _ = create_uds_visitor(transform_schema=schema)
         record = create_record({
             'transform': "1",
             'bad1': True,
@@ -243,7 +222,7 @@ class TestCSVTransformVisitor:
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
-        visitor, project, form_store = create_visitor()
+        visitor, project, form_store = create_uds_visitor()
         record = create_record({})
         form_store.add_subject(subject_lbl=record['naccid'],
                                form_data=record,
@@ -257,7 +236,7 @@ class TestCSVTransformVisitor:
 
         Adds a bunch of records that "already exist but failed before".
         """
-        visitor, project, form_store = create_visitor()
+        visitor, project, form_store = create_uds_visitor()
 
         # create "failed" files that already exist in the project
         records = [create_record({'naccid': f'failed-{x}'}) for x in range(3)]
@@ -306,7 +285,7 @@ class TestCSVTransformVisitor:
 
     def test_current_batch_duplicates(self):
         """Test duplicates in current batch."""
-        visitor, project, _ = create_visitor()
+        visitor, project, _ = create_uds_visitor()
         record = create_record({})
 
         for i in range(3):
@@ -323,7 +302,7 @@ class TestCSVTransformVisitor:
     def test_current_batch_different_visit_date(self):
         """Tests same visit number but different visit date correctly raises
         error."""
-        visitor, project, _ = create_visitor()
+        visitor, project, _ = create_uds_visitor()
         record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
         assert visitor.visit_row(record, 0)
         record = create_record({'visitnum': "3", 'visitdate': '2024-01-01'})
@@ -356,7 +335,7 @@ class TestCSVTransformVisitor:
 
     def test_non_numeric_visitnum(self):
         """Tests non-numeric visit numbers."""
-        visitor, project, _ = create_visitor()
+        visitor, project, _ = create_uds_visitor()
         record = create_record({
             'ptid': 'new-ptid1',
             'packet': 'I',

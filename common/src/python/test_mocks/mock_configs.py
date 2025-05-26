@@ -20,15 +20,14 @@ def milestone_ingest_configs() -> ModuleConfigs:
                 "transform": "upper"
             }
         },
-        "required_fields":
-        ["ptid", "adcid", "visitdate", "packet", "formver"],
+        "required_fields": ["ptid", "adcid", "visitdate", "packet", "formver"],
         "initial_packets": ["M"],
         "followup_packets": [],
         "versions": ["3.0"],
-        "date_field": "visitdate",
-        "preprocess_checks": [
-            "duplicate-record", "version", "packet", "supplement-module"
-        ],
+        "date_field":
+        "visitdate",
+        "preprocess_checks":
+        ["duplicate-record", "version", "packet", "supplement-module"],
         "supplement_module": {
             "label": "UDS",
             "date_field": "visitdate",
