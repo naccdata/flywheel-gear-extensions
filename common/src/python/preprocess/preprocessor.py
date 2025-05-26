@@ -692,9 +692,16 @@ class FormPreprocessor():
             extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
             if supplement_module.exact_match else None)
 
-        supplement_visit = supplement_visits[0] if supplement_visits else None
+        if not supplement_visits and not supplement_module.exact_match:
+            supplement_visits = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=supplement_module.label,
+                legacy=True,
+                search_col=supplement_module.date_field,
+                search_val=input_record[module_configs.date_field],
+                search_op="<=")
 
-        if not supplement_visit:
+        if not supplement_visits:
             self.__error_writer.write(
                 preprocessing_error(
                     field=FieldNames.MODULE,
@@ -710,6 +717,14 @@ class FormPreprocessor():
         if not supplement_module.exact_match:  # just checking for supplement existence
             return True
 
+        # If checking for exact match, there should be only one matching visit
+        if len(supplement_visits) > 1:
+            raise PreprocessingException(
+                'More than one matching supplement visit exist for '
+                f'{subject_lbl}/{supplement_module.label}/{input_record[module_configs.date_field]}'
+            )
+
+        supplement_visit = supplement_visits[0]
         date_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_module.date_field}'
         visitnum_lbl = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         if supplement_visit[visitnum_lbl] != input_record[FieldNames.VISITNUM]:
@@ -781,14 +796,16 @@ class FormPreprocessor():
             FormFilter(field=date_field,
                        value=input_record[date_field],
                        operator='='))
-        filters.append(
-            FormFilter(field=FieldNames.VISITNUM,
-                       value=input_record[FieldNames.VISITNUM],
-                       operator='='))
-        filters.append(
-            FormFilter(field=FieldNames.PACKET,
-                       value=input_record[FieldNames.PACKET],
-                       operator='='))
+        if FieldNames.VISITNUM in module_configs.required_fields:
+            filters.append(
+                FormFilter(field=FieldNames.VISITNUM,
+                           value=input_record[FieldNames.VISITNUM],
+                           operator='='))
+        if FieldNames.PACKET in module_configs.required_fields:
+            filters.append(
+                FormFilter(field=FieldNames.PACKET,
+                           value=input_record[FieldNames.PACKET],
+                           operator='='))
 
         existing_visits = self.__forms_store.query_form_data_with_custom_filters(
             subject_lbl=subject_lbl,
