@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-
+## 1.1.0
+* Adds support for standalone forms submission
+  
 ## 1.0.1
 * Upgrades to dependencies
   
