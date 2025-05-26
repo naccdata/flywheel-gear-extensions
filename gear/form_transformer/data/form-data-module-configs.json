@@ -90,6 +90,33 @@
             ]
         },
         "LBD": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "FORMS-VISIT-${visitnum}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json"
+                }
+            },
+            "errorlog_template": {
+                "id_field": "ptid",
+                "date_field": "visitdate",
+                "suffix": "qc-status",
+                "extension": "log"
+            },
+            "required_fields": [
+                "ptid",
+                "adcid",
+                "visitnum",
+                "visitdate",
+                "packet",
+                "formver"
+            ],
             "initial_packets": [
                 "IL"
             ],
@@ -120,9 +147,45 @@
                 "version": "4.0",
                 "date_field": "visitdate",
                 "exact_match": true
-            }
+            },
+            "preprocess_checks": [
+                "duplicate-record",
+                "version",
+                "packet",
+                "optional-forms",
+                "ivp",
+                "visit-conflict",
+                "supplement-module"
+            ]
         },
         "FTLD": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "FORMS-VISIT-${visitnum}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json"
+                }
+            },
+            "errorlog_template": {
+                "id_field": "ptid",
+                "date_field": "visitdate",
+                "suffix": "qc-status",
+                "extension": "log"
+            },
+            "required_fields": [
+                "ptid",
+                "adcid",
+                "visitnum",
+                "visitdate",
+                "packet",
+                "formver"
+            ],
             "initial_packets": [
                 "IF"
             ],
@@ -156,7 +219,16 @@
                 "version": "4.0",
                 "date_field": "visitdate",
                 "exact_match": true
-            }
+            },
+            "preprocess_checks": [
+                "duplicate-record",
+                "version",
+                "packet",
+                "optional-forms",
+                "ivp",
+                "visit-conflict",
+                "supplement-module"
+            ]
         }
     }
 }

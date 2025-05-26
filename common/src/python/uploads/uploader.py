@@ -283,7 +283,7 @@ class FormJSONUploader:
 
                 self.__add_pending_visit(subject=subject,
                                          filename=visit_file_name,
-                                         file_id=new_file.id,
+                                         file_id=new_file.file_id,
                                          input_record=record)
 
         success = success and self.__create_pending_visits_file()

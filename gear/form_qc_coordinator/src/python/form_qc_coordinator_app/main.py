@@ -45,7 +45,7 @@ def get_matching_visits(
         container_id: str,
         subject: str,
         module: str,
-        date_col: str,
+        module_configs: ModuleConfigs,
         cutoff_date: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
     """Get the list of visits for the specified participant for the specified
     module.
@@ -58,7 +58,7 @@ def get_matching_visits(
         container_id: Flywheel subject container ID
         subject: Flywheel subject label for participant
         module: module label, matched with Flywheel acquisition label
-        date_col: name of the visit date field to filter the visits
+        module_configs: form ingest configs for the module
         cutoff_date (optional): If specified, filter visits on date_col >= cutoff_date
 
     Returns:
@@ -68,12 +68,16 @@ def get_matching_visits(
     title = f'{module} visits for participant {subject}'
 
     ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-    date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{date_col}'
-    visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+    date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
     columns = [
-        ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
-        'file.parents.acquisition', 'file.info.forms.json.visitnum'
+        ptid_key, date_col_key, 'file.name', 'file.file_id',
+        'file.parents.acquisition'
     ]
+
+    if FieldNames.VISITNUM in module_configs.required_fields:
+        visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+        columns.append(visitnum_key)
+
     filters = f'acquisition.label={module}'
 
     if cutoff_date:
@@ -140,7 +144,7 @@ def run(*,
                                       container_id=subject.id,
                                       subject=subject.label,
                                       module=module,
-                                      date_col=module_configs.date_field,
+                                      module_configs=module_configs,
                                       cutoff_date=cutoff)
     if not visits_list:
         # This cannot happen, at least one file should exist with matching cutoff date

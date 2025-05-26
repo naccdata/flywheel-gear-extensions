@@ -213,7 +213,9 @@ def run(  # noqa: C901
     if file_type == 'json':
         supplement_record = load_supplement_input(
             supplement_input=supplement_input) if supplement_input else None
-        if module_configs.supplement_module and not supplement_record:
+        if (module_configs.supplement_module
+                and module_configs.supplement_module.exact_match
+                and not supplement_record):
             raise GearExecutionError(
                 f"Supplement {module_configs.supplement_module.label} "
                 f"visit record is required to validate {module} visit")
