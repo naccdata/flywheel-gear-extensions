@@ -3,7 +3,8 @@
     "accepted_modules": [
         "UDS",
         "FTLD",
-        "LBD"
+        "LBD",
+        "MLST"
     ],
     "legacy_project_label": "retrospective-form",
     "module_configs": {
@@ -229,6 +230,48 @@
                 "visit-conflict",
                 "supplement-module"
             ]
+        },
+        "MLST": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "MILESTONE-${visitdate}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json",
+                    "transform": "upper"
+                }
+            },
+            "required_fields": [
+                "ptid",
+                "adcid",
+                "visitdate",
+                "packet",
+                "formver"
+            ],
+            "initial_packets": [
+                "M"
+            ],
+            "followup_packets": [],
+            "versions": [
+                "3.0"
+            ],
+            "date_field": "visitdate",
+            "preprocess_checks": [
+                "duplicate-record",
+                "version",
+                "packet",
+                "supplement-module"
+            ],
+            "supplement_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "exact_match": false
+            }
         }
     }
 }
