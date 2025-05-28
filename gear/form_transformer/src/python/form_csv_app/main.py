@@ -429,13 +429,10 @@ class CSVTransformVisitor(CSVVisitor):
                     ds_gear_metadata = visit_file.info.get('qc', {}).get(
                         ds_gear, {})
                     if not ds_gear_metadata:
-                        gear_state = 'FAIL'
-                        self.__error_writer.write(
-                            system_error(message=(
-                                f'QC metadata not found for gear {ds_gear} in the '
-                                f'existing duplicate visit file {visit_file.name}'
-                            ),
-                                         error_type='warning'))
+                        log.warning(
+                            'QC metadata not found for gear %s in the '
+                            'existing duplicate visit file %s', ds_gear,
+                            visit_file.name)
                         continue
 
                     info['qc'][ds_gear] = ds_gear_metadata
