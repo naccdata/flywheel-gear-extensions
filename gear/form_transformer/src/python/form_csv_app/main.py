@@ -182,8 +182,9 @@ class CSVTransformVisitor(CSVVisitor):
         for visits in self.__existing_visits.values():
             for visit in visits:
                 self.__error_writer.clear()
-                success = success and self.__copy_downstream_gears_metadata(
-                    input_record=visit, downstream_gears=downstream_gears)
+                success = self.__copy_downstream_gears_metadata(
+                    input_record=visit,
+                    downstream_gears=downstream_gears) and success
 
         return success
 
@@ -563,10 +564,10 @@ def run(*,
                       visitor=visitor,
                       clear_errors=True)
 
-    result = result and visitor.update_existing_visits_error_log(
-        downstream_gears=downstream_gears)
+    result = visitor.update_existing_visits_error_log(
+        downstream_gears=downstream_gears) and result
 
-    result = result and visitor.process_current_batch()
+    result = visitor.process_current_batch() and result
     if not result:
         error_writer.clear()
         error_writer.write(partially_failed_file_error())
