@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.5
+* Updates to process all files in a given queue before moving to next queue/module
+  
 ## 1.0.4
 * Updates retrieving receiver's email address for submission completion notifications
   
