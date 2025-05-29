@@ -249,37 +249,19 @@ class FormPreprocessor():
         date_field = module_configs.date_field
         packet = input_record[FieldNames.PACKET]
 
-        if self.__forms_store.is_new_subject(subject_lbl):
-            if packet in module_configs.initial_packets:
-                return True
+        if (packet in module_configs.initial_packets
+                and self.__forms_store.is_new_subject(subject_lbl)):
+            return True
 
-            if packet in module_configs.followup_packets:
-                if ivp_record:
-                    return self.__compare_visit_order(
-                        current_record=input_record,
-                        date_field=module_configs.date_field,
-                        date_to_compare=ivp_record[module_configs.date_field],
-                        visitnum_to_compare=ivp_record[FieldNames.VISITNUM],
-                        date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
-                        visitnum_error=SysErrorCodes.LOWER_FVP_VISITNUM,
-                        line_num=line_num)
-
-                log.error(
-                    'Missing IVP or incorrect visit order in current batch '
-                    'for PTID %s-%s:%s:%s', input_record[FieldNames.PTID],
-                    input_record[date_field],
-                    input_record[FieldNames.VISITNUM], packet)
-
-                self.__error_writer.write(
-                    preprocessing_error(
-                        field=FieldNames.PACKET,
-                        value=packet,
-                        line=line_num,
-                        error_code=SysErrorCodes.MISSING_IVP,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM]))
-
-                return False
+        if packet in module_configs.followup_packets and ivp_record:
+            return self.__compare_visit_order(
+                current_record=input_record,
+                date_field=module_configs.date_field,
+                date_to_compare=ivp_record[module_configs.date_field],
+                visitnum_to_compare=ivp_record[FieldNames.VISITNUM],
+                date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
+                visitnum_error=SysErrorCodes.LOWER_FVP_VISITNUM,
+                line_num=line_num)
 
         initial_packets = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,

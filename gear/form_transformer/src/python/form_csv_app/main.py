@@ -269,6 +269,8 @@ class CSVTransformVisitor(CSVVisitor):
                     continue
 
                 self.__transformed[subject][error_log_name] = transformed_row
+                # If IVP packet found in same batch and passed pre-processing checks,
+                # pass it along for FVP packet checks
                 if is_ivp:
                     ivp_packet = transformed_row
 
