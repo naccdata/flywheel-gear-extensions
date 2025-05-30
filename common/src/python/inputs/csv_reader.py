@@ -2,7 +2,7 @@
 
 import abc
 from abc import ABC, abstractmethod
-from csv import DictReader, Error
+from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
 
 from outputs.errors import (
@@ -99,7 +99,7 @@ def read_csv(*,
             success = row_success and success
             if limit and count >= limit:
                 break
-    except Error as error:
+    except Exception as error:
         error_writer.write(malformed_file_error(str(error)))
         return False
 
