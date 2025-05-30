@@ -107,7 +107,7 @@ def malformed_stream():
 def duplicate_header():
     """Create a data stream with duplicate headers."""
     header = ["ptid", "mode", "visitnum", "ptid", "packet", "mode", "ptid"]
-    row = ["13845", "4", "9", 0, "I4", "13845", 1]
+    row = ["13845", "4", "9", "0", "I4", "13845", "1"]
     data = [header, row]
     stream = StringIO()
     write_to_stream(data, stream)
