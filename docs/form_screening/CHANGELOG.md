@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+* Adds CSV header validation - duplicate columns and empty columns
+* Checks whether the number of columns in data row matches the number of columns in header
+  
 ## 1.1.0
 * Formats the input file: remove BOM, change headers to uppercase, remove REDCap specific columns
   

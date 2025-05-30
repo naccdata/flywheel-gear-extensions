@@ -104,7 +104,8 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
 
     project = file_input.get_parent_project(proxy=proxy, file=file)
     out_stream = StringIO()
-    formatter_visitor = CSVFormatterVisitor(output_stream=out_stream)
+    formatter_visitor = CSVFormatterVisitor(output_stream=out_stream,
+                                            error_writer=error_writer)
 
     # open file using utf-8-sig to treat the BOM as metadata (if present)
     with open(file_input.filepath, mode='r', encoding='utf-8-sig') as csv_file:
