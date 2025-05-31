@@ -585,8 +585,8 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
     for record in enrollment_batch:
         error_writer.clear()
         record_info = {
-            'ptid': record.center_identifier.ptid,
-            'visitdate': record.start_date.strftime("%Y-%m-%d")
+            FieldNames.PTID: record.center_identifier.ptid,
+            FieldNames.ENRLFRM_DATE: record.start_date.strftime("%Y-%m-%d")
         }
         if not record.naccid:
             message = ('Failed to generate NACCID for enrollment record '

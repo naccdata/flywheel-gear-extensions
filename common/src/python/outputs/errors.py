@@ -553,11 +553,12 @@ def get_error_log_name(
     if not ptid or not visitdate:
         return None
 
+    cleaned_ptid = ptid.strip().lstrip('0')
     normalized_date = convert_date(date_string=visitdate,
                                    date_format=DEFAULT_DATE_FORMAT)
-    if not normalized_date:
+    if not cleaned_ptid or not normalized_date:
         return None
 
     return (
-        f'{ptid}_{normalized_date}_{module.lower()}_{errorlog_template.suffix}.{errorlog_template.extension}'
+        f'{cleaned_ptid}_{normalized_date}_{module.lower()}_{errorlog_template.suffix}.{errorlog_template.extension}'
     )
