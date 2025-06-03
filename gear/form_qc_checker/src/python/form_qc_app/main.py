@@ -213,7 +213,9 @@ def run(  # noqa: C901
     if file_type == 'json':
         supplement_record = load_supplement_input(
             supplement_input=supplement_input) if supplement_input else None
-        if module_configs.supplement_module and not supplement_record:
+        if (module_configs.supplement_module
+                and module_configs.supplement_module.exact_match
+                and not supplement_record):
             raise GearExecutionError(
                 f"Supplement {module_configs.supplement_module.label} "
                 f"visit record is required to validate {module} visit")
@@ -223,6 +225,7 @@ def run(  # noqa: C901
                                            date_field=date_field,
                                            project=project_adaptor,
                                            error_writer=error_writer,
+                                           form_configs=form_project_configs,
                                            gear_name=gear_name,
                                            supplement_data=supplement_record)
     else:  # For enrollment form processing
@@ -231,10 +234,10 @@ def run(  # noqa: C901
                                           date_field=date_field,
                                           project=project_adaptor,
                                           error_writer=error_writer,
+                                          form_configs=form_project_configs,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(
-        input_wrapper=input_wrapper, form_configs=form_project_configs)
+    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,

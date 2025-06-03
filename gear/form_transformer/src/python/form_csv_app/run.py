@@ -22,7 +22,7 @@ from outputs.errors import ListErrorWriter
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
 from transform.transformer import FieldTransformations, TransformerFactory
-from utils.utils import parse_string_to_list
+from utils.utils import load_form_ingest_configurations, parse_string_to_list
 
 from form_csv_app.main import run
 
@@ -94,8 +94,13 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"{self.__file_input.filename}")
         module = module.upper()
 
-        form_configs = self.__load_form_ingest_configs(
-            form_config_input=self.__config_input)
+        try:
+            form_configs = load_form_ingest_configurations(
+                self.__config_input.filepath)
+        except ValidationError as error:
+            raise GearExecutionError(
+                'Error reading form configurations file'
+                f'{self.__config_input.filename}: {error}') from error
 
         if (module not in form_configs.accepted_modules
                 or not form_configs.module_configs.get(module)):
@@ -179,27 +184,6 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 raise GearExecutionError(
                     'Error reading transformation file'
                     f'{transformer_input.filename}: {error}') from error
-
-    def __load_form_ingest_configs(
-            self, form_config_input: InputFileWrapper) -> FormProjectConfigs:
-        """Reads the forms config file.
-
-        Args:
-          form_config_input: the input file wrapper for form configs file
-
-        Returns:
-          the FormProjectConfigs for the ingest project
-        """
-
-        with open(form_config_input.filepath, mode='r',
-                  encoding='utf-8') as configs_file:
-            try:
-                return FormProjectConfigs.model_validate_json(
-                    configs_file.read())
-            except ValidationError as error:
-                raise GearExecutionError(
-                    'Error reading form configurations file'
-                    f'{form_config_input.filename}: {error}') from error
 
     def __get_preprocessor(self, form_configs: FormProjectConfigs,
                            ingest_project: ProjectAdaptor,

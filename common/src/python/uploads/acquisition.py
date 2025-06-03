@@ -51,6 +51,34 @@ def is_duplicate_record(record1: str,
     # TODO: Handle other content types
 
 
+def update_file_info_metadata(file: FileEntry,
+                              input_record: Dict[str, Any],
+                              modality: str = 'Form') -> bool:
+    """Set file modality and info.forms.json metadata.
+
+    Args:
+        file: Flywheel file object
+        input_record: input visit data
+        modality: file modality (defaults to Form)
+
+    Returns:
+        True if metadata update is successful
+    """
+
+    # remove empty fields
+    non_empty_fields = {k: v for k, v in input_record.items() if v is not None}
+    info = {"forms": {"json": non_empty_fields}}
+
+    try:
+        file.update(modality=modality)
+        file.update_info(info)
+    except ApiException as error:
+        log.error('Error in setting file %s metadata - %s', file.name, error)
+        return False
+
+    return True
+
+
 def upload_to_acquisition(acquisition: Acquisition,
                           filename: str,
                           contents: str,

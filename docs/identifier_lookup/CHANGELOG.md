@@ -2,8 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
 ## 1.1.3
-
 * Fix validation of PTIDs to ensure they are stripped of whitespace and leading zeros.
 
 ## 1.1.2

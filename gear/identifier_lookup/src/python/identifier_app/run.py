@@ -5,6 +5,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Dict, Literal, Optional, TextIO
 
+from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -27,9 +28,11 @@ from identifiers.identifiers_repository import (
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import CSVVisitor
 from inputs.parameter_store import ParameterStore
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from outputs.errors import ListErrorWriter
+from pydantic import ValidationError
+from utils.utils import load_form_ingest_configurations
 
 log = logging.getLogger(__name__)
 
@@ -61,16 +64,16 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the identifier lookup app."""
 
     def __init__(self, *, client: ClientWrapper, admin_id: str,
-                 file_input: InputFileWrapper,
-                 identifiers_mode: IdentifiersMode, date_field: str,
+                 file_input: InputFileWrapper, config_input: InputFileWrapper,
+                 identifiers_mode: IdentifiersMode,
                  direction: Literal['nacc', 'center'], gear_name: str,
                  preserve_case: bool):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
+        self.__config_input = config_input
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
         self.__direction: Literal['nacc', 'center'] = direction
-        self.__date_field = date_field
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
 
@@ -93,25 +96,25 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                                       parameter_store=parameter_store)
         file_input = InputFileWrapper.create(input_name="input_file",
                                              context=context)
-        assert file_input, "create raises exception if missing expected input"
+        assert file_input, "create raises exception if missing input file"
+
+        config_input = InputFileWrapper.create(input_name="form_configs_file",
+                                               context=context)
+        assert config_input, "create raises exception if missing configuration file"
 
         admin_id = context.config.get("admin_group",
                                       DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("database_mode", "prod")
         direction = context.config.get("direction", "nacc")
         preserve_case = context.config.get("preserve_case", False)
-
-        date_field = (context.config.get("date_field",
-                                         FieldNames.DATE_COLUMN)).lower()
-
         gear_name = context.manifest.get("name", "identifier-lookup")
 
         return IdentifierLookupVisitor(client=client,
                                        gear_name=gear_name,
                                        admin_id=admin_id,
                                        file_input=file_input,
+                                       config_input=config_input,
                                        identifiers_mode=mode,
-                                       date_field=date_field,
                                        direction=direction,
                                        preserve_case=preserve_case)
 
@@ -119,6 +122,29 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                               identifiers_repo: IdentifierRepository,
                               output_file: TextIO,
                               error_writer: ListErrorWriter) -> CSVVisitor:
+
+        module = self.__file_input.get_module_name_from_file_suffix()
+        if not module:
+            raise GearExecutionError(
+                "Expect module suffix in input file name: "
+                f"{self.__file_input.filename}")
+        module = module.upper()
+
+        try:
+            form_project_configs = load_form_ingest_configurations(
+                self.__config_input.filepath)
+        except ValidationError as error:
+            raise GearExecutionError(
+                'Error reading form configurations file'
+                f'{self.__config_input.filename}: {error}') from error
+
+        if (module not in form_project_configs.accepted_modules
+                or not form_project_configs.module_configs.get(module)):
+            raise GearExecutionError(
+                f'Failed to find the configurations for module {module}')
+
+        module_configs: ModuleConfigs = form_project_configs.module_configs.get(
+            module)  # type: ignore
 
         admin_group = self.admin_group(admin_id=self.__admin_id)
         adcid = admin_group.get_adcid(
@@ -137,18 +163,12 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         if not identifiers:
             raise GearExecutionError("Unable to load center participant IDs")
 
-        module_name = self.__file_input.get_module_name_from_file_suffix()
-        if not module_name:
-            raise GearExecutionError(
-                "Expect module suffix in input file name: "
-                f"{self.__file_input.filename}")
-
         return NACCIDLookupVisitor(adcid=adcid,
                                    identifiers=identifiers,
                                    output_file=output_file,
-                                   module_name=module_name.lower(),
+                                   module_name=module.lower(),
+                                   module_configs=module_configs,
                                    error_writer=error_writer,
-                                   date_field=self.__date_field,
                                    gear_name=self.__gear_name,
                                    project=ProjectAdaptor(project=project,
                                                           proxy=self.proxy))
