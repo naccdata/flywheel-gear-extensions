@@ -228,7 +228,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             contents = out_file.getvalue()
             if len(contents) > 0:
                 log.info("Writing contents")
-                with context.open_output(filename, mode='w',
+                with context.open_output(filename,
+                                         mode='w',
                                          encoding='utf-8-sig') as fh:
                     fh.write(contents)
             else:
