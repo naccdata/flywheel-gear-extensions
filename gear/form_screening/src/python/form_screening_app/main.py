@@ -47,6 +47,12 @@ def save_output(context: GearToolkitContext,
                              encoding='utf-8') as out_file:
         out_file.write(contents)
 
+    if info:
+        qc_status = {"validation": {"state": 'PASS', "data": []}}
+        updated_info = context.metadata.add_gear_info('qc', outfilename,
+                                                      **qc_status)
+        info['qc'] = updated_info['qc']
+
     if tags or info:
         context.metadata.update_file_metadata(
             file_=outfilename,
@@ -127,17 +133,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
     queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)
-    info: Dict[str, Any] = {
-        "uploader": file.origin.id,
-        "qc": {
-            gear_name: {
-                "validation": {
-                    "state": 'PASS',
-                    "data": {}
-                }
-            }
-        }
-    }
+    info: Dict[str, Any] = {"uploader": file.origin.id}
 
     # save output file and add tags/metadata
     save_output(context=context,
