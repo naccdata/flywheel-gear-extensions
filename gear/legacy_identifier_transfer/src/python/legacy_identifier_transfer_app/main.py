@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Mapping, Optional
 
-from datastore.forms_store import FormFilter, FormsStore
+from datastore.forms_store import FormsStore
 from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
@@ -115,16 +115,24 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
 
 def get_enrollment_date(subject_id: str,
                         forms_store: FormsStore) -> Optional[datetime]:
+    """Lookup the enrollment date for the subject.
 
-    ivp_filter = FormFilter(field=FieldNames.PACKET,
-                            value=DefaultValues.UDS_I_PACKET,
-                            operator="=")
-    initial_visits = forms_store.query_form_data_with_custom_filters(
+    Args:
+        subject_id: Subject label in Flywheel
+        forms_store: Class to retrieve form data from Flywheel ingest projects
+
+    Returns:
+        Optional[datetime]: Enrollment date if found
+    """
+
+    initial_visits = forms_store.query_form_data(
         subject_lbl=subject_id,
         module=DefaultValues.UDS_MODULE,
         legacy=True,
-        order_by=FieldNames.DATE_COLUMN,
-        list_filters=[ivp_filter])
+        search_col=FieldNames.PACKET,
+        search_val=[DefaultValues.UDS_I_PACKET, DefaultValues.UDS_IT_PACKET],
+        search_op=DefaultValues.FW_SEARCH_OR,
+        extra_columns=[FieldNames.DATE_COLUMN])
 
     # If no UDS IVP found check for MDS or BDS visit
     if not initial_visits:
