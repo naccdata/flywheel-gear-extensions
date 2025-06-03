@@ -136,9 +136,13 @@ class FileModel(BaseModel):
                      "scandate",
                      "scandt",
                      mode='before')
-    def datetime_to_date(cls, value: Optional[str]) -> Optional[date | str]:
+    def datetime_to_date(cls,
+                         value: Optional[date | str]) -> Optional[date | str]:
         if not value:
             return None
+
+        if isinstance(value, date):
+            return value
 
         try:
             return datetime.fromisoformat(value).date()
