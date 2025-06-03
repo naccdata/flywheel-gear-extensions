@@ -197,7 +197,7 @@ class CSVFileProcessor(FileProcessor):
 
         self.__input = input_wrapper
         with open(input_wrapper.filepath, mode='r',
-                  encoding='utf-8') as file_obj:
+                  encoding='utf-8-sig') as file_obj:
             # Validate header and first row of the CSV file
             result = read_csv(input_file=file_obj,
                               error_writer=self._error_writer,
@@ -275,7 +275,7 @@ class CSVFileProcessor(FileProcessor):
                                              output_stream=out_stream)
 
         with open(self.__input.filepath, mode='r',
-                  encoding='utf-8') as csv_file:
+                  encoding='utf-8-sig') as csv_file:
             success = read_csv(input_file=csv_file,
                                error_writer=self._error_writer,
                                visitor=enrl_visitor,

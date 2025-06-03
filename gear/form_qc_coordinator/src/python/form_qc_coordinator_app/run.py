@@ -38,7 +38,7 @@ def validate_input_data(input_file_path: str,
     """
 
     try:
-        with open(input_file_path, 'r', encoding='utf-8 ') as input_file:
+        with open(input_file_path, 'r', encoding='utf-8-sig ') as input_file:
             input_data = load_from_stream(input_file)
     except (FileNotFoundError, YAMLReadError) as error:
         log.error('Failed to read the input file %s - %s', input_file_path,

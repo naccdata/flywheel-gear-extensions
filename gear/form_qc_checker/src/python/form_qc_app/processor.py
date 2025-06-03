@@ -249,7 +249,7 @@ class JSONFileProcessor(FileProcessor):
             Dict[str, Any]: None if required info missing, else input record as dict
         """
         with open(input_wrapper.filepath, mode='r',
-                  encoding='utf-8') as file_obj:
+                  encoding='utf-8-sig') as file_obj:
             try:
                 input_data = json.load(file_obj)
             except (JSONDecodeError, TypeError) as error:

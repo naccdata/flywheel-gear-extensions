@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
 ## 1.4.10
 * Updates to use redcap_api-0.1.1
   

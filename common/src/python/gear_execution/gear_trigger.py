@@ -44,7 +44,7 @@ class GearInfo(BaseModel):
         configs_data = {}
         try:
             with open(configs_file_path, mode='r',
-                      encoding='utf-8') as file_obj:
+                      encoding='utf-8-sig') as file_obj:
                 configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error('Failed to read the gear configs file %s - %s',
@@ -98,7 +98,7 @@ class BatchRunInfo(BaseModel):
 
         try:
             with open(configs_file_path, mode='r',
-                      encoding='utf-8') as file_obj:
+                      encoding='utf-8-sig') as file_obj:
                 configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error('Failed to read the batch run configs file %s: %s',

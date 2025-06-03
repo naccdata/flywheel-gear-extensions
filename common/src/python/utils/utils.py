@@ -42,5 +42,5 @@ def load_form_ingest_configurations(
       ValidationError if failed to load the configs file
     """
 
-    with open(config_file_path, mode='r', encoding='utf-8') as configs_file:
+    with open(config_file_path, mode='r', encoding='utf-8-sig') as configs_file:
         return FormProjectConfigs.model_validate_json(configs_file.read())

@@ -108,7 +108,7 @@ def validate_input_file_type(mimetype: str) -> Optional[str]:
 def load_supplement_input(
         supplement_input: InputFileWrapper) -> Optional[Dict[str, Any]]:
     with open(supplement_input.filepath, mode='r',
-              encoding='utf-8') as file_obj:
+              encoding='utf-8-sig') as file_obj:
         try:
             input_data = json.load(file_obj)
         except (JSONDecodeError, TypeError) as error:
