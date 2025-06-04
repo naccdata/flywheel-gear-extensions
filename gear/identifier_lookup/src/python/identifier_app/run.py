@@ -199,7 +199,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         input_path = Path(self.__file_input.filepath)
         out_file = StringIO()
 
-        with open(input_path, mode='r', encoding='utf-8') as csv_file:
+        with open(input_path, mode='r', encoding='utf-8-sig') as csv_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=self.proxy.get_lookup_path(

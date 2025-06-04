@@ -134,7 +134,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                                                error_writer=error_writer)
 
         with open(self.__file_input.filepath, mode='r',
-                  encoding='utf-8') as csv_file:
+                  encoding='utf-8-sig') as csv_file:
             success = run(
                 input_file=csv_file,
                 id_column=form_configs.primary_key,
@@ -176,7 +176,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             return TransformerFactory(FieldTransformations())
 
         with open(transformer_input.filepath, mode='r',
-                  encoding='utf-8') as json_file:
+                  encoding='utf-8-sig') as json_file:
             try:
                 return TransformerFactory(
                     FieldTransformations.model_validate_json(json_file.read()))

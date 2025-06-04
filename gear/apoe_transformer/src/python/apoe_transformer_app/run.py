@@ -92,7 +92,8 @@ class APOETransformerVisitor(GearExecutionEnvironment):
                 f'Did not find a project with ID {target_project_id}')
 
         project = ProjectAdaptor(project=target_project, proxy=self.proxy)
-        with open(self.__file_input.filepath, mode='r', encoding='utf8') as fh:
+        with open(self.__file_input.filepath, mode='r',
+                  encoding='utf-8-sig') as fh:
             run(proxy=self.proxy,
                 input_file=fh,
                 filename=self.__filename,

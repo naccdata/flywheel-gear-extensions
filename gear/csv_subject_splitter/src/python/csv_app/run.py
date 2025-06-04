@@ -113,7 +113,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         template_map = self.__load_template(self.__hierarchy_labels)
 
         with open(self.__file_input.filepath, mode='r',
-                  encoding='utf-8') as csv_file:
+                  encoding='utf-8-sig') as csv_file:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=proxy.get_lookup_path(file))
             success = run(proxy=proxy,

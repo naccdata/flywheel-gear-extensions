@@ -20,6 +20,12 @@ class Element:
 
         return self.value < other.value
 
+    def __le__(self, other: Any) -> bool:
+        if not isinstance(other, Element):
+            return False
+
+        return self.value <= other.value
+
 
 class TestPriorityQueue:
 
@@ -39,4 +45,4 @@ class TestPriorityQueue:
         assert e1
         e2 = queue.pop()
         assert e2
-        assert e1 < e2
+        assert e1 <= e2

@@ -109,7 +109,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
         input_path = Path(self.__file_input.filepath)
         gear_name = context.manifest.get('name', 'identifier-provisioning')
-        with open(input_path, mode='r', encoding='utf-8') as csv_file:
+        with open(input_path, mode='r', encoding='utf-8-sig') as csv_file:
             error_writer = ListErrorWriter(
                 container_id=file_id, fw_path=self.proxy.get_lookup_path(file))
             success = run(

@@ -68,7 +68,7 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
 
     def __get_study_list(self, project_filepath: str) -> List[Study]:
         try:
-            with open(project_filepath, 'r', encoding='utf-8') as stream:
+            with open(project_filepath, 'r', encoding='utf-8-sig') as stream:
                 project_list = load_all_from_stream(stream)
         except YAMLReadError as error:
             raise GearExecutionError(
