@@ -1083,13 +1083,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "d0f65980feeef3daa9203da45832c0331c008fa50ca42431c23932a7cd160f1d",
-              "url": "https://files.pythonhosted.org/packages/3a/60/1ef43eb31accdfb6210971714b979b10a7ae2900f12b75433ec5ca1d6af1/botocore_stubs-1.38.14-py3-none-any.whl"
+              "hash": "db621e8378776e04716adcd61a13996ecd5574b6e46bec8ecc0c3054122a7a08",
+              "url": "https://files.pythonhosted.org/packages/62/e7/515fc95489d05631dfebc8b63e55ceb59b1a5a4556e7983253518fa9a455/botocore_stubs-1.38.15-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "adfb5d81ebeb8ba8373d3e296c2bedf6889550c13029475e0338cc8852ddb574",
-              "url": "https://files.pythonhosted.org/packages/ab/af/44d2b3837a9a37388304112a334d69a0026f2bf385b57699f0e5971563fe/botocore_stubs-1.38.14.tar.gz"
+              "hash": "f84a6efc7b9554fecdf4d875909a28bc8bd63a7def23dd5ceadb5b7759ea0524",
+              "url": "https://files.pythonhosted.org/packages/34/f1/2c164e940453418f2ed19ad37d66290871e0e40e04d426ea84c6903a5bb4/botocore_stubs-1.38.15.tar.gz"
             }
           ],
           "project_name": "botocore-stubs",
@@ -1098,7 +1098,7 @@
             "types-awscrt"
           ],
           "requires_python": ">=3.8",
-          "version": "1.38.14"
+          "version": "1.38.15"
         },
         {
           "artifacts": [

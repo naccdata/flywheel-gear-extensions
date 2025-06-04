@@ -42,6 +42,10 @@
             "description": "S3 URI to QAF file to use as the baseline",
             "type": "string"
         },
+        "s3_mqt_file": {
+            "description": "S3 URI to MQT file to use as the baseline",
+            "type": "string"
+        },
         "keep_fields": {
             "description": "Comma-deliminated list of additional fields to retain from the QAF aside from NACC* and visit date information",
             "type": "string",

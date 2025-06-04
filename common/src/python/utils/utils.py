@@ -1,10 +1,40 @@
 """Utility functions."""
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, MutableMapping, Optional, Tuple
 
 from configs.ingest_configs import FormProjectConfigs
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 
 log = logging.getLogger(__name__)
+
+
+def update_file_info_metadata(file: FileEntry,
+                              input_record: Dict[str, Any],
+                              modality: str = 'Form') -> bool:
+    """Set file modality and info.forms.json metadata.
+
+    Args:
+        file: Flywheel file object
+        input_record: input visit data
+        modality: file modality (defaults to Form)
+
+    Returns:
+        True if metadata update is successful
+    """
+
+    # remove empty fields
+    non_empty_fields = {k: v for k, v in input_record.items() if v is not None}
+    info = {"forms": {"json": non_empty_fields}}
+
+    try:
+        file.update(modality=modality)
+        file.update_info(info)
+    except ApiException as error:
+        log.error('Error in setting file %s metadata - %s', file.name, error)
+        return False
+
+    return True
 
 
 def parse_string_to_list(input_str: Optional[str],
@@ -44,3 +74,27 @@ def load_form_ingest_configurations(
 
     with open(config_file_path, mode='r', encoding='utf-8') as configs_file:
         return FormProjectConfigs.model_validate_json(configs_file.read())
+
+
+def flatten_dict(dictionary: MutableMapping,
+                 parent_key: str = '',
+                 separator: str = '.') -> Dict[str, Any]:
+    """Flattens a dictionary recursively.
+
+    Args:
+        dictionary: Dict to flatten
+        parent_key: Parent key in recursive nesting
+        separator: Separator to use for flattened key, e.g. file.info
+
+    Returns:
+        Flattened dict
+    """
+    items: List[Tuple[str, Any]] = []
+    for key, value in dictionary.items():
+        new_key = parent_key + separator + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            items.extend(
+                flatten_dict(value, new_key, separator=separator).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
