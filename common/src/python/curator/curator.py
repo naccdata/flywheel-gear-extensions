@@ -7,6 +7,7 @@ from typing import List, Optional
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
+from flywheel_gear_toolkit import GearToolkitContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -18,25 +19,38 @@ class Curator(ABC):
     """Base curator abstract class."""
 
     def __init__(self,
-                 sdk_client: Client,
                  curation_tag: Optional[str] = None,
                  force_curate: bool = False) -> None:
-        self.__sdk_client = sdk_client
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
+        self.__sdk_client: Client | None = None
 
     @property
-    def sdk_client(self):
+    def sdk_client(self) -> Client:
+        if not self.__sdk_client:
+            raise ValueError("SDK Client not set")
+
         return self.__sdk_client
 
     @property
-    def curation_tag(self):
+    def curation_tag(self) -> Optional[str]:
         return self.__curation_tag
 
     @property
-    def force_curate(self):
+    def force_curate(self) -> bool:
         return self.__force_curate
 
+    def set_client(self, context: GearToolkitContext) -> None:
+        """Set the SDK client. For multiprocessing, this client must be
+        separate per process, so expected to be set at the worker instantiation
+        level.
+
+        Args:
+            context: Context to set client from
+        """
+        self.__sdk_client = context.get_client()
+
+    @api_retry
     def get_subject(self, subject_id: str) -> Subject:
         """Get the subject for the given subject ID.
 
@@ -47,6 +61,7 @@ class Curator(ABC):
         """
         return self.sdk_client.get_subject(subject_id)
 
+    @api_retry
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.

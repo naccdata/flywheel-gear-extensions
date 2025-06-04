@@ -1,7 +1,7 @@
 import logging
-from typing import List
+from multiprocessing import Manager
+from typing import List, MutableMapping
 
-from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -18,14 +18,16 @@ class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
     def __init__(self,
-                 sdk_client: Client,
                  deriver: AttributeDeriver,
                  curation_tag: str,
                  force_curate: bool = False) -> None:
-        super().__init__(sdk_client=sdk_client,
-                         curation_tag=curation_tag,
-                         force_curate=force_curate)
+        super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__deriver = deriver
+        self.__failed_files = Manager().dict()
+
+    @property
+    def failed_files(self) -> MutableMapping:
+        return self.__failed_files
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
@@ -38,6 +40,7 @@ class FormCurator(Curator):
 
         return super().get_table(subject, file_entry)
 
+    @api_retry
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.
@@ -58,7 +61,8 @@ class FormCurator(Curator):
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
-        """Perform contents of curation.
+        """Perform contents of curation. Keeps track of files that failed to be
+        curated.
 
         Args:
             subject: Subject the file belongs to
@@ -66,7 +70,13 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        self.__deriver.curate(table, scope)
+        try:
+            self.__deriver.curate(table, scope)
+        except Exception as e:
+            self.__failed_files[file_entry.name] = str(e)
+            log.error(f"Failed to derive {file_entry.name}: {e}")
+            return
+
         self.apply_curation(subject, file_entry, table)
 
     @api_retry
@@ -84,7 +94,7 @@ class FormCurator(Curator):
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
 
-            # TODO: this needs to be done due to an issue with upsert-hierarchy
+            # TODO: need to reload due to an issue with upsert-hierarchy
             # not creating the info object correctly, so calling delete_info
             # on a subject without info raises an exception.
             # sent support ticket to FW to see if this is something they

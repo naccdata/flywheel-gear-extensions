@@ -9,7 +9,6 @@ with NACC or key values such as as visit date.)
 import logging
 from typing import Any, Dict, MutableMapping
 
-from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
@@ -24,9 +23,9 @@ log = logging.getLogger(__name__)
 class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
-    def __init__(self, sdk_client: Client, baseline: MutableMapping,
+    def __init__(self, baseline: MutableMapping,
                  error_writer: ListErrorWriter) -> None:
-        super().__init__(sdk_client)
+        super().__init__()
         self.__baseline = SymbolTable(baseline)
         self.__error_writer = error_writer
 
