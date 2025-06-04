@@ -65,6 +65,7 @@ class DefaultValues:
     IDENTIFIER_SUFFIX = 'identifiers'
     FW_SEARCH_OR = '=|'
     UDS_I_PACKET = 'I'
+    UDS_IT_PACKET = 'IT'
     UDS_I4_PACKET = 'I4'
     UDS_F_PACKET = 'F'
 
