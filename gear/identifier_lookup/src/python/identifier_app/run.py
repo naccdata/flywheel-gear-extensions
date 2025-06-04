@@ -230,7 +230,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 log.info("Writing contents")
                 with context.open_output(filename,
                                          mode='w',
-                                         encoding='utf-8-sig') as fh:
+                                         encoding='utf-8') as fh:
                     fh.write(contents)
             else:
                 log.info("Contents empty, will not write output file")
