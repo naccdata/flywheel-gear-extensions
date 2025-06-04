@@ -14,11 +14,11 @@
     },
     "custom": {
         "gear-builder": {
-            "category": "utility",
+            "category": "analysis",
             "image": "naccdata/regression-curator:0.1.0"
         },
         "flywheel": {
-            "suite": "Utility",
+            "suite": "Curation",
             "show-job": true
         }
     },
