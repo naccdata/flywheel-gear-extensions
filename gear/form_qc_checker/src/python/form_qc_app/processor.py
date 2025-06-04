@@ -4,9 +4,9 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Literal, Mapping, Optional
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
-from configs.ingest_configs import FormProjectConfigs
+from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectError,
@@ -40,27 +40,27 @@ class FileProcessor(ABC):
 
     def __init__(self, *, pk_field: str, module: str, date_field: str,
                  project: ProjectAdaptor, error_writer: ListErrorWriter,
-                 gear_name: str) -> None:
+                 form_configs: FormProjectConfigs, gear_name: str) -> None:
         self._pk_field = pk_field
         self._module = module
         self._date_field = date_field
         self._project = project
         self._error_writer = error_writer
+        self._form_configs = form_configs
         self._gear_name = gear_name
-        self._error_log_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": self._date_field
-        }
+        self._module_configs = self._form_configs.module_configs.get(
+            self._module)
+        self._req_fields = self._set_required_fields()
+        self._errorlog_template = self._set_error_log_template()
 
     @abstractmethod
     def validate_input(
-            self, *, input_wrapper: InputFileWrapper,
-            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
+            self, *,
+            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
         """Validates the input file before proceeding with data quality checks.
 
         Args:
             input_wrapper: Wrapper object for gear input file
-            form_configs: Form ingest configurations for the module
 
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict
@@ -98,6 +98,36 @@ class FileProcessor(ABC):
             GearExecutionError: if errors occurred while processing the input file
         """
 
+    def _set_required_fields(self) -> List[str]:
+        """Retrieve list of required field names form module ingest configs.
+
+        Returns:
+            List[str]: list of required field names for the module
+        """
+        req_fields = (self._module_configs.required_fields
+                      if self._module_configs
+                      and self._module_configs.required_fields else [])
+        if self._pk_field not in req_fields:
+            req_fields.append(self._pk_field)
+        if self._date_field not in req_fields:
+            req_fields.append(self._date_field)
+        if FieldNames.FORMVER not in req_fields:
+            req_fields.append(FieldNames.FORMVER)
+
+        return req_fields
+
+    def _set_error_log_template(self) -> ErrorLogTemplate:
+        """Get the error log naming template from module configs.
+
+        Returns:
+            ErrorLogTemplate: error log template for the module
+        """
+        if self._module_configs and self._module_configs.errorlog_template:
+            return self._module_configs.errorlog_template
+
+        return ErrorLogTemplate(id_field=FieldNames.PTID,
+                                date_field=self._date_field)
+
     def update_visit_error_log(self,
                                *,
                                input_record: Dict[str, Any],
@@ -114,10 +144,11 @@ class FileProcessor(ABC):
         Returns:
             bool: True if error log updated successfully, else False
         """
+
         error_log_name = get_error_log_name(
             module=self._module,
             input_data=input_record,
-            naming_template=self._error_log_template)
+            errorlog_template=self._errorlog_template)
 
         if not error_log_name or not update_error_log_and_qc_metadata(
                 error_log_name=error_log_name,
@@ -144,6 +175,7 @@ class JSONFileProcessor(FileProcessor):
                  date_field: str,
                  project: ProjectAdaptor,
                  error_writer: ListErrorWriter,
+                 form_configs: FormProjectConfigs,
                  gear_name: str,
                  supplement_data: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(pk_field=pk_field,
@@ -151,6 +183,7 @@ class JSONFileProcessor(FileProcessor):
                          date_field=date_field,
                          project=project,
                          error_writer=error_writer,
+                         form_configs=form_configs,
                          gear_name=gear_name)
         self.__supplement_data = supplement_data
 
@@ -202,8 +235,8 @@ class JSONFileProcessor(FileProcessor):
         return 'NONE'
 
     def validate_input(
-            self, *, input_wrapper: InputFileWrapper,
-            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
+            self, *,
+            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
         """Validates a JSON input file for a participant visit. Check whether
         all required fields are present in the input data. Check whether
         primary key matches with the Flywheel subject label in the project.
@@ -227,16 +260,15 @@ class JSONFileProcessor(FileProcessor):
             self._error_writer.write(empty_file_error())
             return None
 
-        if not input_data.get(self._pk_field):
-            self._error_writer.write(empty_field_error(self._pk_field))
-            return None
+        found_all = True
+        empty_fields = set()
+        for field in self._req_fields:
+            if input_data.get(field) is None:
+                empty_fields.add(field)
+                found_all = False
 
-        if not input_data.get(self._date_field):
-            self._error_writer.write(empty_field_error(self._date_field))
-            return None
-
-        if not input_data.get(FieldNames.FORMVER):
-            self._error_writer.write(empty_field_error(FieldNames.FORMVER))
+        if not found_all:
+            self._error_writer.write(empty_field_error(empty_fields))
             return None
 
         subject_lbl = input_data[self._pk_field]

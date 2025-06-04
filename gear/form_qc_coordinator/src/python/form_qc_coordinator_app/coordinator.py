@@ -137,8 +137,10 @@ class QCCoordinator():
 
         error_log_name = get_error_log_name(module=self.__module,
                                             input_data={
-                                                'ptid': ptid,
-                                                'visitdate': visitdate
+                                                f'{FieldNames.PTID}':
+                                                ptid,
+                                                f'{FieldNames.DATE_COLUMN}':
+                                                visitdate
                                             })
 
         project = self.__proxy.get_project_by_id(
@@ -170,7 +172,7 @@ class QCCoordinator():
 
     def __get_matching_supplement_visit_file(
             self, *, supplement_module_info: SupplementModuleConfigs,
-            visitdate: str, visitnum: str) -> Optional[FileEntry]:
+            visitdate: str, visitnum: Optional[str]) -> Optional[FileEntry]:
         """Find the matching supplement visit for the current visit (i.e.
         respective UDS visit for LBD or FTLD submission)
 
@@ -180,7 +182,7 @@ class QCCoordinator():
         Args:
             supplement_module_info: supplement module information
             visitdate: visit date for current input
-            visitnum: visit number for current input
+            visitnum (optional): visit number for current input
 
         Returns:
             FileEntry(optional): matching supplement visit file if found
@@ -193,14 +195,18 @@ class QCCoordinator():
 
         ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
         date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_date_field}'
-        visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
         columns = [
-            ptid_key, date_col_key, visitnum_key, 'file.name', 'file.file_id',
+            ptid_key, date_col_key, 'file.name', 'file.file_id',
             'file.parents.acquisition'
         ]
         filters = (
-            f'acquisition.label={supplement_module},{date_col_key}={visitdate},{visitnum_key}={visitnum}'
+            f'acquisition.label={supplement_module},{date_col_key}={visitdate}'
         )
+
+        if visitnum:
+            visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            columns.append(visitnum_key)
+            filters += f',{visitnum_key}={visitnum}'
 
         filters += (
             f',file.info.qc.{self.__qc_gear_info.gear_name}.validation.state=PASS'
@@ -279,7 +285,7 @@ class QCCoordinator():
             acq_id = visit['file.parents.acquisition']
             visitdate = visit[date_col_key]
             ptid = visit[ptid_key]
-            visitnum = visit[visitnum_key]
+            visitnum = visit.get(visitnum_key)
 
             try:
                 visit_file = self.__proxy.get_file(file_id)

@@ -11,6 +11,14 @@ class FileEntry:
         ...
 
     @property
+    def file_id(self):
+        """Gets the file_id of this FileEntry.
+
+        Unique database ID
+        """
+        ...
+
+    @property
     def name(self) -> str:
         ...
 

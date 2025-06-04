@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
-
+## 1.4.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
 * Updates to pull REDCap API code from library instead
 
 ## 1.3.3

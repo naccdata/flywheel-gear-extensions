@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Mapping, Optional
 
-from datastore.forms_store import FormFilter, FormsStore
+from datastore.forms_store import FormsStore
 from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
@@ -76,6 +76,10 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
     Returns:
         bool: True if processing was successful with no errors
     """
+
+    log.info('Trying to import %d legacy enrollment records',
+             len(record_collection))
+
     success_count = 0
     error_count = 0
     for record in record_collection:
@@ -105,21 +109,30 @@ def process_record_collection(record_collection: LegacyEnrollmentCollection,
 
     log.info('Successfully imported %d legacy enrollment records',
              success_count)
+
     return error_count == 0  # Returns True only if no errors occurred
 
 
 def get_enrollment_date(subject_id: str,
                         forms_store: FormsStore) -> Optional[datetime]:
+    """Lookup the enrollment date for the subject.
 
-    ivp_filter = FormFilter(field=FieldNames.PACKET,
-                            value=DefaultValues.UDS_I_PACKET,
-                            operator="=")
-    initial_visits = forms_store.query_form_data_with_custom_filters(
+    Args:
+        subject_id: Subject label in Flywheel
+        forms_store: Class to retrieve form data from Flywheel ingest projects
+
+    Returns:
+        Optional[datetime]: Enrollment date if found
+    """
+
+    initial_visits = forms_store.query_form_data(
         subject_lbl=subject_id,
         module=DefaultValues.UDS_MODULE,
         legacy=True,
-        order_by=FieldNames.DATE_COLUMN,
-        list_filters=[ivp_filter])
+        search_col=FieldNames.PACKET,
+        search_val=[DefaultValues.UDS_I_PACKET, DefaultValues.UDS_IT_PACKET],
+        search_op=DefaultValues.FW_SEARCH_OR,
+        extra_columns=[FieldNames.DATE_COLUMN])
 
     # If no UDS IVP found check for MDS or BDS visit
     if not initial_visits:
@@ -218,15 +231,14 @@ def process_legacy_identifiers(  # noqa: C901
     if failed_count > 0:
         log.error('Number of records that failed validation: %s', failed_count)
 
-    if not record_collection:
+    if not len(record_collection) > 0:
         log.warning('No valid legacy identifiers to process')
         return success
 
-    return success and process_record_collection(
-        record_collection=record_collection,
-        enrollment_project=enrollment_project,
-        failed_ids=failed_ids,
-        dry_run=dry_run)
+    return process_record_collection(record_collection=record_collection,
+                                     enrollment_project=enrollment_project,
+                                     failed_ids=failed_ids,
+                                     dry_run=dry_run) and success
 
 
 def send_email(sender_email: str, target_emails: List[str], group_lbl: str,
@@ -281,8 +293,8 @@ def run(*,
             dry_run=dry_run)
 
         if len(failed_ids) > 0:
+            log.error("Total number of failed records: %s", len(failed_ids))
             log.error("List of failed IDs: %s", failed_ids)
-            log.error("Number of failed records: %s", len(failed_ids))
             send_email(sender_email=sender_email,
                        target_emails=target_emails,
                        group_lbl=enrollment_project.group,

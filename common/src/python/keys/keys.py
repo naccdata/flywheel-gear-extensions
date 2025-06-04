@@ -65,6 +65,7 @@ class DefaultValues:
     IDENTIFIER_SUFFIX = 'identifiers'
     FW_SEARCH_OR = '=|'
     UDS_I_PACKET = 'I'
+    UDS_IT_PACKET = 'IT'
     UDS_I4_PACKET = 'I4'
     UDS_F_PACKET = 'F'
 
@@ -110,3 +111,14 @@ class SysErrorCodes:
     DUPLICATE_VISIT = 'preprocess-022'
     LOWER_VISITNUM = 'preprocess-023'
     MISSING_SUBMISSION_STATUS = 'preprocess-024'
+
+
+class PreprocessingChecks:
+    DUPLICATE_RECORD = 'duplicate-record'
+    VERSION = 'version'
+    PACKET = 'packet'
+    OPTIONAL_FORMS = 'optional-forms'
+    SUPPLEMENT_MODULE = 'supplement-module'
+    IVP = 'ivp'
+    UDSV4_IVP = 'udsv4-ivp'
+    VISIT_CONFLICT = 'visit-conflict'

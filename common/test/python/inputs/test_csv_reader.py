@@ -4,6 +4,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 import pytest
+from form_screening_app.format import CSVFormatterVisitor
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.errors import StreamErrorWriter, invalid_header_error
 
@@ -74,6 +75,40 @@ def case_stream():
         'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
         "CAPITAL VAR WITH SPACES ", "mixedCase-TestIO-whatever", "3RD"
     ], [1, '1', 8, 9, 10, 11]]
+    stream = StringIO()
+    write_to_stream(data, stream)
+    yield stream
+
+
+@pytest.fixture(scope="function")
+def malformed_stream():
+    """Create a malformed data stream number of columns in the header does not
+    match with number of columns in the data rows."""
+    header = [
+        "ptid", "adcid", "visitnum", "visitdate", "packet", "formver", "mode"
+    ]
+    row = [
+        "13845",
+        "4",
+        "9",
+        "02/21/2025",
+        "I4",
+        "4",
+        "0",
+        "02/21/2025",
+    ]
+    data = [header, row]
+    stream = StringIO()
+    write_to_stream(data, stream)
+    yield stream
+
+
+@pytest.fixture(scope="function")
+def duplicate_header():
+    """Create a data stream with duplicate headers."""
+    header = ["ptid", "mode", "visitnum", "ptid", "packet", "mode", "ptid"]
+    row = ["13845", "4", "9", "0", "I4", "13845", "1"]
+    data = [header, row]
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -206,3 +241,48 @@ class TestCSVReader:
             ['adcid', 'ptid', 'var1', "capitalvar",
              "var_with_spaces", "capital_var_with_spaces",
              "mixed_case_test_io_whatever", "3rd"]
+
+    def test_malformed_stream(self, malformed_stream):
+        """Test malformed stream."""
+        err_stream = StringIO()
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy-path')
+        visitor = CSVFormatterVisitor(output_stream=StringIO(),
+                                      error_writer=error_writer)
+        success = read_csv(input_file=malformed_stream,
+                           error_writer=error_writer,
+                           visitor=visitor)
+        assert not success
+        assert err_stream
+        err_stream.seek(0)
+        reader = csv.DictReader(err_stream, dialect='unix')
+        assert reader.fieldnames
+        row = next(reader)
+        assert row['code'] == 'malformed-file'
+        assert row['message'] == (
+            'Malformed input file: Number of columns in line 1 '
+            'do not match with the number of columns in the header row')
+
+    def test_duplicate_header(self, duplicate_header):
+        """Test duplicate header."""
+        err_stream = StringIO()
+        error_writer = StreamErrorWriter(stream=err_stream,
+                                         container_id='dummy',
+                                         fw_path='dummy-path')
+        visitor = CSVFormatterVisitor(output_stream=StringIO(),
+                                      error_writer=error_writer)
+        success = read_csv(input_file=duplicate_header,
+                           error_writer=error_writer,
+                           visitor=visitor)
+        assert not success
+        assert err_stream
+        err_stream.seek(0)
+        reader = csv.DictReader(err_stream, dialect='unix')
+        assert reader.fieldnames
+        row = next(reader)
+        assert row['code'] == 'malformed-file'
+        assert row['message'] == (
+            "Malformed input file: "
+            "Duplicate column names ['ptid', 'mode'] detected in the file header"
+        )

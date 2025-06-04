@@ -81,51 +81,54 @@ def run(*,
             #    but left in as a safeguard
             JobPoll.wait_for_pipeline(proxy, search_str)
 
-            # b. Pull the next CSV from queue and clear the queue tags
-            file = subqueue.pop(0)
-            for tag in queue.queue_tags:
-                file.delete_tag(tag)
-
-            # need to reload else the next gear may add the same queue tags back in
-            # causing an infinite loop
-            file = file.reload()
-
-            # c. Trigger the submission pipeline.
-            #    Here's where it isn't actually parameterized - we assume that
-            #    the first gear is the file-validator regardless, and passes
-            #    the corresponding inputs + uses the default configuration
-            #    If the first gear changes and has different inputs/needs updated
-            #    configurations, this may break as a result and will need to be updated
-            #    Maybe we should check that the first gear is always the file-validator?
-
-            log.info(
-                f"Kicking off {submission_pipeline[0]} for {file.name}, " +
-                f"module {module}")
+            log.info(f"Start processing {module} queue.")
 
             validation_schema = project.get_file(f'{module}-schema.json')
             if not validation_schema:
                 raise GearExecutionError(
                     f"Missing validation schema for {module}")
 
-            inputs = {
-                "input_file": file,
-                "validation_schema": validation_schema
-            }
-            trigger_gear(proxy=proxy,
-                         gear_name=submission_pipeline[0],
-                         inputs=inputs)
+            while len(subqueue) > 0:
+                # b. Pull the next CSV from queue and clear the queue tags
+                file = subqueue.pop(0)
+                for tag in queue.queue_tags:
+                    file.delete_tag(tag)
 
-            # d. wait for the above submission pipeline to finish
-            JobPoll.wait_for_pipeline(proxy, search_str)
+                # need to reload else the next gear may add the same queue tags back in
+                # causing an infinite loop
+                file = file.reload()
 
-            # e. send email to user who uploaded the file that their
-            #    submission pipeline has completed
-            if email_client:
-                send_email(proxy=proxy,
-                           email_client=email_client,
-                           file=file,
-                           project=project,
-                           portal_url=portal_url)  # type: ignore
+                # c. Trigger the submission pipeline.
+                # Here's where it isn't actually parameterized - we assume that
+                # the first gear is the file-validator regardless, and passes
+                # the corresponding inputs + uses the default configuration
+                # If the first gear changes and has different inputs/needs updated
+                # configurations, this may break as a result and will need to be updated
+                # Should we check that the first gear is always the file-validator?
+
+                log.info(
+                    f"Kicking off {submission_pipeline[0]} for {file.name}, " +
+                    f"module {module}")
+
+                inputs = {
+                    "input_file": file,
+                    "validation_schema": validation_schema
+                }
+                trigger_gear(proxy=proxy,
+                             gear_name=submission_pipeline[0],
+                             inputs=inputs)
+
+                # d. wait for the above submission pipeline to finish
+                JobPoll.wait_for_pipeline(proxy, search_str)
+
+                # e. send email to user who uploaded the file that their
+                #    submission pipeline has completed
+                if email_client:
+                    send_email(proxy=proxy,
+                               email_client=email_client,
+                               file=file,
+                               project=project,
+                               portal_url=portal_url)  # type: ignore
 
         # 3. repeat until all queues empty
 

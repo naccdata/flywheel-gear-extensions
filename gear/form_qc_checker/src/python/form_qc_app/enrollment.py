@@ -20,7 +20,7 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
 from outputs.errors import (
     ListErrorWriter,
     empty_field_error,
@@ -85,9 +85,8 @@ class EnrollmentFormVisitor(CSVVisitor):
 
     def visit_header(self, header: List[str]) -> bool:
         """Validates the header fields in file. If the header doesn't have
-        primary key field, date field, or formver, writes an error. Also, if
-        validation schema provided, rejects the file if there are any unknown
-        fields in the header.
+        required fields writes an error. Also, if validation schema provided,
+        rejects the file if there are any unknown fields in the header.
 
         Args:
           header: the list of header names
@@ -116,7 +115,7 @@ class EnrollmentFormVisitor(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Validates a row from the CSV file.
 
-        If the row doesn't have `<primary key>`, formver writes an error.
+        If the row doesn't have required fields writes an error.
 
         Args:
           row: the dictionary from the CSV row (DictReader)
@@ -131,7 +130,7 @@ class EnrollmentFormVisitor(CSVVisitor):
         found_all = True
         empty_fields = set()
         for field in self.__required_fields:
-            if field not in row or not row[field]:
+            if row.get(field) is None:
                 empty_fields.add(field)
                 found_all = False
 
@@ -173,25 +172,24 @@ class CSVFileProcessor(FileProcessor):
 
     def __init__(self, *, pk_field: str, module: str, date_field: str,
                  project: ProjectAdaptor, error_writer: ListErrorWriter,
-                 gear_name: str) -> None:
+                 form_configs: FormProjectConfigs, gear_name: str) -> None:
         super().__init__(pk_field=pk_field,
                          module=module,
                          date_field=date_field,
                          project=project,
                          error_writer=error_writer,
+                         form_configs=form_configs,
                          gear_name=gear_name)
-        self.__required_fields = {pk_field, date_field, FieldNames.FORMVER}
         self.__input: Optional[InputFileWrapper] = None
 
     def validate_input(
-            self, *, input_wrapper: InputFileWrapper,
-            form_configs: FormProjectConfigs) -> Optional[Dict[str, Any]]:
+            self, *,
+            input_wrapper: InputFileWrapper) -> Optional[Dict[str, Any]]:
         """Validates a CSV input file. Check whether all required fields are
         present in the header and the first data row.
 
         Args:
             input_wrapper: Wrapper object for gear input file
-            form_configs: Form ingest configurations
 
         Returns:
             Dict[str, Any]: None if required info missing, else first row as dict
@@ -204,7 +202,7 @@ class CSVFileProcessor(FileProcessor):
             result = read_csv(input_file=file_obj,
                               error_writer=self._error_writer,
                               visitor=EnrollmentFormVisitor(
-                                  required_fields=self.__required_fields,
+                                  required_fields=set(self._req_fields),
                                   error_writer=self._error_writer,
                                   processor=self),
                               limit=1)
@@ -220,17 +218,13 @@ class CSVFileProcessor(FileProcessor):
                 primary_key=self._pk_field,
                 forms_store=FormsStore(ingest_project=self._project,
                                        legacy_project=None),
-                module_info=form_configs.module_configs,
+                module_info=self._form_configs.module_configs,
                 error_writer=self._error_writer)
 
-            module_configs = form_configs.module_configs.get(self._module)
-            if not module_configs:
-                raise GearExecutionError(
-                    f'No configurations found for module {self._module}')
             if not preprocessor.is_accepted_version(
                     input_record=first_row,
                     module=self._module,
-                    module_configs=module_configs,
+                    module_configs=self._module_configs,  # type: ignore
                     line_num=1):
                 return None
 
@@ -273,12 +267,12 @@ class CSVFileProcessor(FileProcessor):
             raise GearExecutionError('Missing input file')
 
         out_stream = StringIO()
-        enrl_visitor = EnrollmentFormVisitor(
-            required_fields=self.__required_fields,
-            error_writer=self._error_writer,
-            processor=self,
-            validator=validator,
-            output_stream=out_stream)
+        enrl_visitor = EnrollmentFormVisitor(required_fields=set(
+            self._req_fields),
+                                             error_writer=self._error_writer,
+                                             processor=self,
+                                             validator=validator,
+                                             output_stream=out_stream)
 
         with open(self.__input.filepath, mode='r',
                   encoding='utf-8') as csv_file:
