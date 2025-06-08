@@ -1,6 +1,7 @@
 import logging
 from multiprocessing import Manager
-from typing import List, MutableMapping
+from multiprocessing.managers import DictProxy
+from typing import List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -26,7 +27,7 @@ class FormCurator(Curator):
         self.__failed_files = Manager().dict()
 
     @property
-    def failed_files(self) -> MutableMapping:
+    def failed_files(self) -> DictProxy:
         return self.__failed_files
 
     def get_table(self, subject: Subject,
