@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.2
+
+* Updates how metadata deletions are handled to reduce overhead
+* Fixes DictProxy error on reporting failed files
+
 ## 0.3.1
 
 * Updates how the SDK client is set for multiprocessing - gives each worker its own instance

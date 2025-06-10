@@ -1,9 +1,11 @@
 import logging
 from multiprocessing import Manager
-from typing import List, MutableMapping
+from multiprocessing.managers import DictProxy
+from typing import List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
+from flywheel.rest import ApiException
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
@@ -26,7 +28,7 @@ class FormCurator(Curator):
         self.__failed_files = Manager().dict()
 
     @property
-    def failed_files(self) -> MutableMapping:
+    def failed_files(self) -> DictProxy:
         return self.__failed_files
 
     def get_table(self, subject: Subject,
@@ -94,22 +96,26 @@ class FormCurator(Curator):
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
 
-            # TODO: need to reload due to an issue with upsert-hierarchy
-            # not creating the info object correctly, so calling delete_info
-            # on a subject without info raises an exception.
-            # sent support ticket to FW to see if this is something they
-            # can resolve on their end
-            subject = subject.reload()
-            if subject.info:
-                log.info(
-                    f"Force curation set to True, cleaning up {subject.label} metadata"
-                )
-                for field in [
-                        'cognitive.uds', 'demographics.uds', 'derived',
-                        'genetics', 'longitudinal-data.uds', 'neuropathology',
-                        'study-parameters.uds'
-                ]:
+            # TODO: there is an issue with upsert-hierarchy not creating the
+            # info object correctly, so calling delete_info on a subject without
+            # info raises an exception. FW is aware of issue but may not be fixed
+            # for a while. however calling subject.reload() for everything introduces
+            # significant overhead, so instead just catch when it fails (which will be
+            # much rarer)
+            log.info(
+                f"Force curation set to True, cleaning up {subject.label} metadata"
+            )
+            for field in [
+                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
+                    'longitudinal-data.uds', 'neuropathology',
+                    'study-parameters.uds'
+            ]:
+                try:
                     subject.delete_info(field)
+                except ApiException as e:  # check if it failed due to info object
+                    if str(e) == "(500) Reason: 'info'":
+                        break
+                    raise e
 
     @api_retry
     def post_process(self, subject: Subject,
