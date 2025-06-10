@@ -137,6 +137,7 @@ class FormCurator(Curator):
 
         # add affiliated tag
         if affiliate:
+            log.info(f"Tagging affiliate: {subject.label}")
             subject.add_tag('affiliated')
 
         if not cs_derived:
