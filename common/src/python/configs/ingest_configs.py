@@ -124,3 +124,22 @@ class FormProjectConfigs(BaseModel):
     accepted_modules: List[str]
     legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
     module_configs: Dict[str, ModuleConfigs]
+
+    def get_module_dependencies(self, module: str) -> Optional[List[str]]:
+        """Returns the list of dependent modules for a given module.
+
+        Args:
+            module: module label
+
+        Returns:
+            List[str](optional): list of dependent module labels if found
+        """
+
+        dependent_modules = []
+        for module_label, config in self.module_configs.items():
+            if (config.supplement_module
+                    and config.supplement_module.exact_match
+                    and config.supplement_module.label == module.upper()):
+                dependent_modules.append(module_label)
+
+        return dependent_modules
