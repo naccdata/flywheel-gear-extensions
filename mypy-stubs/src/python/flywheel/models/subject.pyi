@@ -68,3 +68,6 @@ class Subject:
 
     def delete_info(self, *args, **kwargs):
         ...
+
+    def add_tag(self, tag, **kwargs):
+        ...
