@@ -136,7 +136,7 @@ class FormCurator(Curator):
         cs_derived = derived.get('cross-sectional', None)
 
         # add affiliated tag
-        if affiliate:
+        if affiliate and 'affiliated' not in subject.tags:
             log.info(f"Tagging affiliate: {subject.label}")
             subject.add_tag('affiliated')
 
@@ -158,4 +158,3 @@ class FormCurator(Curator):
             derived = file_entry.info.get('derived', {})
             derived.update(cs_derived)
             file_entry.update_info({'derived': derived})
-
