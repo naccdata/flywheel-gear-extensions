@@ -1,9 +1,9 @@
 """Defines Form QC Coordinator."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -16,11 +16,11 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import FieldNames, MetadataKeys
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
+from form_qc_coordinator_app.visits import find_visits_for_participant_for_module
 
 log = logging.getLogger(__name__)
 
@@ -39,54 +39,45 @@ def update_file_tags(gear_context: GearToolkitContext,
                                         tags=gear_name)
 
 
-def get_matching_visits(
-        *,
-        proxy: FlywheelProxy,
-        container_id: str,
-        subject: str,
-        module: str,
-        module_configs: ModuleConfigs,
-        cutoff_date: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
-    """Get the list of visits for the specified participant for the specified
-    module.
-
-    Note: This method assumes visit date in file metadata is normalized to
-    YYYY-MM-DD format at a previous stage of the submission pipeline.
+def trigger_dependent_modules_qc_checks(
+        *, proxy: FlywheelProxy, gear_context: GearToolkitContext,
+        subject: SubjectAdaptor, form_project_configs: FormProjectConfigs,
+        configs_file_id: str, qc_gear_info: GearInfo,
+        dependent_visits_info: Dict[str, List[Dict[str, str]]]):
+    """Trigger QC checks for each dependent module for the given subject.
 
     Args:
-        proxy: Flywheel proxy
-        container_id: Flywheel subject container ID
-        subject: Flywheel subject label for participant
-        module: module label, matched with Flywheel acquisition label
-        module_configs: form ingest configs for the module
-        cutoff_date (optional): If specified, filter visits on date_col >= cutoff_date
-
-    Returns:
-        List[Dict]: List of visits matching with the specified cutoff date
+        proxy: Flywheel proxy object
+        gear_context: Flywheel gear context
+        subject: Flywheel subject to run the QC checks
+        form_project_configs: form ingest configurations
+        configs_file_id: form ingest configurations file id
+        qc_gear_info: GearInfo containing info for the qc gear
+        dependent_visits_info: list of dependent visits by module
     """
 
-    title = f'{module} visits for participant {subject}'
+    for dep_module, dep_visits in dependent_visits_info.items():
+        if not dep_visits:
+            log.warning('No visits found for dependent module %s', dep_module)
+            continue
 
-    ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-    date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
-    columns = [
-        ptid_key, date_col_key, 'file.name', 'file.file_id',
-        'file.parents.acquisition'
-    ]
+        # Create a QC Coordinator for each dependent module
+        log.info(
+            'Triggering QC Coordinator for dependent module %s #visits: %s',
+            dep_module, len(dep_visits))
 
-    if FieldNames.VISITNUM in module_configs.required_fields:
-        visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
-        columns.append(visitnum_key)
+        qc_coordinator = QCCoordinator(
+            subject=subject,
+            module=dep_module,
+            form_project_configs=form_project_configs,
+            configs_file_id=configs_file_id,
+            qc_gear_info=qc_gear_info,
+            proxy=proxy,
+            gear_context=gear_context,
+            dependent_modules=form_project_configs.get_module_dependencies(
+                module=dep_module))
 
-    filters = f'acquisition.label={module}'
-
-    if cutoff_date:
-        filters += f',{date_col_key}>={cutoff_date}'
-
-    return proxy.get_matching_acquisition_files_info(container_id=container_id,
-                                                     dv_title=title,
-                                                     columns=columns,
-                                                     filters=filters)
+        qc_coordinator.run_error_checks(visits=dep_visits)
 
 
 def run(*,
@@ -138,14 +129,20 @@ def run(*,
     module_configs: ModuleConfigs = form_project_configs.module_configs.get(
         module)  # type: ignore
 
+    dependent_modules = form_project_configs.get_module_dependencies(
+        module=module)
+    log.info('List of other modules dependent on module %s: %s', module,
+             dependent_modules)
+
     proxy = client_wrapper.get_proxy()
 
-    visits_list = get_matching_visits(proxy=proxy,
-                                      container_id=subject.id,
-                                      subject=subject.label,
-                                      module=module,
-                                      module_configs=module_configs,
-                                      cutoff_date=cutoff)
+    visits_list = find_visits_for_participant_for_module(
+        proxy=proxy,
+        container_id=subject.id,
+        subject=subject.label,
+        module=module,
+        module_configs=module_configs,
+        cutoff_date=cutoff)
     if not visits_list:
         # This cannot happen, at least one file should exist with matching cutoff date
         raise GearExecutionError(
@@ -156,12 +153,24 @@ def run(*,
     qc_coordinator = QCCoordinator(
         subject=subject,
         module=module,
-        module_configs=module_configs,
+        form_project_configs=form_project_configs,
         configs_file_id=configs_file_wrapper.file_id,
         qc_gear_info=qc_gear_info,
         proxy=proxy,
-        gear_context=gear_context)
+        gear_context=gear_context,
+        dependent_modules=dependent_modules)
 
     qc_coordinator.run_error_checks(visits=visits_list)
+
+    dependent_visits_info = qc_coordinator.get_dependent_module_visits()
+    if dependent_visits_info:
+        trigger_dependent_modules_qc_checks(
+            proxy=proxy,
+            gear_context=gear_context,
+            subject=subject,
+            form_project_configs=form_project_configs,
+            configs_file_id=configs_file_wrapper.file_id,
+            qc_gear_info=qc_gear_info,
+            dependent_visits_info=dependent_visits_info)
 
     update_file_tags(gear_context, visits_file_wrapper)
