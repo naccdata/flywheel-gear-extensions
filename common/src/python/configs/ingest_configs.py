@@ -4,6 +4,7 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
+from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues
 from pydantic import BaseModel, Field, RootModel
 
@@ -143,3 +144,16 @@ class FormProjectConfigs(BaseModel):
                 dependent_modules.append(module_label)
 
         return dependent_modules
+
+
+class Pipeline(BaseModel):
+    name: str
+    modules: List[str]
+    tags: List[str]
+    extensions: List[str]
+    starting_gear: GearInfo
+
+
+class PipelineConfigs(BaseModel):
+    gears: List[str]
+    pipelines: List[Pipeline]

@@ -2,17 +2,50 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from pydantic import BaseModel, ConfigDict, SerializeAsAny, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    SerializeAsAny,
+    ValidationError,
+    model_validator,
+)
 
 from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)
 
 BatchMode = Literal['projects', 'files']
+LocatorType = Literal['matched', 'module', 'fixed']
+
+
+class GearInput(BaseModel):
+    label: str
+    file_locator: LocatorType
+    file_name: Optional[str]
+
+    @model_validator(mode='after')
+    def validate_iteration_mode(self) -> 'GearInput':
+        """Validates whether the file_locator type matches with the file_name
+        value."""
+
+        if self.file_locator != 'matched' and not self.file_name:
+            raise ValueError(
+                f'Gear input {self.label} not in expected format: '
+                f'file_name is required for file_locator of type {self.file_locator}'
+            )
+
+        if (self.file_locator == 'module' and self.file_name
+                and self.file_name.find(f'${{{self.file_locator}}}') == -1):
+            raise ValueError(
+                f'Gear input {self.label} not in expected format: '
+                f'file_locator type placeholder ${{{self.file_locator}}} '
+                f'not present in file_name {self.file_name}')
+
+        return self
 
 
 class GearConfigs(BaseModel):
@@ -28,6 +61,7 @@ class GearInfo(BaseModel):
 
     gear_name: str
     configs: SerializeAsAny[GearConfigs]
+    inputs: Optional[List[GearInput]] = None
 
     @classmethod
     def load_from_file(cls,
@@ -69,6 +103,32 @@ class GearInfo(BaseModel):
             return None
 
         return gear_configs
+
+    def get_inputs_by_file_locator_type(
+            self, locators: List[LocatorType]
+    ) -> Optional[Dict[str, List[GearInput]]]:
+        """Get the list of gear inputs by file_locator type.
+
+        Args:
+            locators: list of file_locator types
+
+        Returns:
+            Dict[str, List[GearInput]](optional): list of gear inputs by locator
+        """
+        if not self.inputs:
+            log.info('No inputs specified for gear %s', self.gear_name)
+            return None
+
+        inputs_list = {}
+        for gear_input in self.inputs:
+            if gear_input.file_locator not in locators:
+                continue
+
+            if gear_input.file_locator not in inputs_list:
+                inputs_list[gear_input.file_locator] = []
+            inputs_list[gear_input.file_locator].append(gear_input)
+
+        return inputs_list
 
 
 class BatchRunInfo(BaseModel):
