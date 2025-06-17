@@ -121,19 +121,19 @@ class RegressionCurator(Curator):
         """
         # skip if not UDS, no derived variables, or no visitdate found
         if scope != 'uds':
-            log.info(f"{file_entry.name} is a not an UDS form, skipping")
+            log.debug(f"{file_entry.name} is a not an UDS form, skipping")
             return
 
         derived_vars = table.get('file.info.derived', None)
         if (not derived_vars or not any(x.lower().startswith('nacc')
                                         for x in derived_vars)):
-            log.info(
+            log.debug(
                 f"No derived variables found for {file_entry.name}, skipping")
             return
 
         visitdate = table.get("file.info.forms.json.visitdate")
         if not visitdate:
-            log.info(f"No visitdate found for {file_entry.name}, skipping")
+            log.debug(f"No visitdate found for {file_entry.name}, skipping")
             return
 
         # ensure in QAF baseline - if not affiliate, report error
@@ -141,7 +141,7 @@ class RegressionCurator(Curator):
         record = self.__qaf_baseline.get(key)
         if not record:
             if 'affiliate' in subject.tags:
-                log.info(f"{subject.label} is an affiliate, skipping")
+                log.debug(f"{subject.label} is an affiliate, skipping")
                 return
 
             msg = (f"Could not find matching record for {file_entry.name} " +
@@ -166,7 +166,7 @@ class RegressionCurator(Curator):
         """
         subject = subject.reload()
         if not subject.info:
-            log.info("No subject derived variables, skipping")
+            log.debug("No subject derived variables, skipping")
             return
 
         # means subject hasn't been curated before - might not

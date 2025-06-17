@@ -136,7 +136,7 @@ class ProjectCurationScheduler:
 
             subject_id = file_info.subject_id
             if blacklist and subject_id in blacklist:
-                log.info(f"{subject_id} blacklisted, skipping")
+                log.debug(f"{subject_id} blacklisted, skipping")
                 continue
 
             heap = subject_heap_map.get(subject_id, MinHeap[FileModel]())
@@ -176,7 +176,7 @@ class ProjectCurationScheduler:
                       context,
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
-                log.info("Curating subject %s", subject_id)
+                log.debug("Curating subject %s", subject_id)
                 results.append(
                     pool.apply_async(curate_subject, (
                         subject_id,

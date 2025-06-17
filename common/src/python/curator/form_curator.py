@@ -60,7 +60,8 @@ class FormCurator(Curator):
         if subject_info:
             subject.update_info(subject_info)
 
-        file_entry.add_tag(self.curation_tag)
+        if self.curation_tag not in file_entry.tags:
+            file_entry.add_tag(self.curation_tag)
 
     def execute(self, subject: Subject, file_entry: FileEntry,
                 table: SymbolTable, scope: ScopeLiterals) -> None:
@@ -103,7 +104,7 @@ class FormCurator(Curator):
             # for a while. however calling subject.reload() for everything introduces
             # significant overhead, so instead just catch when it fails (which will be
             # much rarer)
-            log.info(
+            log.debug(
                 f"Force curation set to True, cleaning up {subject.label} metadata"
             )
             for field in [
@@ -140,13 +141,13 @@ class FormCurator(Curator):
 
         # add affiliated tag
         if affiliate and 'affiliated' not in subject.tags:
-            log.info(f"Tagging affiliate: {subject.label}")
+            log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag('affiliated')
 
         if not cs_derived:
             return
 
-        log.info(
+        log.debug(
             f"Back-propagating cross-sectional UDS variables for {subject.label}"
         )
         for file in processed_files:

@@ -65,6 +65,11 @@
             "description": "The instance specific AWS parameter gearbot path prefix",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "debug": {
+            "description": "Whether or not to use debug-level logging (level set to DEBUG)",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"

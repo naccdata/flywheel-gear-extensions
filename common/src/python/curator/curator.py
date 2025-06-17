@@ -94,7 +94,7 @@ class Curator(ABC):
 
         if (self.curation_tag and not self.force_curate
                 and self.curation_tag in file_entry.tags):
-            log.info(f"{file_entry.name} already curated, skipping")
+            log.debug(f"{file_entry.name} already curated, skipping")
             return
 
         scope = determine_scope(file_entry.name)
@@ -104,7 +104,7 @@ class Curator(ABC):
             return
 
         table = self.get_table(subject, file_entry)
-        log.info("curating file %s", file_entry.name)
+        log.debug("curating file %s", file_entry.name)
         self.execute(subject, file_entry, table, scope)
 
     def pre_process(self, subject: Subject) -> None:

@@ -71,6 +71,9 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
+        if context.config.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
         return AttributeCuratorVisitor(client=client,
                                        project=project,
                                        filename_pattern=filename_pattern,

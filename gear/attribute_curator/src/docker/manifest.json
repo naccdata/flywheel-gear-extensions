@@ -58,6 +58,11 @@
             "description": "Curate file even if it's already been curated",
             "type": "boolean",
             "default": false
+        },
+        "debug": {
+            "description": "Whether or not to use debug-level logging (level set to DEBUG)",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"

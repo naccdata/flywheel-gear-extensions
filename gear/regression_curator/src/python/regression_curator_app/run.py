@@ -90,6 +90,9 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         blacklist_file = InputFileWrapper.create(input_name='blacklist_file',
                                                  context=context)
 
+        if context.config.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
         return RegressionCuratorVisitor(client=client,
                                         project=project,
                                         s3_qaf_file=s3_qaf_file,
