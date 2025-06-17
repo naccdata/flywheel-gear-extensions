@@ -182,7 +182,7 @@ class CenterGroup(CenterAdaptor):
         """Indicates whether the center is active."""
         return self.__is_active
 
-    def __get_matching_projects(self, prefix: str) -> List[ProjectAdaptor]:
+    def get_matching_projects(self, prefix: str) -> List[ProjectAdaptor]:
         """Returns the projects for the center with labels that match the
         prefix.
 
@@ -203,7 +203,7 @@ class CenterGroup(CenterAdaptor):
         """
         projects: List[ProjectAdaptor] = []
         for stage in self.__ingest_stages:
-            projects = projects + self.__get_matching_projects(f"{stage}-")
+            projects = projects + self.get_matching_projects(f"{stage}-")
 
         return projects
 
@@ -213,7 +213,7 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the project labeled 'accepted', None if there is none
         """
-        projects = self.__get_matching_projects('accepted')
+        projects = self.get_matching_projects('accepted')
         if not projects:
             return None
 
@@ -249,7 +249,7 @@ class CenterGroup(CenterAdaptor):
 
         datatypes = []
         for stage in self.__ingest_stages:
-            projects = self.__get_matching_projects(f"{stage}-")
+            projects = self.get_matching_projects(f"{stage}-")
             for project in projects:
                 datatype = CenterGroup.get_datatype(stage=stage,
                                                     label=project.label)
@@ -272,7 +272,7 @@ class CenterGroup(CenterAdaptor):
           stage: name of ingest stage
           template_map: map from datatype to stage to template project
         """
-        ingest_projects = self.__get_matching_projects(f"{stage}-")
+        ingest_projects = self.get_matching_projects(f"{stage}-")
         if not ingest_projects:
             log.warning('no ingest stage projects for group %s', self.label)
             return
@@ -300,7 +300,7 @@ class CenterGroup(CenterAdaptor):
           template_map: map from datatype to stage to template project
         """
         stage = 'accepted'
-        accepted_projects = self.__get_matching_projects(stage)
+        accepted_projects = self.get_matching_projects(stage)
         if not accepted_projects:
             log.warning('no accepted stage project in center group %s',
                         self.label)
@@ -357,7 +357,7 @@ class CenterGroup(CenterAdaptor):
         if not prefix_pattern:
             return
 
-        projects = self.__get_matching_projects(prefix_pattern)
+        projects = self.get_matching_projects(prefix_pattern)
         for project in projects:
             template.copy_to(project,
                              value_map={
