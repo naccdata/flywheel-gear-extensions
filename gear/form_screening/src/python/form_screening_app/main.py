@@ -27,9 +27,6 @@ log = logging.getLogger(__name__)
 
 class FormSchedulerGearConfigs(GearConfigs):
     """Form Scheduler-specific gear configs."""
-    submission_pipeline: str
-    accepted_modules: str
-    queue_tags: str
     source_email: str
     portal_url_path: str
 
