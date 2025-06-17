@@ -3,7 +3,6 @@ import json
 import logging
 import re
 from json.decoder import JSONDecodeError
-from string import Template
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs
@@ -12,7 +11,10 @@ from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
-from gear_execution.gear_trigger import GearInput, LocatorType, trigger_gear
+from gear_execution.gear_trigger import (
+    set_gear_inputs,
+    trigger_gear,
+)
 from inputs.parameter_store import URLParameter
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient
@@ -347,10 +349,11 @@ class FormSchedulerQueue:
         # set gear inputs of file locator type fixed
         # these are the project level files with fixed filename specified in the configs
         if gear_input_info and 'fixed' in gear_input_info:
-            self.__set_gear_inputs(gear_name=pipeline.starting_gear.gear_name,
-                                   locator='fixed',
-                                   gear_inputs_list=gear_input_info['fixed'],
-                                   gear_inputs=gear_inputs)
+            set_gear_inputs(project=self.__project,
+                            gear_name=pipeline.starting_gear.gear_name,
+                            locator='fixed',
+                            gear_inputs_list=gear_input_info['fixed'],
+                            gear_inputs=gear_inputs)
 
         while not pipeline_queue.empty():
             # Grab the next module subqueue for this pipeline
@@ -362,12 +365,12 @@ class FormSchedulerQueue:
             # for these inputs, each module has a module specific file at project level
             # need to substitute module in the filename specified in the configs
             if gear_input_info and 'module' in gear_input_info:
-                self.__set_gear_inputs(
-                    gear_name=pipeline.starting_gear.gear_name,
-                    locator='module',
-                    gear_inputs_list=gear_input_info['module'],
-                    gear_inputs=gear_inputs,
-                    module=module)
+                set_gear_inputs(project=self.__project,
+                                gear_name=pipeline.starting_gear.gear_name,
+                                locator='module',
+                                gear_inputs_list=gear_input_info['module'],
+                                gear_inputs=gear_inputs,
+                                module=module)
 
             # a. Check if any submission pipelines are already running for
             #    this project. If one is found, wait for it to finish before continuing.
@@ -392,7 +395,8 @@ class FormSchedulerQueue:
                 # set gear inputs of file locator type matched
                 # for these inputs, use the file entry pulled from the queue
                 if gear_input_info and 'matched' in gear_input_info:
-                    self.__set_gear_inputs(
+                    set_gear_inputs(
+                        project=self.__project,
                         gear_name=pipeline.starting_gear.gear_name,
                         locator='matched',
                         gear_inputs_list=gear_input_info['matched'],
@@ -435,42 +439,3 @@ class FormSchedulerQueue:
                 # f. repeat until current subqueue is empty
 
             # Move to next subqueue, repeat a - f until all subqueues are empty
-
-    def __set_gear_inputs(self,
-                          *,
-                          gear_name: str,
-                          locator: LocatorType,
-                          gear_inputs_list: List[GearInput],
-                          gear_inputs: Dict[str, FileEntry],
-                          module: Optional[str] = None,
-                          matched_file: Optional[FileEntry] = None):
-
-        if locator == 'matched' and not matched_file:
-            raise ValueError(
-                "matched_file is required when locator is 'matched'")
-
-        if locator == 'module' and not module:
-            raise ValueError("module is required when locator is 'module'")
-
-        for input_info in gear_inputs_list:
-            label = input_info.label
-
-            if locator == 'matched':
-                gear_inputs[label] = matched_file  # type: ignore
-                continue
-
-            filename = input_info.file_name
-            # Build filename (substitute module if needed)
-            if locator == 'module':
-                filename = Template(
-                    input_info.file_name).substitute(  # type: ignore
-                        {"module": module.lower()})  # type: ignore
-
-            gear_input_file = self.__project.get_file(
-                name=filename)  # type: ignore
-            if not gear_input_file:
-                raise GearExecutionError(
-                    f"Cannot find required input file {filename} "
-                    f"for gear {gear_name}")
-
-            gear_inputs[label] = gear_input_file

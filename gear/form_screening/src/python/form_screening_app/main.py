@@ -4,10 +4,17 @@ import os
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+from flywheel import Project
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
-from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
+from gear_execution.gear_trigger import (
+    GearConfigs,
+    GearInfo,
+    set_gear_inputs,
+    trigger_gear,
+)
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
 from keys.keys import FieldNames, SysErrorCodes
@@ -59,6 +66,33 @@ def save_output(context: GearToolkitContext,
             container_type=context.destination['type'],
             tags=tags,
             info=info)
+
+
+def get_scheduler_gear_inputs(scheduler_gear: GearInfo,
+                              project: Project) -> Dict[str, FileEntry]:
+    """Get the input files for the form scheduler gear.
+
+    Args:
+        scheduler_gear: form scheduler gear info
+        project: Flywheel project container
+
+    Returns:
+        Dict[str, FileEntry]: scheduler gear inputs
+    """
+    gear_input_info = scheduler_gear.get_inputs_by_file_locator_type(
+        locators=['fixed'])
+
+    gear_inputs: Dict[str, FileEntry] = {}
+    # set gear inputs of file locator type fixed
+    # these are the project level files with fixed filename specified in the configs
+    if gear_input_info and 'fixed' in gear_input_info:
+        set_gear_inputs(project=project,
+                        gear_name=scheduler_gear.gear_name,
+                        locator='fixed',
+                        gear_inputs_list=gear_input_info['fixed'],
+                        gear_inputs=gear_inputs)
+
+    return gear_inputs
 
 
 def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
@@ -154,11 +188,13 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         log.info("Scheduler gear already running, exiting")
         return None
 
-    log.info(f"No {scheduler_gear.gear_name} gears running, triggering")
     # otherwise invoke the gear
+    log.info(f"No {scheduler_gear.gear_name} gears running, triggering")
     trigger_gear(proxy=proxy,
                  gear_name=scheduler_gear.gear_name,
                  config=scheduler_gear.configs.model_dump(),
+                 inputs=get_scheduler_gear_inputs(
+                     scheduler_gear=scheduler_gear, project=project),
                  destination=project)
 
     return None

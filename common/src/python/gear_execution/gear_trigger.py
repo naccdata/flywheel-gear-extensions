@@ -2,8 +2,11 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
+from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
+from flywheel import Project
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from pydantic import (
@@ -274,3 +277,41 @@ def trigger_gear(proxy: FlywheelProxy,
         log.info(f"tags: {kwargs.get('tags')}")
 
     return gear.run(**kwargs)
+
+
+def set_gear_inputs(*,
+                    project: Project,
+                    gear_name: str,
+                    locator: LocatorType,
+                    gear_inputs_list: List[GearInput],
+                    gear_inputs: Dict[str, FileEntry],
+                    module: Optional[str] = None,
+                    matched_file: Optional[FileEntry] = None):
+
+    if locator == 'matched' and not matched_file:
+        raise ValueError("matched_file is required when locator is 'matched'")
+
+    if locator == 'module' and not module:
+        raise ValueError("module is required when locator is 'module'")
+
+    for input_info in gear_inputs_list:
+        label = input_info.label
+
+        if locator == 'matched':
+            gear_inputs[label] = matched_file  # type: ignore
+            continue
+
+        filename = input_info.file_name
+        # Build filename (substitute module if needed)
+        if locator == 'module':
+            filename = Template(
+                input_info.file_name).substitute(  # type: ignore
+                    {"module": module.lower()})  # type: ignore
+
+        gear_input_file = project.get_file(name=filename)  # type: ignore
+        if not gear_input_file:
+            raise GearExecutionError(
+                f"Cannot find required input file {filename} "
+                f"for gear {gear_name}")
+
+        gear_inputs[label] = gear_input_file
