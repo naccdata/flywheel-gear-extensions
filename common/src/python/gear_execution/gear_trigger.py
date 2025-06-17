@@ -119,7 +119,7 @@ class GearInfo(BaseModel):
             log.info('No inputs specified for gear %s', self.gear_name)
             return None
 
-        inputs_list = {}
+        inputs_list: Dict[str, List[GearInput]] = {}
         for gear_input in self.inputs:
             if gear_input.file_locator not in locators:
                 continue

@@ -342,7 +342,7 @@ class FormSchedulerQueue:
         gear_input_info = pipeline.starting_gear.get_inputs_by_file_locator_type(
             locators=['fixed', 'matched', 'module'])
 
-        gear_inputs = {}
+        gear_inputs: Dict[str, FileEntry] = {}
 
         # set gear inputs of file locator type fixed
         # these are the project level files with fixed filename specified in the configs
