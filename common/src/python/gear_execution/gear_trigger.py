@@ -25,7 +25,7 @@ LocatorType = Literal['matched', 'module', 'fixed']
 class GearInput(BaseModel):
     label: str
     file_locator: LocatorType
-    file_name: Optional[str]
+    file_name: Optional[str] = None
 
     @model_validator(mode='after')
     def validate_iteration_mode(self) -> 'GearInput':
