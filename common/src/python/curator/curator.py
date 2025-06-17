@@ -153,6 +153,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
                r"(?P<np>.+_NP\.json)|"
                r"(?P<mds>.+_MDS\.json)|"
                r"(?P<milestone>.+_MLST\.json)|"
+               r"(?P<meds>.+_MEDS\.json)|"
                r"(?P<apoe>.+apoe_genotype\.json)|"
                r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
                r"(?P<niagads_availability>.+niagads_availability\.json)|"
