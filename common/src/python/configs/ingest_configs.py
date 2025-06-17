@@ -153,6 +153,7 @@ class Pipeline(BaseModel):
     tags: List[str]
     extensions: List[str]
     starting_gear: GearInfo
+    notify_user: bool = False
 
 
 class PipelineConfigs(BaseModel):

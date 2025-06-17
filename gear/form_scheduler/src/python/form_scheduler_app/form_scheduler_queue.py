@@ -319,7 +319,7 @@ class FormSchedulerQueue:
                     pipeline=pipeline,
                     pipeline_queue=self.__pipeline_queues[pipeline.name],
                     job_search=search_str,
-                    notify_user=(pipeline.name == 'submission'))
+                    notify_user=pipeline.notify_user)
             except ValueError as error:
                 raise GearExecutionError(
                     f"Failed to process pipeline {pipeline.name}: {error}"

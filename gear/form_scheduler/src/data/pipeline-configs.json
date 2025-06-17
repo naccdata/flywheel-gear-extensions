@@ -37,7 +37,8 @@
                     "debug": false,
                     "add_parents": false
                 }
-            }
+            },
+            "notify_user": true
         },
         {
             "name": "finalization",
