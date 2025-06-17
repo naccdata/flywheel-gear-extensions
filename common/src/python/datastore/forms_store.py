@@ -41,8 +41,9 @@ class FormQueryArgs(BaseModel):
 class FormsStore():
     """Class to extract/query form data from Flywheel for ingest projects."""
 
-    def __init__(self, ingest_project: ProjectAdaptor,
-                 legacy_project: Optional[ProjectAdaptor]) -> None:
+    def __init__(self,
+                 ingest_project: ProjectAdaptor,
+                 legacy_project: Optional[ProjectAdaptor] = None) -> None:
         self.__ingest_project = ingest_project
         self.__legacy_project = legacy_project
         self.__proxy = self.__ingest_project.proxy
