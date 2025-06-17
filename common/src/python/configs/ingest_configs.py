@@ -147,7 +147,8 @@ class FormProjectConfigs(BaseModel):
 
 
 class Pipeline(BaseModel):
-    name: str
+    """Defines model for form scheduler pipeline."""
+    name: Literal['submission', 'finalization']
     modules: List[str]
     tags: List[str]
     extensions: List[str]

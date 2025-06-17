@@ -1,7 +1,8 @@
 """Entry script for form_scheduler."""
 import logging
-from typing import Any, List, Optional
+from typing import Any, Optional
 
+from configs.ingest_configs import PipelineConfigs
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -10,18 +11,39 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
 )
 from inputs.parameter_store import (
     ParameterError,
     ParameterStore,
     URLParameter,
 )
+from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
-from utils.utils import parse_string_to_list
+from pydantic import ValidationError
 
-from form_scheduler_app.main import FormSchedulerQueue, run
+from form_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
+
+
+def load_form_pipeline_configurations(
+        config_file_path: str) -> PipelineConfigs:
+    """Load the form pipeline configs from the pipeline configs file.
+
+    Args:
+      config_file_path: the form module configs file path
+
+    Returns:
+      PipelineConfigs
+
+    Raises:
+      ValidationError if failed to load the configs file
+    """
+
+    with open(config_file_path, mode='r',
+              encoding='utf-8-sig') as configs_file:
+        return PipelineConfigs.model_validate_json(configs_file.read())
 
 
 class FormSchedulerVisitor(GearExecutionEnvironment):
@@ -29,16 +51,12 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
 
     def __init__(self,
                  client: ClientWrapper,
-                 queue_tags: List[str],
-                 submission_pipeline: List[str],
-                 module_order: List[str],
+                 pipeline_configs_input: InputFileWrapper,
                  source_email: Optional[str] = None,
                  portal_url: Optional[URLParameter] = None):
         super().__init__(client=client)
 
-        self.__submission_pipeline = submission_pipeline
-        self.__module_order = module_order
-        self.__queue_tags = queue_tags
+        self.__configs_input = pipeline_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
 
@@ -61,13 +79,10 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         client = GearBotClient.create(context=context,
                                       parameter_store=parameter_store)
 
-        submission_pipeline = parse_string_to_list(
-            context.config.get('submission_pipeline', None))
-        accepted_modules = parse_string_to_list(
-            context.config.get('accepted_modules', None))
-        queue_tags = parse_string_to_list(context.config.get(
-            'queue_tags', None),
-                                          to_lower=False)
+        pipeline_configs_input = InputFileWrapper.create(
+            input_name='pipeline_configs_file', context=context)
+        assert pipeline_configs_input, "missing expected input, pipeline_configs_file"
+
         source_email = context.config.get('source_email', 'nacchelp@uw.edu')
 
         portal_url = None
@@ -83,24 +98,11 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 raise GearExecutionError(
                     f'Parameter error: {error}') from error
 
-        if not submission_pipeline:
-            raise GearExecutionError("No submission pipeline provided")
-        if not accepted_modules:
-            raise GearExecutionError("No accepted modules provided")
-        if not queue_tags:
-            raise GearExecutionError("No queue tags to search for provided")
-
-        if submission_pipeline[0] != 'file-validator':
-            raise GearExecutionError(
-                "First gear in submission pipeline must be " +
-                "the file validator")
-
-        return FormSchedulerVisitor(client=client,
-                                    submission_pipeline=submission_pipeline,
-                                    module_order=accepted_modules,
-                                    queue_tags=queue_tags,
-                                    source_email=source_email,
-                                    portal_url=portal_url)
+        return FormSchedulerVisitor(
+            client=client,
+            pipeline_configs_input=pipeline_configs_input,
+            source_email=source_email,
+            portal_url=portal_url)
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the Form Scheduler app."""
@@ -110,21 +112,40 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f'Cannot find destination container: {error}') from error
 
-        if not dest_container.container_type == 'project':
-            raise GearExecutionError("Destination container must be a project")
+        if dest_container.container_type == 'project':
+            project_id = dest_container.id
+        elif dest_container.container_type == 'acquisition':
+            project_id = dest_container.parents['project']
+        else:
+            raise GearExecutionError(
+                f"Unsupported container type {dest_container.container_type}")
+
+        gear_name = context.manifest.get('name', 'form-scheduler')
+        search_str = JobPoll.generate_search_string(
+            project_ids_list=[project_id],
+            gears_list=[gear_name],
+            states_list=['running', 'pending'])
+
+        if self.proxy.find_job(search_str):
+            log.info("Form Scheduler gear already running, exiting")
+            return
+
+        try:
+            pipeline_configs = load_form_pipeline_configurations(
+                self.__configs_input.filepath)
+        except ValidationError as error:
+            raise GearExecutionError(
+                'Error reading pipeline configurations file'
+                f'{self.__configs_input.filename}: {error}') from error
 
         # if source email specified, set up client to send emails
         email_client = EmailClient(client=create_ses_client(),
                                    source=self.__source_email) \
             if self.__source_email else None
 
-        queue = FormSchedulerQueue(module_order=self.__module_order,
-                                   queue_tags=self.__queue_tags)
-
         run(proxy=self.proxy,
-            queue=queue,
-            project_id=dest_container.id,
-            submission_pipeline=self.__submission_pipeline,
+            project_id=project_id,
+            pipeline_configs=pipeline_configs,
             email_client=email_client,
             portal_url=self.__portal_url)
 

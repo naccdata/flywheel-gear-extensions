@@ -54,7 +54,7 @@
         "accepted_modules": {
             "description": "Comma-delimited list of accepted modules",
             "type": "string",
-            "default": "ENROLL,UDS,FTLD,LBD"
+            "default": "UDS,FTLD,LBD"
         },
         "queue_tags": {
             "description": "Comma-delimited list of queue tags to add",

@@ -25,24 +25,18 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
+        },
+        "pipeline_configs_file": {
+            "description": "A JSON file with pipeline configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
-        "submission_pipeline": {
-            "description": "Comma-delimited list of gears representing a submission pipeline",
-            "type": "string",
-            "default": "file-validator,identifier-lookup,form-transformer,form-qc-coordinator,form-qc-checker"
-        },
-        "accepted_modules": {
-            "description": "Comma-delimited list of accepted modules, listed in order of priority. There will be one queue for each",
-            "type": "string",
-            "default": "UDS,FTLD,LBD"
-        },
-        "queue_tags": {
-            "description": "Comma-delimited list of queue tags to filter project files for to determine which need to be queued",
-            "type": "string",
-            "default": "queued"
-        },
         "source_email": {
             "description": "The source email to send the submission completion notification",
             "type": "string",
