@@ -9,7 +9,7 @@ All notable changes to this gear are documented in this file.
 
 ## 0.4.0
 
-* Updates `nacc-attribute-deriver` to `1.4.0`
+* Updates nacc-attribute-deriver to `1.4.0`
 * Updates to tag affiliates
 
 ## 0.3.2

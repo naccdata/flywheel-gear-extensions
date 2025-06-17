@@ -122,7 +122,13 @@ class FormCurator(Curator):
                      processed_files: List[str]) -> None:
         """Run post-processing on the entire subject.
 
+<<<<<<< HEAD
         1. Adds `affiliated` tag to affiliate subjects.
+=======
+        1. Adds `affiliated` tag to affiliate subjects if
+            subject.info.derived.affiliate is set
+            (via nacc-attribute-deriver)
+>>>>>>> main
         2. Run a second pass over all UDS forms and apply
             cross-sectional values.
 
