@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Optional
 
-from curator.scheduling import FileModel
+from curator.scheduling_models import FileModel
 
 
 def fm(filename: str,
@@ -39,6 +39,7 @@ class TestFileModel:
             "NACCXXX_MDS-RECORD-2006-03-23_MDS.json").visit_pass == 'pass1'
         assert fm(
             "NACCXXX_MILESTONE-2011-10-26_MLST.json").visit_pass == 'pass1'
+        assert fm("NACCXXX_FORMS-VISIT-2_MEDS.json").visit_pass == 'pass1'
 
         assert fm("NACCXXX_apoe_genotype.json").visit_pass == 'pass1'
         assert fm("NACCXXX_niagads_availability.json").visit_pass == 'pass1'
@@ -68,7 +69,6 @@ class TestFileModel:
 
         # pass0
         assert fm("NACCXXX_FORMS-VISIT-5_UDS.json").visit_pass == 'pass0'
-        assert fm("NACCXXX_FORMS-VISIT-2_MEDS.json").visit_pass == 'pass0'
 
         # invalid/unknown pass
         assert fm("invalid.json").visit_pass is None

@@ -12,6 +12,8 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
+from .scheduling_models import FileModel
+
 log = logging.getLogger(__name__)
 
 
@@ -114,12 +116,12 @@ class Curator(ABC):
         return
 
     def post_process(self, subject: Subject,
-                     processed_files: List[str]) -> None:
+                     processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject. Not required.
 
         Args:
             subject: Subject to post-process
-            processed_files: List of file IDs that were processed
+            processed_files: List of FileModels that were processed
         """
         return
 

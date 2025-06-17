@@ -12,6 +12,7 @@ from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
 from .curator import Curator
+from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
 
@@ -119,22 +120,18 @@ class FormCurator(Curator):
 
     @api_retry
     def post_process(self, subject: Subject,
-                     processed_files: List[str]) -> None:
+                     processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject.
 
-<<<<<<< HEAD
-        1. Adds `affiliated` tag to affiliate subjects.
-=======
         1. Adds `affiliated` tag to affiliate subjects if
             subject.info.derived.affiliate is set
             (via nacc-attribute-deriver)
->>>>>>> main
         2. Run a second pass over all UDS forms and apply
             cross-sectional values.
 
         Args:
             subject: Subject to pre-process
-            processed_files: List of file IDs that were processed
+            processed_files: List of FileModels that were processed
         """
         subject = subject.reload()
         derived = subject.info.get('derived', {})
@@ -152,13 +149,12 @@ class FormCurator(Curator):
         log.info(
             f"Back-propagating cross-sectional UDS variables for {subject.label}"
         )
-        for file_id in processed_files:
-            file_entry = self.sdk_client.get_file(file_id)
-
+        for file in processed_files:
             # ignore non-UDS files
-            if not file_entry.name.endswith('_UDS.json'):
+            if not file.filename.endswith('_UDS.json'):
                 continue
 
+            file_entry = self.sdk_client.get_file(file.file_id)
             file_entry = file_entry.reload()
 
             derived = file_entry.info.get('derived', {})
