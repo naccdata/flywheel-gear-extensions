@@ -132,6 +132,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 email_notifier = REDCapEmailList.create(
                     parameter_store=parameter_store,
                     configs=REDCapEmailListConfigs(**json.load(fh)),
+                    dry_run=client.dry_run,
                 )
 
         return CSVCenterSplitterVisitor(

@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterError, ParameterStore
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
@@ -31,6 +31,7 @@ class REDCapEmailListConfigs(BaseModel):
     source_email: str
     configuration_set_name: str
     template_name: str
+    email_key: str = Field(default='email')
 
     # if using TemplateDataModel
     firstname_key: Optional[str] = None
@@ -39,32 +40,43 @@ class REDCapEmailListConfigs(BaseModel):
 
 class REDCapEmailList:
 
-    def __init__(self, redcap_con: REDCapReportConnection,
-                 configs: REDCapEmailListConfigs) -> None:
+    def __init__(self,
+                 redcap_con: REDCapReportConnection,
+                 configs: REDCapEmailListConfigs,
+                 dry_run: bool = False,
+                 ses=None) -> None:
         """Pull email list from REDCap report."""
         self.__redcap_con = redcap_con
         self.__configs = configs
+        self.__dry_run = dry_run
+
+        ses = ses if ses is not None else create_ses_client()
 
         self.__email_list = self.__pull_email_list_from_redcap()
-        self.__email_client = EmailClient(client=create_ses_client(),
+        self.__email_client = EmailClient(client=ses,
                                           source=self.__configs.source_email)
+
+    @property
+    def email_list(self) -> Dict[str, Dict[str, str]]:
+        return self.__email_list
 
     @staticmethod
     def create(parameter_store: ParameterStore,
-               configs: REDCapEmailListConfigs) -> "REDCapEmailList":
+               configs: REDCapEmailListConfigs,
+               dry_run: bool = False) -> "REDCapEmailList":
         """Creates the REDCapEmailList."""
         try:
             redcap_parameter_path = configs.redcap_parameter_path
             redcap_params = parameter_store.get_redcap_report_parameters(
                 param_path=redcap_parameter_path)
             redcap_con = REDCapReportConnection.create_from(redcap_params)
-            return REDCapEmailList(redcap_con=redcap_con, configs=configs)
+            return REDCapEmailList(redcap_con=redcap_con,
+                                   configs=configs,
+                                   dry_run=dry_run)
         except (ParameterError, REDCapConnectionError) as error:
             raise GearExecutionError(error) from error
 
-    def __pull_email_list_from_redcap(self,
-                                      email_key: str = "email"
-                                      ) -> Dict[str, Dict[str, str]]:
+    def __pull_email_list_from_redcap(self) -> Dict[str, Dict[str, str]]:
         """Pull email list from REDCap. Maps each email to the corresponding
         record, and assumes each email is unique.
 
@@ -75,17 +87,20 @@ class REDCapEmailList:
 
         email_list = {}
         for record in records:
-            email = record[email_key]
+            email = record[self.__configs.email_key]
             if email in email_list:
                 raise GearExecutionError(f"Duplicate email: {email}")
             email_list[email] = record
 
         return email_list
 
-    def send_mass_email(self) -> None:
+    def send_mass_email(self) -> Optional[str]:
         """Sends a single email to all recipients.
 
         Assumes the template does not need to be configured per user.
+
+        Returns:
+            the message ID if successfully sent
         """
         log.info(
             f"Sending single mass email to {len(self.__email_list)} recipients"
@@ -94,19 +109,27 @@ class REDCapEmailList:
             to_addresses=list(self.__email_list.keys()))
         template_data = BaseTemplateModel()
 
-        self.__email_client.send(
+        if self.__dry_run:
+            log.info(f"DRY RUN: Would have sent email to {destination}")
+            return None
+
+        return self.__email_client.send(
             configuration_set_name=self.__configs.configuration_set_name,
             destination=destination,
             template=self.__configs.template_name,
             template_data=template_data,
         )
 
-    def send_emails(self) -> None:
+    def send_emails(self) -> Optional[Dict[str, str]]:
         """Sends individual emails to each recipient.
 
         Assumes the template needs to be configured per user.
+
+        Returns:
+            Dict mapping each email to the message ID if successfully sent
         """
         log.info(f"Sending emails to {len(self.__email_list)} recipients")
+        message_ids = {}
 
         for email, data in self.__email_list.items():
             destination = DestinationModel(to_addresses=[email])
@@ -122,9 +145,16 @@ class REDCapEmailList:
 
             template_data = TemplateDataModel(firstname=firstname, url=url)
 
-            self.__email_client.send(
+            if self.__dry_run:
+                log.info(f"DRY RUN: would have sent email to {destination}")
+                continue
+
+            response = self.__email_client.send(
                 configuration_set_name=self.__configs.configuration_set_name,
                 destination=destination,
                 template=self.__configs.template_name,
                 template_data=template_data,
             )
+            message_ids[email] = response
+
+        return message_ids if not self.__dry_run else None
