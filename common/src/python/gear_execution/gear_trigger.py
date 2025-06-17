@@ -233,12 +233,16 @@ class BatchRunInfo(BaseModel):
         return configs
 
 
-def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
+def trigger_gear(proxy: FlywheelProxy,
+                 gear_name: str,
+                 log_args: bool = True,
+                 **kwargs) -> str:
     """Trigger the gear.
 
     Args:
         proxy: the proxy for the Flywheel instance
         gear_name: the name of the gear to trigger
+        log_args: whether to log argument details (default True)
         kwargs: keyword arguments to pass to gear.run, which include:
             config: the configs to pass to the gear
             inputs: The inputs to pass to the gear
@@ -261,11 +265,12 @@ def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
     if destination:
         destination = destination.label
 
-    log.info(f"Triggering {gear_name} with the following args:")
-    log.info(f"config: {kwargs.get('config')}")
-    log.info(f"inputs: {kwargs.get('inputs')}")
-    log.info(f"destination: {destination}")
-    log.info(f"analysis_label: {kwargs.get('analysis_label')}")
-    log.info(f"tags: {kwargs.get('tags')}")
+    if log_args:
+        log.info(f"Triggering {gear_name} with the following args:")
+        log.info(f"config: {kwargs.get('config')}")
+        log.info(f"inputs: {kwargs.get('inputs')}")
+        log.info(f"destination: {destination}")
+        log.info(f"analysis_label: {kwargs.get('analysis_label')}")
+        log.info(f"tags: {kwargs.get('tags')}")
 
     return gear.run(**kwargs)

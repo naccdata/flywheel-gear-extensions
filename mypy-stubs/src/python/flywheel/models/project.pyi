@@ -53,7 +53,7 @@ class Project:
         ...
 
     @property
-    def files(self) -> List[FileOutput]:
+    def files(self) -> List[FileEntry]:
         ...
 
     # TODO: determine return type
