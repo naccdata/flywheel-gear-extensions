@@ -28,9 +28,9 @@ class TestPipelineConfigs:
         """Test a valid configurations file."""
 
         # assert Pipeline with no inputs and empty gear configs
-        pipeline_configs: PipelineConfigs = load_form_pipeline_configurations(
-            str(TEST_FILES_DIR / 'valid-pipeline-with-empty-configs.json'))
-        assert pipeline_configs is not None
+        assert load_form_pipeline_configurations(
+            str(TEST_FILES_DIR /
+                'valid-pipeline-with-empty-configs.json')) is not None
 
         # assert PipelineConfigs
         pipeline_configs: PipelineConfigs = load_form_pipeline_configurations(
