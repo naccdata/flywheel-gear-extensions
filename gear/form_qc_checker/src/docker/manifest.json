@@ -27,11 +27,12 @@
             "base": "api-key"
         },
         "form_data_file": {
-            "description": "The form data JSON file",
+            "description": "The form data file (JSON or CSV)",
             "base": "file",
             "type": {
                 "enum": [
-                    "source code"
+                    "source code",
+                    "tabular data"
                 ]
             }
         },

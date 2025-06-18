@@ -154,6 +154,26 @@ class InputFileWrapper:
         container = container.reload()
         return container.get_file(self.filename)
 
+    def validate_file_extension(
+            self, accepted_extensions: List[str]) -> Optional[str]:
+        """Check whether the input file type is accepted.
+
+        Args:
+            accepted_extensions: list of accepted file extensions
+
+        Returns:
+            Optional[str]: If accepted file type, return the file extension, else None
+        """
+        if not self.file_type:
+            return None
+
+        mimetype = self.file_type.lower()
+        for extension in accepted_extensions:
+            if mimetype.find(extension.lower()) != -1:
+                return extension.lower()
+
+        return None
+
     @property
     def file_id(self) -> str:
         """Returns the file ID."""

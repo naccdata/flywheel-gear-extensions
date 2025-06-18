@@ -212,7 +212,7 @@ class FormSchedulerQueue:
         # TODO: Find a way to search multiple tags
         # Checked with FW and multi tag OR search currently doesn't work
         # finalization pipeline currently only has one tag, so no issue for now
-        if len(pipeline.tags) > 0:
+        if len(pipeline.tags) > 1:
             raise GearExecutionError(
                 f"Cannot support searching for multiple file tags {pipeline.tags}"
             )
