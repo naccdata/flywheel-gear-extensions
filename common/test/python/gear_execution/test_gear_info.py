@@ -2,12 +2,12 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from gear_execution.gear_trigger import GearConfigs, GearInfo
+from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo
 
 TEST_FILES_DIR = Path(__file__).parent.resolve() / 'data'
 
 
-class DummyGearConfigs(GearConfigs):
+class DummyGearConfigs(CredentialGearConfigs):
     test_str: str
     test_int: int
     test_list: List[Any]
@@ -24,15 +24,29 @@ class TestGearInfo:
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'empty-file.json')) is None
 
-        # assert without apikey_path_prefix fails/returns None
         assert GearInfo.load_from_file(str(TEST_FILES_DIR /
                                            'no-configs.json')) is None
-        assert GearInfo.load_from_file(
-            str(TEST_FILES_DIR / 'empty-configs.json')) is None
-
-        # now assert that it matches
         result = GearInfo.load_from_file(
-            str(TEST_FILES_DIR / 'basic-configs.json'))
+            str(TEST_FILES_DIR / 'empty-configs.json'))
+
+        assert result is not None
+        assert result.model_dump() == {
+            "gear_name": "empty-configs",
+            "configs": {},
+            "inputs": None
+        }
+
+    def test_credential_gear_configs(self):
+        """Test credential gear config class."""
+
+        # assert without apikey_path_prefix fails/returns None
+        assert GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'empty-configs.json'),
+            CredentialGearConfigs) is None
+
+        # assert valid credentials gear configs
+        result = GearInfo.load_from_file(
+            str(TEST_FILES_DIR / 'basic-configs.json'), CredentialGearConfigs)
 
         assert result is not None
         assert result.model_dump() == {

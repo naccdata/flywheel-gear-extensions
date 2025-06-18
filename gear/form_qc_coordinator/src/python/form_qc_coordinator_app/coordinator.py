@@ -18,7 +18,7 @@ from flywheel_adaptor.subject_adaptor import (
 from flywheel_gear_toolkit import GearToolkitContext
 from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
-from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
+from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.errors import (
@@ -36,7 +36,7 @@ from form_qc_coordinator_app.visits import find_module_visits_with_matching_visi
 log = logging.getLogger(__name__)
 
 
-class QCGearConfigs(GearConfigs):
+class QCGearConfigs(CredentialGearConfigs):
     """Class to represent qc gear configs."""
     rules_s3_bucket: str
     qc_checks_db_path: str

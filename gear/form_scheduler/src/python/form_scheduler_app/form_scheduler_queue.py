@@ -18,7 +18,7 @@ from gear_execution.gear_trigger import (
 from inputs.parameter_store import URLParameter
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from form_scheduler_app.email_user import send_email
 
@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 class PipelineQueue(BaseModel):
     """Class to represent a file queue for a given pipeline, with subqueues
     defined for each module accepted for the pipeline."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     index: int = -1
     name: str

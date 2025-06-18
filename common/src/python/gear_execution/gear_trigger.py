@@ -55,7 +55,12 @@ class GearConfigs(BaseModel):
     """Class to represent base gear configs."""
     model_config = ConfigDict(populate_by_name=True, extra='allow')
 
-    apikey_path_prefix: Optional[str] = None
+
+class CredentialGearConfigs(GearConfigs):
+    """Class to represent credentials gear configs."""
+    model_config = ConfigDict(populate_by_name=True, extra='allow')
+
+    apikey_path_prefix: str
 
 
 class GearInfo(BaseModel):
@@ -93,10 +98,6 @@ class GearInfo(BaseModel):
             return None
 
         input_configs = configs_data.get('configs')
-        if not input_configs:
-            log.error('No gear configs data found')
-            return None
-
         try:
             configs_data['configs'] = configs_class.model_validate(
                 input_configs)

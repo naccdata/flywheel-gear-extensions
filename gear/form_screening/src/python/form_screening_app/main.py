@@ -10,7 +10,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
 from gear_execution.gear_trigger import (
-    GearConfigs,
+    CredentialGearConfigs,
     GearInfo,
     set_gear_inputs,
     trigger_gear,
@@ -25,7 +25,7 @@ from form_screening_app.format import CSVFormatterVisitor
 log = logging.getLogger(__name__)
 
 
-class FormSchedulerGearConfigs(GearConfigs):
+class FormSchedulerGearConfigs(CredentialGearConfigs):
     """Form Scheduler-specific gear configs."""
     source_email: str
     portal_url_path: str
