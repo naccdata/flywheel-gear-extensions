@@ -130,8 +130,9 @@ class FormSchedulerQueue:
         pipeline_function = getattr(self, function_name, None)
         if pipeline_function and callable(pipeline_function):
             num_files = pipeline_function(project=project, pipeline=pipeline)
-            log.info('Number of files queued for pipeline %s: %s',
-                     pipeline.name, num_files)
+            log.info(
+                f"Number of files queued for pipeline `{pipeline.name}`: {num_files}"
+            )
             return num_files  # type: ignore
         else:
             raise GearExecutionError(
@@ -158,8 +159,8 @@ class FormSchedulerQueue:
 
         if len(files) == 0:
             log.info(
-                'No matching files for pipeline %s with tags: %s and extensions: %s',
-                pipeline.name, pipeline.tags, pipeline.extensions)
+                f"No matching files for pipeline `{pipeline.name}` with "
+                f"tags: {pipeline.tags} and extensions: {pipeline.extensions}")
             return 0
 
         pipeline_queue = PipelineQueue.create_from_pipeline(pipeline=pipeline)
@@ -173,7 +174,7 @@ class FormSchedulerQueue:
             # by something else
             if not match:
                 log.warning(
-                    'File %s is incorrectly tagged with one or more tags %s',
+                    "File %s is incorrectly tagged with one or more tags %s",
                     file.name, pipeline.tags)
                 continue
 
@@ -182,7 +183,7 @@ class FormSchedulerQueue:
             # these files could be incorrectly tagged
             if module.upper() not in pipeline.modules:
                 log.warning(
-                    'File %s is not in the accepted modules %s for pipeline %s',
+                    "File %s is not in the accepted modules %s for pipeline `%s`",
                     file.name, pipeline.modules, pipeline.name)
                 continue
 
@@ -227,7 +228,7 @@ class FormSchedulerQueue:
 
         if not finalized_visits:
             log.info(
-                'No matching files for pipeline %s with tags: %s and extensions: %s',
+                "No matching files for pipeline `%s` with tags: %s and extensions: %s",
                 pipeline.name, pipeline.tags, pipeline.extensions)
             return 0
 
@@ -325,7 +326,7 @@ class FormSchedulerQueue:
                     notify_user=pipeline.notify_user)
             except ValueError as error:
                 raise GearExecutionError(
-                    f"Failed to process pipeline {pipeline.name}: {error}"
+                    f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
     def _process_pipeline_queue(self, *, pipeline: Pipeline,
@@ -380,7 +381,7 @@ class FormSchedulerQueue:
             #    but left in as a safeguard
             JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-            log.info('Start processing pipeline %s module queue %s',
+            log.info("Start processing pipeline: `%s` module queue: `%s`",
                      pipeline.name, module)
 
             while len(subqueue) > 0:
@@ -413,17 +414,18 @@ class FormSchedulerQueue:
                 # Should we check that the first gear is always the file-validator?
 
                 log.info(
-                    f"Kicking off pipeline: {pipeline.name} on module {module}"
+                    f"Kicking off pipeline `{pipeline.name}` on module {module}"
                 )
                 log.info(
                     f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
-                trigger_gear(proxy=self.__proxy,
-                             gear_name=pipeline.starting_gear.gear_name,
-                             log_args=False,
-                             inputs=gear_inputs,
-                             config=pipeline.starting_gear.configs)
+                trigger_gear(
+                    proxy=self.__proxy,
+                    gear_name=pipeline.starting_gear.gear_name,
+                    log_args=False,
+                    inputs=gear_inputs,
+                    config=pipeline.starting_gear.configs.model_dump())
 
                 # d. wait for the above submission pipeline to finish
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
