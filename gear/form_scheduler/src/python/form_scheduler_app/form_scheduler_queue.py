@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict
 
 from form_scheduler_app.email_user import send_email
 
-MODULE_PATTERN = re.compile(r"^.+-([a-zA-Z]+)(\..+)$")
+MODULE_PATTERN = re.compile(r"^.*-([a-zA-Z]+)(\..+)$")
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class PipelineQueue(BaseModel):
             module: module name
             file: file to add
         """
-        self.subqueues[module].append(file)
+        self.subqueues[module.upper()].append(file)
 
     def sort_subqueues(self):
         """Sort each queue by ascending order of file modified date."""
