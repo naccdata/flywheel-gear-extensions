@@ -138,13 +138,12 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f'Cannot find destination container: {error}') from error
 
-        if dest_container.container_type == 'project':
-            project_id = dest_container.id
-        elif dest_container.container_type == 'acquisition':
-            project_id = dest_container.parents['project']
-        else:
+        if dest_container.container_type != 'project':
             raise GearExecutionError(
-                f"Unsupported container type {dest_container.container_type}")
+                f"Unsupported container type {dest_container.container_type}, "
+                f"this gear must be executed at project level")
+
+        project_id = dest_container.id
 
         # check for other form-scheduler gear jobs running on this project
         # there shouldn't be any
