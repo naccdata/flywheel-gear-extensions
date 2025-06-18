@@ -179,25 +179,28 @@ class MQTBaselineLocalizer(BaselineLocalizer):
         return row['naccid'], row
 
 
-def run(context: GearToolkitContext, s3_qaf_file: str, s3_mqt_file: str,
+def run(context: GearToolkitContext, s3_qaf_file: str,
         keep_fields: List[str], scheduler: ProjectCurationScheduler,
-        error_writer: ListErrorWriter) -> None:
+        error_writer: ListErrorWriter,
+        s3_mqt_file: Optional[str] = None) -> None:
     """Runs the Attribute Curator process.
 
     Args:
         context: gear context
         s3_qaf_file: S3 QAF file to pull baseline from
-        s3_mqt_file: S3 MQT file to pull baseline from
         keep_fields: Additional fields to retain from the QAF
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
+        s3_mqt_file: S3 MQT file to pull baseline from (optional)
     """
     qaf_baseline = QAFBaselineLocalizer(s3_file=s3_qaf_file,
                                         error_writer=error_writer,
                                         keep_fields=keep_fields).localize()
 
-    mqt_baseline = MQTBaselineLocalizer(s3_file=s3_mqt_file,
-                                        error_writer=error_writer).localize()
+    mqt_baseline = None
+    if s3_mqt_file:
+        mqt_baseline = MQTBaselineLocalizer(s3_file=s3_mqt_file,
+                                            error_writer=error_writer).localize()
 
     curator = RegressionCurator(qaf_baseline=qaf_baseline,
                                 mqt_baseline=mqt_baseline,

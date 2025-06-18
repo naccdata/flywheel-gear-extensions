@@ -2,9 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## To be released
+## 0.1.2
 
-* Adds `debug` argument and sets verbose logging statement level to debug
+* Adds `debug` argument to reduce verbosity of logging statements
+* Updates MQT regression testing to not be required
 
 ## 0.1.1
 

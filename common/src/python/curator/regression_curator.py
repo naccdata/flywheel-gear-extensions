@@ -8,7 +8,7 @@ with NACC or key values such as as visit date.)
 """
 import ast  # type: ignore
 import logging
-from typing import Any, Dict, MutableMapping
+from typing import Any, Dict, MutableMapping, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -27,11 +27,11 @@ class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
     def __init__(self, qaf_baseline: MutableMapping,
-                 mqt_baseline: MutableMapping,
-                 error_writer: ListErrorWriter) -> None:
+                 error_writer: ListErrorWriter,
+                 mqt_baseline: Optional[MutableMapping] = None) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
-        self.__mqt_baseline = SymbolTable(mqt_baseline)
+        self.__mqt_baseline = SymbolTable(mqt_baseline) if mqt_baseline else None
         self.__error_writer = error_writer
 
     def compare_as_lists(self, value: str, expected: str) -> bool:
@@ -164,6 +164,9 @@ class RegressionCurator(Curator):
         Args:
             subject: Subject to pre-process
         """
+        if not self.__mqt_baseline:
+            return
+
         subject = subject.reload()
         if not subject.info:
             log.debug("No subject derived variables, skipping")

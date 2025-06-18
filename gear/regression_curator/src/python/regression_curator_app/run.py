@@ -34,10 +34,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                  client: ClientWrapper,
                  project: ProjectAdaptor,
                  s3_qaf_file: str,
-                 s3_mqt_file: str,
                  keep_fields: List[str],
                  filename_pattern: str,
                  error_outfile: str,
+                 s3_mqt_file: Optional[str] = None,
                  blacklist_file: Optional[InputFileWrapper] = None):
         super().__init__(client=client)
         self.__project = project
@@ -71,10 +71,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         s3_qaf_file = context.config.get("s3_qaf_file", None)
         s3_mqt_file = context.config.get("s3_mqt_file", None)
 
-        for file in [s3_qaf_file, s3_mqt_file]:
-            if not file:
-                raise GearExecutionError(
-                    "Required baseline file (QAF/MQT) missing")
+        if not s3_qaf_file:
+            raise GearExecutionError("QAF file missing")
 
         keep_fields = parse_string_to_list(
             context.config.get('keep_fields', ''))
