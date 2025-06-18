@@ -318,6 +318,10 @@ class FormSchedulerQueue:
 
         # Pipelines are processed in the order they are listed in the pipeline configs
         for pipeline in self.__pipeline_configs.pipelines:
+            # Skip pipelines with no queued files
+            if pipeline.name not in self.__pipeline_queues:
+                continue
+
             try:
                 self._process_pipeline_queue(
                     pipeline=pipeline,

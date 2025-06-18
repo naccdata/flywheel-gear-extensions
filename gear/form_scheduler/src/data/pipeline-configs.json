@@ -70,7 +70,7 @@
                     }
                 ],
                 "configs": {
-                    "apikey_path_prefix": "/prod/flywheel/gearbot",
+                    "apikey_path_prefix": "/sandbox/flywheel/gearbot",
                     "check_all": false
                 }
             }
