@@ -57,16 +57,17 @@ def run(*,
                                email_client=email_client,
                                portal_url=portal_url)
 
-    total_files = -1
-    while total_files != 0:
+    num_files = -1
+    while num_files != 0:
         # force a project reload with each outer loop
         project = project.reload()
 
+        num_files = 0  # reset counter for next iteration
         # Pull and queue the tagged files for each pipeline
         # Pipelines are processed in order they are specified in the configs file
         for pipeline in pipeline_configs.pipelines:
-            total_files += queue.queue_files_for_pipeline(project=project,
-                                                          pipeline=pipeline)
+            num_files += queue.queue_files_for_pipeline(project=project,
+                                                        pipeline=pipeline)
 
         # Process the subqueues for each pipeline until all pipeline queues are empty
         queue.process_pipeline_queues()

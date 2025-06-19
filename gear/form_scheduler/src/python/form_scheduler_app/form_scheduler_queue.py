@@ -424,12 +424,15 @@ class FormSchedulerQueue:
                     f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
+                destination = self.__proxy.get_container_by_id(
+                    file.parent_ref.id)  # type: ignore
                 trigger_gear(
                     proxy=self.__proxy,
                     gear_name=pipeline.starting_gear.gear_name,
                     log_args=False,
                     inputs=gear_inputs,
-                    config=pipeline.starting_gear.configs.model_dump())
+                    config=pipeline.starting_gear.configs.model_dump(),
+                    destination=destination)
 
                 # d. wait for the above submission pipeline to finish
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
