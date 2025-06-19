@@ -77,6 +77,8 @@ class QCCoordinator():
         self.__proxy = proxy
         self.__configs_file = configs_file
         self.__metadata = Metadata(context=gear_context)
+        self.__dependent_modules = form_project_configs.get_module_dependencies(
+            self.__module)
 
     def __passed_qc_checks(self, visit_file: FileEntry,
                            gear_name: str) -> bool:
@@ -377,6 +379,7 @@ class QCCoordinator():
             job_id = trigger_gear(
                 proxy=self.__proxy,
                 gear_name=gear_name,
+                log_ars=False,
                 config=self.__qc_gear_info.configs.model_dump(),
                 inputs=qc_gear_inputs,
                 destination=destination)
@@ -411,7 +414,8 @@ class QCCoordinator():
 
             # Add the submission complete tag
             # to trigger QC process on any dependent modules
-            visit_file.add_tag(DefaultValues.FINALIZED_TAG)
+            if self.__dependent_modules:
+                visit_file.add_tag(DefaultValues.FINALIZED_TAG)
 
         # If there are any visits left, update error metadata in the respective file
         if len(visits_queue) > 0:

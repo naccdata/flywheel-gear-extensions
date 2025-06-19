@@ -97,12 +97,6 @@ class FormQCCoordinator(GearExecutionEnvironment):
             raise GearExecutionError(
                 f"Unsupported container type {dest_container.container_type}")
 
-        if dest_container.container_type != 'subject':
-            raise GearExecutionError(
-                'This gear must be executed at subject level - '
-                'invalid gear destination type '
-                f'{dest_container.container_type}')
-
         visits_file_input = InputFileWrapper.create(input_name='visits_file',
                                                     context=context)
         assert visits_file_input, "missing expected input, visits_file"

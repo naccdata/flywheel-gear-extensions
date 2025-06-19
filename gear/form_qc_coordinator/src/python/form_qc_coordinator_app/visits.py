@@ -169,9 +169,10 @@ class VisitsLookupHelper():
                     visitnum=visit.visitnum)
 
                 if not matched_visits:
-                    log.info(f"No module visits dependent on {current_module} "
-                             f"visit with visitdate: {visit.visitdate} "
-                             f"visitnum: {visit.visitnum}")
+                    log.info(
+                        f"No {dep_module} visits dependent on {current_module} "
+                        f"visit with visitdate: {visit.visitdate} "
+                        f"visitnum: {visit.visitnum}")
                     continue
 
                 if len(matched_visits) > 1:  # this cannot happen
