@@ -8,6 +8,8 @@ from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues
 from pydantic import BaseModel, Field, RootModel
 
+PipelineType = Literal['submission', 'finalization']
+
 
 class LabelTemplate(BaseModel):
     """Defines a string template object for generating labels using input data
@@ -148,7 +150,7 @@ class FormProjectConfigs(BaseModel):
 
 class Pipeline(BaseModel):
     """Defines model for form scheduler pipeline."""
-    name: Literal['submission', 'finalization']
+    name: PipelineType
     modules: List[str]
     tags: List[str]
     extensions: List[str]

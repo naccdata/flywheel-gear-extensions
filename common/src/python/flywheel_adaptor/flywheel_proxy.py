@@ -17,6 +17,7 @@ from flywheel import (
 )
 from flywheel.models.access_permission import AccessPermission
 from flywheel.models.acquisition import Acquisition
+from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.group_role import GroupRole
 from flywheel.models.job import Job
@@ -708,6 +709,17 @@ class FlywheelProxy:
             ResolverOutput
         """
         return self.__fw.lookup(path)
+
+    def get_container_by_id(self, container_id: str) -> ContainerOutput:
+        """Find the Flywheel container for the specified ID.
+
+        Args:
+            container_id: ID to lookup the container
+
+        Returns:
+            ContainerOutput: Container object
+        """
+        return self.__fw.get(container_id)
 
 
 def get_name(container) -> str:

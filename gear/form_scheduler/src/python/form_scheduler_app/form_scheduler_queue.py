@@ -5,7 +5,7 @@ import re
 from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 
-from configs.ingest_configs import Pipeline, PipelineConfigs
+from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from dataview.dataview import ColumnModel, make_builder
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
@@ -33,7 +33,7 @@ class PipelineQueue(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     index: int = -1
-    name: str
+    name: PipelineType
     tags: List[str]
     modules: List[str]
     subqueues: Dict[str, List[FileEntry]]

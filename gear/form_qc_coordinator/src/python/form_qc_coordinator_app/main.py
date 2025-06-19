@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, List
 
-from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
@@ -16,8 +16,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from gear_execution.gear_trigger import GearInfo
-from pydantic import ValidationError
-from utils.utils import load_form_ingest_configurations
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 from form_qc_coordinator_app.visits import find_visits_for_participant_for_module
@@ -84,10 +82,12 @@ def run(*,
         gear_context: GearToolkitContext,
         client_wrapper: ClientWrapper,
         visits_file_wrapper: InputFileWrapper,
-        configs_file_wrapper: InputFileWrapper,
+        form_project_configs: FormProjectConfigs,
+        configs_file_id: str,
         subject: SubjectAdaptor,
         visits_info: ParticipantVisits,
         qc_gear_info: GearInfo,
+        pipeline: PipelineType,
         check_all: bool = False):
     """Invoke QC process for the given participant/module.
 
@@ -96,9 +96,11 @@ def run(*,
         client_wrapper: Flywheel SDK client wrapper
         visits_file_wrapper: Input file wrapper
         subject: Flywheel subject to run the QC checks
-        configs_file_wrapper: module configurations file
+        form_project_configs: form ingest configurations
+        configs_file_id: form ingest configurations file id
         visits_info: Info on new/updated visits for the participant/module
         qc_gear_info: QC gear name and configs
+        pipeline: Pipeline that triggered this gear instance
         check_all: re-evaluate all visits for the participant/module
 
     Raises:
@@ -112,14 +114,6 @@ def run(*,
         cutoff = curr_visit.visitdate
 
     module = visits_info.module.upper()
-
-    try:
-        form_project_configs = load_form_ingest_configurations(
-            configs_file_wrapper.filepath)
-    except ValidationError as error:
-        raise GearExecutionError(
-            'Error reading form configurations file '
-            f'{configs_file_wrapper.filename}: {error}') from error
 
     if (module not in form_project_configs.accepted_modules
             or not form_project_configs.module_configs.get(module)):
@@ -150,15 +144,14 @@ def run(*,
             f'{subject.label}/{module} with {module_configs.date_field}>={cutoff}'
         )
 
-    qc_coordinator = QCCoordinator(
-        subject=subject,
-        module=module,
-        form_project_configs=form_project_configs,
-        configs_file_id=configs_file_wrapper.file_id,
-        qc_gear_info=qc_gear_info,
-        proxy=proxy,
-        gear_context=gear_context,
-        dependent_modules=dependent_modules)
+    qc_coordinator = QCCoordinator(subject=subject,
+                                   module=module,
+                                   form_project_configs=form_project_configs,
+                                   configs_file_id=configs_file_id,
+                                   qc_gear_info=qc_gear_info,
+                                   proxy=proxy,
+                                   gear_context=gear_context,
+                                   dependent_modules=dependent_modules)
 
     qc_coordinator.run_error_checks(visits=visits_list)
 
@@ -169,7 +162,7 @@ def run(*,
             gear_context=gear_context,
             subject=subject,
             form_project_configs=form_project_configs,
-            configs_file_id=configs_file_wrapper.file_id,
+            configs_file_id=configs_file_id,
             qc_gear_info=qc_gear_info,
             dependent_visits_info=dependent_visits_info)
 
