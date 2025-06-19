@@ -172,6 +172,9 @@ class InputFileWrapper:
             if mimetype.find(extension.lower()) != -1:
                 return extension.lower()
 
+            if self.filename.lower().endswith(f".{extension.lower()}"):
+                return extension.lower()
+
         return None
 
     @property
