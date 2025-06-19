@@ -2,7 +2,7 @@
     "name": "identifier-provisioning",
     "label": "Identifier Provisioning",
     "description": "Gear for provisioning NACCIDs from Enrollment forms",
-    "version": "1.2.4",
+    "version": "1.2.5",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
