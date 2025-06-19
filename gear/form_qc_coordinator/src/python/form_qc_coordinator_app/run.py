@@ -254,7 +254,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         gear_name = gear_context.manifest.get('name', 'form-qc-coordinator')
-        gear_context.metadata.add_file_tags(self.__file_input, tags=gear_name)
+        gear_context.metadata.add_file_tags(self.__file_input.file_input,
+                                            tags=gear_name)
 
     def run(self, context: GearToolkitContext) -> None:
         """Validates input files, runs the form-qc-coordinator app.
