@@ -169,7 +169,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
         trigger_scheduler_gear(proxy=proxy,
                                project=project,
                                scheduler_gear=scheduler_gear)
-        return
+        return None
 
     file_type = file_input.validate_file_extension(accepted_extensions=["csv"])
     if not file_type:
