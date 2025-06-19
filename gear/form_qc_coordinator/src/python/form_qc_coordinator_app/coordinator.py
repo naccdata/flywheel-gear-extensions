@@ -379,7 +379,7 @@ class QCCoordinator():
             job_id = trigger_gear(
                 proxy=self.__proxy,
                 gear_name=gear_name,
-                log_ars=False,
+                log_args=False,
                 config=self.__qc_gear_info.configs.model_dump(),
                 inputs=qc_gear_inputs,
                 destination=destination)
