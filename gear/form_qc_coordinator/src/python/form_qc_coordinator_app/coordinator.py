@@ -31,8 +31,6 @@ from outputs.errors import (
     update_error_log_and_qc_metadata,
 )
 
-from form_qc_coordinator_app.visits import find_module_visits_with_matching_visitdate
-
 log = logging.getLogger(__name__)
 
 
@@ -56,9 +54,9 @@ class QCCoordinator():
 
     def __init__(self, *, subject: SubjectAdaptor, module: str,
                  form_project_configs: FormProjectConfigs,
-                 configs_file_id: str, qc_gear_info: GearInfo,
-                 proxy: FlywheelProxy, gear_context: GearToolkitContext,
-                 dependent_modules: Optional[List[str]]) -> None:
+                 configs_file: FileEntry, qc_gear_info: GearInfo,
+                 proxy: FlywheelProxy,
+                 gear_context: GearToolkitContext) -> None:
         """Initialize the QC Coordinator.
 
         Args:
@@ -69,7 +67,6 @@ class QCCoordinator():
             qc_gear_info: GearInfo containing info for the qc gear
             proxy: Flywheel proxy object
             gear_context: Flywheel gear context
-            dependent_modules(optional): List of module labels dependent on this module
         """
         self.__subject = subject
         self.__module = module
@@ -78,10 +75,8 @@ class QCCoordinator():
             module)
         self.__qc_gear_info = qc_gear_info
         self.__proxy = proxy
-        self.__configs_file = proxy.get_file(configs_file_id)
+        self.__configs_file = configs_file
         self.__metadata = Metadata(context=gear_context)
-        self.__dependent_modules = dependent_modules
-        self.__dependent_visits: Dict[str, List[Dict[str, str]]] = {}
 
     def __passed_qc_checks(self, visit_file: FileEntry,
                            gear_name: str) -> bool:
@@ -303,65 +298,6 @@ class QCCoordinator():
                                             visitdate=visitdate,
                                             status='FAIL')
 
-    def __check_for_dependent_module_visits(self, *, visitdate: str,
-                                            visitnum: Optional[str]):
-        """Check whether there are any module visits dependent on current visit
-        that needs to be re-validated.
-
-        Args:
-            visitdate: current visitdate
-            visitnum(optional): current visitnum
-
-        Raises:
-            GearExecutionError: if errors occur while looking up dependent visits
-        """
-        if not self.__dependent_modules:
-            return
-
-        for dep_module in self.__dependent_modules:
-            dep_module_configs = self.__form_project_configs.module_configs.get(
-                dep_module)
-
-            if not dep_module_configs:
-                log.warning(
-                    'Failed to find module configs for dependent module %s',
-                    dep_module)
-                continue
-
-            dependent_visits = find_module_visits_with_matching_visitdate(
-                proxy=self.__proxy,
-                container_id=self.__subject.id,
-                subject=self.__subject.label,
-                module=dep_module,
-                module_configs=dep_module_configs,
-                visitdate=visitdate,
-                visitnum=visitnum)
-
-            if not dependent_visits:
-                log.info(
-                    'No module visits dependent on '
-                    '%s visit visitdate: %s visitnum: %s', self.__module,
-                    visitdate, visitnum)
-                continue
-
-            if len(dependent_visits) > 1:  # this cannot happen
-                raise GearExecutionError(
-                    f'Multiple {dep_module} visits found with '
-                    f'visitdate: {visitdate} visitnum: {visitnum}')
-
-            if dep_module not in self.__dependent_visits:
-                self.__dependent_visits[dep_module] = []
-
-            self.__dependent_visits[dep_module].append(dependent_visits[0])
-
-    def get_dependent_module_visits(self) -> Dict[str, List[Dict[str, str]]]:
-        """Get the other module visits dependent on current module.
-
-        Returns:
-            Dict[str, List[Dict[str, str]]]: list of dependent visits by module
-        """
-        return self.__dependent_visits
-
     def run_error_checks(self, *, visits: List[Dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
@@ -473,10 +409,9 @@ class QCCoordinator():
                 failed_visit = visit_file.name
                 break
 
-            # Check whether there are any module visits dependent on this visit
-            # that needs to be re-validated
-            self.__check_for_dependent_module_visits(visitdate=visitdate,
-                                                     visitnum=visitnum)
+            # Add the submission complete tag
+            # to trigger QC process on any dependent modules
+            visit_file.add_tag(DefaultValues.FINALIZED_TAG)
 
         # If there are any visits left, update error metadata in the respective file
         if len(visits_queue) > 0:

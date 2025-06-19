@@ -23,7 +23,7 @@ from gear_execution.gear_execution import (
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from keys.keys import MetadataKeys
+from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 
@@ -126,7 +126,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
                                  pipeline=pipeline,
                                  check_all=check_all)
 
-    def parse_json_input(
+    def __parse_json_input(
             self, subject: SubjectAdaptor,
             form_configs: FormProjectConfigs) -> Optional[ParticipantVisits]:
         """Parse the JSON input file and return visits info.
@@ -171,16 +171,21 @@ class FormQCCoordinator(GearExecutionEnvironment):
                 f"{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field} "
                 f"not found in file {self.__file_input.filename} metadata")
 
+        visitnum = file.info.get('forms', {}).get("json",
+                                                  {}).get(FieldNames.VISITNUM)
+
         visit = VisitInfo(filename=self.__file_input.filename,
                           file_id=file_id,
-                          visitdate=visitdate)
+                          visitdate=visitdate,
+                          visitnum=visitnum)
+
         visits_info = ParticipantVisits(participant=subject.label,
                                         module=module,
                                         visits=[visit])
 
         return visits_info
 
-    def parse_yaml_input(
+    def __parse_yaml_input(
             self, subject: SubjectAdaptor) -> Optional[ParticipantVisits]:
         """Parse the YAML input file and return visits info.
 
@@ -215,7 +220,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         return visits_info
 
-    def validate_input_data(
+    def __validate_input_data(
             self, subject: SubjectAdaptor,
             form_configs: FormProjectConfigs) -> Optional[ParticipantVisits]:
         """Validate the input file - visits_file.
@@ -242,9 +247,20 @@ class FormQCCoordinator(GearExecutionEnvironment):
                 f"`{self.__pipeline}` - expected yaml file")
 
         if file_type == "json":
-            return self.parse_json_input(subject, form_configs=form_configs)
+            return self.__parse_json_input(subject, form_configs=form_configs)
 
-        return self.parse_yaml_input(subject)
+        return self.__parse_yaml_input(subject)
+
+    def __update_input_file_tags(self, gear_context: GearToolkitContext):
+        """Add gear tag to input file.
+
+        Args:
+            gear_context: Flywheel gear context
+            input_wrapper: gear input file wrapper
+        """
+
+        gear_name = gear_context.manifest.get('name', 'form-qc-coordinator')
+        gear_context.metadata.add_file_tags(self.__file_input, tags=gear_name)
 
     def run(self, context: GearToolkitContext) -> None:
         """Validates input files, runs the form-qc-coordinator app.
@@ -269,11 +285,11 @@ class FormQCCoordinator(GearExecutionEnvironment):
                 self.__form_config_input.filepath)
         except ValidationError as error:
             raise GearExecutionError(
-                'Error reading form configurations file '
-                f'{self.__form_config_input.filename}: {error}') from error
+                "Error reading form configurations file "
+                f"{self.__form_config_input.filename}: {error}") from error
 
         subject_adaptor = SubjectAdaptor(subject)
-        visits_info = self.validate_input_data(
+        visits_info = self.__validate_input_data(
             subject=subject_adaptor, form_configs=form_project_configs)
         if not visits_info:
             raise GearExecutionError(
@@ -282,20 +298,22 @@ class FormQCCoordinator(GearExecutionEnvironment):
         qc_gear_info = GearInfo.load_from_file(self.__qc_config_input.filepath,
                                                configs_class=QCGearConfigs)
         if not qc_gear_info:
-            raise GearExecutionError('Error reading qc gear configs file '
-                                     f'{self.__qc_config_input.filename}')
+            raise GearExecutionError("Error reading qc gear configs file "
+                                     f"{self.__qc_config_input.filename}")
 
         run(
             gear_context=context,
-            client_wrapper=self.client,
-            visits_file_wrapper=self.__file_input,
+            proxy=self.proxy,
             form_project_configs=form_project_configs,
-            configs_file_id=self.__form_config_input.file_id,
+            configs_file=self.__form_config_input.file_entry(context=context),
             subject=subject_adaptor,
             visits_info=visits_info,
             qc_gear_info=qc_gear_info,
             pipeline=self.__pipeline,  # type: ignore
             check_all=self.__check_all)
+
+        if self.__pipeline == DefaultValues.SUBMISSION_PIPELINE:
+            self.__update_input_file_tags(context)
 
 
 def main():
