@@ -64,15 +64,15 @@ class VisitsLookupHelper():
 
         title = f'{module} visits for participant {self.__subject.label}'
 
-        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
+        ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
         columns = [
             ptid_key, date_col_key, 'file.name', 'file.file_id',
             'file.parents.acquisition'
         ]
 
         if FieldNames.VISITNUM in module_configs.required_fields:
-            visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
 
         filters = f'acquisition.label={module}'
@@ -109,17 +109,19 @@ class VisitsLookupHelper():
 
         title = f'{module} visits for participant {self.__subject.label}'
 
-        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field}'
+        ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
+        timestamp_key = f'file.info.{MetadataKeys.VALIDATED_TIMESTAMP}'
+        timestamp_label = f'{module}-{MetadataKeys.VALIDATED_TIMESTAMP}'
         columns = [
             ptid_key, date_col_key, 'file.name', 'file.file_id',
-            'file.parents.acquisition'
+            'file.parents.acquisition', (timestamp_key, timestamp_label)
         ]
 
         filters = f'acquisition.label={module},{date_col_key}={visitdate}'
 
         if visitnum and FieldNames.VISITNUM in module_configs.required_fields:
-            visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
             filters += f',{visitnum_key}={visitnum}'
 
@@ -127,7 +129,8 @@ class VisitsLookupHelper():
             container_id=self.__subject.id,
             dv_title=title,
             columns=columns,
-            filters=filters)
+            filters=filters,
+            missing_data_strategy='none')
 
     def get_dependent_module_visits(
         self, *, current_module: str, current_visits: List[VisitInfo]
@@ -183,6 +186,10 @@ class VisitsLookupHelper():
 
                 if dep_module not in dependent_visits:
                     dependent_visits[dep_module] = []
+
+                matched_visits[0][MetadataKeys.TRIGGERED_TIMESTAMP] = (
+                    visit.validated_timestamp
+                    if visit.validated_timestamp else "")
                 dependent_visits[dep_module].append(matched_visits[0])
 
         return dependent_visits

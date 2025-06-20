@@ -4,7 +4,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional
 
 import flywheel
 from flywheel import (
@@ -646,17 +646,17 @@ class FlywheelProxy:
             return None
 
     def get_matching_acquisition_files_info(
-            self,
-            *,
-            container_id: str,
-            dv_title: str,
-            columns: List[str],
-            filename_pattern: Optional[str] = '*.json',
-            filters: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
+        self,
+        *,
+        container_id: str,
+        dv_title: str,
+        columns: List[str],
+        filename_pattern: Optional[str] = '*.json',
+        filters: Optional[str] = None,
+        missing_data_strategy: Literal['drop-row', 'none'] = 'drop-row'
+    ) -> Optional[List[Dict[str, str]]]:
         """Retrieve info on the list of files matching with the given filters
         (if any) from the specified Flywheel container.
-
-        Note: missing_data_strategy is set to 'drop-row'
 
         Args:
             container_id: Flywheel container ID
@@ -664,6 +664,7 @@ class FlywheelProxy:
             columns: list of columns to be included in dataview
             filename_pattern (optional): the filename pattern to match, default '*.json'
             filters (optional): If specified, returns visits matching with the filter
+            missing_data_strategy: missing_data_strategy, default 'drop-row'
 
         Returns:
             List[Dict]: List of visits matching with the specified filters
@@ -678,7 +679,7 @@ class FlywheelProxy:
                               filter=filters,
                               include_ids=False,
                               include_labels=False)
-        builder = builder.missing_data_strategy('drop-row')
+        builder = builder.missing_data_strategy(missing_data_strategy)
         view = builder.build()
 
         with self.read_view_data(view, container_id) as resp:

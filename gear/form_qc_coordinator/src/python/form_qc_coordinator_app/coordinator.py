@@ -2,13 +2,16 @@
 
 import logging
 from collections import deque
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
-from flywheel import FileEntry
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from flywheel.models.acquisition import Acquisition
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
@@ -134,7 +137,7 @@ class QCCoordinator():
         info = visit_file.info if (visit_file.info
                                    and 'qc' in visit_file.info) else {
                                        'qc': {}
-                                   }
+        }
 
         # add qc-coordinator gear info to visit file metadata
         updated_qc_info = self.__metadata.add_gear_info(
@@ -206,8 +209,8 @@ class QCCoordinator():
 
         title = f'{supplement_module} visits for participant {self.__subject.label}'
 
-        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = f'{MetadataKeys.FORM_METADATA_PATH}.{supplement_date_field}'
+        ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        date_col_key = MetadataKeys.get_column_key(supplement_date_field)
         columns = [
             ptid_key, date_col_key, 'file.name', 'file.file_id',
             'file.parents.acquisition'
@@ -217,7 +220,7 @@ class QCCoordinator():
         )
 
         if visitnum:
-            visitnum_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}'
+            visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
             filters += f',{visitnum_key}={visitnum}'
 
@@ -300,6 +303,106 @@ class QCCoordinator():
                                             visitdate=visitdate,
                                             status='FAIL')
 
+    def __is_outdated_trigger(self, visit: Dict[str, str]) -> bool:
+        """If triggered from finalization workflow, check whether the module
+        file was validated after the trigger.
+
+        Args:
+            visit: current visit info
+
+        Returns:
+            bool: True if current visit was finalized after the trigger
+        """
+
+        module_timestamp = visit.get(
+            f'{self.__module}-{MetadataKeys.VALIDATED_TIMESTAMP}')
+        trigger_timestamp = visit.get(MetadataKeys.TRIGGERED_TIMESTAMP)
+
+        if not module_timestamp or not trigger_timestamp:
+            return False
+
+        outdated = (datetime.strptime(module_timestamp,
+                                      DEFAULT_DATE_TIME_FORMAT)
+                    >= datetime.strptime(trigger_timestamp,
+                                         DEFAULT_DATE_TIME_FORMAT))
+        if outdated:
+            log.info(f"Ignoring outdated finalization trigger "
+                     f"for file {visit['file.name']}: "
+                     f"trigger timestamp {trigger_timestamp} - "
+                     f"visit last validated at timestamp {module_timestamp}")
+
+        return outdated
+
+    def __get_visit_file_and_destination(
+            self, visit: Dict[str, str]) -> Tuple[FileEntry, Acquisition]:
+        """Retrieve visit file and acquisition container from visit info.
+
+        Args:
+            visit: visit info
+
+        Returns:
+            Tuple[FileEntry, Acquisition]: file entry and acquisition container
+
+        Raises:
+            GearExecutionError: if file or acquisition not found
+        """
+        try:
+            return (self.__proxy.get_file(visit['file.file_id']),
+                    self.__proxy.get_acquisition(
+                        visit['file.parents.acquisition']))
+        except ApiException as error:
+            raise GearExecutionError(
+                f"Error retrieving file {visit['file.name']}: {error}"
+            ) from error
+
+    def __build_qc_gear_inputs(
+            self, *, visit_file: FileEntry, ptid: str, visitdate: str,
+            visitnum: Optional[str]) -> Optional[Dict[str, FileEntry]]:
+        """Populate the inputs required for QC gear, report errors if required
+        input files cannot be found.
+
+        Args:
+            visit_file: current visit file
+            ptid: participant identifier
+            visitdate: visit date
+            visitnum (optional): visit number
+
+        Returns:
+            Dict[str, FileEntry (optional): gear input dictionary or None
+        """
+
+        inputs = {
+            'form_data_file': visit_file,
+            'form_configs_file': self.__configs_file
+        }
+
+        supplement_module = self.__module_configs.supplement_module  # type: ignore
+
+        # if supplement visit required check for approved supplement visit
+        # i.e. UDS visit must be approved before processing any FTLD/LBD visits
+        if (supplement_module and supplement_module.exact_match):
+            supplement_file = self.__get_matching_supplement_visit_file(
+                supplement_module_info=supplement_module,
+                visitdate=visitdate,
+                visitnum=visitnum)
+
+            if not supplement_file:
+                error_obj = preprocessing_error(
+                    field=FieldNames.MODULE,
+                    value=self.__module,
+                    error_code=SysErrorCodes.UDS_NOT_APPROVED,
+                    ptid=ptid,
+                    visitnum=visitnum)
+                self.__update_visit_metadata_on_failure(ptid=ptid,
+                                                        visit_file=visit_file,
+                                                        visitdate=visitdate,
+                                                        error_obj=error_obj)
+                return None
+
+            inputs['supplement_data_file'] = supplement_file
+
+        return inputs
+
     def run_error_checks(self, *, visits: List[Dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
@@ -314,68 +417,44 @@ class QCCoordinator():
 
         assert self.__module_configs, "module configurations cannot be null"
 
-        gear_name = self.__qc_gear_info.gear_name
-
-        ptid_key = f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PTID}'
-        date_col_key = (
-            f'{MetadataKeys.FORM_METADATA_PATH}.{self.__module_configs.date_field}'
-        )
-        visitnum_key = (
-            f'{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}')
+        ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        date_col_key = MetadataKeys.get_column_key(
+            self.__module_configs.date_field)
+        visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
 
         # sort the visits in the ascending order of visit date
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
         visits_queue = deque(sorted_visits)
 
-        supplement_module = self.__module_configs.supplement_module
-
         failed_visit = ''
-        while len(visits_queue) > 0:
+        while visits_queue:
             visit = visits_queue.popleft()
             filename = visit['file.name']
-            file_id = visit['file.file_id']
-            acq_id = visit['file.parents.acquisition']
             visitdate = visit[date_col_key]
             ptid = visit[ptid_key]
             visitnum = visit.get(visitnum_key)
 
+            # skip if module file was validated after the finalization trigger
+            if self.__is_outdated_trigger(visit):
+                continue
+
             try:
-                visit_file = self.__proxy.get_file(file_id)
-                destination = self.__proxy.get_acquisition(acq_id)
-            except ApiException as error:
-                raise GearExecutionError(
-                    f'Failed to retrieve {filename} - {error}') from error
-
-            qc_gear_inputs = {
-                'form_data_file': visit_file,
-                'form_configs_file': self.__configs_file
-            }
-
-            supplement_file = None
-            # if supplement visit required check for approved supplement visit
-            # i.e. UDS visit must be approved before processing any FTLD/LBD visits
-            if (supplement_module and supplement_module.exact_match):
-                supplement_file = self.__get_matching_supplement_visit_file(
-                    supplement_module_info=supplement_module,
+                visit_file, destination = self.__get_visit_file_and_destination(
+                    visit)
+                qc_gear_inputs = self.__build_qc_gear_inputs(
+                    visit_file=visit_file,
+                    ptid=ptid,
                     visitdate=visitdate,
                     visitnum=visitnum)
-                if not supplement_file:
-                    error_obj = preprocessing_error(
-                        field=FieldNames.MODULE,
-                        value=self.__module,
-                        error_code=SysErrorCodes.UDS_NOT_APPROVED,
-                        ptid=ptid,
-                        visitnum=visitnum)
-                    self.__update_visit_metadata_on_failure(
-                        ptid=ptid,
-                        visit_file=visit_file,
-                        visitdate=visitdate,
-                        error_obj=error_obj)
-                    failed_visit = visit_file.name
-                    break
+            except GearExecutionError as error:
+                raise error
 
-                qc_gear_inputs['supplement_data_file'] = supplement_file
+            # If required gear inputs not found, stop processing
+            if not qc_gear_inputs:
+                failed_visit = visit_file.name
+                break
 
+            gear_name = self.__qc_gear_info.gear_name
             job_id = trigger_gear(
                 proxy=self.__proxy,
                 gear_name=gear_name,
@@ -383,12 +462,13 @@ class QCCoordinator():
                 config=self.__qc_gear_info.configs.model_dump(),
                 inputs=qc_gear_inputs,
                 destination=destination)
-            if job_id:
-                log.info('Gear %s queued for file %s - Job ID %s', gear_name,
-                         filename, job_id)
-            else:
+
+            if not job_id:
                 raise GearExecutionError(
                     f'Failed to trigger gear {gear_name} on file {filename}')
+
+            log.info('Gear %s queued for file %s - Job ID %s', gear_name,
+                     filename, job_id)
 
             # If QC gear did not complete, stop evaluating any subsequent visits
             if not JobPoll.is_job_complete(self.__proxy, job_id):

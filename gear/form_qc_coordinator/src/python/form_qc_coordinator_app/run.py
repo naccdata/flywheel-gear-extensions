@@ -162,7 +162,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
                                           {}).get(module_configs.date_field)
         if not visitdate:
             raise GearExecutionError(
-                f"{MetadataKeys.FORM_METADATA_PATH}.{module_configs.date_field} "
+                f"{MetadataKeys.get_column_key(module_configs.date_field)} "
                 f"not found in file {self.__file_input.filename} metadata")
 
         visitnum = file.info.get('forms', {}).get("json",
@@ -171,7 +171,9 @@ class FormQCCoordinator(GearExecutionEnvironment):
         visit = VisitInfo(filename=self.__file_input.filename,
                           file_id=file_id,
                           visitdate=visitdate,
-                          visitnum=visitnum)
+                          visitnum=visitnum,
+                          validated_timestamp=file.info.get(
+                              MetadataKeys.VALIDATED_TIMESTAMP))
 
         visits_info = ParticipantVisits(participant=subject.label,
                                         module=module,

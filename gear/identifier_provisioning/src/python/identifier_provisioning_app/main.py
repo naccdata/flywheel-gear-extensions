@@ -4,7 +4,12 @@ import logging
 from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
-from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
+from dates.form_dates import (
+    DATE_FORMATS,
+    DEFAULT_DATE_FORMAT,
+    DateFormatException,
+    parse_date,
+)
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
     CenterValidator,
@@ -417,10 +422,10 @@ class NewEnrollmentVisitor(CSVVisitor):
             self.__batch.add(
                 EnrollmentRecord(center_identifier=CenterIdentifiers(
                     adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]),
-                                 guid=row.get(FieldNames.GUID)
-                                 if row.get(FieldNames.GUID) else None,
-                                 naccid=None,
-                                 start_date=enroll_date))
+                    guid=row.get(FieldNames.GUID)
+                    if row.get(FieldNames.GUID) else None,
+                    naccid=None,
+                    start_date=enroll_date))
             return True
         except ValidationError as validation_error:
             for error in validation_error.errors():
@@ -586,7 +591,8 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
         error_writer.clear()
         record_info = {
             FieldNames.PTID: record.center_identifier.ptid,
-            FieldNames.ENRLFRM_DATE: record.start_date.strftime("%Y-%m-%d")
+            FieldNames.ENRLFRM_DATE: record.start_date.strftime(
+                DEFAULT_DATE_FORMAT)
         }
         if not record.naccid:
             message = ('Failed to generate NACCID for enrollment record '

@@ -3,17 +3,19 @@
 import json
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectError,
     VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from outputs.errors import (
     JSONLocation,
     ListErrorWriter,
@@ -204,9 +206,9 @@ class JSONFileProcessor(FileProcessor):
         visitdate = self.__input_record[self._date_field]
 
         if failed_visit:
-            same_file = (failed_visit.file_id and failed_visit.file_id
-                         == self.__file_id) or (failed_visit.filename
-                                                == self.__filename)
+            same_file = (failed_visit.file_id
+                         and failed_visit.file_id == self.__file_entry.file_id
+                         ) or (failed_visit.filename == self.__file_entry.name)
             # if failed visit date is same as current visit date
             if failed_visit.visitdate == visitdate:
                 # check whether it is the same file
@@ -217,7 +219,8 @@ class JSONFileProcessor(FileProcessor):
                         'Two different files exists with same visit date '
                         f'{visitdate} for subject {self.__subject.label} '
                         f'module {self._module} - '
-                        f'{failed_visit.filename} and {self.__filename}')
+                        f'{failed_visit.filename} and {self.__file_entry.name}'
+                    )
 
             # same file but the visit date is different from previously recorded value
             if same_file:
@@ -233,6 +236,14 @@ class JSONFileProcessor(FileProcessor):
                 return 'DIFFERENT'
 
         return 'NONE'
+
+    def __update_validated_timestamp(self) -> None:
+        """Set/update the validation timestamp in file.info."""
+        timestamp = (datetime.now(
+            timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+        self.__file_entry = self.__file_entry.reload()
+        self.__file_entry.update_info(
+            {MetadataKeys.VALIDATED_TIMESTAMP: timestamp})
 
     def validate_input(
             self, *,
@@ -282,8 +293,7 @@ class JSONFileProcessor(FileProcessor):
             return None
 
         self.__input_record = input_data
-        self.__file_id = input_wrapper.file_id
-        self.__filename = input_wrapper.filename
+        self.__file_entry = self._project.proxy.get_file(input_wrapper.file_id)
         self.__subject = subject
 
         return self.__input_record
@@ -357,13 +367,16 @@ class JSONFileProcessor(FileProcessor):
                 record=(self.__supplement_data | self.__input_record
                         ) if self.__supplement_data else self.__input_record)
             if not valid:
-                visit_info = VisitInfo(filename=self.__filename,
-                                       file_id=self.__file_id,
+                visit_info = VisitInfo(filename=self.__file_entry.name,
+                                       file_id=self.__file_entry.file_id,
                                        visitdate=visitdate)
                 self.__subject.set_last_failed_visit(self._module, visit_info)
             # reset failed visit metadata in Flywheel
             elif failed_visit == 'SAME':
                 self.__subject.reset_last_failed_visit(self._module)
+
+            # update last validated timestamp in file.info metadata
+            self.__update_validated_timestamp()
 
         if not self.update_visit_error_log(input_record=self.__input_record,
                                            qc_passed=valid):

@@ -8,7 +8,7 @@ from logging import Handler, Logger
 from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
-from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
+from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -329,7 +329,7 @@ class ErrorWriter(ABC):
 
     def __init__(self):
         """Initializer - sets the timestamp to time of creation."""
-        self.__timestamp = (dt.now()).strftime('%Y-%m-%d %H:%M:%S')
+        self.__timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
 
     def set_timestamp(self, error: FileError) -> None:
         """Assigns the timestamp to the error."""
@@ -488,7 +488,7 @@ def update_error_log_and_qc_metadata(*,
             info = current_log.info
         contents = (current_log.read()).decode('utf-8')  # type: ignore
 
-    timestamp = (dt.now()).strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
     contents += f'{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n'
     for error in errors:
         contents += json.dumps(error) + '\n'

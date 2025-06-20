@@ -86,6 +86,12 @@ class MetadataKeys:
     TRANSFERS = 'transfers'
     MODULE_CONFIGS = 'module_configs'
     FORM_METADATA_PATH = 'file.info.forms.json'
+    VALIDATED_TIMESTAMP = 'validated-timestamp'
+    TRIGGERED_TIMESTAMP = 'triggered-timestamp'
+
+    @classmethod
+    def get_column_key(cls, column: str) -> str:
+        return f'{cls.FORM_METADATA_PATH}.{column}'
 
 
 class SysErrorCodes:

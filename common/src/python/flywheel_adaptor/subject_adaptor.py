@@ -33,6 +33,7 @@ class VisitInfo(BaseModel):
     file_id: Optional[str] = None  # Flywheel File ID
     visitdate: str = Field(pattern=DATE_PATTERN)
     visitnum: Optional[str] = None
+    validated_timestamp: Optional[str] = None
 
 
 class ParticipantVisits(BaseModel):
