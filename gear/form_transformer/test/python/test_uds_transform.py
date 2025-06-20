@@ -167,13 +167,17 @@ class TestUDSTransform:
     def test_mismatched_modules(self):
         """Test records in CSV belong to different modules."""
         visitor, project, _ = create_uds_visitor()
+
         record = create_record({'module': 'ftld'})
         assert not visitor.visit_row(record, 0)
+        qc = get_qc_errors(project)
+        assert len(qc) == 1
+
         record = create_record({'module': 'lbd'})
         assert not visitor.visit_row(record, 1)
-
         qc = get_qc_errors(project)
         assert len(qc) == 2
+
         assert qc[0]['code'] == 'unexpected-value'
         assert qc[0]['message'] == 'Expected UDS for field module'
         assert qc[0]['expected'] == 'UDS'
@@ -209,6 +213,8 @@ class TestUDSTransform:
             'bad3': 4
         })
         assert not visitor.visit_row(record, 0)
+        qc = get_qc_errors(project)
+        assert len(qc) == 1
 
         # will pass this
         record = create_record({'bad1': None, 'bad2': None, 'bad3': None})
@@ -352,3 +358,7 @@ class TestUDSTransform:
         assert visitor.visit_row(record, 1)
 
         assert visitor.process_current_batch()
+
+
+# test = TestUDSTransform()
+# test.test_bad_transform()

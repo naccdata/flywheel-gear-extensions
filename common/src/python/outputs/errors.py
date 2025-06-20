@@ -512,16 +512,17 @@ def update_error_log_and_qc_metadata(
                   f'{destination_prj.group}/{destination_prj.label}: {error}')
         return False
 
+    updated_errors = []
     if reset_qc_metadata == 'NA':
-        # if error data already exists, append to data
-        existing_errors = info.get('qc', {}).get(gear_name, {}) \
+        # if not to reset, pull error data that already exists
+        updated_errors = info.get('qc', {}).get(gear_name, {}) \
             .get('validation', {}).get('data', [])
-        errors.extend(existing_errors)
+    updated_errors.extend(errors)
 
     info["qc"][gear_name] = {
         "validation": {
             "state": state.upper(),
-            "data": errors
+            "data": updated_errors
         }
     }
     try:
