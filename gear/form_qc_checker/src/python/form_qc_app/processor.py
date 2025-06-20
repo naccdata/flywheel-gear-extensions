@@ -19,6 +19,7 @@ from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from outputs.errors import (
     JSONLocation,
     ListErrorWriter,
+    MetadataCleanupFlag,
     empty_field_error,
     empty_file_error,
     get_error_log_name,
@@ -130,18 +131,22 @@ class FileProcessor(ABC):
         return ErrorLogTemplate(id_field=FieldNames.PTID,
                                 date_field=self._date_field)
 
-    def update_visit_error_log(self,
-                               *,
-                               input_record: Dict[str, Any],
-                               qc_passed: bool,
-                               reset_metadata: bool = False) -> bool:
+    def update_visit_error_log(
+            self,
+            *,
+            input_record: Dict[str, Any],
+            qc_passed: bool,
+            reset_qc_metadata: MetadataCleanupFlag = 'NA') -> bool:
         """Update error log file for the visit and store error metadata in
         file.info.qc.
 
         Args:
             input_record: input visit record
             qc_passed: whether the visit passed QC checks
-            reset_metadata: reset metadata from previous runs, set True for first gear
+            reset_qc_metadata: flag to reset metadata from previous runs:
+                            ALL - reset all, for the first gear in submission pipeline.
+                            GEAR - reset only current gear metadata from previous runs.
+                            NA - do not reset (Default)
 
         Returns:
             bool: True if error log updated successfully, else False
@@ -158,7 +163,7 @@ class FileProcessor(ABC):
                 gear_name=self._gear_name,
                 state='PASS' if qc_passed else 'FAIL',
                 errors=self._error_writer.errors(),
-                reset_metadata=reset_metadata):
+                reset_qc_metadata=reset_qc_metadata):
             log.warning('Failed to update error log for record %s, %s',
                         input_record[self._pk_field],
                         input_record[self._date_field])
@@ -379,7 +384,8 @@ class JSONFileProcessor(FileProcessor):
             self.__update_validated_timestamp()
 
         if not self.update_visit_error_log(input_record=self.__input_record,
-                                           qc_passed=valid):
+                                           qc_passed=valid,
+                                           reset_qc_metadata='GEAR'):
             raise GearExecutionError('Failed to update error log for visit '
                                      f'{self.__subject.label}, {visitdate}')
 

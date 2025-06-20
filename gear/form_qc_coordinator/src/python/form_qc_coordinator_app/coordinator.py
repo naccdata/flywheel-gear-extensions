@@ -137,7 +137,7 @@ class QCCoordinator():
         info = visit_file.info if (visit_file.info
                                    and 'qc' in visit_file.info) else {
                                        'qc': {}
-        }
+                                   }
 
         # add qc-coordinator gear info to visit file metadata
         updated_qc_info = self.__metadata.add_gear_info(
@@ -168,7 +168,8 @@ class QCCoordinator():
                                                proxy=self.__proxy),
                 gear_name=gear_name,
                 state=status,
-                errors=error_writer.errors()):
+                errors=error_writer.errors(),
+                reset_qc_metadata='GEAR'):
             raise GearExecutionError(
                 f'Failed to update error log for visit {ptid}, {visitdate}')
 
