@@ -9,8 +9,10 @@ from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
+    SubjectAdaptor,
     SubjectError,
     VisitInfo,
 )
@@ -192,6 +194,8 @@ class JSONFileProcessor(FileProcessor):
                          error_writer=error_writer,
                          form_configs=form_configs,
                          gear_name=gear_name)
+        self.__subject: SubjectAdaptor
+        self.__file_entry: FileEntry
         self.__supplement_data = supplement_data
 
     def __has_failed_visits(self) -> FailedStatus:

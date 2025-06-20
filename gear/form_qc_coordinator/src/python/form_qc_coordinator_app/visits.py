@@ -128,7 +128,7 @@ class VisitsLookupHelper():
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,
             dv_title=title,
-            columns=columns,
+            columns=columns,  # type: ignore
             filters=filters,
             missing_data_strategy='none')
 
