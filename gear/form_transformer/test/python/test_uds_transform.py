@@ -358,7 +358,3 @@ class TestUDSTransform:
         assert visitor.visit_row(record, 1)
 
         assert visitor.process_current_batch()
-
-
-# test = TestUDSTransform()
-# test.test_bad_transform()

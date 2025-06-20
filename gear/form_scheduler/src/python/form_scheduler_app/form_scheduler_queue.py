@@ -180,7 +180,8 @@ class FormSchedulerQueue:
 
             module = match.group(1)
             # skip over files that do not match the accepted modules for the pipeline
-            # these files could be incorrectly tagged
+            # Note: Issue Manager currently tag all files when they are finalized
+            #       without checking for any dependent modules
             if module.upper() not in pipeline.modules:
                 log.warning(
                     "File %s is not in the accepted modules %s for pipeline `%s`",
