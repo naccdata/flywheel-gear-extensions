@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Adds functionality for handling multiple pipelines (submission, finalization)
+
 ## 1.1.2
 * Fixes a bug in saving error metadata
   

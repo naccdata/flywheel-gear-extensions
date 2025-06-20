@@ -4,10 +4,17 @@ import os
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+from flywheel import Project
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import InputFileWrapper
-from gear_execution.gear_trigger import GearConfigs, GearInfo, trigger_gear
+from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
+from gear_execution.gear_trigger import (
+    CredentialGearConfigs,
+    GearInfo,
+    set_gear_inputs,
+    trigger_gear,
+)
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
 from keys.keys import FieldNames, SysErrorCodes
@@ -18,11 +25,8 @@ from form_screening_app.format import CSVFormatterVisitor
 log = logging.getLogger(__name__)
 
 
-class FormSchedulerGearConfigs(GearConfigs):
+class FormSchedulerGearConfigs(CredentialGearConfigs):
     """Form Scheduler-specific gear configs."""
-    submission_pipeline: str
-    accepted_modules: str
-    queue_tags: str
     source_email: str
     portal_url_path: str
 
@@ -61,39 +65,125 @@ def save_output(context: GearToolkitContext,
             info=info)
 
 
-def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
-        file_input: InputFileWrapper, accepted_modules: List[str],
-        queue_tags: List[str],
-        scheduler_gear: GearInfo) -> Optional[ListErrorWriter]:
-    """Runs the form screening process. Checks that the file suffix matches any
-    accepted modules; if so, tags the file with the specified tags, and run the
-    form-scheduler gear if it's not already running. If the suffix does not
-    match, report an error.
+def get_scheduler_gear_inputs(scheduler_gear: GearInfo,
+                              project: Project) -> Dict[str, FileEntry]:
+    """Get the input files for the form scheduler gear.
 
-    Also formats the input CSV:
-    removes any REDCap specific ID columns,
-    converts column headers to lowercase,
-    removes BOM characters and saves the file in UTF-8.
+    Args:
+        scheduler_gear: form scheduler gear info
+        project: Flywheel project container
+
+    Returns:
+        Dict[str, FileEntry]: scheduler gear inputs
+    """
+    gear_input_info = scheduler_gear.get_inputs_by_file_locator_type(
+        locators=['fixed'])
+
+    gear_inputs: Dict[str, FileEntry] = {}
+    # set gear inputs of file locator type fixed
+    # these are the project level files with fixed filename specified in the configs
+    if gear_input_info and 'fixed' in gear_input_info:
+        set_gear_inputs(project=project,
+                        gear_name=scheduler_gear.gear_name,
+                        locator='fixed',
+                        gear_inputs_list=gear_input_info['fixed'],
+                        gear_inputs=gear_inputs)
+
+    return gear_inputs
+
+
+def trigger_scheduler_gear(*, proxy: FlywheelProxy, project: Project,
+                           scheduler_gear: GearInfo):
+    """Trigger the form-scheduler gear if it's not already running on the given
+    project.
 
     Args:
         proxy: the proxy for the Flywheel instance
-        file_input: The InputFileWrapper representing the file to
+        project: Flywheel project container
+        scheduler_gear: form-scheduler gear info
+    """
+    # check if the scheduler gear is pending/running
+    log.info(f"Checking status of {scheduler_gear.gear_name}")
+
+    search_str = JobPoll.generate_search_string(
+        project_ids_list=[project.id],
+        gears_list=[scheduler_gear.gear_name],
+        states_list=['running', 'pending'])
+
+    if proxy.find_job(search_str):
+        log.info(f"{scheduler_gear.gear_name} gear already running, exiting")
+        return None
+
+    # otherwise invoke the gear
+    log.info(f"No {scheduler_gear.gear_name} gears running, triggering")
+    trigger_gear(proxy=proxy,
+                 gear_name=scheduler_gear.gear_name,
+                 config=scheduler_gear.configs.model_dump(),
+                 inputs=get_scheduler_gear_inputs(
+                     scheduler_gear=scheduler_gear, project=project),
+                 destination=project)
+
+
+def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
+        file_input: InputFileWrapper, accepted_modules: List[str],
+        queue_tags: List[str], scheduler_gear: GearInfo,
+        format_and_tag: bool) -> Optional[ListErrorWriter]:
+    """Runs the form screening process. Checks that the file suffix matches any
+    accepted modules, if the suffix does not match, report an error.
+        If format_and_tag=True (only supported for CSVs):
+            formats the input file:
+                removes any REDCap specific ID columns,
+                converts column headers to lowercase,
+                removes BOM characters and saves the file in UTF-8.
+            tags the file with the specified queue_tags
+        Else:
+            check whether the input file is already tagged with one or more queue_tags
+
+        If the conditions met, trigger form-scheduler gear if it's not already running.
+
+    Args:
+        proxy: the proxy for the Flywheel instance
+        file_input: the InputFileWrapper representing the file to
             potentially queue
-        accepted_modules: List of accepted modules (case-insensitive)
-        queue_tags: List of tags to add if the file passes prescreening
+        accepted_modules: list of accepted modules (case-insensitive)
+        queue_tags: list of tags to add to the file or check whether already tagged
         scheduler_gear: GearInfo of the scheduler gear to trigger
+        format_and_tag: if True format input file and add queue_tags,
+                        else check whether the file is already tagged with queue_tags
 
     Returns:
         ListErrorWriter(optional): If file didn't pass screening checks
     """
-    module = file_input.basename.split('-')[-1]
 
     file = proxy.get_file(file_input.file_id)
+    project = file_input.get_parent_project(proxy=proxy, file=file)
+
+    if not format_and_tag:
+        # check whether the input file has pipeline trigger tag(s)
+        if not (set(file.tags) & set(queue_tags)):
+            raise GearExecutionError(
+                f"Input file tags {file.tags} does not contain "
+                f"the expected pipeline trigger tags {queue_tags}")
+
+        # if matching tags present start form-scheduler gear if it's not already running
+        trigger_scheduler_gear(proxy=proxy,
+                               project=project,
+                               scheduler_gear=scheduler_gear)
+        return None
+
+    file_type = file_input.validate_file_extension(accepted_extensions=["csv"])
+    if not file_type:
+        raise GearExecutionError(
+            f'Unsupported input file type {file_input.file_type}, expected CSV file'
+        )
+
+    module = file_input.basename.split('-')[-1]
     error_writer = ListErrorWriter(container_id=file_input.file_id,
                                    fw_path=proxy.get_lookup_path(file))
 
     if module.lower() not in accepted_modules:
-        log.error(f"Un-accepted module suffix: {module}")
+        log.error(
+            f"Module suffix {module} not in the list of accepted modules")
         error_writer.write(
             preprocessing_error(field=FieldNames.MODULE,
                                 value=module,
@@ -108,7 +198,6 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
             queue_tags)
         return None
 
-    project = file_input.get_parent_project(proxy=proxy, file=file)
     out_stream = StringIO()
     formatter_visitor = CSVFormatterVisitor(output_stream=out_stream,
                                             error_writer=error_writer)
@@ -142,23 +231,7 @@ def run(*, proxy: FlywheelProxy, context: GearToolkitContext,
                 tags=queue_tags,
                 info=info)
 
-    # check if the scheduler gear is pending/running
-    log.info(f"Checking status of {scheduler_gear.gear_name}")
-
-    search_str = JobPoll.generate_search_string(
-        project_ids_list=[project.id],
-        gears_list=[scheduler_gear.gear_name],
-        states_list=['running', 'pending'])
-
-    if proxy.find_job(search_str):
-        log.info("Scheduler gear already running, exiting")
-        return None
-
-    log.info(f"No {scheduler_gear.gear_name} gears running, triggering")
-    # otherwise invoke the gear
-    trigger_gear(proxy=proxy,
-                 gear_name=scheduler_gear.gear_name,
-                 config=scheduler_gear.configs.model_dump(),
-                 destination=project)
-
+    trigger_scheduler_gear(proxy=proxy,
+                           project=project,
+                           scheduler_gear=scheduler_gear)
     return None

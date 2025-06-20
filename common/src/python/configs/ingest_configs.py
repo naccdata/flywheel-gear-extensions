@@ -4,8 +4,11 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
+from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues
 from pydantic import BaseModel, Field, RootModel
+
+PipelineType = Literal['submission', 'finalization']
 
 
 class LabelTemplate(BaseModel):
@@ -124,3 +127,37 @@ class FormProjectConfigs(BaseModel):
     accepted_modules: List[str]
     legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
     module_configs: Dict[str, ModuleConfigs]
+
+    def get_module_dependencies(self, module: str) -> Optional[List[str]]:
+        """Returns the list of dependent modules for a given module.
+
+        Args:
+            module: module label
+
+        Returns:
+            List[str](optional): list of dependent module labels if found
+        """
+
+        dependent_modules = []
+        for module_label, config in self.module_configs.items():
+            if (config.supplement_module
+                    and config.supplement_module.exact_match
+                    and config.supplement_module.label == module.upper()):
+                dependent_modules.append(module_label)
+
+        return dependent_modules
+
+
+class Pipeline(BaseModel):
+    """Defines model for form scheduler pipeline."""
+    name: PipelineType
+    modules: List[str]
+    tags: List[str]
+    extensions: List[str]
+    starting_gear: GearInfo
+    notify_user: bool = False
+
+
+class PipelineConfigs(BaseModel):
+    gears: List[str]
+    pipelines: List[Pipeline]

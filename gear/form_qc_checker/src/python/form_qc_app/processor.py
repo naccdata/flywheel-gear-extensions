@@ -3,20 +3,25 @@
 import json
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
+    SubjectAdaptor,
     SubjectError,
     VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from outputs.errors import (
     JSONLocation,
     ListErrorWriter,
+    MetadataCleanupFlag,
     empty_field_error,
     empty_file_error,
     get_error_log_name,
@@ -128,18 +133,22 @@ class FileProcessor(ABC):
         return ErrorLogTemplate(id_field=FieldNames.PTID,
                                 date_field=self._date_field)
 
-    def update_visit_error_log(self,
-                               *,
-                               input_record: Dict[str, Any],
-                               qc_passed: bool,
-                               reset_metadata: bool = False) -> bool:
+    def update_visit_error_log(
+            self,
+            *,
+            input_record: Dict[str, Any],
+            qc_passed: bool,
+            reset_qc_metadata: MetadataCleanupFlag = 'NA') -> bool:
         """Update error log file for the visit and store error metadata in
         file.info.qc.
 
         Args:
             input_record: input visit record
             qc_passed: whether the visit passed QC checks
-            reset_metadata: reset metadata from previous runs, set True for first gear
+            reset_qc_metadata: flag to reset metadata from previous runs:
+                            ALL - reset all, for the first gear in submission pipeline.
+                            GEAR - reset only current gear metadata from previous runs.
+                            NA - do not reset (Default)
 
         Returns:
             bool: True if error log updated successfully, else False
@@ -156,7 +165,7 @@ class FileProcessor(ABC):
                 gear_name=self._gear_name,
                 state='PASS' if qc_passed else 'FAIL',
                 errors=self._error_writer.errors(),
-                reset_metadata=reset_metadata):
+                reset_qc_metadata=reset_qc_metadata):
             log.warning('Failed to update error log for record %s, %s',
                         input_record[self._pk_field],
                         input_record[self._date_field])
@@ -185,6 +194,8 @@ class JSONFileProcessor(FileProcessor):
                          error_writer=error_writer,
                          form_configs=form_configs,
                          gear_name=gear_name)
+        self.__subject: SubjectAdaptor
+        self.__file_entry: FileEntry
         self.__supplement_data = supplement_data
 
     def __has_failed_visits(self) -> FailedStatus:
@@ -204,9 +215,9 @@ class JSONFileProcessor(FileProcessor):
         visitdate = self.__input_record[self._date_field]
 
         if failed_visit:
-            same_file = (failed_visit.file_id and failed_visit.file_id
-                         == self.__file_id) or (failed_visit.filename
-                                                == self.__filename)
+            same_file = (failed_visit.file_id
+                         and failed_visit.file_id == self.__file_entry.file_id
+                         ) or (failed_visit.filename == self.__file_entry.name)
             # if failed visit date is same as current visit date
             if failed_visit.visitdate == visitdate:
                 # check whether it is the same file
@@ -217,7 +228,8 @@ class JSONFileProcessor(FileProcessor):
                         'Two different files exists with same visit date '
                         f'{visitdate} for subject {self.__subject.label} '
                         f'module {self._module} - '
-                        f'{failed_visit.filename} and {self.__filename}')
+                        f'{failed_visit.filename} and {self.__file_entry.name}'
+                    )
 
             # same file but the visit date is different from previously recorded value
             if same_file:
@@ -233,6 +245,14 @@ class JSONFileProcessor(FileProcessor):
                 return 'DIFFERENT'
 
         return 'NONE'
+
+    def __update_validated_timestamp(self) -> None:
+        """Set/update the validation timestamp in file.info."""
+        timestamp = (datetime.now(
+            timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+        self.__file_entry = self.__file_entry.reload()
+        self.__file_entry.update_info(
+            {MetadataKeys.VALIDATED_TIMESTAMP: timestamp})
 
     def validate_input(
             self, *,
@@ -282,8 +302,7 @@ class JSONFileProcessor(FileProcessor):
             return None
 
         self.__input_record = input_data
-        self.__file_id = input_wrapper.file_id
-        self.__filename = input_wrapper.filename
+        self.__file_entry = self._project.proxy.get_file(input_wrapper.file_id)
         self.__subject = subject
 
         return self.__input_record
@@ -357,16 +376,20 @@ class JSONFileProcessor(FileProcessor):
                 record=(self.__supplement_data | self.__input_record
                         ) if self.__supplement_data else self.__input_record)
             if not valid:
-                visit_info = VisitInfo(filename=self.__filename,
-                                       file_id=self.__file_id,
+                visit_info = VisitInfo(filename=self.__file_entry.name,
+                                       file_id=self.__file_entry.file_id,
                                        visitdate=visitdate)
                 self.__subject.set_last_failed_visit(self._module, visit_info)
             # reset failed visit metadata in Flywheel
             elif failed_visit == 'SAME':
                 self.__subject.reset_last_failed_visit(self._module)
 
+            # update last validated timestamp in file.info metadata
+            self.__update_validated_timestamp()
+
         if not self.update_visit_error_log(input_record=self.__input_record,
-                                           qc_passed=valid):
+                                           qc_passed=valid,
+                                           reset_qc_metadata='GEAR'):
             raise GearExecutionError('Failed to update error log for visit '
                                      f'{self.__subject.label}, {visitdate}')
 

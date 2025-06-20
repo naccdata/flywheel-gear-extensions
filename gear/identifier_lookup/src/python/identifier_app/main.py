@@ -173,14 +173,14 @@ class NACCIDLookupVisitor(CSVVisitor):
             errorlog_template=errorlog_template)
 
         # This is first gear in pipeline validating individual rows
-        # therefore, clear metadata from previous runs `reset_metadata=True`
+        # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
         if not error_log_name or not update_error_log_and_qc_metadata(
                 error_log_name=error_log_name,
                 destination_prj=self.__project,
                 gear_name=self.__gear_name,
                 state='PASS' if qc_passed else 'FAIL',
                 errors=self.__error_writer.errors(),
-                reset_metadata=True):
+                reset_qc_metadata='ALL'):
             raise GearExecutionError(
                 'Failed to update error log for visit '
                 f'{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}'

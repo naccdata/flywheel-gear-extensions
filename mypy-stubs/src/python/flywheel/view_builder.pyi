@@ -25,3 +25,9 @@ class ViewBuilder:
 
     def missing_data_strategy(self, value) -> 'ViewBuilder':
         ...
+
+    def file_filter(self, value=None, regex=False) -> 'ViewBuilder':
+        ...
+
+    def file_container(self, container) -> 'ViewBuilder':
+        ...

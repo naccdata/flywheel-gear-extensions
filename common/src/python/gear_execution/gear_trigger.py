@@ -2,24 +2,65 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Literal, Optional
+from string import Template
+from typing import Any, Dict, List, Literal, Optional
 
+from flywheel import Project
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from pydantic import BaseModel, ConfigDict, SerializeAsAny, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    SerializeAsAny,
+    ValidationError,
+    model_validator,
+)
 
 from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)
 
 BatchMode = Literal['projects', 'files']
+LocatorType = Literal['matched', 'module', 'fixed']
+
+
+class GearInput(BaseModel):
+    label: str
+    file_locator: LocatorType
+    file_name: Optional[str] = None
+
+    @model_validator(mode='after')
+    def validate_iteration_mode(self) -> 'GearInput':
+        """Validates whether the file_locator type matches with the file_name
+        value."""
+
+        if self.file_locator != 'matched' and not self.file_name:
+            raise ValueError(
+                f'Gear input {self.label} not in expected format: '
+                f'file_name is required for file_locator of type {self.file_locator}'
+            )
+
+        if (self.file_locator == 'module' and self.file_name
+                and self.file_name.find(f'${{{self.file_locator}}}') == -1):
+            raise ValueError(
+                f'Gear input {self.label} not in expected format: '
+                f'file_locator type placeholder ${{{self.file_locator}}} '
+                f'not present in file_name {self.file_name}')
+
+        return self
 
 
 class GearConfigs(BaseModel):
     """Class to represent base gear configs."""
     model_config = ConfigDict(populate_by_name=True, extra='allow')
 
-    apikey_path_prefix: Optional[str] = None
+
+class CredentialGearConfigs(GearConfigs):
+    """Class to represent credentials gear configs."""
+    model_config = ConfigDict(populate_by_name=True, extra='allow')
+
+    apikey_path_prefix: str
 
 
 class GearInfo(BaseModel):
@@ -28,6 +69,7 @@ class GearInfo(BaseModel):
 
     gear_name: str
     configs: SerializeAsAny[GearConfigs]
+    inputs: Optional[List[GearInput]] = None
 
     @classmethod
     def load_from_file(cls,
@@ -56,10 +98,6 @@ class GearInfo(BaseModel):
             return None
 
         input_configs = configs_data.get('configs')
-        if not input_configs:
-            log.error('No gear configs data found')
-            return None
-
         try:
             configs_data['configs'] = configs_class.model_validate(
                 input_configs)
@@ -69,6 +107,32 @@ class GearInfo(BaseModel):
             return None
 
         return gear_configs
+
+    def get_inputs_by_file_locator_type(
+            self, locators: List[LocatorType]
+    ) -> Optional[Dict[str, List[GearInput]]]:
+        """Get the list of gear inputs by file_locator type.
+
+        Args:
+            locators: list of file_locator types
+
+        Returns:
+            Dict[str, List[GearInput]](optional): list of gear inputs by locator
+        """
+        if not self.inputs:
+            log.info('No inputs specified for gear %s', self.gear_name)
+            return None
+
+        inputs_list: Dict[str, List[GearInput]] = {}
+        for gear_input in self.inputs:
+            if gear_input.file_locator not in locators:
+                continue
+
+            if gear_input.file_locator not in inputs_list:
+                inputs_list[gear_input.file_locator] = []
+            inputs_list[gear_input.file_locator].append(gear_input)
+
+        return inputs_list
 
 
 class BatchRunInfo(BaseModel):
@@ -173,12 +237,16 @@ class BatchRunInfo(BaseModel):
         return configs
 
 
-def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
+def trigger_gear(proxy: FlywheelProxy,
+                 gear_name: str,
+                 log_args: bool = True,
+                 **kwargs) -> str:
     """Trigger the gear.
 
     Args:
         proxy: the proxy for the Flywheel instance
         gear_name: the name of the gear to trigger
+        log_args: whether to log argument details (default True)
         kwargs: keyword arguments to pass to gear.run, which include:
             config: the configs to pass to the gear
             inputs: The inputs to pass to the gear
@@ -201,11 +269,50 @@ def trigger_gear(proxy: FlywheelProxy, gear_name: str, **kwargs) -> str:
     if destination:
         destination = destination.label
 
-    log.info(f"Triggering {gear_name} with the following args:")
-    log.info(f"config: {kwargs.get('config')}")
-    log.info(f"inputs: {kwargs.get('inputs')}")
-    log.info(f"destination: {destination}")
-    log.info(f"analysis_label: {kwargs.get('analysis_label')}")
-    log.info(f"tags: {kwargs.get('tags')}")
+    if log_args:
+        log.info(f"Triggering {gear_name} with the following args:")
+        log.info(f"config: {kwargs.get('config')}")
+        log.info(f"inputs: {kwargs.get('inputs')}")
+        log.info(f"destination: {destination}")
+        log.info(f"analysis_label: {kwargs.get('analysis_label')}")
+        log.info(f"tags: {kwargs.get('tags')}")
 
     return gear.run(**kwargs)
+
+
+def set_gear_inputs(*,
+                    project: Project,
+                    gear_name: str,
+                    locator: LocatorType,
+                    gear_inputs_list: List[GearInput],
+                    gear_inputs: Dict[str, FileEntry],
+                    module: Optional[str] = None,
+                    matched_file: Optional[FileEntry] = None):
+
+    if locator == 'matched' and not matched_file:
+        raise ValueError("matched_file is required when locator is 'matched'")
+
+    if locator == 'module' and not module:
+        raise ValueError("module is required when locator is 'module'")
+
+    for input_info in gear_inputs_list:
+        label = input_info.label
+
+        if locator == 'matched':
+            gear_inputs[label] = matched_file  # type: ignore
+            continue
+
+        filename = input_info.file_name
+        # Build filename (substitute module if needed)
+        if locator == 'module':
+            filename = Template(
+                input_info.file_name).substitute(  # type: ignore
+                    {"module": module.lower()})  # type: ignore
+
+        gear_input_file = project.get_file(name=filename)  # type: ignore
+        if not gear_input_file:
+            raise GearExecutionError(
+                f"Cannot find required input file {filename} "
+                f"for gear {gear_name}")
+
+        gear_inputs[label] = gear_input_file

@@ -2,7 +2,7 @@
 import logging
 
 from flywheel import Project
-from flywheel.models.file_output import FileOutput  # type: ignore
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from inputs.parameter_store import URLParameter
 from notifications.email import (
@@ -23,7 +23,7 @@ class SubmissionCompleteTemplateModel(BaseTemplateModel):
 
 
 def send_email(proxy: FlywheelProxy, email_client: EmailClient,
-               file: FileOutput, project: Project,
+               file: FileEntry, project: Project,
                portal_url: URLParameter) -> None:
     """Sends an email notifying user that their submission pipeline has
     completed.
@@ -31,8 +31,8 @@ def send_email(proxy: FlywheelProxy, email_client: EmailClient,
     Args:
         proxy: the proxy for the Flywheel instance
         email_client: EmailClient to send emails from
-        file: The FileOutput; will pull details from it
-        project: The ProjectOutput; will pull details from it
+        file: The FileEntry object to will pull details
+        project: Flywheel project container
         portal_url: The portal URL
     """
 

@@ -31,6 +31,11 @@ class GearToolkitContext:
     def destination(self) -> Dict[str, Any]:
         ...
 
+    @property
+    def config_json(self) -> Dict[str, Any]:
+        """Dictionary representation of `config.json`"""
+        ...
+
     def get_destination_container(self) -> Container:
         ...
 
