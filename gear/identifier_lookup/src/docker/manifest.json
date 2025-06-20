@@ -74,7 +74,7 @@
         "preserve_case": {
             "description": "Whether or not to preserve the case of the header keys in the input file",
             "type": "boolean",
-            "default": false
+            "default": true
         }
     },
     "command": "/bin/run"
