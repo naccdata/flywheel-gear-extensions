@@ -138,9 +138,8 @@ class EnrollmentFormVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(
                 empty_fields, line_num))
             if self.__validator:
-                self.__processor.update_visit_error_log(input_record=row,
-                                                        qc_passed=False,
-                                                        reset_metadata=True)
+                self.__processor.update_visit_error_log(
+                    input_record=row, qc_passed=False, reset_qc_metadata='ALL')
             return False
 
         valid = True
@@ -149,7 +148,7 @@ class EnrollmentFormVisitor(CSVVisitor):
                                                          line_number=line_num)
             self.__processor.update_visit_error_log(input_record=row,
                                                     qc_passed=valid,
-                                                    reset_metadata=True)
+                                                    reset_qc_metadata='ALL')
 
         if valid and self.__output_stream:
             writer = self.__get_output_writer()

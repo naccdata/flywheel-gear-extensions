@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List
 
 from flywheel.models.container_parents import ContainerParents
@@ -65,6 +66,10 @@ class FileEntry:
 
     @tags.setter
     def tags(self, tags: List[str]):
+        ...
+
+    @property
+    def modified(self) -> datetime:
         ...
 
     def add_tag(self, tag, **kwargs):

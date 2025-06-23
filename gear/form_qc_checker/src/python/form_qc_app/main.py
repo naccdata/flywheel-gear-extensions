@@ -83,28 +83,6 @@ def update_input_file_qc_status(
     return True
 
 
-def validate_input_file_type(mimetype: str) -> Optional[str]:
-    """Check whether the input file type is accepted.
-
-    Args:
-        mimetype: input file mimetype
-
-    Returns:
-        Optional[str]: If accepted file type, return the type, else None
-    """
-    if not mimetype:
-        return None
-
-    mimetype = mimetype.lower()
-    if mimetype.find('json') != -1:
-        return 'json'
-
-    if mimetype.find('csv') != -1:
-        return 'csv'
-
-    return None
-
-
 def load_supplement_input(
         supplement_input: InputFileWrapper) -> Optional[Dict[str, Any]]:
     with open(supplement_input.filepath, mode='r',
@@ -148,10 +126,13 @@ def run(  # noqa: C901
     if not input_wrapper.file_input:
         raise GearExecutionError('form_data_file input not found')
 
-    file_type = validate_input_file_type(input_wrapper.file_type)
+    accepted_extensions = ["json", "csv"]
+    file_type = input_wrapper.validate_file_extension(
+        accepted_extensions=accepted_extensions)
     if not file_type:
         raise GearExecutionError(
-            f'Unsupported input file type {input_wrapper.file_type}')
+            f"Unsupported input file type {input_wrapper.file_type}, "
+            f"supported extension(s): {accepted_extensions}")
 
     if file_type == 'json':
         separator = "_"

@@ -1,0 +1,41 @@
+{
+    "gears": [
+        "gear_one",
+        "gear_two"
+    ],
+    "pipelines": [
+        {
+            "name": "submission",
+            "modules": [
+                "module1",
+                "module2",
+                "module3"
+            ],
+            "tags": [
+                "submission-tag"
+            ],
+            "extensions": [
+                ".csv"
+            ],
+            "starting_gear": {
+                "gear_name": "gear_one",
+                "inputs": [
+                    {
+                        "label": "input_file1",
+                        "file_locator": "matched"
+                    },
+                    {
+                        "label": "input_file2",
+                        "file_locator": "module",
+                        "file_name": "${module}-schema.json"
+                    }
+                ],
+                "configs": {
+                    "config1": "value1",
+                    "config2": 10
+                }
+            },
+            "notify_user": true
+        }
+    ]
+}
