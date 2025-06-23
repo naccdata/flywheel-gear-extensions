@@ -331,6 +331,8 @@ def set_gear_inputs(
         filename = input_info.file_name
         # Build filename (substitute module if needed)
         if locator == "module":
+            if module is None:
+                raise ValueError("module must have a value if locator is module")
             filename = Template(input_info.file_name).substitute(  # type: ignore
                 {"module": module.lower()}
             )  # type: ignore

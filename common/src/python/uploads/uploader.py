@@ -184,7 +184,7 @@ class FormJSONUploader:
                 default_flow_style=False,
             )
             filename = (
-                f"{participant}-{self.__module}-visits-pending-qc-{timestamp}.yaml"  # NOQA E501
+                f"{participant}-{self.__module}-visits-pending-qc-{timestamp}.yaml"
             )
             file_spec = FileSpec(
                 name=filename, contents=yaml_content, content_type="application/yaml"

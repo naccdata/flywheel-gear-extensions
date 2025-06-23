@@ -486,7 +486,8 @@ class CSVTransformVisitor(CSVVisitor):
                 self.__error_writer.write(
                     system_error(
                         message=(
-                            "Failed to load QC metadata from existing duplicate visit file"
+                            "Failed to load QC metadata from existing "
+                            "duplicate visit file"
                         ),
                         error_type="warning",
                     )
