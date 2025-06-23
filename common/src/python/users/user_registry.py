@@ -1,4 +1,5 @@
 """Defines repository as interface to user registry."""
+
 from collections import defaultdict
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -25,8 +26,9 @@ class RegistryPerson:
         self.__coperson_message = coperson_message
 
     @classmethod
-    def create(cls, *, firstname: str, lastname: str, email: str,
-               coid: int) -> 'RegistryPerson':
+    def create(
+        cls, *, firstname: str, lastname: str, email: str, coid: int
+    ) -> "RegistryPerson":
         """Creates a RegistryPerson object with the name and email.
 
         Note: the coid must match that of the registry
@@ -40,19 +42,19 @@ class RegistryPerson:
           the RegistryPerson with name and email
         """
         coperson = CoPerson(co_id=coid, status="A")
-        email_address = EmailAddress(mail=email,
-                                     type="official",
-                                     verified=True)
+        email_address = EmailAddress(mail=email, type="official", verified=True)
         role = CoPersonRole(cou_id=None, affiliation="member", status="A")
-        name = Name(given=firstname,
-                    family=lastname,
-                    type="official",
-                    primary_name=True)
+        name = Name(
+            given=firstname, family=lastname, type="official", primary_name=True
+        )
         return RegistryPerson(
-            coperson_message=CoPersonMessage(CoPerson=coperson,
-                                             EmailAddress=[email_address],
-                                             CoPersonRole=[role],
-                                             Name=[name]))
+            coperson_message=CoPersonMessage(
+                CoPerson=coperson,
+                EmailAddress=[email_address],
+                CoPersonRole=[role],
+                Name=[name],
+            )
+        )
 
     def as_coperson_message(self) -> CoPersonMessage:
         return self.__coperson_message
@@ -129,8 +131,7 @@ class RegistryPerson:
             return False
 
         email_addresses = [
-            address for address in self.email_addresses
-            if email == address.mail
+            address for address in self.email_addresses if email == address.mail
         ]
         return bool(email_addresses)
 
@@ -221,11 +222,10 @@ class UserRegistry:
 
         try:
             return self.__api_instance.add_co_person(
-                coid=self.__coid,
-                co_person_message=person.as_coperson_message())
+                coid=self.__coid, co_person_message=person.as_coperson_message()
+            )
         except ApiException as error:
-            raise RegistryError(
-                f"API add_co_person call failed: {error}") from error
+            raise RegistryError(f"API add_co_person call failed: {error}") from error
 
     def get(self, email: str) -> List[RegistryPerson]:
         """Returns the list of person objects with the email address.
@@ -240,8 +240,7 @@ class UserRegistry:
 
         return self.__registry_map[email]
 
-    def find_by_registry_id(self,
-                            registry_id: str) -> Optional[RegistryPerson]:
+    def find_by_registry_id(self, registry_id: str) -> Optional[RegistryPerson]:
         """Returns the registry person object with matching registry id.
 
         Args:
@@ -293,13 +292,13 @@ class UserRegistry:
 
         while remaining_count > 0:
             try:
-                response = self.__api_instance.get_co_person(coid=self.__coid,
-                                                             direction='asc',
-                                                             limit=limit,
-                                                             page=page_index)
+                response = self.__api_instance.get_co_person(
+                    coid=self.__coid, direction="asc", limit=limit, page=page_index
+                )
             except ApiException as error:
                 raise RegistryError(
-                    f"API get_co_person call failed: {error}") from error
+                    f"API get_co_person call failed: {error}"
+                ) from error
 
             person_list = self.__parse_response(response)
 
@@ -340,8 +339,7 @@ class UserRegistry:
         try:
             response = self.__api_instance.get_co_person(coid=self.__coid)
         except ApiException as error:
-            raise RegistryError(
-                f"Failed to read person count: {error}") from error
+            raise RegistryError(f"Failed to read person count: {error}") from error
 
         if not response.total_results:
             return 0
@@ -349,7 +347,8 @@ class UserRegistry:
         return int(response.total_results)
 
     def __parse_response(
-            self, response: GetCoPerson200Response) -> List[RegistryPerson]:
+        self, response: GetCoPerson200Response
+    ) -> List[RegistryPerson]:
         """Collects the CoPersonMessages from the response object and creates a
         list of RegistryPerson objects.
 
@@ -370,8 +369,8 @@ class UserRegistry:
         if response.additional_properties:
             for message_object in response.additional_properties.values():
                 person_list.append(
-                    RegistryPerson(
-                        CoPersonMessage.model_validate(message_object)))
+                    RegistryPerson(CoPersonMessage.model_validate(message_object))
+                )
 
         return person_list
 

@@ -10,12 +10,17 @@ from keys.keys import FieldNames, MetadataKeys
 log = logging.getLogger(__name__)
 
 
-class VisitsLookupHelper():
+class VisitsLookupHelper:
     """Helper class to lookup visits files for a participant matching with any
     specified constraints."""
 
-    def __init__(self, *, proxy: FlywheelProxy, subject: SubjectAdaptor,
-                 form_project_configs: FormProjectConfigs) -> None:
+    def __init__(
+        self,
+        *,
+        proxy: FlywheelProxy,
+        subject: SubjectAdaptor,
+        form_project_configs: FormProjectConfigs,
+    ) -> None:
         """Initialize the Visits Lookup Helper.
 
         Args:
@@ -40,11 +45,11 @@ class VisitsLookupHelper():
         return self.__form_project_configs
 
     def find_visits_for_module(
-            self,
-            *,
-            module: str,
-            module_configs: ModuleConfigs,
-            cutoff_date: Optional[str] = None
+        self,
+        *,
+        module: str,
+        module_configs: ModuleConfigs,
+        cutoff_date: Optional[str] = None,
     ) -> Optional[List[Dict[str, str]]]:
         """Get the list of visits for this participant for the specified
         module. If cutoff_date specified, get the visits having a visit date on
@@ -62,34 +67,42 @@ class VisitsLookupHelper():
             List[Dict]: List of visits matching with the specified cutoff date
         """
 
-        title = f'{module} visits for participant {self.__subject.label}'
+        title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
         columns = [
-            ptid_key, date_col_key, 'file.name', 'file.file_id',
-            'file.parents.acquisition'
+            ptid_key,
+            date_col_key,
+            "file.name",
+            "file.file_id",
+            "file.parents.acquisition",
         ]
 
         if FieldNames.VISITNUM in module_configs.required_fields:
             visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
 
-        filters = f'acquisition.label={module}'
+        filters = f"acquisition.label={module}"
 
         if cutoff_date:
-            filters += f',{date_col_key}>={cutoff_date}'
+            filters += f",{date_col_key}>={cutoff_date}"
 
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,
             dv_title=title,
             columns=columns,
-            filters=filters)
+            filters=filters,
+        )
 
     def find_module_visits_with_matching_visitdate(
-            self, *, module: str, module_configs: ModuleConfigs,
-            visitdate: str,
-            visitnum: Optional[str]) -> Optional[List[Dict[str, str]]]:
+        self,
+        *,
+        module: str,
+        module_configs: ModuleConfigs,
+        visitdate: str,
+        visitnum: Optional[str],
+    ) -> Optional[List[Dict[str, str]]]:
         """Get the list of visits for the specified participant for the
         specified module matching with the given visitdate and visitnum (if
         specified).
@@ -107,30 +120,35 @@ class VisitsLookupHelper():
             List[Dict]: List of visits matching with the specified date and visitnum
         """
 
-        title = f'{module} visits for participant {self.__subject.label}'
+        title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
-        timestamp_key = f'file.info.{MetadataKeys.VALIDATED_TIMESTAMP}'
-        timestamp_label = f'{module}-{MetadataKeys.VALIDATED_TIMESTAMP}'
+        timestamp_key = f"file.info.{MetadataKeys.VALIDATED_TIMESTAMP}"
+        timestamp_label = f"{module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
         columns = [
-            ptid_key, date_col_key, 'file.name', 'file.file_id',
-            'file.parents.acquisition', (timestamp_key, timestamp_label)
+            ptid_key,
+            date_col_key,
+            "file.name",
+            "file.file_id",
+            "file.parents.acquisition",
+            (timestamp_key, timestamp_label),
         ]
 
-        filters = f'acquisition.label={module},{date_col_key}={visitdate}'
+        filters = f"acquisition.label={module},{date_col_key}={visitdate}"
 
         if visitnum and FieldNames.VISITNUM in module_configs.required_fields:
             visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
-            filters += f',{visitnum_key}={visitnum}'
+            filters += f",{visitnum_key}={visitnum}"
 
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,
             dv_title=title,
             columns=columns,  # type: ignore
             filters=filters,
-            missing_data_strategy='none')
+            missing_data_strategy="none",
+        )
 
     def get_dependent_module_visits(
         self, *, current_module: str, current_visits: List[VisitInfo]
@@ -146,18 +164,23 @@ class VisitsLookupHelper():
         """
 
         dependent_modules = self.__form_project_configs.get_module_dependencies(
-            module=current_module)
+            module=current_module
+        )
 
         if not dependent_modules:
             return None
 
-        log.info('List of other modules dependent on module %s: %s',
-                 current_module, dependent_modules)
+        log.info(
+            "List of other modules dependent on module %s: %s",
+            current_module,
+            dependent_modules,
+        )
 
         dependent_visits: Dict[str, List[Dict[str, str]]] = {}
         for dep_module in dependent_modules:
             dep_module_configs = self.__form_project_configs.module_configs.get(
-                dep_module)
+                dep_module
+            )
 
             if not dep_module_configs:
                 raise GearExecutionError(
@@ -169,13 +192,15 @@ class VisitsLookupHelper():
                     module=dep_module,
                     module_configs=dep_module_configs,
                     visitdate=visit.visitdate,
-                    visitnum=visit.visitnum)
+                    visitnum=visit.visitnum,
+                )
 
                 if not matched_visits:
                     log.info(
                         f"No {dep_module} visits dependent on {current_module} "
                         f"visit with visitdate: {visit.visitdate} "
-                        f"visitnum: {visit.visitnum}")
+                        f"visitnum: {visit.visitnum}"
+                    )
                     continue
 
                 if len(matched_visits) > 1:  # this cannot happen
@@ -188,8 +213,8 @@ class VisitsLookupHelper():
                     dependent_visits[dep_module] = []
 
                 matched_visits[0][MetadataKeys.TRIGGERED_TIMESTAMP] = (
-                    visit.validated_timestamp
-                    if visit.validated_timestamp else "")
+                    visit.validated_timestamp if visit.validated_timestamp else ""
+                )
                 dependent_visits[dep_module].append(matched_visits[0])
 
         return dependent_visits

@@ -15,8 +15,7 @@ class CSVFormatException(Exception):
 class CSVFormatterVisitor(CSVVisitor):
     """This class formats the input CSV."""
 
-    def __init__(self, *, output_stream: TextIO,
-                 error_writer: ErrorWriter) -> None:
+    def __init__(self, *, output_stream: TextIO, error_writer: ErrorWriter) -> None:
         self.__out_stream = output_stream
         self.__error_writer = error_writer
         self.__org_header_length = -1
@@ -31,8 +30,9 @@ class CSVFormatterVisitor(CSVVisitor):
         """
         if not self.__writer:
             assert self.__header, "Header must be set before visiting any rows"
-            self.__writer = CSVWriter(stream=self.__out_stream,
-                                      fieldnames=self.__header)
+            self.__writer = CSVWriter(
+                stream=self.__out_stream, fieldnames=self.__header
+            )
 
         return self.__writer
 
@@ -63,16 +63,16 @@ class CSVFormatterVisitor(CSVVisitor):
         if empty_cols:
             self.__error_writer.write(
                 malformed_file_error(
-                    error=
-                    f'File header contains empty string at column indices {empty_cols}'
-                ))
+                    error=f"File header contains empty string at column indices {empty_cols}"
+                )
+            )
 
         if duplicates:
             self.__error_writer.write(
                 malformed_file_error(
-                    error=
-                    f'Duplicate column names {duplicates} detected in the file header'
-                ))
+                    error=f"Duplicate column names {duplicates} detected in the file header"
+                )
+            )
 
         return not (duplicates or empty_cols)
 
@@ -93,7 +93,8 @@ class CSVFormatterVisitor(CSVVisitor):
         self.__org_header_length = len(header)
 
         self.__header = [
-            column.strip().lower() for column in header
+            column.strip().lower()
+            for column in header
             if column.lower() not in REDCapKeys
         ]
 
@@ -111,13 +112,15 @@ class CSVFormatterVisitor(CSVVisitor):
 
         if len(row) != self.__org_header_length:
             message = (
-                f'Number of columns in line {line_num} '
-                f'do not match with the number of columns in the header row')
+                f"Number of columns in line {line_num} "
+                f"do not match with the number of columns in the header row"
+            )
             raise CSVFormatException(message)
 
         out_row = {
             key.strip().lower(): value
-            for key, value in row.items() if key.lower() not in REDCapKeys
+            for key, value in row.items()
+            if key.lower() not in REDCapKeys
         }
 
         writer = self.__get_writer()

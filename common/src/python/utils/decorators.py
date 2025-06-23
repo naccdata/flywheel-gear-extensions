@@ -1,4 +1,5 @@
 """Utility decorators."""
+
 import logging
 
 from flywheel.rest import ApiException

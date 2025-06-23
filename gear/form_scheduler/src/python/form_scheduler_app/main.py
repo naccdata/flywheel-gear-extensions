@@ -16,6 +16,7 @@
 4. Move to next pipeline, and repeat 3)
 5. Repeat from the beginning until there are no more files to be queued
 """
+
 import logging
 from typing import Optional
 
@@ -30,12 +31,14 @@ from .form_scheduler_queue import FormSchedulerQueue
 log = logging.getLogger(__name__)
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        project_id: str,
-        pipeline_configs: PipelineConfigs,
-        email_client: Optional[EmailClient] = None,
-        portal_url: Optional[URLParameter] = None):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    project_id: str,
+    pipeline_configs: PipelineConfigs,
+    email_client: Optional[EmailClient] = None,
+    portal_url: Optional[URLParameter] = None,
+):
     """Runs the Form Scheduler process.
 
     Args:
@@ -51,11 +54,13 @@ def run(*,
     if not project:
         raise GearExecutionError(f"Cannot find project with ID {project_id}")
 
-    queue = FormSchedulerQueue(proxy=proxy,
-                               project=project,
-                               pipeline_configs=pipeline_configs,
-                               email_client=email_client,
-                               portal_url=portal_url)
+    queue = FormSchedulerQueue(
+        proxy=proxy,
+        project=project,
+        pipeline_configs=pipeline_configs,
+        email_client=email_client,
+        portal_url=portal_url,
+    )
 
     num_files = -1
     while num_files != 0:
@@ -66,8 +71,9 @@ def run(*,
         # Pull and queue the tagged files for each pipeline
         # Pipelines are processed in order they are specified in the configs file
         for pipeline in pipeline_configs.pipelines:
-            num_files += queue.queue_files_for_pipeline(project=project,
-                                                        pipeline=pipeline)
+            num_files += queue.queue_files_for_pipeline(
+                project=project, pipeline=pipeline
+            )
 
         # Process the subqueues for each pipeline until all pipeline queues are empty
         queue.process_pipeline_queues()

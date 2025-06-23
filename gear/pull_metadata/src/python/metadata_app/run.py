@@ -1,4 +1,5 @@
 """Main function for running template push process."""
+
 import logging
 import sys
 from typing import List, Optional
@@ -25,71 +26,80 @@ def main():
 
         default_client = gear_context.client
         if not default_client:
-            log.error('Flywheel client required to confirm gearbot access')
+            log.error("Flywheel client required to confirm gearbot access")
             sys.exit(1)
 
         try:
             s3_param_path: Optional[str] = get_config(
-                gear_context=gear_context, key='s3_param_path')
+                gear_context=gear_context, key="s3_param_path"
+            )
             destination_label: Optional[str] = get_config(
-                gear_context=gear_context, key='destination_label')
-            table_list: List[str] = get_config(gear_context=gear_context,
-                                               key='table_list')
+                gear_context=gear_context, key="destination_label"
+            )
+            table_list: List[str] = get_config(
+                gear_context=gear_context, key="table_list"
+            )
         except ConfigParseError as error:
-            log.error('Incomplete configuration: %s', error.message)
+            log.error("Incomplete configuration: %s", error.message)
             sys.exit(1)
 
         if not s3_param_path:
-            log.error('Expected S3 parameter path')
+            log.error("Expected S3 parameter path")
             sys.exit(1)
 
         if not destination_label:
-            log.error('Expected destination label')
+            log.error("Expected destination label")
             sys.exit(1)
 
-        apikey_path_prefix = gear_context.config.get("apikey_path_prefix",
-                                                     "/prod/flywheel/gearbot")
-        log.info('Running gearbot with API key from %s/apikey',
-                 apikey_path_prefix)
+        apikey_path_prefix = gear_context.config.get(
+            "apikey_path_prefix", "/prod/flywheel/gearbot"
+        )
+        log.info("Running gearbot with API key from %s/apikey", apikey_path_prefix)
         try:
             parameter_store = ParameterStore.create_from_environment()
-            api_key = parameter_store.get_api_key(
-                path_prefix=apikey_path_prefix)
+            api_key = parameter_store.get_api_key(path_prefix=apikey_path_prefix)
             s3_parameters: S3Parameters = parameter_store.get_s3_parameters(
-                param_path=s3_param_path)
+                param_path=s3_param_path
+            )
         except ParameterError as error:
-            log.error('Parameter error: %s', error)
+            log.error("Parameter error: %s", error)
             sys.exit(1)
 
         host = gear_context.client.api_client.configuration.host  # type: ignore
-        if api_key.split(':')[0] not in host:
-            log.error('Gearbot API key does not match host')
+        if api_key.split(":")[0] not in host:
+            log.error("Gearbot API key does not match host")
             sys.exit(1)
 
         dry_run = gear_context.config.get("dry_run", False)
         proxy = FlywheelProxy(client=Client(api_key), dry_run=dry_run)
 
-        project_map = build_project_map(proxy=proxy,
-                                        destination_label=destination_label)
+        project_map = build_project_map(
+            proxy=proxy, destination_label=destination_label
+        )
         if not project_map:
-            log.error('No ADCID groups found')
+            log.error("No ADCID groups found")
             sys.exit(1)
 
         s3_client = S3BucketReader.create_from(s3_parameters)
         if not s3_client:
-            log.error('Unable to connect to S3')
+            log.error("Unable to connect to S3")
             sys.exit(1)
 
-        log.info('Pulling metadata from S3 bucket %s into center %s projects',
-                 s3_client.bucket_name, destination_label)
+        log.info(
+            "Pulling metadata from S3 bucket %s into center %s projects",
+            s3_client.bucket_name,
+            destination_label,
+        )
         if dry_run:
-            log.info('Performing dry run')
-        log.info('Including files %s', table_list)
+            log.info("Performing dry run")
+        log.info("Including files %s", table_list)
 
-        run(table_list=table_list,
+        run(
+            table_list=table_list,
             s3_client=s3_client,
             project_map=project_map,
-            dry_run=dry_run)
+            dry_run=dry_run,
+        )
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """Scheduling for project curation."""
+
 import logging
 from datetime import date, datetime
 import multiprocessing
@@ -23,6 +24,7 @@ class FileModel(BaseModel):
 
     Objects are ordered by order date.
     """
+
     filename: str
     file_id: str
     acquisition_id: str
@@ -35,7 +37,7 @@ class FileModel(BaseModel):
     scandt: Optional[date]
 
     @property
-    def visit_pass(self) -> Optional[Literal['pass0', 'pass1', 'pass2']]:
+    def visit_pass(self) -> Optional[Literal["pass0", "pass1", "pass2"]]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -52,8 +54,8 @@ class FileModel(BaseModel):
         As such, there are currently 3 pass categories.
         """
         # need to handle historic apoe separately as it does not work well with regex
-        if 'historic_apoe_genotype' in self.filename:
-            return 'pass2'
+        if "historic_apoe_genotype" in self.filename:
+            return "pass2"
 
         pattern = (
             r"^"
@@ -65,7 +67,8 @@ class FileModel(BaseModel):
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
             r")\.json)|"
             r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
-            r"$")
+            r"$"
+        )
         match = re.match(pattern, self.filename)
         if not match:
             return None
@@ -99,8 +102,7 @@ class FileModel(BaseModel):
         if self.modified_date:
             return self.modified_date
 
-        raise ValueError(
-            f"file {self.filename} {self.file_id} has no associated date")
+        raise ValueError(f"file {self.filename} {self.file_id} has no associated date")
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, FileModel):
@@ -129,15 +131,16 @@ class FileModel(BaseModel):
 
         return self.order_date < other.order_date
 
-    @field_validator("modified_date",
-                     "visit_date",
-                     "study_date",
-                     "scan_date",
-                     "scandate",
-                     "scandt",
-                     mode='before')
-    def datetime_to_date(cls,
-                         value: Optional[date | str]) -> Optional[date | str]:
+    @field_validator(
+        "modified_date",
+        "visit_date",
+        "study_date",
+        "scan_date",
+        "scandate",
+        "scandt",
+        mode="before",
+    )
+    def datetime_to_date(cls, value: Optional[date | str]) -> Optional[date | str]:
         if not value:
             return None
 
@@ -154,9 +157,10 @@ class FileModel(BaseModel):
 
 class ViewResponseModel(BaseModel):
     """Defines the data model for a dataview response."""
+
     data: List[FileModel]
 
-    @field_validator("data", mode='before')
+    @field_validator("data", mode="before")
     def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Remove any rows that are completely empty, which can happen if the
         filename pattern does not match.
@@ -166,9 +170,7 @@ class ViewResponseModel(BaseModel):
         Returns:
             Trimmed data
         """
-        return [
-            row for row in data if any(x is not None for x in row.values())
-        ]
+        return [row for row in data if any(x is not None for x in row.values())]
 
 
 curator = None  # global curator object
@@ -198,7 +200,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     """
 
     global curator
-    assert curator, 'curator object expected'
+    assert curator, "curator object expected"
     subject = curator.get_subject(subject_id)
 
     curator.pre_process(subject)
@@ -224,11 +226,11 @@ class ProjectCurationScheduler:
 
     @classmethod
     def create(
-            cls,
-            project: ProjectAdaptor,
-            filename_pattern: str,
-            blacklist: Optional[List[str]] = None
-    ) -> 'ProjectCurationScheduler':
+        cls,
+        project: ProjectAdaptor,
+        filename_pattern: str,
+        blacklist: Optional[List[str]] = None,
+    ) -> "ProjectCurationScheduler":
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -245,43 +247,45 @@ class ProjectCurationScheduler:
         log.info("Creating project dataview")
 
         builder = make_builder(
-            label='attribute-curation-scheduling',
-            description='Lists files for curation',
+            label="attribute-curation-scheduling",
+            description="Lists files for curation",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
                 ColumnModel(data_key="file.file_id", label="file_id"),
-                ColumnModel(data_key="file.parents.acquisition",
-                            label="acquisition_id"),
-                ColumnModel(data_key="file.parents.subject",
-                            label="subject_id"),
-                ColumnModel(data_key='file.info.forms.json.visitdate',
-                            label="visit_date"),
+                ColumnModel(
+                    data_key="file.parents.acquisition", label="acquisition_id"
+                ),
+                ColumnModel(data_key="file.parents.subject", label="subject_id"),
+                ColumnModel(
+                    data_key="file.info.forms.json.visitdate", label="visit_date"
+                ),
                 ColumnModel(data_key="file.modified", label="modified_date"),
-                ColumnModel(data_key="file.info.raw.study_date",
-                            label="study_date"),
-                ColumnModel(data_key="file.info.raw.scan_date",
-                            label="scan_date"),
-                ColumnModel(data_key="file.info.raw.scandate",
-                            label="scandate"),
-                ColumnModel(data_key="file.info.raw.scandt", label="scandt")
+                ColumnModel(data_key="file.info.raw.study_date", label="study_date"),
+                ColumnModel(data_key="file.info.raw.scan_date", label="scan_date"),
+                ColumnModel(data_key="file.info.raw.scandate", label="scandate"),
+                ColumnModel(data_key="file.info.raw.scandt", label="scandt"),
             ],
-            container='acquisition',
+            container="acquisition",
             filename=filename_pattern,
-            missing_data_strategy='none')
+            missing_data_strategy="none",
+        )
         view = builder.build()
 
         with project.read_dataview(view) as response:
             response_data = response.read()
             try:
-                response_model = ViewResponseModel.model_validate_json(
-                    response_data)
+                response_model = ViewResponseModel.model_validate_json(response_data)
             except ValidationError as error:
                 raise ProjectCurationError(
-                    f'Error curating project {project.label}: {error}'
+                    f"Error curating project {project.label}: {error}"
                 ) from error
 
-        log.info("Curating %s files in %s/%s", len(response_model.data),
-                 project.group, project.label)
+        log.info(
+            "Curating %s files in %s/%s",
+            len(response_model.data),
+            project.group,
+            project.label,
+        )
 
         subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
         for file_info in response_model.data:
@@ -324,19 +328,25 @@ class ProjectCurationScheduler:
         process_count = max(4, self.__compute_cores())
         results = []
 
-        with Pool(processes=process_count,
-                  initializer=initialize_worker,
-                  initargs=(
-                      curator,
-                      context,
-                  )) as pool:
+        with Pool(
+            processes=process_count,
+            initializer=initialize_worker,
+            initargs=(
+                curator,
+                context,
+            ),
+        ) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.info("Curating subject %s", subject_id)
                 results.append(
-                    pool.apply_async(curate_subject, (
-                        subject_id,
-                        heap,
-                    )))
+                    pool.apply_async(
+                        curate_subject,
+                        (
+                            subject_id,
+                            heap,
+                        ),
+                    )
+                )
 
             pool.close()
             for r in results:  # checks for exceptions

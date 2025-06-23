@@ -1,4 +1,5 @@
 """Provides utilities for pulling input from the OS environment."""
+
 import os
 from typing import Optional
 

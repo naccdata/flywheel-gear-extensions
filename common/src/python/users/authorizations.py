@@ -1,15 +1,23 @@
 """Defines components related to user authorizations."""
+
 from typing import Dict, List, Literal, Optional, Sequence, Set
 
 from pydantic import BaseModel
 
-DatatypeNameType = Literal['form', 'dicom', 'enrollment']
-AuthNameType = Literal['submit-form', 'submit-dicom', 'submit-enrollment',
-                       'audit-data', 'approve-data', 'view-reports']
+DatatypeNameType = Literal["form", "dicom", "enrollment"]
+AuthNameType = Literal[
+    "submit-form",
+    "submit-dicom",
+    "submit-enrollment",
+    "audit-data",
+    "approve-data",
+    "view-reports",
+]
 
 
 class Authorizations(BaseModel):
     """Type class for authorizations."""
+
     study_id: str
     submit: List[DatatypeNameType]
     audit_data: bool
@@ -31,18 +39,19 @@ class Authorizations(BaseModel):
             for datatype in self.submit:
                 activities.append(f"submit-{datatype}")  # type: ignore
         if self.audit_data:
-            activities.append('audit-data')
+            activities.append("audit-data")
         if self.approve_data:
-            activities.append('approve-data')
+            activities.append("approve-data")
         if self.view_reports:
-            activities.append('view-reports')
+            activities.append("view-reports")
 
         self._activities = activities
         return self._activities
 
     @classmethod
-    def create_from_record(cls, *, study_id: str,
-                           activities: Sequence[str]) -> "Authorizations":
+    def create_from_record(
+        cls, *, study_id: str, activities: Sequence[str]
+    ) -> "Authorizations":
         """Creates an Authorizations object directory access activities.
 
         Activities from the NACC directory are represented as a string
@@ -62,17 +71,19 @@ class Authorizations(BaseModel):
           The Authorizations object
         """
         modalities: List[DatatypeNameType] = []
-        if 'a' in activities:
-            modalities.append('form')
-            modalities.append('enrollment')
-        if 'b' in activities:
-            modalities.append('dicom')
+        if "a" in activities:
+            modalities.append("form")
+            modalities.append("enrollment")
+        if "b" in activities:
+            modalities.append("dicom")
 
-        return Authorizations(study_id=study_id,
-                              submit=modalities,
-                              audit_data=bool('c' in activities),
-                              approve_data=('d' in activities),
-                              view_reports=('e' in activities))
+        return Authorizations(
+            study_id=study_id,
+            submit=modalities,
+            audit_data=bool("c" in activities),
+            approve_data=("d" in activities),
+            view_reports=("e" in activities),
+        )
 
 
 class AuthMap(BaseModel):
@@ -80,10 +91,10 @@ class AuthMap(BaseModel):
 
     Represents table as project label -> activity -> role.
     """
+
     project_authorizations: Dict[str, Dict[str, str]]
 
-    def get(self, *, project_label: str,
-            authorizations: Authorizations) -> Set[str]:
+    def get(self, *, project_label: str, authorizations: Authorizations) -> Set[str]:
         """Gets the roles for a project and authorizations.
 
         Args:

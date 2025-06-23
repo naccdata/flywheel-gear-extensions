@@ -18,16 +18,18 @@ from form_qc_coordinator_app.pipelines import create_pipeline_processor
 log = logging.getLogger(__name__)
 
 
-def run(*,
-        gear_context: GearToolkitContext,
-        proxy: FlywheelProxy,
-        subject: SubjectAdaptor,
-        visits_info: ParticipantVisits,
-        form_project_configs: FormProjectConfigs,
-        configs_file: FileEntry,
-        qc_gear_info: GearInfo,
-        pipeline: PipelineType,
-        check_all: bool = False):
+def run(
+    *,
+    gear_context: GearToolkitContext,
+    proxy: FlywheelProxy,
+    subject: SubjectAdaptor,
+    visits_info: ParticipantVisits,
+    form_project_configs: FormProjectConfigs,
+    configs_file: FileEntry,
+    qc_gear_info: GearInfo,
+    pipeline: PipelineType,
+    check_all: bool = False,
+):
     """Invoke QC process for the given subject and pipeline.
 
     Args:
@@ -56,10 +58,12 @@ def run(*,
         form_project_configs=form_project_configs,
         qc_gear_info=qc_gear_info,
         configs_file=configs_file,
-        check_all=check_all)
+        check_all=check_all,
+    )
 
     if pipeline_processor:
         pipeline_processor.trigger_qc_process()
     else:
         raise GearExecutionError(
-            f"Pipeline `{pipeline}` not defined in the Form QC Coordinator")
+            f"Pipeline `{pipeline}` not defined in the Form QC Coordinator"
+        )

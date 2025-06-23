@@ -21,11 +21,13 @@ def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
       data: tabular data
       stream: the output stream
     """
-    writer = csv.writer(stream,
-                        delimiter=',',
-                        quotechar='\"',
-                        quoting=csv.QUOTE_NONNUMERIC,
-                        lineterminator='\n')
+    writer = csv.writer(
+        stream,
+        delimiter=",",
+        quotechar='"',
+        quoting=csv.QUOTE_NONNUMERIC,
+        lineterminator="\n",
+    )
     writer.writerows(data)
     stream.seek(0)
 
@@ -41,7 +43,7 @@ def empty(stream) -> bool:
 
 @pytest.fixture(scope="module")
 def missing_columns_table():
-    yield [['dummy1', 'dummy2', 'dummy3'], [1, 1, 8], [1, 2, 99]]
+    yield [["dummy1", "dummy2", "dummy3"], [1, 1, 8], [1, 2, 99]]
 
 
 @pytest.fixture(scope="function")
@@ -55,8 +57,10 @@ def missing_columns_stream(missing_columns_table):
 
 @pytest.fixture(scope="module")
 def valid_visit_table():
-    yield [['module', 'formver', 'naccid', 'visitnum', 'dummy-var'],
-           ['UDS', '4', 'NACC000000', '1', '888']]
+    yield [
+        ["module", "formver", "naccid", "visitnum", "dummy-var"],
+        ["UDS", "4", "NACC000000", "1", "888"],
+    ]
 
 
 @pytest.fixture(scope="function")
@@ -82,8 +86,10 @@ def visit_data_stream_duplicates(valid_visit_table):
 
 @pytest.fixture(scope="module")
 def valid_non_visit_table():
-    yield [['module', 'formver', 'naccid', 'visitdate', 'dummy-var'],
-           ['NP', '11', 'NACC0000000', '2003-10-2', '888']]
+    yield [
+        ["module", "formver", "naccid", "visitdate", "dummy-var"],
+        ["NP", "11", "NACC0000000", "2003-10-2", "888"],
+    ]
 
 
 @pytest.fixture(scope="function")
@@ -99,10 +105,8 @@ def non_visit_data_stream(valid_non_visit_table):
 
 
 class MockUploader(JSONUploader):
-
     def __init__(self, skip_duplicates: bool = True):
-        self.__records: DefaultDict[str, List[Dict[str,
-                                                   Any]]] = defaultdict(list)
+        self.__records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
         self.__skip_duplicates = skip_duplicates
 
     def upload_record(
@@ -110,7 +114,6 @@ class MockUploader(JSONUploader):
         subject_label: str,
         record: Dict[str, Any],
     ) -> None:
-
         if self.__skip_duplicates and record in self.__records[subject_label]:
             return
 
@@ -122,7 +125,6 @@ class MockUploader(JSONUploader):
 
 
 class MockSubject(SubjectAdaptor):
-
     def __init__(self, label: str):
         self.__id = label
 
@@ -132,7 +134,6 @@ class MockSubject(SubjectAdaptor):
 
 
 class MockProject(ProjectAdaptor):
-
     def __init__(self):
         pass
 
@@ -147,34 +148,40 @@ class TestCSVSplitVisitor:
         """test missing expected column headers."""
         err_stream = StringIO()
         # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy/dummy')
-        visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  uploader=MockUploader(),
-                                  project=MockProject(),
-                                  error_writer=error_writer)
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
+        )
+        visitor = CSVSplitVisitor(
+            req_fields=["naccid"],
+            uploader=MockUploader(),
+            project=MockProject(),
+            error_writer=error_writer,
+        )
 
-        no_errors = read_csv(input_file=missing_columns_stream,
-                             error_writer=error_writer,
-                             visitor=visitor)
-        assert not no_errors, ("expect error for missing columns")
+        no_errors = read_csv(
+            input_file=missing_columns_stream,
+            error_writer=error_writer,
+            visitor=visitor,
+        )
+        assert not no_errors, "expect error for missing columns"
         assert not empty(err_stream), "expect error message in output"
 
     def test_valid_visit(self, visit_data_stream):
         """Test case where data corresponds to form completed at visit."""
         err_stream = StringIO()
         # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy/dummy')
-        visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  uploader=MockUploader(),
-                                  project=MockProject(),
-                                  error_writer=error_writer)
-        no_errors = read_csv(input_file=visit_data_stream,
-                             error_writer=error_writer,
-                             visitor=visitor)
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
+        )
+        visitor = CSVSplitVisitor(
+            req_fields=["naccid"],
+            uploader=MockUploader(),
+            project=MockProject(),
+            error_writer=error_writer,
+        )
+        no_errors = read_csv(
+            input_file=visit_data_stream, error_writer=error_writer, visitor=visitor
+        )
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
 
@@ -182,16 +189,18 @@ class TestCSVSplitVisitor:
         """Test case where data does not correspond to visit."""
         err_stream = StringIO()
         # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy/dummy')
-        visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  uploader=MockUploader(),
-                                  project=MockProject(),
-                                  error_writer=error_writer)
-        no_errors = read_csv(input_file=non_visit_data_stream,
-                             error_writer=error_writer,
-                             visitor=visitor)
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
+        )
+        visitor = CSVSplitVisitor(
+            req_fields=["naccid"],
+            uploader=MockUploader(),
+            project=MockProject(),
+            error_writer=error_writer,
+        )
+        no_errors = read_csv(
+            input_file=non_visit_data_stream, error_writer=error_writer, visitor=visitor
+        )
 
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
@@ -200,18 +209,22 @@ class TestCSVSplitVisitor:
         """Test uploading duplicate visits only results in 1 record."""
         err_stream = StringIO()
         # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy/dummy')
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
+        )
         uploader = MockUploader()
-        visitor = CSVSplitVisitor(req_fields=['naccid'],
-                                  uploader=uploader,
-                                  project=MockProject(),
-                                  error_writer=error_writer)
+        visitor = CSVSplitVisitor(
+            req_fields=["naccid"],
+            uploader=uploader,
+            project=MockProject(),
+            error_writer=error_writer,
+        )
 
-        no_errors = read_csv(input_file=visit_data_stream_duplicates,
-                             error_writer=error_writer,
-                             visitor=visitor)
+        no_errors = read_csv(
+            input_file=visit_data_stream_duplicates,
+            error_writer=error_writer,
+            visitor=visitor,
+        )
 
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"

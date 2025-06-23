@@ -5,7 +5,6 @@ from scheduling.min_heap import MinHeap
 
 
 class Element:
-
     def __init__(self, value: int) -> None:
         self.value = value
 
@@ -28,7 +27,6 @@ class Element:
 
 
 class TestPriorityQueue:
-
     def test_empty(self):
         queue = MinHeap[Element]()
 

@@ -19,10 +19,9 @@ log = logging.getLogger(__name__)
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self,
-                 deriver: AttributeDeriver,
-                 curation_tag: str,
-                 force_curate: bool = False) -> None:
+    def __init__(
+        self, deriver: AttributeDeriver, curation_tag: str, force_curate: bool = False
+    ) -> None:
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__deriver = deriver
         self.__failed_files = Manager().dict()
@@ -31,38 +30,43 @@ class FormCurator(Curator):
     def failed_files(self) -> DictProxy:
         return self.__failed_files
 
-    def get_table(self, subject: Subject,
-                  file_entry: FileEntry) -> SymbolTable:
+    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for
         curation."""
         # clear out file.info.derived if forcing curation
         if self.force_curate:
-            for field in ['derived']:
+            for field in ["derived"]:
                 file_entry.delete_info(field)
 
         return super().get_table(subject, file_entry)
 
     @api_retry
-    def apply_curation(self, subject: Subject, file_entry: FileEntry,
-                       table: SymbolTable) -> None:
+    def apply_curation(
+        self, subject: Subject, file_entry: FileEntry, table: SymbolTable
+    ) -> None:
         """Applies the curated information back to FW.
 
         In its most basic form, grabs file.info.derived subject.info and
         copies it back up to the file/subject. Subclasses that may need
         to apply additional data should override as needed.
         """
-        derived_file_info = table.get('file.info.derived')
-        subject_info = table.get('subject.info')
+        derived_file_info = table.get("file.info.derived")
+        subject_info = table.get("subject.info")
 
         if derived_file_info:
-            file_entry.update_info({'derived': derived_file_info})
+            file_entry.update_info({"derived": derived_file_info})
         if subject_info:
             subject.update_info(subject_info)
 
         file_entry.add_tag(self.curation_tag)
 
-    def execute(self, subject: Subject, file_entry: FileEntry,
-                table: SymbolTable, scope: ScopeLiterals) -> None:
+    def execute(
+        self,
+        subject: Subject,
+        file_entry: FileEntry,
+        table: SymbolTable,
+        scope: ScopeLiterals,
+    ) -> None:
         """Perform contents of curation. Keeps track of files that failed to be
         curated.
 
@@ -95,7 +99,6 @@ class FormCurator(Curator):
         # instead make this a manual job outside the gear, or
         # only keep while MQT is being aggressively iterated on
         if self.force_curate:
-
             # TODO: there is an issue with upsert-hierarchy not creating the
             # info object correctly, so calling delete_info on a subject without
             # info raises an exception. FW is aware of issue but may not be fixed
@@ -106,9 +109,13 @@ class FormCurator(Curator):
                 f"Force curation set to True, cleaning up {subject.label} metadata"
             )
             for field in [
-                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
-                    'longitudinal-data.uds', 'neuropathology',
-                    'study-parameters.uds'
+                "cognitive.uds",
+                "demographics.uds",
+                "derived",
+                "genetics",
+                "longitudinal-data.uds",
+                "neuropathology",
+                "study-parameters.uds",
             ]:
                 try:
                     subject.delete_info(field)
@@ -118,8 +125,7 @@ class FormCurator(Curator):
                     raise e
 
     @api_retry
-    def post_process(self, subject: Subject,
-                     processed_files: List[str]) -> None:
+    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
         """Run post-processing on the entire subject.
 
         1. Adds `affiliated` tag to affiliate subjects if
@@ -133,30 +139,28 @@ class FormCurator(Curator):
             processed_files: List of file IDs that were processed
         """
         subject = subject.reload()
-        derived = subject.info.get('derived', {})
-        affiliate = derived.get('affiliate', None)
-        cs_derived = derived.get('cross-sectional', None)
+        derived = subject.info.get("derived", {})
+        affiliate = derived.get("affiliate", None)
+        cs_derived = derived.get("cross-sectional", None)
 
         # add affiliated tag
-        if affiliate and 'affiliated' not in subject.tags:
+        if affiliate and "affiliated" not in subject.tags:
             log.info(f"Tagging affiliate: {subject.label}")
-            subject.add_tag('affiliated')
+            subject.add_tag("affiliated")
 
         if not cs_derived:
             return
 
-        log.info(
-            f"Back-propagating cross-sectional UDS variables for {subject.label}"
-        )
+        log.info(f"Back-propagating cross-sectional UDS variables for {subject.label}")
         for file_id in processed_files:
             file_entry = self.sdk_client.get_file(file_id)
 
             # ignore non-UDS files
-            if not file_entry.name.endswith('_UDS.json'):
+            if not file_entry.name.endswith("_UDS.json"):
                 continue
 
             file_entry = file_entry.reload()
 
-            derived = file_entry.info.get('derived', {})
+            derived = file_entry.info.get("derived", {})
             derived.update(cs_derived)
-            file_entry.update_info({'derived': derived})
+            file_entry.update_info({"derived": derived})
