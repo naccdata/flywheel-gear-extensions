@@ -7,6 +7,7 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List
 
 import pandas as pd
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -85,7 +86,7 @@ def reset_upload_checkbox(redcap_prj: REDCapProject,
             update['redcap_event_name'] = visit['redcap_event_name']
             update['redcap_repeat_instance'] = visit['redcap_repeat_instance']
         update['upld_ready___1'] = '0'
-        update['upld_time'] = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        update['upld_time'] = timestamp.strftime(DEFAULT_DATE_TIME_FORMAT)
         updates.append(update)
 
     try:

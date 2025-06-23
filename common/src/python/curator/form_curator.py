@@ -122,16 +122,25 @@ class FormCurator(Curator):
                      processed_files: List[str]) -> None:
         """Run post-processing on the entire subject.
 
-        Run a second pass over all UDS forms and apply
-        cross-sectional values.
+        1. Adds `affiliated` tag to affiliate subjects if
+            subject.info.derived.affiliate is set
+            (via nacc-attribute-deriver)
+        2. Run a second pass over all UDS forms and apply
+            cross-sectional values.
 
         Args:
             subject: Subject to pre-process
             processed_files: List of file IDs that were processed
         """
         subject = subject.reload()
-        cs_derived = subject.info.get('derived',
-                                      {}).get('cross-sectional', None)
+        derived = subject.info.get('derived', {})
+        affiliate = derived.get('affiliate', None)
+        cs_derived = derived.get('cross-sectional', None)
+
+        # add affiliated tag
+        if affiliate and 'affiliated' not in subject.tags:
+            log.info(f"Tagging affiliate: {subject.label}")
+            subject.add_tag('affiliated')
 
         if not cs_derived:
             return

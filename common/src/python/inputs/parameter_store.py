@@ -1,6 +1,6 @@
 """Module for getting proxy object for AWS SSM parameter store object."""
 import logging
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional
 
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
@@ -51,7 +51,7 @@ class ParameterError(Exception):
 
 
 # TODO: remove type ignore when using python 3.12 or above
-P = TypeVar('P', bound=TypedDict)  # type: ignore
+P = TypeVar('P', bound=Mapping)  # type: ignore
 
 
 class ParameterStore:

@@ -19,5 +19,6 @@ Most of this logic is handled in `common/src/curator/scheduling.py` and `common/
 2. For each subject, aggregate each file into a MinHeap based on order determined by file type (scope) and date
 3. Multiprocess by subject. For each subject
     1. Run each file (in order) through the attribute deriver
-    2. Push the results to `file.info` and/or `subject.info`, depending on the specific curation rules applied for that scope
+    2. The attribute deriver pushes the results to `file.info` and/or `subject.info`, depending on the specific curation rules applied for that scope
     3. Once curation over all files is done, back-propogate `subject.info.derived.cross-sectional` values back into each UDS file
+        1. Also tags any subjects where `subject.info.derived.affiliate` is True with the `affiliated` tag. This is determined by the attribute-deriver
