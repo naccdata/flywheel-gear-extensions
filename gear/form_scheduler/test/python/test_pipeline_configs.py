@@ -31,7 +31,7 @@ class TestPipelineConfigs:
                 'valid-pipeline-with-empty-configs.json')) is not None
 
         # assert PipelineConfigs
-        pipeline_configs: PipelineConfigs = PipelineConfigs.load_form_pipeline_configurations(
+        pipeline_configs = PipelineConfigs.load_form_pipeline_configurations(
             str(TEST_FILES_DIR / 'valid-pipeline-configs.json'))
 
         assert pipeline_configs is not None
