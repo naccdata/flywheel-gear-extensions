@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
+from dates.form_dates import DEFAULT_DATE_FORMAT
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import CenterFields, GUIDField, NACCIDField
 from keys.keys import DefaultValues
@@ -100,7 +101,7 @@ class EnrollmentSubject(SubjectAdaptor):
         Args:
           record: the enrollment record
         """
-        formdate = record.start_date.strftime("%Y-%m-%d")
+        formdate = record.start_date.strftime(DEFAULT_DATE_FORMAT)
         session_label = f'{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}'
         self.upload_acquisition_file(
             session_label=session_label,

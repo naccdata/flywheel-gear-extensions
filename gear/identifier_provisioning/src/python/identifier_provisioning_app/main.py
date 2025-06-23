@@ -4,7 +4,12 @@ import logging
 from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
-from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
+from dates.form_dates import (
+    DATE_FORMATS,
+    DEFAULT_DATE_FORMAT,
+    DateFormatException,
+    parse_date,
+)
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
     CenterValidator,
@@ -585,8 +590,10 @@ def run(*, input_file: TextIO, center_id: int, repo: IdentifierRepository,
     for record in enrollment_batch:
         error_writer.clear()
         record_info = {
-            FieldNames.PTID: record.center_identifier.ptid,
-            FieldNames.ENRLFRM_DATE: record.start_date.strftime("%Y-%m-%d")
+            FieldNames.PTID:
+            record.center_identifier.ptid,
+            FieldNames.ENRLFRM_DATE:
+            record.start_date.strftime(DEFAULT_DATE_FORMAT)
         }
         if not record.naccid:
             message = ('Failed to generate NACCID for enrollment record '
