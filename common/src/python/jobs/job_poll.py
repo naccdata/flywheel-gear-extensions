@@ -119,4 +119,30 @@ class JobPoll:
                 # of other submission pipelines, we just wait for it to finish
                 JobPoll.poll_job_status(job)
             else:
+
                 running = False
+
+    @classmethod
+    def is_another_gear_instance_running(cls, *, proxy: FlywheelProxy, gear_name: str,
+                                         project_id: str,
+                                         current_job: str) -> bool:
+        """Find whether another instance of the specified gear is running
+        Args:
+            proxy: the proxy for the Flywheel instance
+            gear_name: gear name to check
+            project_id: Flywheel project to check
+            current_job: current job id
+
+        Returns:
+            bool: True if another job found, else False
+        """
+        search_str = JobPoll.generate_search_string(
+            project_ids_list=[project_id],
+            gears_list=[gear_name],
+            states_list=['running', 'pending'])
+
+        matched_jobs = proxy.find_jobs(search_str)
+        if len(matched_jobs) > 1:
+            return True
+
+        return (current_job != matched_jobs[0].id)

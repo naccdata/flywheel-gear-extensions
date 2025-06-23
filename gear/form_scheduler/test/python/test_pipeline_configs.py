@@ -3,10 +3,8 @@
 from pathlib import Path
 from typing import Any, Dict
 
-from configs.ingest_configs import PipelineConfigs
+from configs.ingest_configs import ConfigsError, PipelineConfigs
 from form_scheduler_app.form_scheduler_queue import PipelineQueue
-from form_scheduler_app.run import load_form_pipeline_configurations
-from pydantic import ValidationError
 
 TEST_FILES_DIR = Path(__file__).parent.resolve() / 'data'
 
@@ -19,21 +17,21 @@ class TestPipelineConfigs:
 
         # assert that config with invalid input raises ValidationError
         try:
-            load_form_pipeline_configurations(
+            PipelineConfigs.load_form_pipeline_configurations(
                 str(TEST_FILES_DIR / 'invalid-pipeline-configs.json'))
-        except ValidationError as error:
+        except ConfigsError as error:
             assert str(error).find('validation error') != -1
 
     def test_valid_config(self):
         """Test a valid configurations file."""
 
         # assert Pipeline with no inputs and empty gear configs
-        assert load_form_pipeline_configurations(
+        assert PipelineConfigs.load_form_pipeline_configurations(
             str(TEST_FILES_DIR /
                 'valid-pipeline-with-empty-configs.json')) is not None
 
         # assert PipelineConfigs
-        pipeline_configs: PipelineConfigs = load_form_pipeline_configurations(
+        pipeline_configs: PipelineConfigs = PipelineConfigs.load_form_pipeline_configurations(
             str(TEST_FILES_DIR / 'valid-pipeline-configs.json'))
 
         assert pipeline_configs is not None

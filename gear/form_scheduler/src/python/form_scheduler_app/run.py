@@ -2,9 +2,8 @@
 import logging
 from typing import Any, Optional
 
-from configs.ingest_configs import PipelineConfigs
+from configs.ingest_configs import ConfigsError, PipelineConfigs
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -21,55 +20,10 @@ from inputs.parameter_store import (
 )
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
-from pydantic import ValidationError
 
 from form_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
-
-
-def load_form_pipeline_configurations(
-        config_file_path: str) -> PipelineConfigs:
-    """Load the form pipeline configs from the pipeline configs file.
-
-    Args:
-      config_file_path: the form module configs file path
-
-    Returns:
-      PipelineConfigs
-
-    Raises:
-      ValidationError if failed to load the configs file
-    """
-
-    with open(config_file_path, mode='r',
-              encoding='utf-8-sig') as configs_file:
-        return PipelineConfigs.model_validate_json(configs_file.read())
-
-
-def is_another_gear_instance_running(proxy: FlywheelProxy, gear_name: str,
-                                     project_id: str,
-                                     current_job: str) -> bool:
-    """Find whether another instance of the specified gear is running
-    Args:
-        proxy: the proxy for the Flywheel instance
-        gear_name: gear name to check
-        project_id: FLywheel project to check
-        current_job: current job id
-
-    Returns:
-        bool: True if another job found, else False
-    """
-    search_str = JobPoll.generate_search_string(
-        project_ids_list=[project_id],
-        gears_list=[gear_name],
-        states_list=['running', 'pending'])
-
-    matched_jobs = proxy.find_jobs(search_str)
-    if len(matched_jobs) > 1:
-        return True
-
-    return (current_job != matched_jobs[0].id)
 
 
 class FormSchedulerVisitor(GearExecutionEnvironment):
@@ -149,17 +103,17 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         # there shouldn't be any
         gear_name = context.manifest.get('name', 'form-scheduler')
         job_id = context.config_json.get('job', {}).get('id')
-        if is_another_gear_instance_running(proxy=self.proxy,
-                                            gear_name=gear_name,
-                                            project_id=project_id,
-                                            current_job=job_id):
+        if JobPoll.is_another_gear_instance_running(proxy=self.proxy,
+                                                    gear_name=gear_name,
+                                                    project_id=project_id,
+                                                    current_job=job_id):
             raise GearExecutionError(
                 "Another Form Scheduler gear already running on this project")
 
         try:
-            pipeline_configs = load_form_pipeline_configurations(
+            pipeline_configs = PipelineConfigs.load_form_pipeline_configurations(
                 self.__configs_input.filepath)
-        except ValidationError as error:
+        except ConfigsError as error:
             raise GearExecutionError(
                 'Error reading pipeline configurations file'
                 f'{self.__configs_input.filename}: {error}') from error

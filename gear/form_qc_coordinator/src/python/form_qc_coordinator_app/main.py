@@ -13,7 +13,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
 
-from form_qc_coordinator_app.pipelines import PipelineProcessor
+from form_qc_coordinator_app.pipelines import create_pipeline_processor
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def run(*,
         subject: Flywheel subject to run the QC checks
         visits_info: Info on visits to process for the subject
         form_project_configs: form ingest configurations
-        configs_file_id: form ingest configurations file id
+        configs_file: form ingest configurations file
         qc_gear_info: QC gear name and configs
         pipeline: pipeline that triggered this gear instance
         check_all: re-evaluate all visits for the subject/module
@@ -46,7 +46,8 @@ def run(*,
     """
 
     module = visits_info.module.upper()
-    pipeline_processor = PipelineProcessor(
+    pipeline_processor = create_pipeline_processor(
+        pipeline=pipeline,
         proxy=proxy,
         gear_context=gear_context,
         module=module,
@@ -57,10 +58,8 @@ def run(*,
         configs_file=configs_file,
         check_all=check_all)
 
-    function_name = f'trigger_{pipeline}_pipeline_qc_process'
-    pipeline_function = getattr(pipeline_processor, function_name, None)
-    if pipeline_function and callable(pipeline_function):
-        pipeline_function()
+    if pipeline_processor:
+        pipeline_processor.trigger_qc_process()
     else:
         raise GearExecutionError(
-            f"{function_name} not defined in the Form QC Coordinator")
+            f"Pipeline `{pipeline}` not defined in the Form QC Coordinator")

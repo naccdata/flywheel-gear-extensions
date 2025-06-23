@@ -1,14 +1,19 @@
 """Form ingest configurations."""
 
+from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, ValidationError
 
 PipelineType = Literal['submission', 'finalization']
+
+
+class ConfigsError(Exception):
+    pass
 
 
 class LabelTemplate(BaseModel):
@@ -161,3 +166,26 @@ class Pipeline(BaseModel):
 class PipelineConfigs(BaseModel):
     gears: List[str]
     pipelines: List[Pipeline]
+
+    @classmethod
+    def load_form_pipeline_configurations(
+            cls, config_file_path: str) -> 'PipelineConfigs':
+        """Load the form pipeline configs from the pipeline configs file.
+
+        Args:
+            config_file_path: the form module configs file path
+
+        Returns:
+            PipelineConfigs
+
+        Raises:
+            ConfigsError if failed to load the configs file
+        """
+
+        try:
+            with open(config_file_path, mode='r',
+                      encoding='utf-8-sig') as configs_file:
+                return PipelineConfigs.model_validate_json(configs_file.read())
+        except (FileNotFoundError, JSONDecodeError, TypeError,
+                ValidationError) as error:
+            raise ConfigsError(error) from error

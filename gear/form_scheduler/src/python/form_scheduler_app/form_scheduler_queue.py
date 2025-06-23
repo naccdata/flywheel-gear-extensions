@@ -54,14 +54,28 @@ class PipelineQueue(BaseModel):
                              subqueues={k: []
                                         for k in pipeline.modules})
 
-    def add_file_to_subqueue(self, module: str, file: FileEntry):
+    def add_file_to_subqueue(self, module: str, file: FileEntry) -> bool:
         """Add the file to given module subqueue.
 
         Args:
             module: module name
             file: file to add
+
+        Returns:
+            True if file successfully queued
         """
+
+        # skip over files that do not match the accepted modules for the pipeline
+        # Note: Issue Manager currently tag all files when they are finalized
+        #       without checking for any dependent modules
+        if module.upper() not in self.modules:
+            log.warning(
+                "File %s is not in the accepted modules %s for pipeline `%s`",
+                file.name, self.modules, self.name)
+            return False
+
         self.subqueues[module.upper()].append(file)
+        return True
 
     def sort_subqueues(self):
         """Sort each queue by ascending order of file modified date."""
@@ -179,17 +193,12 @@ class FormSchedulerQueue:
                 continue
 
             module = match.group(1)
-            # skip over files that do not match the accepted modules for the pipeline
-            # Note: Issue Manager currently tag all files when they are finalized
-            #       without checking for any dependent modules
-            if module.upper() not in pipeline.modules:
-                log.warning(
-                    "File %s is not in the accepted modules %s for pipeline `%s`",
-                    file.name, pipeline.modules, pipeline.name)
-                continue
 
             # add the file to the respective module queue
-            pipeline_queue.add_file_to_subqueue(module=module, file=file)
+            if not pipeline_queue.add_file_to_subqueue(module=module,
+                                                       file=file):
+                continue
+
             num_files += 1
 
         # sort the files in each subqueue by ascending order of last modified date
@@ -221,11 +230,8 @@ class FormSchedulerQueue:
 
         # find the list of visits with matching tags and extensions
         # for the modules accepted for this pipeline
-        finalized_visits = self.__get_visits_with_matching_tag(
-            project=project,
-            modules=pipeline.modules,
-            tag=pipeline.tags[0],
-            extensions=pipeline.extensions)
+        finalized_visits = self.__find_matching_visits_for_the_pipeline(
+            project=project, pipeline=pipeline)
 
         if not finalized_visits:
             log.info(
@@ -239,8 +245,10 @@ class FormSchedulerQueue:
         for visit in finalized_visits:
             visit_file = self.__proxy.get_file(visit['file_id'])
             # add the file to the respective module queue
-            pipeline_queue.add_file_to_subqueue(module=visit['module'],
-                                                file=visit_file)
+            if not pipeline_queue.add_file_to_subqueue(module=visit['module'],
+                                                       file=visit_file):
+                continue
+
             num_files += 1
 
         # sort the files in each subqueue by ascending order of last modified date
@@ -249,26 +257,26 @@ class FormSchedulerQueue:
 
         return num_files
 
-    def __get_visits_with_matching_tag(
-            self, *, project: Project, modules: List[str], tag: str,
-            extensions: List[str]) -> Optional[List[Dict[str, str]]]:
-        """Find the visit files with matching modules, tags and extensions.
+    def __find_matching_visits_for_the_pipeline(
+            self, *, project: Project,
+            pipeline: Pipeline) -> Optional[List[Dict[str, str]]]:
+        """Find the visit files with matching modules, tags and extensions for
+        the specified pipeline.
 
         Args:
             project: Flywheel project container
-            modules: List of modules to match
-            tag: file tag to match
-            extensions: List of file extensions to match
+            pipeline: Pipeline configurations
 
         Returns:
             List[Dict[str, str]](optional): matching visits if found
         """
 
+        modules = pipeline.modules
+        tag = pipeline.tags[0]
+        extensions = pipeline.extensions
+
         filename_pattern = ''
-        for i, extension in enumerate(extensions):
-            filename_pattern += f'^.*\\{extension}$'
-            if i < len(extensions) - 1:
-                filename_pattern += '|'
+        filename_pattern += '|'.join(f'^.*\\{ext}$' for ext in extensions)
 
         builder = make_builder(
             label=f'Participant visits with tags {tag}',
@@ -410,14 +418,7 @@ class FormSchedulerQueue:
                         gear_inputs=gear_inputs,
                         matched_file=file)
 
-                # c. Trigger the submission pipeline.
-                # Here's where it isn't actually parameterized - we assume that
-                # the first gear is the file-validator regardless, and passes
-                # the corresponding inputs + uses the default configuration
-                # If the first gear changes and has different inputs/needs updated
-                # configurations, this may break as a result and will need to be updated
-                # Should we check that the first gear is always the file-validator?
-
+                # c. Trigger the first gear for the respective pipeline.
                 log.info(
                     f"Kicking off pipeline `{pipeline.name}` on module {module}"
                 )
@@ -435,7 +436,7 @@ class FormSchedulerQueue:
                     config=pipeline.starting_gear.configs.model_dump(),
                     destination=destination)
 
-                # d. wait for the above submission pipeline to finish
+                # d. wait for the above triggered pipeline to finish
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
                 # e. if notifications enabled,
