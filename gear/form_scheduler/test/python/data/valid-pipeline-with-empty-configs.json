@@ -1,0 +1,27 @@
+{
+    "gears": [
+        "gear_one",
+        "gear_two"
+    ],
+    "pipelines": [
+        {
+            "name": "submission",
+            "modules": [
+                "module1",
+                "module2",
+                "module3"
+            ],
+            "tags": [
+                "submission-tag"
+            ],
+            "extensions": [
+                ".csv"
+            ],
+            "starting_gear": {
+                "gear_name": "gear_one",
+                "configs": {}
+            },
+            "notify_user": true
+        }
+    ]
+}

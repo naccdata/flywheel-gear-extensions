@@ -148,7 +148,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 for adcid in centers if adcid not in self.__exclude
             }
 
-        with open(self.__file_input.filepath, mode='r', encoding='utf8') as fh:
+        with open(self.__file_input.filepath, mode='r',
+                  encoding='utf-8-sig') as fh:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=fw_path)
 

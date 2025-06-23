@@ -1,5 +1,9 @@
 """Frequently accessed field names, labels, and default values."""
 
+REDCapKeys = [
+    'redcap_event_name', 'redcap_repeat_instance', 'redcap_repeat_instrument'
+]
+
 
 class FieldNames:
     """Class to store frequently accessed field names."""
@@ -61,8 +65,12 @@ class DefaultValues:
     IDENTIFIER_SUFFIX = 'identifiers'
     FW_SEARCH_OR = '=|'
     UDS_I_PACKET = 'I'
+    UDS_IT_PACKET = 'IT'
     UDS_I4_PACKET = 'I4'
     UDS_F_PACKET = 'F'
+    SUBMISSION_PIPELINE = 'submission'
+    FINALIZATION_PIPELINE = 'finalization'
+    FINALIZED_TAG = 'submission-completed'
 
 
 class MetadataKeys:
@@ -78,6 +86,12 @@ class MetadataKeys:
     TRANSFERS = 'transfers'
     MODULE_CONFIGS = 'module_configs'
     FORM_METADATA_PATH = 'file.info.forms.json'
+    VALIDATED_TIMESTAMP = 'validated-timestamp'
+    TRIGGERED_TIMESTAMP = 'triggered-timestamp'
+
+    @classmethod
+    def get_column_key(cls, column: str) -> str:
+        return f'{cls.FORM_METADATA_PATH}.{column}'
 
 
 class SysErrorCodes:
@@ -106,3 +120,14 @@ class SysErrorCodes:
     DUPLICATE_VISIT = 'preprocess-022'
     LOWER_VISITNUM = 'preprocess-023'
     MISSING_SUBMISSION_STATUS = 'preprocess-024'
+
+
+class PreprocessingChecks:
+    DUPLICATE_RECORD = 'duplicate-record'
+    VERSION = 'version'
+    PACKET = 'packet'
+    OPTIONAL_FORMS = 'optional-forms'
+    SUPPLEMENT_MODULE = 'supplement-module'
+    IVP = 'ivp'
+    UDSV4_IVP = 'udsv4-ivp'
+    VISIT_CONFLICT = 'visit-conflict'

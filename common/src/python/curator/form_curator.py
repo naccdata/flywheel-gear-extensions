@@ -1,72 +1,48 @@
 import logging
-import re
-from typing import Optional
+from multiprocessing import Manager
+from multiprocessing.managers import DictProxy
+from typing import List
 
-from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver, ScopeLiterals
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
+from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from utils.decorators import api_retry
+
+from .curator import Curator
 
 log = logging.getLogger(__name__)
 
 
-class FormCurator:
+class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
     def __init__(self,
-                 sdk_client: Client,
                  deriver: AttributeDeriver,
                  curation_tag: str,
                  force_curate: bool = False) -> None:
-        self.__sdk_client = sdk_client
+        super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__deriver = deriver
-        self.__curation_tag = curation_tag
-        self.__force_curate = force_curate
+        self.__failed_files = Manager().dict()
 
     @property
-    def client(self):
-        return self.__sdk_client
-
-    @property
-    def force_curate(self):
-        return self.__force_curate
-
-    def get_subject(self, subject_id: str) -> Subject:
-        """Get the subject for the given subject ID.
-
-        Args:
-          subject_id: the subject ID
-        Returns:
-          the corresponding Subject
-        """
-        return self.client.get_subject(subject_id)
+    def failed_files(self) -> DictProxy:
+        return self.__failed_files
 
     def get_table(self, subject: Subject,
                   file_entry: FileEntry) -> SymbolTable:
-        """Returns the SymbolTable with all relevant information for curation.
-
-        In it's most basic form, just grabs file.info and subject.info;
-        more specific subclasses should grab additional information as
-        needed (e.g. for UDS also needs to grab a corresponding NP
-        form.)
-        """
-        # clean up metadata as needed
+        """Returns the SymbolTable with all relevant information for
+        curation."""
+        # clear out file.info.derived if forcing curation
         if self.force_curate:
             for field in ['derived']:
-                file_entry.delete_info(field)  # type: ignore
+                file_entry.delete_info(field)
 
-        # need to reload since info isn't automatically loaded
-        subject = subject.reload()
-        file_entry = file_entry.reload()
+        return super().get_table(subject, file_entry)
 
-        # add the metadata
-        table = SymbolTable({})
-        table['subject.info'] = subject.info
-        table['file.info'] = file_entry.info
-        return table
-
+    @api_retry
     def apply_curation(self, subject: Subject, file_entry: FileEntry,
                        table: SymbolTable) -> None:
         """Applies the curated information back to FW.
@@ -83,79 +59,104 @@ class FormCurator:
         if subject_info:
             subject.update_info(subject_info)
 
-        file_entry.add_tag(self.__curation_tag)
+        file_entry.add_tag(self.curation_tag)
 
-    def curate_file(self,
-                    subject: Subject,
-                    file_id: str,
-                    max_retries: int = 3):
-        """Curate the given file.
+    def execute(self, subject: Subject, file_entry: FileEntry,
+                table: SymbolTable, scope: ScopeLiterals) -> None:
+        """Perform contents of curation. Keeps track of files that failed to be
+        curated.
 
         Args:
-            subject: Subject the file is being curated under
-            file_id: File ID curate
-            retries: Max number of times to retry before giving up
+            subject: Subject the file belongs to
+            file_entry: FileEntry of file being curated
+            table: SymbolTable containing file/subject metadata.
+            scope: The scope of the file being curated
         """
-        retries = 0
-        while retries <= max_retries:
-            try:
-                log.info('looking up file %s', file_id)
-                file_entry = self.__sdk_client.get_file(file_id)
+        try:
+            self.__deriver.curate(table, scope)
+        except Exception as e:
+            self.__failed_files[file_entry.name] = str(e)
+            log.error(f"Failed to derive {file_entry.name}: {e}")
+            return
 
-                if self.__curation_tag in file_entry.tags and not self.force_curate:
-                    log.info(f"{file_entry.name} already curated, skipping")
+        self.apply_curation(subject, file_entry, table)
 
-                scope = determine_scope(file_entry.name)
-                if not scope:
-                    log.warning("ignoring unexpected file %s", file_entry.name)
-                    return
+    @api_retry
+    def pre_process(self, subject: Subject) -> None:
+        """Run pre-processing on the entire subject. Clean up metadata as
+        needed.
 
-                table = self.get_table(subject, file_entry)
-                log.info("curating file %s", file_entry.name)
-                self.__deriver.curate(table, scope)
-                self.apply_curation(subject, file_entry, table)
-                break
-            except ApiException as e:
-                retries += 1
-                if retries <= max_retries:
-                    log.warning(
-                        f"Encountered API error, retrying {retries}/{max_retries}"
-                    )
-                else:
+        Args:
+            subject: Subject to pre-process
+        """
+        # if forcing new curation, wipe the subject metadata
+        # related to curation.
+        # TODO: this is kind of dangerous, might want to
+        # instead make this a manual job outside the gear, or
+        # only keep while MQT is being aggressively iterated on
+        if self.force_curate:
+
+            # TODO: there is an issue with upsert-hierarchy not creating the
+            # info object correctly, so calling delete_info on a subject without
+            # info raises an exception. FW is aware of issue but may not be fixed
+            # for a while. however calling subject.reload() for everything introduces
+            # significant overhead, so instead just catch when it fails (which will be
+            # much rarer)
+            log.info(
+                f"Force curation set to True, cleaning up {subject.label} metadata"
+            )
+            for field in [
+                    'cognitive.uds', 'demographics.uds', 'derived', 'genetics',
+                    'longitudinal-data.uds', 'neuropathology',
+                    'study-parameters.uds'
+            ]:
+                try:
+                    subject.delete_info(field)
+                except ApiException as e:  # check if it failed due to info object
+                    if str(e) == "(500) Reason: 'info'":
+                        break
                     raise e
 
+    @api_retry
+    def post_process(self, subject: Subject,
+                     processed_files: List[str]) -> None:
+        """Run post-processing on the entire subject.
 
-def determine_scope(filename: str) -> Optional[ScopeLiterals]:
-    """Maps the file name to a scope symbol for the attribute deriver.
+        1. Adds `affiliated` tag to affiliate subjects if
+            subject.info.derived.affiliate is set
+            (via nacc-attribute-deriver)
+        2. Run a second pass over all UDS forms and apply
+            cross-sectional values.
 
-    Args:
-        filename: the name of the file
-    Returns:
-        the scope name matching the file
-    """
-    pattern = (r"^"
-               r"(?P<np>.+_NP\.json)|"
-               r"(?P<mds>.+_MDS\.json)|"
-               r"(?P<milestone>.+_MLST\.json)|"
-               r"(?P<apoe>.+apoe_genotype\.json)|"
-               r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
-               r"(?P<niagads_availability>.+niagads_availability\.json)|"
-               r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
-               r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
-               r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
-               r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
-               r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
-               r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
-               r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
-               r"(?P<uds>.+_UDS\.json)"
-               r"$")
-    match = re.match(pattern, filename)
-    if not match:
-        return None
+        Args:
+            subject: Subject to pre-process
+            processed_files: List of file IDs that were processed
+        """
+        subject = subject.reload()
+        derived = subject.info.get('derived', {})
+        affiliate = derived.get('affiliate', None)
+        cs_derived = derived.get('cross-sectional', None)
 
-    groups = match.groupdict()
-    names = {key for key in groups if groups.get(key) is not None}
-    if len(names) != 1:
-        raise ValueError(f"error matching file name {filename}")
+        # add affiliated tag
+        if affiliate and 'affiliated' not in subject.tags:
+            log.info(f"Tagging affiliate: {subject.label}")
+            subject.add_tag('affiliated')
 
-    return names.pop()  # type: ignore
+        if not cs_derived:
+            return
+
+        log.info(
+            f"Back-propagating cross-sectional UDS variables for {subject.label}"
+        )
+        for file_id in processed_files:
+            file_entry = self.sdk_client.get_file(file_id)
+
+            # ignore non-UDS files
+            if not file_entry.name.endswith('_UDS.json'):
+                continue
+
+            file_entry = file_entry.reload()
+
+            derived = file_entry.info.get('derived', {})
+            derived.update(cs_derived)
+            file_entry.update_info({'derived': derived})

@@ -12,6 +12,8 @@ from centers.nacc_group import NACCGroup
 from flywheel.client import Client
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
+from flywheel.models.project import Project
+from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
@@ -147,9 +149,33 @@ class InputFileWrapper:
     def file_entry(self, context: GearToolkitContext) -> FileEntry:
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
-        acquisition = context.get_container_from_ref(file_hierarchy)
-        assert isinstance(acquisition, Acquisition)
-        return acquisition.get_file(self.filename)
+        container = context.get_container_from_ref(file_hierarchy)
+        assert isinstance(container, (Acquisition, Subject, Project))
+        container = container.reload()
+        return container.get_file(self.filename)
+
+    def validate_file_extension(
+            self, accepted_extensions: List[str]) -> Optional[str]:
+        """Check whether the input file type is accepted.
+
+        Args:
+            accepted_extensions: list of accepted file extensions
+
+        Returns:
+            Optional[str]: If accepted file type, return the file extension, else None
+        """
+        if not self.file_type:
+            return None
+
+        mimetype = self.file_type.lower()
+        for extension in accepted_extensions:
+            if mimetype.find(extension.lower()) != -1:
+                return extension.lower()
+
+            if self.filename.lower().endswith(f".{extension.lower()}"):
+                return extension.lower()
+
+        return None
 
     @property
     def file_id(self) -> str:
@@ -393,3 +419,27 @@ class GearEngine:
         except GearExecutionError as error:
             log.error('Error: %s', error)
             sys.exit(1)
+
+
+def get_project_from_destination(context: GearToolkitContext,
+                                 proxy: FlywheelProxy) -> flywheel.Project:
+    """Gets parent project from destination container."""
+
+    try:
+        destination = context.get_destination_container()
+    except ApiException as error:
+        raise GearExecutionError(
+            f'Cannot find destination container: {error}') from error
+    if destination.container_type != 'analysis':  # type: ignore
+        raise GearExecutionError("Expect destination to be an analysis object")
+
+    parent_id = destination.parents.get('project')  # type: ignore
+    if not parent_id:
+        raise GearExecutionError(
+            f'Cannot find parent project for: {destination.id}'  # type: ignore
+        )
+    fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
+    if not fw_project:
+        raise GearExecutionError("Destination project not found")
+
+    return fw_project

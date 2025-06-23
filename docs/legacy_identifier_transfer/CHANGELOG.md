@@ -2,8 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.5
+* Updates the code to include IT packets when checking for enrollment date
+  
+## 1.1.4
+* Fixes a bug in import
+  
 ## 1.1.3
-* Fix center map key type
+* Fixes center map key type
 
 ## 1.1.0 - 1.1.2
 * Adds email notification on failure

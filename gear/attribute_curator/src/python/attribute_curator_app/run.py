@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -14,6 +13,7 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
     InputFileWrapper,
+    get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -67,24 +67,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         curation_tag = context.config.get('curation_tag', "attribute-curator")
         force_curate = context.config.get('force_curate', False)
 
-        try:
-            destination = context.get_destination_container()
-        except ApiException as error:
-            raise GearExecutionError(
-                f'Cannot find destination container: {error}') from error
-        if destination.container_type != 'analysis':  # type: ignore
-            raise GearExecutionError(
-                "Expect destination to be an analysis object")
-
-        parent_id = destination.parents.get('project')  # type: ignore
-        if not parent_id:
-            raise GearExecutionError(
-                f'Cannot find parent project for: {destination.id}'  # type: ignore
-            )
-        fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
-        if not fw_project:
-            raise GearExecutionError("Destination project not found")
-
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         return AttributeCuratorVisitor(client=client,

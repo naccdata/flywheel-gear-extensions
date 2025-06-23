@@ -175,7 +175,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             List of user objects
         """
         try:
-            with open(user_file_path, 'r', encoding='utf-8') as user_file:
+            with open(user_file_path, 'r', encoding='utf-8-sig') as user_file:
                 object_list = load_from_stream(user_file)
         except YAMLReadError as error:
             raise GearExecutionError(
@@ -205,7 +205,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             The authorization map
         """
         try:
-            with open(auth_file_path, 'r', encoding='utf-8') as auth_file:
+            with open(auth_file_path, 'r', encoding='utf-8-sig') as auth_file:
                 auth_object = load_from_stream(auth_file)
                 auth_map = AuthMap(project_authorizations=auth_object)
         except YAMLReadError as error:

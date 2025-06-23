@@ -2,7 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Adds functionality for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
 
+## 1.1.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
 ## 1.0.1
 * Upgrades to dependencies
   

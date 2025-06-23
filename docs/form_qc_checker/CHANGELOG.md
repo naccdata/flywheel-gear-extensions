@@ -2,8 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
 
+## 1.5.0
+* Adds support for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.4.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
 * Updates to pull REDCap API code from library instead
 
 ## 1.3.3

@@ -5,20 +5,16 @@ import multiprocessing
 from multiprocessing.pool import Pool
 import os
 import re
-from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
+from typing import Any, Dict, List, Literal, Optional
 
-from curator.form_curator import FormCurator
+from curator.curator import Curator
 from dataview.dataview import ColumnModel, make_builder
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from pydantic import BaseModel, ValidationError, field_validator
 from scheduling.min_heap import MinHeap
 
 log = logging.getLogger(__name__)
-
-C = TypeVar('C', bound=FormCurator)
 
 
 class FileModel(BaseModel):
@@ -39,7 +35,7 @@ class FileModel(BaseModel):
     scandt: Optional[date]
 
     @property
-    def visit_pass(self) -> Optional[Literal['pass0', 'pass1']]:
+    def visit_pass(self) -> Optional[Literal['pass0', 'pass1', 'pass2']]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -52,8 +48,13 @@ class FileModel(BaseModel):
         having to rename the pass if more constraints are added.
 
         As it is, UDS must be curated last; after every other file.
-        So there are two classes: 'pass0' for UDS, and 'pass1' for everything else.
+        Historical APOE must be curated before the NCRAD APOE.
+        As such, there are currently 3 pass categories.
         """
+        # need to handle historic apoe separately as it does not work well with regex
+        if 'historic_apoe_genotype' in self.filename:
+            return 'pass2'
+
         pattern = (
             r"^"
             r"(?P<pass1>.+("
@@ -135,9 +136,13 @@ class FileModel(BaseModel):
                      "scandate",
                      "scandt",
                      mode='before')
-    def datetime_to_date(cls, value: Optional[str]) -> Optional[date | str]:
+    def datetime_to_date(cls,
+                         value: Optional[date | str]) -> Optional[date | str]:
         if not value:
             return None
+
+        if isinstance(value, date):
+            return value
 
         try:
             return datetime.fromisoformat(value).date()
@@ -169,27 +174,18 @@ class ViewResponseModel(BaseModel):
 curator = None  # global curator object
 
 
-def initialize_worker(context: GearToolkitContext,
-                      curator_type: Type[C],
-                      deriver: AttributeDeriver,
-                      curation_tag: str,
-                      force_curate: bool = False):
+def initialize_worker(in_curator: Curator, context: GearToolkitContext):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
     Args:
-        context: GearToolkitContext
-        curator_type: Type of FormCurator subclass to use for curation
-        curation_tag: Tag to apply to curated files
-        force_curate: Curate file even if it's already been curated
+        in_curator: Curator to use for curation
+        context: context to set SDK client from
     """
-    # Create a curator object for each process with a new SDK client
+    # Make the curator global for spawned process
     global curator
-    sdk_client = context.get_client()
-    curator = curator_type(sdk_client=sdk_client,
-                           deriver=deriver,
-                           curation_tag=curation_tag,
-                           force_curate=force_curate)
+    curator = in_curator
+    curator.set_client(context)
 
 
 def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
@@ -205,28 +201,8 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     assert curator, 'curator object expected'
     subject = curator.get_subject(subject_id)
 
-    retries = 0
-    if curator.force_curate:
-        while retries <= 3:
-            try:
-                subject = subject.reload()
-                if subject.info:
-                    log.info("Force curation set to True, " +
-                             f"cleaning up metadata for {subject.label}")
-                    for field in [
-                            'cognitive.uds', 'demographics.uds', 'derived',
-                            'genetics', 'longitudinal-data.uds',
-                            'neuropathology', 'study-parameters.uds', 'imaging'
-                    ]:
-                        subject.delete_info(field)  # type: ignore
-
-                break
-            except ApiException as e:
-                retries += 1
-                if retries <= 3:
-                    log.warning(f"Encountered API error, retrying {retries}/3")
-                else:
-                    raise e
+    curator.pre_process(subject)
+    processed_files: List[str] = []
 
     while len(heap) > 0:
         file_info = heap.pop()
@@ -234,6 +210,9 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
             continue
 
         curator.curate_file(subject, file_info.file_id)
+        processed_files.append(file_info.file_id)
+
+    curator.post_process(subject, processed_files)
 
 
 class ProjectCurationScheduler:
@@ -263,6 +242,8 @@ class ProjectCurationScheduler:
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
+        log.info("Creating project dataview")
+
         builder = make_builder(
             label='attribute-curation-scheduling',
             description='Lists files for curation',
@@ -331,25 +312,13 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self,
-              context: GearToolkitContext,
-              curator_type: Type[C],
-              deriver: AttributeDeriver,
-              curation_tag: str,
-              force_curate: bool = False) -> None:
-        """Applies a FormCurator to the form files in this curator.
-
-        Builds a curator of the type given with the context to avoid shared
-        state across curators.
+    def apply(self, curator: Curator, context: GearToolkitContext) -> None:
+        """Applies a Curator to the form files in this curator.
 
         Args:
-          context: the gear context
-          curator_type: a FormCurator subclass
-          deriver: attribute deriver
-          curation_tag: Tag to apply to curated files
-          force_curate: Curate file even if it's already been curated
+          curator: an instantiated curator class
+          context: context to set SDK client from
         """
-
         log.info("Start curator for %s subjects", len(self.__heap_map))
 
         process_count = max(4, self.__compute_cores())
@@ -358,14 +327,11 @@ class ProjectCurationScheduler:
         with Pool(processes=process_count,
                   initializer=initialize_worker,
                   initargs=(
+                      curator,
                       context,
-                      curator_type,
-                      deriver,
-                      curation_tag,
-                      force_curate,
                   )) as pool:
             for subject_id, heap in self.__heap_map.items():
-                log.info("Curating files for subject %s", subject_id)
+                log.info("Curating subject %s", subject_id)
                 results.append(
                     pool.apply_async(curate_subject, (
                         subject_id,

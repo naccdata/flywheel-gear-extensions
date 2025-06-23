@@ -6,6 +6,7 @@ import sys
 from json.decoder import JSONDecodeError
 from typing import Dict, Optional
 
+from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
@@ -21,7 +22,6 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterError, ParameterStore
 from outputs.errors import ListErrorWriter
 from pydantic import ValidationError
-from uploads.uploader import UploadTemplateInfo
 
 from csv_app.main import run
 
@@ -113,7 +113,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         template_map = self.__load_template(self.__hierarchy_labels)
 
         with open(self.__file_input.filepath, mode='r',
-                  encoding='utf-8') as csv_file:
+                  encoding='utf-8-sig') as csv_file:
             error_writer = ListErrorWriter(container_id=file_id,
                                            fw_path=proxy.get_lookup_path(file))
             success = run(proxy=proxy,

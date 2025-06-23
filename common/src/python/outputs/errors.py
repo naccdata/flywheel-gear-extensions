@@ -5,9 +5,10 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Handler, Logger
-from typing import Any, Dict, List, Literal, Optional, TextIO
+from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 
-from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
+from configs.ingest_configs import ErrorLogTemplate
+from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -17,6 +18,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from outputs.outputs import CSVWriter
 
 log = logging.getLogger(__name__)
+
+MetadataCleanupFlag = Literal['ALL', 'GEAR', 'NA']
 
 preprocess_errors = {
     SysErrorCodes.ADCID_MISMATCH:
@@ -202,7 +205,7 @@ def malformed_file_error(error: str) -> FileError:
 def unexpected_value_error(field: str,
                            value: str,
                            expected: str,
-                           line: int,
+                           line: Optional[int] = None,
                            message: Optional[str] = None) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -217,11 +220,13 @@ def unexpected_value_error(field: str,
     """
     error_message = message if message else (
         f'Expected {expected} for field {field}')
+
     return FileError(error_type='error',
                      error_code='unexpected-value',
                      value=value,
                      expected=expected,
-                     location=CSVLocation(line=line, column_name=field),
+                     location=CSVLocation(line=line, column_name=str(field))
+                     if line else JSONLocation(key_path=str(field)),
                      message=error_message)
 
 
@@ -326,7 +331,7 @@ class ErrorWriter(ABC):
 
     def __init__(self):
         """Initializer - sets the timestamp to time of creation."""
-        self.__timestamp = (dt.now()).strftime('%Y-%m-%d %H:%M:%S')
+        self.__timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
 
     def set_timestamp(self, error: FileError) -> None:
         """Assigns the timestamp to the error."""
@@ -407,9 +412,13 @@ class StreamErrorWriter(UserErrorWriter):
 class ListErrorWriter(UserErrorWriter):
     """Collects FileErrors to file metadata."""
 
-    def __init__(self, container_id: str, fw_path: str) -> None:
+    def __init__(
+            self,
+            container_id: str,
+            fw_path: str,
+            errors: Optional[MutableSequence[Dict[str, Any]]] = None) -> None:
         super().__init__(container_id, fw_path)
-        self.__errors: List[Dict[str, Any]] = []
+        self.__errors = [] if errors is None else errors
 
     def write(self, error: FileError, set_timestamp: bool = True) -> None:
         """Captures error for writing to metadata.
@@ -421,7 +430,7 @@ class ListErrorWriter(UserErrorWriter):
         self.prepare_error(error, set_timestamp)
         self.__errors.append(error.model_dump(by_alias=True))
 
-    def errors(self) -> List[Dict[str, Any]]:
+    def errors(self) -> MutableSequence[Dict[str, Any]]:
         """Returns serialized list of accumulated file errors.
 
         Returns:
@@ -448,13 +457,14 @@ class ListHandler(Handler):
         return self.__logs
 
 
-def update_error_log_and_qc_metadata(*,
-                                     error_log_name: str,
-                                     destination_prj: ProjectAdaptor,
-                                     gear_name: str,
-                                     state: str,
-                                     errors: List[Dict[str, Any]],
-                                     reset_metadata: bool = False) -> bool:
+def update_error_log_and_qc_metadata(
+        *,
+        error_log_name: str,
+        destination_prj: ProjectAdaptor,
+        gear_name: str,
+        state: str,
+        errors: MutableSequence[Dict[str, Any]],
+        reset_qc_metadata: MetadataCleanupFlag = 'NA') -> bool:
     """Update project level error log file and store error metadata in
     file.info.qc.
 
@@ -464,7 +474,10 @@ def update_error_log_and_qc_metadata(*,
         gear_name: gear that generated errors
         state: gear execution status [PASS|FAIL|NA]
         errors: list of error objects, expected to be JSON dicts
-        reset_metadata: reset metadata from previous runs, set to True for first gear
+        reset_qc_metadata: flag to reset metadata from previous runs:
+            ALL - clean all, set this for the first gear in submission pipeline.
+            GEAR - reset only current gear metadata from previous runs.
+            NA - do not reset (Default).
 
     Returns:
         bool: True if metadata update is successful, else False
@@ -477,11 +490,11 @@ def update_error_log_and_qc_metadata(*,
     # append to existing error details if any
     if current_log:
         current_log = current_log.reload()
-        if current_log.info and 'qc' in current_log.info and not reset_metadata:
+        if current_log.info and 'qc' in current_log.info and reset_qc_metadata != 'ALL':
             info = current_log.info
         contents = (current_log.read()).decode('utf-8')  # type: ignore
 
-    timestamp = (dt.now()).strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
     contents += f'{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n'
     for error in errors:
         contents += json.dumps(error) + '\n'
@@ -499,15 +512,17 @@ def update_error_log_and_qc_metadata(*,
                   f'{destination_prj.group}/{destination_prj.label}: {error}')
         return False
 
-    # if error data already exists, append to data
-    existing_errors = info.get('qc', {}).get(gear_name, {}) \
-        .get('validation', {}).get('data', [])
-    existing_errors.extend(errors)
+    updated_errors = []
+    if reset_qc_metadata == 'NA':
+        # if not to reset, pull error data that already exists
+        updated_errors = info.get('qc', {}).get(gear_name, {}) \
+            .get('validation', {}).get('data', [])
+    updated_errors.extend(errors)
 
     info["qc"][gear_name] = {
         "validation": {
             "state": state.upper(),
-            "data": existing_errors
+            "data": updated_errors
         }
     }
     try:
@@ -524,34 +539,65 @@ def get_error_log_name(
         *,
         module: str,
         input_data: Dict[str, Any],
-        naming_template: Optional[Dict[str, str]] = None) -> Optional[str]:
+        errorlog_template: Optional[ErrorLogTemplate] = None) -> Optional[str]:
     """Derive error log name based on visit data.
 
     Args:
         module: module label
         input_data: input visit record
-        naming_template (optional): error log naming template for module
+        errorlog_template (optional): error log naming template for module
 
     Returns:
         str (optional): error log name or None
     """
 
-    if not naming_template:
-        naming_template = {
-            "ptid": FieldNames.PTID,
-            "visitdate": FieldNames.DATE_COLUMN
-        }
+    if not errorlog_template:
+        errorlog_template = ErrorLogTemplate(id_field=FieldNames.PTID,
+                                             date_field=FieldNames.DATE_COLUMN)
 
-    ptid = input_data.get(naming_template.get('ptid', FieldNames.PTID))
-    visitdate = input_data.get(
-        naming_template.get('visitdate', FieldNames.DATE_COLUMN))
+    ptid = input_data.get(errorlog_template.id_field)
+    visitdate = input_data.get(errorlog_template.date_field)
 
     if not ptid or not visitdate:
         return None
 
+    cleaned_ptid = ptid.strip().lstrip('0')
     normalized_date = convert_date(date_string=visitdate,
                                    date_format=DEFAULT_DATE_FORMAT)
-    if not normalized_date:
+    if not cleaned_ptid or not normalized_date:
         return None
 
-    return f'{ptid}_{normalized_date}_{module.lower()}_qc-status.log'
+    return (
+        f'{cleaned_ptid}_{normalized_date}_{module.lower()}_{errorlog_template.suffix}.{errorlog_template.extension}'
+    )
+
+
+def reset_error_log_metadata_for_gears(*, error_log_name: str,
+                                       destination_prj: ProjectAdaptor,
+                                       gear_names: List[str]) -> None:
+    """Reset error log file QC metadata in file.info.qc.<gear_name> for the
+    specified gears.
+
+    Args:
+        error_log_name: error log file name
+        destination_prj: Flywheel project adaptor
+        gear_names: list of gears to clear qc metadata
+    """
+    current_log = destination_prj.get_file(error_log_name)
+    if not current_log:
+        return
+
+    current_log = current_log.reload()
+    if not current_log.info or not current_log.info.get('qc'):
+        return
+
+    # make sure to load the existing metadata first and then modify
+    # update_info() will replace everything under the top-level key
+    qc_info: Dict[str, Any] = current_log.info.get('qc', {})
+
+    for gear_name in gear_names:
+        qc_info.pop(gear_name, None)
+
+    # Note: have to use update_info() here for reset to take effect
+    # Using update() will not delete any existing data
+    current_log.update_info({'qc': qc_info})

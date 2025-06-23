@@ -9,6 +9,7 @@ from dateutil import parser
 DATE_FORMATS = ['%m/%d/%Y', '%m-%d-%Y', '%Y/%m/%d', '%Y-%m-%d']
 DATE_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
 DEFAULT_DATE_FORMAT = '%Y-%m-%d'
+DEFAULT_DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def parse_date(*, date_string: str, formats: List[str]) -> datetime:

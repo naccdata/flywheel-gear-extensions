@@ -7,6 +7,7 @@ import pytest
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from outputs.errors import ListErrorWriter
+from test_mocks.mock_configs import uds_ingest_configs
 
 
 @pytest.fixture(scope="function")
@@ -55,9 +56,10 @@ def no_ids_stream():
 @pytest.fixture(scope="function")
 def data_stream():
     """Create valid data stream with header row."""
-    data: List[List[str | int]] = [['adcid', 'ptid', 'visitdate', 'var1'],
-                                   [1, '1', '2024-12-31', 8],
-                                   [1, '2', '2024-12-31', 99]]
+    data: List[List[str | int]] = [[
+        'adcid', 'ptid', 'visitdate', 'visitnum', 'packet', 'formver', 'var1'
+    ], [1, '1', '2024-12-31', '1', 'I', '4.0', 8],
+                                   [1, '2', '2024-12-31', '1', 'I', '4.0', 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     stream.seek(0)
@@ -108,6 +110,8 @@ def empty(stream) -> bool:
 
 
 # pylint: disable=no-self-use,redefined-outer-name
+
+
 class TestIdentifierLookup:
     """Tests for the identifier-lookup-gear app."""
 
@@ -123,8 +127,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -143,8 +147,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -163,8 +167,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success
@@ -183,8 +187,8 @@ class TestIdentifierLookup:
                           identifiers=identifiers_map,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert success
@@ -212,8 +216,8 @@ class TestIdentifierLookup:
                           adcid=1,
                           output_file=out_stream,
                           module_name='dummy-module',
+                          module_configs=uds_ingest_configs(),
                           error_writer=error_writer,
-                          date_field='visitdate',
                           gear_name='dummy'),
                       error_writer=error_writer)
         assert not success

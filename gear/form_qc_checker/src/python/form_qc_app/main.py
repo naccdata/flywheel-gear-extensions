@@ -8,7 +8,7 @@ validator) for validating the inputs.
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, MutableSequence, Optional
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
@@ -40,13 +40,14 @@ from form_qc_app.validate import RecordValidator
 log = logging.getLogger(__name__)
 
 
-def update_input_file_qc_status(*,
-                                gear_context: GearToolkitContext,
-                                gear_name: str,
-                                input_wrapper: InputFileWrapper,
-                                file: FileEntry,
-                                qc_passed: bool,
-                                errors: Optional[List[Dict[str, Any]]] = None):
+def update_input_file_qc_status(
+        *,
+        gear_context: GearToolkitContext,
+        gear_name: str,
+        input_wrapper: InputFileWrapper,
+        file: FileEntry,
+        qc_passed: bool,
+        errors: Optional[MutableSequence[Dict[str, Any]]] = None):
     """Write validation status to input file metadata and add gear tag.
     Detailed errors for each visit is recorded in the error log for the visit.
 
@@ -82,32 +83,10 @@ def update_input_file_qc_status(*,
     return True
 
 
-def validate_input_file_type(mimetype: str) -> Optional[str]:
-    """Check whether the input file type is accepted.
-
-    Args:
-        mimetype: input file mimetype
-
-    Returns:
-        Optional[str]: If accepted file type, return the type, else None
-    """
-    if not mimetype:
-        return None
-
-    mimetype = mimetype.lower()
-    if mimetype.find('json') != -1:
-        return 'json'
-
-    if mimetype.find('csv') != -1:
-        return 'csv'
-
-    return None
-
-
 def load_supplement_input(
         supplement_input: InputFileWrapper) -> Optional[Dict[str, Any]]:
     with open(supplement_input.filepath, mode='r',
-              encoding='utf-8') as file_obj:
+              encoding='utf-8-sig') as file_obj:
         try:
             input_data = json.load(file_obj)
         except (JSONDecodeError, TypeError) as error:
@@ -147,10 +126,13 @@ def run(  # noqa: C901
     if not input_wrapper.file_input:
         raise GearExecutionError('form_data_file input not found')
 
-    file_type = validate_input_file_type(input_wrapper.file_type)
+    accepted_extensions = ["json", "csv"]
+    file_type = input_wrapper.validate_file_extension(
+        accepted_extensions=accepted_extensions)
     if not file_type:
         raise GearExecutionError(
-            f'Unsupported input file type {input_wrapper.file_type}')
+            f"Unsupported input file type {input_wrapper.file_type}, "
+            f"supported extension(s): {accepted_extensions}")
 
     if file_type == 'json':
         separator = "_"
@@ -212,7 +194,9 @@ def run(  # noqa: C901
     if file_type == 'json':
         supplement_record = load_supplement_input(
             supplement_input=supplement_input) if supplement_input else None
-        if module_configs.supplement_module and not supplement_record:
+        if (module_configs.supplement_module
+                and module_configs.supplement_module.exact_match
+                and not supplement_record):
             raise GearExecutionError(
                 f"Supplement {module_configs.supplement_module.label} "
                 f"visit record is required to validate {module} visit")
@@ -222,6 +206,7 @@ def run(  # noqa: C901
                                            date_field=date_field,
                                            project=project_adaptor,
                                            error_writer=error_writer,
+                                           form_configs=form_project_configs,
                                            gear_name=gear_name,
                                            supplement_data=supplement_record)
     else:  # For enrollment form processing
@@ -230,10 +215,10 @@ def run(  # noqa: C901
                                           date_field=date_field,
                                           project=project_adaptor,
                                           error_writer=error_writer,
+                                          form_configs=form_project_configs,
                                           gear_name=gear_name)
 
-    input_data = file_processor.validate_input(
-        input_wrapper=input_wrapper, form_configs=form_project_configs)
+    input_data = file_processor.validate_input(input_wrapper=input_wrapper)
 
     if not input_data:
         update_input_file_qc_status(gear_context=gear_context,
