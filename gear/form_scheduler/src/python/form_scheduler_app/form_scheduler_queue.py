@@ -479,6 +479,7 @@ class FormSchedulerQueue:
                 # e. if notifications enabled,
                 #    email to user who uploaded the file that pipeline has completed
                 if notify_user and self.__email_client:
+                    assert self.__portal_url, "portal URL must be set"
                     send_email(
                         proxy=self.__proxy,
                         email_client=self.__email_client,
