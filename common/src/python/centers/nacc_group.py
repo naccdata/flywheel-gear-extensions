@@ -1,4 +1,5 @@
 """Singleton class representing NACC with a FW group."""
+
 import logging
 from typing import List, Optional
 
@@ -22,6 +23,7 @@ class LegacyModuleInfo(BaseModel):
         legacy_label (str): Label of the legacy module.
         legacy_orderby (str): Orderby field for legacy module
     """
+
     legacy_label: str
     legacy_orderby: str
 
@@ -35,10 +37,7 @@ class NACCGroup(CenterAdaptor):
         self.__redcap_param_repo: Optional[REDCapParametersRepository] = None
 
     @classmethod
-    def create(cls,
-               *,
-               proxy: FlywheelProxy,
-               group_id: str = 'nacc') -> 'NACCGroup':
+    def create(cls, *, proxy: FlywheelProxy, group_id: str = "nacc") -> "NACCGroup":
         """Creates a NACCGroup object for the group on the flywheel instance.
 
         Args:
@@ -58,8 +57,7 @@ class NACCGroup(CenterAdaptor):
     def redcap_param_repo(self) -> Optional[REDCapParametersRepository]:
         return self.__redcap_param_repo
 
-    def set_redcap_param_repo(self,
-                              redcap_param_repo: REDCapParametersRepository):
+    def set_redcap_param_repo(self, redcap_param_repo: REDCapParametersRepository):
         self.__redcap_param_repo = redcap_param_repo
 
     def add_center(self, center_group: CenterGroup) -> None:
@@ -68,13 +66,16 @@ class NACCGroup(CenterAdaptor):
         Args:
           center_group: the CenterGroup object for the center
         """
-        self.add_adcid(adcid=center_group.adcid,
-                       group_label=center_group.label,
-                       group_id=center_group.id,
-                       active=center_group.is_active())
+        self.add_adcid(
+            adcid=center_group.adcid,
+            group_label=center_group.label,
+            group_id=center_group.id,
+            active=center_group.is_active(),
+        )
 
-    def add_adcid(self, adcid: int, group_label: str, group_id: str,
-                  active: bool) -> None:
+    def add_adcid(
+        self, adcid: int, group_label: str, group_id: str, active: bool
+    ) -> None:
         """Adds the adcid-group correspondence.
 
         Args:
@@ -87,15 +88,13 @@ class NACCGroup(CenterAdaptor):
         center_map = self.get_center_map()
         center_map.add(
             adcid,
-            CenterInfo(adcid=adcid,
-                       name=group_label,
-                       group=group_id,
-                       active=active))
+            CenterInfo(adcid=adcid, name=group_label, group=group_id, active=active),
+        )
         metadata.update_info(center_map.model_dump())
 
-    def get_center_map(self,
-                       center_filter: Optional[List[str]] = None
-                       ) -> CenterMapInfo:
+    def get_center_map(
+        self, center_filter: Optional[List[str]] = None
+    ) -> CenterMapInfo:
         """Returns the adcid-group map.
 
         Args:
@@ -110,21 +109,20 @@ class NACCGroup(CenterAdaptor):
             return CenterMapInfo(centers={})
 
         if center_filter:
-            log.info(
-                f"Filtering mapping to the following centers: {center_filter}")
-            if 'centers' not in info:
+            log.info(f"Filtering mapping to the following centers: {center_filter}")
+            if "centers" not in info:
                 log.error("Expected 'centers' attribute in metadata info")
                 return CenterMapInfo(centers={})
 
-            info['centers'] = {
+            info["centers"] = {
                 adcid: data
-                for adcid, data in info['centers'].items()
+                for adcid, data in info["centers"].items()
                 if adcid in center_filter
             }
         try:
             center_map = CenterMapInfo.model_validate(info)
         except ValidationError as error:
-            log.error('unable to parse center table: %s', str(error))
+            log.error("unable to parse center table: %s", str(error))
             center_map = CenterMapInfo(centers={})
 
         return center_map
@@ -201,7 +199,7 @@ class NACCGroup(CenterAdaptor):
         assert user.id, "User must have user ID"
 
         metadata_project = self.get_metadata()
-        read_only_role = self._fw.get_role('read-only')
+        read_only_role = self._fw.get_role("read-only")
         assert read_only_role, "Expecting read-only role to exist"
 
         metadata_project.add_user_role(user=user, role=read_only_role)
@@ -213,8 +211,9 @@ class NACCGroup(CenterAdaptor):
          the admin project object
         """
         if not self.__admin_project:
-            self.__admin_project = self.get_project('project-admin')
-            assert self.__admin_project, ("Expecting project-admin project. "
-                                          "Check user has permissions.")
+            self.__admin_project = self.get_project("project-admin")
+            assert self.__admin_project, (
+                "Expecting project-admin project. " "Check user has permissions."
+            )
 
         return self.__admin_project

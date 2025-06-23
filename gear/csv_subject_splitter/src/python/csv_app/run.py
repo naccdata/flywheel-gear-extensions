@@ -32,10 +32,14 @@ log = logging.getLogger(__name__)
 class CsvToJsonVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the csv-subject-splitter app."""
 
-    def __init__(self, client: ClientWrapper, device_key: str,
-                 file_input: InputFileWrapper, hierarchy_labels: Dict[str,
-                                                                      str],
-                 preserve_case: bool) -> None:
+    def __init__(
+        self,
+        client: ClientWrapper,
+        device_key: str,
+        file_input: InputFileWrapper,
+        hierarchy_labels: Dict[str, str],
+        preserve_case: bool,
+    ) -> None:
         self.__client = client
         self.__device_key = device_key
         self.__file_input = file_input
@@ -44,8 +48,8 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-            cls, context: GearToolkitContext,
-            parameter_store: Optional[ParameterStore]) -> 'CsvToJsonVisitor':
+        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+    ) -> "CsvToJsonVisitor":
         """Creates a gear execution object.
 
         Args:
@@ -60,38 +64,37 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         """
         client = ContextClient.create(context=context)
 
-        file_input = InputFileWrapper.create(input_name='input_file',
-                                             context=context)
+        file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        device_key_prefix = context.config.get('device_key_path_prefix')
+        device_key_prefix = context.config.get("device_key_path_prefix")
         if not device_key_prefix:
-            raise GearExecutionError('Device key path prefix required')
+            raise GearExecutionError("Device key path prefix required")
 
         assert parameter_store, "Parameter store expected"
         try:
-            device_key = parameter_store.get_api_key(
-                path_prefix=device_key_prefix)
+            device_key = parameter_store.get_api_key(path_prefix=device_key_prefix)
         except ParameterError as error:
             raise GearExecutionError(error) from error
 
-        hierarchy_labels = context.config.get('hierarchy_labels')
+        hierarchy_labels = context.config.get("hierarchy_labels")
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
 
         try:
             hierarchy_labels = json.loads(hierarchy_labels)
         except (JSONDecodeError, TypeError, ValueError) as error:
-            raise GearExecutionError(f"Failed to load JSON string: {error}") \
-                from error
+            raise GearExecutionError(f"Failed to load JSON string: {error}") from error
 
         preserve_case = context.config.get("preserve_case", False)
 
-        return CsvToJsonVisitor(client=client,
-                                device_key=device_key,
-                                file_input=file_input,
-                                hierarchy_labels=hierarchy_labels,
-                                preserve_case=preserve_case)
+        return CsvToJsonVisitor(
+            client=client,
+            device_key=device_key,
+            file_input=file_input,
+            hierarchy_labels=hierarchy_labels,
+            preserve_case=preserve_case,
+        )
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the CSV to JSON Transformer app.
@@ -107,36 +110,42 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             file = proxy.get_file(file_id)
         except ApiException as error:
             raise GearExecutionError(
-                f'Failed to find the input file: {error}') from error
+                f"Failed to find the input file: {error}"
+            ) from error
 
         project = self.__file_input.get_parent_project(proxy, file=file)
         template_map = self.__load_template(self.__hierarchy_labels)
 
-        with open(self.__file_input.filepath, mode='r',
-                  encoding='utf-8-sig') as csv_file:
-            error_writer = ListErrorWriter(container_id=file_id,
-                                           fw_path=proxy.get_lookup_path(file))
-            success = run(proxy=proxy,
-                          hierarchy_client=hierarchy_client,
-                          input_file=csv_file,
-                          destination=ProjectAdaptor(project=project,
-                                                     proxy=proxy),
-                          environment={'filename': self.__file_input.basename},
-                          template_map=template_map,
-                          error_writer=error_writer,
-                          preserve_case=self.__preserve_case)
+        with open(
+            self.__file_input.filepath, mode="r", encoding="utf-8-sig"
+        ) as csv_file:
+            error_writer = ListErrorWriter(
+                container_id=file_id, fw_path=proxy.get_lookup_path(file)
+            )
+            success = run(
+                proxy=proxy,
+                hierarchy_client=hierarchy_client,
+                input_file=csv_file,
+                destination=ProjectAdaptor(project=project, proxy=proxy),
+                environment={"filename": self.__file_input.basename},
+                template_map=template_map,
+                error_writer=error_writer,
+                preserve_case=self.__preserve_case,
+            )
 
-            context.metadata.add_qc_result(self.__file_input.file_input,
-                                           name='validation',
-                                           state='PASS' if success else 'FAIL',
-                                           data=error_writer.errors())
+            context.metadata.add_qc_result(
+                self.__file_input.file_input,
+                name="validation",
+                state="PASS" if success else "FAIL",
+                data=error_writer.errors(),
+            )
 
-            context.metadata.add_file_tags(self.__file_input.file_input,
-                                           tags=context.manifest.get(
-                                               'name', 'csv-subject-splitter'))
+            context.metadata.add_file_tags(
+                self.__file_input.file_input,
+                tags=context.manifest.get("name", "csv-subject-splitter"),
+            )
 
-    def __load_template(self, template_list: Dict[str,
-                                                  str]) -> UploadTemplateInfo:
+    def __load_template(self, template_list: Dict[str, str]) -> UploadTemplateInfo:
         """Creates the list of label templates from the input objects.
 
         Args:
@@ -149,8 +158,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         try:
             return UploadTemplateInfo.model_validate(template_list)
         except ValidationError as error:
-            raise GearExecutionError('Error reading label templates: '
-                                     f'{error}') from error
+            raise GearExecutionError(
+                "Error reading label templates: " f"{error}"
+            ) from error
 
 
 def main():

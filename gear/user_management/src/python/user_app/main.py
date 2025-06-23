@@ -1,4 +1,5 @@
 """Run method for user management."""
+
 import logging
 
 from users.user_processes import UserProcess, UserQueue

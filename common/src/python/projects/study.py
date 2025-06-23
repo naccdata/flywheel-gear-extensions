@@ -1,4 +1,5 @@
 """Classes for representing NACC studies (or, if you must, projects)."""
+
 import re
 from abc import ABC, abstractmethod
 from typing import Any, List, Literal, Mapping
@@ -16,9 +17,9 @@ def convert_to_slug(name: str) -> str:
     Returns:
       The transformed name.
     """
-    name = re.sub(r"[/]", ' ', name)
-    name = re.sub(r"[^\w\s]", '', name)
-    name = re.sub(r"\s+", '-', name)
+    name = re.sub(r"[/]", " ", name)
+    name = re.sub(r"[^\w\s]", "", name)
+    name = re.sub(r"\s+", "-", name)
     return name.lower()
 
 
@@ -50,21 +51,23 @@ class StudyVisitor(ABC):
         """
 
 
-StudyMode = Literal['aggregation', 'distribution']
+StudyMode = Literal["aggregation", "distribution"]
 
 
 class Study:
     """Represents a study with data managed at NACC."""
 
-    def __init__(self,
-                 *,
-                 name: str,
-                 study_id: str,
-                 centers: List[str],
-                 datatypes: List[str],
-                 mode: StudyMode,
-                 published: bool = False,
-                 primary: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        name: str,
+        study_id: str,
+        centers: List[str],
+        datatypes: List[str],
+        mode: StudyMode,
+        published: bool = False,
+        primary: bool = False,
+    ) -> None:
         """Initializes a study object.
 
         Args:
@@ -86,22 +89,27 @@ class Study:
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, Study):
             return False
-        return (__o.name == self.__name and __o.centers == self.centers
-                and __o.datatypes == self.datatypes
-                and __o.__mode == self.__mode
-                and __o.is_published() == self.is_published()
-                and __o.is_primary() == self.is_primary())
+        return (
+            __o.name == self.__name
+            and __o.centers == self.centers
+            and __o.datatypes == self.datatypes
+            and __o.__mode == self.__mode
+            and __o.is_published() == self.is_published()
+            and __o.is_primary() == self.is_primary()
+        )
 
     def __repr__(self) -> str:
-        return ("Study("
-                f"name={self.__name},"
-                f"study_id={self.__study_id},"
-                f"centers={self.__centers},"
-                f"datatypes={self.__datatypes},"
-                f"mode={self.__mode},"
-                f"published={self.__published},"
-                f"primary={self.__primary}"
-                ")")
+        return (
+            "Study("
+            f"name={self.__name},"
+            f"study_id={self.__study_id},"
+            f"centers={self.__centers},"
+            f"datatypes={self.__datatypes},"
+            f"mode={self.__mode},"
+            f"published={self.__published},"
+            f"primary={self.__primary}"
+            ")"
+        )
 
     @property
     def study_id(self) -> str:
@@ -144,7 +152,7 @@ class Study:
     def project_suffix(self) -> str:
         """Creates the suffix that should be added to study pipelines."""
         if self.is_primary():
-            return ''
+            return ""
 
         return f"-{self.study_id}"
 
@@ -152,14 +160,16 @@ class Study:
     def create(cls, study: Mapping[str, Any]) -> "Study":
         """Create study from given mapping."""
         primary_study = False
-        if 'primary' in study:
-            primary_study = study['primary']
+        if "primary" in study:
+            primary_study = study["primary"]
 
-        study_mode: StudyMode = study.get('mode', 'aggregation')
-        return Study(name=study['study'],
-                     study_id=study['study-id'],
-                     centers=study['centers'],
-                     datatypes=study['datatypes'],
-                     mode=study_mode,
-                     published=study['published'],
-                     primary=primary_study)
+        study_mode: StudyMode = study.get("mode", "aggregation")
+        return Study(
+            name=study["study"],
+            study_id=study["study-id"],
+            centers=study["centers"],
+            datatypes=study["datatypes"],
+            mode=study_mode,
+            published=study["published"],
+            primary=primary_study,
+        )

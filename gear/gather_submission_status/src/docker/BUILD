@@ -5,6 +5,7 @@ docker_image(
     source="Dockerfile",
     dependencies=[
         ":manifest",
-        "gear/gather_submission_status/src/python/gather_submission_status_app:bin"
+        "gear/gather_submission_status/src/python/gather_submission_status_app:bin",
     ],
-    image_tags=["0.0.1", "latest"])
+    image_tags=["0.0.1", "latest"],
+)

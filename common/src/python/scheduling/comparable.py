@@ -6,7 +6,6 @@ from typing import Protocol, TypeVar, runtime_checkable
 
 @runtime_checkable
 class Comparable(Protocol):
-
     @abstractmethod
     def __lt__(self: SupportsOrdering, other: SupportsOrdering) -> bool:
         pass

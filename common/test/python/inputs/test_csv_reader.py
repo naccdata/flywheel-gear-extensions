@@ -1,4 +1,5 @@
 """Tests for CSV reader utilities."""
+
 import csv
 from io import StringIO
 from typing import Any, Dict, List
@@ -26,11 +27,13 @@ def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
       data: tabular data
       stream: the output stream
     """
-    writer = csv.writer(stream,
-                        delimiter=',',
-                        quotechar='\"',
-                        quoting=csv.QUOTE_NONNUMERIC,
-                        lineterminator='\n')
+    writer = csv.writer(
+        stream,
+        delimiter=",",
+        quotechar='"',
+        quoting=csv.QUOTE_NONNUMERIC,
+        lineterminator="\n",
+    )
     writer.writerows(data)
     stream.seek(0)
 
@@ -49,8 +52,11 @@ def no_header_stream():
 @pytest.fixture(scope="function")
 def no_ids_stream():
     """Create data stream without expected column headers."""
-    data: List[List[str | int]] = [['dummy1', 'dummy2', 'dummy3'], [1, 1, 8],
-                                   [1, 2, 99]]
+    data: List[List[str | int]] = [
+        ["dummy1", "dummy2", "dummy3"],
+        [1, 1, 8],
+        [1, 2, 99],
+    ]
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -60,8 +66,7 @@ def no_ids_stream():
 @pytest.fixture(scope="function")
 def data_stream():
     """Create data stream without header row."""
-    data: List[List[str | int]] = [['adcid', 'ptid', 'var1'], [1, '1', 8],
-                                   [1, '2', 99]]
+    data: List[List[str | int]] = [["adcid", "ptid", "var1"], [1, "1", 8], [1, "2", 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -71,10 +76,19 @@ def data_stream():
 @pytest.fixture(scope="function")
 def case_stream():
     """Create data stream with different case headeres."""
-    data: List[List[str | int]] = [[
-        'adcid', 'ptid', 'var1', "CAPITALVAR", "var with spaces",
-        "CAPITAL VAR WITH SPACES ", "mixedCase-TestIO-whatever", "3RD"
-    ], [1, '1', 8, 9, 10, 11]]
+    data: List[List[str | int]] = [
+        [
+            "adcid",
+            "ptid",
+            "var1",
+            "CAPITALVAR",
+            "var with spaces",
+            "CAPITAL VAR WITH SPACES ",
+            "mixedCase-TestIO-whatever",
+            "3RD",
+        ],
+        [1, "1", 8, 9, 10, 11],
+    ]
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -84,9 +98,7 @@ def case_stream():
 def malformed_stream():
     """Create a malformed data stream number of columns in the header does not
     match with number of columns in the data rows."""
-    header = [
-        "ptid", "adcid", "visitnum", "visitdate", "packet", "formver", "mode"
-    ]
+    header = ["ptid", "adcid", "visitnum", "visitdate", "packet", "formver", "mode"]
     row = [
         "13845",
         "4",
@@ -173,116 +185,134 @@ class TestCSVReader:
     def test_empty_input_stream(self, empty_data_stream):
         """Test empty input stream."""
         err_stream = StringIO()
-        success = read_csv(input_file=empty_data_stream,
-                           error_writer=StreamErrorWriter(
-                               stream=err_stream,
-                               container_id='dummy',
-                               fw_path='dummy-path'),
-                           visitor=DummyVisitor())
+        success = read_csv(
+            input_file=empty_data_stream,
+            error_writer=StreamErrorWriter(
+                stream=err_stream, container_id="dummy", fw_path="dummy-path"
+            ),
+            visitor=DummyVisitor(),
+        )
         assert not success
         assert not empty(err_stream)
         err_stream.seek(0)
-        reader = csv.DictReader(err_stream, dialect='unix')
+        reader = csv.DictReader(err_stream, dialect="unix")
         assert reader.fieldnames
         row = next(reader)
-        assert row['message'] == 'Empty input file'
+        assert row["message"] == "Empty input file"
 
     def test_invalid_header_stream(self, no_header_stream):
         """Test stream with invalid header row."""
         err_stream = StringIO()
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy-path')
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy-path"
+        )
         visitor = NonNumericHeaderVisitor(error_writer)
 
-        success = read_csv(input_file=no_header_stream,
-                           error_writer=error_writer,
-                           visitor=visitor)
+        success = read_csv(
+            input_file=no_header_stream, error_writer=error_writer, visitor=visitor
+        )
         assert not success
         assert not empty(err_stream)
         err_stream.seek(0)
-        reader = csv.DictReader(err_stream, dialect='unix')
+        reader = csv.DictReader(err_stream, dialect="unix")
         assert reader.fieldnames
         row = next(reader)
-        assert row['message'] == 'Header cannot be numeric'
+        assert row["message"] == "Header cannot be numeric"
 
     def test_preserve_case_true(self, case_stream):
         """Test preserve case is True."""
         err_stream = StringIO()
         visitor = DummyVisitor()
-        success = read_csv(input_file=case_stream,
-                           error_writer=StreamErrorWriter(
-                               stream=err_stream,
-                               container_id='dummy',
-                               fw_path='dummy-path'),
-                           visitor=visitor,
-                           preserve_case=True)
+        success = read_csv(
+            input_file=case_stream,
+            error_writer=StreamErrorWriter(
+                stream=err_stream, container_id="dummy", fw_path="dummy-path"
+            ),
+            visitor=visitor,
+            preserve_case=True,
+        )
         assert success
         assert empty(err_stream)
-        assert visitor.header == \
-            ['adcid', 'ptid', 'var1', "CAPITALVAR",
-             "var with spaces", "CAPITAL VAR WITH SPACES ",
-             "mixedCase-TestIO-whatever", "3RD"]
+        assert visitor.header == [
+            "adcid",
+            "ptid",
+            "var1",
+            "CAPITALVAR",
+            "var with spaces",
+            "CAPITAL VAR WITH SPACES ",
+            "mixedCase-TestIO-whatever",
+            "3RD",
+        ]
 
     def test_preserve_case_false(self, case_stream):
         """Test preserve case is False."""
         err_stream = StringIO()
         visitor = DummyVisitor()
-        success = read_csv(input_file=case_stream,
-                           error_writer=StreamErrorWriter(
-                               stream=err_stream,
-                               container_id='dummy',
-                               fw_path='dummy-path'),
-                           visitor=visitor,
-                           preserve_case=False)
+        success = read_csv(
+            input_file=case_stream,
+            error_writer=StreamErrorWriter(
+                stream=err_stream, container_id="dummy", fw_path="dummy-path"
+            ),
+            visitor=visitor,
+            preserve_case=False,
+        )
         assert success
         assert empty(err_stream)
-        assert visitor.header == \
-            ['adcid', 'ptid', 'var1', "capitalvar",
-             "var_with_spaces", "capital_var_with_spaces",
-             "mixed_case_test_io_whatever", "3rd"]
+        assert visitor.header == [
+            "adcid",
+            "ptid",
+            "var1",
+            "capitalvar",
+            "var_with_spaces",
+            "capital_var_with_spaces",
+            "mixed_case_test_io_whatever",
+            "3rd",
+        ]
 
     def test_malformed_stream(self, malformed_stream):
         """Test malformed stream."""
         err_stream = StringIO()
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy-path')
-        visitor = CSVFormatterVisitor(output_stream=StringIO(),
-                                      error_writer=error_writer)
-        success = read_csv(input_file=malformed_stream,
-                           error_writer=error_writer,
-                           visitor=visitor)
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy-path"
+        )
+        visitor = CSVFormatterVisitor(
+            output_stream=StringIO(), error_writer=error_writer
+        )
+        success = read_csv(
+            input_file=malformed_stream, error_writer=error_writer, visitor=visitor
+        )
         assert not success
         assert err_stream
         err_stream.seek(0)
-        reader = csv.DictReader(err_stream, dialect='unix')
+        reader = csv.DictReader(err_stream, dialect="unix")
         assert reader.fieldnames
         row = next(reader)
-        assert row['code'] == 'malformed-file'
-        assert row['message'] == (
-            'Malformed input file: Number of columns in line 1 '
-            'do not match with the number of columns in the header row')
+        assert row["code"] == "malformed-file"
+        assert row["message"] == (
+            "Malformed input file: Number of columns in line 1 "
+            "do not match with the number of columns in the header row"
+        )
 
     def test_duplicate_header(self, duplicate_header):
         """Test duplicate header."""
         err_stream = StringIO()
-        error_writer = StreamErrorWriter(stream=err_stream,
-                                         container_id='dummy',
-                                         fw_path='dummy-path')
-        visitor = CSVFormatterVisitor(output_stream=StringIO(),
-                                      error_writer=error_writer)
-        success = read_csv(input_file=duplicate_header,
-                           error_writer=error_writer,
-                           visitor=visitor)
+        error_writer = StreamErrorWriter(
+            stream=err_stream, container_id="dummy", fw_path="dummy-path"
+        )
+        visitor = CSVFormatterVisitor(
+            output_stream=StringIO(), error_writer=error_writer
+        )
+        success = read_csv(
+            input_file=duplicate_header, error_writer=error_writer, visitor=visitor
+        )
         assert not success
         assert err_stream
         err_stream.seek(0)
-        reader = csv.DictReader(err_stream, dialect='unix')
+        reader = csv.DictReader(err_stream, dialect="unix")
         assert reader.fieldnames
         row = next(reader)
-        assert row['code'] == 'malformed-file'
-        assert row['message'] == (
+        assert row["code"] == "malformed-file"
+        assert row["message"] == (
             "Malformed input file: "
             "Duplicate column names ['ptid', 'mode'] detected in the file header"
         )

@@ -3,6 +3,7 @@
 Should be used when starting from centers already created using
 `projects.CenterMappingAdaptor`.
 """
+
 import logging
 import re
 from typing import Dict, List, Optional
@@ -31,21 +32,19 @@ log = logging.getLogger(__name__)
 class CenterGroup(CenterAdaptor):
     """Defines an adaptor for a group representing a center."""
 
-    def __init__(self, *, adcid: int, active: bool, group: flywheel.Group,
-                 proxy: FlywheelProxy) -> None:
+    def __init__(
+        self, *, adcid: int, active: bool, group: flywheel.Group, proxy: FlywheelProxy
+    ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages = [
-            'ingest', 'retrospective', 'sandbox', 'distribution'
-        ]
+        self.__ingest_stages = ["ingest", "retrospective", "sandbox", "distribution"]
         self.__adcid = adcid
         self.__is_active = active
         self.__center_portal: Optional[ProjectAdaptor] = None
         self.__redcap_param_repo: Optional[REDCapParametersRepository] = None
 
     @classmethod
-    def create_from_group(cls, *, proxy: FlywheelProxy,
-                          group: Group) -> 'CenterGroup':
+    def create_from_group(cls, *, proxy: FlywheelProxy, group: Group) -> "CenterGroup":
         """Creates a CenterGroup from either a center or an existing group.
 
         Args:
@@ -54,32 +53,28 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the CenterGroup for created group
         """
-        project = proxy.get_project(group=group, project_label='metadata')
+        project = proxy.get_project(group=group, project_label="metadata")
         if not project:
-            raise CenterError(
-                f"Unable to create center from group {group.label}")
+            raise CenterError(f"Unable to create center from group {group.label}")
 
         metadata_project = ProjectAdaptor(project=project, proxy=proxy)
         metadata_info = metadata_project.get_info()
-        if 'adcid' not in metadata_info:
+        if "adcid" not in metadata_info:
             raise CenterError(
-                f"Expected group {group.label}/metadata.info to have ADCID")
+                f"Expected group {group.label}/metadata.info to have ADCID"
+            )
 
-        adcid = metadata_info['adcid']
-        active = metadata_info.get('active', False)
+        adcid = metadata_info["adcid"]
+        active = metadata_info.get("active", False)
 
-        center_group = CenterGroup(adcid=adcid,
-                                   active=active,
-                                   group=group,
-                                   proxy=proxy)
+        center_group = CenterGroup(adcid=adcid, active=active, group=group, proxy=proxy)
         metadata_project.add_admin_users(center_group.get_user_access())
         center_group.add_center_portal()
 
         return center_group
 
     @classmethod
-    def create_from_group_adaptor(cls, *,
-                                  adaptor: GroupAdaptor) -> 'CenterGroup':
+    def create_from_group_adaptor(cls, *, adaptor: GroupAdaptor) -> "CenterGroup":
         """Creates a CenterGroup from a GroupAdaptor.
 
         Args:
@@ -89,15 +84,16 @@ class CenterGroup(CenterAdaptor):
           the CenterGroup for the group
         """
         # pylint: disable=protected-access
-        return CenterGroup.create_from_group(proxy=adaptor.proxy(),
-                                             group=adaptor.group)
+        return CenterGroup.create_from_group(proxy=adaptor.proxy(), group=adaptor.group)
 
     @classmethod
-    def create_from_center(cls,
-                           *,
-                           proxy: FlywheelProxy,
-                           center: CenterInfo,
-                           tags: Optional[List[str]] = None) -> 'CenterGroup':
+    def create_from_center(
+        cls,
+        *,
+        proxy: FlywheelProxy,
+        center: CenterInfo,
+        tags: Optional[List[str]] = None,
+    ) -> "CenterGroup":
         """Creates a CenterGroup from a center object.
 
         Args:
@@ -114,7 +110,8 @@ class CenterGroup(CenterAdaptor):
             adcid=center.adcid,
             active=center.active,  # type: ignore
             group=group,
-            proxy=proxy)
+            proxy=proxy,
+        )
 
         # handle tags
         if tags is None:
@@ -128,16 +125,13 @@ class CenterGroup(CenterAdaptor):
         metadata_project = center_group.get_metadata()
         assert metadata_project, "expecting metadata project"
         metadata_project.add_admin_users(center_group.get_user_access())
-        metadata_project.update_info({
-            'adcid': center.adcid,
-            'active': center.active
-        })
+        metadata_project.update_info({"adcid": center.adcid, "active": center.active})
 
         center_group.add_center_portal()
         return center_group
 
     @classmethod
-    def get_center_group(cls, *, adaptor: GroupAdaptor) -> 'CenterGroup':
+    def get_center_group(cls, *, adaptor: GroupAdaptor) -> "CenterGroup":
         """Returns the CenterGroup for an existing Flywheel Group.
 
         Args:
@@ -151,24 +145,23 @@ class CenterGroup(CenterAdaptor):
         """
         group = adaptor.group
         proxy = adaptor.proxy()
-        meta_project = group.projects.find_first('label=metadata')
+        meta_project = group.projects.find_first("label=metadata")
         if not meta_project:
             raise CenterError(
-                f"Unable to find metadata project for group {group.label}")
+                f"Unable to find metadata project for group {group.label}"
+            )
 
         meta_project = meta_project.reload()
         metadata_info = meta_project.info
-        if 'adcid' not in metadata_info:
+        if "adcid" not in metadata_info:
             raise CenterError(
-                f"Expected group {group.label}/metadata.info to have ADCID")
+                f"Expected group {group.label}/metadata.info to have ADCID"
+            )
 
-        adcid = metadata_info['adcid']
-        active = metadata_info.get('active', False)
+        adcid = metadata_info["adcid"]
+        active = metadata_info.get("active", False)
 
-        center_group = CenterGroup(adcid=adcid,
-                                   active=active,
-                                   group=group,
-                                   proxy=proxy)
+        center_group = CenterGroup(adcid=adcid, active=active, group=group, proxy=proxy)
         center_group.add_center_portal()
 
         return center_group
@@ -192,7 +185,8 @@ class CenterGroup(CenterAdaptor):
         pattern = re.compile(rf"^{prefix}")
         return [
             ProjectAdaptor(project=project, proxy=self.proxy())
-            for project in self.projects() if pattern.match(project.label)
+            for project in self.projects()
+            if pattern.match(project.label)
         ]
 
     def get_ingest_projects(self) -> List[ProjectAdaptor]:
@@ -213,7 +207,7 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the project labeled 'accepted', None if there is none
         """
-        projects = self.get_matching_projects('accepted')
+        projects = self.get_matching_projects("accepted")
         if not projects:
             return None
 
@@ -251,8 +245,7 @@ class CenterGroup(CenterAdaptor):
         for stage in self.__ingest_stages:
             projects = self.get_matching_projects(f"{stage}-")
             for project in projects:
-                datatype = CenterGroup.get_datatype(stage=stage,
-                                                    label=project.label)
+                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
                 if datatype:
                     datatypes.append(datatype)
         self.__datatypes = list(set(datatypes))
@@ -260,8 +253,8 @@ class CenterGroup(CenterAdaptor):
         return self.__datatypes
 
     def apply_to_ingest(
-            self, *, stage: str,
-            template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
+        self, *, stage: str, template_map: Dict[str, Dict[str, TemplateProject]]
+    ) -> None:
         """Applies the templates to the ingest stage projects in group.
 
         Expects that project labels match pattern
@@ -274,23 +267,25 @@ class CenterGroup(CenterAdaptor):
         """
         ingest_projects = self.get_matching_projects(f"{stage}-")
         if not ingest_projects:
-            log.warning('no ingest stage projects for group %s', self.label)
+            log.warning("no ingest stage projects for group %s", self.label)
             return
 
         for project in ingest_projects:
-            datatype = CenterGroup.get_datatype(stage=stage,
-                                                label=project.label)
+            datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
             if not datatype:
-                log.info('ingest project %s has no datatype', project.label)
+                log.info("ingest project %s has no datatype", project.label)
                 continue
 
-            self.__apply_to(stage=stage,
-                            template_map=template_map,
-                            project=project,
-                            datatype=datatype)
+            self.__apply_to(
+                stage=stage,
+                template_map=template_map,
+                project=project,
+                datatype=datatype,
+            )
 
     def apply_to_accepted(
-            self, template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
+        self, template_map: Dict[str, Dict[str, TemplateProject]]
+    ) -> None:
         """Applies the templates in the map to the accepted project in the
         group.
 
@@ -299,21 +294,27 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
-        stage = 'accepted'
+        stage = "accepted"
         accepted_projects = self.get_matching_projects(stage)
         if not accepted_projects:
-            log.warning('no accepted stage project in center group %s',
-                        self.label)
+            log.warning("no accepted stage project in center group %s", self.label)
             return
 
-        self.__apply_to(template_map=template_map,
-                        project=accepted_projects[0],
-                        stage=stage,
-                        datatype='all')
+        self.__apply_to(
+            template_map=template_map,
+            project=accepted_projects[0],
+            stage=stage,
+            datatype="all",
+        )
 
-    def __apply_to(self, *, template_map: Dict[str, Dict[str,
-                                                         TemplateProject]],
-                   project: ProjectAdaptor, stage: str, datatype: str):
+    def __apply_to(
+        self,
+        *,
+        template_map: Dict[str, Dict[str, TemplateProject]],
+        project: ProjectAdaptor,
+        stage: str,
+        datatype: str,
+    ):
         """Applies the template map to the project for stage and datatype.
 
         Args:
@@ -326,16 +327,19 @@ class CenterGroup(CenterAdaptor):
         if stage_map:
             template_project = stage_map.get(stage)
             if template_project:
-                template_project.copy_to(project,
-                                         value_map={
-                                             'adrc': self.label,
-                                             'adcid': str(self.adcid),
-                                             'project_id': project.id,
-                                             'site': self.proxy().get_site()
-                                         })
+                template_project.copy_to(
+                    project,
+                    value_map={
+                        "adrc": self.label,
+                        "adcid": str(self.adcid),
+                        "project_id": project.id,
+                        "site": self.proxy().get_site(),
+                    },
+                )
 
     def apply_template_map(
-            self, template_map: Dict[str, Dict[str, TemplateProject]]) -> None:
+        self, template_map: Dict[str, Dict[str, TemplateProject]]
+    ) -> None:
         """Applies the template map to the pipeline projects within the center
         group.
 
@@ -359,13 +363,15 @@ class CenterGroup(CenterAdaptor):
 
         projects = self.get_matching_projects(prefix_pattern)
         for project in projects:
-            template.copy_to(project,
-                             value_map={
-                                 'adrc': self.label,
-                                 'adcid': str(self.adcid),
-                                 'project_id': project.id,
-                                 'site': self.proxy().get_site()
-                             })
+            template.copy_to(
+                project,
+                value_map={
+                    "adrc": self.label,
+                    "adcid": str(self.adcid),
+                    "project_id": project.id,
+                    "site": self.proxy().get_site(),
+                },
+            )
 
     def get_portal(self) -> ProjectAdaptor:
         """Returns the center-portal project.
@@ -374,16 +380,16 @@ class CenterGroup(CenterAdaptor):
           The center-portal project
         """
         if not self.__center_portal:
-            self.__center_portal = self.get_project('center-portal')
+            self.__center_portal = self.get_project("center-portal")
             assert self.__center_portal, "expecting center-portal project"
 
         return self.__center_portal
 
     def add_center_portal(self) -> None:
         """Adds a center portal project to this group."""
-        self.add_project('center-portal')
+        self.add_project("center-portal")
 
-    def add_redcap_project(self, redcap_project: 'REDCapProjectInput') -> None:
+    def add_redcap_project(self, redcap_project: "REDCapProjectInput") -> None:
         """Adds the REDCap project to the center group.
 
         Args:
@@ -392,21 +398,28 @@ class CenterGroup(CenterAdaptor):
         project_info = self.get_project_info()
         study_info = project_info.studies.get(redcap_project.study_id, None)
         if not study_info:
-            log.warning('no study info for study %s in center %s',
-                        redcap_project.study_id, self.label)
+            log.warning(
+                "no study info for study %s in center %s",
+                redcap_project.study_id,
+                self.label,
+            )
             return
 
         ingest_project = study_info.get_ingest(redcap_project.project_label)
         if not ingest_project:
-            log.warning('no ingest project for study %s in center %s',
-                        redcap_project.study_id, self.label)
+            log.warning(
+                "no ingest project for study %s in center %s",
+                redcap_project.study_id,
+                self.label,
+            )
             return
 
         if isinstance(ingest_project, FormIngestProjectMetadata):
             form_ingest_project = ingest_project  # get any existing redcap metadata
         else:
             form_ingest_project = FormIngestProjectMetadata.create_from_ingest(
-                ingest_project)
+                ingest_project
+            )
 
         for form_project in redcap_project.projects:
             form_ingest_project.add(form_project)
@@ -415,7 +428,7 @@ class CenterGroup(CenterAdaptor):
         project_info.add(study_info)
         self.update_project_info(project_info)
 
-    def get_project_info(self) -> 'CenterProjectMetadata':
+    def get_project_info(self) -> "CenterProjectMetadata":
         """Gets the portal info for this center.
 
         Returns:
@@ -425,25 +438,25 @@ class CenterGroup(CenterAdaptor):
         """
         metadata_project = self.get_metadata()
         if not metadata_project:
-            log.error('no metadata project for %s, cannot get info',
-                      self.label)
+            log.error("no metadata project for %s, cannot get info", self.label)
             raise CenterError(f"no metadata project for {self.label}")
 
         info = metadata_project.get_info()
         if not info:
             return CenterProjectMetadata(studies={})
 
-        if 'studies' not in info:
+        if "studies" not in info:
             return CenterProjectMetadata(studies={})
 
         try:
             return CenterProjectMetadata.model_validate(info)
         except ValidationError as error:
-            raise CenterError(f"Info in {self.label}/{metadata_project.label}"
-                              " does not match expected format") from error
+            raise CenterError(
+                f"Info in {self.label}/{metadata_project.label}"
+                " does not match expected format"
+            ) from error
 
-    def update_project_info(self,
-                            project_info: 'CenterProjectMetadata') -> None:
+    def update_project_info(self, project_info: "CenterProjectMetadata") -> None:
         """Updates the portal info for this center.
 
         Args:
@@ -451,12 +464,12 @@ class CenterGroup(CenterAdaptor):
         """
         metadata_project = self.get_metadata()
         if not metadata_project:
-            log.error('no metadata project for %s, cannot update info',
-                      self.label)
+            log.error("no metadata project for %s, cannot update info", self.label)
             return
 
         metadata_project.update_info(
-            project_info.model_dump(by_alias=True, exclude_none=True))
+            project_info.model_dump(by_alias=True, exclude_none=True)
+        )
 
     def add_project(self, label: str) -> ProjectAdaptor:
         """Adds a project with the label to this group and returns the
@@ -475,9 +488,13 @@ class CenterGroup(CenterAdaptor):
         project.add_admin_users(self.get_user_access())
         return project
 
-    def add_user_roles(self, user: User, auth_email: str,
-                       authorizations: Authorizations,
-                       auth_map: AuthMap) -> None:
+    def add_user_roles(
+        self,
+        user: User,
+        auth_email: str,
+        authorizations: Authorizations,
+        auth_map: AuthMap,
+    ) -> None:
         """Adds user to authorized projects in the center group and to any
         associated NACC REDCap projects for data entry.
 
@@ -493,8 +510,11 @@ class CenterGroup(CenterAdaptor):
         portal_info = self.get_project_info()
         study_info = portal_info.studies.get(authorizations.study_id, None)
         if not study_info:
-            log.warning('No study info for study %s in center %s',
-                        authorizations.study_id, self.label)
+            log.warning(
+                "No study info for study %s in center %s",
+                authorizations.study_id,
+                self.label,
+            )
             return
 
         accepted_project = study_info.accepted_project
@@ -503,50 +523,70 @@ class CenterGroup(CenterAdaptor):
                 user=user,
                 project_id=accepted_project.project_id,
                 auth_map=auth_map,
-                authorizations=authorizations)
+                authorizations=authorizations,
+            )
 
         ingest_projects = study_info.ingest_projects
-        log.info('Adding user to %s ingest projects', len(ingest_projects))
+        log.info("Adding user to %s ingest projects", len(ingest_projects))
         for project in ingest_projects.values():
-            self.__add_user_roles_to_project(user=user,
-                                             project_id=project.project_id,
-                                             auth_map=auth_map,
-                                             authorizations=authorizations)
+            self.__add_user_roles_to_project(
+                user=user,
+                project_id=project.project_id,
+                auth_map=auth_map,
+                authorizations=authorizations,
+            )
             # Above method returns False when no change in permissions
             # TODO - fix that and add to REDCap if only above successful
 
             if not isinstance(project, FormIngestProjectMetadata):
                 log.info(
-                    'Skipping ingest project %s/%s/%s, no linked REDCap project.',
-                    authorizations.study_id, self.label, project.project_label)
+                    "Skipping ingest project %s/%s/%s, no linked REDCap project.",
+                    authorizations.study_id,
+                    self.label,
+                    project.project_label,
+                )
                 continue
 
             # If user added successfully, add the user to REDCap project (if any)
-            log.info('Setting REDCap permissions for ingest project %s/%s/%s',
-                     authorizations.study_id, self.label,
-                     project.project_label)
-            self.__add_user_to_redcap_project(user=user,
-                                              auth_email=auth_email,
-                                              form_ingest_project=project,
-                                              authorizations=authorizations)
+            log.info(
+                "Setting REDCap permissions for ingest project %s/%s/%s",
+                authorizations.study_id,
+                self.label,
+                project.project_label,
+            )
+            self.__add_user_to_redcap_project(
+                user=user,
+                auth_email=auth_email,
+                form_ingest_project=project,
+                authorizations=authorizations,
+            )
 
         metadata_project = self.get_metadata()
         if metadata_project:
-            self.__add_user_roles_to_project(user=user,
-                                             project_id=metadata_project.id,
-                                             auth_map=auth_map,
-                                             authorizations=authorizations)
+            self.__add_user_roles_to_project(
+                user=user,
+                project_id=metadata_project.id,
+                auth_map=auth_map,
+                authorizations=authorizations,
+            )
 
         center_portal = self.get_portal()
         if center_portal:
-            self.__add_user_roles_to_project(user=user,
-                                             project_id=center_portal.id,
-                                             auth_map=auth_map,
-                                             authorizations=authorizations)
+            self.__add_user_roles_to_project(
+                user=user,
+                project_id=center_portal.id,
+                auth_map=auth_map,
+                authorizations=authorizations,
+            )
 
-    def __add_user_roles_to_project(self, *, user: User, project_id: str,
-                                    authorizations: Authorizations,
-                                    auth_map: AuthMap) -> bool:
+    def __add_user_roles_to_project(
+        self,
+        *,
+        user: User,
+        project_id: str,
+        authorizations: Authorizations,
+        auth_map: AuthMap,
+    ) -> bool:
         """Adds user to the project with the role.
 
         Args:
@@ -564,11 +604,16 @@ class CenterGroup(CenterAdaptor):
         if not project:
             return False
 
-        role_set = auth_map.get(project_label=project.label,
-                                authorizations=authorizations)
+        role_set = auth_map.get(
+            project_label=project.label, authorizations=authorizations
+        )
         if not role_set:
-            log.warning('No roles found for user %s in project %s/%s', user.id,
-                        self.id, project.label)
+            log.warning(
+                "No roles found for user %s in project %s/%s",
+                user.id,
+                self.id,
+                project.label,
+            )
             return False
 
         role_map = self._fw.get_roles()
@@ -578,14 +623,18 @@ class CenterGroup(CenterAdaptor):
             if role:
                 roles.append(role)
             else:
-                log.warning('No role %s found', role_name)
+                log.warning("No role %s found", role_name)
 
         return project.add_user_roles(user=user, roles=roles)
 
     def __add_user_to_redcap_project(
-            self, *, user: User, auth_email: str,
-            form_ingest_project: 'FormIngestProjectMetadata',
-            authorizations: Authorizations) -> bool:
+        self,
+        *,
+        user: User,
+        auth_email: str,
+        form_ingest_project: "FormIngestProjectMetadata",
+        authorizations: Authorizations,
+    ) -> bool:
         """Adds user to the respective REDCap project for direct data entry.
 
         Args:
@@ -599,13 +648,14 @@ class CenterGroup(CenterAdaptor):
         """
 
         if not self.__redcap_param_repo:
-            log.warning('REDCap project repository not found in center %s',
-                        self.label)
+            log.warning("REDCap project repository not found in center %s", self.label)
             return False
 
         if not form_ingest_project.redcap_projects:
-            log.warning('REDCap project metadata not available for %s',
-                        form_ingest_project.project_label)
+            log.warning(
+                "REDCap project metadata not available for %s",
+                form_ingest_project.project_label,
+            )
             return False
 
         activities = authorizations.get_activities()
@@ -615,33 +665,39 @@ class CenterGroup(CenterAdaptor):
             submission_type = redcap_metadata.get_submission_type()
             # User doesn't have submission privileges for this module
             if submission_type not in activities:
-                log.info('Skipping %s due to insufficient user permissions %s',
-                         submission_type, activities)
+                log.info(
+                    "Skipping %s due to insufficient user permissions %s",
+                    submission_type,
+                    activities,
+                )
                 continue
 
             redcap_project = self.__redcap_param_repo.get_redcap_project(
-                redcap_metadata.redcap_pid)
+                redcap_metadata.redcap_pid
+            )
 
             if not redcap_project:
-                log.error('No REDCap project %s found',
-                          redcap_metadata.redcap_pid)
+                log.error("No REDCap project %s found", redcap_metadata.redcap_pid)
                 success = False
                 continue
 
             if not redcap_project.assign_update_user_role_by_label(
-                    auth_email, REDCapRoles.CENTER_USER_ROLE):
+                auth_email, REDCapRoles.CENTER_USER_ROLE
+            ):
                 success = False
                 continue
 
             log.info(
-                'User %s (%s) is assigned %s permissions in REDCap project %s',
-                user.email, auth_email, REDCapRoles.CENTER_USER_ROLE,
-                redcap_project.title)
+                "User %s (%s) is assigned %s permissions in REDCap project %s",
+                user.email,
+                auth_email,
+                REDCapRoles.CENTER_USER_ROLE,
+                redcap_project.title,
+            )
 
         return success
 
-    def set_redcap_param_repo(self,
-                              redcap_param_repo: REDCapParametersRepository):
+    def set_redcap_param_repo(self, redcap_param_repo: REDCapParametersRepository):
         self.__redcap_param_repo = redcap_param_repo
 
 
@@ -671,9 +727,12 @@ class ProjectMetadata(BaseModel):
 
     Dump with by_alias and exclude_none set to True.
     """
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case),
-                              extra='forbid')
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=AliasGenerator(alias=kebab_case),
+        extra="forbid",
+    )
 
     study_id: str
     project_id: str
@@ -682,28 +741,32 @@ class ProjectMetadata(BaseModel):
 
 class DistributionProjectMetadata(ProjectMetadata):
     """Metadata for a distribution project of a center."""
+
     datatype: str
 
 
 class IngestProjectMetadata(ProjectMetadata):
     """Metadata for an ingest project of a center."""
+
     datatype: str
 
 
 class REDCapFormProjectMetadata(BaseModel):
     """Metadata for a REDCap form project."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     redcap_pid: int
     label: str
     report_id: Optional[int] = None
 
     def is_enrollment(self) -> bool:
-        return (self.label.upper() == DefaultValues.ENROLLMENT_MODULE)
+        return self.label.upper() == DefaultValues.ENROLLMENT_MODULE
 
     def get_submission_type(self) -> str:
-        datatype = 'enrollment' if self.is_enrollment() else 'form'
+        datatype = "enrollment" if self.is_enrollment() else "form"
 
         return f"submit-{datatype}"
 
@@ -715,11 +778,13 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
     a center. It inherits from the IngestProjectMetadata class and adds
     additional attributes specific to form ingest projects.
     """
+
     redcap_projects: Dict[str, REDCapFormProjectMetadata] = {}
 
     @classmethod
     def create_from_ingest(
-            cls, ingest: IngestProjectMetadata) -> 'FormIngestProjectMetadata':
+        cls, ingest: IngestProjectMetadata
+    ) -> "FormIngestProjectMetadata":
         """Creates a FormIngestProjectMetadata from an IngestProjectMetadata.
 
         Args:
@@ -727,10 +792,12 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         Returns:
             the FormIngestProjectMetadata for the ingest project
         """
-        return FormIngestProjectMetadata(study_id=ingest.study_id,
-                                         project_id=ingest.project_id,
-                                         project_label=ingest.project_label,
-                                         datatype=ingest.datatype)
+        return FormIngestProjectMetadata(
+            study_id=ingest.study_id,
+            project_id=ingest.project_id,
+            project_label=ingest.project_label,
+            datatype=ingest.datatype,
+        )
 
     def add(self, redcap_project: REDCapFormProjectMetadata) -> None:
         """Adds the REDCap project to the form ingest project metadata.
@@ -753,13 +820,14 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
 
 class StudyMetadata(BaseModel):
     """Metadata for study details within a participating center."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     study_id: str
     study_name: str
-    ingest_projects: Dict[str, (IngestProjectMetadata
-                                | FormIngestProjectMetadata)] = {}
+    ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
 
@@ -800,7 +868,8 @@ class StudyMetadata(BaseModel):
         self.distribution_projects[project.project_label] = project
 
     def get_distribution(
-            self, project_label: str) -> Optional[DistributionProjectMetadata]:
+        self, project_label: str
+    ) -> Optional[DistributionProjectMetadata]:
         """Gets the distribution project metadata for the project label.
 
         Args:
@@ -814,6 +883,7 @@ class StudyMetadata(BaseModel):
 
 class CenterProjectMetadata(BaseModel):
     """Metadata to be stored in center portal project."""
+
     studies: Dict[str, StudyMetadata]
 
     def add(self, study: StudyMetadata) -> None:
@@ -841,16 +911,17 @@ class CenterProjectMetadata(BaseModel):
         if study_info:
             return study_info
 
-        study_info = StudyMetadata(study_id=study.study_id,
-                                   study_name=study.name)
+        study_info = StudyMetadata(study_id=study.study_id, study_name=study.name)
         self.add(study_info)
         return study_info
 
 
 class REDCapProjectInput(BaseModel):
     """Metadata for REDCap project details."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     center_id: str
     study_id: str
@@ -884,8 +955,10 @@ class REDCapModule(BaseModel):
     title: REDCap project title (this will be prefixed with center name)
     template[Optional]: XML template filename prefix (if different from label)
     """
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
     label: str
     title: str
     template: Optional[str] = None
@@ -893,16 +966,20 @@ class REDCapModule(BaseModel):
 
 class REDCapProjectMapping(BaseModel):
     """List of REDCap projects associated with a Flywheel project."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
     project_label: str
     modules: List[REDCapModule]
 
 
 class StudyREDCapMetadata(BaseModel):
     """REDCap project info associated with a study."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
     study_id: str
     centers: List[str]
     projects: List[REDCapProjectMapping]

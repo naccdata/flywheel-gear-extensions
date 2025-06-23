@@ -6,6 +6,7 @@ Baseline is a dict mapping each NACCID to a list of dicts containing the
 QAF derived values for a given form/visit (e.g. any fields that start
 with NACC or key values such as as visit date.)
 """
+
 import ast  # type: ignore
 import logging
 from typing import Any, Dict, MutableMapping
@@ -26,9 +27,12 @@ log = logging.getLogger(__name__)
 class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
-    def __init__(self, qaf_baseline: MutableMapping,
-                 mqt_baseline: MutableMapping,
-                 error_writer: ListErrorWriter) -> None:
+    def __init__(
+        self,
+        qaf_baseline: MutableMapping,
+        mqt_baseline: MutableMapping,
+        error_writer: ListErrorWriter,
+    ) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
         self.__mqt_baseline = SymbolTable(mqt_baseline)
@@ -45,25 +49,22 @@ class RegressionCurator(Curator):
             False if they are not both lists or still do not match
         """
         # check if they look like lists just based on brackets
-        if not all(
-                x.startswith('[') and x.endswith(']')
-                for x in [value, expected]):
+        if not all(x.startswith("[") and x.endswith("]") for x in [value, expected]):
             return False
 
         # try to literal_eval as lists, and check they are in fact lists
         expected_as_list = ast.literal_eval(expected)
         value_as_list = ast.literal_eval(value)
 
-        if not all(
-                isinstance(x, list)
-                for x in [value_as_list, expected_as_list]):
+        if not all(isinstance(x, list) for x in [value_as_list, expected_as_list]):
             return False
 
         # compare as sets
         return set(value_as_list) == set(expected_as_list)
 
-    def compare_baseline(self, found_vars: Dict[str, Any],
-                         record: Dict[str, Any], prefix: str) -> None:
+    def compare_baseline(
+        self, found_vars: Dict[str, Any], record: Dict[str, Any], prefix: str
+    ) -> None:
         """Compare derived/curated variables to the baseline. Assumes both
         found_vars and record are flat dicts.
 
@@ -92,25 +93,34 @@ class RegressionCurator(Curator):
 
             value = str(value)
             expected = str(record[field])
-            result = (value == expected) or self.compare_as_lists(
-                value, expected)
+            result = (value == expected) or self.compare_as_lists(value, expected)
 
             if not result:
                 identifier = record["naccid"]
-                if prefix.startswith('file'):
+                if prefix.startswith("file"):
                     identifier = f"{identifier} {record['visitdate']}"
 
-                msg = (f"{identifier} field {field}: found value {value} " +
-                       f"does not match baseline value {expected}")
+                msg = (
+                    f"{identifier} field {field}: found value {value} "
+                    + f"does not match baseline value {expected}"
+                )
                 log.info(msg)
                 self.__error_writer.write(
-                    unexpected_value_error(field=f'{prefix}.{field}',
-                                           value=value,
-                                           expected=expected,
-                                           message=msg))
+                    unexpected_value_error(
+                        field=f"{prefix}.{field}",
+                        value=value,
+                        expected=expected,
+                        message=msg,
+                    )
+                )
 
-    def execute(self, subject: Subject, file_entry: FileEntry,
-                table: SymbolTable, scope: ScopeLiterals) -> None:
+    def execute(
+        self,
+        subject: Subject,
+        file_entry: FileEntry,
+        table: SymbolTable,
+        scope: ScopeLiterals,
+    ) -> None:
         """Perform contents of curation. Assumes UDS data.
 
         Args:
@@ -120,15 +130,15 @@ class RegressionCurator(Curator):
             scope: The scope of the file being curated
         """
         # skip if not UDS, no derived variables, or no visitdate found
-        if scope != 'uds':
+        if scope != "uds":
             log.info(f"{file_entry.name} is a not an UDS form, skipping")
             return
 
-        derived_vars = table.get('file.info.derived', None)
-        if (not derived_vars or not any(x.lower().startswith('nacc')
-                                        for x in derived_vars)):
-            log.info(
-                f"No derived variables found for {file_entry.name}, skipping")
+        derived_vars = table.get("file.info.derived", None)
+        if not derived_vars or not any(
+            x.lower().startswith("nacc") for x in derived_vars
+        ):
+            log.info(f"No derived variables found for {file_entry.name}, skipping")
             return
 
         visitdate = table.get("file.info.forms.json.visitdate")
@@ -137,25 +147,29 @@ class RegressionCurator(Curator):
             return
 
         # ensure in QAF baseline - if not affiliate, report error
-        key = f'{subject.label}_{visitdate}'
+        key = f"{subject.label}_{visitdate}"
         record = self.__qaf_baseline.get(key)
         if not record:
-            if 'affiliate' in subject.tags:
+            if "affiliate" in subject.tags:
                 log.info(f"{subject.label} is an affiliate, skipping")
                 return
 
-            msg = (f"Could not find matching record for {file_entry.name} " +
-                   f"in QAF baseline file with NACCID and visitdate: {key}")
+            msg = (
+                f"Could not find matching record for {file_entry.name} "
+                + f"in QAF baseline file with NACCID and visitdate: {key}"
+            )
             log.warning(msg)
             self.__error_writer.write(
                 unexpected_value_error(
-                    field='naccid',
+                    field="naccid",
                     value=None,  # type: ignore
                     expected=key,
-                    message=msg))
+                    message=msg,
+                )
+            )
             return
 
-        self.compare_baseline(derived_vars, record, prefix='file.info.derived')
+        self.compare_baseline(derived_vars, record, prefix="file.info.derived")
 
     @api_retry
     def pre_process(self, subject: Subject) -> None:
@@ -178,13 +192,15 @@ class RegressionCurator(Curator):
 
             self.__error_writer.write(
                 unexpected_value_error(
-                    field='subject.label',
+                    field="subject.label",
                     value=None,  # type: ignore
                     expected=subject.label,
-                    message=msg))
+                    message=msg,
+                )
+            )
             return
 
         record = self.__mqt_baseline[subject.label]
         found_vars = flatten_dict(subject.info)
 
-        self.compare_baseline(found_vars, record, prefix='subject.info')
+        self.compare_baseline(found_vars, record, prefix="subject.info")

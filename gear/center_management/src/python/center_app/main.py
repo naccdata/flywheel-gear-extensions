@@ -12,8 +12,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 log = logging.getLogger(__name__)
 
 
-def get_project_roles(flywheel_proxy,
-                      role_names: List[str]) -> List[GroupRole]:
+def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
     """Get the named roles.
 
     Returns all roles matching a name in the list.
@@ -30,16 +29,18 @@ def get_project_roles(flywheel_proxy,
         if role:
             role_list.append(GroupRole(id=role.id))
         else:
-            log.warning('no such role %s', name)
+            log.warning("no such role %s", name)
     return role_list
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        admin_group: NACCGroup,
-        center_map: Dict[CenterInfo, List[str]],
-        role_names: List[str],
-        new_only: bool = False):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    admin_group: NACCGroup,
+    center_map: Dict[CenterInfo, List[str]],
+    role_names: List[str],
+    new_only: bool = False,
+):
     """Runs center creation/management.
 
     Args:
@@ -52,15 +53,17 @@ def run(*,
     center_roles = get_project_roles(proxy, role_names)
 
     for center, tags in center_map.items():
-        if new_only and 'new-center' not in tags:
-            log.info(f"new_only set to True and {center.name} does not " +
-                     "have `new-center` tag, skipping")
+        if new_only and "new-center" not in tags:
+            log.info(
+                f"new_only set to True and {center.name} does not "
+                + "have `new-center` tag, skipping"
+            )
             continue
 
         try:
-            center_group = CenterGroup.create_from_center(center=center,
-                                                          tags=tags,
-                                                          proxy=proxy)
+            center_group = CenterGroup.create_from_center(
+                center=center, tags=tags, proxy=proxy
+            )
         except FlywheelError as error:
             log.warning("Unable to create center: %s", str(error))
             continue

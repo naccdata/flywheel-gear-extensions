@@ -24,9 +24,14 @@ log = logging.getLogger(__name__)
 class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
     """Visitor for the Gather Submission Status gear."""
 
-    def __init__(self, client: ClientWrapper, admin_id: str,
-                 file_input: InputFileWrapper, output_filename: str,
-                 gear_name: str):
+    def __init__(
+        self,
+        client: ClientWrapper,
+        admin_id: str,
+        file_input: InputFileWrapper,
+        output_filename: str,
+        gear_name: str,
+    ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
@@ -37,8 +42,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'GatherSubmissionStatusVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "GatherSubmissionStatusVisitor":
         """Creates a Gather Submission Status execution visitor.
 
         Args:
@@ -50,22 +55,20 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
 
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
-        file_input = InputFileWrapper.create(input_name="input_file",
-                                             context=context)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        output_filename = context.config.get("output_file",
-                                             "submission-status.csv")
-        admin_id = context.config.get("admin_group",
-                                      DefaultValues.NACC_GROUP_ID)
+        output_filename = context.config.get("output_file", "submission-status.csv")
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         gear_name = context.manifest.get("name", "gather-submission-status")
-        return GatherSubmissionStatusVisitor(client=client,
-                                             file_input=file_input,
-                                             output_filename=output_filename,
-                                             admin_id=admin_id,
-                                             gear_name=gear_name)
+        return GatherSubmissionStatusVisitor(
+            client=client,
+            file_input=file_input,
+            output_filename=output_filename,
+            admin_id=admin_id,
+            gear_name=gear_name,
+        )
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the gather-submission-status app.
@@ -77,27 +80,33 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         input_path = Path(self.__file_input.filepath)
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
             file_id = self.__file_input.file_id
-            error_writer = ListErrorWriter(container_id=file_id,
-                                           fw_path=self.proxy.get_lookup_path(
-                                               self.proxy.get_file(file_id)))
+            error_writer = ListErrorWriter(
+                container_id=file_id,
+                fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
+            )
 
             admin_group = self.admin_group(admin_id=self.__admin_id)
-            with context.open_output(self.__output_filename,
-                                     mode="w",
-                                     encoding="utf-8") as status_file:
-                success = run(proxy=self.proxy,
-                              input_file=csv_file,
-                              admin_group=admin_group,
-                              error_writer=error_writer,
-                              output_file=status_file)
+            with context.open_output(
+                self.__output_filename, mode="w", encoding="utf-8"
+            ) as status_file:
+                success = run(
+                    proxy=self.proxy,
+                    input_file=csv_file,
+                    admin_group=admin_group,
+                    error_writer=error_writer,
+                    output_file=status_file,
+                )
 
-            context.metadata.add_qc_result(self.__file_input.file_input,
-                                           name="validation",
-                                           state="PASS" if success else "FAIL",
-                                           data=error_writer.errors())
+            context.metadata.add_qc_result(
+                self.__file_input.file_input,
+                name="validation",
+                state="PASS" if success else "FAIL",
+                data=error_writer.errors(),
+            )
 
-            context.metadata.add_file_tags(self.__file_input.file_input,
-                                           tags=self.__gear_name)
+            context.metadata.add_file_tags(
+                self.__file_input.file_input, tags=self.__gear_name
+            )
 
 
 def main():

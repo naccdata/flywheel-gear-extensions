@@ -23,9 +23,9 @@ from pydantic import BaseModel, ValidationError, field_serializer, field_validat
 
 log = logging.getLogger(__name__)
 
-Modality = Literal['UDS', 'FTLD', 'LBD']
-Study = Literal['adrc', 'dvcid', 'leads']
-QCStatus = Literal['pass', 'fail']
+Modality = Literal["UDS", "FTLD", "LBD"]
+Study = Literal["adrc", "dvcid", "leads"]
+QCStatus = Literal["pass", "fail"]
 
 
 def create_status_view(modalities: List[Modality]) -> DataView:
@@ -43,14 +43,14 @@ def create_status_view(modalities: List[Modality]) -> DataView:
         columns=[
             ColumnModel(data_key="file.name", label="filename"),
             ColumnModel(data_key="file.file_id", label="file_id"),
-            ColumnModel(data_key="file.parents.acquisition",
-                        label="acquisition_id"),
+            ColumnModel(data_key="file.parents.acquisition", label="acquisition_id"),
             ColumnModel(data_key="file.parents.subject", label="subject_id"),
             ColumnModel(data_key="file.modified", label="modified_date"),
         ],
-        container='acquisition',
+        container="acquisition",
         filter_str=f"acquisition.label=[{','.join(modalities)}]",
-        missing_data_strategy='none')
+        missing_data_strategy="none",
+    )
     return builder.build()
 
 
@@ -60,6 +60,7 @@ class StatusModel(BaseModel):
     Note: `qc_status` field is not part of the dataview and must
     be set separately.
     """
+
     filename: str
     file_id: str
     acquisition_id: str
@@ -70,9 +71,10 @@ class StatusModel(BaseModel):
 
 class StatusResponseModel(BaseModel):
     """Response model for dataview, which is a list of StatusModel objects."""
+
     data: List[StatusModel]
 
-    @field_validator("data", mode='before')
+    @field_validator("data", mode="before")
     def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Remove any rows that are completely empty, which can happen if the
         filename pattern does not match.
@@ -82,13 +84,12 @@ class StatusResponseModel(BaseModel):
         Returns:
             Trimmed data
         """
-        return [
-            row for row in data if any(x is not None for x in row.values())
-        ]
+        return [row for row in data if any(x is not None for x in row.values())]
 
 
 class StatusError(Exception):
     """Exception for status filter."""
+
     pass
 
 
@@ -100,8 +101,9 @@ class StatusFilter:
         self.__proxy = proxy
         self.__writer = writer
 
-    def gather_status(self, subject: SubjectAdaptor,
-                      modalities: List[Modality]) -> None:
+    def gather_status(
+        self, subject: SubjectAdaptor, modalities: List[Modality]
+    ) -> None:
         """Gathers submission status details for acquisitions with the
         modalities associated with the subject.
 
@@ -119,8 +121,7 @@ class StatusFilter:
         response = self.__proxy.read_view_data(view, subject.id)
         response_data = response.read()
         try:
-            response_model = StatusResponseModel.model_validate_json(
-                response_data)
+            response_model = StatusResponseModel.model_validate_json(response_data)
         except ValidationError as error:
             raise StatusError(
                 f"error in file status object for {subject.label}: {error}"
@@ -130,45 +131,40 @@ class StatusFilter:
             file = self.__proxy.get_file(status.file_id)
             qc_object = file.get("info", {}).get("qc", {})
             for gear_name in qc_object:
-                qc_state = qc_object.get(gear_name).get("validation",
-                                                        {}).get("state")
+                qc_state = qc_object.get(gear_name).get("validation", {}).get("state")
                 if qc_state is not None:
                     if qc_state.lower() == "fail":
                         status.qc_status = "fail"
                         continue
-                    status.qc_status = ("pass" if qc_state.lower() == "pass"
-                                        else None)
+                    status.qc_status = "pass" if qc_state.lower() == "pass" else None
 
             self.__writer.writerow(status.model_dump())
 
 
 class StatusRequest(BaseModel):
     """Data model for a row of the status request file."""
+
     adcid: int
     naccid: str
     study: Study
     modalities: List[Modality]
 
-    @field_serializer('modalities')
+    @field_serializer("modalities")
     def serialize_list_as_string(self, modalities: List[Modality]) -> str:
         return ",".join(modalities)
 
-    @field_validator('modalities', mode='before')
+    @field_validator("modalities", mode="before")
     @classmethod
     def modality_list(cls, value: Any) -> List[Modality]:
         if isinstance(value, list):
             return value
         if not isinstance(value, str):
-            raise ValueError(
-                f"expecting modalities to be a string, got {type(value)}")
+            raise ValueError(f"expecting modalities to be a string, got {type(value)}")
 
         modality_list = value.split(",")
-        mismatches = [
-            name for name in modality_list if name not in get_args(Modality)
-        ]
+        mismatches = [name for name in modality_list if name not in get_args(Modality)]
         if mismatches:
-            raise ValueError(
-                f"found unexpected modalities: {', '.join(mismatches)}")
+            raise ValueError(f"found unexpected modalities: {', '.join(mismatches)}")
 
         return modality_list  # type: ignore
 
@@ -176,8 +172,13 @@ class StatusRequest(BaseModel):
 class SubmissionStatusVisitor(CSVVisitor):
     """Determines form status for each participant."""
 
-    def __init__(self, *, admin_group: NACCGroup, status_filter: StatusFilter,
-                 error_writer: ErrorWriter) -> None:
+    def __init__(
+        self,
+        *,
+        admin_group: NACCGroup,
+        status_filter: StatusFilter,
+        error_writer: ErrorWriter,
+    ) -> None:
         self.__admin_group = admin_group
         self.__filter = status_filter
         self.__error_writer = error_writer
@@ -201,9 +202,9 @@ class SubmissionStatusVisitor(CSVVisitor):
                 self.__center_map[adcid] = center
         return center
 
-    def __get_projects(self,
-                       center: CenterGroup,
-                       prefix: str = "ingest") -> List[ProjectAdaptor]:
+    def __get_projects(
+        self, center: CenterGroup, prefix: str = "ingest"
+    ) -> List[ProjectAdaptor]:
         """Gets the projects matching the prefix in the center group.
 
         Args:
@@ -252,10 +253,11 @@ class SubmissionStatusVisitor(CSVVisitor):
         if not center:
             self.__error_writer.write(
                 FileError(
-                    error_code='no-center',
-                    error_type='error',
-                    location=CSVLocation(line=line_num, column_name='adcid'),
-                    message=f"value {status_query.adcid} is not a valid ADCID")
+                    error_code="no-center",
+                    error_type="error",
+                    location=CSVLocation(line=line_num, column_name="adcid"),
+                    message=f"value {status_query.adcid} is not a valid ADCID",
+                )
             )
             return False
 
@@ -265,9 +267,10 @@ class SubmissionStatusVisitor(CSVVisitor):
                 FileError(
                     error_code="no-projects",
                     error_type="error",
-                    location=CSVLocation(line=line_num, column_name='adcid'),
-                    message=
-                    f"center {status_query.adcid} has no ingest projects"))
+                    location=CSVLocation(line=line_num, column_name="adcid"),
+                    message=f"center {status_query.adcid} has no ingest projects",
+                )
+            )
             return False
 
         for project in projects:
@@ -277,15 +280,19 @@ class SubmissionStatusVisitor(CSVVisitor):
                     FileError(
                         error_code="no-subject",
                         error_type="error",
-                        location=CSVLocation(line=line_num,
-                                             column_name='naccid'),
-                        message=(f"no subject {status_query.naccid} "
-                                 f"found in center {status_query.adcid}")))
+                        location=CSVLocation(line=line_num, column_name="naccid"),
+                        message=(
+                            f"no subject {status_query.naccid} "
+                            f"found in center {status_query.adcid}"
+                        ),
+                    )
+                )
                 return False
 
             try:
-                self.__filter.gather_status(subject=subject,
-                                            modalities=status_query.modalities)
+                self.__filter.gather_status(
+                    subject=subject, modalities=status_query.modalities
+                )
             except StatusError as error:
                 log.error("error loading status: %s", str(error))
                 continue
@@ -293,19 +300,24 @@ class SubmissionStatusVisitor(CSVVisitor):
         return True
 
 
-def run(*, input_file: TextIO, output_file: TextIO, admin_group: NACCGroup,
-        proxy: FlywheelProxy, error_writer: ErrorWriter):
+def run(
+    *,
+    input_file: TextIO,
+    output_file: TextIO,
+    admin_group: NACCGroup,
+    proxy: FlywheelProxy,
+    error_writer: ErrorWriter,
+):
     """Runs the Gather Submission Status process.
 
     Args:
         proxy: the proxy for the Flywheel instance
     """
     writer = DictWriter(output_file, fieldnames=StatusModel.model_fields)
-    visitor = SubmissionStatusVisitor(admin_group=admin_group,
-                                      status_filter=StatusFilter(
-                                          proxy=proxy, writer=writer),
-                                      error_writer=error_writer)
+    visitor = SubmissionStatusVisitor(
+        admin_group=admin_group,
+        status_filter=StatusFilter(proxy=proxy, writer=writer),
+        error_writer=error_writer,
+    )
 
-    return read_csv(input_file=input_file,
-                    error_writer=error_writer,
-                    visitor=visitor)
+    return read_csv(input_file=input_file, error_writer=error_writer, visitor=visitor)

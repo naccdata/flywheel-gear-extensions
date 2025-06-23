@@ -42,14 +42,16 @@ class CSVVisitor(ABC):
         return True
 
 
-def read_csv(*,
-             input_file: TextIO,
-             error_writer: ErrorWriter,
-             visitor: CSVVisitor,
-             delimiter: str = ',',
-             limit: Optional[int] = None,
-             clear_errors: Optional[bool] = False,
-             preserve_case: bool = True) -> bool:
+def read_csv(
+    *,
+    input_file: TextIO,
+    error_writer: ErrorWriter,
+    visitor: CSVVisitor,
+    delimiter: str = ",",
+    limit: Optional[int] = None,
+    clear_errors: Optional[bool] = False,
+    preserve_case: bool = True,
+) -> bool:
     """Reads CSV file and applies the visitor to each row.
 
     Args:
@@ -91,8 +93,7 @@ def read_csv(*,
         for count, record in enumerate(reader):
             if not preserve_case:
                 record = {
-                    snakecase(key.strip()): value
-                    for key, value in record.items()
+                    snakecase(key.strip()): value for key, value in record.items()
                 }
 
             row_success = visitor.visit_row(record, line_num=count + 1)
@@ -103,8 +104,7 @@ def read_csv(*,
         error_writer.write(malformed_file_error(str(error)))
         return False
 
-    if not success and clear_errors and isinstance(error_writer,
-                                                   ListErrorWriter):
+    if not success and clear_errors and isinstance(error_writer, ListErrorWriter):
         error_writer.clear()
         error_writer.write(partially_failed_file_error())
 
@@ -131,8 +131,7 @@ class RowValidator(abc.ABC):
 class AggregateRowValidator(RowValidator):
     """Row validator for running more than one validator."""
 
-    def __init__(self,
-                 validators: Optional[List[RowValidator]] = None) -> None:
+    def __init__(self, validators: Optional[List[RowValidator]] = None) -> None:
         if validators:
             self.__validators = validators
         else:
@@ -146,6 +145,4 @@ class AggregateRowValidator(RowValidator):
         Returns:
             True if all the validator checks are true, False otherwise
         """
-        return all(
-            validator.check(row, line_number)
-            for validator in self.__validators)
+        return all(validator.check(row, line_number) for validator in self.__validators)

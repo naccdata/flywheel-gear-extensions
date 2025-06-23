@@ -23,12 +23,12 @@ def is_duplicate_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> bool:
 
     sorted_dict1 = sorted(dict1.items())
     sorted_dict2 = sorted(dict2.items())
-    return (sorted_dict1 == sorted_dict2)
+    return sorted_dict1 == sorted_dict2
 
 
-def is_duplicate_record(record1: str,
-                        record2: str,
-                        content_type: Optional[str] = None) -> bool:
+def is_duplicate_record(
+    record1: str, record2: str, content_type: Optional[str] = None
+) -> bool:
     """Check whether the two records are identical.
 
     Args:
@@ -39,21 +39,21 @@ def is_duplicate_record(record1: str,
         True if a duplicate detected, else false
     """
 
-    if not content_type or content_type != 'application/json':
-        return (record1 == record2)
+    if not content_type or content_type != "application/json":
+        return record1 == record2
 
     try:
         return is_duplicate_dict(json.loads(record1), json.loads(record2))
     except json.JSONDecodeError as error:
-        log.warning('Error in converting records to JSON format - %s', error)
+        log.warning("Error in converting records to JSON format - %s", error)
         return False
 
     # TODO: Handle other content types
 
 
-def update_file_info_metadata(file: FileEntry,
-                              input_record: Dict[str, Any],
-                              modality: str = 'Form') -> bool:
+def update_file_info_metadata(
+    file: FileEntry, input_record: Dict[str, Any], modality: str = "Form"
+) -> bool:
     """Set file modality and info.forms.json metadata.
 
     Args:
@@ -73,32 +73,39 @@ def update_file_info_metadata(file: FileEntry,
         file.update(modality=modality)
         file.update_info(info)
     except ApiException as error:
-        log.error('Error in setting file %s metadata - %s', file.name, error)
+        log.error("Error in setting file %s metadata - %s", file.name, error)
         return False
 
     return True
 
 
-def upload_to_acquisition(acquisition: Acquisition,
-                          filename: str,
-                          contents: str,
-                          content_type: str,
-                          subject_label: str,
-                          session_label: str,
-                          acquisition_label: str,
-                          skip_duplicates: bool = True) -> Optional[FileEntry]:
+def upload_to_acquisition(
+    acquisition: Acquisition,
+    filename: str,
+    contents: str,
+    content_type: str,
+    subject_label: str,
+    session_label: str,
+    acquisition_label: str,
+    skip_duplicates: bool = True,
+) -> Optional[FileEntry]:
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
         if existing_file and is_duplicate_record(
-                contents, existing_file.read(), content_type):
-            log.warning('Duplicate file %s already exists at %s/%s/%s',
-                        filename, subject_label, session_label,
-                        acquisition_label)
+            contents, existing_file.read(), content_type
+        ):
+            log.warning(
+                "Duplicate file %s already exists at %s/%s/%s",
+                filename,
+                subject_label,
+                session_label,
+                acquisition_label,
+            )
             return None
 
-    record_file_spec = FileSpec(name=filename,
-                                contents=contents,
-                                content_type=content_type)
+    record_file_spec = FileSpec(
+        name=filename, contents=contents, content_type=content_type
+    )
 
     try:
         acquisition.upload_file(record_file_spec)
@@ -106,6 +113,6 @@ def upload_to_acquisition(acquisition: Acquisition,
         return acquisition.get_file(filename)
     except ApiException as error:
         raise ApiException(
-            f'Failed to upload file {filename} to '
-            f'{subject_label}/{session_label}/{acquisition_label}: {error}'
+            f"Failed to upload file {filename} to "
+            f"{subject_label}/{session_label}/{acquisition_label}: {error}"
         ) from error

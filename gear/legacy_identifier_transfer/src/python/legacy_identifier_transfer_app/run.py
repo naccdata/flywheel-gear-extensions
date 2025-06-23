@@ -33,8 +33,9 @@ from legacy_identifier_transfer_app.main import run
 log = logging.getLogger(__name__)
 
 
-def get_identifiers(identifiers_repo: IdentifierRepository,
-                    adcid: int) -> Dict[str, IdentifierObject]:
+def get_identifiers(
+    identifiers_repo: IdentifierRepository, adcid: int
+) -> Dict[str, IdentifierObject]:
     """Gets all of the Identifier objects from the identifier database using
     the RDSParameters.
 
@@ -49,8 +50,7 @@ def get_identifiers(identifiers_repo: IdentifierRepository,
     if center_identifiers:
         # pylint: disable=(not-an-iterable)
         identifiers = {
-            identifier.naccid: identifier
-            for identifier in center_identifiers
+            identifier.naccid: identifier for identifier in center_identifiers
         }
     log.info(f"Found {len(identifiers)} identifiers for center {adcid}")
     return identifiers
@@ -71,18 +71,18 @@ def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
     """
 
     if not dest_container:
-        raise GearExecutionError('Gear destination not set')
+        raise GearExecutionError("Gear destination not set")
 
-    if dest_container.container_type == 'project':
+    if dest_container.container_type == "project":
         project_id = dest_container.id
         group_id = dest_container.group
-    elif dest_container.container_type in ('subject', 'session',
-                                           'acquisition'):
+    elif dest_container.container_type in ("subject", "session", "acquisition"):
         project_id = dest_container.parents.project
         group_id = dest_container.parents.group
     else:
         raise GearExecutionError(
-            f'Invalid gear destination type {dest_container.container_type}')
+            f"Invalid gear destination type {dest_container.container_type}"
+        )
 
     return group_id, project_id
 
@@ -90,8 +90,13 @@ def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
 class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
     """The gear execution visitor for the Legacy identifier transfer gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper,
-                 identifiers_mode: IdentifiersMode, legacy_ingest_label: str):
+    def __init__(
+        self,
+        admin_id: str,
+        client: ClientWrapper,
+        identifiers_mode: IdentifiersMode,
+        legacy_ingest_label: str,
+    ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
@@ -100,9 +105,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore]
-    ) -> 'LegacyIdentifierTransferVisitor':
+        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+    ) -> "LegacyIdentifierTransferVisitor":
         """Creates a legacy naccid transfer execution visitor.
 
         Args:
@@ -115,20 +119,20 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         """
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        admin_id = context.config.get("admin_group",
-                                      DefaultValues.NACC_GROUP_ID)
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("identifiers_mode", "prod")
         legacy_ingest_label = context.config.get(
-            "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL)
+            "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL
+        )
 
         return LegacyIdentifierTransferVisitor(
             admin_id=admin_id,
             client=client,
             identifiers_mode=mode,
-            legacy_ingest_label=legacy_ingest_label)
+            legacy_ingest_label=legacy_ingest_label,
+        )
 
     def __get_adcid(self, group_id: str) -> Optional[int]:
         """Get ADCID for the specified center.
@@ -164,23 +168,21 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             dest_container = context.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
-                f"Error getting destination container: {error}") from error
+                f"Error getting destination container: {error}"
+            ) from error
 
         if not dest_container:
             raise GearExecutionError("No destination container found")
 
-        log.info(
-            f"Destination container: {dest_container.label}")  # type: ignore
+        log.info(f"Destination container: {dest_container.label}")  # type: ignore
 
         # Get Group and Project IDs, ADCID for group
-        group_id, project_id = get_destination_group_and_project(
-            dest_container)
+        group_id, project_id = get_destination_group_and_project(dest_container)
         log.info(f"group_id: {group_id}")
 
         adcid = self.__get_adcid(group_id)
         if adcid is None:
-            raise GearExecutionError(
-                f'Unable to determine ADCID for group {group_id}')
+            raise GearExecutionError(f"Unable to determine ADCID for group {group_id}")
 
         log.info(f"ADCID: {adcid}")
 
@@ -189,26 +191,27 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             identifiers = get_identifiers(
                 identifiers_repo=IdentifiersLambdaRepository(
                     client=LambdaClient(client=create_lambda_client()),
-                    mode=self.__identifiers_mode),
-                adcid=adcid)
+                    mode=self.__identifiers_mode,
+                ),
+                adcid=adcid,
+            )
         except IdentifierRepositoryError as error:
             raise GearExecutionError(error) from error
 
         if not identifiers:
             raise GearExecutionError(
-                f'Unable to load identifiers for center {group_id} - ADCID {adcid}'
+                f"Unable to load identifiers for center {group_id} - ADCID {adcid}"
             )
 
         # Initialize enrollment project adapter
         group = self.proxy.find_group(group_id=group_id)
         if not group:
-            raise GearExecutionError(f'Unable to get center group: {group_id}')
+            raise GearExecutionError(f"Unable to get center group: {group_id}")
         log.info(f"Group: {group.label}")
 
         project = group.get_project_by_id(project_id)
         if not project:
-            raise GearExecutionError(
-                f'Unable to get parent project: {project_id}')
+            raise GearExecutionError(f"Unable to get parent project: {project_id}")
         log.info(f"Project: {project.label}")
         enrollment_project = EnrollmentProject.create_from(project)
         log.info(f"Enrollment project: {enrollment_project.label}")
@@ -217,25 +220,27 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             legacy_project = ProjectAdaptor.create(
                 proxy=self.proxy,
                 group_id=group_id,
-                project_label=self.__legacy_ingest_label)
+                project_label=self.__legacy_ingest_label,
+            )
         except ProjectError as error:
             raise GearExecutionError(
                 f"Could not find {group_id}/{self.__legacy_ingest_label}: {error}"
             ) from error
 
-        forms_store = FormsStore(ingest_project=project,
-                                 legacy_project=legacy_project)
+        forms_store = FormsStore(ingest_project=project, legacy_project=legacy_project)
 
-        sender_email = context.config.get('sender_email', 'nacchelp@uw.edu')
-        target_emails = context.config.get('target_emails', 'nacc_dev@uw.edu')
-        target_emails = [x.strip() for x in target_emails.split(',')]
+        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
+        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
 
-        run(identifiers=identifiers,
+        run(
+            identifiers=identifiers,
             enrollment_project=enrollment_project,
             forms_store=forms_store,
             sender_email=sender_email,
             target_emails=target_emails,
-            dry_run=self.__dry_run)
+            dry_run=self.__dry_run,
+        )
 
 
 def main():
@@ -247,7 +252,8 @@ def main():
     """
 
     GearEngine().create_with_parameter_store().run(
-        gear_type=LegacyIdentifierTransferVisitor)
+        gear_type=LegacyIdentifierTransferVisitor
+    )
 
 
 if __name__ == "__main__":

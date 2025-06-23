@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 
 @total_ordering
 class Element:
-
     def __init__(self, source, target, count_files=True) -> None:
         self.source = source
         self.target = target
@@ -32,8 +31,10 @@ class Element:
     def __lt__(self, value: object) -> bool:
         if not isinstance(value, Element):
             return False
-        return (self.source.stats.number_of.acquisition_files
-                < value.source.stats.number_of.acquisition_files)
+        return (
+            self.source.stats.number_of.acquisition_files
+            < value.source.stats.number_of.acquisition_files
+        )
 
     @property
     def count(self) -> int:
@@ -43,8 +44,9 @@ class Element:
         return 1
 
 
-def trigger_gear_for_center(proxy: FlywheelProxy, batch_configs: BatchRunInfo,
-                            center: Element) -> Optional[str]:
+def trigger_gear_for_center(
+    proxy: FlywheelProxy, batch_configs: BatchRunInfo, center: Element
+) -> Optional[str]:
     """Trigger the gear for specified center.
 
     Args:
@@ -56,18 +58,20 @@ def trigger_gear_for_center(proxy: FlywheelProxy, batch_configs: BatchRunInfo,
         Optional[str]: gear job id or None
     """
 
-    gear_configs = batch_configs.get_gear_configs(source=center.source.id,
-                                                  target=center.target.id)
+    gear_configs = batch_configs.get_gear_configs(
+        source=center.source.id, target=center.target.id
+    )
     if not gear_configs:
-        log.error('Error in retrieving gear configs for center %s',
-                  center.source.label)
+        log.error("Error in retrieving gear configs for center %s", center.source.label)
         return None
 
-    job_id = trigger_gear(proxy=proxy,
-                          gear_name=batch_configs.gear_name,
-                          config=gear_configs,
-                          inputs={},
-                          destination=center.source)
+    job_id = trigger_gear(
+        proxy=proxy,
+        gear_name=batch_configs.gear_name,
+        config=gear_configs,
+        inputs={},
+        destination=center.source,
+    )
 
     return job_id
 
@@ -91,8 +95,9 @@ def get_batch(centers: List[Element], batch_size: int) -> List[Element]:
     return batch
 
 
-def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
-                           failed_list: List[str]):
+def check_batch_run_status(
+    proxy: FlywheelProxy, jobs_list: List[str], failed_list: List[str]
+):
     """Checks the job completion status of the jobs in current batch Keeps
     polling job status until all jobs in the current batch complete.
 
@@ -109,8 +114,9 @@ def check_batch_run_status(proxy: FlywheelProxy, jobs_list: List[str],
             failed_list.append(job_id)
 
 
-def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
-                        batch_configs: BatchRunInfo) -> Optional[List[str]]:
+def schedule_batch_copy(
+    proxy: FlywheelProxy, centers: List[Element], batch_configs: BatchRunInfo
+) -> Optional[List[str]]:
     """Schedule the centers in batches depending on the batch mode and batch
     size.
 
@@ -127,52 +133,59 @@ def schedule_batch_copy(proxy: FlywheelProxy, centers: List[Element],
     jobs_list: List[str] = []
     batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
     while len(batch) > 0:
-        log.info('Scheduling %s on %s centers', batch_configs.gear_name,
-                 len(batch))
+        log.info("Scheduling %s on %s centers", batch_configs.gear_name, len(batch))
         for center in batch:
             group_id = center.source.group
             project_lbl = center.source.label
-            job_id = trigger_gear_for_center(proxy=proxy,
-                                             center=center,
-                                             batch_configs=batch_configs)
+            job_id = trigger_gear_for_center(
+                proxy=proxy, center=center, batch_configs=batch_configs
+            )
             if not job_id:
-                log.error('Failed to trigger gear %s for  %s/%s',
-                          batch_configs.gear_name, group_id, project_lbl)
+                log.error(
+                    "Failed to trigger gear %s for  %s/%s",
+                    batch_configs.gear_name,
+                    group_id,
+                    project_lbl,
+                )
                 continue
 
-            log.info('Gear %s queued for %s/%s - Job ID %s',
-                     batch_configs.gear_name, group_id, project_lbl, job_id)
+            log.info(
+                "Gear %s queued for %s/%s - Job ID %s",
+                batch_configs.gear_name,
+                group_id,
+                project_lbl,
+                job_id,
+            )
             jobs_list.append(job_id)
 
-        check_batch_run_status(proxy,
-                               jobs_list=jobs_list,
-                               failed_list=failed_list)
+        check_batch_run_status(proxy, jobs_list=jobs_list, failed_list=failed_list)
 
         # clear the jobs list
         # all the jobs in current batch are finished when it gets to this point
         jobs_list.clear()
-        log.info('Number of remaining centers: %s', len(centers))
+        log.info("Number of remaining centers: %s", len(centers))
         batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
 
     if len(failed_list) > 0:
-        log.error('Retrying %s failed gear jobs: %s', len(failed_list),
-                  str(failed_list))
+        log.error(
+            "Retrying %s failed gear jobs: %s", len(failed_list), str(failed_list)
+        )
         new_jobs, failed_jobs = retry_failed_jobs(
-            proxy=proxy,
-            failed_ids=failed_list,
-            batch_size=batch_configs.batch_size)
+            proxy=proxy, failed_ids=failed_list, batch_size=batch_configs.batch_size
+        )
         if new_jobs:
-            check_batch_run_status(proxy=proxy,
-                                   jobs_list=new_jobs,
-                                   failed_list=failed_jobs)
+            check_batch_run_status(
+                proxy=proxy, jobs_list=new_jobs, failed_list=failed_jobs
+            )
 
         return failed_jobs
 
     return None
 
 
-def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
-                         time_interval: int, gear_name: str) -> List[str]:
+def get_centers_to_batch(
+    proxy: FlywheelProxy, center_ids: List[str], time_interval: int, gear_name: str
+) -> List[str]:
     """Get the list of centers to copy data matching with the given time
     interval.
 
@@ -190,10 +203,11 @@ def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
     centers_to_copy = []
 
     for center in center_ids:
-        search_str = f'parents.group={center},state=complete,gear_info.name={gear_name}'
-        job = proxy.find_job(search_str, sort='created:desc')
-        if job and (today - job.transitions['complete'].date()  # type: ignore
-                    ) <= timedelta(days=time_interval):
+        search_str = f"parents.group={center},state=complete,gear_info.name={gear_name}"
+        job = proxy.find_job(search_str, sort="created:desc")
+        if job and (
+            today - job.transitions["complete"].date()  # type: ignore
+        ) <= timedelta(days=time_interval):
             continue
 
         centers_to_copy.append(center)
@@ -201,8 +215,9 @@ def get_centers_to_batch(proxy: FlywheelProxy, center_ids: List[str],
     return centers_to_copy
 
 
-def retry_failed_jobs(proxy: FlywheelProxy, failed_ids: List[str],
-                      batch_size: int) -> Tuple[List[str], List[str]]:
+def retry_failed_jobs(
+    proxy: FlywheelProxy, failed_ids: List[str], batch_size: int
+) -> Tuple[List[str], List[str]]:
     """Retry the failed jobs.
 
     Args:
@@ -231,8 +246,9 @@ def retry_failed_jobs(proxy: FlywheelProxy, failed_ids: List[str],
     return new_jobs, failed_retries
 
 
-def send_email(sender_email: str, target_emails: List[str], gear_name: str,
-               failed_count: int) -> None:
+def send_email(
+    sender_email: str, target_emails: List[str], gear_name: str, failed_count: int
+) -> None:
     """Send a raw email notifying target emails of the error.
 
     Args:
@@ -243,16 +259,25 @@ def send_email(sender_email: str, target_emails: List[str], gear_name: str,
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
-    subject = f'Batch Scheduler - One or more {gear_name} gear jobs failed'
-    body = f'Number of {gear_name} gear jobs failed: {failed_count}.\n' \
-        + 'Check the batch-scheduler error log for the list of failed jobs.\n\n'
+    subject = f"Batch Scheduler - One or more {gear_name} gear jobs failed"
+    body = (
+        f"Number of {gear_name} gear jobs failed: {failed_count}.\n"
+        + "Check the batch-scheduler error log for the list of failed jobs.\n\n"
+    )
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
 
 
-def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
-        batch_configs: BatchRunInfo, sender_email: str,
-        target_emails: List[str], dry_run: bool):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    centers: List[str],
+    time_interval: int,
+    batch_configs: BatchRunInfo,
+    sender_email: str,
+    target_emails: List[str],
+    dry_run: bool,
+):
     """Runs the batch scheduling process.
 
     Args:
@@ -265,54 +290,70 @@ def run(*, proxy: FlywheelProxy, centers: List[str], time_interval: int,
         dry_run: whether to do a dry run
     """
 
-    centers_to_batch = get_centers_to_batch(
-        center_ids=centers,
-        proxy=proxy,
-        time_interval=time_interval,
-        gear_name=batch_configs.gear_name) if time_interval > 0 else centers
+    centers_to_batch = (
+        get_centers_to_batch(
+            center_ids=centers,
+            proxy=proxy,
+            time_interval=time_interval,
+            gear_name=batch_configs.gear_name,
+        )
+        if time_interval > 0
+        else centers
+    )
 
     minheap: List[Element] = []
     for center_id in centers_to_batch:
         try:
-            source_project = proxy.lookup(
-                f"{center_id}/{batch_configs.source}")
-            target_project = proxy.lookup(
-                f"{center_id}/{batch_configs.target}"
-            ) if batch_configs.target else source_project
+            source_project = proxy.lookup(f"{center_id}/{batch_configs.source}")
+            target_project = (
+                proxy.lookup(f"{center_id}/{batch_configs.target}")
+                if batch_configs.target
+                else source_project
+            )
 
-            count_files = (batch_configs.batch_mode == 'files')
+            count_files = batch_configs.batch_mode == "files"
             if not count_files or source_project.stats.number_of.acquisition_files > 0:
                 heappush(
                     minheap,
-                    Element(source=source_project,
-                            target=target_project,
-                            count_files=count_files))
-                log.info('Center %s added to batch pool', center_id)
+                    Element(
+                        source=source_project,
+                        target=target_project,
+                        count_files=count_files,
+                    ),
+                )
+                log.info("Center %s added to batch pool", center_id)
         except ApiException as error:
-            log.error('Error occurred for %s: %s', center_id, str(error))
+            log.error("Error occurred for %s: %s", center_id, str(error))
             continue
 
     if not len(minheap) > 0:
-        log.info('No projects matched with the specified batch configs')
+        log.info("No projects matched with the specified batch configs")
         return
 
-    log.info('Number of projects to run gear %s: %s', batch_configs.gear_name,
-             len(minheap))
+    log.info(
+        "Number of projects to run gear %s: %s", batch_configs.gear_name, len(minheap)
+    )
 
     if dry_run:
-        log.info('dry run, not running the gear')
+        log.info("dry run, not running the gear")
         return
 
-    failed_jobs = schedule_batch_copy(proxy=proxy,
-                                      centers=minheap,
-                                      batch_configs=batch_configs)
+    failed_jobs = schedule_batch_copy(
+        proxy=proxy, centers=minheap, batch_configs=batch_configs
+    )
 
     if failed_jobs and len(failed_jobs) > 0:
-        log.error("List of failed %s gear jobs: %s", batch_configs.gear_name,
-                  failed_jobs)
-        log.error("Number of failed %s gear jobs: %s", batch_configs.gear_name,
-                  len(failed_jobs))
-        send_email(sender_email=sender_email,
-                   target_emails=target_emails,
-                   gear_name=batch_configs.gear_name,
-                   failed_count=len(failed_jobs))
+        log.error(
+            "List of failed %s gear jobs: %s", batch_configs.gear_name, failed_jobs
+        )
+        log.error(
+            "Number of failed %s gear jobs: %s",
+            batch_configs.gear_name,
+            len(failed_jobs),
+        )
+        send_email(
+            sender_email=sender_email,
+            target_emails=target_emails,
+            gear_name=batch_configs.gear_name,
+            failed_count=len(failed_jobs),
+        )
