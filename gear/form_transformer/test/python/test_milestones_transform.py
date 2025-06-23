@@ -1,4 +1,5 @@
 """Tests the milestone forms transform and pre-processing checks."""
+
 import json
 from typing import Any, Dict, Optional, Tuple
 
@@ -29,21 +30,24 @@ def create_mlst_visitor(
     module = "MLST"
     module_configs = milestone_ingest_configs()
     header = [
-        FieldNames.NACCID, FieldNames.DATE_COLUMN, FieldNames.MODULE,
-        FieldNames.FORMVER, FieldNames.PTID, FieldNames.ADCID,
-        FieldNames.PACKET
+        FieldNames.NACCID,
+        FieldNames.DATE_COLUMN,
+        FieldNames.MODULE,
+        FieldNames.FORMVER,
+        FieldNames.PTID,
+        FieldNames.ADCID,
+        FieldNames.PACKET,
     ]
     date_field = FieldNames.DATE_COLUMN
 
     # dummy error writer
-    error_writer = ListErrorWriter(container_id='dummy_id',
-                                   fw_path='dummy_path')
+    error_writer = ListErrorWriter(container_id="dummy_id", fw_path="dummy_path")
 
     # transformer
     if transform_schema:
         transformer_factory = TransformerFactory(
-            FieldTransformations.model_validate_json(
-                json.dumps(transform_schema)))
+            FieldTransformations.model_validate_json(json.dumps(transform_schema))
+        )
     else:
         transformer_factory = TransformerFactory(FieldTransformations())
 
@@ -51,19 +55,22 @@ def create_mlst_visitor(
     project = MockProject()
 
     preprocessor = FormPreprocessor(
-        primary_key='naccid',
+        primary_key="naccid",
         forms_store=form_store,
         module_info={module.upper(): module_configs},
-        error_writer=error_writer)
+        error_writer=error_writer,
+    )
 
-    visitor = CSVTransformVisitor(id_column='naccid',
-                                  module=module,
-                                  error_writer=error_writer,
-                                  transformer_factory=transformer_factory,
-                                  preprocessor=preprocessor,
-                                  module_configs=module_configs,
-                                  gear_name='form-transformer',
-                                  project=project)
+    visitor = CSVTransformVisitor(
+        id_column="naccid",
+        module=module,
+        error_writer=error_writer,
+        transformer_factory=transformer_factory,
+        preprocessor=preprocessor,
+        module_configs=module_configs,
+        gear_name="form-transformer",
+        project=project,
+    )
 
     # have the visitor visit the header already so
     # individual tests don't have to do it
@@ -81,14 +88,14 @@ def create_milestones_record(data: Dict[str, Any]):
         data: Data to add for specific test
     """
     record = {
-        FieldNames.NACCID: 'dummy-naccid',
-        FieldNames.MODULE: 'mlst',
-        FieldNames.FORMVER: '3.0',
-        FieldNames.PACKET: 'M',
-        FieldNames.PTID: 'dummy-ptid',
+        FieldNames.NACCID: "dummy-naccid",
+        FieldNames.MODULE: "mlst",
+        FieldNames.FORMVER: "3.0",
+        FieldNames.PACKET: "M",
+        FieldNames.PTID: "dummy-ptid",
         FieldNames.ADCID: 0,
-        FieldNames.DATE_COLUMN: '2025-01-01',
-        'dummy': 'dummy_val'
+        FieldNames.DATE_COLUMN: "2025-01-01",
+        "dummy": "dummy_val",
     }
 
     record.update(data)
@@ -104,13 +111,12 @@ def get_qc_errors(project: MockProject):
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
     error_logs = {
-        k: v
-        for k, v in project.files.items() if k.endswith('_qc-status.log')
+        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
     }
     assert error_logs
 
     error_file = list(error_logs.values())[0]  # noqa: RUF015
-    return error_file.info['qc']['form-transformer']['validation']['data']
+    return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 
 class TestMilestonesTransform:
@@ -139,8 +145,8 @@ class TestMilestonesTransform:
         qc = get_qc_errors(project)
         assert len(qc) == 1
         code = SysErrorCodes.UDS_NOT_EXIST
-        assert qc[0]['code'] == code
-        assert qc[0]['message'] == preprocess_errors[code]
+        assert qc[0]["code"] == code
+        assert qc[0]["message"] == preprocess_errors[code]
 
     def test_duplicate_milestones_record(self):
         """Test duplicate milestones records."""
@@ -155,5 +161,5 @@ class TestMilestonesTransform:
         assert len(qc) == 3
         for failed_form in qc:
             code = SysErrorCodes.DUPLICATE_VISIT
-            assert failed_form['code'] == code
-            assert failed_form['message'] == preprocess_errors[code]
+            assert failed_form["code"] == code
+            assert failed_form["message"] == preprocess_errors[code]

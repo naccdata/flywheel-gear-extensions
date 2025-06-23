@@ -1,4 +1,5 @@
 """Defines the APOE Transformer."""
+
 import logging
 from typing import Any, Dict, List, TextIO, Tuple
 
@@ -25,14 +26,14 @@ APOE_ENCODINGS: Dict[Tuple[str, str], int] = {
     ("E4", "E4"): 4,
     ("E4", "E2"): 5,
     ("E2", "E4"): 5,
-    ("E2", "E2"): 6
+    ("E2", "E2"): 6,
 }
 
 
 class APOETransformerCSVVisitor(CSVVisitor):
     """Class for visiting each row in the APOE genotype CSV."""
 
-    EXPECTED_INPUT_HEADERS: Tuple[str, ...] = ('a1', 'a2')
+    EXPECTED_INPUT_HEADERS: Tuple[str, ...] = ("a1", "a2")
 
     def __init__(self, error_writer: LogErrorWriter):
         """Initializer."""
@@ -68,7 +69,7 @@ class APOETransformerCSVVisitor(CSVVisitor):
             return False
 
         self.__header = header
-        self.__header.append('apoe')
+        self.__header.append("apoe")
 
         return True
 
@@ -86,7 +87,7 @@ class APOETransformerCSVVisitor(CSVVisitor):
 
         missing = []
         pair = []
-        for field in ['a1', 'a2']:
+        for field in ["a1", "a2"]:
             value = row.get(field)
             if not value:
                 error = empty_field_error(field)
@@ -98,17 +99,19 @@ class APOETransformerCSVVisitor(CSVVisitor):
         if missing:
             return False
 
-        row['apoe'] = APOE_ENCODINGS.get(tuple(pair), 9)  # type: ignore
+        row["apoe"] = APOE_ENCODINGS.get(tuple(pair), 9)  # type: ignore
         self.__transformed_data.append(row)
         return True
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        input_file: TextIO,
-        filename: str,
-        project: ProjectAdaptor,
-        delimiter: str = ','):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    input_file: TextIO,
+    filename: str,
+    project: ProjectAdaptor,
+    delimiter: str = ",",
+):
     """Runs the APOE transformation process.
 
     Args:
@@ -121,23 +124,24 @@ def run(*,
     # read the CSV
     error_writer = LogErrorWriter(log)
     visitor = APOETransformerCSVVisitor(error_writer)
-    success = read_csv(input_file=input_file,
-                       error_writer=error_writer,
-                       visitor=visitor,
-                       delimiter=delimiter)
+    success = read_csv(
+        input_file=input_file,
+        error_writer=error_writer,
+        visitor=visitor,
+        delimiter=delimiter,
+    )
 
     if not success:
-        raise GearExecutionError(
-            'Errors found while reading the input CSV file')
+        raise GearExecutionError("Errors found while reading the input CSV file")
 
     # write transformed results to target project
     log.info(f"Writing transformed APOE data to {project.id}")
-    contents = write_csv_to_stream(headers=visitor.header,
-                                   data=visitor.transformed_data).getvalue()
-    file_spec = FileSpec(name=filename,
-                         contents=contents,
-                         content_type='text/csv',
-                         size=len(contents))
+    contents = write_csv_to_stream(
+        headers=visitor.header, data=visitor.transformed_data
+    ).getvalue()
+    file_spec = FileSpec(
+        name=filename, contents=contents, content_type="text/csv", size=len(contents)
+    )
 
     if proxy.dry_run:
         log.info(f"DRY RUN: Would have uploaded {filename}")

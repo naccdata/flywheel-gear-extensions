@@ -76,11 +76,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         Raises:
           GearExecutionError if any expected inputs are missing
         """
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        file_input = InputFileWrapper.create(input_name="input_file",
-                                             context=context)
+        file_input = InputFileWrapper.create(input_name="input_file", context=context)
 
         target_project = context.config.get("target_project", None)
         staging_project_id = context.config.get("staging_project_id", None)
@@ -96,13 +94,13 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         include = set(parse_string_to_list(context.config.get("include", "")))
         exclude = set(parse_string_to_list(context.config.get("exclude", "")))
         if include and exclude and include.intersection(exclude):
-            raise GearExecutionError(
-                "Include and exclude lists cannot overlap")
+            raise GearExecutionError("Include and exclude lists cannot overlap")
 
         # for scheduling
         batch_size = context.config.get("batch_size", 1)
         downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", ""))
+            context.config.get("downstream_gears", "")
+        )
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -118,17 +116,17 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         local_run = context.config.get("local_run", False)
 
         redcap_email_configs = InputFileWrapper.create(
-            input_name="redcap_email_configs", context=context)
+            input_name="redcap_email_configs", context=context
+        )
         email_notifier = None
 
         if redcap_email_configs:
             if not parameter_store:
-                raise GearExecutionError(
-                    "Parameter store required to send emails")
+                raise GearExecutionError("Parameter store required to send emails")
 
-            with open(redcap_email_configs.filepath,
-                      mode="r",
-                      encoding="utf-8-sig") as fh:
+            with open(
+                redcap_email_configs.filepath, mode="r", encoding="utf-8-sig"
+            ) as fh:
                 email_notifier = REDCapEmailList.create(
                     parameter_store=parameter_store,
                     configs=REDCapEmailListConfigs(**json.load(fh)),
@@ -164,24 +162,17 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 fw_path = self.proxy.get_lookup_path(file)
             except ApiException as error:
                 raise GearExecutionError(
-                    f"Failed to find the input file: {error}") from error
+                    f"Failed to find the input file: {error}"
+                ) from error
 
-        centers = {
-            str(adcid)
-            for adcid in self.admin_group("nacc").get_adcids()
-        }
+        centers = {str(adcid) for adcid in self.admin_group("nacc").get_adcids()}
         if self.__include:
             centers = {adcid for adcid in centers if adcid in self.__include}
         if self.__exclude:
-            centers = {
-                adcid
-                for adcid in centers if adcid not in self.__exclude
-            }
+            centers = {adcid for adcid in centers if adcid not in self.__exclude}
 
-        with open(self.__file_input.filepath, mode="r",
-                  encoding="utf-8-sig") as fh:
-            error_writer = ListErrorWriter(container_id=file_id,
-                                           fw_path=fw_path)
+        with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
+            error_writer = ListErrorWriter(container_id=file_id, fw_path=fw_path)
 
             run(
                 proxy=self.proxy,
@@ -207,8 +198,7 @@ def main():
     Splits CSV and distributes per center.
     """
 
-    GearEngine.create_with_parameter_store().run(
-        gear_type=CSVCenterSplitterVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=CSVCenterSplitterVisitor)
 
 
 if __name__ == "__main__":

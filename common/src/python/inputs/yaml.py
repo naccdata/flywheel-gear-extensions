@@ -1,4 +1,5 @@
 """Defines utilities for parsing YAML input."""
+
 import logging
 from typing import Any, List
 
@@ -24,11 +25,12 @@ def load_all_from_stream(stream) -> List[Any]:
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark
         if mark:
-            raise YAMLReadError(f'Error in YAML: line {mark.line + 1}, '
-                                'column {mark.column + 1}') from error
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+            raise YAMLReadError(
+                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+            ) from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
 
 
 def load_from_stream(stream) -> Any:
@@ -44,11 +46,12 @@ def load_from_stream(stream) -> Any:
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark
         if mark:
-            raise YAMLReadError(f'Error in YAML: line {mark.line + 1}, '
-                                'column {mark.column + 1}') from error
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+            raise YAMLReadError(
+                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+            ) from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
 
 
 class YAMLReadError(Exception):

@@ -20,17 +20,19 @@ log = logging.getLogger(__name__)
 class PipelineProcessor(ABC):
     """Abstract class to trigger the QC process for a pipeline."""
 
-    def __init__(self,
-                 *,
-                 proxy: FlywheelProxy,
-                 gear_context: GearToolkitContext,
-                 subject: SubjectAdaptor,
-                 module: str,
-                 visits_info: ParticipantVisits,
-                 form_project_configs: FormProjectConfigs,
-                 qc_gear_info: GearInfo,
-                 configs_file: FileEntry,
-                 check_all: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        proxy: FlywheelProxy,
+        gear_context: GearToolkitContext,
+        subject: SubjectAdaptor,
+        module: str,
+        visits_info: ParticipantVisits,
+        form_project_configs: FormProjectConfigs,
+        qc_gear_info: GearInfo,
+        configs_file: FileEntry,
+        check_all: bool = False,
+    ) -> None:
         """Initialize the Pipeline Processor.
 
         Args:
@@ -54,19 +56,21 @@ class PipelineProcessor(ABC):
         self._configs_file = configs_file
         self._check_all = check_all
 
-        if (module not in form_project_configs.accepted_modules
-                or not form_project_configs.module_configs.get(module)):
+        if (
+            module not in form_project_configs.accepted_modules
+            or not form_project_configs.module_configs.get(module)
+        ):
             raise GearExecutionError(
-                f'Failed to find the ingest configurations for module {module}'
+                f"Failed to find the ingest configurations for module {module}"
             )
 
         self._module_configs: ModuleConfigs = self._form_configs.module_configs.get(
-            self._module)  # type: ignore
+            self._module
+        )  # type: ignore
 
         self._visits_lookup_helper = VisitsLookupHelper(
-            proxy=proxy,
-            subject=subject,
-            form_project_configs=form_project_configs)
+            proxy=proxy, subject=subject, form_project_configs=form_project_configs
+        )
 
     @abstractmethod
     def trigger_qc_process(self) -> None:
@@ -87,29 +91,30 @@ class SubmissionPipelineProcessor(PipelineProcessor):
         if self._check_all:
             cutoff = None
         else:
-            curr_visit = sorted(self._visits_info.visits,
-                                key=lambda d: d.visitdate)[0]
+            curr_visit = sorted(self._visits_info.visits, key=lambda d: d.visitdate)[0]
             cutoff = curr_visit.visitdate
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
-            module=self._module,
-            module_configs=self._module_configs,
-            cutoff_date=cutoff)
+            module=self._module, module_configs=self._module_configs, cutoff_date=cutoff
+        )
         if not visits_list:
             # This cannot happen,
             # at least one file should exist with matching cutoff date
             raise GearExecutionError(
                 "Cannot find matching visits for subject "
                 f"{self._subject.label}/{self._module} with "
-                f"{self._module_configs.date_field}>={cutoff}")
+                f"{self._module_configs.date_field}>={cutoff}"
+            )
 
-        qc_coordinator = QCCoordinator(subject=self._subject,
-                                       module=self._module,
-                                       form_project_configs=self._form_configs,
-                                       configs_file=self._configs_file,
-                                       qc_gear_info=self._qc_gear_info,
-                                       proxy=self._proxy,
-                                       gear_context=self._gear_context)
+        qc_coordinator = QCCoordinator(
+            subject=self._subject,
+            module=self._module,
+            form_project_configs=self._form_configs,
+            configs_file=self._configs_file,
+            qc_gear_info=self._qc_gear_info,
+            proxy=self._proxy,
+            gear_context=self._gear_context,
+        )
 
         qc_coordinator.run_error_checks(visits=visits_list)
 
@@ -125,19 +130,20 @@ class FinalizationPipelineProcessor(PipelineProcessor):
         """
 
         dependent_visits_info = self._visits_lookup_helper.get_dependent_module_visits(
-            current_module=self._module,
-            current_visits=self._visits_info.visits)
+            current_module=self._module, current_visits=self._visits_info.visits
+        )
 
         if not dependent_visits_info:
-            log.info(
-                f"No dependent module visits found for module {self._module}")
+            log.info(f"No dependent module visits found for module {self._module}")
             return
 
         for dep_module, dep_visits in dependent_visits_info.items():
             # Create a QC Coordinator for each dependent module
             log.info(
-                'Triggering QC Coordinator for dependent module %s #visits: %s',
-                dep_module, len(dep_visits))
+                "Triggering QC Coordinator for dependent module %s #visits: %s",
+                dep_module,
+                len(dep_visits),
+            )
 
             qc_coordinator = QCCoordinator(
                 subject=self._subject,
@@ -146,13 +152,15 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 configs_file=self._configs_file,
                 qc_gear_info=self._qc_gear_info,
                 proxy=self._proxy,
-                gear_context=self._gear_context)
+                gear_context=self._gear_context,
+            )
 
             qc_coordinator.run_error_checks(visits=dep_visits)
 
 
-def create_pipeline_processor(pipeline: PipelineType,
-                              **kwargs) -> Optional[PipelineProcessor]:
+def create_pipeline_processor(
+    pipeline: PipelineType, **kwargs
+) -> Optional[PipelineProcessor]:
     """Creates the pipeline processor for the specified pipeline.
 
     Args:

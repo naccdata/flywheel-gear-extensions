@@ -1,4 +1,5 @@
 """Defines the Form Scheduler Queue."""
+
 import json
 import logging
 import re
@@ -30,6 +31,7 @@ log = logging.getLogger(__name__)
 class PipelineQueue(BaseModel):
     """Class to represent a file queue for a given pipeline, with subqueues
     defined for each module accepted for the pipeline."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     index: int = -1
@@ -39,7 +41,7 @@ class PipelineQueue(BaseModel):
     subqueues: Dict[str, List[FileEntry]]
 
     @classmethod
-    def create_from_pipeline(cls, pipeline: Pipeline) -> 'PipelineQueue':
+    def create_from_pipeline(cls, pipeline: Pipeline) -> "PipelineQueue":
         """Initialize the pipeline queue from pipeline configs.
 
         Args:
@@ -48,11 +50,12 @@ class PipelineQueue(BaseModel):
         Returns:
             PipelineQueue: file queue for the pipeline
         """
-        return PipelineQueue(name=pipeline.name,
-                             tags=pipeline.tags,
-                             modules=pipeline.modules,
-                             subqueues={k: []
-                                        for k in pipeline.modules})
+        return PipelineQueue(
+            name=pipeline.name,
+            tags=pipeline.tags,
+            modules=pipeline.modules,
+            subqueues={k: [] for k in pipeline.modules},
+        )
 
     def add_file_to_subqueue(self, module: str, file: FileEntry) -> bool:
         """Add the file to given module subqueue.
@@ -71,7 +74,10 @@ class PipelineQueue(BaseModel):
         if module.upper() not in self.modules:
             log.warning(
                 "File %s is not in the accepted modules %s for pipeline `%s`",
-                file.name, self.modules, self.name)
+                file.name,
+                self.modules,
+                self.name,
+            )
             return False
 
         self.subqueues[module.upper()].append(file)
@@ -106,12 +112,14 @@ class FormSchedulerQueue:
     """Class to handle scheduling of different form pipelines defined in the
     pipeline configs file."""
 
-    def __init__(self,
-                 proxy: FlywheelProxy,
-                 project: Project,
-                 pipeline_configs: PipelineConfigs,
-                 email_client: Optional[EmailClient] = None,
-                 portal_url: Optional[URLParameter] = None) -> None:
+    def __init__(
+        self,
+        proxy: FlywheelProxy,
+        project: Project,
+        pipeline_configs: PipelineConfigs,
+        email_client: Optional[EmailClient] = None,
+        portal_url: Optional[URLParameter] = None,
+    ) -> None:
         """Initializer.
 
         Args:
@@ -128,8 +136,7 @@ class FormSchedulerQueue:
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
 
-    def queue_files_for_pipeline(self, *, project: Project,
-                                 pipeline: Pipeline) -> int:
+    def queue_files_for_pipeline(self, *, project: Project, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
 
         Args:
@@ -140,7 +147,7 @@ class FormSchedulerQueue:
             int: Number of files added to the pipeline queue
         """
 
-        function_name = f'_add_{pipeline.name}_pipeline_files'
+        function_name = f"_add_{pipeline.name}_pipeline_files"
         pipeline_function = getattr(self, function_name, None)
         if pipeline_function and callable(pipeline_function):
             num_files = pipeline_function(project=project, pipeline=pipeline)
@@ -150,10 +157,12 @@ class FormSchedulerQueue:
             return num_files  # type: ignore
         else:
             raise GearExecutionError(
-                f"{function_name} not defined in the Form Scheduler")
+                f"{function_name} not defined in the Form Scheduler"
+            )
 
-    def _add_submission_pipeline_files(self, *, project: Project,
-                                       pipeline: Pipeline) -> int:
+    def _add_submission_pipeline_files(
+        self, *, project: Project, pipeline: Pipeline
+    ) -> int:
         """Add the files (filtered by queue tags) to submission pipeline queue.
 
         Args:
@@ -166,15 +175,19 @@ class FormSchedulerQueue:
 
         # filter project files with matching tags and extensions
         files: List[FileEntry] = [
-            x for x in project.files
-            if (set(pipeline.tags).issubset(set(x.tags))
-                and x.name.lower().endswith(tuple(pipeline.extensions)))
+            x
+            for x in project.files
+            if (
+                set(pipeline.tags).issubset(set(x.tags))
+                and x.name.lower().endswith(tuple(pipeline.extensions))
+            )
         ]
 
         if len(files) == 0:
             log.info(
                 f"No matching files for pipeline `{pipeline.name}` with "
-                f"tags: {pipeline.tags} and extensions: {pipeline.extensions}")
+                f"tags: {pipeline.tags} and extensions: {pipeline.extensions}"
+            )
             return 0
 
         pipeline_queue = PipelineQueue.create_from_pipeline(pipeline=pipeline)
@@ -189,14 +202,15 @@ class FormSchedulerQueue:
             if not match:
                 log.warning(
                     "File %s is incorrectly tagged with one or more tags %s",
-                    file.name, pipeline.tags)
+                    file.name,
+                    pipeline.tags,
+                )
                 continue
 
             module = match.group(1)
 
             # add the file to the respective module queue
-            if not pipeline_queue.add_file_to_subqueue(module=module,
-                                                       file=file):
+            if not pipeline_queue.add_file_to_subqueue(module=module, file=file):
                 continue
 
             num_files += 1
@@ -207,8 +221,9 @@ class FormSchedulerQueue:
 
         return num_files
 
-    def _add_finalization_pipeline_files(self, *, project: Project,
-                                         pipeline: Pipeline) -> int:
+    def _add_finalization_pipeline_files(
+        self, *, project: Project, pipeline: Pipeline
+    ) -> int:
         """Add the files (filtered by queue tags) to finalization pipeline
         queue.
 
@@ -231,22 +246,27 @@ class FormSchedulerQueue:
         # find the list of visits with matching tags and extensions
         # for the modules accepted for this pipeline
         finalized_visits = self.__find_matching_visits_for_the_pipeline(
-            project=project, pipeline=pipeline)
+            project=project, pipeline=pipeline
+        )
 
         if not finalized_visits:
             log.info(
                 "No matching files for pipeline `%s` with tags: %s and extensions: %s",
-                pipeline.name, pipeline.tags, pipeline.extensions)
+                pipeline.name,
+                pipeline.tags,
+                pipeline.extensions,
+            )
             return 0
 
         pipeline_queue = PipelineQueue.create_from_pipeline(pipeline=pipeline)
 
         num_files = 0
         for visit in finalized_visits:
-            visit_file = self.__proxy.get_file(visit['file_id'])
+            visit_file = self.__proxy.get_file(visit["file_id"])
             # add the file to the respective module queue
-            if not pipeline_queue.add_file_to_subqueue(module=visit['module'],
-                                                       file=visit_file):
+            if not pipeline_queue.add_file_to_subqueue(
+                module=visit["module"], file=visit_file
+            ):
                 continue
 
             num_files += 1
@@ -258,8 +278,8 @@ class FormSchedulerQueue:
         return num_files
 
     def __find_matching_visits_for_the_pipeline(
-            self, *, project: Project,
-            pipeline: Pipeline) -> Optional[List[Dict[str, str]]]:
+        self, *, project: Project, pipeline: Pipeline
+    ) -> Optional[List[Dict[str, str]]]:
         """Find the visit files with matching modules, tags and extensions for
         the specified pipeline.
 
@@ -275,43 +295,46 @@ class FormSchedulerQueue:
         tag = pipeline.tags[0]
         extensions = pipeline.extensions
 
-        filename_pattern = ''
-        filename_pattern += '|'.join(f'^.*\\{ext}$' for ext in extensions)
+        filename_pattern = ""
+        filename_pattern += "|".join(f"^.*\\{ext}$" for ext in extensions)
 
         builder = make_builder(
-            label=f'Participant visits with tags {tag}',
-            description='List of finalized visits for the module',
+            label=f"Participant visits with tags {tag}",
+            description="List of finalized visits for the module",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
                 ColumnModel(data_key="file.file_id", label="file_id"),
                 ColumnModel(data_key="acquisition.label", label="module"),
-                ColumnModel(data_key="file.tags", label="file_tags")
+                ColumnModel(data_key="file.tags", label="file_tags"),
             ],
-            container='acquisition',
-            filter_str=
-            f'acquisition.label=|[{",".join(modules)}],file.tags={tag}',
-            missing_data_strategy='drop-row')
+            container="acquisition",
+            filter_str=f'acquisition.label=|[{",".join(modules)}],file.tags={tag}',
+            missing_data_strategy="drop-row",
+        )
 
         builder.file_filter(value=filename_pattern, regex=True)
         # need to set the container again (should be same as "container" given above)
         # if only file_filter is set, FW reports following error
         # ValueError: Both file_container and file_filter are required to process files
-        builder.file_container('acquisition')
+        builder.file_container("acquisition")
         view = builder.build()
 
-        with self.__proxy.read_view_data(view=view,
-                                         container_id=project.id) as resp:
+        with self.__proxy.read_view_data(view=view, container_id=project.id) as resp:
             try:
                 result = json.load(resp)
             except JSONDecodeError as error:
-                log.error('Error in loading dataview %s on container %s: %s',
-                          view.label, project.id, error)
+                log.error(
+                    "Error in loading dataview %s on container %s: %s",
+                    view.label,
+                    project.id,
+                    error,
+                )
                 return None
 
-        if not result or 'data' not in result:
+        if not result or "data" not in result:
             return None
 
-        return result['data']
+        return result["data"]
 
     def process_pipeline_queues(self):
         """Process the pipeline queues.
@@ -323,7 +346,8 @@ class FormSchedulerQueue:
         search_str = JobPoll.generate_search_string(
             project_ids_list=[self.__project.id],
             gears_list=self.__pipeline_configs.gears,
-            states_list=['running', 'pending'])
+            states_list=["running", "pending"],
+        )
 
         # Pipelines are processed in the order they are listed in the pipeline configs
         for pipeline in self.__pipeline_configs.pipelines:
@@ -336,15 +360,21 @@ class FormSchedulerQueue:
                     pipeline=pipeline,
                     pipeline_queue=self.__pipeline_queues[pipeline.name],
                     job_search=search_str,
-                    notify_user=pipeline.notify_user)
+                    notify_user=pipeline.notify_user,
+                )
             except ValueError as error:
                 raise GearExecutionError(
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
-    def _process_pipeline_queue(self, *, pipeline: Pipeline,
-                                pipeline_queue: PipelineQueue, job_search: str,
-                                notify_user: bool):
+    def _process_pipeline_queue(
+        self,
+        *,
+        pipeline: Pipeline,
+        pipeline_queue: PipelineQueue,
+        job_search: str,
+        notify_user: bool,
+    ):
         """Process the files in the specified pipeline queue. Trigger the
         starting gear for the pipeline for each file in pipeline queue.
 
@@ -357,18 +387,21 @@ class FormSchedulerQueue:
 
         # get the starting gear input file configurations
         gear_input_info = pipeline.starting_gear.get_inputs_by_file_locator_type(
-            locators=['fixed', 'matched', 'module'])
+            locators=["fixed", "matched", "module"]
+        )
 
         gear_inputs: Dict[str, FileEntry] = {}
 
         # set gear inputs of file locator type fixed
         # these are the project level files with fixed filename specified in the configs
-        if gear_input_info and 'fixed' in gear_input_info:
-            set_gear_inputs(project=self.__project,
-                            gear_name=pipeline.starting_gear.gear_name,
-                            locator='fixed',
-                            gear_inputs_list=gear_input_info['fixed'],
-                            gear_inputs=gear_inputs)
+        if gear_input_info and "fixed" in gear_input_info:
+            set_gear_inputs(
+                project=self.__project,
+                gear_name=pipeline.starting_gear.gear_name,
+                locator="fixed",
+                gear_inputs_list=gear_input_info["fixed"],
+                gear_inputs=gear_inputs,
+            )
 
         while not pipeline_queue.empty():
             # Grab the next module subqueue for this pipeline
@@ -379,13 +412,15 @@ class FormSchedulerQueue:
             # set gear inputs of file locator type module
             # for these inputs, each module has a module specific file at project level
             # need to substitute module in the filename specified in the configs
-            if gear_input_info and 'module' in gear_input_info:
-                set_gear_inputs(project=self.__project,
-                                gear_name=pipeline.starting_gear.gear_name,
-                                locator='module',
-                                gear_inputs_list=gear_input_info['module'],
-                                gear_inputs=gear_inputs,
-                                module=module)
+            if gear_input_info and "module" in gear_input_info:
+                set_gear_inputs(
+                    project=self.__project,
+                    gear_name=pipeline.starting_gear.gear_name,
+                    locator="module",
+                    gear_inputs_list=gear_input_info["module"],
+                    gear_inputs=gear_inputs,
+                    module=module,
+                )
 
             # a. Check if any submission pipelines are already running for
             #    this project. If one is found, wait for it to finish before continuing.
@@ -394,8 +429,11 @@ class FormSchedulerQueue:
             #    but left in as a safeguard
             JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-            log.info("Start processing pipeline: `%s` module queue: `%s`",
-                     pipeline.name, module)
+            log.info(
+                "Start processing pipeline: `%s` module queue: `%s`",
+                pipeline.name,
+                module,
+            )
 
             while len(subqueue) > 0:
                 # b. Pull the next file from subqueue and clear the queue tags
@@ -409,32 +447,31 @@ class FormSchedulerQueue:
 
                 # set gear inputs of file locator type matched
                 # for these inputs, use the file entry pulled from the queue
-                if gear_input_info and 'matched' in gear_input_info:
+                if gear_input_info and "matched" in gear_input_info:
                     set_gear_inputs(
                         project=self.__project,
                         gear_name=pipeline.starting_gear.gear_name,
-                        locator='matched',
-                        gear_inputs_list=gear_input_info['matched'],
+                        locator="matched",
+                        gear_inputs_list=gear_input_info["matched"],
                         gear_inputs=gear_inputs,
-                        matched_file=file)
+                        matched_file=file,
+                    )
 
                 # c. Trigger the first gear for the respective pipeline.
-                log.info(
-                    f"Kicking off pipeline `{pipeline.name}` on module {module}"
-                )
+                log.info(f"Kicking off pipeline `{pipeline.name}` on module {module}")
                 log.info(
                     f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
-                destination = self.__proxy.get_container_by_id(
-                    file.parent_ref.id)  # type: ignore
+                destination = self.__proxy.get_container_by_id(file.parent_ref.id)  # type: ignore
                 trigger_gear(
                     proxy=self.__proxy,
                     gear_name=pipeline.starting_gear.gear_name,
                     log_args=False,
                     inputs=gear_inputs,
                     config=pipeline.starting_gear.configs.model_dump(),
-                    destination=destination)
+                    destination=destination,
+                )
 
                 # d. wait for the above triggered pipeline to finish
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
@@ -442,11 +479,13 @@ class FormSchedulerQueue:
                 # e. if notifications enabled,
                 #    email to user who uploaded the file that pipeline has completed
                 if notify_user and self.__email_client:
-                    send_email(proxy=self.__proxy,
-                               email_client=self.__email_client,
-                               file=file,
-                               project=self.__project,
-                               portal_url=self.__portal_url)  # type: ignore
+                    send_email(
+                        proxy=self.__proxy,
+                        email_client=self.__email_client,
+                        file=file,
+                        project=self.__project,
+                        portal_url=self.__portal_url,
+                    )  # type: ignore
 
                 # f. repeat until current subqueue is empty
 

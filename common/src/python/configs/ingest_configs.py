@@ -9,7 +9,7 @@ from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues
 from pydantic import BaseModel, Field, RootModel, ValidationError
 
-PipelineType = Literal['submission', 'finalization']
+PipelineType = Literal["submission", "finalization"]
 
 
 class ConfigsError(Exception):
@@ -19,14 +19,14 @@ class ConfigsError(Exception):
 class LabelTemplate(BaseModel):
     """Defines a string template object for generating labels using input data
     from file records."""
+
     template: str
-    transform: Optional[Literal['upper', 'lower']] = Field(default=None)
+    transform: Optional[Literal["upper", "lower"]] = Field(default=None)
     delimiter: Optional[str] = Field(default=None)
 
-    def instantiate(self,
-                    record: Dict[str, Any],
-                    *,
-                    environment: Optional[Dict[str, Any]] = None) -> str:
+    def instantiate(
+        self, record: Dict[str, Any], *, environment: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Instantiates the template using the data from the record matching
         the variables in the template. Converts the generated label to upper or
         lower case if indicated for the template.
@@ -45,22 +45,24 @@ class LabelTemplate(BaseModel):
         except KeyError as error:
             if not environment:
                 raise ValueError(
-                    f"Error creating label, missing column {error}") from error
+                    f"Error creating label, missing column {error}"
+                ) from error
 
         if environment:
             try:
                 result = Template(result).substitute(environment)
             except KeyError as error:
                 raise ValueError(
-                    f"Error creating label, missing column {error}") from error
+                    f"Error creating label, missing column {error}"
+                ) from error
 
         if self.delimiter:
-            result = result.replace(' ', self.delimiter)
+            result = result.replace(" ", self.delimiter)
 
-        if self.transform == 'lower':
+        if self.transform == "lower":
             return result.lower()
 
-        if self.transform == 'upper':
+        if self.transform == "upper":
             # for filenames need to be careful about not
             # upper-casing the extension; can use pathlib
             # even if it's not actually a file
@@ -72,6 +74,7 @@ class LabelTemplate(BaseModel):
 
 class UploadTemplateInfo(BaseModel):
     """Defines model for label template input."""
+
     session: LabelTemplate
     acquisition: LabelTemplate
     filename: LabelTemplate
@@ -80,8 +83,7 @@ class UploadTemplateInfo(BaseModel):
 class OptionalFormsConfigs(RootModel):
     root: Dict[str, Dict[str, List[str]]]
 
-    def get_optional_forms(self, version: str,
-                           packet: str) -> Optional[List[str]]:
+    def get_optional_forms(self, version: str, packet: str) -> Optional[List[str]]:
         """Get the list of optional forms for the specified version and packet.
 
         Args:
@@ -145,9 +147,11 @@ class FormProjectConfigs(BaseModel):
 
         dependent_modules = []
         for module_label, config in self.module_configs.items():
-            if (config.supplement_module
-                    and config.supplement_module.exact_match
-                    and config.supplement_module.label == module.upper()):
+            if (
+                config.supplement_module
+                and config.supplement_module.exact_match
+                and config.supplement_module.label == module.upper()
+            ):
                 dependent_modules.append(module_label)
 
         return dependent_modules
@@ -155,6 +159,7 @@ class FormProjectConfigs(BaseModel):
 
 class Pipeline(BaseModel):
     """Defines model for form scheduler pipeline."""
+
     name: PipelineType
     modules: List[str]
     tags: List[str]
@@ -169,7 +174,8 @@ class PipelineConfigs(BaseModel):
 
     @classmethod
     def load_form_pipeline_configurations(
-            cls, config_file_path: str) -> 'PipelineConfigs':
+        cls, config_file_path: str
+    ) -> "PipelineConfigs":
         """Load the form pipeline configs from the pipeline configs file.
 
         Args:
@@ -183,9 +189,12 @@ class PipelineConfigs(BaseModel):
         """
 
         try:
-            with open(config_file_path, mode='r',
-                      encoding='utf-8-sig') as configs_file:
+            with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
                 return PipelineConfigs.model_validate_json(configs_file.read())
-        except (FileNotFoundError, JSONDecodeError, TypeError,
-                ValidationError) as error:
+        except (
+            FileNotFoundError,
+            JSONDecodeError,
+            TypeError,
+            ValidationError,
+        ) as error:
             raise ConfigsError(error) from error

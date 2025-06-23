@@ -27,8 +27,7 @@ class IdentifierRepository(abc.ABC):
     """Abstract class for identifier repositories."""
 
     @abstractmethod
-    def create(self, adcid: int, ptid: str,
-               guid: Optional[str]) -> IdentifierObject:
+    def create(self, adcid: int, ptid: str, guid: Optional[str]) -> IdentifierObject:
         """Creates an Identifier in the repository.
 
         Args:
@@ -38,8 +37,7 @@ class IdentifierRepository(abc.ABC):
         """
 
     @abstractmethod
-    def create_list(
-            self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
+    def create_list(self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
         """Adds a list of identifiers to the repository.
 
         Args:
@@ -48,26 +46,25 @@ class IdentifierRepository(abc.ABC):
 
     @abstractmethod
     @overload
-    def get(self, *, naccid: str) -> Optional[IdentifierObject]:
-        ...
+    def get(self, *, naccid: str) -> Optional[IdentifierObject]: ...
 
     @abstractmethod
     @overload
-    def get(self, *, guid: str) -> Optional[IdentifierObject]:
-        ...
+    def get(self, *, guid: str) -> Optional[IdentifierObject]: ...
 
     @abstractmethod
     @overload
-    def get(self, *, adcid: int, ptid: str) -> Optional[IdentifierObject]:
-        ...
+    def get(self, *, adcid: int, ptid: str) -> Optional[IdentifierObject]: ...
 
     @abstractmethod
-    def get(self,
-            *,
-            naccid: Optional[str] = None,
-            adcid: Optional[int] = None,
-            ptid: Optional[str] = None,
-            guid: Optional[str] = None) -> Optional[IdentifierObject]:
+    def get(
+        self,
+        *,
+        naccid: Optional[str] = None,
+        adcid: Optional[int] = None,
+        ptid: Optional[str] = None,
+        guid: Optional[str] = None,
+    ) -> Optional[IdentifierObject]:
         """Returns Identifier object for the IDs given.
 
         Note: some valid arguments can be falsey.
@@ -87,13 +84,11 @@ class IdentifierRepository(abc.ABC):
 
     @abstractmethod
     @overload
-    def list(self, adcid: int) -> List[IdentifierObject]:
-        ...
+    def list(self, adcid: int) -> List[IdentifierObject]: ...
 
     @abstractmethod
     @overload
-    def list(self) -> List[IdentifierObject]:
-        ...
+    def list(self) -> List[IdentifierObject]: ...
 
     @abstractmethod
     def list(self, adcid: Optional[int] = None) -> List[IdentifierObject]:

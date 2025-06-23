@@ -25,10 +25,17 @@ log = logging.getLogger(__name__)
 class BatchSchedulerVisitor(GearExecutionEnvironment):
     """Visitor for the batch-scheduler gear."""
 
-    def __init__(self, *, client: ClientWrapper, admin_id: str,
-                 config_input: InputFileWrapper, include_centers: List[str],
-                 exclude_centers: List[str], exclude_studies: List[str],
-                 time_interval: int):
+    def __init__(
+        self,
+        *,
+        client: ClientWrapper,
+        admin_id: str,
+        config_input: InputFileWrapper,
+        include_centers: List[str],
+        exclude_centers: List[str],
+        exclude_studies: List[str],
+        time_interval: int,
+    ):
         """
         Args:
             client: Flywheel SDK client wrapper
@@ -51,8 +58,8 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'BatchSchedulerVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "BatchSchedulerVisitor":
         """Creates a batch scheduler execution visitor.
 
         Args:
@@ -67,7 +74,8 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
 
         batch_configs_input = InputFileWrapper.create(
-            input_name='batch_configs_file', context=context)
+            input_name="batch_configs_file", context=context
+        )
         assert batch_configs_input, "missing expected input, batch_configs_file"
 
         include_centers = context.config.get("include_centers", None)
@@ -76,31 +84,35 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         if include_centers and (exclude_centers or exclude_studies):
             raise GearExecutionError(
-                'Cannot support both include and exclude configs at the same time, '
-                'provide either include list or exclude list')
+                "Cannot support both include and exclude configs at the same time, "
+                "provide either include list or exclude list"
+            )
 
-        include_centers_list = parse_string_to_list(
-            include_centers) if include_centers else []
-        exclude_centers_list = parse_string_to_list(
-            exclude_centers) if exclude_centers else []
-        exclude_studies_list = parse_string_to_list(
-            exclude_studies) if exclude_studies else []
+        include_centers_list = (
+            parse_string_to_list(include_centers) if include_centers else []
+        )
+        exclude_centers_list = (
+            parse_string_to_list(exclude_centers) if exclude_centers else []
+        )
+        exclude_studies_list = (
+            parse_string_to_list(exclude_studies) if exclude_studies else []
+        )
 
         if include_centers_list:
-            log.info('Including centers %s', include_centers_list)
+            log.info("Including centers %s", include_centers_list)
         else:
-            log.info('Skipping centers %s', exclude_centers_list)
-            log.info('Skipping studies %s', exclude_studies_list)
+            log.info("Skipping centers %s", exclude_centers_list)
+            log.info("Skipping studies %s", exclude_studies_list)
 
         return BatchSchedulerVisitor(
             client=client,
-            admin_id=context.config.get("admin_group",
-                                        DefaultValues.NACC_GROUP_ID),
+            admin_id=context.config.get("admin_group", DefaultValues.NACC_GROUP_ID),
             config_input=batch_configs_input,
             include_centers=include_centers_list,
             exclude_centers=exclude_centers_list,
             exclude_studies=exclude_studies_list,
-            time_interval=context.config.get("time_interval", 7))
+            time_interval=context.config.get("time_interval", 7),
+        )
 
     def __get_center_ids(self) -> Optional[List[str]]:
         """Get the list of Center IDs from metadata project.
@@ -117,11 +129,13 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         if not center_groups:
             raise GearExecutionError(
-                'Center information not found in '
-                f'{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}')
+                "Center information not found in "
+                f"{self.__admin_id}/{DefaultValues.METADATA_PRJ_LBL}"
+            )
 
         center_ids = [
-            group_id for group_id in center_groups
+            group_id
+            for group_id in center_groups
             if group_id not in self.__exclude_centers
             and not group_id.endswith(tuple(self.__exclude_studies))
         ]
@@ -140,27 +154,29 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         centers = self.__get_center_ids()
         if not centers:
-            log.warning(
-                "Did not find any centers matching with specified configs")
+            log.warning("Did not find any centers matching with specified configs")
             return
 
-        batch_configs = BatchRunInfo.load_from_file(
-            self.__config_input.filepath)
+        batch_configs = BatchRunInfo.load_from_file(self.__config_input.filepath)
         if not batch_configs:
-            raise GearExecutionError('Error in parsing batch run configs file '
-                                     f'{self.__config_input.filename}')
+            raise GearExecutionError(
+                "Error in parsing batch run configs file "
+                f"{self.__config_input.filename}"
+            )
 
-        sender_email = context.config.get('sender_email', 'nacchelp@uw.edu')
-        target_emails = context.config.get('target_emails', 'nacc_dev@uw.edu')
-        target_emails = [x.strip() for x in target_emails.split(',')]
+        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
+        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
 
-        run(proxy=self.proxy,
+        run(
+            proxy=self.proxy,
             centers=centers,
             time_interval=self.__time_interval,
             batch_configs=batch_configs,
             sender_email=sender_email,
             target_emails=target_emails,
-            dry_run=context.config.get("dry_run", False))
+            dry_run=context.config.get("dry_run", False),
+        )
 
 
 def main():

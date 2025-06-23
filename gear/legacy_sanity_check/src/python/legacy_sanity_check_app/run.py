@@ -30,10 +30,15 @@ logging.basicConfig(level=logging.ERROR)
 class LegacySanityCheckVisitor(GearExecutionEnvironment):
     """Visitor for the Legacy Sanity Check gear."""
 
-    def __init__(self, client: ClientWrapper, file_input: InputFileWrapper,
-                 form_configs_input: InputFileWrapper,
-                 ingest_project_label: str, sender_email: str,
-                 target_emails: List[str]):
+    def __init__(
+        self,
+        client: ClientWrapper,
+        file_input: InputFileWrapper,
+        form_configs_input: InputFileWrapper,
+        ingest_project_label: str,
+        sender_email: str,
+        target_emails: List[str],
+    ):
         super().__init__(client=client)
 
         self.__file_input = file_input
@@ -46,8 +51,8 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'LegacySanityCheckVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "LegacySanityCheckVisitor":
         """Creates a Legacy Sanity Check execution visitor.
 
         Args:
@@ -60,23 +65,21 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         """
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        file_input = InputFileWrapper.create(input_name='input_file',
-                                             context=context)
+        file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "missing expected input, input_file"
 
         form_configs_input = InputFileWrapper.create(
-            input_name='form_configs_file', context=context)
+            input_name="form_configs_file", context=context
+        )
         assert form_configs_input, "missing expected input, form_configs_file"
 
         config = context.config
-        ingest_project_label = config.get('ingest_project_label',
-                                          'ingest-form')
-        sender_email = config.get('sender_email', 'nacchelp@uw.edu')
-        target_emails = config.get('target_emails', 'nacc_dev@uw.edu')
-        target_emails = [x.strip() for x in target_emails.split(',')]
+        ingest_project_label = config.get("ingest_project_label", "ingest-form")
+        sender_email = config.get("sender_email", "nacchelp@uw.edu")
+        target_emails = config.get("target_emails", "nacc_dev@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
 
         return LegacySanityCheckVisitor(
             client=client,
@@ -84,7 +87,8 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             form_configs_input=form_configs_input,
             ingest_project_label=ingest_project_label,
             sender_email=sender_email,
-            target_emails=target_emails)
+            target_emails=target_emails,
+        )
 
     def run(self, context: GearToolkitContext) -> None:
         """Run the Legacy Sanity Checker."""
@@ -93,23 +97,24 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             file = self.proxy.get_file(file_id)
         except ApiException as error:
             raise GearExecutionError(
-                f'Failed to find the input file: {error}') from error
+                f"Failed to find the input file: {error}"
+            ) from error
 
         error_writer = ListErrorWriter(
-            container_id=file_id, fw_path=self.proxy.get_lookup_path(file))
+            container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
+        )
 
-        gear_name = context.manifest.get('name', 'legacy-sanity-check')
+        gear_name = context.manifest.get("name", "legacy-sanity-check")
 
         form_configs = None
-        with open(self.__form_configs_input.filepath, mode='r') as fh:
+        with open(self.__form_configs_input.filepath, mode="r") as fh:
             form_configs = None
             try:
-                form_configs = FormProjectConfigs.model_validate_json(
-                    fh.read())
+                form_configs = FormProjectConfigs.model_validate_json(fh.read())
             except ValidationError as error:
                 raise GearExecutionError(
-                    'Error reading form configurations file'
-                    f'{self.__form_configs_input.filename}: {error}'
+                    "Error reading form configurations file"
+                    f"{self.__form_configs_input.filename}: {error}"
                 ) from error
 
         p_project = self.__file_input.get_parent_project(self.proxy, file=file)
@@ -118,73 +123,75 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         try:
             project_label = DefaultValues.METADATA_PRJ_LBL
             metadata_project = ProjectAdaptor.create(
-                proxy=self.proxy,
-                group_id=project.group,
-                project_label=project_label)
+                proxy=self.proxy, group_id=project.group, project_label=project_label
+            )
 
             prj_metadata = metadata_project.get_info()
-            if not prj_metadata.get('active'):
-                log.info('Skipping sanity checks for inactive center %s',
-                         project.group)
-                context.metadata.add_file_tags(self.__file_input.file_input,
-                                               tags=gear_name)
+            if not prj_metadata.get("active"):
+                log.info("Skipping sanity checks for inactive center %s", project.group)
+                context.metadata.add_file_tags(
+                    self.__file_input.file_input, tags=gear_name
+                )
                 return
 
             adrc = metadata_project.get_custom_project_info(
-                f'studies:{DefaultValues.PRIMARY_STUDY}')
+                f"studies:{DefaultValues.PRIMARY_STUDY}"
+            )
 
             # TODO - implement affiliated studies checks, skipping for now
             if not adrc:
                 log.info(
-                    'Primary study %s not found in center %s, '
-                    'skipping sanity checks for affiliated studies',
-                    DefaultValues.PRIMARY_STUDY, project.group)
-                context.metadata.add_file_tags(self.__file_input.file_input,
-                                               tags=gear_name)
+                    "Primary study %s not found in center %s, "
+                    "skipping sanity checks for affiliated studies",
+                    DefaultValues.PRIMARY_STUDY,
+                    project.group,
+                )
+                context.metadata.add_file_tags(
+                    self.__file_input.file_input, tags=gear_name
+                )
                 return
 
             # all active centers should have a corresponding ingest project
             # raise error if group/project not found
             project_label = self.__ingest_project_label
-            ingest_project = ProjectAdaptor.create(proxy=self.proxy,
-                                                   group_id=project.group,
-                                                   project_label=project_label)
+            ingest_project = ProjectAdaptor.create(
+                proxy=self.proxy, group_id=project.group, project_label=project_label
+            )
         except ProjectError as error:
             raise GearExecutionError(
                 f"Could not find {project.group}/{project_label}: {error}"
             ) from error
 
-        form_store = FormsStore(ingest_project=ingest_project,
-                                legacy_project=project)
+        form_store = FormsStore(ingest_project=ingest_project, legacy_project=project)
 
-        sanity_checker = LegacySanityChecker(form_store=form_store,
-                                             form_configs=form_configs,
-                                             error_writer=error_writer,
-                                             legacy_project=project)
+        sanity_checker = LegacySanityChecker(
+            form_store=form_store,
+            form_configs=form_configs,
+            error_writer=error_writer,
+            legacy_project=project,
+        )
 
-        subject = project.get_subject_by_id(
-            file.parents.subject)  # type: ignore
+        subject = project.get_subject_by_id(file.parents.subject)  # type: ignore
         if not subject:
             raise GearExecutionError("Input file has no parent subject")
 
-        module = self.__file_input.file_info['forms']['json']['module']
+        module = self.__file_input.file_info["forms"]["json"]["module"]
 
         if not sanity_checker.run_all_checks(subject.label, module):
-            sanity_checker.send_email(sender_email=self.__sender_email,
-                                      target_emails=self.__target_emails,
-                                      group_lbl=project.label)
-            raise GearExecutionError(
-                f"Sanity checks failed: {error_writer.errors()}")
+            sanity_checker.send_email(
+                sender_email=self.__sender_email,
+                target_emails=self.__target_emails,
+                group_lbl=project.label,
+            )
+            raise GearExecutionError(f"Sanity checks failed: {error_writer.errors()}")
 
-        context.metadata.add_file_tags(self.__file_input.file_input,
-                                       tags=gear_name)
+        context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
 
 def main():
     """Main method for Legacy Sanity Check."""
 
-    GearEngine.create_with_parameter_store().run(
-        gear_type=LegacySanityCheckVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=LegacySanityCheckVisitor)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ class REDCapEmailListConfigs(BaseModel):
     source_email: str
     configuration_set_name: str
     template_name: str
-    email_key: str = Field(default='email')
+    email_key: str = Field(default="email")
 
     # if using TemplateDataModel
     firstname_key: Optional[str] = None
@@ -39,12 +39,13 @@ class REDCapEmailListConfigs(BaseModel):
 
 
 class REDCapEmailList:
-
-    def __init__(self,
-                 redcap_con: REDCapReportConnection,
-                 configs: REDCapEmailListConfigs,
-                 dry_run: bool = False,
-                 ses=None) -> None:
+    def __init__(
+        self,
+        redcap_con: REDCapReportConnection,
+        configs: REDCapEmailListConfigs,
+        dry_run: bool = False,
+        ses=None,
+    ) -> None:
         """Pull email list from REDCap report."""
         self.__redcap_con = redcap_con
         self.__configs = configs
@@ -53,26 +54,30 @@ class REDCapEmailList:
         ses = ses if ses is not None else create_ses_client()
 
         self.__email_list = self.__pull_email_list_from_redcap()
-        self.__email_client = EmailClient(client=ses,
-                                          source=self.__configs.source_email)
+        self.__email_client = EmailClient(
+            client=ses, source=self.__configs.source_email
+        )
 
     @property
     def email_list(self) -> Dict[str, Dict[str, str]]:
         return self.__email_list
 
     @staticmethod
-    def create(parameter_store: ParameterStore,
-               configs: REDCapEmailListConfigs,
-               dry_run: bool = False) -> "REDCapEmailList":
+    def create(
+        parameter_store: ParameterStore,
+        configs: REDCapEmailListConfigs,
+        dry_run: bool = False,
+    ) -> "REDCapEmailList":
         """Creates the REDCapEmailList."""
         try:
             redcap_parameter_path = configs.redcap_parameter_path
             redcap_params = parameter_store.get_redcap_report_parameters(
-                param_path=redcap_parameter_path)
+                param_path=redcap_parameter_path
+            )
             redcap_con = REDCapReportConnection.create_from(redcap_params)
-            return REDCapEmailList(redcap_con=redcap_con,
-                                   configs=configs,
-                                   dry_run=dry_run)
+            return REDCapEmailList(
+                redcap_con=redcap_con, configs=configs, dry_run=dry_run
+            )
         except (ParameterError, REDCapConnectionError) as error:
             raise GearExecutionError(error) from error
 
@@ -102,11 +107,8 @@ class REDCapEmailList:
         Returns:
             the message ID if successfully sent
         """
-        log.info(
-            f"Sending single mass email to {len(self.__email_list)} recipients"
-        )
-        destination = DestinationModel(
-            to_addresses=list(self.__email_list.keys()))
+        log.info(f"Sending single mass email to {len(self.__email_list)} recipients")
+        destination = DestinationModel(to_addresses=list(self.__email_list.keys()))
         template_data = BaseTemplateModel()
 
         if self.__dry_run:
@@ -134,14 +136,15 @@ class REDCapEmailList:
         for email, data in self.__email_list.items():
             destination = DestinationModel(to_addresses=[email])
 
-            firstname = (data.get(self.__configs.firstname_key)
-                         if self.__configs.firstname_key else None)
-            url = data.get(
-                self.__configs.url_key) if self.__configs.url_key else None
+            firstname = (
+                data.get(self.__configs.firstname_key)
+                if self.__configs.firstname_key
+                else None
+            )
+            url = data.get(self.__configs.url_key) if self.__configs.url_key else None
 
             if not firstname:
-                raise GearExecutionError(
-                    f"Cannot determine first name for {email}")
+                raise GearExecutionError(f"Cannot determine first name for {email}")
 
             template_data = TemplateDataModel(firstname=firstname, url=url)
 

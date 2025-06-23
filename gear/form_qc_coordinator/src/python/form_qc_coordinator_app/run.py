@@ -36,15 +36,17 @@ log = logging.getLogger(__name__)
 class FormQCCoordinator(GearExecutionEnvironment):
     """The gear execution visitor for the form-qc-coordinator."""
 
-    def __init__(self,
-                 *,
-                 client: ClientWrapper,
-                 file_input: InputFileWrapper,
-                 form_config_input: InputFileWrapper,
-                 qc_config_input: InputFileWrapper,
-                 subject_id: str,
-                 pipeline: PipelineType,
-                 check_all: bool = False):
+    def __init__(
+        self,
+        *,
+        client: ClientWrapper,
+        file_input: InputFileWrapper,
+        form_config_input: InputFileWrapper,
+        qc_config_input: InputFileWrapper,
+        subject_id: str,
+        pipeline: PipelineType,
+        check_all: bool = False,
+    ):
         """
         Args:
             client: Flywheel SDK client wrapper
@@ -67,8 +69,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'FormQCCoordinator':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "FormQCCoordinator":
         """Creates a gear execution object, loads gear context.
 
         Args:
@@ -80,49 +82,55 @@ class FormQCCoordinator(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
         assert parameter_store, "Parameter store expected"
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         try:
             dest_container: Any = context.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
-                f'Cannot find destination container: {error}') from error
+                f"Cannot find destination container: {error}"
+            ) from error
 
-        if dest_container.container_type == 'subject':
+        if dest_container.container_type == "subject":
             subject_id = dest_container.id
-        elif dest_container.container_type == 'acquisition':
-            subject_id = dest_container.parents['subject']
+        elif dest_container.container_type == "acquisition":
+            subject_id = dest_container.parents["subject"]
         else:
             raise GearExecutionError(
-                f"Unsupported container type {dest_container.container_type}")
+                f"Unsupported container type {dest_container.container_type}"
+            )
 
-        visits_file_input = InputFileWrapper.create(input_name='visits_file',
-                                                    context=context)
+        visits_file_input = InputFileWrapper.create(
+            input_name="visits_file", context=context
+        )
         assert visits_file_input, "missing expected input, visits_file"
 
         form_configs_input = InputFileWrapper.create(
-            input_name='form_configs_file', context=context)
+            input_name="form_configs_file", context=context
+        )
         assert form_configs_input, "missing expected input, form_configs_file"
 
         qc_configs_input = InputFileWrapper.create(
-            input_name='qc_configs_file', context=context)
+            input_name="qc_configs_file", context=context
+        )
         assert qc_configs_input, "missing expected input, qc_configs_file"
 
-        check_all = context.config.get('check_all', False)
-        pipeline = context.config.get('pipeline', 'submission')
+        check_all = context.config.get("check_all", False)
+        pipeline = context.config.get("pipeline", "submission")
 
-        return FormQCCoordinator(client=client,
-                                 file_input=visits_file_input,
-                                 form_config_input=form_configs_input,
-                                 qc_config_input=qc_configs_input,
-                                 subject_id=subject_id,
-                                 pipeline=pipeline,
-                                 check_all=check_all)
+        return FormQCCoordinator(
+            client=client,
+            file_input=visits_file_input,
+            form_config_input=form_configs_input,
+            qc_config_input=qc_configs_input,
+            subject_id=subject_id,
+            pipeline=pipeline,
+            check_all=check_all,
+        )
 
     def __parse_json_input(
-            self, subject: SubjectAdaptor,
-            form_configs: FormProjectConfigs) -> Optional[ParticipantVisits]:
+        self, subject: SubjectAdaptor, form_configs: FormProjectConfigs
+    ) -> Optional[ParticipantVisits]:
         """Parse the JSON input file and return visits info.
 
         Args:
@@ -137,11 +145,13 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         module = self.__file_input.get_module_name_from_file_suffix(
-            separator="_", allowed="a-z", split=None, extension="json")
+            separator="_", allowed="a-z", split=None, extension="json"
+        )
         if not module:
             raise GearExecutionError(
                 "Failed to extract module information from file "
-                f"{self.__file_input.filename}")
+                f"{self.__file_input.filename}"
+            )
         module = module.upper()
 
         file_id = self.__file_input.file_id
@@ -155,34 +165,37 @@ class FormQCCoordinator(GearExecutionEnvironment):
         module_configs = form_configs.module_configs.get(module)
         if not module_configs:
             raise GearExecutionError(
-                f"Failed to find module configurations for {module} module")
+                f"Failed to find module configurations for {module} module"
+            )
 
-        visitdate = file.info.get('forms',
-                                  {}).get("json",
-                                          {}).get(module_configs.date_field)
+        visitdate = (
+            file.info.get("forms", {}).get("json", {}).get(module_configs.date_field)
+        )
         if not visitdate:
             raise GearExecutionError(
                 f"{MetadataKeys.get_column_key(module_configs.date_field)} "
-                f"not found in file {self.__file_input.filename} metadata")
+                f"not found in file {self.__file_input.filename} metadata"
+            )
 
-        visitnum = file.info.get('forms', {}).get("json",
-                                                  {}).get(FieldNames.VISITNUM)
+        visitnum = file.info.get("forms", {}).get("json", {}).get(FieldNames.VISITNUM)
 
-        visit = VisitInfo(filename=self.__file_input.filename,
-                          file_id=file_id,
-                          visitdate=visitdate,
-                          visitnum=visitnum,
-                          validated_timestamp=file.info.get(
-                              MetadataKeys.VALIDATED_TIMESTAMP))
+        visit = VisitInfo(
+            filename=self.__file_input.filename,
+            file_id=file_id,
+            visitdate=visitdate,
+            visitnum=visitnum,
+            validated_timestamp=file.info.get(MetadataKeys.VALIDATED_TIMESTAMP),
+        )
 
-        visits_info = ParticipantVisits(participant=subject.label,
-                                        module=module,
-                                        visits=[visit])
+        visits_info = ParticipantVisits(
+            participant=subject.label, module=module, visits=[visit]
+        )
 
         return visits_info
 
     def __parse_yaml_input(
-            self, subject: SubjectAdaptor) -> Optional[ParticipantVisits]:
+        self, subject: SubjectAdaptor
+    ) -> Optional[ParticipantVisits]:
         """Parse the YAML input file and return visits info.
 
         Args:
@@ -193,8 +206,9 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         try:
-            with open(self.__file_input.filepath, 'r',
-                      encoding='utf-8-sig ') as input_file:
+            with open(
+                self.__file_input.filepath, "r", encoding="utf-8-sig "
+            ) as input_file:
                 input_data = load_from_stream(input_file)
         except (FileNotFoundError, YAMLReadError) as error:
             log.error(
@@ -205,20 +219,21 @@ class FormQCCoordinator(GearExecutionEnvironment):
         try:
             visits_info = ParticipantVisits.model_validate(input_data)
         except ValidationError as error:
-            log.error('Visit information not in expected format - %s', error)
+            log.error("Visit information not in expected format - %s", error)
             return None
 
         if visits_info and subject.label != visits_info.participant:
             log.error(
                 f"Participant label in visits file {visits_info.participant} "
-                f"does not match with subject label {subject.label}")
+                f"does not match with subject label {subject.label}"
+            )
             return None
 
         return visits_info
 
     def __validate_input_data(
-            self, subject: SubjectAdaptor,
-            form_configs: FormProjectConfigs) -> Optional[ParticipantVisits]:
+        self, subject: SubjectAdaptor, form_configs: FormProjectConfigs
+    ) -> Optional[ParticipantVisits]:
         """Validate the input file - visits_file.
 
         Args:
@@ -231,16 +246,19 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         accepted_extensions = ["yaml", "json"]
         file_type = self.__file_input.validate_file_extension(
-            accepted_extensions=accepted_extensions)
+            accepted_extensions=accepted_extensions
+        )
         if not file_type:
             raise GearExecutionError(
                 f"Unsupported input file type {self.__file_input.file_type}, "
-                f"supported extension(s): {accepted_extensions}")
+                f"supported extension(s): {accepted_extensions}"
+            )
 
-        if self.__pipeline == 'submission' and file_type != "yaml":
+        if self.__pipeline == "submission" and file_type != "yaml":
             raise GearExecutionError(
                 f"Unsupported input file type `{file_type}` for pipeline "
-                f"`{self.__pipeline}` - expected yaml file")
+                f"`{self.__pipeline}` - expected yaml file"
+            )
 
         if file_type == "json":
             return self.__parse_json_input(subject, form_configs=form_configs)
@@ -255,9 +273,10 @@ class FormQCCoordinator(GearExecutionEnvironment):
             input_wrapper: gear input file wrapper
         """
 
-        gear_name = gear_context.manifest.get('name', 'form-qc-coordinator')
-        gear_context.metadata.add_file_tags(self.__file_input.file_input,
-                                            tags=gear_name)
+        gear_name = gear_context.manifest.get("name", "form-qc-coordinator")
+        gear_context.metadata.add_file_tags(
+            self.__file_input.file_input, tags=gear_name
+        )
 
     def run(self, context: GearToolkitContext) -> None:
         """Validates input files, runs the form-qc-coordinator app.
@@ -270,8 +289,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         try:
-            subject: Subject = self.proxy.get_container_by_id(
-                self.__subject_id)  # type: ignore
+            subject: Subject = self.proxy.get_container_by_id(self.__subject_id)  # type: ignore
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find subject with ID {self.__subject_id}: {error}"
@@ -279,24 +297,31 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         try:
             form_project_configs = load_form_ingest_configurations(
-                self.__form_config_input.filepath)
+                self.__form_config_input.filepath
+            )
         except ValidationError as error:
             raise GearExecutionError(
                 "Error reading form configurations file "
-                f"{self.__form_config_input.filename}: {error}") from error
+                f"{self.__form_config_input.filename}: {error}"
+            ) from error
 
         subject_adaptor = SubjectAdaptor(subject)
         visits_info = self.__validate_input_data(
-            subject=subject_adaptor, form_configs=form_project_configs)
+            subject=subject_adaptor, form_configs=form_project_configs
+        )
         if not visits_info:
             raise GearExecutionError(
-                f"Error reading visits info file {self.__file_input.filename}")
+                f"Error reading visits info file {self.__file_input.filename}"
+            )
 
-        qc_gear_info = GearInfo.load_from_file(self.__qc_config_input.filepath,
-                                               configs_class=QCGearConfigs)
+        qc_gear_info = GearInfo.load_from_file(
+            self.__qc_config_input.filepath, configs_class=QCGearConfigs
+        )
         if not qc_gear_info:
-            raise GearExecutionError("Error reading qc gear configs file "
-                                     f"{self.__qc_config_input.filename}")
+            raise GearExecutionError(
+                "Error reading qc gear configs file "
+                f"{self.__qc_config_input.filename}"
+            )
 
         run(
             gear_context=context,
@@ -307,7 +332,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
             visits_info=visits_info,
             qc_gear_info=qc_gear_info,
             pipeline=self.__pipeline,  # type: ignore
-            check_all=self.__check_all)
+            check_all=self.__check_all,
+        )
 
         if self.__pipeline == DefaultValues.SUBMISSION_PIPELINE:
             self.__update_input_file_tags(context)

@@ -1,5 +1,6 @@
 """Tests the UDS CSVTransformVisitor, mainly tests the batch CSV records error
 checks."""
+
 import json
 from typing import Any, Dict, Optional, Tuple
 
@@ -20,25 +21,22 @@ from transform.transformer import (
 )
 
 # global date field key
-DATE_FIELD = 'visitdate'
+DATE_FIELD = "visitdate"
 
 
-def run_header_test(visitor: CSVTransformVisitor,
-                    error_writer: ListErrorWriter):
+def run_header_test(visitor: CSVTransformVisitor, error_writer: ListErrorWriter):
     """Test the visit_header method."""
-    assert not visitor.visit_header(['invalid', 'headers', 'formver'])
+    assert not visitor.visit_header(["invalid", "headers", "formver"])
 
     # just look at specific fields since stuff like time/set order will vary
     errors = error_writer.errors()
     assert len(errors) == 1
-    assert errors[0]['code'] == 'missing-field'
-    assert errors[0]['message'].startswith(
-        "Missing one or more required field(s)")
+    assert errors[0]["code"] == "missing-field"
+    assert errors[0]["message"].startswith("Missing one or more required field(s)")
 
 
 def create_uds_visitor(
-    test_header: bool = False,
-    transform_schema: Optional[Dict[str, Any]] = None
+    test_header: bool = False, transform_schema: Optional[Dict[str, Any]] = None
 ) -> Tuple[CSVTransformVisitor, MockProject, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
     Returns the visitor, mocked project, and mocked form store.
@@ -49,14 +47,13 @@ def create_uds_visitor(
     """
 
     # dummy error writer
-    error_writer = ListErrorWriter(container_id='dummy_id',
-                                   fw_path='dummy_path')
+    error_writer = ListErrorWriter(container_id="dummy_id", fw_path="dummy_path")
 
     # transformer
     if transform_schema:
         transformer_factory = TransformerFactory(
-            FieldTransformations.model_validate_json(
-                json.dumps(transform_schema)))
+            FieldTransformations.model_validate_json(json.dumps(transform_schema))
+        )
     else:
         transformer_factory = TransformerFactory(FieldTransformations())
 
@@ -66,19 +63,22 @@ def create_uds_visitor(
     project = MockProject()
 
     preprocessor = FormPreprocessor(
-        primary_key='naccid',
+        primary_key="naccid",
         forms_store=form_store,
         module_info={DefaultValues.UDS_MODULE: module_configs},
-        error_writer=error_writer)
+        error_writer=error_writer,
+    )
 
-    visitor = CSVTransformVisitor(id_column='naccid',
-                                  module=DefaultValues.UDS_MODULE,
-                                  error_writer=error_writer,
-                                  transformer_factory=transformer_factory,
-                                  preprocessor=preprocessor,
-                                  module_configs=module_configs,
-                                  gear_name='form-transformer',
-                                  project=project)
+    visitor = CSVTransformVisitor(
+        id_column="naccid",
+        module=DefaultValues.UDS_MODULE,
+        error_writer=error_writer,
+        transformer_factory=transformer_factory,
+        preprocessor=preprocessor,
+        module_configs=module_configs,
+        gear_name="form-transformer",
+        project=project,
+    )
 
     # test the header if specified
     if test_header:
@@ -87,11 +87,18 @@ def create_uds_visitor(
 
     # have the visitor visit the header already so
     # individual tests don't have to do it
-    assert visitor.visit_header([
-        FieldNames.NACCID, DATE_FIELD, FieldNames.MODULE, FieldNames.VISITNUM,
-        FieldNames.FORMVER, FieldNames.PTID, FieldNames.ADCID,
-        FieldNames.PACKET
-    ])
+    assert visitor.visit_header(
+        [
+            FieldNames.NACCID,
+            DATE_FIELD,
+            FieldNames.MODULE,
+            FieldNames.VISITNUM,
+            FieldNames.FORMVER,
+            FieldNames.PTID,
+            FieldNames.ADCID,
+            FieldNames.PACKET,
+        ]
+    )
     assert not error_writer.errors()
 
     return visitor, project, form_store
@@ -104,22 +111,22 @@ def create_record(data: Dict[str, Any]):
         data: Data to add for specific test
     """
     record = {
-        FieldNames.NACCID: 'dummy-naccid',
-        FieldNames.MODULE: 'uds',
-        FieldNames.FORMVER: '4.0',
-        FieldNames.VISITNUM: '1',
-        FieldNames.PACKET: 'I',
-        FieldNames.PTID: 'dummy-ptid',
+        FieldNames.NACCID: "dummy-naccid",
+        FieldNames.MODULE: "uds",
+        FieldNames.FORMVER: "4.0",
+        FieldNames.VISITNUM: "1",
+        FieldNames.PACKET: "I",
+        FieldNames.PTID: "dummy-ptid",
         FieldNames.ADCID: 0,
-        DATE_FIELD: '2025-01-01',
-        'modea1a': 0,
-        'modea2': 0,
-        'modeb1': 0,
-        'modeb3': 0,
-        'modeb5': 0,
-        'modeb6': 0,
-        'modeb7': 0,
-        'dummy': 'dummy_val'
+        DATE_FIELD: "2025-01-01",
+        "modea1a": 0,
+        "modea2": 0,
+        "modeb1": 0,
+        "modeb3": 0,
+        "modeb5": 0,
+        "modeb6": 0,
+        "modeb7": 0,
+        "dummy": "dummy_val",
     }
 
     record.update(data)
@@ -135,13 +142,12 @@ def get_qc_errors(project: MockProject):
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
     error_logs = {
-        k: v
-        for k, v in project.files.items() if k.endswith('_qc-status.log')
+        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
     }
     assert error_logs
 
     error_file = list(error_logs.values())[0]  # noqa: RUF015
-    return error_file.info['qc']['form-transformer']['validation']['data']
+    return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 
 class TestUDSTransform:
@@ -155,84 +161,81 @@ class TestUDSTransform:
         """Test row is missing required fields."""
         visitor, project, _ = create_uds_visitor()
         record = create_record({})
-        record.pop('naccid')
+        record.pop("naccid")
         assert not visitor.visit_row(record, 0)
 
         qc = get_qc_errors(project)
         assert len(qc) == 1
-        assert qc[0]['code'] == 'empty-field'
-        assert qc[0]['message'].startswith("Required field(s)")
-        assert qc[0]['message'].endswith('cannot be blank')
+        assert qc[0]["code"] == "empty-field"
+        assert qc[0]["message"].startswith("Required field(s)")
+        assert qc[0]["message"].endswith("cannot be blank")
 
     def test_mismatched_modules(self):
         """Test records in CSV belong to different modules."""
         visitor, project, _ = create_uds_visitor()
 
-        record = create_record({'module': 'ftld'})
+        record = create_record({"module": "ftld"})
         assert not visitor.visit_row(record, 0)
         qc = get_qc_errors(project)
         assert len(qc) == 1
 
-        record = create_record({'module': 'lbd'})
+        record = create_record({"module": "lbd"})
         assert not visitor.visit_row(record, 1)
         qc = get_qc_errors(project)
         assert len(qc) == 2
 
-        assert qc[0]['code'] == 'unexpected-value'
-        assert qc[0]['message'] == 'Expected UDS for field module'
-        assert qc[0]['expected'] == 'UDS'
-        assert qc[0]['value'] == 'FTLD'
-        assert qc[1]['code'] == 'unexpected-value'
-        assert qc[1]['message'] == 'Expected UDS for field module'
-        assert qc[1]['expected'] == 'UDS'
-        assert qc[1]['value'] == 'LBD'
+        assert qc[0]["code"] == "unexpected-value"
+        assert qc[0]["message"] == "Expected UDS for field module"
+        assert qc[0]["expected"] == "UDS"
+        assert qc[0]["value"] == "FTLD"
+        assert qc[1]["code"] == "unexpected-value"
+        assert qc[1]["message"] == "Expected UDS for field module"
+        assert qc[1]["expected"] == "UDS"
+        assert qc[1]["value"] == "LBD"
 
     def test_bad_transform(self):
         """Test bad transform - does a simple one just to check
         the errors."""
         schema = {
-            'UDS': [{
-                'version_map': {
-                    'fieldname': 'transform',
-                    'value_map': {
-                        "1": "do_transform"
+            "UDS": [
+                {
+                    "version_map": {
+                        "fieldname": "transform",
+                        "value_map": {"1": "do_transform"},
+                        "default": "no_transform",
                     },
-                    'default': 'no_transform'
-                },
-                'nofill': True,
-                'fields': {
-                    'do_transform': ['bad1', 'bad2', 'bad3']
+                    "nofill": True,
+                    "fields": {"do_transform": ["bad1", "bad2", "bad3"]},
                 }
-            }]
+            ]
         }
         visitor, project, _ = create_uds_visitor(transform_schema=schema)
-        record = create_record({
-            'transform': "1",
-            'bad1': True,
-            'bad2': 'hello',
-            'bad3': 4
-        })
+        record = create_record(
+            {"transform": "1", "bad1": True, "bad2": "hello", "bad3": 4}
+        )
         assert not visitor.visit_row(record, 0)
         qc = get_qc_errors(project)
         assert len(qc) == 1
 
         # will pass this
-        record = create_record({'bad1': None, 'bad2': None, 'bad3': None})
+        record = create_record({"bad1": None, "bad2": None, "bad3": None})
         assert visitor.visit_row(record, 1)
 
         qc = get_qc_errors(project)
         assert len(qc) == 1
         code = SysErrorCodes.EXCLUDED_FIELDS
-        assert qc[0]['code'] == code
-        assert qc[0]['message'] == preprocess_errors[code]
+        assert qc[0]["code"] == code
+        assert qc[0]["message"] == preprocess_errors[code]
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
         visitor, project, form_store = create_uds_visitor()
         record = create_record({})
-        form_store.add_subject(subject_lbl=record['naccid'],
-                               form_data=record,
-                               file_name=f"{record['naccid']}.json")
+        form_store.add_subject(
+            subject_lbl=record["naccid"],
+            form_data=record,
+            file_name=f"{record['naccid']}.json",
+        )
 
         # allowed when exactly the same
         assert visitor.visit_row(record, 0)
@@ -245,32 +248,30 @@ class TestUDSTransform:
         visitor, project, form_store = create_uds_visitor()
 
         # create "failed" files that already exist in the project
-        records = [create_record({'naccid': f'failed-{x}'}) for x in range(3)]
+        records = [create_record({"naccid": f"failed-{x}"}) for x in range(3)]
         for i, record in enumerate(records):
-            file_name = get_error_log_name(module=record['module'],
-                                           input_data=record)
+            file_name = get_error_log_name(module=record["module"], input_data=record)
             assert file_name
 
-            form_store.add_subject(subject_lbl=record['naccid'],
-                                   form_data=record,
-                                   file_name=file_name)  # type: ignore
+            form_store.add_subject(
+                subject_lbl=record["naccid"], form_data=record, file_name=file_name
+            )  # type: ignore
 
             # also update the project file's metadata to a failed state
             project.upload_file(
                 file={
-                    'name': file_name,
-                    'contents': json.dumps(record),
-                    'info': {
-                        'qc': {
-                            'form-transformer': {
-                                'state': 'FAILED',
-                                'data': [{
-                                    'msg': 'some old failures'
-                                }]
+                    "name": file_name,
+                    "contents": json.dumps(record),
+                    "info": {
+                        "qc": {
+                            "form-transformer": {
+                                "state": "FAILED",
+                                "data": [{"msg": "some old failures"}],
                             }
                         }
-                    }
-                })
+                    },
+                }
+            )
 
             assert visitor.visit_row(record, i)
 
@@ -278,15 +279,14 @@ class TestUDSTransform:
         # check that after updating the states get set to TRUE
         visitor.update_existing_visits_error_log()
         for record in records:
-            file_name = get_error_log_name(module=record['module'],
-                                           input_data=record)
+            file_name = get_error_log_name(module=record["module"], input_data=record)
             assert file_name
 
             file = project.get_file(file_name)
             assert file
-            assert file.info['qc']['form-transformer']['validation'] == {
-                'state': 'PASS',
-                'data': []
+            assert file.info["qc"]["form-transformer"]["validation"] == {
+                "state": "PASS",
+                "data": [],
             }
 
     def test_current_batch_duplicates(self):
@@ -302,24 +302,24 @@ class TestUDSTransform:
         assert len(qc) == 3
         for failed_form in qc:
             code = SysErrorCodes.DUPLICATE_VISIT
-            assert failed_form['code'] == code
-            assert failed_form['message'] == preprocess_errors[code]
+            assert failed_form["code"] == code
+            assert failed_form["message"] == preprocess_errors[code]
 
     def test_current_batch_different_visit_date(self):
         """Tests same visit number but different visit date correctly raises
         error."""
         visitor, project, _ = create_uds_visitor()
-        record = create_record({'visitnum': "3", 'visitdate': '2025-01-01'})
+        record = create_record({"visitnum": "3", "visitdate": "2025-01-01"})
         assert visitor.visit_row(record, 0)
-        record = create_record({'visitnum': "3", 'visitdate': '2024-01-01'})
+        record = create_record({"visitnum": "3", "visitdate": "2024-01-01"})
         assert visitor.visit_row(record, 1)
 
         assert not visitor.process_current_batch()
         qc = get_qc_errors(project)
         assert len(qc) == 1
         code = SysErrorCodes.DIFF_VISITDATE
-        assert qc[0]['code'] == code
-        assert qc[0]['message'] == preprocess_errors[code]
+        assert qc[0]["code"] == code
+        assert qc[0]["message"] == preprocess_errors[code]
 
     # def test_current_batch_lower_visit_num(self):
     #     """Tests invalid visit numbers correctly raises error.
@@ -342,19 +342,23 @@ class TestUDSTransform:
     def test_non_numeric_visitnum(self):
         """Tests non-numeric visit numbers."""
         visitor, project, _ = create_uds_visitor()
-        record = create_record({
-            'ptid': 'new-ptid1',
-            'packet': 'I',
-            'visitnum': '1N',
-            'visitdate': '2023-01-01'
-        })
+        record = create_record(
+            {
+                "ptid": "new-ptid1",
+                "packet": "I",
+                "visitnum": "1N",
+                "visitdate": "2023-01-01",
+            }
+        )
         assert visitor.visit_row(record, 0)
-        record = create_record({
-            'ptid': 'new-ptid1',
-            'packet': 'F',
-            'visitnum': '1F',
-            'visitdate': '2025-01-01'
-        })
+        record = create_record(
+            {
+                "ptid": "new-ptid1",
+                "packet": "F",
+                "visitnum": "1F",
+                "visitdate": "2025-01-01",
+            }
+        )
         assert visitor.visit_row(record, 1)
 
         assert visitor.process_current_batch()
