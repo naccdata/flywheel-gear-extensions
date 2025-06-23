@@ -22,42 +22,89 @@ log = logging.getLogger(__name__)
 MetadataCleanupFlag = Literal["ALL", "GEAR", "NA"]
 
 preprocess_errors = {
-    SysErrorCodes.ADCID_MISMATCH: "ADCID must match the ADCID of the center uploading the data",
-    SysErrorCodes.IVP_EXISTS: "Only one Initial Visit Packet is allowed per participant",
-    SysErrorCodes.UDS_NOT_MATCH: "Cannot find a matching UDS visit packet with the "
-    + "same visit number and visit date as the module packet",
-    SysErrorCodes.INVALID_MODULE_PACKET: "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)",
-    SysErrorCodes.UDS_NOT_EXIST: "A UDS packet must be submitted before submitting this module/form",
-    SysErrorCodes.DIFF_VISITDATE: "Two packets cannot have the same visit number (VISITNUM) "
-    + "if they are from different dates (VISITDATE)",
-    SysErrorCodes.DIFF_VISITNUM: "Two packets cannot have the same visit date (VISITDATE) "
-    + "if they are from different visit numbers (VISITNUM)",
-    SysErrorCodes.LOWER_FVP_VISITNUM: "Visit number (VISITNUM) for Follow-Up Visit Packets must be "
-    + "greater than Visit number (VISITNUM) for Initial Visit Packet",
-    SysErrorCodes.LOWER_I4_VISITNUM: "Visit number (VISITNUM) for UDSv4 Initial Visit Packet (PACKET=I4) "
-    + "must be greater than Visit number (VISITNUM) for of the last UDSv3 Visit Packet",
-    SysErrorCodes.LOWER_FVP_VISITDATE: "Follow-Up Packet visit date (VISITDATE) cannot be equal to "
-    + "or from a date before the Initial Visit Packet",
-    SysErrorCodes.LOWER_I4_VISITDATE: "Visit date (VISITDATE) for UDSv4 Initial Visit Packet (PACKET=I4) "
-    + "must be a date after the last UDSv3 Visit Packet",
-    SysErrorCodes.EXCLUDED_FIELDS: "Some fields in the input record do not match with the submitted version",
-    SysErrorCodes.INVALID_PACKET: "Provided PACKET code is not in the list of accepted packets for this module",
-    SysErrorCodes.INVALID_VERSION: "Provided FORMVER is not in the list of "
-    + "accepted versions for this module",
-    SysErrorCodes.INVALID_PTID: "PTID must be no more than 10 characters",
-    SysErrorCodes.INVALID_MODULE: "Provided MODULE is not in the list of currently accepted modules",
-    SysErrorCodes.MISSING_IVP: "Follow-Up visit cannot be submitted without an existing Initial Visit Packet",
-    SysErrorCodes.MULTIPLE_IVP: "More than one IVP packet found for the participant/module",
-    SysErrorCodes.UDS_NOT_APPROVED: "UDS visit packet must be approved before the module visit can be processed",
-    SysErrorCodes.MISSING_UDS_V3: "To submit an Initial UDSv4 Visit Packet (PACKET=I4), "
-    + "participant must have an existing UDSv3 Visit Packet",
-    SysErrorCodes.MISSING_UDS_I4: "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
-    + "submitted before the Follow-Up Visit Packet (PACKET=F)",
-    SysErrorCodes.DUPLICATE_VISIT: "Duplicate record with the same visit date exists in the batch CSV file "
-    + "for this participant",
-    SysErrorCodes.LOWER_VISITNUM: "Packet with higher visit date (VISITDATE) "
-    + "must also have a higher visit number (VISITNUM)",
-    SysErrorCodes.MISSING_SUBMISSION_STATUS: "Missing submission status (MODE<form name> variable) for one or more optional form",
+    SysErrorCodes.ADCID_MISMATCH: (
+        "ADCID must match the ADCID of the center uploading the data"
+    ),
+    SysErrorCodes.IVP_EXISTS: (
+        "Only one Initial Visit Packet is allowed per participant"
+    ),
+    SysErrorCodes.UDS_NOT_MATCH: (
+        "Cannot find a matching UDS visit packet with the "
+        "same visit number and visit date as the module packet"
+    ),
+    SysErrorCodes.INVALID_MODULE_PACKET: (
+        "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)"
+    ),
+    SysErrorCodes.UDS_NOT_EXIST: (
+        "A UDS packet must be submitted before submitting this module/form"
+    ),
+    SysErrorCodes.DIFF_VISITDATE: (
+        "Two packets cannot have the same visit number (VISITNUM) "
+        "if they are from different dates (VISITDATE)"
+    ),
+    SysErrorCodes.DIFF_VISITNUM: (
+        "Two packets cannot have the same visit date (VISITDATE) "
+        "if they are from different visit numbers (VISITNUM)"
+    ),
+    SysErrorCodes.LOWER_FVP_VISITNUM: (
+        "Visit number (VISITNUM) for Follow-Up Visit Packets must be "
+        "greater than Visit number (VISITNUM) for Initial Visit Packet"
+    ),
+    SysErrorCodes.LOWER_I4_VISITNUM: (
+        "Visit number (VISITNUM) for UDSv4 Initial Visit Packet (PACKET=I4) "
+        "must be greater than Visit number (VISITNUM) for of the last "
+        "UDSv3 Visit Packet"
+    ),
+    SysErrorCodes.LOWER_FVP_VISITDATE: (
+        "Follow-Up Packet visit date (VISITDATE) cannot be equal to "
+        "or from a date before the Initial Visit Packet"
+    ),
+    SysErrorCodes.LOWER_I4_VISITDATE: (
+        "Visit date (VISITDATE) for UDSv4 Initial Visit Packet (PACKET=I4) "
+        "must be a date after the last UDSv3 Visit Packet"
+    ),
+    SysErrorCodes.EXCLUDED_FIELDS: (
+        "Some fields in the input record do not match with the submitted version"
+    ),
+    SysErrorCodes.INVALID_PACKET: (
+        "Provided PACKET code is not in the list of accepted packets for this module"
+    ),
+    SysErrorCodes.INVALID_VERSION: (
+        "Provided FORMVER is not in the list of " "accepted versions for this module"
+    ),
+    SysErrorCodes.INVALID_PTID: ("PTID must be no more than 10 characters"),
+    SysErrorCodes.INVALID_MODULE: (
+        "Provided MODULE is not in the list of currently accepted modules"
+    ),
+    SysErrorCodes.MISSING_IVP: (
+        "Follow-Up visit cannot be submitted without an existing Initial Visit Packet"
+    ),
+    SysErrorCodes.MULTIPLE_IVP: (
+        "More than one IVP packet found for the participant/module"
+    ),
+    SysErrorCodes.UDS_NOT_APPROVED: (
+        "UDS visit packet must be approved before the module visit can be processed"
+    ),
+    SysErrorCodes.MISSING_UDS_V3: (
+        "To submit an Initial UDSv4 Visit Packet (PACKET=I4), "
+        "participant must have an existing UDSv3 Visit Packet"
+    ),
+    SysErrorCodes.MISSING_UDS_I4: (
+        "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
+        "submitted before the Follow-Up Visit Packet (PACKET=F)"
+    ),
+    SysErrorCodes.DUPLICATE_VISIT: (
+        "Duplicate record with the same visit date exists in the batch CSV file "
+        "for this participant"
+    ),
+    SysErrorCodes.LOWER_VISITNUM: (
+        "Packet with higher visit date (VISITDATE) "
+        "must also have a higher visit number (VISITNUM)"
+    ),
+    SysErrorCodes.MISSING_SUBMISSION_STATUS: (
+        "Missing submission status (MODE<form name> variable) "
+        "for one or more optional form"
+    ),
 }
 
 
@@ -573,7 +620,10 @@ def get_error_log_name(
     if not cleaned_ptid or not normalized_date:
         return None
 
-    return f"{cleaned_ptid}_{normalized_date}_{module.lower()}_{errorlog_template.suffix}.{errorlog_template.extension}"
+    return (
+        f"{cleaned_ptid}_{normalized_date}_{module.lower()}_"
+        f"{errorlog_template.suffix}.{errorlog_template.extension}"
+    )
 
 
 def reset_error_log_metadata_for_gears(

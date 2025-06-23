@@ -63,14 +63,20 @@ class CSVFormatterVisitor(CSVVisitor):
         if empty_cols:
             self.__error_writer.write(
                 malformed_file_error(
-                    error=f"File header contains empty string at column indices {empty_cols}"
+                    error=(
+                        f"File header contains empty string "
+                        f"at column indices {empty_cols}"
+                    )
                 )
             )
 
         if duplicates:
             self.__error_writer.write(
                 malformed_file_error(
-                    error=f"Duplicate column names {duplicates} detected in the file header"
+                    error=(
+                        f"Duplicate column names {duplicates} "
+                        "detected in the file header"
+                    )
                 )
             )
 
