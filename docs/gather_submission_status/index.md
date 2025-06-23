@@ -36,3 +36,10 @@ The output file contains a row for each file that the participant has
 - `modified_date`: the date the file was last modified
 - `qc_status`: indicates whether the file has passed all of the QC checks
 
+maybe should be
+
+- `naccid`: the participant ID
+- `is_file`: indicator whether file exists
+- `modality`: file modality
+- `modified_date`: the date the file was modified
+- `qc_status`: indicator whether the file has passed all of the QC checks
