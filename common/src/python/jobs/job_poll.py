@@ -123,8 +123,8 @@ class JobPoll:
                 running = False
 
     @classmethod
-    def is_another_gear_instance_running(cls, *, proxy: FlywheelProxy, gear_name: str,
-                                         project_id: str,
+    def is_another_gear_instance_running(cls, *, proxy: FlywheelProxy,
+                                         gear_name: str, project_id: str,
                                          current_job: str) -> bool:
         """Find whether another instance of the specified gear is running
         Args:
