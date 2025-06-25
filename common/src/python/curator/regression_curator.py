@@ -26,12 +26,14 @@ log = logging.getLogger(__name__)
 class RegressionCurator(Curator):
     """Runs regression testing against curation."""
 
-    def __init__(self, qaf_baseline: MutableMapping,
+    def __init__(self,
+                 qaf_baseline: MutableMapping,
                  error_writer: ListErrorWriter,
                  mqt_baseline: Optional[MutableMapping] = None) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
-        self.__mqt_baseline = SymbolTable(mqt_baseline) if mqt_baseline else None
+        self.__mqt_baseline = SymbolTable(
+            mqt_baseline) if mqt_baseline else None
         self.__error_writer = error_writer
 
     def compare_as_lists(self, value: str, expected: str) -> bool:
