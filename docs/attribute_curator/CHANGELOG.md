@@ -2,12 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## To be released
+## 0.4.1
 
-* Updates `nacc-attribute-deriver` to `1.5.0`
+* Updates `nacc-attribute-deriver` to `1.4.1`
 * Updates to handle MEDS
-* Adds `debug` argument to reduce verbosity of logging statements
 * Splits out scheduler models - updates curation `post_process` to take in `FileModel` instead of string `file_id` so it can access the filename without making an API call
+* Adds `debug` argument to reduce verbosity of logging statements
 
 ## 0.4.0
 
