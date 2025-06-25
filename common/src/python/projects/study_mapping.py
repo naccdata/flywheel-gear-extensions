@@ -30,6 +30,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from centers.center_group import (
+    CenterError,
     CenterGroup,
     DistributionProjectMetadata,
     IngestProjectMetadata,
@@ -322,7 +323,12 @@ class StudyMappingVisitor(StudyVisitor):
             log.warning("No group found with center ID %s", center_id)
             return
 
-        center = CenterGroup.create_from_group_adaptor(adaptor=group_adaptor)
+        try:
+            center = CenterGroup.create_from_group_adaptor(adaptor=group_adaptor)
+        except CenterError as error:
+            log.warning("Unable to create center group: %s", str(error))
+            return
+
         portal_info = center.get_project_info()
         study_info = portal_info.get(self.__study)
 
