@@ -6,7 +6,7 @@ All notable changes to this gear are documented in this file.
 
 * [placeholder]
 
-## 1.1.0
+## 1.1.1
 
 * Changes `CenterGroup.add_project` so that `project.info.adcid` of the new project is set to the ADCID for the center.
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
