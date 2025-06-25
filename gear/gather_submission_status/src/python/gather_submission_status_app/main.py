@@ -90,8 +90,6 @@ class StatusResponseModel(BaseModel):
 class StatusError(Exception):
     """Exception for status filter."""
 
-    pass
-
 
 class StatusFilter:
     """Process for handling submission status of files for particular
