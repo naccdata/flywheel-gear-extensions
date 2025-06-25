@@ -1,4 +1,5 @@
 """Pydantic models to help with scheduling and curation."""
+
 import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -12,6 +13,7 @@ class FileModel(BaseModel):
 
     Objects are ordered by order date.
     """
+
     filename: str
     file_id: str
     acquisition_id: str
@@ -24,7 +26,7 @@ class FileModel(BaseModel):
     scandt: Optional[date]
 
     @property
-    def visit_pass(self) -> Optional[Literal['pass0', 'pass1', 'pass2']]:
+    def visit_pass(self) -> Optional[Literal["pass0", "pass1", "pass2"]]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -41,8 +43,8 @@ class FileModel(BaseModel):
         As such, there are currently 3 pass categories.
         """
         # need to handle historic apoe separately as it does not work well with regex
-        if 'historic_apoe_genotype' in self.filename:
-            return 'pass2'
+        if "historic_apoe_genotype" in self.filename:
+            return "pass2"
 
         pattern = (
             r"^"
@@ -54,7 +56,8 @@ class FileModel(BaseModel):
             r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
             r")\.json)|"
             r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
-            r"$")
+            r"$"
+        )
         match = re.match(pattern, self.filename)
         if not match:
             return None
@@ -88,8 +91,7 @@ class FileModel(BaseModel):
         if self.modified_date:
             return self.modified_date
 
-        raise ValueError(
-            f"file {self.filename} {self.file_id} has no associated date")
+        raise ValueError(f"file {self.filename} {self.file_id} has no associated date")
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, FileModel):
@@ -118,15 +120,16 @@ class FileModel(BaseModel):
 
         return self.order_date < other.order_date
 
-    @field_validator("modified_date",
-                     "visit_date",
-                     "study_date",
-                     "scan_date",
-                     "scandate",
-                     "scandt",
-                     mode='before')
-    def datetime_to_date(cls,
-                         value: Optional[date | str]) -> Optional[date | str]:
+    @field_validator(
+        "modified_date",
+        "visit_date",
+        "study_date",
+        "scan_date",
+        "scandate",
+        "scandt",
+        mode="before",
+    )
+    def datetime_to_date(cls, value: Optional[date | str]) -> Optional[date | str]:
         if not value:
             return None
 
@@ -143,9 +146,10 @@ class FileModel(BaseModel):
 
 class ViewResponseModel(BaseModel):
     """Defines the data model for a dataview response."""
+
     data: List[FileModel]
 
-    @field_validator("data", mode='before')
+    @field_validator("data", mode="before")
     def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Remove any rows that are completely empty, which can happen if the
         filename pattern does not match.
@@ -155,6 +159,4 @@ class ViewResponseModel(BaseModel):
         Returns:
             Trimmed data
         """
-        return [
-            row for row in data if any(x is not None for x in row.values())
-        ]
+        return [row for row in data if any(x is not None for x in row.values())]

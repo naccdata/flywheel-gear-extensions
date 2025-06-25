@@ -16,23 +16,26 @@ def create_ses_client():
     Expects AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, and
     AWS_DEFAULT_REGION.
     """
-    secret_key = get_environment_variable('AWS_SECRET_ACCESS_KEY')
-    access_id = get_environment_variable('AWS_ACCESS_KEY_ID')
-    region = get_environment_variable('AWS_DEFAULT_REGION')
+    secret_key = get_environment_variable("AWS_SECRET_ACCESS_KEY")
+    access_id = get_environment_variable("AWS_ACCESS_KEY_ID")
+    region = get_environment_variable("AWS_DEFAULT_REGION")
     if not secret_key or not access_id or not region:
         return None
 
     return boto3.client(
-        'ses',  # type: ignore
+        "ses",  # type: ignore
         aws_access_key_id=access_id,
         aws_secret_access_key=secret_key,
-        region_name=region)
+        region_name=region,
+    )
 
 
 class DestinationModel(BaseModel):
     """Defines a destination object for the boto3 SES client."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=camel_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=camel_case)
+    )
 
     to_addresses: List[str]
     cc_addresses: Optional[List[str]] = None
@@ -41,20 +44,24 @@ class DestinationModel(BaseModel):
 
 class MessageComponent(BaseModel):
     """Defines a model for message components for the boto3 SES client."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=camel_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=camel_case)
+    )
 
     data: str
-    charset: str = Field('utf-8')
+    charset: str = Field("utf-8")
 
 
 class BaseTemplateModel(BaseModel):
     """Base templte model for messages for the boto3 SES client."""
-    email_address: Optional[str] = None\
+
+    email_address: Optional[str] = None
 
 
 class TemplateDataModel(BaseTemplateModel):
     """Defines a model for messages for the boto3 SES client."""
+
     firstname: str
     url: Optional[str] = None
 
@@ -88,23 +95,23 @@ class EmailClient:
             response = self.__client.send_templated_email(
                 Source=self.__source,
                 ConfigurationSetName=configuration_set_name,
-                Destination=destination.model_dump(by_alias=True,
-                                                   exclude_none=True),
+                Destination=destination.model_dump(by_alias=True, exclude_none=True),
                 Template=template,
-                TemplateData=template_data.model_dump_json(exclude_none=True))
-            log.info("Sent %s email to %s", template,
-                     ', '.join(destination.to_addresses))
+                TemplateData=template_data.model_dump_json(exclude_none=True),
+            )
+            log.info(
+                "Sent %s email to %s", template, ", ".join(destination.to_addresses)
+            )
 
         except ClientError as error:
             log.error("Failed to send email")
             raise EmailSendError(error) from error
 
-        message_id = response['MessageId']
+        message_id = response["MessageId"]
         log.info("Sent mail %s", message_id)
         return message_id
 
-    def send_raw(self, destinations: List[str], subject: str,
-                 body: str) -> str:
+    def send_raw(self, destinations: List[str], subject: str, body: str) -> str:
         """Sends a plain text raw email that doesn't require any templating.
         Mainly for internal use.
 
@@ -115,22 +122,25 @@ class EmailClient:
         Returns:
           the message ID if successfully sent
         """
-        raw_msg = f'From: {self.__source}\n' \
-            + f"To: {', '.join(destinations)}\n" \
-            + f'Subject: {subject}\n' \
-            + 'MIME-Version: 1.0\n' \
-            + 'Content-Type: text/plain\n' \
+        raw_msg = (
+            f"From: {self.__source}\n"
+            + f"To: {', '.join(destinations)}\n"
+            + f"Subject: {subject}\n"
+            + "MIME-Version: 1.0\n"
+            + "Content-Type: text/plain\n"
             + body
+        )
         try:
             response = self.__client.send_raw_email(
                 Source=self.__source,
                 Destinations=destinations,
-                RawMessage={'Data': raw_msg})
+                RawMessage={"Data": raw_msg},
+            )
         except ClientError as error:
             log.error("Failed to send raw email")
             raise EmailSendError(error) from error
 
-        message_id = response['MessageId']
+        message_id = response["MessageId"]
         log.info("Sent mail %s", message_id)
         return message_id
 

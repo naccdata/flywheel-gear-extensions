@@ -1,4 +1,5 @@
 """Defines Regression Curator."""
+
 import csv
 import logging
 from abc import ABC, abstractmethod
@@ -18,10 +19,12 @@ log = logging.getLogger(__name__)
 class BaselineLocalizer(ABC):
     """Abstract method to handle localizing baselines from S3."""
 
-    def __init__(self,
-                 s3_file: str,
-                 error_writer: ListErrorWriter,
-                 keep_fields: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        s3_file: str,
+        error_writer: ListErrorWriter,
+        keep_fields: Optional[List[str]] = None,
+    ) -> None:
         self.s3_file = s3_file
         self.error_writer = error_writer
         self.keep_fields = keep_fields if keep_fields else []
@@ -30,21 +33,21 @@ class BaselineLocalizer(ABC):
         """Localizess the S3 file and returns the StreamingBody."""
         log.info(f"Localizing file from {self.s3_file}")
 
-        stripped_s3_file = self.s3_file.strip().replace('s3://', '')
-        s3_parts = stripped_s3_file.split('/')
+        stripped_s3_file = self.s3_file.strip().replace("s3://", "")
+        s3_parts = stripped_s3_file.split("/")
 
         if len(s3_parts) < 2:
             raise GearExecutionError(f"Invalid S3 key: {self.s3_file}")
 
         s3_bucket = s3_parts[0]
-        key = '/'.join(s3_parts[1:])
+        key = "/".join(s3_parts[1:])
 
         s3_client = S3BucketReader.create_from_environment(s3_bucket)
         if not s3_client:
-            raise GearExecutionError(f'Unable to access S3 bucket {s3_bucket}')
+            raise GearExecutionError(f"Unable to access S3 bucket {s3_bucket}")
 
         # return body
-        return s3_client.get_file_object(key)['Body']
+        return s3_client.get_file_object(key)["Body"]
 
     def process_header(self, header: List[str]) -> List[str]:
         """Process the header line. Assumes no case-sensitivity and converts
@@ -63,7 +66,7 @@ class BaselineLocalizer(ABC):
 
         if missing:
             raise GearExecutionError(
-                f'Required field(s) not found in {self.s3_file} header: {missing}'
+                f"Required field(s) not found in {self.s3_file} header: {missing}"
             )
 
         return header
@@ -81,15 +84,14 @@ class BaselineLocalizer(ABC):
 
         # the baselines are extremely large, so stream and process by line
         for line in body.iter_lines():
-            raw_row = line.decode('utf-8')
+            raw_row = line.decode("utf-8")
 
             if not header:
                 row = next(csv.reader([raw_row]))
                 header = self.process_header(row)
                 continue
 
-            row = next(
-                csv.DictReader([raw_row], fieldnames=header, strict=True))
+            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))
             key, data = self.process_row(row)
 
             if key in baseline:
@@ -97,10 +99,10 @@ class BaselineLocalizer(ABC):
                 msg = f"Duplicate key found in {self.s3_file}, dropping: {key}"
                 log.warning(msg)
                 self.error_writer.write(
-                    unexpected_value_error(field="naccid",
-                                           value=key,
-                                           expected="unique key",
-                                           message=msg))
+                    unexpected_value_error(
+                        field="naccid", value=key, expected="unique key", message=msg
+                    )
+                )
                 continue
 
             baseline[key] = data
@@ -110,8 +112,7 @@ class BaselineLocalizer(ABC):
             baseline.pop(dup)
 
         if not baseline:
-            raise GearExecutionError(
-                f"No usable records found in {self.s3_file}")
+            raise GearExecutionError(f"No usable records found in {self.s3_file}")
 
         log.info(f"Loaded {len(baseline)} records from QAF baseline")
         return baseline
@@ -142,19 +143,23 @@ class QAFBaselineLocalizer(BaselineLocalizer):
             Tuple containing processed key and row data
         """
         # create visitdate to make unique keys
-        naccid = row['naccid']
-        visitdate = (f"{int(row['visityr']):04d}-" +
-                     f"{int(row['visitmo']):02d}-" +
-                     f"{int(row['visitday']):02d}")
+        naccid = row["naccid"]
+        visitdate = (
+            f"{int(row['visityr']):04d}-"
+            + f"{int(row['visitmo']):02d}-"
+            + f"{int(row['visitday']):02d}"
+        )
 
-        row_data = {'visitdate': visitdate}
-        row_data.update({
-            k: v
-            for k, v in row.items() if k in self.keep_fields
-            or k.startswith('nacc') or k.startswith('ngds')
-        })
+        row_data = {"visitdate": visitdate}
+        row_data.update(
+            {
+                k: v
+                for k, v in row.items()
+                if k in self.keep_fields or k.startswith("nacc") or k.startswith("ngds")
+            }
+        )
 
-        key = f'{naccid}_{visitdate}'
+        key = f"{naccid}_{visitdate}"
         return key, row_data
 
 
@@ -171,20 +176,22 @@ class MQTBaselineLocalizer(BaselineLocalizer):
         """
         # need to convert string booleans to string 0/1s
         for k, v in row.items():
-            if v.lower() == 'true':
-                row[k] = '1'
-            elif v.lower() == 'false':
-                row[k] = '0'
+            if v.lower() == "true":
+                row[k] = "1"
+            elif v.lower() == "false":
+                row[k] = "0"
 
-        return row['naccid'], row
+        return row["naccid"], row
 
 
-def run(context: GearToolkitContext,
-        s3_qaf_file: str,
-        keep_fields: List[str],
-        scheduler: ProjectCurationScheduler,
-        error_writer: ListErrorWriter,
-        s3_mqt_file: Optional[str] = None) -> None:
+def run(
+    context: GearToolkitContext,
+    s3_qaf_file: str,
+    keep_fields: List[str],
+    scheduler: ProjectCurationScheduler,
+    error_writer: ListErrorWriter,
+    s3_mqt_file: Optional[str] = None,
+) -> None:
     """Runs the Attribute Curator process.
 
     Args:
@@ -195,17 +202,18 @@ def run(context: GearToolkitContext,
         error_writer: Multi-processing error writer
         s3_mqt_file: S3 MQT file to pull baseline from (optional)
     """
-    qaf_baseline = QAFBaselineLocalizer(s3_file=s3_qaf_file,
-                                        error_writer=error_writer,
-                                        keep_fields=keep_fields).localize()
+    qaf_baseline = QAFBaselineLocalizer(
+        s3_file=s3_qaf_file, error_writer=error_writer, keep_fields=keep_fields
+    ).localize()
 
     mqt_baseline = None
     if s3_mqt_file:
         mqt_baseline = MQTBaselineLocalizer(
-            s3_file=s3_mqt_file, error_writer=error_writer).localize()
+            s3_file=s3_mqt_file, error_writer=error_writer
+        ).localize()
 
-    curator = RegressionCurator(qaf_baseline=qaf_baseline,
-                                mqt_baseline=mqt_baseline,
-                                error_writer=error_writer)
+    curator = RegressionCurator(
+        qaf_baseline=qaf_baseline, mqt_baseline=mqt_baseline, error_writer=error_writer
+    )
 
     scheduler.apply(curator=curator, context=context)

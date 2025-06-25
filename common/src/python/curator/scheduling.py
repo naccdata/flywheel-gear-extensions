@@ -1,4 +1,5 @@
 """Scheduling for project curation."""
+
 import logging
 import multiprocessing
 from multiprocessing.pool import Pool
@@ -43,7 +44,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     """
 
     global curator
-    assert curator, 'curator object expected'
+    assert curator, "curator object expected"
     subject = curator.get_subject(subject_id)
 
     curator.pre_process(subject)
@@ -69,11 +70,11 @@ class ProjectCurationScheduler:
 
     @classmethod
     def create(
-            cls,
-            project: ProjectAdaptor,
-            filename_pattern: str,
-            blacklist: Optional[List[str]] = None
-    ) -> 'ProjectCurationScheduler':
+        cls,
+        project: ProjectAdaptor,
+        filename_pattern: str,
+        blacklist: Optional[List[str]] = None,
+    ) -> "ProjectCurationScheduler":
         """Creates a ProjectCurationScheduler for the projects.
 
         Pulls information for all of the files in the project.
@@ -90,43 +91,45 @@ class ProjectCurationScheduler:
         log.info("Creating project dataview")
 
         builder = make_builder(
-            label='attribute-curation-scheduling',
-            description='Lists files for curation',
+            label="attribute-curation-scheduling",
+            description="Lists files for curation",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
                 ColumnModel(data_key="file.file_id", label="file_id"),
-                ColumnModel(data_key="file.parents.acquisition",
-                            label="acquisition_id"),
-                ColumnModel(data_key="file.parents.subject",
-                            label="subject_id"),
-                ColumnModel(data_key='file.info.forms.json.visitdate',
-                            label="visit_date"),
+                ColumnModel(
+                    data_key="file.parents.acquisition", label="acquisition_id"
+                ),
+                ColumnModel(data_key="file.parents.subject", label="subject_id"),
+                ColumnModel(
+                    data_key="file.info.forms.json.visitdate", label="visit_date"
+                ),
                 ColumnModel(data_key="file.modified", label="modified_date"),
-                ColumnModel(data_key="file.info.raw.study_date",
-                            label="study_date"),
-                ColumnModel(data_key="file.info.raw.scan_date",
-                            label="scan_date"),
-                ColumnModel(data_key="file.info.raw.scandate",
-                            label="scandate"),
-                ColumnModel(data_key="file.info.raw.scandt", label="scandt")
+                ColumnModel(data_key="file.info.raw.study_date", label="study_date"),
+                ColumnModel(data_key="file.info.raw.scan_date", label="scan_date"),
+                ColumnModel(data_key="file.info.raw.scandate", label="scandate"),
+                ColumnModel(data_key="file.info.raw.scandt", label="scandt"),
             ],
-            container='acquisition',
+            container="acquisition",
             filename=filename_pattern,
-            missing_data_strategy='none')
+            missing_data_strategy="none",
+        )
         view = builder.build()
 
         with project.read_dataview(view) as response:
             response_data = response.read()
             try:
-                response_model = ViewResponseModel.model_validate_json(
-                    response_data)
+                response_model = ViewResponseModel.model_validate_json(response_data)
             except ValidationError as error:
                 raise ProjectCurationError(
-                    f'Error curating project {project.label}: {error}'
+                    f"Error curating project {project.label}: {error}"
                 ) from error
 
-        log.info("Curating %s files in %s/%s", len(response_model.data),
-                 project.group, project.label)
+        log.info(
+            "Curating %s files in %s/%s",
+            len(response_model.data),
+            project.group,
+            project.label,
+        )
 
         subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
         for file_info in response_model.data:
@@ -169,19 +172,25 @@ class ProjectCurationScheduler:
         process_count = max(4, self.__compute_cores())
         results = []
 
-        with Pool(processes=process_count,
-                  initializer=initialize_worker,
-                  initargs=(
-                      curator,
-                      context,
-                  )) as pool:
+        with Pool(
+            processes=process_count,
+            initializer=initialize_worker,
+            initargs=(
+                curator,
+                context,
+            ),
+        ) as pool:
             for subject_id, heap in self.__heap_map.items():
                 log.debug("Curating subject %s", subject_id)
                 results.append(
-                    pool.apply_async(curate_subject, (
-                        subject_id,
-                        heap,
-                    )))
+                    pool.apply_async(
+                        curate_subject,
+                        (
+                            subject_id,
+                            heap,
+                        ),
+                    )
+                )
 
             pool.close()
             for r in results:  # checks for exceptions

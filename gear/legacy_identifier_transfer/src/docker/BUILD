@@ -5,6 +5,7 @@ docker_image(
     source="Dockerfile",
     dependencies=[
         ":manifest",
-        "gear/legacy_identifier_transfer/src/python/legacy_identifier_transfer_app:bin"
+        "gear/legacy_identifier_transfer/src/python/legacy_identifier_transfer_app:bin",
     ],
-    image_tags=["1.1.5", "latest"])
+    image_tags=["1.1.5", "latest"],
+)

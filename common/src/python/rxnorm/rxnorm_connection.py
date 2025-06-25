@@ -2,6 +2,7 @@
 
 https://lhncbc.nlm.nih.gov/RxNav/APIs/RxNormAPIs.html
 """
+
 import json
 from dataclasses import dataclass
 from json import JSONDecodeError
@@ -17,14 +18,17 @@ def error_message(message: str, response: Response) -> str:
     Returns:
       The error string
     """
-    return (f"Error: {message}\nHTTP Error:{response.status_code} "
-            f"{response.reason}: {response.text}")
+    return (
+        f"Error: {message}\nHTTP Error:{response.status_code} "
+        f"{response.reason}: {response.text}"
+    )
 
 
 @dataclass
 class RxcuiStatus:
     """Enumeration for keeping track of valid Rxcui statuses returned by the
     API."""
+
     ACTIVE = "Active"
     OBSOLETE = "Obsolete"
     REMAPPED = "Remapped"
@@ -79,8 +83,10 @@ class RxNormConnection:
         target_url = cls.url(path)
         try:
             response = requests.get(target_url)
-        except (requests.exceptions.SSLError,
-                requests.exceptions.ConnectionError) as error:
+        except (
+            requests.exceptions.SSLError,
+            requests.exceptions.ConnectionError,
+        ) as error:
             raise RxNormConnectionError(
                 message=f"Error connecting to {target_url} - {error}"
             ) from error
@@ -89,7 +95,7 @@ class RxNormConnection:
 
     @classmethod
     def get_rxcui_status(cls, rxcui: int) -> str:
-        """ Get the RxCUI status - uses the getRxcuiHistoryStatus endpoint:
+        """Get the RxCUI status - uses the getRxcuiHistoryStatus endpoint:
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getRxcuiHistoryStatus.html
 
@@ -101,11 +107,13 @@ class RxNormConnection:
         """
         message = "Getting the RXCUI history status"
         response = RxNormConnection.get_request(
-            f'REST/rxcui/{rxcui}/historystatus.json')
+            f"REST/rxcui/{rxcui}/historystatus.json"
+        )
 
         if not response.ok:
             raise RxNormConnectionError(
-                message=error_message(message=message, response=response))
+                message=error_message(message=message, response=response)
+            )
 
         try:
             history_record = json.loads(response.text)
@@ -113,4 +121,4 @@ class RxNormConnection:
             message = f"Error decoding RXCUI history status response to JSON: {error}"
             raise RxNormConnectionError(message=message) from error
 
-        return history_record['rxcuiStatusHistory']['metaData']['status']
+        return history_record["rxcuiStatusHistory"]["metaData"]["status"]

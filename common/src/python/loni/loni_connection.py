@@ -26,19 +26,19 @@ class LONIConnection:
         """
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/tables"),
-            params={
-                'key': self.__key,
-                'format': 'json'
-            })
+            params={"key": self.__key, "format": "json"},
+        )
         if response.status_code == 401:
             # handle invalid key
             raise LONIConnectionError(
-                f"Unable to access {database_name} tables: {response.reason}")
+                f"Unable to access {database_name} tables: {response.reason}"
+            )
 
         if response.status_code == 500:
             # handle system error
             raise LONIConnectionError(
-                f"Unable to connect to {database_name}: {response.reason}")
+                f"Unable to connect to {database_name}: {response.reason}"
+            )
 
         return response.json()
 
@@ -54,17 +54,15 @@ class LONIConnection:
         """
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/{table_name}/columns"),
-            params={
-                'key': self.__key,
-                'format': 'json'
-            })
+            params={"key": self.__key, "format": "json"},
+        )
         if response.status_code == 401:
-            raise LONIConnectionError(
-                f"unable to access columns: {response.reason}")
+            raise LONIConnectionError(f"unable to access columns: {response.reason}")
 
         if response.status_code == 500:
             raise LONIConnectionError(
-                f"error connecting to {database_name}: {response.reason}")
+                f"error connecting to {database_name}: {response.reason}"
+            )
 
         return response.json()
 
@@ -81,17 +79,17 @@ class LONIConnection:
         """
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/download"),
-            params={
-                'table': table_name,
-                'key': self.__key
-            })
+            params={"table": table_name, "key": self.__key},
+        )
         if response.status_code == 401:
             raise LONIConnectionError(
-                f"Failed to get table {table_name}: {response.reason}")
+                f"Failed to get table {table_name}: {response.reason}"
+            )
 
         if response.status_code == 500:
             raise LONIConnectionError(
-                f"Error connecting to {database_name}: {response.reason}")
+                f"Error connecting to {database_name}: {response.reason}"
+            )
 
         return response.text
 
@@ -105,8 +103,9 @@ class LONIConnection:
         return f"https://ida.loni.usc.edu/sync/v1/{path}"
 
     @classmethod
-    def create_connection(cls, *, email: str,
-                          password: str) -> Optional['LONIConnection']:
+    def create_connection(
+        cls, *, email: str, password: str
+    ) -> Optional["LONIConnection"]:
         """Creates a connection object using the credentials (email and
         password).
 
@@ -119,15 +118,18 @@ class LONIConnection:
         Returns:
           A LONI IDA connection for the account.
         """
-        user_params = {'email': email, 'format': 'json'}
-        response = requests.post(url=cls.url('sync/v1/auth'),
-                                 headers={'Content-Type': 'text/plain'},
-                                 params=user_params,
-                                 data=password)
+        user_params = {"email": email, "format": "json"}
+        response = requests.post(
+            url=cls.url("sync/v1/auth"),
+            headers={"Content-Type": "text/plain"},
+            params=user_params,
+            data=password,
+        )
 
         if not response.ok:
             raise LONIConnectionError(
-                f"Could not create LONI connection: {response.reason}")
+                f"Could not create LONI connection: {response.reason}"
+            )
 
-        key = response.json()['key']
+        key = response.json()["key"]
         return LONIConnection(key)
