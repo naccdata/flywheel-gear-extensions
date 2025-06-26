@@ -485,6 +485,7 @@ class CenterGroup(CenterAdaptor):
             raise CenterError(f"failed to create project {self.label}/{label}")
 
         project.add_tags(self.get_tags())
+        project.update_info({"adcid": self.adcid})
         project.add_admin_users(self.get_user_access())
         return project
 
