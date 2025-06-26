@@ -37,6 +37,7 @@
 //     "types-jinja2>=2.11.9",
 //     "types-python-dateutil>=2.9.0",
 //     "types-requests",
+//     "types-setuptools",
 //     "typing-extensions>=4.8.0",
 //     "urllib3>=2.2.1"
 //   ],
@@ -3247,6 +3248,24 @@
           "artifacts": [
             {
               "algorithm": "sha256",
+              "hash": "00dfcedd73e333a430e10db096e4d46af93faf9314f832f13b6bbe3d6757e95f",
+              "url": "https://files.pythonhosted.org/packages/1b/d8/83790d67ec771bf029a45ff1bd1aedbb738d8aa58c09dd0cc3033eea0e69/types_setuptools-80.9.0.20250529-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "79e088ba0cba2186c8d6499cbd3e143abb142d28a44b042c28d3148b1e353c91",
+              "url": "https://files.pythonhosted.org/packages/79/66/1b276526aad4696a9519919e637801f2c103419d2c248a6feb2729e034d1/types_setuptools-80.9.0.20250529.tar.gz"
+            }
+          ],
+          "project_name": "types-setuptools",
+          "requires_dists": [],
+          "requires_python": ">=3.9",
+          "version": "80.9.0.20250529"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
               "hash": "a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af",
               "url": "https://files.pythonhosted.org/packages/69/e0/552843e0d356fbb5256d21449fa957fa4eff3bbc135a74a691ee70c7c5da/typing_extensions-4.14.0-py3-none-any.whl"
             },
@@ -3427,6 +3446,7 @@
     "types-jinja2>=2.11.9",
     "types-python-dateutil>=2.9.0",
     "types-requests",
+    "types-setuptools",
     "typing-extensions>=4.8.0",
     "urllib3>=2.2.1"
   ],
