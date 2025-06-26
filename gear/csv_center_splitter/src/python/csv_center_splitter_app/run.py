@@ -78,6 +78,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         if not (target_project or staging_project_id):
             raise GearExecutionError("No target or staging project provided")
+        assert target_project
 
         adcid_key = context.config.get("adcid_key", None)
         if not adcid_key:
