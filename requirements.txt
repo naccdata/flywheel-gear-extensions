@@ -19,7 +19,6 @@ python_dateutil >= 2.5.3
 types-python-dateutil >= 2.9.0
 requests>=2.18.4
 requests-oauthlib>=2.0.0
-setuptools>=68.2.2,<81.0.0
 typing-extensions>=4.8.0 # only needed for python < 3.12
 types-PyYAML>=6.0.12
 urllib3 >= 2.2.1

@@ -33,7 +33,6 @@
 //     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.1/redcap_api-0.1.1-py3-none-any.whl",
 //     "requests-oauthlib>=2.0.0",
 //     "requests>=2.18.4",
-//     "setuptools<81.0.0,>=68.2.2",
 //     "types-PyYAML>=6.0.12",
 //     "types-jinja2>=2.11.9",
 //     "types-python-dateutil>=2.9.0",
@@ -230,42 +229,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "73fcb2f8c7bec25d17e3f1940a1776c515b458b3da77ad3a31a177479591028b",
-              "url": "https://files.pythonhosted.org/packages/17/73/4a1bbd696e492f17064e7404c49d4d3bafcc8b50239ec6624c10ea824dd1/boto3-1.38.44-py3-none-any.whl"
+              "hash": "2868b1abd093aeaf0a6b9c25b275a11d623fd075469d1d51f4fbdf8a77451356",
+              "url": "https://files.pythonhosted.org/packages/e7/a5/af0e98e0551566d2af4ff5e9fcd4d8f2e555789ea5f42cffa3a157f1c9ed/boto3-1.38.45-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "af1769dfb2a8a30eec24d0b74a8c17db2accc5a6224d4fab39dd36df6590f741",
-              "url": "https://files.pythonhosted.org/packages/7b/7f/ea50e25a049072c0078045437d25fc9c8eaec4bd58f2cc340e6ed52e55cd/boto3-1.38.44.tar.gz"
+              "hash": "1123c9fb1d46cb6fb2c8579fb411c564c34d05c531755fa1548524df63f5e023",
+              "url": "https://files.pythonhosted.org/packages/c8/e8/be7a135ca75b88a9a2208927c6d6bd34f3a50fece7cafb48c078cd074ea0/boto3-1.38.45.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.39.0,>=1.38.44",
+            "botocore<1.39.0,>=1.38.45",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.14.0,>=0.13.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.38.44"
+          "version": "1.38.45"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "42ef001a43964ee73c151455dba5494d21bd6bcc88b79b58f74c280895460e04",
-              "url": "https://files.pythonhosted.org/packages/1c/06/1b118db52bfb617e1e1d1a99da70711c42c68535de8b7c08fb321244af57/boto3_stubs-1.38.44-py3-none-any.whl"
+              "hash": "e963fa7c8d495eaa34034e95ab0e3e1bb46a7dff3f3b9f830346037dccec725e",
+              "url": "https://files.pythonhosted.org/packages/2d/e8/5c4c02ba28e8c22f6407607291e46591b60737126a78995f64f9a4e26f41/boto3_stubs-1.38.45-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "f2bbb7bfbbda7f7b695e8381d828834c4cd547c38b08d5f4491a4764f252cbb4",
-              "url": "https://files.pythonhosted.org/packages/2d/db/22de4dcbc73870fff10cd0bf9ed2d4af446620d918c1275deaeb04560804/boto3_stubs-1.38.44.tar.gz"
+              "hash": "36601e2471d37dfca301a8f71efb65e74c8fd62d285c41b21f172ea2eee6c570",
+              "url": "https://files.pythonhosted.org/packages/22/f6/5798b0aec1c8d6749be94dcb0834efb60ef7b69961a705b7e5da40a8cf2d/boto3_stubs-1.38.45.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.39.0,>=1.38.0; extra == \"full\"",
-            "boto3==1.38.44; extra == \"boto3\"",
+            "boto3==1.38.45; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.39.0,>=1.38.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.39.0,>=1.38.0; extra == \"all\"",
@@ -676,6 +675,8 @@
             "mypy-boto3-kendra<1.39.0,>=1.38.0; extra == \"kendra\"",
             "mypy-boto3-keyspaces<1.39.0,>=1.38.0; extra == \"all\"",
             "mypy-boto3-keyspaces<1.39.0,>=1.38.0; extra == \"keyspaces\"",
+            "mypy-boto3-keyspacesstreams<1.39.0,>=1.38.0; extra == \"all\"",
+            "mypy-boto3-keyspacesstreams<1.39.0,>=1.38.0; extra == \"keyspacesstreams\"",
             "mypy-boto3-kinesis-video-archived-media<1.39.0,>=1.38.0; extra == \"all\"",
             "mypy-boto3-kinesis-video-archived-media<1.39.0,>=1.38.0; extra == \"kinesis-video-archived-media\"",
             "mypy-boto3-kinesis-video-media<1.39.0,>=1.38.0; extra == \"all\"",
@@ -1092,19 +1093,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.8",
-          "version": "1.38.44"
+          "version": "1.38.45"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "d0171ac6ec0bfdf86083b41c801f212e2b2d5756a61ea1d45af2051f21dbf886",
-              "url": "https://files.pythonhosted.org/packages/ad/85/e3cd7bf4237af134a90290c8e37bf7f786c5e58b9ff98eeb0495615e3985/botocore-1.38.44-py3-none-any.whl"
+              "hash": "ea8be5a9c10ac557bebd823044b386f50ebb905e173dd5927a4233405d36c797",
+              "url": "https://files.pythonhosted.org/packages/f1/9b/ee00d98b02f9d551d675d212dd578a8377f2b1be5615277179776bef713c/botocore-1.38.45-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "8d54795a084204e4cd7885d9307e4bfaccc96411dc0384f6ba240b515c45bf54",
-              "url": "https://files.pythonhosted.org/packages/31/06/c6e652e8b449837218d83cedda9c54104cfd5d38dc97762044a40116b209/botocore-1.38.44.tar.gz"
+              "hash": "02e14c45c350532cc64e3cc8ccb9adf25af4cca750f7d7e765a43fbe3df06aed",
+              "url": "https://files.pythonhosted.org/packages/22/74/ffc95d7016ce09a85b748cb786ea9f56438d785c458b764bd437c2208b1d/botocore-1.38.45.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1116,7 +1117,7 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.38.44"
+          "version": "1.38.45"
         },
         {
           "artifacts": [
@@ -3062,76 +3063,6 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922",
-              "url": "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl"
-            },
-            {
-              "algorithm": "sha256",
-              "hash": "f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c",
-              "url": "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz"
-            }
-          ],
-          "project_name": "setuptools",
-          "requires_dists": [
-            "build[virtualenv]>=1.0.3; extra == \"test\"",
-            "filelock>=3.4.0; extra == \"test\"",
-            "furo; extra == \"doc\"",
-            "importlib_metadata>=6; python_version < \"3.10\" and extra == \"core\"",
-            "importlib_metadata>=7.0.2; python_version < \"3.10\" and extra == \"type\"",
-            "ini2toml[lite]>=0.14; extra == \"test\"",
-            "jaraco.develop>=7.21; (python_version >= \"3.9\" and sys_platform != \"cygwin\") and extra == \"test\"",
-            "jaraco.develop>=7.21; sys_platform != \"cygwin\" and extra == \"type\"",
-            "jaraco.envs>=2.2; extra == \"test\"",
-            "jaraco.functools>=4; extra == \"core\"",
-            "jaraco.packaging>=9.3; extra == \"doc\"",
-            "jaraco.path>=3.7.2; extra == \"test\"",
-            "jaraco.test>=5.5; extra == \"test\"",
-            "jaraco.text>=3.7; extra == \"core\"",
-            "jaraco.tidelift>=1.4; extra == \"doc\"",
-            "more_itertools; extra == \"core\"",
-            "more_itertools>=8.8; extra == \"core\"",
-            "mypy==1.14.*; extra == \"type\"",
-            "packaging>=24.2; extra == \"core\"",
-            "packaging>=24.2; extra == \"test\"",
-            "pip>=19.1; extra == \"test\"",
-            "platformdirs>=4.2.2; extra == \"core\"",
-            "pygments-github-lexers==0.0.5; extra == \"doc\"",
-            "pyproject-hooks!=1.1; extra == \"doc\"",
-            "pyproject-hooks!=1.1; extra == \"test\"",
-            "pytest!=8.1.*,>=6; extra == \"test\"",
-            "pytest-checkdocs>=2.4; extra == \"check\"",
-            "pytest-cov; extra == \"cover\"",
-            "pytest-enabler>=2.2; extra == \"enabler\"",
-            "pytest-home>=0.5; extra == \"test\"",
-            "pytest-mypy; extra == \"type\"",
-            "pytest-perf; sys_platform != \"cygwin\" and extra == \"test\"",
-            "pytest-ruff>=0.2.1; sys_platform != \"cygwin\" and extra == \"check\"",
-            "pytest-subprocess; extra == \"test\"",
-            "pytest-timeout; extra == \"test\"",
-            "pytest-xdist>=3; extra == \"test\"",
-            "rst.linker>=1.9; extra == \"doc\"",
-            "ruff>=0.8.0; sys_platform != \"cygwin\" and extra == \"check\"",
-            "sphinx-favicon; extra == \"doc\"",
-            "sphinx-inline-tabs; extra == \"doc\"",
-            "sphinx-lint; extra == \"doc\"",
-            "sphinx-notfound-page<2,>=1; extra == \"doc\"",
-            "sphinx-reredirects; extra == \"doc\"",
-            "sphinx>=3.5; extra == \"doc\"",
-            "sphinxcontrib-towncrier; extra == \"doc\"",
-            "tomli-w>=1.0.0; extra == \"test\"",
-            "tomli>=2.0.1; python_version < \"3.11\" and extra == \"core\"",
-            "towncrier<24.7; extra == \"doc\"",
-            "virtualenv>=13.0.0; extra == \"test\"",
-            "wheel>=0.43.0; extra == \"core\"",
-            "wheel>=0.44.0; extra == \"test\""
-          ],
-          "requires_python": ">=3.9",
-          "version": "80.9.0"
-        },
-        {
-          "artifacts": [
-            {
-              "algorithm": "sha256",
               "hash": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
               "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl"
             },
@@ -3492,7 +3423,6 @@
     "redcap_api",
     "requests-oauthlib>=2.0.0",
     "requests>=2.18.4",
-    "setuptools<81.0.0,>=68.2.2",
     "types-PyYAML>=6.0.12",
     "types-jinja2>=2.11.9",
     "types-python-dateutil>=2.9.0",
