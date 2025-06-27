@@ -22,8 +22,6 @@ ratelimit>=2.2.1
 ratelimit-types>=0.0.1
 requests>=2.18.4
 requests-oauthlib>=2.0.0
-setuptools
-types-setuptools
 typing-extensions>=4.8.0 # only needed for python < 3.12
 types-PyYAML>=6.0.12
 urllib3 >= 2.2.1
