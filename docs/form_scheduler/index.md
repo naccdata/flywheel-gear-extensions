@@ -21,7 +21,7 @@ This gear takes the following optional input parameters:
 
 | Parameter | Required? | Default | Description |
 | --------- | --------- | ------- | ----------- |
-| `submission_pipeline` | No | `file-validator,identifier-lookup,form-transformer,form-qc-coordinator,form-qc-checker` | Comma-deliminated list of gears representing a submission pipeline. The first one must be `file-validator` |
+| `submission_pipeline` | No | `nacc-file-validator,identifier-lookup,form-transformer,form-qc-coordinator,form-qc-checker` | Comma-deliminated list of gears representing a submission pipeline |
 | `accepted_modules` | No | `"UDS,ENROLL,FTLD,LBD"` | Comma-deliminated list of accepted modules, listed in order of priority. There will be one queue for each. Cannot be empty. |
 | `queue_tags` | No | `"queued"` | Comma-deliminated list of tags to add to the prescreened file. Cannot be empty. |
 | `source_email` | No | `""` | Source email address to send emails from. If empty will not send emails. |

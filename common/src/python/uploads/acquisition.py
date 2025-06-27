@@ -66,7 +66,7 @@ def update_file_info_metadata(
     """
 
     # remove empty fields
-    non_empty_fields = {k: v for k, v in input_record.items() if v is not None}
+    non_empty_fields = {k: v for k, v in input_record.items() if v is not None and v != ""}
     info = {"forms": {"json": non_empty_fields}}
 
     try:
