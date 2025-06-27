@@ -12,6 +12,7 @@ from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
 from .curator import Curator
+from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +59,8 @@ class FormCurator(Curator):
         if subject_info:
             subject.update_info(subject_info)
 
-        file_entry.add_tag(self.curation_tag)
+        if self.curation_tag not in file_entry.tags:
+            file_entry.add_tag(self.curation_tag)
 
     def execute(
         self,
@@ -105,7 +107,7 @@ class FormCurator(Curator):
             # for a while. however calling subject.reload() for everything introduces
             # significant overhead, so instead just catch when it fails (which will be
             # much rarer)
-            log.info(
+            log.debug(
                 f"Force curation set to True, cleaning up {subject.label} metadata"
             )
             for field in [
@@ -125,7 +127,7 @@ class FormCurator(Curator):
                     raise e
 
     @api_retry
-    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+    def post_process(self, subject: Subject, processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject.
 
         1. Adds `affiliated` tag to affiliate subjects if
@@ -136,7 +138,7 @@ class FormCurator(Curator):
 
         Args:
             subject: Subject to pre-process
-            processed_files: List of file IDs that were processed
+            processed_files: List of FileModels that were processed
         """
         subject = subject.reload()
         derived = subject.info.get("derived", {})
@@ -145,20 +147,19 @@ class FormCurator(Curator):
 
         # add affiliated tag
         if affiliate and "affiliated" not in subject.tags:
-            log.info(f"Tagging affiliate: {subject.label}")
+            log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag("affiliated")
 
         if not cs_derived:
             return
 
-        log.info(f"Back-propagating cross-sectional UDS variables for {subject.label}")
-        for file_id in processed_files:
-            file_entry = self.sdk_client.get_file(file_id)
-
+        log.debug(f"Back-propagating cross-sectional UDS variables for {subject.label}")
+        for file in processed_files:
             # ignore non-UDS files
-            if not file_entry.name.endswith("_UDS.json"):
+            if not file.filename.endswith("_UDS.json"):
                 continue
 
+            file_entry = self.sdk_client.get_file(file.file_id)
             file_entry = file_entry.reload()
 
             derived = file_entry.info.get("derived", {})
