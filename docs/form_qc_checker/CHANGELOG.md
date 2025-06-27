@@ -2,6 +2,8 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.1
+* Updates `nacc-form-validator` to 1.5.2
 
 ## 1.5.0
 * Adds support for handling multiple pipelines (submission, finalization)
