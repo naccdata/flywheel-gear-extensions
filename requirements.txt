@@ -1,3 +1,4 @@
+aws-lambda-powertools[aws-sdk]>=3.15.1
 boto3>=1.28.53
 boto3-stubs[boto3]
 botocore
@@ -20,7 +21,6 @@ pytz
 requests>=2.18.4
 requests-oauthlib>=2.0.0
 setuptools>=68.2.2,<81.0.0
-ssm-parameter-store>=19.11.0
 typing-extensions>=4.8.0 # only needed for python < 3.12
 types-PyYAML>=6.0.12
 urllib3 >= 2.2.1

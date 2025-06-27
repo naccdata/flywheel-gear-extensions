@@ -5,9 +5,6 @@ python_requirement(
 python_requirements(
     name="reqs",
     module_mapping={"flywheel-sdk": ["flywheel"]},
-    overrides={
-        "ssm-parameter-store": {"dependencies": ["//:reqs#setuptools"]},
-    },
 )
 
 file(name="linux_x86_py311", source="linux_x86_py311.json")
