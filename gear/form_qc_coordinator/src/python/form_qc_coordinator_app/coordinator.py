@@ -273,7 +273,7 @@ class QCCoordinator:
             error_obj: error metadata to report
         """
         self.__update_last_failed_visit(
-            file_id=visit_file.id, filename=visit_file.name, visitdate=visitdate
+            file_id=visit_file.file_id, filename=visit_file.name, visitdate=visitdate
         )
         self.__update_qc_error_metadata(
             visit_file=visit_file,

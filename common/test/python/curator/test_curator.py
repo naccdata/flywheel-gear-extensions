@@ -12,6 +12,7 @@ class TestDetermineScope:
         assert determine_scope("NACCXXX_NP-RECORD-2012-02-10_NP.json") == "np"
         assert determine_scope("NACCXXX_MDS-RECORD-2006-03-23_MDS.json") == "mds"
         assert determine_scope("NACCXXX_MILESTONE-2011-10-26_MLST.json") == "milestone"
+        assert determine_scope("NACCXXX_FORMS-VISIT-2_MEDS.json") == "meds"
         assert determine_scope("NACCXXX_FORMS-VISIT-5_UDS.json") == "uds"
 
     def test_genetics(self):
@@ -74,6 +75,5 @@ class TestDetermineScope:
 
     def test_unknown(self):
         """Test unknown/invalid files."""
-        # MEDS is real but not currently handled
-        assert determine_scope("NACCXXX_FORMS-VISIT-2_MEDS.json") is None
         assert determine_scope("invalid.json") is None
+        assert determine_scope("UDS_extra.json") is None

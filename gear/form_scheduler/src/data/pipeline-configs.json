@@ -1,6 +1,6 @@
 {
     "gears": [
-        "file-validator",
+        "nacc-file-validator",
         "identifier-lookup",
         "form-transformer",
         "form-qc-coordinator",
@@ -21,7 +21,7 @@
                 ".csv"
             ],
             "starting_gear": {
-                "gear_name": "file-validator",
+                "gear_name": "nacc-file-validator",
                 "inputs": [
                     {
                         "label": "input_file",

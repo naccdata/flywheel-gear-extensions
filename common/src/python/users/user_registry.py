@@ -10,8 +10,8 @@ from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
 from coreapi_client.models.co_person_role import CoPersonRole
 from coreapi_client.models.email_address import EmailAddress
-from coreapi_client.models.get_co_person200_response import GetCoPerson200Response
 from coreapi_client.models.identifier import Identifier
+from coreapi_client.models.inline_object import InlineObject
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
 
@@ -346,9 +346,7 @@ class UserRegistry:
 
         return int(response.total_results)
 
-    def __parse_response(
-        self, response: GetCoPerson200Response
-    ) -> List[RegistryPerson]:
+    def __parse_response(self, response: InlineObject) -> List[RegistryPerson]:
         """Collects the CoPersonMessages from the response object and creates a
         list of RegistryPerson objects.
 
