@@ -112,7 +112,9 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Gather Submission Status."""
 
-    GearEngine().run(gear_type=GatherSubmissionStatusVisitor)
+    GearEngine().create_with_parameter_store().run(
+        gear_type=GatherSubmissionStatusVisitor
+    )
 
 
 if __name__ == "__main__":
