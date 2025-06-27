@@ -3,10 +3,15 @@
 import logging
 from typing import Dict, Mapping, Optional
 
-from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
+import boto3
+from aws_lambda_powertools.utilities.parameters import SSMProvider
+from aws_lambda_powertools.utilities.parameters.exceptions import (
+    GetParameterError,
+    SetParameterError,
+)
+from botocore.exceptions import ClientError, ParamValidationError
 from pydantic import TypeAdapter, ValidationError
 from redcap_api.redcap_parameter_store import REDCapParameters, REDCapReportParameters
-from ssm_parameter_store import EC2ParameterStore
 from typing_extensions import Type, TypedDict, TypeVar
 
 from inputs.environment import get_environment_variable
@@ -63,9 +68,8 @@ P = TypeVar("P", bound=Mapping)  # type: ignore
 class ParameterStore:
     """Wrapper class for parameter store to pull particular parameters."""
 
-    def __init__(self, parameter_store: EC2ParameterStore) -> None:
+    def __init__(self, parameter_store: SSMProvider) -> None:
         self.__store = parameter_store
-        self.__client = parameter_store.client  # type: ignore
 
     @classmethod
     def create_from_environment(cls) -> "ParameterStore":
@@ -85,10 +89,13 @@ class ParameterStore:
             raise ParameterError("Environment variables not found")
 
         return ParameterStore(
-            EC2ParameterStore(
-                aws_access_key_id=access_id,
-                aws_secret_access_key=secret_key,
-                region_name=region,
+            SSMProvider(
+                boto3_client=boto3.client(
+                    "ssm",
+                    aws_access_key_id=access_id,
+                    aws_secret_access_key=secret_key,
+                    region_name=region,
+                )
             )
         )
 
@@ -108,7 +115,7 @@ class ParameterStore:
             parameter_path if parameter_path.endswith("/") else parameter_path + "/"
         )
 
-        parameters = self.__store.get_parameters_by_path(path=parameter_path)
+        parameters = self.__store.get_multiple(path=parameter_path)
         type_adapter = TypeAdapter(param_type)
         try:
             return type_adapter.validate_python(parameters)
@@ -132,13 +139,11 @@ class ParameterStore:
         path_prefix = path_prefix[:-1] if path_prefix.endswith("/") else path_prefix
         parameter_path = f"{path_prefix}/{parameter_name}"
         try:
-            parameter = self.__store.get_parameter(parameter_path, decrypt=True)
-
-        except self.__store.client.exceptions.ParameterNotFound as error:  # type: ignore
+            apikey = self.__store.get(name=parameter_path, decrypt=True)
+        except GetParameterError as error:
             raise ParameterError("No API Key found") from error
 
-        apikey = parameter.get(parameter_name)
-        if not apikey:
+        if not apikey or not isinstance(apikey, str):
             raise ParameterError("No API Key found")
 
         return apikey
@@ -165,9 +170,7 @@ class ParameterStore:
 
         redcap_params = {}
         try:
-            parameters = self.__store.get_parameters_with_hierarchy(
-                base_path, decrypt=True
-            )
+            parameters = self.__store.get_multiple(base_path, decrypt=True)
         except (ClientError, ParamValidationError) as error:
             raise ParameterError(
                 f"Failed to retrieve parameters at {base_path}: {error}"
@@ -233,19 +236,21 @@ class ParameterStore:
 
         param_path = base_path + "pid_" + str(pid)
         try:
-            prj_params = self.__store.get_parameters_by_path(param_path, decrypt=True)
-        except (ClientError, ParamValidationError) as error:
+            prj_params = self.__store.get_multiple(param_path, decrypt=True)
+        except (ClientError, ParamValidationError, GetParameterError) as error:
             raise ParameterError(
                 f"Failed to retrieve parameters at {param_path}"
             ) from error
 
-        if not prj_params or "url" not in prj_params or "token" not in prj_params:
+        if not prj_params:
             raise ParameterError(f"Incorrect parameters at {param_path}")
 
         url = prj_params.get("url")
         token = prj_params.get("token")
 
-        if not url or not token:
+        if (not url or not isinstance(url, str)) or (
+            not token or not isinstance(token, str)
+        ):
             raise ParameterError(f"Incorrect parameters at {param_path}")
 
         return REDCapReportParameters(url=url, token=token, reportid=str(report_id))
@@ -308,18 +313,22 @@ class ParameterStore:
         if not base_path.endswith("/"):
             base_path += "/"
 
-        param_path = base_path + "pid_" + str(pid)
+        param_path: str = base_path + "pid_" + str(pid)
         try:
-            param_name_url = param_path + "/url"
-            self.__client.put_parameter(
-                Name=param_name_url, Value=url, Type="String", Overwrite=True
+            param_name_url: str = param_path + "/url"
+            self.__store.set(
+                name=param_name_url, value=url, parameter_type="String", overwrite=True
             )
 
-            param_name_token = param_path + "/token"
-            self.__client.put_parameter(
-                Name=param_name_token, Value=token, Type="SecureString", Overwrite=True
-            )
-        except Exception as error:
+            param_name_token: str = param_path + "/token"
+            self.__store.set(
+                name=param_name_token,
+                value=token,
+                parameter_type="SecureString",  # type: ignore
+                overwrite=True,
+            )  # type: ignore
+
+        except SetParameterError as error:
             raise ParameterError(
                 f"Failed to store parameters at {param_path}: {error}"
             ) from error
