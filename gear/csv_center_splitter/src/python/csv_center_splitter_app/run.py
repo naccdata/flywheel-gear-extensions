@@ -1,6 +1,5 @@
 """Entry script for csv_center_splitter."""
 
-import json
 import logging
 from typing import List, Optional, Set
 
@@ -15,9 +14,10 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from notifications.redcap_email_list import (
-    REDCapEmailList,
-    REDCapEmailListConfigs,
+from notifications.email_list import (
+    EmailListClient,
+    EmailListError,
+    get_redcap_email_list_client,
 )
 from outputs.errors import ListErrorWriter
 from utils.utils import parse_string_to_list
@@ -44,7 +44,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         downstream_gears: Optional[List[str]] = None,
         delimiter: str = ",",
         local_run: bool = False,
-        email_notifier: Optional[REDCapEmailList] = None,
+        email_client: Optional[EmailListClient] = None,
     ):
         super().__init__(client=client)
 
@@ -58,7 +58,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
         self.__local_run = local_run
-        self.__email_notifier = email_notifier
+        self.__email_client = email_client
 
     @classmethod
     def create(
@@ -115,23 +115,18 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         delimiter = context.config.get("delimiter", ",")
         local_run = context.config.get("local_run", False)
 
-        redcap_email_configs = InputFileWrapper.create(
+        # for emails
+        redcap_email_configs_file = InputFileWrapper.create(
             input_name="redcap_email_configs", context=context
         )
-        email_notifier = None
-
-        if redcap_email_configs:
-            if not parameter_store:
-                raise GearExecutionError("Parameter store required to send emails")
-
-            with open(
-                redcap_email_configs.filepath, mode="r", encoding="utf-8-sig"
-            ) as fh:
-                email_notifier = REDCapEmailList.create(
-                    parameter_store=parameter_store,
-                    configs=REDCapEmailListConfigs(**json.load(fh)),
-                    dry_run=client.dry_run,
-                )
+        try:
+            email_client = get_redcap_email_list_client(
+                redcap_email_configs_file=redcap_email_configs_file,
+                parameter_store=parameter_store,
+                dry_run=client.dry_run,
+            )
+        except EmailListError as e:
+            raise GearExecutionError(e) from e
 
         return CSVCenterSplitterVisitor(
             client=client,
@@ -145,7 +140,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             downstream_gears=downstream_gears,
             delimiter=delimiter,
             local_run=local_run,
-            email_notifier=email_notifier,
+            email_client=email_client,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -188,8 +183,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 delimiter=self.__delimiter,
             )
 
-        if self.__email_notifier:
-            self.__email_notifier.send_emails()
+        if self.__email_client:
+            self.__email_client.send_emails()
 
 
 def main():
