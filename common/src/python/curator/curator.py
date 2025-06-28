@@ -13,6 +13,8 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
+from .scheduling_models import FileModel
+
 log = logging.getLogger(__name__)
 
 
@@ -95,7 +97,7 @@ class Curator(ABC):
             and not self.force_curate
             and self.curation_tag in file_entry.tags
         ):
-            log.info(f"{file_entry.name} already curated, skipping")
+            log.debug(f"{file_entry.name} already curated, skipping")
             return
 
         scope = determine_scope(file_entry.name)
@@ -104,7 +106,7 @@ class Curator(ABC):
             return
 
         table = self.get_table(subject, file_entry)
-        log.info("curating file %s", file_entry.name)
+        log.debug("curating file %s", file_entry.name)
         self.execute(subject, file_entry, table, scope)
 
     def pre_process(self, subject: Subject) -> None:
@@ -115,12 +117,12 @@ class Curator(ABC):
         """
         return
 
-    def post_process(self, subject: Subject, processed_files: List[str]) -> None:
+    def post_process(self, subject: Subject, processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject. Not required.
 
         Args:
             subject: Subject to post-process
-            processed_files: List of file IDs that were processed
+            processed_files: List of FileModels that were processed
         """
         return
 
@@ -160,6 +162,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
         r"(?P<np>.+_NP\.json)|"
         r"(?P<mds>.+_MDS\.json)|"
         r"(?P<milestone>.+_MLST\.json)|"
+        r"(?P<meds>.+_MEDS\.json)|"
         r"(?P<apoe>.+apoe_genotype\.json)|"
         r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
         r"(?P<niagads_availability>.+niagads_availability\.json)|"

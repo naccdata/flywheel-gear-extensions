@@ -9,7 +9,7 @@ with NACC or key values such as as visit date.)
 
 import ast  # type: ignore
 import logging
-from typing import Any, Dict, MutableMapping
+from typing import Any, Dict, MutableMapping, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -30,12 +30,12 @@ class RegressionCurator(Curator):
     def __init__(
         self,
         qaf_baseline: MutableMapping,
-        mqt_baseline: MutableMapping,
         error_writer: ListErrorWriter,
+        mqt_baseline: Optional[MutableMapping] = None,
     ) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
-        self.__mqt_baseline = SymbolTable(mqt_baseline)
+        self.__mqt_baseline = SymbolTable(mqt_baseline) if mqt_baseline else None
         self.__error_writer = error_writer
 
     def compare_as_lists(self, value: str, expected: str) -> bool:
@@ -131,19 +131,19 @@ class RegressionCurator(Curator):
         """
         # skip if not UDS, no derived variables, or no visitdate found
         if scope != "uds":
-            log.info(f"{file_entry.name} is a not an UDS form, skipping")
+            log.debug(f"{file_entry.name} is a not an UDS form, skipping")
             return
 
         derived_vars = table.get("file.info.derived", None)
         if not derived_vars or not any(
             x.lower().startswith("nacc") for x in derived_vars
         ):
-            log.info(f"No derived variables found for {file_entry.name}, skipping")
+            log.debug(f"No derived variables found for {file_entry.name}, skipping")
             return
 
         visitdate = table.get("file.info.forms.json.visitdate")
         if not visitdate:
-            log.info(f"No visitdate found for {file_entry.name}, skipping")
+            log.debug(f"No visitdate found for {file_entry.name}, skipping")
             return
 
         # ensure in QAF baseline - if not affiliate, report error
@@ -151,7 +151,7 @@ class RegressionCurator(Curator):
         record = self.__qaf_baseline.get(key)
         if not record:
             if "affiliate" in subject.tags:
-                log.info(f"{subject.label} is an affiliate, skipping")
+                log.debug(f"{subject.label} is an affiliate, skipping")
                 return
 
             msg = (
@@ -178,9 +178,12 @@ class RegressionCurator(Curator):
         Args:
             subject: Subject to pre-process
         """
+        if not self.__mqt_baseline:
+            return
+
         subject = subject.reload()
         if not subject.info:
-            log.info("No subject derived variables, skipping")
+            log.debug("No subject derived variables, skipping")
             return
 
         # means subject hasn't been curated before - might not
