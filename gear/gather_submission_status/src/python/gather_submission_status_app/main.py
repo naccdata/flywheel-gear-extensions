@@ -181,7 +181,7 @@ class SubmissionStatusVisitor(CSVVisitor):
         self.__filter = status_filter
         self.__error_writer = error_writer
         self.__center_map: Dict[int, CenterGroup] = {}
-        self.__project_map: Dict[str, List[ProjectAdaptor]]
+        self.__project_map: Dict[str, List[ProjectAdaptor]] = {}
 
     def __get_center(self, adcid: int) -> Optional[CenterGroup]:
         """Gets the center group for the adcid if it exists.
