@@ -15,6 +15,13 @@ The "study" should be the primary study for which the data was collected.
 So, if the data was collected for DVCID, the study should be given as `dvcid`.
 If the participant is co-enrolled and the data was collected for the ADRC clinical core, the value of study should be `adrc`.
 
+The gear config includes `project_names`, which a string containing a comma-separated list of project prefixes.
+These prefixes are used with the study to create the pattern used to match the label of the projects from which data is gathered.
+By default, this string is set to `"ingest-form"`.
+If `study` is `"adrc"`, the project `ingest-form` will be used.
+Otherwise, the study is used as a suffix to the label.
+For instance, if study is `"dvcid"`, the project `ingest-form-dvcid` will be used.
+
 At the moment, the modalities are form modules: UDS, FTLD, LBD.
 
 An input file would look like
@@ -31,15 +38,7 @@ The output file contains a row for each file that the participant has
 
 - `filename`: the name of the file
 - `file_id`: the Flywheel file ID
-- `acquisition_id`: the Flywheel acquisition ID
-- `subject_id`: the Flywheel subject ID 
+- `module`: the form module
+- `participant_id`: the NACCID
 - `modified_date`: the date the file was last modified
 - `qc_status`: indicates whether the file has passed all of the QC checks
-
-maybe should be
-
-- `naccid`: the participant ID
-- `is_file`: indicator whether file exists
-- `modality`: file modality
-- `modified_date`: the date the file was modified
-- `qc_status`: indicator whether the file has passed all of the QC checks

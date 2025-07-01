@@ -66,7 +66,7 @@ class StatusModel(BaseModel):
     filename: str
     file_id: str
     module: str
-    participant_id: str
+    naccid: str
     modified_date: date
     qc_status: Optional[QCStatus] = None
 
