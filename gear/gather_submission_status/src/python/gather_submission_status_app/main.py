@@ -44,7 +44,7 @@ def create_status_view(modules: List[Modality]) -> DataView:
             ColumnModel(data_key="file.name", label="filename"),
             ColumnModel(data_key="file.file_id", label="file_id"),
             ColumnModel(data_key="acquisition.label", label="module"),
-            ColumnModel(data_key="subject.label", label="participant_id"),
+            ColumnModel(data_key="subject.label", label="naccid"),
             ColumnModel(data_key="file.modified", label="modified_date"),
         ],
         container="acquisition",
