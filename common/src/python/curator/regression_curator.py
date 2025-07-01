@@ -9,7 +9,7 @@ with NACC or key values such as as visit date.)
 
 import ast  # type: ignore
 import logging
-from typing import Any, Dict, MutableMapping, Optional
+from typing import Any, Dict, MutableMapping, Optional, Tuple
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -60,7 +60,18 @@ class RegressionCurator(Curator):
             return False
 
         # compare as sets
-        return set(value_as_list) == set(expected_as_list)
+        try:
+            return set(value_as_list) == set(expected_as_list)
+        except TypeError as e:
+            # means dicts - we assume lists of dicts are ordered, so
+            # if it failed the earlier == then it doesn't match
+            if str(e) == "unhashable type: 'dict'":
+                return False
+
+            # otherwise some other issue, so raise error
+            raise e
+
+        return False
 
     def compare_baseline(
         self, found_vars: Dict[str, Any], record: Dict[str, Any], prefix: str
@@ -93,7 +104,9 @@ class RegressionCurator(Curator):
 
             value = str(value)
             expected = str(record[field])
-            result = (value == expected) or self.compare_as_lists(value, expected)
+            result = value == expected
+            if not result:
+                result = self.compare_as_lists(value, expected)
 
             if not result:
                 identifier = record["naccid"]

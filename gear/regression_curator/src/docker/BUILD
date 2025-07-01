@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/regression_curator/src/python/regression_curator_app:bin",
     ],
-    image_tags=["0.1.2", "latest"],
+    image_tags=["0.1.3c", "latest"],
 )

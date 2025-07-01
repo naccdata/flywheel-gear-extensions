@@ -118,6 +118,7 @@ class FormCurator(Curator):
                 "longitudinal-data.uds",
                 "neuropathology",
                 "study-parameters.uds",
+                "working"
             ]:
                 try:
                     subject.delete_info(field)

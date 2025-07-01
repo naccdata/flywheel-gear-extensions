@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.5.0
+
+* Updates `nacc-attribute-deriver` to `1.5.0`, which introduces a significant number of new derived variables
+* Updates `force-curate` to also clear `working` metadata (introduced in `1.5.0`)
+
 ## 0.4.1
 
 * Updates `nacc-attribute-deriver` to `1.4.1`
