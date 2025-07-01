@@ -39,6 +39,6 @@ The output file contains a row for each file that the participant has
 - `filename`: the name of the file
 - `file_id`: the Flywheel file ID
 - `module`: the form module
-- `participant_id`: the NACCID
+- `naccid`: the NACCID
 - `modified_date`: the date the file was last modified
-- `qc_status`: indicates whether the file has passed all of the QC checks
+- `qc_status`: indicates pass/fail status of QC checks
