@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -31,12 +31,14 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         output_filename: str,
         gear_name: str,
+        project_names: List[str],
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
         self.__output_filename = output_filename
         self.__gear_name = gear_name
+        self.__project_names = project_names
 
     @classmethod
     def create(
@@ -61,6 +63,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
         output_filename = context.config.get("output_file", "submission-status.csv")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        project_names = context.config.get("project_names", "").split(",")
         gear_name = context.manifest.get("name", "gather-submission-status")
         return GatherSubmissionStatusVisitor(
             client=client,
@@ -68,6 +71,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             output_filename=output_filename,
             admin_id=admin_id,
             gear_name=gear_name,
+            project_names=project_names,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -93,6 +97,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                     proxy=self.proxy,
                     input_file=csv_file,
                     admin_group=admin_group,
+                    project_names=self.__project_names,
                     error_writer=error_writer,
                     output_file=status_file,
                 )

@@ -52,6 +52,11 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot"
         },
+        "project_names": {
+            "description": "Comma-separated list of projects to search",
+            "type": "string",
+            "default": "ingest-form"
+        },
         "output_file": {
             "description": "Name of the output file",
             "type": "string",

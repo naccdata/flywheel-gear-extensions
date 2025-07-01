@@ -187,10 +187,12 @@ class SubmissionStatusVisitor(CSVVisitor):
         self,
         *,
         admin_group: NACCGroup,
+        project_names: List[str],
         status_filter: StatusFilter,
         error_writer: ErrorWriter,
     ) -> None:
         self.__admin_group = admin_group
+        self.__project_names = project_names
         self.__filter = status_filter
         self.__error_writer = error_writer
         self.__center_map: Dict[int, CenterGroup] = {}
@@ -213,9 +215,7 @@ class SubmissionStatusVisitor(CSVVisitor):
                 self.__center_map[adcid] = center
         return center
 
-    def __get_projects(
-        self, center: CenterGroup, prefix: str, study: Study
-    ) -> List[ProjectAdaptor]:
+    def __get_projects(self, center: CenterGroup, study: Study) -> List[ProjectAdaptor]:
         """Gets the projects matching the prefix in the center group.
 
         Args:
@@ -224,15 +224,16 @@ class SubmissionStatusVisitor(CSVVisitor):
         Returns:
           the list of projects in the group matching the prefix
         """
-        projects = self.__project_map.get(center.label)
+        projects = self.__project_map.get(center.label, [])
         if not projects:
-            projects = center.get_matching_projects(prefix)
-            if projects:
-                self.__project_map[center.label] = projects
-        if study == "adrc":
-            return projects
+            for project in self.__project_names:
+                pattern = f"{project}-{study}" if study != "adrc" else project
+                matching_projects = center.get_matching_projects(pattern)
+                if matching_projects:
+                    projects += matching_projects
+            self.__project_map[center.label] = projects
 
-        return [project for project in projects if project.label.endswith(f"-{study}")]
+        return projects
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID and NACCID keys, and adds to this
@@ -275,16 +276,17 @@ class SubmissionStatusVisitor(CSVVisitor):
             )
             return False
 
-        projects = self.__get_projects(
-            center=center, prefix="ingest", study=status_query.study
-        )
+        projects = self.__get_projects(center=center, study=status_query.study)
         if not projects:
             self.__error_writer.write(
                 FileError(
                     error_code="no-projects",
                     error_type="error",
                     location=CSVLocation(line=line_num, column_name="adcid"),
-                    message=f"center {status_query.adcid} has no ingest projects",
+                    message=(
+                        f"center {status_query.adcid} has no matching projects "
+                        f"for {status_query.study} and names {self.__project_names}"
+                    ),
                 )
             )
             return False
@@ -310,6 +312,7 @@ def run(
     input_file: TextIO,
     output_file: TextIO,
     admin_group: NACCGroup,
+    project_names: List[str],
     proxy: FlywheelProxy,
     error_writer: ErrorWriter,
 ):
@@ -321,6 +324,7 @@ def run(
     writer = DictWriter(output_file, fieldnames=list(StatusModel.model_fields.keys()))
     visitor = SubmissionStatusVisitor(
         admin_group=admin_group,
+        project_names=project_names,
         status_filter=StatusFilter(proxy=proxy, writer=writer),
         error_writer=error_writer,
     )
