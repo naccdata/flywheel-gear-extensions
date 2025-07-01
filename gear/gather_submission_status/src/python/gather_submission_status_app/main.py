@@ -2,7 +2,7 @@
 
 import logging
 from csv import DictWriter
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional, TextIO, get_args
 
 from centers.center_group import CenterGroup
@@ -28,7 +28,7 @@ Study = Literal["adrc", "dvcid", "leads"]
 QCStatus = Literal["pass", "fail"]
 
 
-def create_status_view(modalities: List[Modality]) -> DataView:
+def create_status_view(modules: List[Modality]) -> DataView:
     """Creates a dataview for participant submission status for files matching
     the given modalities.
 
@@ -39,18 +39,20 @@ def create_status_view(modalities: List[Modality]) -> DataView:
     """
     builder = make_builder(
         label="participant-status",
-        description="Capture status for participant submissions",
+        description="Capture status of participant submissions",
         columns=[
             ColumnModel(data_key="file.name", label="filename"),
             ColumnModel(data_key="file.file_id", label="file_id"),
-            ColumnModel(data_key="file.parents.acquisition", label="acquisition_id"),
-            ColumnModel(data_key="file.parents.subject", label="subject_id"),
+            ColumnModel(data_key="acquisition.label", label="module"),
+            ColumnModel(data_key="subject.label", label="participant_id"),
             ColumnModel(data_key="file.modified", label="modified_date"),
         ],
         container="acquisition",
-        filter_str=f"acquisition.label=[{','.join(modalities)}]",
+        filter_str=f'acquisition.label=|[{",".join(modules)}]',
         missing_data_strategy="none",
     )
+    builder.file_filter(value=r"^.*\.json", regex=True)
+    builder.file_container("acquisition")
     return builder.build()
 
 
@@ -63,10 +65,21 @@ class StatusModel(BaseModel):
 
     filename: str
     file_id: str
-    acquisition_id: str
-    subject_id: str
+    module: str
+    participant_id: str
     modified_date: date
     qc_status: Optional[QCStatus] = None
+
+    @field_validator("modified_date", mode="before")
+    def datetime_to_date(cls, value: str) -> date:
+        """Converts datetime string to date.
+
+        Args:
+          value: the datetime string
+        Returns:
+          the date for the datetime string
+        """
+        return datetime.fromisoformat(value).date()
 
 
 class StatusResponseModel(BaseModel):
@@ -201,7 +214,7 @@ class SubmissionStatusVisitor(CSVVisitor):
         return center
 
     def __get_projects(
-        self, center: CenterGroup, prefix: str = "ingest"
+        self, center: CenterGroup, prefix: str, study: Study
     ) -> List[ProjectAdaptor]:
         """Gets the projects matching the prefix in the center group.
 
@@ -216,7 +229,10 @@ class SubmissionStatusVisitor(CSVVisitor):
             projects = center.get_matching_projects(prefix)
             if projects:
                 self.__project_map[center.label] = projects
-        return projects
+        if study == "adrc":
+            return projects
+
+        return [project for project in projects if project.label.endswith(f"-{study}")]
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID and NACCID keys, and adds to this
@@ -259,7 +275,9 @@ class SubmissionStatusVisitor(CSVVisitor):
             )
             return False
 
-        projects = self.__get_projects(center=center, prefix="ingest")
+        projects = self.__get_projects(
+            center=center, prefix="ingest", study=status_query.study
+        )
         if not projects:
             self.__error_writer.write(
                 FileError(
@@ -272,20 +290,9 @@ class SubmissionStatusVisitor(CSVVisitor):
             return False
 
         for project in projects:
-            subject = project.get_subject_by_id(status_query.naccid)
+            subject = project.find_subject(status_query.naccid)
             if not subject:
-                self.__error_writer.write(
-                    FileError(
-                        error_code="no-subject",
-                        error_type="error",
-                        location=CSVLocation(line=line_num, column_name="naccid"),
-                        message=(
-                            f"no subject {status_query.naccid} "
-                            f"found in center {status_query.adcid}"
-                        ),
-                    )
-                )
-                return False
+                continue
 
             try:
                 self.__filter.gather_status(
@@ -311,7 +318,7 @@ def run(
     Args:
         proxy: the proxy for the Flywheel instance
     """
-    writer = DictWriter(output_file, fieldnames=StatusModel.model_fields)
+    writer = DictWriter(output_file, fieldnames=list(StatusModel.model_fields.keys()))
     visitor = SubmissionStatusVisitor(
         admin_group=admin_group,
         status_filter=StatusFilter(proxy=proxy, writer=writer),
