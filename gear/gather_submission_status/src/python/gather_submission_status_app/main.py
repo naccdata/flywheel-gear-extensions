@@ -321,7 +321,7 @@ def run(
     Args:
         proxy: the proxy for the Flywheel instance
     """
-    writer = DictWriter(output_file, fieldnames=list(StatusModel.model_fields.keys()))
+    writer = DictWriter(output_file, fieldnames=list(StatusModel.model_fields))
     visitor = SubmissionStatusVisitor(
         admin_group=admin_group,
         project_names=project_names,
@@ -329,4 +329,5 @@ def run(
         error_writer=error_writer,
     )
 
+    writer.writeheader()
     return read_csv(input_file=input_file, error_writer=error_writer, visitor=visitor)
