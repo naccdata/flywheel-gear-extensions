@@ -27,7 +27,7 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "A participant list CSV file, with columns adcid and naccid",
+            "description": "A participant list CSV file",
             "base": "file",
             "type": {
                 "enum": [
