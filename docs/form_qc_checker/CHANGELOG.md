@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.2
+
+* Updates `nacc-form-validator` to 0.5.3
+
 ## 1.5.1
 * Updates `nacc-form-validator` to 0.5.2
 
