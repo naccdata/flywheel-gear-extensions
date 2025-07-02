@@ -143,11 +143,9 @@ class StatusFilter:
             qc_object = file.get("info", {}).get("qc", {})
             for gear_name in qc_object:
                 qc_state = qc_object.get(gear_name).get("validation", {}).get("state")
-                if qc_state is not None:
-                    if qc_state.lower() == "fail":
-                        status.qc_status = "fail"
-                        continue
-                    status.qc_status = "pass" if qc_state.lower() == "pass" else None
+                status.qc_status = (
+                    qc_state.lower() if qc_state.lower() in get_args(QCStatus) else None
+                )
 
             self.__writer.writerow(status.model_dump())
 
