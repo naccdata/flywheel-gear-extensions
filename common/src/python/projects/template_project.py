@@ -74,7 +74,6 @@ class TemplateProject:
           value_map: optional map for substitutions for description template
         """
         self.copy_rules(destination)
-        self.copy_users(destination)
         if value_map:
             self.copy_description(destination=destination, values=value_map)
         self.copy_apps(destination)
@@ -160,16 +159,6 @@ class TemplateProject:
             )
             destination.add_gear_rule(rule_input=gear_rule_input)
 
-    def copy_users(self, destination: ProjectAdaptor) -> None:
-        """Copies users from this project to the destination.
-
-        Args:
-          destination: the destination project
-        """
-        role_assignments = self.__source_project.permissions
-        for role_assignment in role_assignments:
-            destination.add_user_role_assignments(role_assignment)
-
     def copy_description(
         self, *, destination: ProjectAdaptor, values: Dict[str, str]
     ) -> None:
@@ -220,16 +209,16 @@ class TemplateProject:
         template.
 
         Args:
-          destination: the detination project
+          destination: the destination project
         """
         destination_rules = destination.get_gear_rules()
         if not destination_rules:
             return
 
         assert self.__rules
-        template_rulenames = [rule.name for rule in self.__rules]
+        rule_names = [rule.name for rule in self.__rules]
         for rule in destination_rules:
-            if rule.name not in template_rulenames:
+            if rule.name not in rule_names:
                 log.info(
                     "removing rule %s, not in template %s",
                     rule.name,
