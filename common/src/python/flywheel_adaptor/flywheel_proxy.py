@@ -842,7 +842,7 @@ class GroupAdaptor:
         return self._group.permissions
 
     def add_user_access(self, new_permission: AccessPermission) -> None:
-        """Adds permission for user to access the group of the center.
+        """Adds permission for user to access the group.
 
         Args:
           permission: permission object indicating user and group access
