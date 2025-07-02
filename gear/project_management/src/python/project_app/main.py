@@ -41,6 +41,8 @@ def run(*, proxy: FlywheelProxy, admin_group: NACCGroup, study_list: List[Study]
       admin_group: the administrative group
       study_list: the list of input study objects
     """
-    visitor = StudyMappingVisitor(flywheel_proxy=proxy, admin_group=admin_group)
+    visitor = StudyMappingVisitor(
+        flywheel_proxy=proxy, admin_access=admin_group.get_user_access()
+    )
     for study in study_list:
         visitor.visit_study(study)
