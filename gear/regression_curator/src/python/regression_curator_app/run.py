@@ -80,7 +80,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         filename_pattern = context.config.get("filename_pattern", "*UDS.json")
 
         proxy = client.get_proxy()
-        fw_project = get_project_from_destination(context=context, proxy=proxy)
+        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         error_outfile = context.config.get("error_outfile", "regression_errors.csv")

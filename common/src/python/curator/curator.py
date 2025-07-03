@@ -65,29 +65,35 @@ class Curator(ABC):
         return self.sdk_client.get_subject(subject_id)
 
     @api_retry
-    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+    def get_table(self,
+                  subject: Subject,
+                  subject_table: SymbolTable,
+                  file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.
 
         Args:
             subject: The subject the file belongs to
+            subject_table: SymbolTable containing subject-specific metadata to curate to.
+                Iteratively added onto for each file curation
             file_entry: The file being curated
         """
-        # need to reload since info isn't automatically loaded
-        subject = subject.reload()
-        file_entry = file_entry.reload()
-
         # add the metadata
         table = SymbolTable({})
-        table["subject.info"] = subject.info
-        table["file.info"] = file_entry.info
+        table["subject.info"] = subject_table.to_dict()
+        table["file.info"] = file_entry.reload().info
         return table
 
     @api_retry
-    def curate_file(self, subject: Subject, file_id: str) -> None:
+    def curate_file(self,
+                    subject: Subject,
+                    subject_table: SymbolTable,
+                    file_id: str) -> None:
         """Curates a file.
 
         Args:
             subject: Subject the file belongs to
+            subject_table: SymbolTable containing subject-specific metadata to curate to.
+                Iteratively added onto for each file curation
             file_id: File ID curate
         """
         file_entry = self.sdk_client.get_file(file_id)
@@ -105,23 +111,29 @@ class Curator(ABC):
             log.warning("could not determine scope for %s, skipping", file_entry.name)
             return
 
-        table = self.get_table(subject, file_entry)
+        table = self.get_table(subject, subject_table, file_entry)
         log.debug("curating file %s", file_entry.name)
         self.execute(subject, file_entry, table, scope)
 
-    def pre_process(self, subject: Subject) -> None:
+    def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-processing on the entire subject. Not required.
 
         Args:
             subject: Subject to pre-process
+            subject_table: SymbolTable containing subject-specific metadata
         """
         return
 
-    def post_process(self, subject: Subject, processed_files: List[FileModel]) -> None:
+    def post_process(self,
+                     subject: Subject,
+                     subject_table: SymbolTable,
+                     processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject. Not required.
 
         Args:
             subject: Subject to post-process
+            subject_table: SymbolTable containing subject-specific metadata
+                and curation results
             processed_files: List of FileModels that were processed
         """
         return
@@ -159,6 +171,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
 
     pattern = (
         r"^"
+        r"(?P<cls>.+_CLS\.json)|"
         r"(?P<np>.+_NP\.json)|"
         r"(?P<mds>.+_MDS\.json)|"
         r"(?P<milestone>.+_MLST\.json)|"

@@ -185,7 +185,7 @@ class RegressionCurator(Curator):
         self.compare_baseline(derived_vars, record, prefix="file.info.derived")
 
     @api_retry
-    def pre_process(self, subject: Subject) -> None:
+    def pre_process(self, subject: Subject, subject_info: SymbolTable) -> None:
         """Run pre-processing on the entire subject. Compares subject.info.
 
         Args:
@@ -194,8 +194,7 @@ class RegressionCurator(Curator):
         if not self.__mqt_baseline:
             return
 
-        subject = subject.reload()
-        if not subject.info:
+        if not subject_info:
             log.debug("No subject derived variables, skipping")
             return
 
@@ -217,6 +216,6 @@ class RegressionCurator(Curator):
             return
 
         record = self.__mqt_baseline[subject.label]
-        found_vars = flatten_dict(subject.info)
+        found_vars = flatten_dict(subject_info.to_dict())
 
         self.compare_baseline(found_vars, record, prefix="subject.info")

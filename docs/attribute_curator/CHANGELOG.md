@@ -6,6 +6,9 @@ All notable changes to this gear are documented in this file.
 
 * Updates `nacc-attribute-deriver` to `1.5.0`, which introduces a significant number of new derived variables
 * Updates `force-curate` to also clear `working` metadata (introduced in `1.5.0`)
+* Adds CLS scope
+* Reports version of the attribute deriver for better tracking
+* Updates to pass `subject_table` (FW subject.info) around heap evaluation (instead of reloading on every file), to reduce API calls and improve gear performance
 
 ## 0.4.1
 

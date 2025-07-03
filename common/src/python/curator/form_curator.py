@@ -31,7 +31,10 @@ class FormCurator(Curator):
     def failed_files(self) -> DictProxy:
         return self.__failed_files
 
-    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+    def get_table(self,
+                  subject: Subject,
+                  subject_table: SymbolTable,
+                  file_entry: FileEntry) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for
         curation."""
         # clear out file.info.derived if forcing curation
@@ -39,25 +42,19 @@ class FormCurator(Curator):
             for field in ["derived"]:
                 file_entry.delete_info(field)
 
-        return super().get_table(subject, file_entry)
+        return super().get_table(subject, subject_table, file_entry)
 
     @api_retry
-    def apply_curation(
-        self, subject: Subject, file_entry: FileEntry, table: SymbolTable
+    def apply_file_curation(
+        self, file_entry: FileEntry, table: SymbolTable
     ) -> None:
-        """Applies the curated information back to FW.
+        """Applies the file-specific curated information back to FW 
 
-        In its most basic form, grabs file.info.derived subject.info and
-        copies it back up to the file/subject. Subclasses that may need
-        to apply additional data should override as needed.
+        Grabs file.info.derived and copies it back up to the file.
         """
         derived_file_info = table.get("file.info.derived")
-        subject_info = table.get("subject.info")
-
         if derived_file_info:
             file_entry.update_info({"derived": derived_file_info})
-        if subject_info:
-            subject.update_info(subject_info)
 
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
@@ -85,28 +82,22 @@ class FormCurator(Curator):
             log.error(f"Failed to derive {file_entry.name}: {e}")
             return
 
-        self.apply_curation(subject, file_entry, table)
+        # subject data will be applied after all files processed
+        # (post-processing step)
+        self.apply_file_curation(subject, file_entry, table)
 
     @api_retry
-    def pre_process(self, subject: Subject) -> None:
+    def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-processing on the entire subject. Clean up metadata as
         needed.
 
         Args:
             subject: Subject to pre-process
+            subject_table: SymbolTable containing subject-specific metadata
         """
         # if forcing new curation, wipe the subject metadata
         # related to curation.
-        # TODO: this is kind of dangerous, might want to
-        # instead make this a manual job outside the gear, or
-        # only keep while MQT is being aggressively iterated on
         if self.force_curate:
-            # TODO: there is an issue with upsert-hierarchy not creating the
-            # info object correctly, so calling delete_info on a subject without
-            # info raises an exception. FW is aware of issue but may not be fixed
-            # for a while. however calling subject.reload() for everything introduces
-            # significant overhead, so instead just catch when it fails (which will be
-            # much rarer)
             log.debug(
                 f"Force curation set to True, cleaning up {subject.label} metadata"
             )
@@ -120,15 +111,13 @@ class FormCurator(Curator):
                 "study-parameters.uds",
                 "working"
             ]:
-                try:
-                    subject.delete_info(field)
-                except ApiException as e:  # check if it failed due to info object
-                    if str(e) == "(500) Reason: 'info'":
-                        break
-                    raise e
+                subject_table.pop(field)
 
     @api_retry
-    def post_process(self, subject: Subject, processed_files: List[FileModel]) -> None:
+    def post_process(self,
+                     subject: Subject,
+                     subject_table: SymbolTable,
+                     processed_files: List[FileModel]) -> None:
         """Run post-processing on the entire subject.
 
         1. Adds `affiliated` tag to affiliate subjects if
@@ -136,13 +125,15 @@ class FormCurator(Curator):
             (via nacc-attribute-deriver)
         2. Run a second pass over all UDS forms and apply
             cross-sectional values.
+        3. Pushes final subject_table back to FW
 
         Args:
-            subject: Subject to pre-process
+            subject: Subject to post-process
+            subject_table: SymbolTable containing subject-specific metadata
+                and curation results
             processed_files: List of FileModels that were processed
         """
-        subject = subject.reload()
-        derived = subject.info.get("derived", {})
+        derived = subject_table.get("derived", {})
         affiliate = derived.get("affiliate", None)
         cs_derived = derived.get("cross-sectional", None)
 
@@ -166,3 +157,7 @@ class FormCurator(Curator):
             derived = file_entry.info.get("derived", {})
             derived.update(cs_derived)
             file_entry.update_info({"derived": derived})
+
+        # push subject metadata
+        if subject_table:
+            subject.update_info(subject_table.to_dict())
