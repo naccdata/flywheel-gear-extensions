@@ -84,7 +84,7 @@ class FormCurator(Curator):
 
         # subject data will be applied after all files processed
         # (post-processing step)
-        self.apply_file_curation(subject, file_entry, table)
+        self.apply_file_curation(file_entry, table)
 
     @api_retry
     def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:

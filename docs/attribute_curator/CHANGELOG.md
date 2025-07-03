@@ -8,7 +8,7 @@ All notable changes to this gear are documented in this file.
 * Updates `force-curate` to also clear `working` metadata (introduced in `1.5.0`)
 * Adds CLS scope
 * Reports version of the attribute deriver for better tracking
-* Updates to pass `subject_table` (FW subject.info) around heap evaluation (instead of reloading on every file), to reduce API calls and improve gear performance
+* Updates to pass `subject_table` (FW subject.info) around heap evaluation instead of reloading on every file, reducing API calls
 
 ## 0.4.1
 
