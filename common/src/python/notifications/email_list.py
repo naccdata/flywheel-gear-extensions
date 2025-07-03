@@ -11,7 +11,6 @@ from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
 )
-from redcap_api.redcap_email_list import REDCapEmailList
 
 from .email import (
     BaseTemplateModel,
@@ -20,6 +19,7 @@ from .email import (
     TemplateDataModel,
     create_ses_client,
 )
+from .redcap_email_list import REDCapEmailList
 
 log = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ def get_redcap_email_list_client(
 
         return EmailListClient(
             client=create_ses_client(),
-            email_list=email_list,
+            email_list=email_list.email_list,
             configs=configs,
             dry_run=dry_run,
         )
