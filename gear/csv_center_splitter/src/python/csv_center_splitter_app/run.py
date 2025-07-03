@@ -14,6 +14,11 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from notifications.email_list import (
+    EmailListClient,
+    EmailListError,
+    get_redcap_email_list_client,
+)
 from outputs.errors import ListErrorWriter
 from utils.utils import parse_string_to_list
 
@@ -39,6 +44,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         downstream_gears: Optional[List[str]] = None,
         delimiter: str = ",",
         local_run: bool = False,
+        email_client: Optional[EmailListClient] = None,
     ):
         super().__init__(client=client)
 
@@ -52,6 +58,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
         self.__local_run = local_run
+        self.__email_client = email_client
 
     @classmethod
     def create(
@@ -108,6 +115,19 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         delimiter = context.config.get("delimiter", ",")
         local_run = context.config.get("local_run", False)
 
+        # for emails
+        redcap_email_configs_file = InputFileWrapper.create(
+            input_name="redcap_email_configs", context=context
+        )
+        try:
+            email_client = get_redcap_email_list_client(
+                redcap_email_configs_file=redcap_email_configs_file,
+                parameter_store=parameter_store,
+                dry_run=client.dry_run,
+            )
+        except EmailListError as e:
+            raise GearExecutionError(e) from e
+
         return CSVCenterSplitterVisitor(
             client=client,
             file_input=file_input,  # type: ignore
@@ -120,6 +140,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             downstream_gears=downstream_gears,
             delimiter=delimiter,
             local_run=local_run,
+            email_client=email_client,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -161,6 +182,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 include=centers,
                 delimiter=self.__delimiter,
             )
+
+        if self.__email_client:
+            self.__email_client.send_emails()
 
 
 def main():
