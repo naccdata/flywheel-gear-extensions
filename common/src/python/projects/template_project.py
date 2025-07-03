@@ -348,7 +348,7 @@ class TemplateProject:
     def __equal_views(first: DataView, second: DataView) -> bool:
         """Checks whether the first and second dataviews are equivalent.
 
-        Checks properties: columns, label, sort, error_colum, file_spec,
+        Checks properties: columns, label, sort, error_column, file_spec,
         filter, group_by, include_ids, include_labels, missing_data_strategy
 
         Args:
