@@ -4,7 +4,10 @@
         "UDS",
         "FTLD",
         "LBD",
-        "MLST"
+        "MLST",
+        "NP",
+        "BDS",
+        "CLS"
     ],
     "legacy_project_label": "retrospective-form",
     "module_configs": {
