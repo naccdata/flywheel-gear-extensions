@@ -307,6 +307,15 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
     )
 
 
+def non_utf8_file_error() -> FileError:
+    """Creates a FileError when a non-utf8 file is attempted to be read."""
+    return FileError(
+        error_type="error",
+        error_code="non-utf8-encoding",
+        message="File must be UTF-8-compliant",
+    )
+
+
 def preprocessing_error(
     field: str,
     value: str,

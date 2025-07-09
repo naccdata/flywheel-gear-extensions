@@ -19,7 +19,12 @@ from gear_execution.gear_trigger import (
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
 from keys.keys import FieldNames, SysErrorCodes
-from outputs.errors import ListErrorWriter, empty_file_error, preprocessing_error
+from outputs.errors import (
+    ListErrorWriter,
+    empty_file_error,
+    non_utf8_file_error,
+    preprocessing_error,
+)
 
 from form_screening_app.format import CSVFormatterVisitor
 
@@ -225,13 +230,20 @@ def run(
     )
 
     # open file using utf-8-sig to treat the BOM as metadata (if present)
-    with open(file_input.filepath, mode="r", encoding="utf-8-sig") as csv_file:
-        success = read_csv(
-            input_file=csv_file, error_writer=error_writer, visitor=formatter_visitor
-        )
+    success = False
+    try:
+        with open(file_input.filepath, mode="r", encoding="utf-8-sig") as csv_file:
+            success = read_csv(
+                input_file=csv_file,
+                error_writer=error_writer,
+                visitor=formatter_visitor,
+            )
+    except UnicodeDecodeError as e:
+        log.error(f"Cannot read non UTF-8 compliant file: {e}")
+        error_writer.write(non_utf8_file_error())
 
-        if not success:
-            return error_writer
+    if not success:
+        return error_writer
 
     contents = out_stream.getvalue()
     if not len(contents) > 0:
