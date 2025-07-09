@@ -31,6 +31,9 @@ class JobPoll:
             time.sleep(5)  # wait to see if the job gets retried
             job = job.reload()
 
+            if job.state == "failed" and job.retried is not None:
+                return "retried"
+
         log.info("Job %s finished with status: %s", job.id, job.state)
 
         return job.state
