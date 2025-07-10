@@ -138,6 +138,7 @@ class FormJSONUploader:
         filename: str,
         file_id: str,
         input_record: Dict[str, Any],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
     ):
         """Add the visit to the list of visits pending for QC for the
         participant.
@@ -147,6 +148,7 @@ class FormJSONUploader:
             filename: Flywheel acquisition file name
             file_id: Flywheel acquisition file ID
             input_record: input visit data
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
         """
         visit_mapping: VisitMapping
         subject_lbl = input_record[FieldNames.NACCID]
@@ -155,11 +157,14 @@ class FormJSONUploader:
             visit_mapping["visits"].add_visit(
                 filename=filename,
                 file_id=file_id,
-                visitdate=input_record[FieldNames.DATE_COLUMN],
+                visitdate=input_record[visitdate_key],
             )
         else:
             participant_visits = ParticipantVisits.create_from_visit_data(
-                filename=filename, file_id=file_id, input_record=input_record
+                filename=filename,
+                file_id=file_id,
+                input_record=input_record,
+                visitdate_key=visitdate_key,
             )
             visit_mapping = {"subject": subject, "visits": participant_visits}
             self.__pending_visits[subject_lbl] = visit_mapping
@@ -222,7 +227,11 @@ class FormJSONUploader:
         ):
             log.error("Failed to update visit error log file %s", error_log_name)
 
-    def upload(self, participant_records: Dict[str, Dict[str, Dict[str, Any]]]) -> bool:
+    def upload(
+        self,
+        participant_records: Dict[str, Dict[str, Dict[str, Any]]],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
+    ) -> bool:
         """Converts a transformed CSV record to a JSON file and uploads it to
         the respective acquisition in Flywheel.
 
@@ -231,6 +240,7 @@ class FormJSONUploader:
 
         Args:
             participant_visits: set of visits to upload, by participant
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
 
         Returns:
             bool: True if uploads are successful
@@ -303,6 +313,7 @@ class FormJSONUploader:
                     filename=visit_file_name,
                     file_id=new_file.file_id,
                     input_record=record,
+                    visitdate_key=visitdate_key,
                 )
 
         success = success and self.__create_pending_visits_file()

@@ -347,7 +347,7 @@
         "CLS": {
             "hierarchy_labels": {
                 "session": {
-                    "template": "CLS-${visitdate}-{visitnum}",
+                    "template": "CLS-${visitdate}",
                     "transform": "upper"
                 },
                 "acquisition": {
