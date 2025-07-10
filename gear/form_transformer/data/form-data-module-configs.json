@@ -374,8 +374,7 @@
             "date_field": "visitdate",
             "preprocess_checks": [
                 "duplicate-record",
-                "version",
-                "visit-conflict"
+                "version"
             ]
         }
     }
