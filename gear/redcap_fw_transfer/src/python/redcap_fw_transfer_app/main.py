@@ -40,14 +40,14 @@ def upload_to_flywheel(
         GearExecutionError if CSV upload fails
     """
 
-    input_df = pd.DataFrame(visits)
+    df = pd.DataFrame(visits)
 
     # drop any extra columns that are not part of the module schema
     if extra_fields:
-        output_df = input_df.drop(labels=extra_fields, axis=1, errors="ignore")
+        df = df.drop(labels=extra_fields, axis=1, errors="ignore")
 
     try:
-        csv_contents = output_df.to_csv(index=False, doublequote=False)
+        csv_contents = df.to_csv(index=False, doublequote=False)
     except Exception as error:
         raise GearExecutionError(
             f"Problem occurred while generating CSV file: {error}"

@@ -341,7 +341,7 @@
             "date_field": "visitdate",
             "preprocess_checks": [
                 "duplicate-record",
-                "version",
+                "version"
             ]
         },
         "CLS": {
@@ -375,7 +375,7 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
-                "visit-conflict",
+                "visit-conflict"
             ]
         }
     }
