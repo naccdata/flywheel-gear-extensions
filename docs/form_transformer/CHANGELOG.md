@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.4
+* Rebuilding for API call retries
+  
 ## 1.4.3
 * Update to parameterize the key to pull visit date from (uses `date_field` in `form-date-module-configs.json`)
 
