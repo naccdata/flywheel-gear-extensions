@@ -51,7 +51,12 @@ class ParticipantVisits(BaseModel):
 
     @classmethod
     def create_from_visit_data(
-        cls, *, filename: str, file_id: str, input_record: Dict[str, Any]
+        cls,
+        *,
+        filename: str,
+        file_id: str,
+        input_record: Dict[str, Any],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
     ) -> "ParticipantVisits":
         """Create from input data and visit file details.
 
@@ -59,6 +64,7 @@ class ParticipantVisits(BaseModel):
             filename: Flywheel acquisition file name
             file_id: Flywheel acquisition file ID
             input_record: input visit data
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
 
         Returns:
             ParticipantVisits object
@@ -66,7 +72,7 @@ class ParticipantVisits(BaseModel):
         visit_info = VisitInfo(
             filename=filename,
             file_id=file_id,
-            visitdate=input_record[FieldNames.DATE_COLUMN],
+            visitdate=input_record[visitdate_key],
         )
         return ParticipantVisits(
             participant=input_record[FieldNames.NACCID],
