@@ -10,10 +10,12 @@ from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import FieldNames, SysErrorCodes
 from pydantic import BaseModel, ConfigDict, Field
+from utils.decorators import api_retry
 
 from outputs.outputs import CSVWriter
 
@@ -517,6 +519,24 @@ class ListHandler(Handler):
         return self.__logs
 
 
+@api_retry
+def update_file_info(file: FileEntry, custom_info: Dict[str, Any]):
+    """Set custom info for the given file.
+
+    Args:
+        file: FileEntry object to set info
+        custom_info: custom info dict,
+                     any existing info under specified top-level key will be replaced
+
+    Raise:
+        ApiException: If failed to update custom info
+    """
+
+    # Note: have to use update_info() here for reset to take effect
+    # Using update() will not delete any existing data
+    file.update_info(custom_info)
+
+
 def update_error_log_and_qc_metadata(
     *,
     error_log_name: str,
@@ -585,10 +605,15 @@ def update_error_log_and_qc_metadata(
     info["qc"][gear_name] = {
         "validation": {"state": state.upper(), "data": updated_errors}
     }
+
     try:
-        new_file.update_info(info)
+        update_file_info(file=new_file, custom_info=info)
     except ApiException as error:
-        log.error("Error in setting QC metadata in file %s - %s", error_log_name, error)
+        log.error(
+            "Error in setting QC metadata in file %s - %s",
+            error_log_name,
+            error,
+        )
         return False
 
     return True
@@ -655,12 +680,10 @@ def reset_error_log_metadata_for_gears(
         return
 
     # make sure to load the existing metadata first and then modify
-    # update_info() will replace everything under the top-level key
+    # update_file_info() will replace everything under the top-level key
     qc_info: Dict[str, Any] = current_log.info.get("qc", {})
 
     for gear_name in gear_names:
         qc_info.pop(gear_name, None)
 
-    # Note: have to use update_info() here for reset to take effect
-    # Using update() will not delete any existing data
-    current_log.update_info({"qc": qc_info})
+    update_file_info(file=current_log, custom_info={"qc": qc_info})
