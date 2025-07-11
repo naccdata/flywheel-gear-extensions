@@ -181,11 +181,14 @@ def run(
 
     if not format_and_tag:
         # check whether the input file has pipeline trigger tag(s)
+        # tag can be already removed if form-scheduler process the file
+        #  before form-screening move to running status, so just log warning
         if not (set(file.tags) & set(queue_tags)):
-            raise GearExecutionError(
+            log.warning(
                 f"Input file tags {file.tags} does not contain "
                 f"the expected pipeline trigger tags {queue_tags}"
             )
+            return None
 
         # if matching tags present start form-scheduler gear if it's not already running
         trigger_scheduler_gear(
