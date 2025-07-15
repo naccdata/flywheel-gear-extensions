@@ -4,7 +4,12 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+## 1.1.0
+
+* Changes templating so that user permissions are not copied.
+
 ## 1.0.6
+
 * Fix center map key type
 
 ## 1.0.5
