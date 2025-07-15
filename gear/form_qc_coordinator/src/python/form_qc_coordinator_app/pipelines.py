@@ -91,8 +91,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
         if self._check_all:
             cutoff = None
         else:
-            curr_visit = sorted(self._visits_info.visits,
-                                key=lambda d: d.visitdate)[0]
+            curr_visit = sorted(self._visits_info.visits, key=lambda d: d.visitdate)[0]
             cutoff = curr_visit.visitdate
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
@@ -132,8 +131,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
         )
 
         if not dependent_visits_info:
-            log.info(
-                f"No dependent module visits found for module {self._module}")
+            log.info(f"No dependent module visits found for module {self._module}")
             return
 
         for dep_module, dep_visits in dependent_visits_info.items():
