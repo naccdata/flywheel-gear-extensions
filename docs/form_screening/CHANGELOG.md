@@ -1,6 +1,6 @@
 # Changelog
 
-All nota
+All notable changes to this gear are documented in this file.
 
 ## 1.2.2
 * Remove gear failure on missing tag
