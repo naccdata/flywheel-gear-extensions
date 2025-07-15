@@ -65,16 +65,15 @@ class Curator(ABC):
         return self.sdk_client.get_subject(subject_id)
 
     @api_retry
-    def get_table(self,
-                  subject: Subject,
-                  subject_table: SymbolTable,
-                  file_entry: FileEntry) -> SymbolTable:
+    def get_table(
+        self, subject: Subject, subject_table: SymbolTable, file_entry: FileEntry
+    ) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for curation.
 
         Args:
             subject: The subject the file belongs to
-            subject_table: SymbolTable containing subject-specific metadata to curate to.
-                Iteratively added onto for each file curation
+            subject_table: SymbolTable containing subject-specific metadata
+                to curate to. Iteratively added onto for each file curation
             file_entry: The file being curated
         """
         # add the metadata
@@ -84,16 +83,15 @@ class Curator(ABC):
         return table
 
     @api_retry
-    def curate_file(self,
-                    subject: Subject,
-                    subject_table: SymbolTable,
-                    file_id: str) -> None:
+    def curate_file(
+        self, subject: Subject, subject_table: SymbolTable, file_id: str
+    ) -> None:
         """Curates a file.
 
         Args:
             subject: Subject the file belongs to
-            subject_table: SymbolTable containing subject-specific metadata to curate to.
-                Iteratively added onto for each file curation
+            subject_table: SymbolTable containing subject-specific metadata
+                to curate to. Iteratively added onto for each file curation
             file_id: File ID curate
         """
         file_entry = self.sdk_client.get_file(file_id)
@@ -124,10 +122,12 @@ class Curator(ABC):
         """
         return
 
-    def post_process(self,
-                     subject: Subject,
-                     subject_table: SymbolTable,
-                     processed_files: List[FileModel]) -> None:
+    def post_process(
+        self,
+        subject: Subject,
+        subject_table: SymbolTable,
+        processed_files: List[FileModel],
+    ) -> None:
         """Run post-processing on the entire subject. Not required.
 
         Args:
@@ -157,6 +157,28 @@ class Curator(ABC):
         pass
 
 
+SCOPE_PATTERN = re.compile(
+    r"^"
+    r"(?P<cls>.+_CLS\.json)|"
+    r"(?P<np>.+_NP\.json)|"
+    r"(?P<mds>.+_MDS\.json)|"
+    r"(?P<milestone>.+_MLST\.json)|"
+    r"(?P<meds>.+_MEDS\.json)|"
+    r"(?P<apoe>.+apoe_genotype\.json)|"
+    r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
+    r"(?P<niagads_availability>.+niagads_availability\.json)|"
+    r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
+    r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
+    r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
+    r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
+    r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
+    r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
+    r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
+    r"(?P<uds>.+_UDS\.json)"
+    r"$"
+)
+
+
 def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     """Maps the file name to a scope symbol for the attribute deriver.
 
@@ -169,27 +191,7 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     if "historic_apoe_genotype" in filename:
         return "historic_apoe"
 
-    pattern = (
-        r"^"
-        r"(?P<cls>.+_CLS\.json)|"
-        r"(?P<np>.+_NP\.json)|"
-        r"(?P<mds>.+_MDS\.json)|"
-        r"(?P<milestone>.+_MLST\.json)|"
-        r"(?P<meds>.+_MEDS\.json)|"
-        r"(?P<apoe>.+apoe_genotype\.json)|"
-        r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
-        r"(?P<niagads_availability>.+niagads_availability\.json)|"
-        r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
-        r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
-        r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
-        r"(?P<scan_amyloid_pet_gaain>.+SCAN-AMYLOID-PET-GAAIN.+\.json)|"
-        r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
-        r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
-        r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
-        r"(?P<uds>.+_UDS\.json)"
-        r"$"
-    )
-    match = re.match(pattern, filename)
+    match = SCOPE_PATTERN.match(filename)
     if not match:
         return None
 

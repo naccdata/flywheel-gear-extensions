@@ -9,7 +9,7 @@ with NACC or key values such as as visit date.)
 
 import ast  # type: ignore
 import logging
-from typing import Any, Dict, MutableMapping, Optional, Tuple
+from typing import Any, Dict, MutableMapping, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject

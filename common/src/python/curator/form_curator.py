@@ -5,7 +5,6 @@ from typing import List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel.rest import ApiException
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
@@ -31,10 +30,9 @@ class FormCurator(Curator):
     def failed_files(self) -> DictProxy:
         return self.__failed_files
 
-    def get_table(self,
-                  subject: Subject,
-                  subject_table: SymbolTable,
-                  file_entry: FileEntry) -> SymbolTable:
+    def get_table(
+        self, subject: Subject, subject_table: SymbolTable, file_entry: FileEntry
+    ) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for
         curation."""
         # clear out file.info.derived if forcing curation
@@ -45,10 +43,8 @@ class FormCurator(Curator):
         return super().get_table(subject, subject_table, file_entry)
 
     @api_retry
-    def apply_file_curation(
-        self, file_entry: FileEntry, table: SymbolTable
-    ) -> None:
-        """Applies the file-specific curated information back to FW 
+    def apply_file_curation(self, file_entry: FileEntry, table: SymbolTable) -> None:
+        """Applies the file-specific curated information back to FW
 
         Grabs file.info.derived and copies it back up to the file.
         """
@@ -109,15 +105,17 @@ class FormCurator(Curator):
                 "longitudinal-data.uds",
                 "neuropathology",
                 "study-parameters.uds",
-                "working"
+                "working",
             ]:
                 subject_table.pop(field)
 
     @api_retry
-    def post_process(self,
-                     subject: Subject,
-                     subject_table: SymbolTable,
-                     processed_files: List[FileModel]) -> None:
+    def post_process(
+        self,
+        subject: Subject,
+        subject_table: SymbolTable,
+        processed_files: List[FileModel],
+    ) -> None:
         """Run post-processing on the entire subject.
 
         1. Adds `affiliated` tag to affiliate subjects if
