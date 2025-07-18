@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.4
+* After finalizing alerts, re-process any subsequent visits for the same module 
+  
 ## 1.2.3
 * Rebuilding for API call retries
   

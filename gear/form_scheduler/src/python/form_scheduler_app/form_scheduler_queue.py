@@ -456,14 +456,12 @@ class FormSchedulerQueue:
                     )
 
                 # c. Trigger the first gear for the respective pipeline.
-                log.info(
-                    f"Kicking off pipeline `{pipeline.name}` on module {module}")
+                log.info(f"Kicking off pipeline `{pipeline.name}` on module {module}")
                 log.info(
                     f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
-                destination = self.__proxy.get_container_by_id(
-                    file.parent_ref.id)  # type: ignore
+                destination = self.__proxy.get_container_by_id(file.parent_ref.id)  # type: ignore
                 trigger_gear(
                     proxy=self.__proxy,
                     gear_name=pipeline.starting_gear.gear_name,
