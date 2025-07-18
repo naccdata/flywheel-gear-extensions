@@ -72,7 +72,7 @@ preprocess_errors = {
         "Provided PACKET code is not in the list of accepted packets for this module"
     ),
     SysErrorCodes.INVALID_VERSION: (
-        "Provided FORMVER is not in the list of " "accepted versions for this module"
+        "Provided FORMVER is not in the list of accepted versions for this module"
     ),
     SysErrorCodes.INVALID_PTID: ("PTID must be no more than 10 characters"),
     SysErrorCodes.INVALID_MODULE: (
@@ -104,8 +104,8 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name> variable) "
-        "for one or more optional form"
+        "Missing submission status (MODE<form name>) variables {0}"
+        "for one or more optional forms"
     ),
 }
 
@@ -326,6 +326,7 @@ def preprocessing_error(
     message: Optional[str] = None,
     ptid: Optional[str] = None,
     visitnum: Optional[str] = None,
+    extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
 
@@ -350,6 +351,9 @@ def preprocessing_error(
 
     if error_code:
         error_message = preprocess_errors.get(error_code, error_message)
+
+    if extra_args:
+        error_message = error_message.format(*extra_args)
 
     return FileError(
         error_type="error",

@@ -195,6 +195,7 @@ class FormPreprocessor:
                     error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
                     ptid=input_record.get(FieldNames.PTID),
                     visitnum=input_record.get(FieldNames.VISITNUM),
+                    extra_args=[missing_vars],
                 )
             )
             return False
