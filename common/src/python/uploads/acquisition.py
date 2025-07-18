@@ -7,6 +7,8 @@ from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 
+from uploads.upload_error import UploaderError
+
 log = logging.getLogger(__name__)
 
 
@@ -111,10 +113,12 @@ def upload_to_acquisition(
 
     try:
         acquisition.upload_file(record_file_spec)
-        acquisition = acquisition.reload()
-        return acquisition.get_file(filename)
+
     except ApiException as error:
-        raise ApiException(
+        raise UploaderError(
             f"Failed to upload file {filename} to "
             f"{subject_label}/{session_label}/{acquisition_label}: {error}"
         ) from error
+
+    acquisition = acquisition.reload()
+    return acquisition.get_file(filename)

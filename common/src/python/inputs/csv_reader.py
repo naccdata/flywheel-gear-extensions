@@ -110,8 +110,10 @@ def read_csv(
 
     return success
 
+
 class MalformedFileError(Exception):
-    """Exception for a malformed input file"""
+    """Exception for a malformed input file."""
+
 
 # pylint: disable=(too-few-public-methods)
 class RowValidator(abc.ABC):
