@@ -100,7 +100,7 @@ def read_csv(
             success = row_success and success
             if limit and count >= limit:
                 break
-    except Exception as error:
+    except MalformedFileError as error:
         error_writer.write(malformed_file_error(str(error)))
         return False
 
@@ -110,6 +110,8 @@ def read_csv(
 
     return success
 
+class MalformedFileError(Exception):
+    """Exception for a malformed input file"""
 
 # pylint: disable=(too-few-public-methods)
 class RowValidator(abc.ABC):

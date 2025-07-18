@@ -2,14 +2,10 @@
 
 from typing import Any, Dict, List, Optional, TextIO
 
-from inputs.csv_reader import CSVVisitor
+from inputs.csv_reader import CSVVisitor, MalformedFileError
 from keys.keys import REDCapKeys
 from outputs.errors import ErrorWriter, malformed_file_error
 from outputs.outputs import CSVWriter
-
-
-class CSVFormatException(Exception):
-    pass
 
 
 class CSVFormatterVisitor(CSVVisitor):
@@ -121,7 +117,7 @@ class CSVFormatterVisitor(CSVVisitor):
                 f"Number of columns in line {line_num} "
                 f"do not match with the number of columns in the header row"
             )
-            raise CSVFormatException(message)
+            raise MalformedFileError(message)
 
         out_row = {
             key.strip().lower(): value
