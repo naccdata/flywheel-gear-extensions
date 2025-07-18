@@ -191,7 +191,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             GearExecutionError: If errors occur during QC process
         """
 
-        if len(self._visits_info.visits) > 0:
+        if len(self._visits_info.visits) > 1:
             raise GearExecutionError(
                 "finalization pipeline cannot be triggered on multiple visits: "
                 f"{self._visits_info.visits}"
