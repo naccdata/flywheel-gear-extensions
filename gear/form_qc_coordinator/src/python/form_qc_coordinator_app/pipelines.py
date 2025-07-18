@@ -122,12 +122,9 @@ class SubmissionPipelineProcessor(PipelineProcessor):
 class FinalizationPipelineProcessor(PipelineProcessor):
     """Subclass to handle finalization pipeline QC process."""
 
-    def trigger_qc_process(self):
-        """Trigger the QC process for the `finalization` pipeline.
-
-        Raises:
-            GearExecutionError: If errors occur during QC process
-        """
+    def __process_dependent_modules(self):
+        """Re-process any dependent module visits matching with current
+        visit."""
 
         dependent_visits_info = self._visits_lookup_helper.get_dependent_module_visits(
             current_module=self._module, current_visits=self._visits_info.visits
@@ -156,6 +153,52 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
 
             qc_coordinator.run_error_checks(visits=dep_visits)
+
+    def __process_subsequent_visits(self):
+        """Re-process any subsequent visits for the current module."""
+
+        current_visit = self._visits_info.visits[0]
+        visits_list = self._visits_lookup_helper.find_visits_for_module(
+            module=self._module,
+            module_configs=self._module_configs,
+            cutoff_date=current_visit.visitdate,
+            search_op=">",
+        )
+
+        if not visits_list:
+            log.info(
+                f"No follow-up {self._module} visits found after "
+                f"the visit {current_visit.filename}"
+            )
+            return
+
+        qc_coordinator = QCCoordinator(
+            subject=self._subject,
+            module=self._module,
+            form_project_configs=self._form_configs,
+            configs_file=self._configs_file,
+            qc_gear_info=self._qc_gear_info,
+            proxy=self._proxy,
+            gear_context=self._gear_context,
+        )
+
+        qc_coordinator.run_error_checks(visits=visits_list)
+
+    def trigger_qc_process(self):
+        """Trigger the QC process for the `finalization` pipeline.
+
+        Raises:
+            GearExecutionError: If errors occur during QC process
+        """
+
+        if len(self._visits_info.visits) > 1:
+            raise GearExecutionError(
+                "finalization pipeline cannot be triggered on multiple visits: "
+                f"{self._visits_info.visits}"
+            )
+
+        self.__process_dependent_modules()
+        self.__process_subsequent_visits()
 
 
 def create_pipeline_processor(

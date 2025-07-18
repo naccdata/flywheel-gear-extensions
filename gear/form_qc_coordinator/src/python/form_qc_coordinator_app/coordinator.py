@@ -184,7 +184,13 @@ class QCCoordinator:
                 f"Failed to update error log for visit {ptid}, {visitdate}"
             )
 
-    def __update_last_failed_visit(self, file_id: str, filename: str, visitdate: str):
+    def __update_last_failed_visit(
+        self,
+        file_id: str,
+        filename: str,
+        visitdate: str,
+        visitnum: Optional[str] = None,
+    ):
         """Update last failed visit details in subject metadata.
 
         Args:
@@ -192,7 +198,9 @@ class QCCoordinator:
             filename: name of the failed visit file
             visitdate: visit date of the failed visit
         """
-        visit_info = VisitInfo(file_id=file_id, filename=filename, visitdate=visitdate)
+        visit_info = VisitInfo(
+            file_id=file_id, filename=filename, visitdate=visitdate, visitnum=visitnum
+        )
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
     def __get_matching_supplement_visit_file(
@@ -262,7 +270,13 @@ class QCCoordinator:
         return self.__proxy.get_file(matching_visits[0]["file.file_id"])
 
     def __update_visit_metadata_on_failure(
-        self, *, ptid: str, visit_file: FileEntry, visitdate: str, error_obj: FileError
+        self,
+        *,
+        ptid: str,
+        visit_file: FileEntry,
+        visitdate: str,
+        error_obj: FileError,
+        visitnum: Optional[str] = None,
     ) -> None:
         """Set last failed visit and update QC error metadata.
 
@@ -273,7 +287,10 @@ class QCCoordinator:
             error_obj: error metadata to report
         """
         self.__update_last_failed_visit(
-            file_id=visit_file.file_id, filename=visit_file.name, visitdate=visitdate
+            file_id=visit_file.file_id,
+            filename=visit_file.name,
+            visitdate=visitdate,
+            visitnum=visitnum,
         )
         self.__update_qc_error_metadata(
             visit_file=visit_file,
@@ -435,6 +452,7 @@ class QCCoordinator:
                     ptid=ptid,
                     visit_file=visit_file,
                     visitdate=visitdate,
+                    visitnum=visitnum,
                     error_obj=error_obj,
                 )
                 return None
@@ -521,6 +539,7 @@ class QCCoordinator:
                     ptid=ptid,
                     visit_file=visit_file,
                     visitdate=visitdate,
+                    visitnum=visitnum,
                     error_obj=error_obj,
                 )
                 failed_visit = visit_file.name

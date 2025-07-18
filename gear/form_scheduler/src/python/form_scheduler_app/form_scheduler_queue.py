@@ -69,8 +69,6 @@ class PipelineQueue(BaseModel):
         """
 
         # skip over files that do not match the accepted modules for the pipeline
-        # Note: Issue Manager currently tag all files when they are finalized
-        #       without checking for any dependent modules
         if module.upper() not in self.modules:
             log.warning(
                 "File %s is not in the accepted modules %s for pipeline `%s`",

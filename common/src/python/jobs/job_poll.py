@@ -32,6 +32,7 @@ class JobPoll:
             job = job.reload()
 
             if job.state == "failed" and job.retried is not None:
+                log.info("Job %s was retried", job.id)
                 return "retried"
 
         log.info("Job %s finished with status: %s", job.id, job.state)

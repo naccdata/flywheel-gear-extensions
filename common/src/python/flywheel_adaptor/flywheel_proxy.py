@@ -30,6 +30,7 @@ from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
 from fw_client.client import FWClient
 from fw_utils import AttrDict
+from utils.decorators import api_retry
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 
@@ -1081,6 +1082,7 @@ class ProjectAdaptor:
         """
         return self._project.read_file(name)
 
+    @api_retry
     def upload_file(self, file_spec: flywheel.FileSpec) -> None:
         """Uploads the indicated file to enclosed project.
 

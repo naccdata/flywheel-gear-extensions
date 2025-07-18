@@ -50,6 +50,7 @@ class VisitsLookupHelper:
         module: str,
         module_configs: ModuleConfigs,
         cutoff_date: Optional[str] = None,
+        search_op: Optional[str] = ">=",
     ) -> Optional[List[Dict[str, str]]]:
         """Get the list of visits for this participant for the specified
         module. If cutoff_date specified, get the visits having a visit date on
@@ -61,7 +62,8 @@ class VisitsLookupHelper:
         Args:
             module: module label, matched with Flywheel acquisition label
             module_configs: form ingest configs for the module
-            cutoff_date (optional): If specified, filter visits on date_col>=cutoff_date
+            cutoff_date (optional): If specified, filter visits on cutoff_date
+            search_op (optional): Operator to filter visit date, defaults to >=
 
         Returns:
             List[Dict]: List of visits matching with the specified cutoff date
@@ -86,7 +88,7 @@ class VisitsLookupHelper:
         filters = f"acquisition.label={module}"
 
         if cutoff_date:
-            filters += f",{date_col_key}>={cutoff_date}"
+            filters += f",{date_col_key}{search_op}{cutoff_date}"
 
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,

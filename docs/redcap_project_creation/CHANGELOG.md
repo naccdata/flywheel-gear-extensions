@@ -2,8 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
-
+## 1.0.0
 * Updates to pull REDCap API code from library instead
 
 ## 0.1.3
