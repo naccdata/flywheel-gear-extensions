@@ -132,6 +132,46 @@ class BaselineLocalizer(ABC):
 class QAFBaselineLocalizer(BaselineLocalizer):
     """Class to handle localizing the QAF."""
 
+    # these are derived variables that have NOT been defined yet
+    # eventually should all be defined, but hardcode to ignore for now
+    BLACKLIST = [
+        "naccacsf",
+        "naccapsa",
+        "naccftd",
+        "nacclbdm",
+        "naccmrsa",
+        "naccnapa",
+        "naccnmri",
+        "naccpcsf",
+        "nacctcsf",
+        "naccncrd",
+        "naccdico",
+        "naccnift",
+        "naccmria",
+        "naccmrfi",
+        "naccnmri",
+        "naccmnum",
+        "naccmrdy",
+        "naccmrsa",
+        "naccmvol",
+        "naccicv",
+        "naccwmvl",
+        "naccbrnv",
+        "naccapta",
+        "naccaptf",
+        "naccapnm",
+        "naccaptd",
+        "naccnapa",
+        "naccapsa",
+        "naccabbp",
+        "nacccore",
+        "naccdadd",
+        "naccfamh",
+        "naccmomd",
+        "naccdod",
+        "naccadc",
+    ]
+
     def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
         """Process each row from the QAF. Only retains NACC* and NGDS* derived
         variables, visitdate, and fields specified by the keep_fields
@@ -155,7 +195,9 @@ class QAFBaselineLocalizer(BaselineLocalizer):
             {
                 k: v
                 for k, v in row.items()
-                if k in self.keep_fields or k.startswith("nacc") or k.startswith("ngds")
+                if (k in self.keep_fields) or
+                ((k.startswith("nacc") or k.startswith("ngds") or k.startswith("ncds"))
+                 and k not in self.BLACKLIST)
             }
         )
 

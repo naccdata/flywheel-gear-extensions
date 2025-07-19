@@ -10,13 +10,13 @@ from pydantic import BaseModel, field_validator
 VISIT_PATTERN = re.compile(
     r"^"
     r"(?P<pass1>.+("
-    r"_CLS|_NP|_MDS|_MLST|_MEDS|"
+    r"_CLS|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
     r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
     r")\.json)|"
-    r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
+    r"(?P<pass0>.+(_UDS)\.json)"
     r"$"
 )
 

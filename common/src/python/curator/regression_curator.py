@@ -92,6 +92,10 @@ class RegressionCurator(Curator):
         found_vars = {k.lower(): v for k, v in found_vars.items()}
         record = {k.lower(): v for k, v in record.items()}
 
+        identifier = record["naccid"]
+        if prefix.startswith("file"):
+            identifier = f"{identifier} {record['visitdate']}"
+
         # compare
         for field, value in found_vars.items():
             if field not in record:
@@ -109,10 +113,6 @@ class RegressionCurator(Curator):
                 result = self.compare_as_lists(value, expected)
 
             if not result:
-                identifier = record["naccid"]
-                if prefix.startswith("file"):
-                    identifier = f"{identifier} {record['visitdate']}"
-
                 msg = (
                     f"{identifier} field {field}: found value {value} "
                     + f"does not match baseline value {expected}"
@@ -126,6 +126,34 @@ class RegressionCurator(Curator):
                         message=msg,
                     )
                 )
+
+        # report on any derived variables in record but not in found_vars
+        missing = set(record.keys()) - set(found_vars.keys())
+        for field in missing:
+            if field in ['visitdate']:
+                continue
+
+            expected = str(record[field]).strip()
+
+            # at least for now we are equating -4 to None, so ignore -4s
+            # also ignore weird text nulls like "."
+            if not expected or expected in ["-4", "-4.0", "."]:
+                continue
+
+            msg = (
+                f"{identifier} field {field}: baseline {field} with value "
+                + f"{expected} not found in curated variables (likely "
+                + "returned None)"
+            )
+            log.info(msg)
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=f"{prefix}.{field}",
+                    value=None,
+                    expected=expected,
+                    message=msg,
+                )
+            )
 
     def execute(
         self,
@@ -149,7 +177,7 @@ class RegressionCurator(Curator):
 
         derived_vars = table.get("file.info.derived", None)
         if not derived_vars or not any(
-            x.lower().startswith("nacc") for x in derived_vars
+            x.lower().startswith("nacc") or x.lower().startswith("ngds") for x in derived_vars
         ):
             log.debug(f"No derived variables found for {file_entry.name}, skipping")
             return

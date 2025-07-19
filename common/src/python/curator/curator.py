@@ -163,7 +163,6 @@ SCOPE_PATTERN = re.compile(
     r"(?P<np>.+_NP\.json)|"
     r"(?P<mds>.+_MDS\.json)|"
     r"(?P<milestone>.+_MLST\.json)|"
-    r"(?P<meds>.+_MEDS\.json)|"
     r"(?P<apoe>.+apoe_genotype\.json)|"
     r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
     r"(?P<niagads_availability>.+niagads_availability\.json)|"
@@ -174,6 +173,9 @@ SCOPE_PATTERN = re.compile(
     r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
     r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
     r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
+    r"(?P<meds>.+_MEDS\.json)|"
+    r"(?P<ftld>.+_FTLD\.json)|"
+    r"(?P<lbd>.+_LBD\.json)|"
     r"(?P<uds>.+_UDS\.json)"
     r"$"
 )
