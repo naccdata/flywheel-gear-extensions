@@ -1,4 +1,5 @@
 """Run method for user management."""
+
 import logging
 
 from gear_execution.gear_execution import GearExecutionError

@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from flywheel.finder import Finder
+from flywheel.models.file_output import FileOutput
 from flywheel.models.subject import Subject
 
 from ..file_spec import FileSpec
@@ -51,6 +52,10 @@ class Project:
     def subjects(self) -> Finder[Subject]:
         ...
 
+    @property
+    def files(self) -> List[FileEntry]:
+        ...
+
     # TODO: determine return type
     def add_permission(self, permission: RoleAssignment) -> None:
         ...
@@ -76,7 +81,7 @@ class Project:
         ...
 
     # TODO: determine return type
-    def upload_file(self, file: FileSpec) -> FileEntry:
+    def upload_file(self, file: FileSpec) -> List[FileEntry]:
         ...
 
     def update_info(self, *args: Dict[str, Any]) -> None:

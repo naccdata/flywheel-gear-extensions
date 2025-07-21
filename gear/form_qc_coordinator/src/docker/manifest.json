@@ -2,7 +2,7 @@
     "name": "form-qc-coordinator",
     "label": "Form QC Coordinator",
     "description": "A gear to coordinate data quality checks for a given participant",
-    "version": "0.0.1",
+    "version": "1.2.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-qc-coordinator:0.0.1"
+            "image": "naccdata/form-qc-coordinator:1.2.2"
         },
         "flywheel": {
             "suite": "Utility",
@@ -27,7 +27,16 @@
             "base": "api-key"
         },
         "visits_file": {
-            "description": "YAML file with list of new/updated visits for the module/participant",
+            "description": "Input file to trigger the QC process for this participant",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
             "base": "file",
             "type": {
                 "enum": [
@@ -51,10 +60,10 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot"
         },
-        "date_field": {
-            "description": "Variable name of the visit date field for the module (used to sort the participant visits)",
+        "pipeline": {
+            "description": "Pipeline that triggered this gear",
             "type": "string",
-            "default": "visitdate"
+            "default": "submission"
         },
         "check_all": {
             "description": "Whether to re-evaluate all visits for the given module for the participant",

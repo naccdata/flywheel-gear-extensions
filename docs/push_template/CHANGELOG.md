@@ -4,6 +4,27 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+## 1.1.0
+
+* Changes templating so that user permissions are not copied.
+
+## 1.0.6
+
+* Fix center map key type
+
+## 1.0.5
+
+* Changes call to FWClient.put for project app management to use parameter `json` instead of `data` for the payload.
+  
+## 1.0.4
+
+* Updates template pattern regex to `^((\w+(?:-[\w]+)*)-)?(\w+)-template$` (previously `^((\w+)-)?(\w+)-template$`) which allows matches on data types with dashes in them
+
+## 1.0.3
+
+* Updates to support distribution projects
+* Adds `adcid` and to the value map for template replacement
+
 ## 1.0.2
 
 * Fixes template pattern generation to handle template labels that don't have a

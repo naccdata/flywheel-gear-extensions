@@ -1,11 +1,10 @@
 {
     "gear_name": "form-qc-checker",
-    "config": {
-        "apikey_path_prefix": "/prod/flywheel/gearbot",
-        "parameter_path": "/prod/flywheel/gearbot/qcrules",
+    "configs": {
+        "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+        "rules_s3_bucket": "nacc-qc-rules",
         "qc_checks_db_path": "/redcap/aws/qcchecks",
-        "primary_key": "naccid",
         "strict_mode": true,
-        "tag": "form-qc-checker"
+        "admin_group": "nacc"
     }
 }

@@ -8,7 +8,7 @@ Gear uses a REDCap super user token to create the necessary projects in REDCap. 
 This gear uses the AWS SSM parameter store, and expects that AWS credentials are available in environment variables (`AWS_SECRET_ACCESS_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_DEFAULT_REGION`) within the Flywheel runtime.
 
 ### Inputs
-YAML file with the details on the REDCap projects to be created for each stydy/center.
+YAML file with the details on the REDCap projects to be created for each study/center.
 
 ```yaml
 ---
@@ -19,14 +19,14 @@ centers:
 projects:
   - project-label: ingest-form
     modules:
-    - label: udsv4
+    - label: uds
       title: UDSv4 Direct Entry
-    - label: ftldv4
+    - label: ftld
       title: FTLDv4 Direct Entry
       template: ftld-alt
   - project-label: ingest-enrollment
     modules:
-    - label: enrollv1
+    - label: enroll
       title: Participant Enrollment/Transfer
 ```
 

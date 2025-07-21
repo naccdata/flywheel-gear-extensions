@@ -5,28 +5,36 @@
 # Currently only enrollment module is submitted as a CSV file,
 # and does not require optional forms check.
 # Need to change the way we load rule definitions if we
-# have to support optional forms chek for CSV inputs.
+# have to support optional forms check for CSV inputs.
 
-from csv import Dialect, DictReader, Error, Sniffer
-from typing import Any, Dict, List, Mapping, Optional, TextIO
+import logging
+import os
+from csv import DictReader
+from io import StringIO
+from typing import Any, Dict, List, Mapping, Optional
 
-from flywheel import Project
+from configs.ingest_configs import FormProjectConfigs
+from datastore.forms_store import FormsStore
+from flywheel import FileSpec
+from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from inputs.csv_reader import CSVVisitor
-from keys.keys import FieldNames
+from inputs.csv_reader import CSVVisitor, read_csv
+from keys.keys import DefaultValues
 from outputs.errors import (
     ListErrorWriter,
     empty_field_error,
-    empty_file_error,
-    malformed_file_error,
     missing_field_error,
-    missing_header_error,
     unknown_field_error,
 )
+from outputs.outputs import CSVWriter
+from preprocess.preprocessor import FormPreprocessor
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.processor import FileProcessor
 from form_qc_app.validate import RecordValidator
+
+log = logging.getLogger(__name__)
 
 
 class EnrollmentFormVisitor(CSVVisitor):
@@ -35,70 +43,73 @@ class EnrollmentFormVisitor(CSVVisitor):
     Requires the input CSV has primary-key column and module column.
     """
 
-    def __init__(self, pk_field: str, error_writer: ListErrorWriter) -> None:
+    def __init__(
+        self,
+        required_fields: set[str],
+        error_writer: ListErrorWriter,
+        processor: "CSVFileProcessor",
+        validator: Optional[RecordValidator] = None,
+        output_stream: Optional[StringIO] = None,
+    ) -> None:
         """
+
         Args:
-          pk_field: primary key field for the project/module
-          error_writer: the error output writer
+            required_fields: list of required field
+            error_writer: error metadata writer
+            processor: file processor
+            validator (optional): helper for validating input records
+            output_stream (optional): output stream
         """
-        self.__pk_field = pk_field
+        self.__required_fields = required_fields
         self.__error_writer = error_writer
+        self.__processor = processor
+        self.__validator = validator
+        self.__output_stream = output_stream
+        self.__output_writer: Optional[CSVWriter] = None
         self.__header: Optional[List[str]] = None
-        self.__reader: Optional[DictReader] = None
-        self.__dialect: Optional[Dialect] = None
+        self.__valid_rows = 0
 
-    @property
-    def header(self) -> Optional[List[str]]:
-        """Returns header columns list."""
-        return self.__header
+    def __get_output_writer(self) -> CSVWriter:
+        """Returns the writer for the CSV output.
 
-    @property
-    def reader(self) -> Optional[DictReader]:
-        """Returns reader."""
-        return self.__reader
-
-    @reader.setter
-    def reader(self, reader: DictReader):
-        """Set the reader.
-
-        Args:
-            reader: csv DictReader
+        Manages whether writer has been initialized. Requires that
+        output stream is provided at initialization and header has been
+        set.
         """
 
-        self.__reader = reader
+        if not self.__output_writer:
+            assert self.__output_stream, "Output stream must be provided"
+            assert self.__header, "CSV header must be set before adding any data rows"
+            self.__output_writer = CSVWriter(
+                stream=self.__output_stream, fieldnames=self.__header
+            )
 
-    @property
-    def dialect(self) -> Optional[Dialect]:
-        """Returns dialect."""
-        return self.__dialect
-
-    @dialect.setter
-    def dialect(self, dialect: Dialect):
-        """Set the dialect.
-
-        Args:
-            dialect: csv Dialect
-        """
-
-        self.__dialect = dialect
+        return self.__output_writer
 
     def visit_header(self, header: List[str]) -> bool:
         """Validates the header fields in file. If the header doesn't have
-        `<primary key>`, formver, writes an error.
+        required fields writes an error. Also, if validation schema provided,
+        rejects the file if there are any unknown fields in the header.
 
         Args:
           header: the list of header names
 
         Returns:
-          True if required fields occur in the header, False otherwise
+          True if required fields found in the header, False otherwise
         """
-        if self.__pk_field not in header:
-            self.__error_writer.write(missing_field_error(self.__pk_field))
+
+        if not self.__required_fields.issubset(set(header)):
+            self.__error_writer.write(missing_field_error(self.__required_fields))
             return False
 
-        if FieldNames.FORMVER not in header:
-            self.__error_writer.write(missing_field_error(FieldNames.FORMVER))
-            return False
+        if self.__validator:
+            unknown_fields = set(header).difference(
+                set(self.__validator.get_validation_schema().keys())
+            )
+
+            if unknown_fields:
+                self.__error_writer.write(unknown_field_error(unknown_fields))
+                return False
 
         self.__header = header
 
@@ -107,7 +118,7 @@ class EnrollmentFormVisitor(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Validates a row from the CSV file.
 
-        If the row doesn't have `<primary key>`, formver writes an error.
+        If the row doesn't have required fields writes an error.
 
         Args:
           row: the dictionary from the CSV row (DictReader)
@@ -116,66 +127,43 @@ class EnrollmentFormVisitor(CSVVisitor):
         Returns:
           True if required fields occur in the row, False otherwise
         """
-        if not row.get(self.__pk_field):
-            self.__error_writer.write(
-                empty_field_error(self.__pk_field, line_num))
+
+        self.__error_writer.clear()
+
+        found_all = True
+        empty_fields = set()
+        for field in self.__required_fields:
+            if row.get(field) is None:
+                empty_fields.add(field)
+                found_all = False
+
+        if not found_all:
+            self.__error_writer.write(empty_field_error(empty_fields, line_num))
+            if self.__validator:
+                self.__processor.update_visit_error_log(
+                    input_record=row, qc_passed=False, reset_qc_metadata="ALL"
+                )
             return False
 
-        if not row.get(FieldNames.FORMVER):
-            self.__error_writer.write(
-                empty_field_error(FieldNames.FORMVER, line_num))
-            return False
+        valid = True
+        if self.__validator:
+            valid = self.__validator.process_data_record(
+                record=row, line_number=line_num
+            )
+            self.__processor.update_visit_error_log(
+                input_record=row, qc_passed=valid, reset_qc_metadata="ALL"
+            )
 
-        return True
+        if valid and self.__output_stream:
+            writer = self.__get_output_writer()
+            writer.write(row)
+            self.__valid_rows += 1
 
+        return valid
 
-def read_first_data_row(
-        input_file: TextIO, error_writer: ListErrorWriter,
-        visitor: EnrollmentFormVisitor) -> Optional[Dict[str, Any]]:
-    """Reads CSV file and validates the header and first data row. Sets the CSV
-    dialect for the visitor by sniffing a data sample.
-
-    Args:
-        input_file: the input stream for the CSV file
-        error_writer: the ErrorWriter for the input file
-        visitor: the visitor
-
-    Returns:
-        Returns first data row as a dict if no errors, else None
-    """
-    sniffer = Sniffer()
-    csv_sample = input_file.read(1024)
-    if not csv_sample:
-        error_writer.write(empty_file_error())
-        return None
-
-    try:
-        if not sniffer.has_header(csv_sample):
-            error_writer.write(missing_header_error())
-            return None
-
-        detected_dialect = sniffer.sniff(csv_sample, delimiters=',')
-
-        input_file.seek(0)
-        reader = DictReader(input_file, dialect=detected_dialect)
-    except Error as error:
-        error_writer.write(malformed_file_error(str(error)))
-        return None
-
-    assert reader.fieldnames, "File has header, reader should have fieldnames"
-
-    # check for required fields in the header
-    if not visitor.visit_header(list(reader.fieldnames)):
-        return None
-
-    first_row = next(reader)
-    if not visitor.visit_row(first_row, 1):
-        return None
-
-    visitor.dialect = detected_dialect  # type: ignore
-    input_file.seek(0)
-
-    return first_row
+    def get_valid_record_count(self) -> int:
+        """Returns the number of rows that passed validation."""
+        return self.__valid_rows
 
 
 class CSVFileProcessor(FileProcessor):
@@ -185,39 +173,80 @@ class CSVFileProcessor(FileProcessor):
     enrollment form processing).
     """
 
-    def __init__(self, *, pk_field: str, module: str,
-                 error_writer: ListErrorWriter) -> None:
-        super().__init__(pk_field=pk_field,
-                         module=module,
-                         error_writer=error_writer)
+    def __init__(
+        self,
+        *,
+        pk_field: str,
+        module: str,
+        date_field: str,
+        project: ProjectAdaptor,
+        error_writer: ListErrorWriter,
+        form_configs: FormProjectConfigs,
+        gear_name: str,
+    ) -> None:
+        super().__init__(
+            pk_field=pk_field,
+            module=module,
+            date_field=date_field,
+            project=project,
+            error_writer=error_writer,
+            form_configs=form_configs,
+            gear_name=gear_name,
+        )
+        self.__input: Optional[InputFileWrapper] = None
 
-    def validate_input(self, *, input_wrapper: InputFileWrapper,
-                       project: Optional[Project]) -> Optional[Dict[str, Any]]:
+    def validate_input(
+        self, *, input_wrapper: InputFileWrapper
+    ) -> Optional[Dict[str, Any]]:
         """Validates a CSV input file. Check whether all required fields are
         present in the header and the first data row.
 
         Args:
             input_wrapper: Wrapper object for gear input file
-            project: Flywheel project container
 
         Returns:
             Dict[str, Any]: None if required info missing, else first row as dict
         """
 
-        enrl_visitor = EnrollmentFormVisitor(pk_field=self._pk_field,
-                                             error_writer=self._error_writer)
+        self.__input = input_wrapper
+        with open(input_wrapper.filepath, mode="r", encoding="utf-8-sig") as file_obj:
+            # Validate header and first row of the CSV file
+            result = read_csv(
+                input_file=file_obj,
+                error_writer=self._error_writer,
+                visitor=EnrollmentFormVisitor(
+                    required_fields=set(self._req_fields),
+                    error_writer=self._error_writer,
+                    processor=self,
+                ),
+                limit=1,
+            )
 
-        with open(input_wrapper.filepath, mode='r',
-                  encoding='utf-8') as file_obj:
-            input_data = read_first_data_row(input_file=file_obj,
-                                             error_writer=self._error_writer,
-                                             visitor=enrl_visitor)
+            if not result:
+                return None
 
-            if input_data:
-                self.__csv_reader = DictReader(
-                    file_obj, dialect=enrl_visitor.dialect)  # type: ignore
+            file_obj.seek(0)
+            reader = DictReader(file_obj)
+            first_row = next(reader)
 
-        return input_data
+            preprocessor = FormPreprocessor(
+                primary_key=self._pk_field,
+                forms_store=FormsStore(
+                    ingest_project=self._project, legacy_project=None
+                ),
+                module_info=self._form_configs.module_configs,
+                error_writer=self._error_writer,
+            )
+
+            if not preprocessor.is_accepted_version(
+                input_record=first_row,
+                module=self._module,
+                module_configs=self._module_configs,  # type: ignore
+                line_num=1,
+            ):
+                return None
+
+            return first_row
 
     def load_schema_definitions(
         self, rule_def_loader: DefinitionsLoader, input_data: Dict[str, Any]
@@ -235,38 +264,67 @@ class CSVFileProcessor(FileProcessor):
         Raises:
             DefinitionException: if error occurred while loading schemas
         """
-        return rule_def_loader.load_definition_schemas(input_data=input_data,
-                                                       module=self._module)
+        return rule_def_loader.load_definition_schemas(
+            input_data=input_data, module=self._module
+        )
 
     def process_input(self, *, validator: RecordValidator) -> bool:
-        """Reads the CSV file and apply NACC data quality checks to each record
-        Rejects the file if there are any unknown fields in the header.
+        """Reads the CSV file and apply NACC data quality checks to each
+        record.
 
         Args:
             validator: Helper class for validating a input record
 
         Returns:
-            bool: True if all records passed NACC data quality checks, else False
+            bool: True if input passed validation
 
         Raises:
-            GearExecutionError: if errors occured while processing the input file
+            GearExecutionError: if errors occurred while processing the input file
         """
 
-        if not self.__csv_reader or not self.__csv_reader.fieldnames:
-            raise GearExecutionError('Failed to intialize the CSV reader')
+        if not self.__input:
+            raise GearExecutionError("Missing input file")
 
-        unknown_fields = set(self.__csv_reader.fieldnames).difference(
-            set(validator.get_validation_schema().keys()))
+        out_stream = StringIO()
+        enrl_visitor = EnrollmentFormVisitor(
+            required_fields=set(self._req_fields),
+            error_writer=self._error_writer,
+            processor=self,
+            validator=validator,
+            output_stream=out_stream,
+        )
 
-        if unknown_fields:
-            for unknown_field in unknown_fields:
-                self._error_writer.write(unknown_field_error(unknown_field))
-            return False
+        with open(self.__input.filepath, mode="r", encoding="utf-8-sig") as csv_file:
+            success = read_csv(
+                input_file=csv_file,
+                error_writer=self._error_writer,
+                visitor=enrl_visitor,
+                clear_errors=True,
+            )
 
-        passed_all = True
-        for row in self.__csv_reader:
-            if not validator.process_data_record(
-                    record=row, line_number=self.__csv_reader.line_num - 1):
-                passed_all = False
+            # If only subset of records passed validation,
+            # write those to a separate output file and upload to Flywheel project
+            if not success and enrl_visitor.get_valid_record_count() > 0:
+                (basename, extension) = os.path.splitext(self.__input.filename)
+                out_filename = f"{basename}_{DefaultValues.PROV_SUFFIX}{extension}"
+                file_spec = FileSpec(
+                    name=out_filename,
+                    contents=out_stream.getvalue(),
+                    content_type="text/csv",
+                )
 
-        return passed_all
+                try:
+                    self._project.upload_file(file_spec)
+                    log.info(
+                        "Uploaded file %s to project %s/%s",
+                        out_filename,
+                        self._project.group,
+                        self._project.label,
+                    )
+                except ApiException as error:
+                    raise GearExecutionError(
+                        f"Failed to upload file {out_filename} to "
+                        f"{self._project.group}/{self._project.label}: {error}"
+                    ) from error
+
+            return success
