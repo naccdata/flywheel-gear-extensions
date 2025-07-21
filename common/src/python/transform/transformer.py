@@ -284,7 +284,6 @@ class TransformerFactory:
         if module:
             filter_list = self.__transformations.get(module)
             for field_filter in filter_list:
-                transformer_list.append(
-                    FilterTransformer(field_filter, error_writer))
+                transformer_list.append(FilterTransformer(field_filter, error_writer))
 
         return RecordTransformer(transformer_list)
