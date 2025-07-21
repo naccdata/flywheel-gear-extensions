@@ -255,7 +255,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         self.__disable_in_flywheel(entry)
 
         if not entry.auth_email:
-            log.warning('User %s has no authentication email', entry.email)
+            log.warning("User %s has no authentication email", entry.email)
             return
 
         self.__remove_from_redcap(entry)
@@ -286,7 +286,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         assert entry.auth_email
         person_list = self.__env.user_registry.get(email=entry.auth_email)
         if not person_list:
-            log.info('No registry record for email %s', entry.auth_email)
+            log.info("No registry record for email %s", entry.auth_email)
             return
 
         for person in person_list:
@@ -760,5 +760,4 @@ class UserProcess(BaseUserProcess[UserEntry]):
         queue.apply(self)
 
         ActiveUserProcess(self.__env).execute(self.__active_queue)
-        InactiveUserProcess(environment=self.__env).execute(
-            self.__inactive_queue)
+        InactiveUserProcess(environment=self.__env).execute(self.__inactive_queue)

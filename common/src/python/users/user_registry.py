@@ -267,7 +267,6 @@ class UserRegistry:
         # self.__registry_map = {}
         # self.__bad_claims = {}
 
-
     def has_bad_claim(self, name: str) -> bool:
         """Returns true if a RegistryPerson with the primary name has an
         incomplete claim.
