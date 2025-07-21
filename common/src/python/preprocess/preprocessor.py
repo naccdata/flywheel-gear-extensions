@@ -30,12 +30,10 @@ class PreprocessingException(Exception):
 
 @dataclass
 class PreprocessingContext:
-    subject_lbl: str
-    module: str
-    module_configs: ModuleConfigs
     input_record: Dict[str, Any]
     line_num: int
-    ivp_record: Optional[Dict[str, Any]]
+    subject_lbl: Optional[str] = None
+    ivp_record: Optional[Dict[str, Any]] = None
 
 
 class FormPreprocessor:
@@ -46,12 +44,14 @@ class FormPreprocessor:
         self,
         primary_key: str,
         forms_store: FormsStore,
-        module_info: Dict[str, ModuleConfigs],
+        module: str,
+        module_configs: ModuleConfigs,
         error_writer: ListErrorWriter,
     ) -> None:
         self.__primary_key = primary_key
         self.__forms_store = forms_store
-        self.__module_info = module_info
+        self.__module = module
+        self.__module_configs = module_configs
         self.__error_writer = error_writer
 
         # Dispatcher mapping pre-processing checks to their corresponding handlers
@@ -66,6 +66,13 @@ class FormPreprocessor:
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
         }
 
+        # order the preprocessing checks defined for the module
+        self.__preprocess_checks = []
+        if self.__module_configs.preprocess_checks:
+            for check in self.__dispatcher:
+                if check in self.__module_configs.preprocess_checks:
+                    self.__preprocess_checks.append(check)
+
     def is_accepted_packet(self, pp_context: PreprocessingContext) -> bool:
         """Validate whether the provided packet code matches with an expected
         code for the module.
@@ -77,7 +84,7 @@ class FormPreprocessor:
             bool: True if packet code is valid
         """
 
-        module_configs = pp_context.module_configs
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
 
         packet = input_record[FieldNames.PACKET]
@@ -88,7 +95,7 @@ class FormPreprocessor:
             log.error(
                 "%s - %s/%s",
                 preprocess_errors[SysErrorCodes.INVALID_PACKET],
-                pp_context.module,
+                self.__module,
                 packet,
             )
             self.__error_writer.write(
@@ -116,7 +123,7 @@ class FormPreprocessor:
             bool: True if form version is valid
         """
 
-        module_configs = pp_context.module_configs
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
 
         version = float(input_record[FieldNames.FORMVER])
@@ -125,7 +132,7 @@ class FormPreprocessor:
             log.error(
                 "%s - %s/%s",
                 preprocess_errors[SysErrorCodes.INVALID_VERSION],
-                pp_context.module,
+                self.__module,
                 version,
             )
             self.__error_writer.write(
@@ -153,13 +160,13 @@ class FormPreprocessor:
             bool: True if submission status filled for all optional forms
         """
 
-        module_configs = pp_context.module_configs
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
 
         if not module_configs.optional_forms:
             log.warning(
                 "Optional forms information not defined for module %s",
-                pp_context.module,
+                self.__module,
             )
             return True
 
@@ -173,7 +180,7 @@ class FormPreprocessor:
         if not optional_forms:
             log.warning(
                 "Optional forms information not available for %s/%s/%s",
-                pp_context.module,
+                self.__module,
                 version,
                 packet,
             )
@@ -192,7 +199,7 @@ class FormPreprocessor:
             log.error(
                 "%s - %s/%s/%s - %s",
                 preprocess_errors[SysErrorCodes.MISSING_SUBMISSION_STATUS],
-                pp_context.module,
+                self.__module,
                 version,
                 packet,
                 missing_vars,
@@ -297,7 +304,9 @@ class FormPreprocessor:
             bool: False if any of the validations fail
         """
 
-        module_configs = pp_context.module_configs
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
         ivp_record = pp_context.ivp_record
 
@@ -323,7 +332,7 @@ class FormPreprocessor:
 
         initial_packets = self.__forms_store.query_form_data(
             subject_lbl=pp_context.subject_lbl,
-            module=pp_context.module,
+            module=self.__module,
             legacy=False,
             search_col=FieldNames.PACKET,
             search_val=module_configs.initial_packets,
@@ -463,8 +472,6 @@ class FormPreprocessor:
         *,
         subject_lbl: str,
         input_record: Dict[str, Any],
-        module: str,
-        module_configs: ModuleConfigs,
         line_num: int,
     ) -> bool:
         """Check for conflicting visitnum for same visit date.
@@ -472,18 +479,16 @@ class FormPreprocessor:
         Args:
             subject_lbl: Flywheel subject label
             input_record: input visit record
-            module: module label
-            module_configs: module configurations
             line_num: line number in CSV file
 
         Returns:
             bool: False, if a conflicting visitnum found
         """
 
-        date_field = module_configs.date_field
+        date_field = self.__module_configs.date_field
         date_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
-            module=module,
+            module=self.__module,
             legacy=False,
             search_col=date_field,
             search_val=input_record[date_field],
@@ -508,10 +513,10 @@ class FormPreprocessor:
             )
             return False
 
-        if module_configs.legacy_module:
-            module = module_configs.legacy_module
-        if module_configs.legacy_date:
-            date_field = module_configs.legacy_date
+        if self.__module_configs.legacy_module:
+            module = self.__module_configs.legacy_module
+        if self.__module_configs.legacy_date:
+            date_field = self.__module_configs.legacy_date
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -547,8 +552,6 @@ class FormPreprocessor:
         *,
         subject_lbl: str,
         input_record: Dict[str, Any],
-        module: str,
-        module_configs: ModuleConfigs,
         line_num: int,
     ) -> bool:
         """Check for conflicting visit date for same visitnum.
@@ -556,18 +559,16 @@ class FormPreprocessor:
         Args:
             subject_lbl: Flywheel subject label
             input_record: input visit record
-            module: module label
-            module_configs: module configurations
             line_num: line number in CSV file
 
         Returns:
             bool: False, if a conflicting visit date found
         """
 
-        date_field = module_configs.date_field
+        date_field = self.__module_configs.date_field
         visitnum_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
-            module=module,
+            module=self.__module,
             legacy=False,
             search_col=FieldNames.VISITNUM,
             search_val=input_record[FieldNames.VISITNUM],
@@ -590,10 +591,10 @@ class FormPreprocessor:
             )
             return False
 
-        if module_configs.legacy_module:
-            module = module_configs.legacy_module
-        if module_configs.legacy_date:
-            date_field = module_configs.legacy_date
+        if self.__module_configs.legacy_module:
+            module = self.__module_configs.legacy_module
+        if self.__module_configs.legacy_date:
+            date_field = self.__module_configs.legacy_date
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -632,12 +633,14 @@ class FormPreprocessor:
             bool: False, if validations fail
         """
 
-        module_configs = pp_context.module_configs
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
         ivp_record = pp_context.ivp_record
 
         packet = input_record[FieldNames.PACKET]
-        if pp_context.module != DefaultValues.UDS_MODULE or packet not in [
+        if self.__module != DefaultValues.UDS_MODULE or packet not in [
             DefaultValues.UDS_I4_PACKET,
             DefaultValues.UDS_F_PACKET,
         ]:
@@ -646,7 +649,7 @@ class FormPreprocessor:
         legacy_module = (
             module_configs.legacy_module
             if module_configs.legacy_module
-            else pp_context.module
+            else self.__module
         )
         date_field = module_configs.date_field
         if module_configs.legacy_date:
@@ -697,7 +700,7 @@ class FormPreprocessor:
 
             i4_visits = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
-                module=pp_context.module,
+                module=self.__module,
                 legacy=False,
                 search_col=FieldNames.PACKET,
                 search_val=DefaultValues.UDS_I4_PACKET,
@@ -750,16 +753,15 @@ class FormPreprocessor:
         Returns:
             bool: False if conflict found
         """
+
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
         return self.__check_visitdate_visitnum(
             subject_lbl=pp_context.subject_lbl,
-            module=pp_context.module,
-            module_configs=pp_context.module_configs,
             input_record=pp_context.input_record,
             line_num=pp_context.line_num,
         ) and self.__check_visitnum_visitdate(
             subject_lbl=pp_context.subject_lbl,
-            module=pp_context.module,
-            module_configs=pp_context.module_configs,
             input_record=pp_context.input_record,
             line_num=pp_context.line_num,
         )
@@ -774,13 +776,15 @@ class FormPreprocessor:
             bool: True, if a matching supplement module visit found
         """
 
-        module_configs = pp_context.module_configs
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        module_configs = self.__module_configs
         input_record = pp_context.input_record
 
         if not module_configs.supplement_module:
             log.warning(
                 "Supplement module information not defined for module %s",
-                pp_context.module,
+                self.__module,
             )
             return True
 
@@ -812,7 +816,7 @@ class FormPreprocessor:
             self.__error_writer.write(
                 preprocessing_error(
                     field=FieldNames.MODULE,
-                    value=pp_context.module,
+                    value=self.__module,
                     line=pp_context.line_num,
                     error_code=(
                         SysErrorCodes.UDS_NOT_MATCH
@@ -842,7 +846,7 @@ class FormPreprocessor:
             log.error(
                 "%s - %s:%s,%s and %s:%s,%s",
                 preprocess_errors[SysErrorCodes.UDS_NOT_MATCH],
-                pp_context.module,
+                self.__module,
                 input_record[module_configs.date_field],
                 input_record[FieldNames.VISITNUM],
                 supplement_module.label,
@@ -852,7 +856,7 @@ class FormPreprocessor:
             self.__error_writer.write(
                 preprocessing_error(
                     field=FieldNames.MODULE,
-                    value=pp_context.module,
+                    value=self.__module,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.UDS_NOT_MATCH,
                     ptid=input_record[FieldNames.PTID],
@@ -870,7 +874,7 @@ class FormPreprocessor:
             log.error(
                 "%s - %s:%s,%s,%s and %s:%s,%s,%s",
                 preprocess_errors[SysErrorCodes.INVALID_MODULE_PACKET],
-                pp_context.module,
+                self.__module,
                 packet,
                 input_record[module_configs.date_field],
                 input_record[FieldNames.VISITNUM],
@@ -893,12 +897,11 @@ class FormPreprocessor:
 
         return True
 
-    def is_existing_visit(self, *, input_record: Dict[str, Any], module: str) -> bool:
+    def is_existing_visit(self, *, input_record: Dict[str, Any]) -> bool:
         """Check for existing visits.
 
         Args:
             input_record: input visit record
-            module (str): module
 
         Raises:
             PreprocessingException: If issues occur while checking for existing visits
@@ -906,16 +909,13 @@ class FormPreprocessor:
         Returns:
             bool: True if a matching visit found
         """
-        module_configs = self.__module_info.get(module)
-        if not module_configs:
-            raise PreprocessingException(f"No configurations found for module {module}")
 
         subject_lbl = input_record[self.__primary_key]
-        date_field = module_configs.date_field
+        date_field = self.__module_configs.date_field
         log.info(
             "Running existing visit check for subject %s/%s/%s",
             subject_lbl,
-            module,
+            self.__module,
             input_record[date_field],
         )
 
@@ -923,7 +923,7 @@ class FormPreprocessor:
         filters.append(
             FormFilter(field=date_field, value=input_record[date_field], operator="=")
         )
-        if FieldNames.VISITNUM in module_configs.required_fields:
+        if FieldNames.VISITNUM in self.__module_configs.required_fields:
             filters.append(
                 FormFilter(
                     field=FieldNames.VISITNUM,
@@ -931,7 +931,7 @@ class FormPreprocessor:
                     operator="=",
                 )
             )
-        if FieldNames.PACKET in module_configs.required_fields:
+        if FieldNames.PACKET in self.__module_configs.required_fields:
             filters.append(
                 FormFilter(
                     field=FieldNames.PACKET,
@@ -942,7 +942,7 @@ class FormPreprocessor:
 
         existing_visits = self.__forms_store.query_form_data_with_custom_filters(
             subject_lbl=subject_lbl,
-            module=module,
+            module=self.__module,
             legacy=False,
             order_by=date_field,
             list_filters=filters,
@@ -955,7 +955,7 @@ class FormPreprocessor:
         if len(existing_visits) > 1:
             raise PreprocessingException(
                 "More than one matching visit exist for "
-                f"{subject_lbl}/{module}/{input_record[date_field]}"
+                f"{subject_lbl}/{self.__module}/{input_record[date_field]}"
             )
 
         existing_visit_info = existing_visits[0]
@@ -966,7 +966,7 @@ class FormPreprocessor:
         if not existing_visit:
             raise PreprocessingException(
                 "Failed to retrieve existing visit "
-                f"{subject_lbl}/{module}/{input_record[date_field]}"
+                f"{subject_lbl}/{self.__module}/{input_record[date_field]}"
             )
 
         if is_duplicate_dict(input_record, existing_visit):
@@ -979,7 +979,6 @@ class FormPreprocessor:
         self,
         *,
         input_record: Dict[str, Any],
-        module: str,
         line_num: int,
         ivp_record: Optional[Dict[str, Any]] = None,
     ) -> bool:
@@ -987,7 +986,6 @@ class FormPreprocessor:
 
         Args:
             input_record: input visit record
-            module: module label
             line_num: line number in CSV file
             ivp_record (optional): IVP packet, if found in current batch, else None
 
@@ -998,34 +996,24 @@ class FormPreprocessor:
             PreprocessingException: if error occur while validating
         """
 
-        module_configs = self.__module_info.get(module)
-        if not module_configs:
-            raise PreprocessingException(f"No configurations found for module {module}")
-
-        if not module_configs.preprocess_checks:
-            log.warning(f"No preprocessing checks defined for module {module}")
+        if not self.__preprocess_checks:
+            log.warning(f"No preprocessing checks defined for module {self.__module}")
             return True
 
-        # order the preprocessing checks defined for the module
-        preprocess_checks = []
-        for check in self.__dispatcher:
-            if check in module_configs.preprocess_checks:
-                preprocess_checks.append(check)
-
         subject_lbl = input_record[self.__primary_key]
-        log.info("Running preprocessing checks for subject %s/%s", subject_lbl, module)
+        log.info(
+            "Running preprocessing checks for subject %s/%s", subject_lbl, self.__module
+        )
 
         pp_context = PreprocessingContext(
             subject_lbl=subject_lbl,
-            module_configs=module_configs,
-            module=module,
             input_record=input_record,
             line_num=line_num,
             ivp_record=ivp_record,
         )
 
         # execute the pre-processing checks defined for the module
-        for check in preprocess_checks:
+        for check in self.__preprocess_checks:
             check_fn = self.__dispatcher.get(check)
             if not check_fn:
                 raise PreprocessingException(

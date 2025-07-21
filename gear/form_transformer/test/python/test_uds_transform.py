@@ -65,7 +65,8 @@ def create_uds_visitor(
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={DefaultValues.UDS_MODULE: module_configs},
+        module=DefaultValues.UDS_MODULE,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 
