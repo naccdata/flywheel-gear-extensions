@@ -14,6 +14,7 @@ from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.inline_object import InlineObject
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
+from pydantic import ValidationError
 
 
 class RegistryPerson:
@@ -366,9 +367,16 @@ class UserRegistry:
 
         if response.additional_properties:
             for message_object in response.additional_properties.values():
-                person_list.append(
-                    RegistryPerson(CoPersonMessage.model_validate(message_object))
-                )
+                try:
+                    person = RegistryPerson(
+                        CoPersonMessage.model_validate(message_object)
+                    )
+                except ValidationError as error:
+                    raise RegistryError(
+                        f"Error parsing registry response: {error}"
+                    ) from error
+
+                person_list.append(person)
 
         return person_list
 
