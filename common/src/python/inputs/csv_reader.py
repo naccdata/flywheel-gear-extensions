@@ -27,6 +27,8 @@ class CSVVisitor(ABC):
           row: the dictionary for a row from a CSV file
         Returns:
           True if the row was processed without error, False otherwise
+        Raises:
+          CSVVisitorError if an error occurs that requires ending file process
         """
         return True
 
@@ -40,6 +42,10 @@ class CSVVisitor(ABC):
           True if the header has all required fields, False otherwise
         """
         return True
+
+
+class CSVVisitorError(Exception):
+    """Exception to escape execution of a CSVVistor in `read_csv`."""
 
 
 def read_csv(
@@ -100,7 +106,7 @@ def read_csv(
             success = row_success and success
             if limit and count >= limit:
                 break
-    except MalformedFileError as error:
+    except CSVVisitorError as error:
         error_writer.write(malformed_file_error(str(error)))
         return False
 
@@ -111,11 +117,6 @@ def read_csv(
     return success
 
 
-class MalformedFileError(Exception):
-    """Exception for a malformed input file."""
-
-
-# pylint: disable=(too-few-public-methods)
 class RowValidator(abc.ABC):
     """Abstract class for a RowValidator."""
 
