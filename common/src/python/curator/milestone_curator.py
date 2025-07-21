@@ -1,15 +1,16 @@
 """Defines utilities for Milestone forms."""
 
-from curator.form_curator import FormCurator, curate_session_timestamp
 from files.milestone_form import MilestoneForm
 from flywheel.models.file_entry import FileEntry
+
+from curator.form_curator import FormCurator, curate_session_timestamp
 
 
 class MilestoneCurator(FormCurator):
     """File curation class for milestone forms."""
 
     def curate_form(self, file_entry: FileEntry):
-        """Curates metadata for milestone form
+        """Curates metadata for milestone form.
 
         Args:
           file_entry: file entry for form file

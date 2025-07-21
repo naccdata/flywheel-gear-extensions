@@ -1,4 +1,5 @@
 """Defines the form class for UDSv3 forms."""
+
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -37,26 +38,24 @@ class UDSV3Form(Form):
         race_code = self.get_metadata("race")
         if not race_code:
             return self.UNKNOWN
-        if race_code in ['50', '88', '99']:
+        if race_code in ["50", "88", "99"]:
             return self.UNKNOWN
 
         race = self.RACE_MAPPING.get(int(race_code))
         if not race:
             log.warning(
-                "race value %s unknown, setting to Unknown or Not Reported",
-                race_code)
+                "race value %s unknown, setting to Unknown or Not Reported", race_code
+            )
             return self.UNKNOWN
 
         secondary_code = self.get_metadata("racesec")
         if secondary_code:
-            if self.RACE_MAPPING.get(int(secondary_code),
-                                     self.UNKNOWN) != self.UNKNOWN:
+            if self.RACE_MAPPING.get(int(secondary_code), self.UNKNOWN) != self.UNKNOWN:
                 return self.MORE_THAN_ONE
 
         tertiary_code = self.get_metadata("raceter")
         if tertiary_code:
-            if self.RACE_MAPPING.get(int(tertiary_code),
-                                     self.UNKNOWN) != self.UNKNOWN:
+            if self.RACE_MAPPING.get(int(tertiary_code), self.UNKNOWN) != self.UNKNOWN:
                 return self.MORE_THAN_ONE
 
         return race
@@ -86,7 +85,8 @@ class UDSV3Form(Form):
 
         log.warning(
             "ethnicity value %s unknown, setting to Unknown or Not Reported",
-            ethnicity_code)
+            ethnicity_code,
+        )
         return self.UNKNOWN
 
     SEX_MAPPING = {1: "male", 2: "female"}
@@ -143,7 +143,7 @@ class UDSV3Form(Form):
             "enrollment": {
                 "adcid": center_id,
                 "ptid": participant_id,
-                "initial-visit-date": visit_date
+                "initial-visit-date": visit_date,
             },
         }
         return info
@@ -177,21 +177,18 @@ class UDSV3Form(Form):
         education = "Unknown or Not Reported"
         if education_code:
             education = self.EDUC_MAPPING.get(
-                int(education_code), f"{education_code} years completed")
+                int(education_code), f"{education_code} years completed"
+            )
 
         primlang_code = self.get_metadata("primlang")
         if primlang_code:
-            primlang = self.LANG_MAPPING.get(int(primlang_code),
-                                             "Unknown or Not Reported")
+            primlang = self.LANG_MAPPING.get(
+                int(primlang_code), "Unknown or Not Reported"
+            )
         else:
             primlang = "Unknown or Not Reported"
 
-        return {
-            "demographics": {
-                "education": education,
-                "primary-language": primlang
-            }
-        }
+        return {"demographics": {"education": education, "primary-language": primlang}}
 
     def get_cdr_info(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Gets CDR data from the file.
@@ -207,7 +204,7 @@ class UDSV3Form(Form):
                 "cdr-latest": {
                     "cdrglob": cdr_global,
                     "cdrsum": cdr_sum,
-                    "date": visit_date
+                    "date": visit_date,
                 }
             }
         }
@@ -258,5 +255,6 @@ class UDSV3Form(Form):
             return None
 
         diff_datetime = visit_datetime - birth_datetime
-        return int(diff_datetime.total_seconds()
-                   )  # Age is stored in seconds on flywheel
+        return int(
+            diff_datetime.total_seconds()
+        )  # Age is stored in seconds on flywheel

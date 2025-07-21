@@ -1,4 +1,5 @@
 """Defines form class for NPv11 forms."""
+
 from datetime import datetime
 from typing import Optional
 

@@ -1,4 +1,5 @@
 """Defines base class for forms."""
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional
@@ -22,8 +23,7 @@ class Form(ABC):
         Returns:
             str: attribute value
         """
-        return self.__file_object.get("info").get("forms",
-                                                  {}).get("json").get(key)
+        return self.__file_object.get("info").get("forms", {}).get("json").get(key)
 
     @abstractmethod
     def get_session_date(self) -> Optional[datetime]:
