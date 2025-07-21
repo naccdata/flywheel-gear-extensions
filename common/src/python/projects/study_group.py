@@ -5,19 +5,17 @@ from projects.study import Study
 
 
 class StudyGroup(GroupAdaptor):
-
-    def __init__(self, *, group: Group, proxy: FlywheelProxy,
-                 study: Study) -> None:
+    def __init__(self, *, group: Group, proxy: FlywheelProxy, study: Study) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__study = study
 
     @classmethod
-    def create(cls, study: Study, proxy: FlywheelProxy) -> 'StudyGroup':
-
-        return StudyGroup(group=proxy.get_group(group_label=study.name,
-                                                group_id=study.study_id),
-                          proxy=proxy,
-                          study=study)
+    def create(cls, study: Study, proxy: FlywheelProxy) -> "StudyGroup":
+        return StudyGroup(
+            group=proxy.get_group(group_label=study.name, group_id=study.study_id),
+            proxy=proxy,
+            study=study,
+        )
 
     def add_project(self, label: str) -> ProjectAdaptor:
         project = self.get_project(label)
