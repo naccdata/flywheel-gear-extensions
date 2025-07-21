@@ -3,7 +3,7 @@
 from typing import Optional
 
 import pytest
-from projects.study import Study, StudyVisitor
+from projects.study import StudyModel, StudyVisitor
 
 
 class DummyVisitor(StudyVisitor):
@@ -20,7 +20,7 @@ class DummyVisitor(StudyVisitor):
     def visit_datatype(self, datatype: str):
         self.datatype_name = datatype
 
-    def visit_study(self, study: Study) -> None:
+    def visit_study(self, study: StudyModel) -> None:
         self.project_name = study.name
 
 
@@ -29,14 +29,14 @@ class TestStudy:
 
     def test_object(self):
         """Tests for object creation."""
-        project = Study(
+        project = StudyModel(
             name="Project Alpha",
             study_id="project-alpha",
             centers=["ac"],
             datatypes=["dicom"],
             mode="aggregation",
             published=True,
-            primary=True,
+            study_type="primary",
         )
         assert project.study_id == "project-alpha"
         assert project.centers == ["ac"]
@@ -45,7 +45,7 @@ class TestStudy:
         assert project.is_published()
         assert project.is_primary()
 
-        project2 = Study.create(
+        project2 = StudyModel.create(
             {
                 "study": "Project Alpha",
                 "study-id": "project-alpha",
@@ -59,18 +59,19 @@ class TestStudy:
         assert project == project2
 
         with pytest.raises(KeyError):
-            Study.create({})
+            StudyModel.create({})
 
     def test_apply(self):
         """Test project apply method."""
         visitor = DummyVisitor()
-        project = Study(
+        project = StudyModel(
             name="Project Beta",
             study_id="beta",
             centers=[],
             datatypes=[],
             mode="aggregation",
             published=True,
+            study_type="affiliated"
         )
         project.apply(visitor)
         assert visitor.project_name == "Project Beta"

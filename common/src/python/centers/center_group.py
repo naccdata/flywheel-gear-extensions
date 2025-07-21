@@ -14,7 +14,7 @@ from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
-from projects.study import Study
+from projects.study import StudyModel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
@@ -898,7 +898,7 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(self, study: Study) -> StudyMetadata:
+    def get(self, study: StudyModel) -> StudyMetadata:
         """Gets the study metadata for the study id.
 
         Creates a new StudyMetadata object if it does not exist.

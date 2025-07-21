@@ -44,7 +44,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 
-from projects.study import Study, StudyVisitor
+from projects.study import StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
 
 log = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ class AggregationMapper(StudyMapper):
     def __init__(
         self,
         *,
-        study: Study,
+        study: StudyModel,
         pipelines: List[str],
         proxy: FlywheelProxy,
         admin_access: List[AccessPermission],
@@ -222,7 +222,7 @@ class AggregationMapper(StudyMapper):
 class DistributionMapper(StudyMapper):
     """Defines a mapping from a distribution study to FW containers."""
 
-    def __init__(self, study: Study, proxy: FlywheelProxy) -> None:
+    def __init__(self, study: StudyModel, proxy: FlywheelProxy) -> None:
         self.__study = study
         self.__fw = proxy
 
@@ -289,10 +289,10 @@ class StudyMappingVisitor(StudyVisitor):
     ) -> None:
         self.__admin_access = admin_access
         self.__fw = flywheel_proxy
-        self.__study: Optional[Study] = None
+        self.__study: Optional[StudyModel] = None
         self.__mapper: Optional[StudyMapper] = None
 
-    def visit_study(self, study: Study) -> None:
+    def visit_study(self, study: StudyModel) -> None:
         """Creates FW containers for the study.
 
         Args:

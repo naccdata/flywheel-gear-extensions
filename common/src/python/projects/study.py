@@ -27,7 +27,7 @@ class StudyVisitor(ABC):
     """Abstract class for a visitor object for studies."""
 
     @abstractmethod
-    def visit_study(self, study: "Study") -> None:
+    def visit_study(self, study: "StudyModel") -> None:
         """Method to visit the given study.
 
         Args:
@@ -52,9 +52,10 @@ class StudyVisitor(ABC):
 
 
 StudyMode = Literal["aggregation", "distribution"]
+StudyType = Literal["primary", "affiliated"]
 
 
-class Study:
+class StudyModel:
     """Represents a study with data managed at NACC."""
 
     def __init__(
@@ -66,7 +67,7 @@ class Study:
         datatypes: List[str],
         mode: StudyMode,
         published: bool = False,
-        primary: bool = False,
+        study_type: StudyType,
     ) -> None:
         """Initializes a study object.
 
@@ -83,11 +84,11 @@ class Study:
         self.__datatypes = datatypes
         self.__mode: StudyMode = mode
         self.__published = published
-        self.__primary = primary
+        self.__type = study_type
         self.__study_id = study_id
 
     def __eq__(self, __o: object) -> bool:
-        if not isinstance(__o, Study):
+        if not isinstance(__o, StudyModel):
             return False
         return (
             __o.name == self.__name
@@ -107,7 +108,7 @@ class Study:
             f"datatypes={self.__datatypes},"
             f"mode={self.__mode},"
             f"published={self.__published},"
-            f"primary={self.__primary}"
+            f"study_type={self.__type}"
             ")"
         )
 
@@ -140,10 +141,14 @@ class Study:
         """Study published predicate."""
         return self.__published
 
+    def is_affiliated(self) -> bool:
+        """Predicate to indicate whether this is an affiliated study."""
+        return self.__type == "affiliated"
+
     def is_primary(self) -> bool:
         """Predicate to indicate whether is the main study of coordinating
         center."""
-        return self.__primary
+        return self.__type == "primary"
 
     def apply(self, visitor: StudyVisitor) -> None:
         """Apply visitor to this Study."""
@@ -157,19 +162,16 @@ class Study:
         return f"-{self.study_id}"
 
     @classmethod
-    def create(cls, study: Mapping[str, Any]) -> "Study":
+    def create(cls, study: Mapping[str, Any]) -> "StudyModel":
         """Create study from given mapping."""
-        primary_study = False
-        if "primary" in study:
-            primary_study = study["primary"]
 
         study_mode: StudyMode = study.get("mode", "aggregation")
-        return Study(
+        return StudyModel(
             name=study["study"],
             study_id=study["study-id"],
             centers=study["centers"],
             datatypes=study["datatypes"],
             mode=study_mode,
             published=study["published"],
-            primary=primary_study,
+            study_type="primary" if "primary" in study else "affiliated",
         )

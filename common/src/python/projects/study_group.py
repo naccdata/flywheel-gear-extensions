@@ -1,18 +1,18 @@
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
-from projects.study import Study
+from projects.study import StudyModel
 
 
 class StudyGroup(GroupAdaptor):
     """Defines a group adaptor to represent a study in Flywheel."""
 
-    def __init__(self, *, group: Group, proxy: FlywheelProxy, study: Study) -> None:
+    def __init__(self, *, group: Group, proxy: FlywheelProxy, study: StudyModel) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__study = study
 
     @classmethod
-    def create(cls, study: Study, proxy: FlywheelProxy) -> "StudyGroup":
+    def create(cls, study: StudyModel, proxy: FlywheelProxy) -> "StudyGroup":
         """Creates a study group for the study object.
 
         Args:
