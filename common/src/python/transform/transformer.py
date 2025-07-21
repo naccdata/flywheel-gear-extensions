@@ -69,24 +69,30 @@ class FieldFilter(BaseModel):
             return input_record
 
         transformed = {}
+        incorrectly_filled: List[str] = []
         for field, value in input_record.items():
             if field in drop_fields:
                 # report error if excluded fields expected to be empty, but filled
                 if self.nofill and input_record.get(field):
-                    error_writer.write(
-                        preprocessing_error(
-                            field=self.version_map.fieldname,
-                            value=input_record.get(self.version_map.fieldname, ""),
-                            line=line_num,
-                            error_code=SysErrorCodes.EXCLUDED_FIELDS,
-                            ptid=input_record.get(FieldNames.PTID),
-                            visitnum=input_record.get(FieldNames.VISITNUM),
-                        )
-                    )
-                    return None
+                    incorrectly_filled.append(field)
+
                 continue
 
             transformed[field] = value
+
+        if incorrectly_filled:
+            error_writer.write(
+                preprocessing_error(
+                    field=self.version_map.fieldname,
+                    value=input_record.get(self.version_map.fieldname, ""),
+                    line=line_num,
+                    error_code=SysErrorCodes.EXCLUDED_FIELDS,
+                    ptid=input_record.get(FieldNames.PTID),
+                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    extra_args=[incorrectly_filled],
+                )
+            )
+            return None
 
         return transformed
 
@@ -278,6 +284,7 @@ class TransformerFactory:
         if module:
             filter_list = self.__transformations.get(module)
             for field_filter in filter_list:
-                transformer_list.append(FilterTransformer(field_filter, error_writer))
+                transformer_list.append(
+                    FilterTransformer(field_filter, error_writer))
 
         return RecordTransformer(transformer_list)

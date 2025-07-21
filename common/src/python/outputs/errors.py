@@ -66,7 +66,8 @@ preprocess_errors = {
         "must be a date after the last UDSv3 Visit Packet"
     ),
     SysErrorCodes.EXCLUDED_FIELDS: (
-        "Some fields in the input record do not match with the submitted version"
+        "Following fields in the input record do not match "
+        "with the submitted version/packet of the form/module: {0}"
     ),
     SysErrorCodes.INVALID_PACKET: (
         "Provided PACKET code is not in the list of accepted packets for this module"

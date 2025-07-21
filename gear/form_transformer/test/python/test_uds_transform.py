@@ -226,7 +226,9 @@ class TestUDSTransform:
         assert len(qc) == 1
         code = SysErrorCodes.EXCLUDED_FIELDS
         assert qc[0]["code"] == code
-        assert qc[0]["message"] == preprocess_errors[code]
+        assert qc[0]["message"] == preprocess_errors[code].format(
+            ["bad1", "bad2", "bad3"]
+        )
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
