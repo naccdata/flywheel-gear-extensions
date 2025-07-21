@@ -5,6 +5,8 @@ All notable changes to this gear are documented in this file.
 ## Unreleased
 
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
+* Add error handling for CoManageMessage validation errors in user registry.
+* Add error handling for RegistryError errors in user management gear.
 
 ## 1.4.10
 * Updates to use redcap_api-0.1.1

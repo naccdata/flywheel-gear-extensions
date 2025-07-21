@@ -4,7 +4,7 @@ Gear reads a tabular (CSV) file where each row has a NACCID and creates a JSON f
 
 The JSON file will be added to a subject/session/acquisition for the participant determined by the NACCID. 
 
-The labels for session and the file name are determined by the config input `hierarchy_labels` (representd as a JSON string), which is an an object with template strings for each:
+The labels for session and the file name are determined by the config input `hierarchy_labels` (represented as a JSON string), which is an an object with template strings for each:
 
 ```json
 {
