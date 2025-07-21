@@ -647,7 +647,10 @@ def run(
         hierarchy_labels=module_configs.hierarchy_labels,
         error_writer=error_writer,
     )
-    upload_status = uploader.upload(visitor.transformed_records)  # type: ignore
+    upload_status = uploader.upload(
+        visitor.transformed_records,  # type: ignore
+        visitdate_key=module_configs.date_field,
+    )
     if not upload_status:
         error_writer.clear()
         error_writer.write(partially_failed_file_error())

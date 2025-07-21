@@ -4,7 +4,10 @@
         "UDS",
         "FTLD",
         "LBD",
-        "MLST"
+        "MLST",
+        "NP",
+        "BDS",
+        "CLS"
     ],
     "legacy_project_label": "retrospective-form",
     "module_configs": {
@@ -272,6 +275,107 @@
                 "date_field": "visitdate",
                 "exact_match": false
             }
+        },
+        "NP": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "NP-RECORD-${npformdate}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json",
+                    "transform": "upper"
+                }
+            },
+            "required_fields": [
+                "packet",
+                "formver",
+                "adcid",
+                "ptid",
+                "npformdate"
+            ],
+            "initial_packets": [
+                "NP"
+            ],
+            "followup_packets": [],
+            "versions": [
+                "11.0"
+            ],
+            "date_field": "npformdate",
+            "preprocess_checks": [
+                "duplicate-record",
+                "version",
+                "packet"
+            ]
+        },
+        "BDS": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "BDS-${visitdate}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json",
+                    "transform": "upper"
+                }
+            },
+            "required_fields": [
+                "adcid",
+                "ptid",
+                "visitdate",
+                "formver"
+            ],
+            "initial_packets": [],
+            "followup_packets": [],
+            "versions": [
+                "1.0"
+            ],
+            "date_field": "visitdate",
+            "preprocess_checks": [
+                "duplicate-record",
+                "version"
+            ]
+        },
+        "CLS": {
+            "hierarchy_labels": {
+                "session": {
+                    "template": "CLS-${visitdate}",
+                    "transform": "upper"
+                },
+                "acquisition": {
+                    "template": "${module}",
+                    "transform": "upper"
+                },
+                "filename": {
+                    "template": "${subject}_${session}_${acquisition}.json",
+                    "transform": "upper"
+                }
+            },
+            "required_fields": [
+                "formver",
+                "adcid",
+                "ptid",
+                "visitdate",
+                "visitnum"
+            ],
+            "initial_packets": [],
+            "followup_packets": [],
+            "versions": [
+                "3.0"
+            ],
+            "date_field": "visitdate",
+            "preprocess_checks": [
+                "duplicate-record",
+                "version"
+            ]
         }
     }
 }

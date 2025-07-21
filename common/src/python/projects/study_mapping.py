@@ -37,7 +37,7 @@ from centers.center_group import (
     ProjectMetadata,
     StudyMetadata,
 )
-from centers.nacc_group import NACCGroup
+from flywheel.models.access_permission import AccessPermission
 from flywheel_adaptor.flywheel_proxy import (
     FlywheelProxy,
     GroupAdaptor,
@@ -45,6 +45,7 @@ from flywheel_adaptor.flywheel_proxy import (
 )
 
 from projects.study import Study, StudyVisitor
+from projects.study_group import StudyGroup
 
 log = logging.getLogger(__name__)
 
@@ -82,12 +83,12 @@ class AggregationMapper(StudyMapper):
         study: Study,
         pipelines: List[str],
         proxy: FlywheelProxy,
-        admin_group: NACCGroup,
+        admin_access: List[AccessPermission],
     ) -> None:
         self.__fw = proxy
         self.__study = study
         self.__pipelines = pipelines
-        self.__admin_access = admin_group.get_user_access()
+        self.__admin_access = admin_access
         self.__release_group: Optional[GroupAdaptor] = None
 
     def map_center_pipelines(
@@ -119,16 +120,8 @@ class AggregationMapper(StudyMapper):
             log.info("Study %s has no release project", self.__study.name)
             return
 
-        release_group = self.__get_release_group()
-        master_project = self.__get_master_project()
-
-        if self.__study.is_published() and self.__admin_access:
-            assert release_group
-            for permission in self.__admin_access:
-                release_group.add_user_access(permission)
-
-            assert master_project
-            master_project.add_admin_users(self.__admin_access)
+        self.__get_release_group()
+        self.__get_master_project()
 
     def __add_accepted(self, *, center: CenterGroup, study_info: StudyMetadata) -> None:
         """Creates an accepted project in the center group, and updates the
@@ -205,6 +198,7 @@ class AggregationMapper(StudyMapper):
             )
             assert group
             self.__release_group = GroupAdaptor(group=group, proxy=self.__fw)
+            self.__release_group.add_permissions(self.__admin_access)
         return self.__release_group
 
     def __get_master_project(self) -> Optional[ProjectAdaptor]:
@@ -219,14 +213,18 @@ class AggregationMapper(StudyMapper):
 
         release_group = self.__get_release_group()
         assert release_group, "study is published"
-        return release_group.get_project(label="master-project")
+        project = release_group.get_project(label="master-project")
+        if project is not None:
+            project.add_admin_users(self.__admin_access)
+        return project
 
 
 class DistributionMapper(StudyMapper):
     """Defines a mapping from a distribution study to FW containers."""
 
-    def __init__(self, study: Study) -> None:
+    def __init__(self, study: Study, proxy: FlywheelProxy) -> None:
         self.__study = study
+        self.__fw = proxy
 
     def map_center_pipelines(
         self, center: CenterGroup, study_info: StudyMetadata
@@ -247,6 +245,9 @@ class DistributionMapper(StudyMapper):
 
         Not implemented for distribution groups.
         """
+        study_group = StudyGroup.create(study=self.__study, proxy=self.__fw)
+        for datatype in self.__study.datatypes:
+            self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
         self, *, center: CenterGroup, study_info: "StudyMetadata", datatype: str
@@ -271,10 +272,22 @@ class DistributionMapper(StudyMapper):
             )
         )
 
+    def __add_ingest(self, *, study_group: StudyGroup, datatype: str) -> None:
+        """Adds an ingest project for the datatype to the study group.
+
+        Args:
+          study_group: the group for the study
+          datatype: the datatype
+        """
+        project_label = f"ingest-{datatype.lower()}"
+        study_group.add_project(project_label)
+
 
 class StudyMappingVisitor(StudyVisitor):
-    def __init__(self, flywheel_proxy: FlywheelProxy, admin_group: NACCGroup) -> None:
-        self.__admin_group = admin_group
+    def __init__(
+        self, flywheel_proxy: FlywheelProxy, admin_access: List[AccessPermission]
+    ) -> None:
+        self.__admin_access = admin_access
         self.__fw = flywheel_proxy
         self.__study: Optional[Study] = None
         self.__mapper: Optional[StudyMapper] = None
@@ -296,12 +309,12 @@ class StudyMappingVisitor(StudyVisitor):
         if study.mode == "aggregation":
             self.__mapper = AggregationMapper(
                 proxy=self.__fw,
-                admin_group=self.__admin_group,
+                admin_access=self.__admin_access,
                 study=study,
                 pipelines=["ingest", "sandbox"],
             )
         if study.mode == "distribution":
-            self.__mapper = DistributionMapper(study)
+            self.__mapper = DistributionMapper(study=study, proxy=self.__fw)
 
         for center_id in study.centers:
             self.visit_center(center_id)

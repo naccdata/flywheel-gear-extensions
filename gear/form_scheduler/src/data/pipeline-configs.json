@@ -1,6 +1,6 @@
 {
     "gears": [
-        "file-validator",
+        "nacc-file-validator",
         "identifier-lookup",
         "form-transformer",
         "form-qc-coordinator",
@@ -12,7 +12,11 @@
             "modules": [
                 "UDS",
                 "FTLD",
-                "LBD"
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP"
             ],
             "tags": [
                 "queued"
@@ -21,7 +25,7 @@
                 ".csv"
             ],
             "starting_gear": {
-                "gear_name": "file-validator",
+                "gear_name": "nacc-file-validator",
                 "inputs": [
                     {
                         "label": "input_file",
@@ -46,7 +50,7 @@
                 "UDS"
             ],
             "tags": [
-                "submission-complete"
+                "submission-completed"
             ],
             "extensions": [
                 ".json"
@@ -71,6 +75,7 @@
                 ],
                 "configs": {
                     "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+                    "pipeline": "finalization",
                     "check_all": false
                 }
             }

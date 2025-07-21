@@ -8,5 +8,9 @@ class Job:
     def state(self) -> str:
         ...
 
+    @property
+    def retried(self) -> str:
+        ...
+
     def reload(self) -> Job:
         ...

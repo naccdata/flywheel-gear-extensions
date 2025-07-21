@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.0.10
+
+* Rebuild gear with updated dependencies
+  
 ## 0.0.9
 
 * Fixes center map key type
