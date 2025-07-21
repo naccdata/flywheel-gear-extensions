@@ -20,8 +20,9 @@ class CenterAdaptor(GroupAdaptor):
           the metadata project object
         """
         if not self.__metadata:
-            self.__metadata = self.get_project('metadata')
-            assert self.__metadata, ("Expecting metadata project. "
-                                     "Check user has permissions.")
+            self.__metadata = self.get_project("metadata")
+            assert self.__metadata, (
+                "Expecting metadata project. " "Check user has permissions."
+            )
 
         return self.__metadata

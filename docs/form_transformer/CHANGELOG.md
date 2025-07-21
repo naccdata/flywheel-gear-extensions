@@ -2,11 +2,49 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.1.0, 1.1.1
-* Adds pre-processing checks.
+## 1.4.3
+* Update to parameterize the key to pull visit date from (uses `date_field` in `form-date-module-configs.json`)
+
+## 1.4.2
+* Update `update_file_info_metadata` to also ignore empty strings
+
+## 1.4.1
+* Rebuild for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.4.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
+## 1.3.3
+* Removes pre-processing checks on visit number ordering
+
+## 1.3.2
+* Fixes a bug in visitnum comparison in pre-processing checks
+* Upgrades to dependencies
+  
+## 1.3.1
+* Moves the optional forms list to ingest configurations
+  
+## 1.3.0
+* Relaxes the PTID format check
+  
+## 1.2.1
+* Fixes a bug in retrieving module label from file suffix
+  
+## 1.2.0
+* Cross-validates the records within the batch CSV file
+
+## 1.1.2
+* Changes the transformation schema format to only include unique fields
+* Adds LBD/FTLD pre-processing checks
+* Updates pre-processing error codes
+
+## 1.1.0 - 1.1.1
+* Adds pre-processing checks
   
 ## 1.0.5
-* Updates error reporting - move error metadata to visit error log files stored at project level.
+* Updates error reporting - move error metadata to visit error log files stored at project level
   
 ## 1.0.2
 - Removes GearBot client
@@ -14,7 +52,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.0.0
 
-- Moves form-specific functionality of csv-to-json-transformer to form-transformer gear.
+- Moves form-specific functionality of csv-to-json-transformer to form-transformer gear
 - Adds transformer schema as input file
 
 ## 0.0.11 (from CSV-to-JSON-transformer)

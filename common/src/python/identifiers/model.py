@@ -1,23 +1,63 @@
 """Defines the Identifier data class."""
+
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, field_validator
 
-GUID_PATTERN = r"^[a-zA-Z0-9]+$"
+GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
 NACCID_PATTERN = r"^NACC\d{6}$"
-PTID_PATTERN = r"^[a-zA-Z0-9-]{1,10}$"
+PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
 
 
-class IdentifierObject(BaseModel):
+class GUIDField(BaseModel):
+    """Base model for models with guid."""
+
+    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
+
+
+class ADCIDField(BaseModel):
+    """Base model for models with adcid."""
+
+    adcid: int = Field(ge=0)
+
+
+def clean_ptid(value: str) -> str:
+    return value.strip().lstrip("0")
+
+
+class CenterFields(ADCIDField):
+    """Base model for models with center ids."""
+
+    ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
+
+    @field_validator("ptid", mode="before")
+    def clean_ptid(cls, value: str) -> str:
+        return clean_ptid(value)
+
+
+class NACCADCField(BaseModel):
+    """Base model for models with naccadc."""
+
+    naccadc: int = Field(ge=0)
+
+
+class NACCIDField(BaseModel):
+    """Base model for models with naccid."""
+
+    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
+
+
+class OptionalNACCIDField(BaseModel):
+    """Base model for models with optional naccid."""
+
+    naccid: Optional[str] = Field(max_length=10, pattern=NACCID_PATTERN)
+
+
+class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
     """Response model for identifiers.
 
     Hides unconventional naming of fields and has NACCID as string.
     """
-    adcid: int = Field(ge=0)
-    naccadc: int
-    ptid: str = Field(max_length=10)
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
 
 
 class IdentifierList(RootModel):
@@ -25,6 +65,7 @@ class IdentifierList(RootModel):
 
     Otherwise, basically acts like a list.
     """
+
     root: List[IdentifierObject]
 
     def __bool__(self) -> bool:
@@ -44,15 +85,12 @@ class IdentifierList(RootModel):
         self.root.append(identifier)
 
 
-class CenterIdentifiers(BaseModel):
+class CenterIdentifiers(CenterFields):
     """Model for ADCID, PTID pair."""
-    adcid: int = Field(ge=0)
-    ptid: str = Field(max_length=10)
 
 
-class ParticipantIdentifiers(BaseModel):
+class ParticipantIdentifiers(NACCIDField, GUIDField):
     """Model for participant identifiers."""
+
     center_identifiers: CenterIdentifiers
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
     aliases: Optional[List[str]]
-    guid: Optional[str]

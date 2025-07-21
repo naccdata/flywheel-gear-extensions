@@ -1,9 +1,11 @@
 # pylint: disable=too-many-lines
 """Defines project creation functions for calls to Flywheel."""
+
 import json
 import logging
+from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional
 
 import flywheel
 from flywheel import (
@@ -16,6 +18,7 @@ from flywheel import (
 )
 from flywheel.models.access_permission import AccessPermission
 from flywheel.models.acquisition import Acquisition
+from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.group_role import GroupRole
 from flywheel.models.job import Job
@@ -25,7 +28,7 @@ from flywheel.models.roles_role_assignment import RolesRoleAssignment
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from fw_client import FWClient
+from fw_client.client import FWClient
 from fw_utils import AttrDict
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
@@ -42,10 +45,9 @@ class FlywheelProxy:
     """Defines a proxy object for group and project creation on a Flywheel
     instance."""
 
-    def __init__(self,
-                 client: Client,
-                 fw_client: Optional[FWClient] = None,
-                 dry_run: bool = True) -> None:
+    def __init__(
+        self, client: Client, fw_client: Optional[FWClient] = None, dry_run: bool = True
+    ) -> None:
         """Initializes a flywheel proxy object.
 
         Args:
@@ -68,8 +70,9 @@ class FlywheelProxy:
         """
         return self.__dry_run
 
-    def find_projects(self, *, group_id: str,
-                      project_label: str) -> List[flywheel.Project]:
+    def find_projects(
+        self, *, group_id: str, project_label: str
+    ) -> List[flywheel.Project]:
         """Finds a flywheel project with a given label, within a group ID if
         specified. Otherwise it's site wide.
 
@@ -81,7 +84,8 @@ class FlywheelProxy:
             existing: a list of all matching projects.
         """
         return self.__fw.projects.find(
-            f"parents.group={group_id},label={project_label}")
+            f"parents.group={group_id},label={project_label}"
+        )
 
     def find_groups(self, group_id: str) -> List[flywheel.Group]:
         """Searches for and returns a group if it exists.
@@ -93,12 +97,11 @@ class FlywheelProxy:
             the group (or empty list if not found)
         """
         try:
-            return self.__fw.groups.find(f'_id={group_id}')
+            return self.__fw.groups.find(f"_id={group_id}")
         except ApiException as error:
-            raise FlywheelError(
-                f"Cannot get group {group_id}: {error}") from error
+            raise FlywheelError(f"Cannot get group {group_id}: {error}") from error
 
-    def find_group(self, group_id: str) -> Optional['GroupAdaptor']:
+    def find_group(self, group_id: str) -> Optional["GroupAdaptor"]:
         """Returns group for group id.
 
         Args:
@@ -132,7 +135,7 @@ class FlywheelProxy:
         Returns:
             a list with the user, or None if not found
         """
-        return self.__fw.users.find_first(f'_id={user_id}')
+        return self.__fw.users.find_first(f"_id={user_id}")
 
     def add_user(self, user: flywheel.User) -> str:
         """Adds the user and returns the user id.
@@ -146,7 +149,7 @@ class FlywheelProxy:
           the user id for the user added
         """
         if self.dry_run:
-            log.info('Dry run: would create user %s', user.id)
+            log.info("Dry run: would create user %s", user.id)
             assert user.id
             return user.id
 
@@ -164,10 +167,10 @@ class FlywheelProxy:
         """
         assert user.id
         if self.dry_run:
-            log.info('Dry run: would set user %s email to %s', user.id, email)
+            log.info("Dry run: would set user %s email to %s", user.id, email)
             return
 
-        self.__fw.modify_user(user.id, {'email': email})
+        self.__fw.modify_user(user.id, {"email": email})
 
     def get_file(self, file_id: str) -> FileEntry:
         """Returns file object with the file ID.
@@ -212,27 +215,28 @@ class FlywheelProxy:
             return group_list[0]
 
         conflict = self.__fw.groups.find_first(
-            f"label=~^{group_label.replace(',','.')}$")
+            f"label=~^{group_label.replace(',','.')}$"
+        )
         if conflict:
-            raise FlywheelError(
-                f"Group with label {group_label} exists: {conflict.id}")
+            raise FlywheelError(f"Group with label {group_label} exists: {conflict.id}")
 
         if self.__dry_run:
-            log.info('Dry Run: would create group %s', group_id)
+            log.info("Dry Run: would create group %s", group_id)
             return flywheel.Group(label=group_label, id=group_id)
 
-        log.info('creating group...')
+        log.info("creating group...")
         # This just returns a string of the group ID
         try:
-            added_group_id = self.__fw.add_group(
-                flywheel.Group(group_id, group_label))
+            added_group_id = self.__fw.add_group(flywheel.Group(group_id, group_label))
         except ApiException as error:
             log.error(
-                ('Group %s creation failed. '
-                 'Group likely exists, but user does not have permission'),
-                group_label)
-            raise FlywheelError(
-                f"Failed to create group {group_label}") from error
+                (
+                    "Group %s creation failed. "
+                    "Group likely exists, but user does not have permission"
+                ),
+                group_label,
+            )
+            raise FlywheelError(f"Failed to create group {group_label}") from error
 
         # we must fw.get_group() with ID string to get the actual Group object.
         group = self.__fw.get_group(added_group_id)
@@ -240,8 +244,9 @@ class FlywheelProxy:
 
         return group
 
-    def get_project(self, *, group: flywheel.Group,
-                    project_label: str) -> Optional[flywheel.Project]:
+    def get_project(
+        self, *, group: flywheel.Group, project_label: str
+    ) -> Optional[flywheel.Project]:
         """Given a flywheel project label and optional group ID, search for the
         project, and create it if it doesn't exist returns the project, found
         or created.
@@ -254,28 +259,28 @@ class FlywheelProxy:
             project: the found or created project
         """
         if not group:
-            log.error('Attempted to create a project %s without a group',
-                      project_label)
+            log.error("Attempted to create a project %s without a group", project_label)
             return None
 
         project = group.projects.find_first(f"label={project_label}")
         if project:
-            log.info('Project %s/%s exists', group.id, project_label)
+            log.info("Project %s/%s exists", group.id, project_label)
             return project
 
         project_ref = f"{group.id}/{project_label}"
         if self.__dry_run:
-            log.info('Dry Run: would create project %s', project_ref)
-            return flywheel.Project(label=project_label,
-                                    parents=ProjectParents(group=group.id))
+            log.info("Dry Run: would create project %s", project_ref)
+            return flywheel.Project(
+                label=project_label, parents=ProjectParents(group=group.id)
+            )
 
-        log.info('creating project %s', project_ref)
+        log.info("creating project %s", project_ref)
         try:
             project = group.add_project(label=project_label)
         except ApiException as exc:
-            log.error('Failed to create project %s: %s', project_ref, exc)
+            log.error("Failed to create project %s: %s", project_ref, exc)
             return None
-        log.info('success')
+        log.info("success")
 
         return project
 
@@ -313,11 +318,10 @@ class FlywheelProxy:
     def get_admin_role(self) -> Optional[RoleOutput]:
         """Gets admin role."""
         if not self.__project_admin_role:
-            self.__project_admin_role = self.get_role('admin')
+            self.__project_admin_role = self.get_role("admin")
         return self.__project_admin_role
 
-    def add_group_role(self, *, group: flywheel.Group,
-                       role: GroupRole) -> None:
+    def add_group_role(self, *, group: flywheel.Group, role: GroupRole) -> None:
         """Add role to the group.
 
         Args:
@@ -328,14 +332,12 @@ class FlywheelProxy:
             return
 
         if self.dry_run:
-            log.info("Dry run: would add role %s to group %s", role.id,
-                     group.label)
+            log.info("Dry run: would add role %s to group %s", role.id, group.label)
             return
 
         self.__fw.add_role_to_group(group.id, role)
 
-    def get_project_gear_rules(self,
-                               project: flywheel.Project) -> List[GearRule]:
+    def get_project_gear_rules(self, project: flywheel.Project) -> List[GearRule]:
         """Get the gear rules from the given project.
 
         Args:
@@ -346,18 +348,19 @@ class FlywheelProxy:
         """
         return self.__fw.get_project_rules(project.id)
 
-    def add_project_rule(self, *, project: flywheel.Project,
-                         rule_input: GearRuleInput) -> None:
+    def add_project_rule(
+        self, *, project: flywheel.Project, rule_input: GearRuleInput
+    ) -> None:
         """Forwards call to the FW client."""
         if self.dry_run:
-            log.info('Would add rule %s to project %s', rule_input,
-                     project.label)
+            log.info("Would add rule %s to project %s", rule_input, project.label)
             return
 
         self.__fw.add_project_rule(project.id, rule_input)
 
-    def remove_project_gear_rule(self, *, project: flywheel.Project,
-                                 rule: GearRule) -> None:
+    def remove_project_gear_rule(
+        self, *, project: flywheel.Project, rule: GearRule
+    ) -> None:
         """Removes the gear rule from the project.
 
         Args:
@@ -365,8 +368,11 @@ class FlywheelProxy:
           rule: the gear rule
         """
         if self.dry_run:
-            log.info('Dry run: would remove rule %s from project %s',
-                     rule.name, project.label)
+            log.info(
+                "Dry run: would remove rule %s from project %s",
+                rule.name,
+                project.label,
+            )
             return
 
         self.__fw.remove_project_rule(project.id, rule.id)
@@ -383,8 +389,9 @@ class FlywheelProxy:
         dataviews = self.__fw.get_views(project.id)
         return [view for view in dataviews if view.parent != "site"]
 
-    def add_dataview(self, *, project: flywheel.Project,
-                     viewinput: ContainerIdViewInput) -> ViewIdOutput:
+    def add_dataview(
+        self, *, project: flywheel.Project, viewinput: ContainerIdViewInput
+    ) -> ViewIdOutput:
         """Adds the data view to the enclosed project.
 
         Args:
@@ -399,8 +406,7 @@ class FlywheelProxy:
 
         return self.__fw.add_view(project.id, viewinput)
 
-    def modify_dataview(self, *, source: DataView,
-                        destination: DataView) -> None:
+    def modify_dataview(self, *, source: DataView, destination: DataView) -> None:
         """Updates the destination data view by copying from the source view.
 
         Args:
@@ -409,7 +415,7 @@ class FlywheelProxy:
         """
         if self.dry_run:
             # TODO: add detail to dry run message
-            log.info('Dry run: would modify data view')
+            log.info("Dry run: would modify data view")
             return
 
         temp_id = source._id  # noqa: SLF001
@@ -429,7 +435,7 @@ class FlywheelProxy:
           True if the dataview is deleted, False otherwise
         """
         if self.dry_run:
-            log.info('Dry run: would delete dataview %s', view)
+            log.info("Dry run: would delete dataview %s", view)
             return False
 
         result = self.__fw.delete_view(view.id)
@@ -458,11 +464,11 @@ class FlywheelProxy:
           the project settings
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
-        return self.__fw_client.get(
-            f"/api/projects/{project.id}/settings")  # type: ignore
+        return self.__fw_client.get(f"/api/projects/{project.id}/settings")  # type: ignore
 
-    def set_project_settings(self, *, project: flywheel.Project,
-                             settings: AttrDict) -> None:
+    def set_project_settings(
+        self, *, project: flywheel.Project, settings: AttrDict
+    ) -> None:
         """Sets the project settings to the argument.
 
         Args:
@@ -470,8 +476,7 @@ class FlywheelProxy:
           settings: the settings dictionary
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
-        self.__fw_client.put(url=f"/api/projects/{project.id}/settings",
-                             data=json.dumps(settings))
+        self.__fw_client.put(url=f"/api/projects/{project.id}/settings", json=settings)
 
     def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
         """Returns the viewer apps for the project.
@@ -505,8 +510,9 @@ class FlywheelProxy:
 
     #     self.__fw.modify_project_settings(project.id, {"viewer_apps": apps})
 
-    def set_project_apps(self, *, project: flywheel.Project,
-                         apps: List[AttrDict]) -> None:
+    def set_project_apps(
+        self, *, project: flywheel.Project, apps: List[AttrDict]
+    ) -> None:
         """Sets the viewer apps of the project to the list of apps.
 
         Note: this will replace any existing apps.
@@ -520,16 +526,15 @@ class FlywheelProxy:
         """
         assert self.__fw_client, "Requires FWClient to be instantiated"
         if self.dry_run:
-            log.info('Dry run: would set viewer %s in project %s', apps,
-                     project.label)
+            log.info("Dry run: would set viewer %s in project %s", apps, project.label)
             return
 
         settings = self.get_project_settings(project)
         if not settings:
-            log.warning('Project %s has no settings', project.label)
+            log.warning("Project %s has no settings", project.label)
             return
 
-        settings['viewer_apps'] = apps  # type: ignore
+        settings["viewer_apps"] = apps  # type: ignore
         self.set_project_settings(project=project, settings=settings)
 
     def get_site(self):
@@ -551,14 +556,12 @@ class FlywheelProxy:
         ancestors = container.parents
 
         # names of containers of FW hierarchy listed in order minus files
-        levels = [
-            'group', 'project', 'subject', 'session', 'acquisition', 'analysis'
-        ]
+        levels = ["group", "project", "subject", "session", "acquisition", "analysis"]
         for level in levels:
-            ancestor_id = ancestors[level]
+            ancestor_id = ancestors.get(level, None)
             if ancestor_id:
                 # gears invoked by a gear rule does not have access to group
-                if level == 'group':
+                if level == "group":
                     ancestor_name = ancestor_id
                 else:
                     ancestor = self.__fw.get(ancestor_id)
@@ -587,9 +590,26 @@ class FlywheelProxy:
         Returns:
             Any: Flywheel gear object
         """
-        return self.__fw.lookup(f'gears/{gear_name}')
+        return self.__fw.lookup(f"gears/{gear_name}")
 
-    def find_job(self, search_str: str) -> Optional[Job]:
+    def retry_job(self, job_id: str) -> Optional[str]:
+        """Retry a job.
+
+        The job must have a state of 'failed', and must not have already been retried.
+
+        Args:
+            job_id: ID of the job to retry
+
+        Returns:
+            Optional[str]: ID of the new job or None
+        """
+        try:
+            return self.__fw.retry_job(job_id)
+        except ApiException as error:
+            log.error("Failed to retry the job %s - %s", job_id, error)
+            return None
+
+    def find_job(self, search_str: str, **kwargs) -> Optional[Job]:
         """Find the first Job matching the search string.
 
         Args:
@@ -598,7 +618,7 @@ class FlywheelProxy:
         Returns:
             Job: Flywheel Job object if found, else None
         """
-        return self.__fw.jobs.find_first(search_str)
+        return self.__fw.jobs.find_first(search_str, **kwargs)
 
     def find_jobs(self, search_str: str) -> List[Job]:
         """Find all jobs matching the search string.
@@ -627,17 +647,17 @@ class FlywheelProxy:
             return None
 
     def get_matching_acquisition_files_info(
-            self,
-            *,
-            container_id: str,
-            dv_title: str,
-            columns: List[str],
-            filename_pattern: Optional[str] = '*.json',
-            filters: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
+        self,
+        *,
+        container_id: str,
+        dv_title: str,
+        columns: List[str],
+        filename_pattern: Optional[str] = "*.json",
+        filters: Optional[str] = None,
+        missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
+    ) -> Optional[List[Dict[str, str]]]:
         """Retrieve info on the list of files matching with the given filters
         (if any) from the specified Flywheel container.
-
-        Note: missing_data_strategy is set to 'drop-row'
 
         Args:
             container_id: Flywheel container ID
@@ -645,35 +665,45 @@ class FlywheelProxy:
             columns: list of columns to be included in dataview
             filename_pattern (optional): the filename pattern to match, default '*.json'
             filters (optional): If specified, returns visits matching with the filter
+            missing_data_strategy: missing_data_strategy, default 'drop-row'
 
         Returns:
             List[Dict]: List of visits matching with the specified filters
         """
 
-        builder = ViewBuilder(label=dv_title,
-                              columns=columns,
-                              container='acquisition',
-                              filename=filename_pattern,
-                              match='all',
-                              process_files=False,
-                              filter=filters,
-                              include_ids=False,
-                              include_labels=False)
-        builder = builder.missing_data_strategy('drop-row')
+        builder = ViewBuilder(
+            label=dv_title,
+            columns=columns,
+            container="acquisition",
+            filename=filename_pattern,
+            match="all",
+            process_files=False,
+            filter=filters,
+            include_ids=False,
+            include_labels=False,
+        )
+        builder = builder.missing_data_strategy(missing_data_strategy)
         view = builder.build()
 
-        with self.__fw.read_view_data(view, container_id) as resp:
+        with self.read_view_data(view, container_id) as resp:
             try:
                 result = json.load(resp)
             except JSONDecodeError as error:
-                log.error('Error in loading dataview %s on container %s - %s',
-                          view.label, container_id, error)
+                log.error(
+                    "Error in loading dataview %s on container %s - %s",
+                    view.label,
+                    container_id,
+                    error,
+                )
                 return None
 
-        if not result or 'data' not in result:
+        if not result or "data" not in result:
             return None
 
-        return result['data']
+        return result["data"]
+
+    def read_view_data(self, view: DataView, container_id: str) -> StreamReader:
+        return self.__fw.read_view_data(view, container_id)
 
     def lookup(self, path):
         """Perform a path based lookup of a single node in the Flywheel
@@ -687,6 +717,17 @@ class FlywheelProxy:
         """
         return self.__fw.lookup(path)
 
+    def get_container_by_id(self, container_id: str) -> ContainerOutput:
+        """Find the Flywheel container for the specified ID.
+
+        Args:
+            container_id: ID to lookup the container
+
+        Returns:
+            ContainerOutput: Container object
+        """
+        return self.__fw.get(container_id)
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
@@ -696,9 +737,9 @@ def get_name(container) -> str:
     Returns:
         ID for a group, name for a file, and label for everything else
     """
-    if container.container_type == 'file':
+    if container.container_type == "file":
         return container.name
-    if container.container_type == 'group':
+    if container.container_type == "group":
         return container.id
 
     return container.label
@@ -762,9 +803,7 @@ class GroupAdaptor:
         for tag in tags:
             self.add_tag(tag)
 
-    def get_group_users(self,
-                        *,
-                        access: Optional[str] = None) -> List[flywheel.User]:
+    def get_group_users(self, *, access: Optional[str] = None) -> List[flywheel.User]:
         """Gets the users for the named group.
 
         Returns an empty list if the group does not exist or there are no
@@ -783,13 +822,10 @@ class GroupAdaptor:
 
         if access:
             permissions = [
-                permission for permission in permissions
-                if access == permission.access
+                permission for permission in permissions if access == permission.access
             ]
 
-        user_ids = [
-            permission.id for permission in permissions if permission.id
-        ]
+        user_ids = [permission.id for permission in permissions if permission.id]
         users = []
         for user_id in user_ids:
             user = self._fw.find_user(user_id)
@@ -806,38 +842,42 @@ class GroupAdaptor:
         return self._group.permissions
 
     def add_user_access(self, new_permission: AccessPermission) -> None:
-        """Adds permission for user to access the group of the center.
+        """Adds permission for user to access the group.
 
         Args:
           permission: permission object indicating user and group access
         """
         if not new_permission.id:
-            log.error('new permission has no user ID to add to group %s',
-                      self._group.label)
+            log.error(
+                "new permission has no user ID to add to group %s", self._group.label
+            )
             return
 
         if not new_permission.access:
-            log.warning('new permission for user %s has no access, skipping',
-                        new_permission.id)
+            log.warning(
+                "new permission for user %s has no access, skipping", new_permission.id
+            )
             return
 
         if self._fw.dry_run:
-            log.info('Dry Run: would add access %s for user %s to group %s',
-                     new_permission.access, new_permission.id,
-                     self._group.label)
+            log.info(
+                "Dry Run: would add access %s for user %s to group %s",
+                new_permission.access,
+                new_permission.id,
+                self._group.label,
+            )
             return
 
         existing_permissions = [
-            perm for perm in self._group.permissions
-            if perm.id == new_permission.id
+            perm for perm in self._group.permissions if perm.id == new_permission.id
         ]
         if not existing_permissions:
             self._group.add_permission(new_permission)
             return
 
         self._group.update_permission(
-            new_permission.id,
-            AccessPermission(id=None, access=new_permission.access))
+            new_permission.id, AccessPermission(id=None, access=new_permission.access)
+        )
 
     def add_permissions(self, permissions: List[AccessPermission]) -> None:
         """Adds the user access permissions to the group.
@@ -855,8 +895,10 @@ class GroupAdaptor:
           new_role: the role to add
         """
         if not self._fw:
-            log.error('no Flywheel proxy given when adding users to group %s',
-                      self._group.label)
+            log.error(
+                "no Flywheel proxy given when adding users to group %s",
+                self._group.label,
+            )
             return
 
         self._fw.add_group_role(group=self._group, role=new_role)
@@ -870,7 +912,7 @@ class GroupAdaptor:
         for role in roles:
             self.add_role(role)
 
-    def get_project(self, label: str) -> Optional['ProjectAdaptor']:
+    def get_project(self, label: str) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given label.
 
         Creates a new project if none exists.
@@ -886,7 +928,7 @@ class GroupAdaptor:
 
         return ProjectAdaptor(project=project, proxy=self._fw)
 
-    def get_project_by_id(self, project_id: str) -> Optional['ProjectAdaptor']:
+    def get_project_by_id(self, project_id: str) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given ID.
 
         Args:
@@ -896,12 +938,12 @@ class GroupAdaptor:
         """
         project = self._fw.get_project_by_id(project_id)
         if not project:
-            log.warning('No project found with ID %s', project_id)
+            log.warning("No project found with ID %s", project_id)
             return None
 
         return ProjectAdaptor(project=project, proxy=self._fw)
 
-    def find_project(self, label: str) -> Optional['ProjectAdaptor']:
+    def find_project(self, label: str) -> Optional["ProjectAdaptor"]:
         """Returns the project adaptor in the group with the label.
 
         Args:
@@ -909,8 +951,7 @@ class GroupAdaptor:
         Returns:
           Project adaptor for project with label if exists, None otherwise.
         """
-        projects = self._fw.find_projects(group_id=self._group.id,
-                                          project_label=label)
+        projects = self._fw.find_projects(group_id=self._group.id, project_label=label)
         if not projects:
             return None
 
@@ -924,14 +965,14 @@ class ProjectError(Exception):
 class ProjectAdaptor:
     """Defines an adaptor for a flywheel project."""
 
-    def __init__(self, *, project: flywheel.Project,
-                 proxy: FlywheelProxy) -> None:
+    def __init__(self, *, project: flywheel.Project, proxy: FlywheelProxy) -> None:
         self._project = project
         self._fw = proxy
 
     @classmethod
-    def create(cls, proxy: FlywheelProxy, group_id: str,
-               project_label: str) -> 'ProjectAdaptor':
+    def create(
+        cls, proxy: FlywheelProxy, group_id: str, project_label: str
+    ) -> "ProjectAdaptor":
         """Creates a project adaptor for the project.
 
         Args:
@@ -943,18 +984,15 @@ class ProjectAdaptor:
         Raises:
           ProjectError if no project exists
         """
-        projects = proxy.find_projects(group_id=group_id,
-                                       project_label=project_label)
+        projects = proxy.find_projects(group_id=group_id, project_label=project_label)
         if not projects:
-            raise ProjectError(
-                f"Could not find project {group_id}/{project_label}")
+            raise ProjectError(f"Could not find project {group_id}/{project_label}")
 
         return ProjectAdaptor(project=projects[0], proxy=proxy)
 
     def __pull_project(self) -> None:
         """Pulls the referenced project from Flywheel instance."""
-        projects = self._fw.find_projects(group_id=self.group,
-                                          project_label=self.label)
+        projects = self._fw.find_projects(group_id=self.group, project_label=self.label)
         if not projects:
             return
 
@@ -1060,7 +1098,8 @@ class ProjectAdaptor:
           list of role ids
         """
         assignments = [
-            assignment for assignment in self._project.permissions
+            assignment
+            for assignment in self._project.permissions
             if assignment.id == user_id
         ]
         if not assignments:
@@ -1085,16 +1124,20 @@ class ProjectAdaptor:
           roles: the list of roles
         """
         if not roles:
-            log.warning('No roles to add to user %s in project %s/%s', user.id,
-                        self._project.group, self._project.label)
+            log.warning(
+                "No roles to add to user %s in project %s/%s",
+                user.id,
+                self._project.group,
+                self._project.label,
+            )
             return False
 
         role_ids = [role.id for role in roles]
         return self.add_user_role_assignments(
-            RolesRoleAssignment(id=user.id, role_ids=role_ids))
+            RolesRoleAssignment(id=user.id, role_ids=role_ids)
+        )
 
-    def add_user_role_assignments(
-            self, role_assignment: RolesRoleAssignment) -> bool:
+    def add_user_role_assignments(self, role_assignment: RolesRoleAssignment) -> bool:
         """Adds role assignment to the project.
 
         Args:
@@ -1104,21 +1147,24 @@ class ProjectAdaptor:
         """
         user_roles = self.get_user_roles(role_assignment.id)
         if not user_roles:
-            log_message = (f"User {role_assignment.id}"
-                           " has no permissions for "
-                           f"project {self._project.label}"
-                           ", adding roles")
+            log_message = (
+                f"User {role_assignment.id}"
+                " has no permissions for "
+                f"project {self._project.label}"
+                ", adding roles"
+            )
             if self._fw.dry_run:
                 log.info("Dry Run: %s", log_message)
                 return True
 
             log.info(log_message)
-            user_role = RolesRoleAssignment(id=role_assignment.id,
-                                            role_ids=role_assignment.role_ids)
+            user_role = RolesRoleAssignment(
+                id=role_assignment.id, role_ids=role_assignment.role_ids
+            )
             try:
                 self._project.add_permission(user_role)
             except ApiException as error:
-                log.error('Failed to add user role to project: %s', error)
+                log.error("Failed to add user role to project: %s", error)
                 return False
             self.__pull_project()
             return True
@@ -1137,8 +1183,8 @@ class ProjectAdaptor:
             return True
 
         self._project.update_permission(
-            role_assignment.id,
-            RolesRoleAssignment(id=None, role_ids=user_roles))
+            role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
+        )
         self.__pull_project()
         return True
 
@@ -1151,12 +1197,12 @@ class ProjectAdaptor:
         admin_role = self._fw.get_admin_role()
         assert admin_role
         admin_users = [
-            permission.id for permission in permissions
-            if permission.access == 'admin'
+            permission.id for permission in permissions if permission.access == "admin"
         ]
         for user_id in admin_users:
             self.add_user_role_assignments(
-                RolesRoleAssignment(id=user_id, role_ids=[admin_role.id]))
+                RolesRoleAssignment(id=user_id, role_ids=[admin_role.id])
+            )
 
     def get_gear_rules(self) -> List[GearRule]:
         """Gets the gear rules for this project.
@@ -1184,16 +1230,19 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             if conflict:
                 log.info(
-                    'Dry Run: would remove conflicting '
-                    'rule %s from project %s', conflict.name,
-                    self._project.label)
-            log.info('Dry Run: would add gear rule %s to project %s',
-                     rule_input.name, self._project.label)
+                    "Dry Run: would remove conflicting " "rule %s from project %s",
+                    conflict.name,
+                    self._project.label,
+                )
+            log.info(
+                "Dry Run: would add gear rule %s to project %s",
+                rule_input.name,
+                self._project.label,
+            )
             return
 
         if conflict:
-            self._fw.remove_project_gear_rule(project=self._project,
-                                              rule=conflict)
+            self._fw.remove_project_gear_rule(project=self._project, rule=conflict)
 
         self._fw.add_project_rule(project=self._project, rule_input=rule_input)
 
@@ -1267,10 +1316,13 @@ class ProjectAdaptor:
             error_column=dataview.error_column,
             missing_data_strategy=dataview.missing_data_strategy,
             sort=dataview.sort,
-            id=dataview.id)
-        view_id = self._fw.add_dataview(project=self._project,
-                                        viewinput=view_template)
+            id=dataview.id,
+        )
+        view_id = self._fw.add_dataview(project=self._project, viewinput=view_template)
         return view_id.id
+
+    def read_dataview(self, view: DataView) -> StreamReader:
+        return self._fw.read_view_data(view, self._project.id)
 
     def get_info(self) -> Dict[str, Any]:
         """Returns the info object for this project.
@@ -1290,8 +1342,7 @@ class ProjectAdaptor:
         log.info("updating info for project %s", self._project.label)
         self._project.update_info(info)
 
-    def get_custom_project_info(
-            self, key_path: str) -> Optional[Any | Dict[str, Any]]:
+    def get_custom_project_info(self, key_path: str) -> Optional[Any | Dict[str, Any]]:
         """Retrieve custom project info metadata value by key path.
 
         Args:
@@ -1301,7 +1352,7 @@ class ProjectAdaptor:
             Any: metadata value if exists
         """
 
-        keys = key_path.split(':')
+        keys = key_path.split(":")
         index = 0
         info: Dict[str, Any] | Any = self.get_info()
         while index < len(keys) and info:
@@ -1328,7 +1379,21 @@ class ProjectAdaptor:
         Returns:
           the Subject object with the label. None, otherwise
         """
-        subject = self._project.subjects.find_first(f'label={label}')
+        subject = self._project.subjects.find_first(f"label={label}")
+        if subject:
+            return SubjectAdaptor(subject)
+
+        return None
+
+    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
+        """Gets the subject with the given id.
+
+        Args:
+          subject_id: the subject ID
+        Returns:
+          the Subject object the ID if found. None, otherwise
+        """
+        subject = self._project.subjects.find_first(f"_id={subject_id}")
         if subject:
             return SubjectAdaptor(subject)
 

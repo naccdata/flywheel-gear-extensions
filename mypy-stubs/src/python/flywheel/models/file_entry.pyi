@@ -1,12 +1,22 @@
+from datetime import datetime
 from typing import Any, Dict, List
 
 from flywheel.models.container_parents import ContainerParents
+from flywheel.models.file_origin import FileOrigin
 
 
 class FileEntry:
 
     @property
     def id(self) -> str:
+        ...
+
+    @property
+    def file_id(self):
+        """Gets the file_id of this FileEntry.
+
+        Unique database ID
+        """
         ...
 
     @property
@@ -47,6 +57,10 @@ class FileEntry:
         ...
 
     @property
+    def origin(self) -> FileOrigin:
+        ...
+
+    @property
     def tags(self) -> List[str]:
         ...
 
@@ -54,7 +68,14 @@ class FileEntry:
     def tags(self, tags: List[str]):
         ...
 
+    @property
+    def modified(self) -> datetime:
+        ...
+
     def add_tag(self, tag, **kwargs):
+        ...
+
+    def add_tags(self, tags, **kwargs):
         ...
 
     def delete_tag(self, tag, **kwargs):
@@ -64,4 +85,7 @@ class FileEntry:
         ...
 
     def update(self, *args, **kwargs):
+        ...
+
+    def delete_info(self, *args, **kwargs):
         ...

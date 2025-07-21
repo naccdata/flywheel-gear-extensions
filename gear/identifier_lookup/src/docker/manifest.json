@@ -2,7 +2,7 @@
     "name": "identifier-lookup",
     "label": "Identifier Lookup",
     "description": "Gear to look up participant identifiers for incoming data",
-    "version": "1.0.7",
+    "version": "1.2.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-lookup:1.0.7"
+            "image": "naccdata/identifier-lookup:1.2.1"
         },
         "flywheel": {
             "suite": "NACC Data Gears",
@@ -34,6 +34,15 @@
                     "tabular data"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with forms module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -48,7 +57,7 @@
             "default": "nacc"
         },
         "database_mode": {
-            "description": "Whether to create identifiers in dev or prod database",
+            "description": "Whether to lookup identifiers from dev or prod database",
             "type": "string",
             "default": "prod"
         },
@@ -57,15 +66,15 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot"
         },
-        "date_field": {
-            "description": "Variable name of the visit date field for the module",
-            "type": "string",
-            "default": "visitdate"
-        },
         "direction": {
             "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
             "type": "string",
             "default": "nacc"
+        },
+        "preserve_case": {
+            "description": "Whether or not to preserve the case of the header keys in the input file",
+            "type": "boolean",
+            "default": true
         }
     },
     "command": "/bin/run"

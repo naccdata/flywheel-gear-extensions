@@ -1,4 +1,5 @@
 """Utility functions for converting datetime values."""
+
 import re
 from datetime import datetime
 
@@ -22,7 +23,7 @@ def datetime_from_form_date(date_string: str) -> datetime:
 
 
 def get_localized_timestamp(datetime_obj: datetime) -> datetime:
-    """Creates a localized timesamp.
+    """Creates a localized timestamp.
 
     Args:
       datetime_obj: the datetime object

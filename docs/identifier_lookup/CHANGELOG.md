@@ -2,6 +2,41 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.1
+* Rebuild for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.2.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
+## 1.1.3
+* Fix validation of PTIDs to ensure they are stripped of whitespace and leading zeros.
+
+## 1.1.2
+* Fix center map key type
+  
+## 1.1.1
+* Upgrades to dependencies
+  
+## 1.1.0
+* Relaxes the PTID format check
+  
+## 1.0.11
+* Fixes a bug in retrieving module label from file suffix
+  
+## 1.0.10
+* Allows underscore in GUID
+  
+## 1.0.9
+* Adds `preserve_case` configuration value (default `false`) to allow preserving case of header keys in output file
+* Refactors to use `InputFileWrapper.get_parent_project`
+
+## 1.0.8
+* Fixes CSV line number in error reports (exclude header row)
+* Updates pre-processing error codes
+* Updates GUID format and max length
+  
 ## 1.0.7
 * Adds pre-processing check for PTID length
 

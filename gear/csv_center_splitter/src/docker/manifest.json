@@ -2,7 +2,7 @@
     "name": "csv-center-splitter",
     "label": "CSV Center Splitter",
     "description": "Splits a CSV by center ID",
-    "version": "0.1.0",
+    "version": "0.3.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/csv-center-splitter:0.1.0"
+            "image": "naccdata/csv-center-splitter:0.3.0"
         },
         "flywheel": {
             "suite": "Curation",
@@ -34,6 +34,16 @@
                     "tabular data"
                 ]
             }
+        },
+        "redcap_email_configs": {
+            "description": "JSON file containing REDCap email configs",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            },
+            "optional": true
         }
     },
     "config": {
@@ -55,6 +65,26 @@
             "description": "Staging project ID to stage all results to; overrides target_project",
             "type": "string",
             "default": ""
+        },
+        "include": {
+            "description": "Comma-delimited list of ADCIDs to include in the split. Will ignore all others.",
+            "type": "string",
+            "default": ""
+        },
+        "exclude": {
+            "description": "Comma-delimited list of ADCIDs to exclude in the split. Will evaluate all others.",
+            "type": "string",
+            "default": ""
+        },
+        "batch_size": {
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others.",
+            "type": "integer",
+            "default": 1
+        },
+        "downstream_gears": {
+            "description": "If scheduling, comma-delimited string of downstream gears to wait for",
+            "type": "string",
+            "default": "csv-subject-splitter,form-importer"
         },
         "delimiter": {
             "description": "The input file delimiter",

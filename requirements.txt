@@ -2,11 +2,12 @@ boto3>=1.28.53
 boto3-stubs[boto3]
 botocore
 flywheel-gear-toolkit>=0.2
-flywheel-sdk>=18.5.0
+flywheel-sdk>=20.0.0 
 fw-client>=0.7.0
 fw-utils>=3
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]>=5.0.15
+natsort
 pandas>=2.1.1
 pandas-stubs>=2.0.3
 pydantic>=2.5.2
@@ -15,13 +16,16 @@ pytest>=7.2.0
 pytest-mock >= 3.14.0
 python_dateutil >= 2.5.3
 types-python-dateutil >= 2.9.0
+pytz
 requests>=2.18.4
 requests-oauthlib>=2.0.0
-setuptools>=68.2.2
+setuptools>=68.2.2,<81.0.0
 ssm-parameter-store>=19.11.0
 typing-extensions>=4.8.0 # only needed for python < 3.12
 types-PyYAML>=6.0.12
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
-nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.4.1/nacc_form_validator-0.4.1-py3-none-any.whl
+redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.1/redcap_api-0.1.1-py3-none-any.whl
+nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl
+nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v1.4.1/nacc_attribute_deriver-1.4.1-py3-none-any.whl

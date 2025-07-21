@@ -2,17 +2,37 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.1.10
+## 1.2.2
 
+* Fixes bug where automatic retries were not being detected 
+
+## 1.2.1
+
+* Fixes bug where Flywheel ID was being passed instead of the file ID on system error
+
+## 1.2.0
+* Adds functionality for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.1.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
+## 1.0.1
+* Upgrades to dependencies
+  
+## 1.0.0
+* Checks for valid UDS input before proceeding with LBD/FTLD validation
+* Updates pre-processing error codes
+  
+## 0.1.10
 * Refactors to use gear-specific `QCGearConfigs`
 
 ## 0.1.9 - 1.1.6
-
 * Refactors to move logic related to triggering gears to `common/gear_execution/gear_trigger` and pull from there
 * Refactors to move logic related to polling jobs to `common/jobs/jobs` and pull from there
 
 ## 0.1.5
-
 * Update error reporting - move error metadata to visit error log files stored at project level.
   
 ## 0.0.3

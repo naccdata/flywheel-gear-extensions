@@ -1,90 +1,167 @@
-from abc import abstractmethod
 import logging
-from typing import Any, Dict
-from dates.dates import get_localized_timestamp
-from files.form import Form
-from flywheel.models.acquisition import Acquisition
+from multiprocessing import Manager
+from multiprocessing.managers import DictProxy
+from typing import List
+
 from flywheel.models.file_entry import FileEntry
-from flywheel.models.session import Session
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit.utils.curator import FileCurator
+from flywheel.rest import ApiException
+from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.symbol_table import SymbolTable
+from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from utils.decorators import api_retry
+
+from .curator import Curator
+from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
 
 
-class FormCurator(FileCurator):
-    """Curator for form files."""
-    def __init__(self) -> None:
-        super().__init__()
+class FormCurator(Curator):
+    """Curator that uses NACC Attribute Deriver."""
 
-    def curate_file(self, file_: Dict[str, Any]):
-        """Curate form data.
-        
-        Args:
-          file_: JSON data for file
+    def __init__(
+        self, deriver: AttributeDeriver, curation_tag: str, force_curate: bool = False
+    ) -> None:
+        super().__init__(curation_tag=curation_tag, force_curate=force_curate)
+        self.__deriver = deriver
+        self.__failed_files = Manager().dict()
+
+    @property
+    def failed_files(self) -> DictProxy:
+        return self.__failed_files
+
+    def get_table(self, subject: Subject, file_entry: FileEntry) -> SymbolTable:
+        """Returns the SymbolTable with all relevant information for
+        curation."""
+        # clear out file.info.derived if forcing curation
+        if self.force_curate:
+            for field in ["derived"]:
+                file_entry.delete_info(field)
+
+        return super().get_table(subject, file_entry)
+
+    @api_retry
+    def apply_curation(
+        self, subject: Subject, file_entry: FileEntry, table: SymbolTable
+    ) -> None:
+        """Applies the curated information back to FW.
+
+        In its most basic form, grabs file.info.derived subject.info and
+        copies it back up to the file/subject. Subclasses that may need
+        to apply additional data should override as needed.
         """
-        file_entry = self.get_file(file_)
-        self.curate_form(file_entry)
+        derived_file_info = table.get("file.info.derived")
+        subject_info = table.get("subject.info")
 
-    @abstractmethod
-    def curate_form(self, file_entry: FileEntry):
-        """Curates data for the form.
-        
-        Args:
-          file_entry: the file entry for the form
-        """
-        pass
+        if derived_file_info:
+            file_entry.update_info({"derived": derived_file_info})
+        if subject_info:
+            subject.update_info(subject_info)
 
-    def get_file(self, file_object: Dict[str, Any]) -> FileEntry:
-        """Get the file entry for the file object.
-        
-        Args:
-          file_object: JSON data for file
-        Returns:
-          the file entry for the file described
-        """
-        file_hierarchy = file_object.get("hierarchy")
-        assert file_hierarchy
-        acquisition = self.context.get_container_from_ref(file_hierarchy)
-        assert isinstance(acquisition, Acquisition)
+        if self.curation_tag not in file_entry.tags:
+            file_entry.add_tag(self.curation_tag)
 
-        filename = self.context.get_input_filename("file-input")
-        return acquisition.get_file(filename)
-
-    def get_session(self, file_entry: FileEntry) -> Session:
-        """Get the session for the file entry.
-        
-        Args:
-          file_entry: the file entry 
-        Returns:
-          the Session for the file entry
-        """
-        client = self.context.client
-        assert client
-        parents_session = file_entry.parents.get("session")
-        return client.get_session(parents_session)
-    
-    def get_subject(self, file_entry: FileEntry) -> Subject:
-        """Get the subject for the file entry.
+    def execute(
+        self,
+        subject: Subject,
+        file_entry: FileEntry,
+        table: SymbolTable,
+        scope: ScopeLiterals,
+    ) -> None:
+        """Perform contents of curation. Keeps track of files that failed to be
+        curated.
 
         Args:
-          file_entry: the file entry
-        Returns:
-          the Subject for the file entry
+            subject: Subject the file belongs to
+            file_entry: FileEntry of file being curated
+            table: SymbolTable containing file/subject metadata.
+            scope: The scope of the file being curated
         """
-        parents_subject = file_entry.parents.get("subject")
-        return self.context.client.get_subject(parents_subject)
-    
-def curate_session_timestamp(session: Session, form: Form):
-    """Set timestamp attribute for session.
+        try:
+            self.__deriver.curate(table, scope)
+        except Exception as e:
+            self.__failed_files[file_entry.name] = str(e)
+            log.error(f"Failed to derive {file_entry.name}: {e}")
+            return
 
-    Args:
-        session: the session to curate
-        form: the milestone form
-    """
-    visit_datetime = form.get_session_date()
-    if visit_datetime:
-        timestamp = get_localized_timestamp(visit_datetime)
-        session.update({"timestamp": timestamp})
-    else:
-        log.warning("Timestamp undetermined for %s", session.label)
+        self.apply_curation(subject, file_entry, table)
+
+    @api_retry
+    def pre_process(self, subject: Subject) -> None:
+        """Run pre-processing on the entire subject. Clean up metadata as
+        needed.
+
+        Args:
+            subject: Subject to pre-process
+        """
+        # if forcing new curation, wipe the subject metadata
+        # related to curation.
+        # TODO: this is kind of dangerous, might want to
+        # instead make this a manual job outside the gear, or
+        # only keep while MQT is being aggressively iterated on
+        if self.force_curate:
+            # TODO: there is an issue with upsert-hierarchy not creating the
+            # info object correctly, so calling delete_info on a subject without
+            # info raises an exception. FW is aware of issue but may not be fixed
+            # for a while. however calling subject.reload() for everything introduces
+            # significant overhead, so instead just catch when it fails (which will be
+            # much rarer)
+            log.debug(
+                f"Force curation set to True, cleaning up {subject.label} metadata"
+            )
+            for field in [
+                "cognitive.uds",
+                "demographics.uds",
+                "derived",
+                "genetics",
+                "longitudinal-data.uds",
+                "neuropathology",
+                "study-parameters.uds",
+            ]:
+                try:
+                    subject.delete_info(field)
+                except ApiException as e:  # check if it failed due to info object
+                    if str(e) == "(500) Reason: 'info'":
+                        break
+                    raise e
+
+    @api_retry
+    def post_process(self, subject: Subject, processed_files: List[FileModel]) -> None:
+        """Run post-processing on the entire subject.
+
+        1. Adds `affiliated` tag to affiliate subjects if
+            subject.info.derived.affiliate is set
+            (via nacc-attribute-deriver)
+        2. Run a second pass over all UDS forms and apply
+            cross-sectional values.
+
+        Args:
+            subject: Subject to pre-process
+            processed_files: List of FileModels that were processed
+        """
+        subject = subject.reload()
+        derived = subject.info.get("derived", {})
+        affiliate = derived.get("affiliate", None)
+        cs_derived = derived.get("cross-sectional", None)
+
+        # add affiliated tag
+        if affiliate and "affiliated" not in subject.tags:
+            log.debug(f"Tagging affiliate: {subject.label}")
+            subject.add_tag("affiliated")
+
+        if not cs_derived:
+            return
+
+        log.debug(f"Back-propagating cross-sectional UDS variables for {subject.label}")
+        for file in processed_files:
+            # ignore non-UDS files
+            if not file.filename.endswith("_UDS.json"):
+                continue
+
+            file_entry = self.sdk_client.get_file(file.file_id)
+            file_entry = file_entry.reload()
+
+            derived = file_entry.info.get("derived", {})
+            derived.update(cs_derived)
+            file_entry.update_info({"derived": derived})

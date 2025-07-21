@@ -2,9 +2,36 @@
 
 All notable changes to this gear are documented in this file.
 
-## TBD
+## Unreleased
 
-- n/a
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.0.5
+
+* Adds delimiter option
+* Does not uppercase extensions
+
+## 1.0.4
+
+* Changes JSONUploader to use the FW project-hierarchy-upsert API endpoint. This requires a device API key, which is stored in the AWS parameter store. So the gear must be run as a gearbot ("credentials condor") on FW. However, the gear does not use the gearbot API key.
+* Adds `preserve_case` configuration option - defaults to setting all headers to lowercase and replacing spaces/dashes with underscores
+* Does not reupload duplicate files
+
+## 1.0.3
+
+* Changes splitter so that file is uploaded for each row rather than saving all rows and then uploading
+
+## 1.0.2
+
+* Updates `ProjectAdaptor.add_subject` to return the subject if it already exists
+* Updates `uploader.JSONUploader` to remove the `allow_updates` parameter - will always update instead
+
+## 1.0.1
+
+* Updates `hierarchy_labels` config to be type `string` instead of type `object`
+* Updates `uploads.uploader.JSONUploader` to accept a `allow_updates` parameter (defaults `false`) and, if `false`, throw an error if the subject already exists
+* Refactors to use `InputFileWrapper.get_parent_project`
+* Removes `assert parameter_store` statement
 
 ## 1.0.0
 

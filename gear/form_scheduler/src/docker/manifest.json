@@ -2,7 +2,7 @@
     "name": "form-scheduler",
     "label": "Form Scheduler",
     "description": "Queues project files for the submission pipeline",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-scheduler:1.0.0"
+            "image": "naccdata/form-scheduler:1.1.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -25,28 +25,22 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
+        },
+        "pipeline_configs_file": {
+            "description": "A JSON file with pipeline configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
-        "submission_pipeline": {
-            "description": "Comma-deliminated list of gears representing a submission pipeline",
-            "type": "string",
-            "default": "file-validator,identifier-lookup,form-transformer,form-qc-coordinator,form-qc-checker"
-        },
-        "accepted_modules": {
-            "description": "Comma-deliminated list of accepted modules, listed in order of priority. There will be one queue for each",
-            "type": "string",
-            "default": "UDS,ENROLL,FTLD,LBD"
-        },
-        "queue_tags": {
-            "description": "Comma-deliminated list of queue tags to filter project files for to determine which need to be queued",
-            "type": "string",
-            "default": "queued"
-        },
         "source_email": {
-            "description": "The source email; if not provided, will not send emails",
+            "description": "The source email to send the submission completion notification",
             "type": "string",
-            "default": "no-reply@naccdata.org"
+            "default": "nacchelp@uw.edu"
         },
         "portal_url_path": {
             "description": "Parameter path for the portal URL",

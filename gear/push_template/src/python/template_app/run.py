@@ -1,9 +1,10 @@
 """Main function for running template push process."""
+
 import logging
 from typing import Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
-from fw_client import FWClient
+from fw_client.client import FWClient
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -24,8 +25,14 @@ class TemplatingVisitor(GearExecutionEnvironment):
     """Visitor for the templating gear."""
 
     # pylint: disable=(too-many-arguments)
-    def __init__(self, admin_id: str, client: ClientWrapper,
-                 template_group: str, template_label: str, new_only: bool):
+    def __init__(
+        self,
+        admin_id: str,
+        client: ClientWrapper,
+        template_group: str,
+        template_label: str,
+        new_only: bool,
+    ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__new_only = new_only
@@ -36,8 +43,8 @@ class TemplatingVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'TemplatingVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "TemplatingVisitor":
         """Creates a templating execution visitor.
 
         Args:
@@ -52,36 +59,38 @@ class TemplatingVisitor(GearExecutionEnvironment):
         # Need fw-client because the SDK doesn't properly implement
         # ViewerApp type used for copying viewer apps from template projects.
         api_key = get_api_key(context)
-        client.set_fw_client(
-            FWClient(api_key=api_key, client_name="push-template"))
+        client.set_fw_client(FWClient(api_key=api_key, client_name="push-template"))
         group_id = context.config.get("template_group")
         if not group_id:
-            raise GearExecutionError("Expected \"template_group\"")
+            raise GearExecutionError('Expected "template_group"')
         template_label = context.config.get("template_project")
         if not template_label:
-            raise GearExecutionError("Expected \"template_project\"")
+            raise GearExecutionError('Expected "template_project"')
 
         return TemplatingVisitor(
             admin_id=context.config.get("admin_group", "nacc"),
             client=client,
             template_group=group_id,
             template_label=template_label,
-            new_only=context.config.get("new_only", False))
+            new_only=context.config.get("new_only", False),
+        )
 
     def run(self, context: GearToolkitContext) -> None:
-
         projects = self.proxy.find_projects(
-            group_id=self.__template_group,
-            project_label=self.__template_label)
+            group_id=self.__template_group, project_label=self.__template_label
+        )
         if not projects:
             raise GearExecutionError(
                 "Template project "
                 f"{self.__template_group}/{self.__template_label}"
-                " does not exist")
+                " does not exist"
+            )
 
-        run(admin_group=self.admin_group(admin_id=self.__admin_id),
+        run(
+            admin_group=self.admin_group(admin_id=self.__admin_id),
             new_only=self.__new_only,
-            template=TemplateProject(project=projects[0], proxy=self.proxy))
+            template=TemplateProject(project=projects[0], proxy=self.proxy),
+        )
 
 
 def main():

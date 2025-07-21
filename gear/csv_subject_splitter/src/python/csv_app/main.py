@@ -1,10 +1,11 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, TextIO
+from typing import Any, Dict, List, TextIO
 
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from configs.ingest_configs import UploadTemplateInfo
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.errors import (
@@ -12,7 +13,7 @@ from outputs.errors import (
     empty_field_error,
     missing_field_error,
 )
-from uploads.uploader import JSONUploader, UploadTemplateInfo
+from uploads.uploader import JSONUploader, UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +21,17 @@ log = logging.getLogger(__name__)
 class CSVSplitVisitor(CSVVisitor):
     """Class to transform a participant visit CSV record."""
 
-    def __init__(self, *, req_fields: List[str],
-                 records: DefaultDict[str, List[Dict[str, Any]]],
-                 error_writer: ErrorWriter) -> None:
+    def __init__(
+        self,
+        *,
+        req_fields: List[str],
+        project: ProjectAdaptor,
+        uploader: JSONUploader,
+        error_writer: ErrorWriter,
+    ) -> None:
         self.__req_fields = req_fields
-        self.__records = records
+        self.__project = project
+        self.__uploader = uploader
         self.__error_writer = error_writer
 
     def visit_header(self, header: List[str]) -> bool:
@@ -39,8 +46,7 @@ class CSVSplitVisitor(CSVVisitor):
         """
 
         if not set(self.__req_fields).issubset(set(header)):
-            self.__error_writer.write(
-                missing_field_error(set(self.__req_fields)))
+            self.__error_writer.write(missing_field_error(set(self.__req_fields)))
             return False
 
         return True
@@ -64,12 +70,17 @@ class CSVSplitVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
-            self.__error_writer.write(empty_field_error(
-                empty_fields, line_num))
+            self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
-        subject_lbl = row[FieldNames.NACCID]
-        self.__records[subject_lbl].append(row)
+        try:
+            self.__uploader.upload_record(
+                subject_label=row[FieldNames.NACCID], record=row
+            )
+        except UploaderError as error:
+            log.error("Error (line: %s): %s", line_num, str(error))
+            # TODO: save error details for notification email
+            return False
 
         return True
 
@@ -79,11 +90,19 @@ def notify_upload_errors():
     pass
 
 
-def run(*, input_file: TextIO, destination: ProjectAdaptor,
-        environment: Dict[str, Any], template_map: UploadTemplateInfo,
-        error_writer: ErrorWriter) -> bool:
+def run(
+    *,
+    proxy: FlywheelProxy,
+    hierarchy_client: HierarchyCreationClient,
+    input_file: TextIO,
+    destination: ProjectAdaptor,
+    environment: Dict[str, Any],
+    template_map: UploadTemplateInfo,
+    error_writer: ErrorWriter,
+    preserve_case: bool,
+) -> bool:
     """Reads records from the input file and creates a JSON file for each.
-    Uploads the JSON file to the respective aquisition in Flywheel.
+    Uploads the JSON file to the respective acquisition in Flywheel.
 
     Args:
         input_file: the input file
@@ -91,27 +110,26 @@ def run(*, input_file: TextIO, destination: ProjectAdaptor,
         environment: dictionary of variables describing environment for labels
         template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
+        preserve_case: Whether or not to preserve header case
     Returns:
         bool: True if upload successful
     """
+    result = read_csv(
+        input_file=input_file,
+        error_writer=error_writer,
+        visitor=CSVSplitVisitor(
+            req_fields=[FieldNames.NACCID],
+            project=destination,
+            uploader=JSONUploader(
+                proxy=proxy,
+                hierarchy_client=hierarchy_client,
+                project=destination,
+                template_map=template_map,
+                environment=environment,
+            ),
+            error_writer=error_writer,
+        ),
+        preserve_case=preserve_case,
+    )
 
-    subject_record_map: DefaultDict[str, List[Dict[str,
-                                                   Any]]] = defaultdict(list)
-    visitor = CSVSplitVisitor(req_fields=[FieldNames.NACCID],
-                              records=subject_record_map,
-                              error_writer=error_writer)
-    result = read_csv(input_file=input_file,
-                      error_writer=error_writer,
-                      visitor=visitor)
-
-    if not len(subject_record_map) > 0:
-        return result
-
-    uploader = JSONUploader(project=destination,
-                            template_map=template_map,
-                            environment=environment)
-    upload_status = uploader.upload(subject_record_map)
-    if not upload_status:
-        notify_upload_errors()
-
-    return result and upload_status
+    return result

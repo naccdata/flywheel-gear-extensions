@@ -10,6 +10,7 @@ datatypes - array of datatype names (form, dicom)
 mode - string indicating 'aggregation' or 'distribution'
 published - boolean indicating whether data is to be published
 """
+
 import logging
 from typing import List, Optional
 
@@ -33,8 +34,7 @@ log = logging.getLogger(__name__)
 class ProjectCreationVisitor(GearExecutionEnvironment):
     """Defines the project management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper,
-                 project_filepath: str):
+    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: str):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__project_filepath = project_filepath
@@ -43,8 +43,8 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'ProjectCreationVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "ProjectCreationVisitor":
         """Creates a projection creation execution visitor.
 
         Args:
@@ -54,25 +54,24 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         Raises:
           GearExecutionError if the project file cannot be loaded
         """
-        client = GearBotClient.create(context=context,
-                                      parameter_store=parameter_store)
-        project_filepath = context.get_input_path('project_file')
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        project_filepath = context.get_input_path("project_file")
         if not project_filepath:
             raise GearExecutionError("No project file provided")
 
         admin_id = context.config.get("admin_group", "nacc")
 
-        return ProjectCreationVisitor(admin_id=admin_id,
-                                      client=client,
-                                      project_filepath=project_filepath)
+        return ProjectCreationVisitor(
+            admin_id=admin_id, client=client, project_filepath=project_filepath
+        )
 
     def __get_study_list(self, project_filepath: str) -> List[Study]:
         try:
-            with open(project_filepath, 'r', encoding='utf-8') as stream:
+            with open(project_filepath, "r", encoding="utf-8-sig") as stream:
                 project_list = load_all_from_stream(stream)
         except YAMLReadError as error:
             raise GearExecutionError(
-                f'Unable to read YAML file {project_filepath}: {error}'
+                f"Unable to read YAML file {project_filepath}: {error}"
             ) from error
         if not project_list:
             raise GearExecutionError("Failed to read project file")
@@ -88,16 +87,17 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         Raises:
             AssertionError: If admin group ID or project list is not provided.
         """
-        run(proxy=self.proxy,
+        run(
+            proxy=self.proxy,
             admin_group=self.admin_group(admin_id=self.__admin_id),
-            study_list=self.__get_study_list(self.__project_filepath))
+            study_list=self.__get_study_list(self.__project_filepath),
+        )
 
 
 def main():
     """Main method to run the project creation gear."""
 
-    GearEngine.create_with_parameter_store().run(
-        gear_type=ProjectCreationVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=ProjectCreationVisitor)
 
 
 if __name__ == "__main__":

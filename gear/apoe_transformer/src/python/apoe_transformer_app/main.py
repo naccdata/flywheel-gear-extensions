@@ -1,4 +1,5 @@
 """Defines the APOE Transformer."""
+
 import logging
 from typing import Any, Dict, List, TextIO, Tuple
 
@@ -8,6 +9,7 @@ from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.errors import (
     LogErrorWriter,
+    empty_field_error,
     missing_field_error,
 )
 from outputs.outputs import write_csv_to_stream
@@ -24,14 +26,14 @@ APOE_ENCODINGS: Dict[Tuple[str, str], int] = {
     ("E4", "E4"): 4,
     ("E4", "E2"): 5,
     ("E2", "E4"): 5,
-    ("E2", "E2"): 6
+    ("E2", "E2"): 6,
 }
 
 
 class APOETransformerCSVVisitor(CSVVisitor):
     """Class for visiting each row in the APOE genotype CSV."""
 
-    EXPECTED_INPUT_HEADERS: Tuple[str, ...] = ('a1', 'a2')
+    EXPECTED_INPUT_HEADERS: Tuple[str, ...] = ("a1", "a2")
 
     def __init__(self, error_writer: LogErrorWriter):
         """Initializer."""
@@ -66,10 +68,8 @@ class APOETransformerCSVVisitor(CSVVisitor):
         if missing:
             return False
 
-        self.__header = [
-            column for column in header if column not in ['a1', 'a2']
-        ]
-        self.__header.append('apoe')
+        self.__header = header
+        self.__header.append("apoe")
 
         return True
 
@@ -84,20 +84,34 @@ class APOETransformerCSVVisitor(CSVVisitor):
             True if the row is valid and transformed successfully, else False
         """
         row = {k.strip().lower(): v for k, v in row.items()}
-        a1, a2 = row.pop('a1'), row.pop('a2')
-        pair = (a1.strip().upper(), a2.strip().upper())
-        row['apoe'] = APOE_ENCODINGS.get(pair, 9)
 
+        missing = []
+        pair = []
+        for field in ["a1", "a2"]:
+            value = row.get(field)
+            if not value:
+                error = empty_field_error(field)
+                self.__error_writer.write(error)
+                missing.append(field)
+            else:
+                pair.append(value.strip().upper())
+
+        if missing:
+            return False
+
+        row["apoe"] = APOE_ENCODINGS.get(tuple(pair), 9)  # type: ignore
         self.__transformed_data.append(row)
         return True
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        input_file: TextIO,
-        filename: str,
-        project: ProjectAdaptor,
-        delimiter: str = ','):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    input_file: TextIO,
+    filename: str,
+    project: ProjectAdaptor,
+    delimiter: str = ",",
+):
     """Runs the APOE transformation process.
 
     Args:
@@ -110,23 +124,24 @@ def run(*,
     # read the CSV
     error_writer = LogErrorWriter(log)
     visitor = APOETransformerCSVVisitor(error_writer)
-    success = read_csv(input_file=input_file,
-                       error_writer=error_writer,
-                       visitor=visitor,
-                       delimiter=delimiter)
+    success = read_csv(
+        input_file=input_file,
+        error_writer=error_writer,
+        visitor=visitor,
+        delimiter=delimiter,
+    )
 
     if not success:
-        raise GearExecutionError(
-            'Errors found while reading the input CSV file')
+        raise GearExecutionError("Errors found while reading the input CSV file")
 
     # write transformed results to target project
     log.info(f"Writing transformed APOE data to {project.id}")
-    contents = write_csv_to_stream(headers=visitor.header,
-                                   data=visitor.transformed_data).getvalue()
-    file_spec = FileSpec(name=filename,
-                         contents=contents,
-                         content_type='text/csv',
-                         size=len(contents))
+    contents = write_csv_to_stream(
+        headers=visitor.header, data=visitor.transformed_data
+    ).getvalue()
+    file_spec = FileSpec(
+        name=filename, contents=contents, content_type="text/csv", size=len(contents)
+    )
 
     if proxy.dry_run:
         log.info(f"DRY RUN: Would have uploaded {filename}")

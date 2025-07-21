@@ -12,12 +12,14 @@ class RecordValidator:
     """Validate the data record using nacc-form-validator library
     (https://github.com/naccdata/nacc-form-validator)"""
 
-    def __init__(self,
-                 *,
-                 qual_check: QualityCheck,
-                 error_store: ErrorStore,
-                 error_writer: ListErrorWriter,
-                 codes_map: Optional[Dict[str, Dict]] = None):
+    def __init__(
+        self,
+        *,
+        qual_check: QualityCheck,
+        error_store: ErrorStore,
+        error_writer: ListErrorWriter,
+        codes_map: Optional[Dict[str, Dict]] = None,
+    ):
         """Initialize RecordValidator.
 
         Args:
@@ -35,11 +37,15 @@ class RecordValidator:
         """Returns the schema definition used for data validation."""
         return self.__qc.schema
 
-    def compose_error_metadata(self, *, input_record: Dict[str, str],
-                               sys_failure: bool, dict_errors: Dict[str,
-                                                                    List[str]],
-                               error_tree: Optional[Dict[str, Any]],
-                               line_number: Optional[int]):
+    def compose_error_metadata(
+        self,
+        *,
+        input_record: Dict[str, str],
+        sys_failure: bool,
+        dict_errors: Dict[str, List[str]],
+        error_tree: Optional[Dict[str, Any]],
+        line_number: Optional[int],
+    ):
         """Compose error metadata using validation errors and error code
         mapping.
 
@@ -52,11 +58,13 @@ class RecordValidator:
         """
 
         error_messages = self.__qc.validator.get_error_messages()
-        error_composer = ErrorComposer(input_data=input_record,
-                                       error_store=self.__error_store,
-                                       dict_errors=dict_errors,
-                                       error_messages=error_messages,
-                                       error_writer=self.__error_writer)
+        error_composer = ErrorComposer(
+            input_data=input_record,
+            error_store=self.__error_store,
+            dict_errors=dict_errors,
+            error_messages=error_messages,
+            error_writer=self.__error_writer,
+        )
 
         if sys_failure:
             error_composer.compose_system_errors_metadata(line_number)
@@ -64,14 +72,14 @@ class RecordValidator:
             error_composer.compose_detailed_error_metadata(
                 error_tree=error_tree,
                 err_code_map=self.__codes_map,
-                line_number=line_number)
+                line_number=line_number,
+            )
         else:
             error_composer.compose_minimal_error_metadata(line_number)
 
-    def process_data_record(self,
-                            *,
-                            record: Dict[str, str],
-                            line_number: Optional[int] = None) -> bool:
+    def process_data_record(
+        self, *, record: Dict[str, str], line_number: Optional[int] = None
+    ) -> bool:
         """Process the input record and report any errors.
 
         Args:
@@ -82,8 +90,7 @@ class RecordValidator:
             bool: True if record passed NACC data quality checks, else False
         """
 
-        valid, sys_failure, dict_errors, error_tree = self.__qc.validate_record(
-            record)
+        valid, sys_failure, dict_errors, error_tree = self.__qc.validate_record(record)
 
         if not valid:
             self.compose_error_metadata(
@@ -91,6 +98,7 @@ class RecordValidator:
                 sys_failure=sys_failure,
                 dict_errors=dict_errors,
                 error_tree=error_tree,  # type: ignore
-                line_number=line_number)
+                line_number=line_number,
+            )
 
         return valid

@@ -2,7 +2,7 @@
     "name": "pull-metadata",
     "label": "Pull Metadata",
     "description": "Pulls CSV metadata from S3, partitions by center and distributes to centers",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "author": "zstark@uw.edu",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/pull-metadata:0.0.10"
+            "image": "naccdata/pull-metadata:0.0.11"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

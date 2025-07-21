@@ -2,6 +2,40 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.5
+* Rebuild for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.2.4
+* Adds ErrorLogTemplate
+* Strips leading zeros from PTID in error log name
+  
+## 1.2.3
+* Change handling of PTIDs so that are stripped of whitespace and leading zeros.
+  
+## 1.2.2
+* Fix center map key type
+  
+## 1.2.1
+* Upgrades to dependencies
+  
+## 1.2.0
+* Relaxes the PTID format check
+  
+## 1.1.4
+* Fixes a bug in retrieving module label from file suffix
+
+## 1.1.3
+* Adds `legacy` flag to enrollment record
+  
+## 1.1.2
+* Allows underscore in GUID
+  
+## 1.1.1
+* Fixes CSV line number in error reports (exclude header row)
+* Updates pre-processing error codes
+* Updates GUID format and max length
+  
 ## 1.1.0
 * Fix gear crashing when PTID length is greater than 10
 * Increase GUID maxlength to 20

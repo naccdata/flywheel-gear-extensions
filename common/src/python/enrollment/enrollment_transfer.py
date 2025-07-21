@@ -11,10 +11,11 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
 )
 from identifiers.model import (
-    GUID_PATTERN,
     NACCID_PATTERN,
     PTID_PATTERN,
     CenterIdentifiers,
+    GUIDField,
+    OptionalNACCIDField,
 )
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
@@ -30,6 +31,7 @@ log = logging.getLogger(__name__)
 
 class GenderIdentity(BaseModel):
     """Model for Gender Identity demographic data."""
+
     man: Optional[Literal[1]]
     woman: Optional[Literal[1]]
     transgender_man: Optional[Literal[1]]
@@ -44,12 +46,13 @@ class GenderIdentity(BaseModel):
 
 class Demographics(BaseModel):
     """Model for demographic data."""
+
     years_education: int | Literal[99] = Field(ge=0, le=36)
     birth_date: datetime
     gender_identity: GenderIdentity
 
     @classmethod
-    def create_from(cls, row: Dict[str, Any]) -> 'Demographics':
+    def create_from(cls, row: Dict[str, Any]) -> "Demographics":
         """Constructs a Demographics object from row of enrollment/transfer
         form.
 
@@ -61,28 +64,28 @@ class Demographics(BaseModel):
           Demographics object built from row
         """
         return Demographics(
-            years_education=row['enrleduc'],
-            birth_date=datetime(int(row['enrlbirthmo']),
-                                int(row['enrlbirthyr']), 1),
+            years_education=row["enrleduc"],
+            birth_date=datetime(int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
             gender_identity=GenderIdentity(
-                man=row['enrlgenman'] if row['enrlgenman'] else None,
-                woman=row['enrlgenwoman'] if row['enrlgenwoman'] else None,
-                transgender_man=row['enrlgentrman']
-                if row['enrlgentrman'] else None,
-                transgender_woman=row['enrlgentrwoman']
-                if row['enrlgentrwoman'] else None,
-                nonbinary=row['enrlgennonbi'] if row['enrlgennonbi'] else None,
-                two_spirit=row['enrlgentwospir']
-                if row['enrlgentwospir'] else None,
-                other=row['enrlgenoth'] if row['enrlgenoth'] else None,
-                other_term=row['enrlgenothx'] if row['enrlgenothx'] else None,
-                dont_know=row['enrlgendkn'] if row['enrlgendkn'] else None,
-                no_answer=row['enrlgennoans']
-                if row['enrlgennoans'] else None))
+                man=row["enrlgenman"] if row["enrlgenman"] else None,
+                woman=row["enrlgenwoman"] if row["enrlgenwoman"] else None,
+                transgender_man=row["enrlgentrman"] if row["enrlgentrman"] else None,
+                transgender_woman=row["enrlgentrwoman"]
+                if row["enrlgentrwoman"]
+                else None,
+                nonbinary=row["enrlgennonbi"] if row["enrlgennonbi"] else None,
+                two_spirit=row["enrlgentwospir"] if row["enrlgentwospir"] else None,
+                other=row["enrlgenoth"] if row["enrlgenoth"] else None,
+                other_term=row["enrlgenothx"] if row["enrlgenothx"] else None,
+                dont_know=row["enrlgendkn"] if row["enrlgendkn"] else None,
+                no_answer=row["enrlgennoans"] if row["enrlgennoans"] else None,
+            ),
+        )
 
 
 class TransferRecord(BaseModel):
     """Model representing transfer between centers."""
+
     date: datetime
     initials: str
     center_identifiers: CenterIdentifiers
@@ -90,15 +93,15 @@ class TransferRecord(BaseModel):
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
-class EnrollmentRecord(BaseModel):
+class EnrollmentRecord(GUIDField, OptionalNACCIDField):
     """Model representing enrollment of participant."""
+
     center_identifier: CenterIdentifiers
-    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     start_date: datetime
     end_date: Optional[datetime] = None
     transfer_from: Optional[TransferRecord] = None
     transfer_to: Optional[TransferRecord] = None
+    legacy: Optional[bool] = False
 
     def query_object(self) -> IdentifierQueryObject:
         """Creates an object for creating identifiers in the repository.
@@ -106,9 +109,11 @@ class EnrollmentRecord(BaseModel):
         Returns:
           the identifier query object to use in batch identifier creation
         """
-        return IdentifierQueryObject(adcid=self.center_identifier.adcid,
-                                     ptid=self.center_identifier.ptid,
-                                     guid=self.guid)
+        return IdentifierQueryObject(
+            adcid=self.center_identifier.adcid,
+            ptid=self.center_identifier.ptid,
+            guid=self.guid,
+        )
 
 
 def has_value(row: Dict[str, Any], variable: str, value: int) -> bool:
@@ -173,8 +178,7 @@ class NewPTIDRowValidator(RowValidator):
     """Row validator to check that the PTID in the rows does not have a
     NACCID."""
 
-    def __init__(self, repo: IdentifierRepository,
-                 error_writer: ErrorWriter) -> None:
+    def __init__(self, repo: IdentifierRepository, error_writer: ErrorWriter) -> None:
         self.__identifiers = repo
         self.__error_writer = error_writer
 
@@ -187,16 +191,15 @@ class NewPTIDRowValidator(RowValidator):
         Returns:
           True if no existing NACCID is found for the PTID, False otherwise
         """
-        ptid = row['ptid']
-        identifier = self.__identifiers.get(adcid=row['adcid'], ptid=ptid)
+        ptid = row["ptid"]
+        identifier = self.__identifiers.get(adcid=row["adcid"], ptid=ptid)
         if not identifier:
             return True
 
-        log.info('Found participant for (%s,%s)', row['adcid'], row['ptid'])
+        log.info("Found participant for (%s,%s)", row["adcid"], row["ptid"])
         self.__error_writer.write(
-            existing_participant_error(field='ptid',
-                                       line=line_number,
-                                       value=ptid))
+            existing_participant_error(field="ptid", line=line_number, value=ptid)
+        )
         return False
 
 
@@ -205,8 +208,7 @@ class NewGUIDRowValidator(RowValidator):
     """Row Validator to check whether a GUID corresponds to an existing
     NACCID."""
 
-    def __init__(self, repo: IdentifierRepository,
-                 error_writer: ErrorWriter) -> None:
+    def __init__(self, repo: IdentifierRepository, error_writer: ErrorWriter) -> None:
         self.__identifiers = repo
         self.__error_writer = error_writer
 
@@ -221,18 +223,20 @@ class NewGUIDRowValidator(RowValidator):
         if not guid_available(row):
             return True
 
-        guid = row['guid']
+        guid = row["guid"]
         identifier = self.__identifiers.get(guid=guid)
         if not identifier:
             return True
 
-        log.info('Found participant for GUID %s', row['guid'])
+        log.info("Found participant for GUID %s", row["guid"])
         self.__error_writer.write(
             existing_participant_error(
-                field='guid',
+                field="guid",
                 line=line_number,
                 value=guid,
-                message=f'Participant exists for GUID {guid}'))
+                message=f"Participant exists for GUID {guid}",
+            )
+        )
         return False
 
 
@@ -282,19 +286,25 @@ class CenterValidator(RowValidator):
         if str(row.get(FieldNames.ADCID)) != str(self.__center_id):
             log.error("Center ID for project must match form ADCID")
             self.__error_writer.write(
-                preprocessing_error(field=FieldNames.ADCID,
-                                    value=row[FieldNames.ADCID],
-                                    line=line_number,
-                                    error_code=SysErrorCodes.ADCID_MISMATCH))
+                preprocessing_error(
+                    field=FieldNames.ADCID,
+                    value=row[FieldNames.ADCID],
+                    line=line_number,
+                    error_code=SysErrorCodes.ADCID_MISMATCH,
+                )
+            )
             valid = False
 
-        ptid = row.get(FieldNames.PTID, '')
+        ptid = row.get(FieldNames.PTID, "")
         if not re.fullmatch(PTID_PATTERN, ptid):
             self.__error_writer.write(
-                preprocessing_error(field=FieldNames.PTID,
-                                    value=ptid,
-                                    line=line_number,
-                                    error_code=SysErrorCodes.INVALID_PTID))
+                preprocessing_error(
+                    field=FieldNames.PTID,
+                    value=ptid,
+                    line=line_number,
+                    error_code=SysErrorCodes.INVALID_PTID,
+                )
+            )
             valid = False
 
         return valid

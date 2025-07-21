@@ -11,53 +11,53 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import (
-    GUID_PATTERN,
-    NACCID_PATTERN,
+    ADCIDField,
     CenterIdentifiers,
+    GUIDField,
     IdentifierList,
     IdentifierObject,
+    NACCIDField,
 )
 
 
 class ListRequest(BaseRequest):
     """Model for requests that could result in a list."""
+
     offset: int = 0
     limit: int = Field(le=100)
 
 
-class IdentifierRequest(BaseRequest, CenterIdentifiers):
+class IdentifierRequest(BaseRequest, CenterIdentifiers, GUIDField):
     """Request model for creating Identifier."""
-    guid: Optional[str] = Field(None, max_length=13, pattern=GUID_PATTERN)
 
 
 class IdentifierListRequest(BaseRequest):
     """Model for request to lambda."""
+
     identifiers: List[IdentifierQueryObject]
 
 
-class ADCIDRequest(ListRequest):
+class ADCIDRequest(ListRequest, ADCIDField):
     """Model for request object with ADCID, and offset and limit."""
-    adcid: int = Field(ge=0)
 
 
-class GUIDRequest(BaseRequest):
+class GUIDRequest(BaseRequest, GUIDField):
     """Request model for search by GUID."""
-    guid: str = Field(max_length=13, pattern=GUID_PATTERN)
 
 
-class NACCIDRequest(BaseRequest):
+class NACCIDRequest(BaseRequest, NACCIDField):
     """Request model for search by NACCID."""
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
 
 
 class ListResponseObject(BaseModel):
     """Model for return object with partial list of Identifiers."""
+
     offset: int
     limit: int
     data: List[IdentifierObject]
 
 
-IdentifiersMode = Literal['dev', 'prod']
+IdentifiersMode = Literal["dev", "prod"]
 
 
 class IdentifiersLambdaRepository(IdentifierRepository):
@@ -65,10 +65,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
     def __init__(self, client: LambdaClient, mode: IdentifiersMode) -> None:
         self.__client = client
-        self.__mode: Literal['dev', 'prod'] = mode
+        self.__mode: Literal["dev", "prod"] = mode
 
-    def create(self, adcid: int, ptid: str,
-               guid: Optional[str]) -> IdentifierObject:
+    def create(self, adcid: int, ptid: str, guid: Optional[str]) -> IdentifierObject:
         """Creates an Identifier in the repository.
 
         Args:
@@ -82,11 +81,11 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         """
         try:
             response = self.__client.invoke(
-                name='create-identifier-lambda-function',
-                request=IdentifierRequest(mode=self.__mode,
-                                          adcid=adcid,
-                                          ptid=ptid,
-                                          guid=guid))
+                name="create-identifier-lambda-function",
+                request=IdentifierRequest(
+                    mode=self.__mode, adcid=adcid, ptid=ptid, guid=guid
+                ),
+            )
         except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
@@ -95,8 +94,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return IdentifierObject.model_validate_json(response.body)
 
-    def create_list(
-            self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
+    def create_list(self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
         """Creates several Identifiers in the repository.
 
         Args:
@@ -108,9 +106,11 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         """
         try:
             response = self.__client.invoke(
-                name='create-identifier-list-lambda-function',
-                request=IdentifierListRequest(mode=self.__mode,
-                                              identifiers=identifiers))
+                name="create-identifier-list-lambda-function",
+                request=IdentifierListRequest(
+                    mode=self.__mode, identifiers=identifiers
+                ),
+            )
         except LambdaInvocationError as error:
             raise IdentifierRepositoryError(error) from error
         if response.statusCode != 200:
@@ -119,25 +119,24 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return IdentifierList.model_validate_json(response.body)
 
     @overload
-    def get(self, *, naccid: str) -> IdentifierObject:
-        ...
+    def get(self, *, naccid: str) -> IdentifierObject: ...
 
     # pylint: disable=(arguments-differ)
     @overload
-    def get(self, *, guid: str) -> IdentifierObject:
-        ...
+    def get(self, *, guid: str) -> IdentifierObject: ...
 
     # pylint: disable=(arguments-differ)
     @overload
-    def get(self, *, adcid: int, ptid: str) -> IdentifierObject:
-        ...
+    def get(self, *, adcid: int, ptid: str) -> IdentifierObject: ...
 
     # pylint: disable=(arguments-differ)
-    def get(self,
-            naccid: Optional[str] = None,
-            adcid: Optional[int] = None,
-            ptid: Optional[str] = None,
-            guid: Optional[str] = None) -> Optional[IdentifierObject]:
+    def get(
+        self,
+        naccid: Optional[str] = None,
+        adcid: Optional[int] = None,
+        ptid: Optional[str] = None,
+        guid: Optional[str] = None,
+    ) -> Optional[IdentifierObject]:
         """Returns IdentifierObject object for the IDs given.
 
         Note: some valid arguments can be falsey.
@@ -166,12 +165,10 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise TypeError("Invalid arguments")
 
     @overload
-    def list(self, adcid: int) -> List[IdentifierObject]:
-        ...
+    def list(self, adcid: int) -> List[IdentifierObject]: ...
 
     @overload
-    def list(self) -> List[IdentifierObject]:
-        ...
+    def list(self) -> List[IdentifierObject]: ...
 
     def list(self, adcid: Optional[int] = None) -> List[IdentifierObject]:
         """Returns the list of all identifiers in the repository.
@@ -197,19 +194,22 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         while read_length == limit:
             try:
                 response = self.__client.invoke(
-                    name='identifier-adcid-lambda-function',
-                    request=ADCIDRequest(mode=self.__mode,
-                                         adcid=adcid,
-                                         offset=index,
-                                         limit=limit))
+                    name="identifier-adcid-lambda-function",
+                    request=ADCIDRequest(
+                        mode=self.__mode, adcid=adcid, offset=index, limit=limit
+                    ),
+                )
             except LambdaInvocationError as error:
                 raise IdentifierRepositoryError(error) from error
 
             if response.statusCode != 200:
                 raise IdentifierRepositoryError(response.body)
 
-            response_object = ListResponseObject.model_validate_json(
-                response.body)
+            try:
+                response_object = ListResponseObject.model_validate_json(response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
             identifier_list += response_object.data
             read_length = len(response_object.data)
             index += limit
@@ -228,8 +228,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         """
         try:
             response = self.__client.invoke(
-                name='identifier-naccid-lambda-function',
-                request=NACCIDRequest(mode=self.__mode, naccid=naccid))
+                name="identifier-naccid-lambda-function",
+                request=NACCIDRequest(mode=self.__mode, naccid=naccid),
+            )
         except LambdaInvocationError as error:
             raise IdentifierRepositoryError(error) from error
 
@@ -240,8 +241,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
-    def __get_by_ptid(self, *, adcid: int, ptid: str,
-                      guid: Optional[str]) -> Optional[IdentifierObject]:
+    def __get_by_ptid(
+        self, *, adcid: int, ptid: str, guid: Optional[str]
+    ) -> Optional[IdentifierObject]:
         """Returns the IdentifierObject for the NACCID.
 
         Args:
@@ -255,11 +257,11 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         """
         try:
             response = self.__client.invoke(
-                name='Identifier-ADCID-PTID-Lambda-Function',
-                request=IdentifierRequest(mode=self.__mode,
-                                          adcid=adcid,
-                                          ptid=ptid,
-                                          guid=guid))
+                name="Identifier-ADCID-PTID-Lambda-Function",
+                request=IdentifierRequest(
+                    mode=self.__mode, adcid=adcid, ptid=ptid, guid=guid
+                ),
+            )
         except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
@@ -282,8 +284,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         """
         try:
             response = self.__client.invoke(
-                name='identifier-guid-lambda-function',
-                request=GUIDRequest(mode=self.__mode, guid=guid))
+                name="identifier-guid-lambda-function",
+                request=GUIDRequest(mode=self.__mode, guid=guid),
+            )
         except LambdaInvocationError as error:
             raise IdentifierRepositoryError(error) from error
 

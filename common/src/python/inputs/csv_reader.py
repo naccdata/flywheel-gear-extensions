@@ -2,7 +2,7 @@
 
 import abc
 from abc import ABC, abstractmethod
-from csv import DictReader, Error
+from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
 
 from outputs.errors import (
@@ -13,6 +13,7 @@ from outputs.errors import (
     missing_header_error,
     partially_failed_file_error,
 )
+from utils.snakecase import snakecase
 
 
 class CSVVisitor(ABC):
@@ -41,13 +42,16 @@ class CSVVisitor(ABC):
         return True
 
 
-def read_csv(*,
-             input_file: TextIO,
-             error_writer: ErrorWriter,
-             visitor: CSVVisitor,
-             delimiter: str = ',',
-             limit: Optional[int] = None,
-             clear_errors: Optional[bool] = False) -> bool:
+def read_csv(
+    *,
+    input_file: TextIO,
+    error_writer: ErrorWriter,
+    visitor: CSVVisitor,
+    delimiter: str = ",",
+    limit: Optional[int] = None,
+    clear_errors: Optional[bool] = False,
+    preserve_case: bool = True,
+) -> bool:
     """Reads CSV file and applies the visitor to each row.
 
     Args:
@@ -57,6 +61,9 @@ def read_csv(*,
       delimiter: expected delimiter for the CSV
       limit: maximum number of lines to read (excluding header)
       clear_errors: clear the accumulated error metadata
+      preserve_case: Whether or not to preserve case while reading
+        the CSV header keys. If false, will convert all headers
+        to lowercase and replace spaces with underscores
 
     Returns:
       True if the input file was processed without error, False otherwise
@@ -74,22 +81,30 @@ def read_csv(*,
         return False
 
     # visitor should handle errors for invalid headers/rows
-    success = visitor.visit_header(list(reader.fieldnames))
+    headers = list(reader.fieldnames)
+    if not preserve_case:
+        headers = [snakecase(x.strip()) for x in headers]
+
+    success = visitor.visit_header(headers)
     if not success:
         return False
 
     try:
         for count, record in enumerate(reader):
-            row_success = visitor.visit_row(record, line_num=reader.line_num)
+            if not preserve_case:
+                record = {
+                    snakecase(key.strip()): value for key, value in record.items()
+                }
+
+            row_success = visitor.visit_row(record, line_num=count + 1)
             success = row_success and success
             if limit and count >= limit:
                 break
-    except Error as error:
+    except Exception as error:
         error_writer.write(malformed_file_error(str(error)))
         return False
 
-    if not success and clear_errors and isinstance(error_writer,
-                                                   ListErrorWriter):
+    if not success and clear_errors and isinstance(error_writer, ListErrorWriter):
         error_writer.clear()
         error_writer.write(partially_failed_file_error())
 
@@ -116,8 +131,7 @@ class RowValidator(abc.ABC):
 class AggregateRowValidator(RowValidator):
     """Row validator for running more than one validator."""
 
-    def __init__(self,
-                 validators: Optional[List[RowValidator]] = None) -> None:
+    def __init__(self, validators: Optional[List[RowValidator]] = None) -> None:
         if validators:
             self.__validators = validators
         else:
@@ -131,6 +145,4 @@ class AggregateRowValidator(RowValidator):
         Returns:
             True if all the validator checks are true, False otherwise
         """
-        return all(
-            validator.check(row, line_number)
-            for validator in self.__validators)
+        return all(validator.check(row, line_number) for validator in self.__validators)

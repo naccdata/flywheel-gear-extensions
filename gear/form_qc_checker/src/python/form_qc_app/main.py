@@ -5,10 +5,13 @@ Uses nacc-form-validator (https://github.com/naccdata/nacc-form-
 validator) for validating the inputs.
 """
 
+import json
 import logging
-from typing import Any, Dict, List, Optional
+from json.decoder import JSONDecodeError
+from typing import Any, Dict, MutableSequence, Optional
 
 from centers.nacc_group import NACCGroup
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -18,13 +21,13 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
 from outputs.errors import ListErrorWriter
-from redcap.redcap_connection import REDCapReportConnection
+from redcap_api.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 
 from form_qc_app.datastore import DatastoreHelper
@@ -37,13 +40,15 @@ from form_qc_app.validate import RecordValidator
 log = logging.getLogger(__name__)
 
 
-def update_input_file_qc_status(*,
-                                gear_context: GearToolkitContext,
-                                gear_name: str,
-                                input_wrapper: InputFileWrapper,
-                                file: FileEntry,
-                                qc_passed: bool,
-                                errors: Optional[List[Dict[str, Any]]] = None):
+def update_input_file_qc_status(
+    *,
+    gear_context: GearToolkitContext,
+    gear_name: str,
+    input_wrapper: InputFileWrapper,
+    file: FileEntry,
+    qc_passed: bool,
+    errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+):
     """Write validation status to input file metadata and add gear tag.
     Detailed errors for each visit is recorded in the error log for the visit.
 
@@ -55,16 +60,15 @@ def update_input_file_qc_status(*,
         errors (optional): List of error metadata
     """
 
-    status_str = 'PASS' if qc_passed else 'FAIL'
+    status_str = "PASS" if qc_passed else "FAIL"
 
-    gear_context.metadata.add_qc_result(input_wrapper.file_input,
-                                        name='validation',
-                                        state=status_str,
-                                        data=errors)
+    gear_context.metadata.add_qc_result(
+        input_wrapper.file_input, name="validation", state=status_str, data=errors
+    )
 
-    fail_tag = f'{gear_name}-FAIL'
-    pass_tag = f'{gear_name}-PASS'
-    new_tag = f'{gear_name}-{status_str}'
+    fail_tag = f"{gear_name}-FAIL"
+    pass_tag = f"{gear_name}-PASS"
+    new_tag = f"{gear_name}-{status_str}"
 
     if file.tags:
         if fail_tag in file.tags:
@@ -75,40 +79,37 @@ def update_input_file_qc_status(*,
     # file.add_tag(new_tag)
     gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
 
-    log.info('QC check status for file %s : %s', file.name, status_str)
+    log.info("QC check status for file %s : %s", file.name, status_str)
     return True
 
 
-def validate_input_file_type(mimetype: str) -> Optional[str]:
-    """Check whether the input file type is accepted.
-
-    Args:
-        mimetype: input file mimetype
-
-    Returns:
-        Optional[str]: If accepted file type, return the type, else None
-    """
-    if not mimetype:
-        return None
-
-    mimetype = mimetype.lower()
-    if mimetype.find('json') != -1:
-        return 'json'
-
-    if mimetype.find('csv') != -1:
-        return 'csv'
-
-    return None
+def load_supplement_input(
+    supplement_input: InputFileWrapper,
+) -> Optional[Dict[str, Any]]:
+    with open(supplement_input.filepath, mode="r", encoding="utf-8-sig") as file_obj:
+        try:
+            input_data = json.load(file_obj)
+        except (JSONDecodeError, TypeError) as error:
+            log.error(
+                "Failed to load supplement input file %s - %s",
+                supplement_input.filename,
+                error,
+            )
+            return None
+    return input_data
 
 
 def run(  # noqa: C901
-        *,
-        client_wrapper: ClientWrapper,
-        input_wrapper: InputFileWrapper,
-        s3_client: S3BucketReader,
-        admin_group: NACCGroup,
-        gear_context: GearToolkitContext,
-        redcap_connection: Optional[REDCapReportConnection] = None):
+    *,
+    client_wrapper: ClientWrapper,
+    input_wrapper: InputFileWrapper,
+    s3_client: S3BucketReader,
+    admin_group: NACCGroup,
+    gear_context: GearToolkitContext,
+    form_project_configs: FormProjectConfigs,
+    redcap_connection: Optional[REDCapReportConnection] = None,
+    supplement_input: Optional[InputFileWrapper] = None,
+):
     """Starts QC process for input file. Depending on the input file type calls
     the appropriate file processor.
 
@@ -118,24 +119,42 @@ def run(  # noqa: C901
         s3_client: boto3 client for QC rules S3 bucket
         admin_group: Flywheel admin group
         gear_context: Flywheel gear context
-        redcap_connection (Optional): REDCap project for NACC QC checks
+        form_project_configs: module configurations
+        redcap_connection (optional): REDCap project for NACC QC checks
+        supplement_input (optional): input file for supplement module
 
     Raises:
         GearExecutionError if any problem occurs while validating input file
     """
 
     if not input_wrapper.file_input:
-        raise GearExecutionError('form_data_file input not found')
+        raise GearExecutionError("form_data_file input not found")
 
-    file_type = validate_input_file_type(input_wrapper.file_type)
+    accepted_extensions = ["json", "csv"]
+    file_type = input_wrapper.validate_file_extension(
+        accepted_extensions=accepted_extensions
+    )
     if not file_type:
         raise GearExecutionError(
-            f'Unsupported input file type {input_wrapper.file_type}')
+            f"Unsupported input file type {input_wrapper.file_type}, "
+            f"supported extension(s): {accepted_extensions}"
+        )
 
-    module = input_wrapper.get_module_name_from_file_suffix()
+    if file_type == "json":
+        separator = "_"
+        allowed = "a-z"
+        split = None
+    else:
+        separator = "-"
+        allowed = "a-z_"
+        split = "_"
+
+    module = input_wrapper.get_module_name_from_file_suffix(
+        separator=separator, allowed=allowed, split=split, extension=file_type
+    )
     if not module:
         raise GearExecutionError(
-            f'Failed to extract module information from file {input_wrapper.filename}'
+            f"Failed to extract module information from file {input_wrapper.filename}"
         )
     module = module.upper()
 
@@ -144,97 +163,140 @@ def run(  # noqa: C901
     try:
         file = proxy.get_file(file_id)
     except ApiException as error:
-        raise GearExecutionError(
-            f'Failed to find the input file: {error}') from error
+        raise GearExecutionError(f"Failed to find the input file: {error}") from error
 
     project = proxy.get_project_by_id(file.parents.project)
     if not project:
         raise GearExecutionError(
-            f'Failed to find the project with ID {file.parents.project}')
+            f"Failed to find the project with ID {file.parents.project}"
+        )
+    project_adaptor = ProjectAdaptor(project=project, proxy=proxy)
 
-    legacy_label = gear_context.config.get('legacy_project_label',
-                                           DefaultValues.LEGACY_PRJ_LABEL)
-    pk_field = (gear_context.config.get('primary_key',
-                                        FieldNames.NACCID)).lower()
-    date_field = (gear_context.config.get('date_field',
-                                          FieldNames.DATE_COLUMN)).lower()
+    if (
+        module not in form_project_configs.accepted_modules
+        or not form_project_configs.module_configs.get(module)
+    ):
+        raise GearExecutionError(
+            f"Failed to find the configurations for module {module}"
+        )
+
+    legacy_label = (
+        form_project_configs.legacy_project_label
+        if form_project_configs.legacy_project_label
+        else DefaultValues.LEGACY_PRJ_LABEL
+    )
+    pk_field = form_project_configs.primary_key.lower()
+    module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
+    date_field = module_configs.date_field
     strict = gear_context.config.get("strict_mode", True)
 
-    error_writer = ListErrorWriter(container_id=file_id,
-                                   fw_path=proxy.get_lookup_path(file))
+    error_writer = ListErrorWriter(
+        container_id=file_id, fw_path=proxy.get_lookup_path(file)
+    )
 
-    rule_def_loader = DefinitionsLoader(s3_client=s3_client,
-                                        strict=strict,
-                                        error_writer=error_writer)
+    rule_def_loader = DefinitionsLoader(
+        s3_client=s3_client,
+        error_writer=error_writer,
+        module_configs=module_configs,
+        strict=strict,
+    )
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
-    gear_name = gear_context.manifest.get('name', 'form-qc-checker')
+    gear_name = gear_context.manifest.get("name", "form-qc-checker")
 
     file_processor: FileProcessor
-    if file_type == 'json':
-        file_processor = JSONFileProcessor(pk_field=pk_field,
-                                           module=module,
-                                           date_field=date_field,
-                                           project=ProjectAdaptor(
-                                               project=project, proxy=proxy),
-                                           error_writer=error_writer,
-                                           gear_name=gear_name)
+    if file_type == "json":
+        supplement_record = (
+            load_supplement_input(supplement_input=supplement_input)
+            if supplement_input
+            else None
+        )
+        if (
+            module_configs.supplement_module
+            and module_configs.supplement_module.exact_match
+            and not supplement_record
+        ):
+            raise GearExecutionError(
+                f"Supplement {module_configs.supplement_module.label} "
+                f"visit record is required to validate {module} visit"
+            )
+
+        file_processor = JSONFileProcessor(
+            pk_field=pk_field,
+            module=module,
+            date_field=date_field,
+            project=project_adaptor,
+            error_writer=error_writer,
+            form_configs=form_project_configs,
+            gear_name=gear_name,
+            supplement_data=supplement_record,
+        )
     else:  # For enrollment form processing
-        file_processor = CSVFileProcessor(pk_field=pk_field,
-                                          module=module,
-                                          date_field=date_field,
-                                          project=ProjectAdaptor(
-                                              project=project, proxy=proxy),
-                                          error_writer=error_writer,
-                                          gear_name=gear_name)
+        file_processor = CSVFileProcessor(
+            pk_field=pk_field,
+            module=module,
+            date_field=date_field,
+            project=project_adaptor,
+            error_writer=error_writer,
+            form_configs=form_project_configs,
+            gear_name=gear_name,
+        )
 
     input_data = file_processor.validate_input(input_wrapper=input_wrapper)
 
     if not input_data:
-        update_input_file_qc_status(gear_context=gear_context,
-                                    gear_name=gear_name,
-                                    input_wrapper=input_wrapper,
-                                    file=file,
-                                    qc_passed=False,
-                                    errors=error_writer.errors())
+        update_input_file_qc_status(
+            gear_context=gear_context,
+            gear_name=gear_name,
+            input_wrapper=input_wrapper,
+            file=file,
+            qc_passed=False,
+            errors=error_writer.errors(),
+        )
         return
 
     try:
         schema, codes_map = file_processor.load_schema_definitions(
-            rule_def_loader=rule_def_loader, input_data=input_data)
+            rule_def_loader=rule_def_loader, input_data=input_data
+        )
     except DefinitionException as error:
         raise GearExecutionError(error) from error
 
     gid = file.parents.group
     adcid = admin_group.get_adcid(gid)
     if adcid is None:
-        raise GearExecutionError(f'Failed to find ADCID for group: {gid}')
+        raise GearExecutionError(f"Failed to find ADCID for group: {gid}")
 
-    datastore = DatastoreHelper(pk_field=pk_field,
-                                orderby=date_field,
-                                proxy=proxy,
-                                adcid=adcid,
-                                group_id=gid,
-                                project=project,
-                                admin_group=admin_group,
-                                legacy_label=legacy_label)
+    datastore = DatastoreHelper(
+        pk_field=pk_field,
+        proxy=proxy,
+        adcid=adcid,
+        group_id=gid,
+        project=project_adaptor,
+        admin_group=admin_group,
+        module_configs=module_configs,
+        legacy_label=legacy_label,
+    )
 
     try:
         qual_check = QualityCheck(pk_field, schema, strict, datastore)
     except QualityCheckException as error:
-        raise GearExecutionError(
-            f'Failed to initialize QC module: {error}') from error
+        raise GearExecutionError(f"Failed to initialize QC module: {error}") from error
 
-    validator = RecordValidator(qual_check=qual_check,
-                                error_store=error_store,
-                                error_writer=error_writer,
-                                codes_map=codes_map)
+    validator = RecordValidator(
+        qual_check=qual_check,
+        error_store=error_store,
+        error_writer=error_writer,
+        codes_map=codes_map,
+    )
 
     valid = file_processor.process_input(validator=validator)
 
-    update_input_file_qc_status(gear_context=gear_context,
-                                gear_name=gear_name,
-                                input_wrapper=input_wrapper,
-                                file=file,
-                                qc_passed=valid,
-                                errors=error_writer.errors())
+    update_input_file_qc_status(
+        gear_context=gear_context,
+        gear_name=gear_name,
+        input_wrapper=input_wrapper,
+        file=file,
+        qc_passed=valid,
+        errors=error_writer.errors(),
+    )

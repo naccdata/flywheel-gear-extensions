@@ -3,10 +3,11 @@
 from datetime import datetime
 from typing import Optional
 
+from dates.form_dates import DEFAULT_DATE_FORMAT
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
-from identifiers.model import GUID_PATTERN, NACCID_PATTERN
+from identifiers.model import CenterFields, GUIDField, NACCIDField
 from keys.keys import DefaultValues
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 
 from enrollment.enrollment_transfer import (
     Demographics,
@@ -15,22 +16,22 @@ from enrollment.enrollment_transfer import (
 )
 
 
-class IdentifierInfoRecord(BaseModel):
+class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
-    adcid: int = Field(ge=0)
-    ptid: str = Field(max_length=10)
-    naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(max_length=13, pattern=GUID_PATTERN)
+
     update_date: datetime
+    legacy: Optional[bool] = False
 
 
 class EnrollmentInfo(BaseModel):
     """Wrapper for identifier record."""
+
     enrollment: Optional[IdentifierInfoRecord]
 
 
 class DemographicsInfo(BaseModel):
     """Wrapper for demographics record stored as info."""
+
     demographics: Optional[Demographics]
 
 
@@ -38,7 +39,7 @@ class EnrollmentSubject(SubjectAdaptor):
     """Wrapper for subject to track enrollment information."""
 
     @classmethod
-    def create_from(cls, subject: SubjectAdaptor) -> 'EnrollmentSubject':
+    def create_from(cls, subject: SubjectAdaptor) -> "EnrollmentSubject":
         """Converts a SubjectAdaptor to an EnrollmentSubject.
 
         Args:
@@ -60,15 +61,16 @@ class EnrollmentSubject(SubjectAdaptor):
         info = self.info
         if not info:
             return None
-        if 'enrollment' not in info:
+        if "enrollment" not in info:
             return None
 
         try:
             enrollment_info = EnrollmentInfo.model_validate(info)
             return enrollment_info.enrollment
         except ValidationError as error:
-            raise EnrollmentError(f"Info for {self.label}"
-                                  "does not match expected format") from error
+            raise EnrollmentError(
+                f"Info for {self.label}" "does not match expected format"
+            ) from error
 
     def add_enrollment(self, record: EnrollmentRecord) -> None:
         """Adds enrollment information to the subject.
@@ -91,7 +93,9 @@ class EnrollmentSubject(SubjectAdaptor):
             ptid=record.center_identifier.ptid,
             naccid=record.naccid,
             guid=record.guid,
-            update_date=record.start_date)
+            update_date=record.start_date,
+            legacy=record.legacy,
+        )
         self.update(EnrollmentInfo(enrollment=identifiers).model_dump())
 
     def upload_enrollment(self, record: EnrollmentRecord) -> None:
@@ -102,17 +106,18 @@ class EnrollmentSubject(SubjectAdaptor):
         Args:
           record: the enrollment record
         """
-        formdate = record.start_date.strftime("%Y-%m-%d")
-        session_label = f'{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}'
+        formdate = record.start_date.strftime(DEFAULT_DATE_FORMAT)
+        session_label = f"{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}"
         self.upload_acquisition_file(
             session_label=session_label,
             acquisition_label=DefaultValues.ENROLLMENT_MODULE,
             filename=self.get_acquisition_file_name(
-                session=session_label,
-                acquisition=DefaultValues.ENROLLMENT_MODULE),
+                session=session_label, acquisition=DefaultValues.ENROLLMENT_MODULE
+            ),
             contents=record.model_dump_json(exclude_none=True),
-            content_type='application/json',
-            skip_duplicates=False)
+            content_type="application/json",
+            skip_duplicates=False,
+        )
 
     def get_demographics_info(self) -> Optional[Demographics]:
         """Returns the demographics info object for this subject.
@@ -123,15 +128,16 @@ class EnrollmentSubject(SubjectAdaptor):
         info = self.info
         if not info:
             return None
-        if 'demographics' not in info:
+        if "demographics" not in info:
             return None
 
         try:
             demographics_info = DemographicsInfo.model_validate(info)
             return demographics_info.demographics
         except ValidationError as error:
-            raise EnrollmentError(f"info for {self.label}"
-                                  "does not match expected format") from error
+            raise EnrollmentError(
+                f"info for {self.label}" "does not match expected format"
+            ) from error
 
     def update_demographics_info(self, demographics: Demographics) -> None:
         """Updates the demographics info object for this subject.

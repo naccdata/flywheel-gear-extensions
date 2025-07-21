@@ -1,8 +1,8 @@
 {
     "name": "attribute-curator",
-    "label": "ADD GEAR LABEL",
-    "description": "DESCRIBE GEAR",
-    "version": "0.0.1",
+    "label": "Attribute Curator",
+    "description": "Curation of derived data for MQT project",
+    "version": "0.4.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -14,24 +14,26 @@
     },
     "custom": {
         "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/attribute-curator:0.0.1"
+            "category": "analysis",
+            "image": "naccdata/attribute-curator:0.4.1"
         },
         "flywheel": {
-            "suite": "NACC Admin Gears",
+            "suite": "Curation",
             "show-job": true
         }
     },
     "inputs": {
         "api-key": {
-            "base": "api-key"
+            "base": "api-key",
+            "read-only": false
         },
-        "attribute_file": {
-            "description": "The project YAML file",
+        "blacklist_file": {
+            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
             "base": "file",
+            "optional": true,
             "type": {
                 "enum": [
-                    "source code"
+                    "text"
                 ]
             }
         }
@@ -42,13 +44,23 @@
             "type": "boolean",
             "default": false
         },
-        "admin_group": {
-            "description": "Name of the admin group",
+        "filename_pattern": {
+            "description": "Filename pattern to match on",
             "type": "string",
-            "default": "nacc"
+            "default": "*.json"
         },
-        "new_only": {
-            "description": "Only create projects for centers tagged as new",
+        "curation_tag": {
+            "description": "Tag to apply to curated files",
+            "type": "string",
+            "default": "attribute-curator"
+        },
+        "force_curate": {
+            "description": "Curate file even if it's already been curated",
+            "type": "boolean",
+            "default": false
+        },
+        "debug": {
+            "description": "Whether or not to use debug-level logging (level set to DEBUG)",
             "type": "boolean",
             "default": false
         }
