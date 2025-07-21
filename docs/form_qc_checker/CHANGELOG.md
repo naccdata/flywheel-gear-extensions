@@ -2,6 +2,56 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.2
+
+* Updates `nacc-form-validator` to 0.5.3
+
+## 1.5.1
+* Updates `nacc-form-validator` to 0.5.2
+
+## 1.5.0
+* Adds support for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.4.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+* Updates to pull REDCap API code from library instead
+
+## 1.3.3
+* Fix center map key type
+  
+## 1.3.2
+* Upgrades to dependencies
+  
+## 1.3.1
+* Moves the optional forms list to ingest configurations
+
+## 1.3.0
+* Relaxes the PTID format check
+* Adds form version validation for enrollment form QC process
+  
+## 1.2.8
+* Fixes a bug in retrieving module label from file suffix
+  
+## 1.2.7
+* Updates `nacc-form-validator` to 0.5.1
+
+## 1.2.6
+* Refactor  `DatastoreHelper` class to use common package
+  
+## 1.2.5
+* Updates `nacc-form-validator` to 0.5.0
+  
+## 1.2.4
+* Adds loading supplement UDS input for LBD/FTLD validation
+
+## 1.2.3
+* Updates enrollment qc workflow - writes passed visits to a new file to trigger identifier provisioning.
+
+## 1.2.0
+* Updates error reporting - move error metadata to visit error log files stored at project level.
+  
 ## 1.1.7
 
 * Changes module label to uppercase for looking up previous visits in Flywheel

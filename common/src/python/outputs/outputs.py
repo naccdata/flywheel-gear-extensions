@@ -13,10 +13,9 @@ class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
     def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
-        self.__writer = DictWriter(stream,
-                                   fieldnames=fieldnames,
-                                   dialect='unix',
-                                   quoting=QUOTE_MINIMAL)
+        self.__writer = DictWriter(
+            stream, fieldnames=fieldnames, dialect="unix", quoting=QUOTE_MINIMAL
+        )
         self.__header_written = False
 
     def __write_header(self):
@@ -76,14 +75,14 @@ class ListJSONWriter(JSONWriter):
         return self.__objects
 
 
-def write_csv_to_stream(headers: List[str], data: List[Dict[str,
-                                                            Any]]) -> StringIO:
+def write_csv_to_stream(headers: List[str], data: List[Dict[str, Any]]) -> StringIO:
     """Takes a header and data pair and uses CSVWriter to write the CSV
     contents to a StringIO stream.
 
     Args:
         headers: The header values
         data: The data values, expected to be a list of JSON dicts
+
     Returns:
         StringIO object containing the contents.
     """

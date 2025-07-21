@@ -2,7 +2,7 @@
     "name": "apoe-transformer",
     "label": "APOE Transformer",
     "description": "Transforms APOE data from NRAD to NACC encoding",
-    "version": "0.1.0",
+    "version": "0.1.4",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/apoe-transformer:0.1.0"
+            "image": "naccdata/apoe-transformer:0.1.4"
         },
         "flywheel": {
             "suite": "Curation",

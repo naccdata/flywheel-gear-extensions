@@ -1,4 +1,5 @@
 """Utilities for invoking AWS Lambda functions."""
+
 import logging
 from typing import Dict, List, Literal, Optional
 
@@ -16,26 +17,29 @@ def create_lambda_client():
     Expects AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, and
     AWS_DEFAULT_REGION.
     """
-    secret_key = get_environment_variable('AWS_SECRET_ACCESS_KEY')
-    access_id = get_environment_variable('AWS_ACCESS_KEY_ID')
-    region = get_environment_variable('AWS_DEFAULT_REGION')
+    secret_key = get_environment_variable("AWS_SECRET_ACCESS_KEY")
+    access_id = get_environment_variable("AWS_ACCESS_KEY_ID")
+    region = get_environment_variable("AWS_DEFAULT_REGION")
     if not secret_key or not access_id or not region:
         return None
 
     return boto3.client(
-        'lambda',  # type: ignore
+        "lambda",  # type: ignore
         aws_access_key_id=access_id,
         aws_secret_access_key=secret_key,
-        region_name=region)
+        region_name=region,
+    )
 
 
 class BaseRequest(BaseModel):
     """Base model for request objects with connection mode."""
-    mode: Optional[Literal['dev', 'prod']] = 'prod'
+
+    mode: Optional[Literal["dev", "prod"]] = "prod"
 
 
 class ResponseObject(BaseModel):
     """Base model for response objects."""
+
     statusCode: int
     headers: Dict[str, str]
     body: str
@@ -43,6 +47,7 @@ class ResponseObject(BaseModel):
 
 class ErrorResponseObject(BaseModel):
     """Base model for error response objects."""
+
     errorMessage: str
     errorType: str
     stackTrace: List[str]
@@ -72,14 +77,14 @@ class LambdaClient:
         try:
             response = self.__client.invoke(
                 FunctionName=name,
-                InvocationType='RequestResponse',
-                Payload=request.model_dump_json().encode('utf-8'),
+                InvocationType="RequestResponse",
+                Payload=request.model_dump_json().encode("utf-8"),
                 LogType="None",
             )
         except ClientError as error:
             raise LambdaInvocationError(str(error)) from error
 
-        payload = response['Payload'].read()
+        payload = response["Payload"].read()
         try:
             return ResponseObject.model_validate_json(payload)
         except ValidationError:

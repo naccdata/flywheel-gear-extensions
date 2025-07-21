@@ -7,11 +7,17 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+import flywheel
 from centers.nacc_group import NACCGroup
 from flywheel.client import Client
+from flywheel.models.acquisition import Acquisition
+from flywheel.models.file_entry import FileEntry
+from flywheel.models.project import Project
+from flywheel.models.subject import Subject
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
-from fw_client import FWClient
+from fw_client.client import FWClient
 from inputs.parameter_store import ParameterError, ParameterStore
 
 log = logging.getLogger(__name__)
@@ -31,9 +37,9 @@ class ClientWrapper:
 
     def get_proxy(self) -> FlywheelProxy:
         """Returns a proxy object for this client object."""
-        return FlywheelProxy(client=self.__client,
-                             fw_client=self.__fw_client,
-                             dry_run=self.__dry_run)
+        return FlywheelProxy(
+            client=self.__client, fw_client=self.__fw_client, dry_run=self.__dry_run
+        )
 
     def set_fw_client(self, fw_client: FWClient) -> None:
         """Sets the FWClient needed by some proxy methods.
@@ -83,8 +89,9 @@ class ContextClient:
         if not context.client:
             raise GearExecutionError("Flywheel client required")
 
-        return ClientWrapper(client=context.client,
-                             dry_run=context.config.get("dry_run", False))
+        return ClientWrapper(
+            client=context.client, dry_run=context.config.get("dry_run", False)
+        )
 
 
 # pylint: disable=too-few-public-methods
@@ -93,8 +100,9 @@ class GearBotClient:
     client."""
 
     @classmethod
-    def create(cls, context: GearToolkitContext,
-               parameter_store: Optional[ParameterStore]) -> ClientWrapper:
+    def create(
+        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+    ) -> ClientWrapper:
         """Creates a GearBotClient wrapper object from the context and
         parameter store.
 
@@ -121,44 +129,72 @@ class GearBotClient:
 
         assert parameter_store, "Parameter store expected"
         try:
-            api_key = parameter_store.get_api_key(
-                path_prefix=apikey_path_prefix)
+            api_key = parameter_store.get_api_key(path_prefix=apikey_path_prefix)
         except ParameterError as error:
             raise GearExecutionError(error) from error
 
         host = default_client.host
-        if api_key.split(':')[0] not in host:
-            raise GearExecutionError('Gearbot API key does not match host')
+        if api_key.split(":")[0] not in host:
+            raise GearExecutionError("Gearbot API key does not match host")
 
-        return ClientWrapper(client=Client(api_key),
-                             dry_run=default_client.dry_run)
+        return ClientWrapper(client=Client(api_key), dry_run=default_client.dry_run)
 
 
 class InputFileWrapper:
     """Defines a gear execution visitor that takes an input file."""
 
-    def __init__(self, file_input: Dict[str, Dict[str, Any]]) -> None:
+    def __init__(self, file_input: Dict[str, Any]) -> None:
         self.file_input = file_input
+
+    def file_entry(self, context: GearToolkitContext) -> FileEntry:
+        file_hierarchy = self.file_input.get("hierarchy")
+        assert file_hierarchy
+        container = context.get_container_from_ref(file_hierarchy)
+        assert isinstance(container, (Acquisition, Subject, Project))
+        container = container.reload()
+        return container.get_file(self.filename)
+
+    def validate_file_extension(self, accepted_extensions: List[str]) -> Optional[str]:
+        """Check whether the input file type is accepted.
+
+        Args:
+            accepted_extensions: list of accepted file extensions
+
+        Returns:
+            Optional[str]: If accepted file type, return the file extension, else None
+        """
+        if not self.file_type:
+            return None
+
+        mimetype = self.file_type.lower()
+        for extension in accepted_extensions:
+            if mimetype.find(extension.lower()) != -1:
+                return extension.lower()
+
+            if self.filename.lower().endswith(f".{extension.lower()}"):
+                return extension.lower()
+
+        return None
 
     @property
     def file_id(self) -> str:
         """Returns the file ID."""
-        return self.file_input['object']['file_id']
+        return self.file_input["object"]["file_id"]
 
     @property
     def file_info(self) -> Dict[str, Any]:
         """Returns the file object info (metadata)."""
-        return self.file_input['object']['info']
+        return self.file_input["object"]["info"]
 
     @property
     def file_qc_info(self) -> Dict[str, Any]:
         """Returns the QC object in the file info."""
-        return self.file_info.get('qc', {})
+        return self.file_info.get("qc", {})
 
     @property
     def filename(self) -> str:
         """Returns the file name."""
-        return self.file_input['location']['name']
+        return self.file_input["location"]["name"]
 
     @property
     def basename(self) -> str:
@@ -169,16 +205,17 @@ class InputFileWrapper:
     @property
     def filepath(self) -> str:
         """Returns the file path."""
-        return self.file_input['location']['path']
+        return self.file_input["location"]["path"]
 
     @property
     def file_type(self) -> str:
         """Returns the mimetype."""
-        return self.file_input['object']['mimetype']
+        return self.file_input["object"]["mimetype"]
 
     @classmethod
-    def create(cls, input_name: str,
-               context: GearToolkitContext) -> Optional['InputFileWrapper']:
+    def create(
+        cls, input_name: str, context: GearToolkitContext
+    ) -> Optional["InputFileWrapper"]:
         """Creates the named InputFile.
 
         Will return None if the named input is optional and no file is given.
@@ -192,18 +229,19 @@ class InputFileWrapper:
           GearExecutionError if there is no input with the name
         """
         file_input = context.get_input(input_name)
-        is_optional = context.manifest.get("inputs",
-                                           {}).get(input_name,
-                                                   {}).get("optional", False)
+        is_optional = (
+            context.manifest.get("inputs", {})
+            .get(input_name, {})
+            .get("optional", False)
+        )
 
         if not file_input:
             if is_optional:
                 return None
-            raise GearExecutionError(f'Missing input file {input_name}')
+            raise GearExecutionError(f"Missing input file {input_name}")
 
         if file_input["base"] != "file":
-            raise GearExecutionError(
-                f"The specified input {input_name} is not a file")
+            raise GearExecutionError(f"The specified input {input_name} is not a file")
 
         return InputFileWrapper(file_input=file_input)
 
@@ -211,7 +249,7 @@ class InputFileWrapper:
         """Gets the QC validation objects from the file QC info."""
         result = []
         for gear_object in self.file_qc_info.values():
-            validation_object = gear_object.get('validation', {})
+            validation_object = gear_object.get("validation", {})
             if validation_object:
                 result.append(validation_object)
         return result
@@ -220,22 +258,63 @@ class InputFileWrapper:
         """Check the QC validation objects in the file QC info for failures."""
         validation_objects = self.get_validation_objects()
         for validation_object in validation_objects:
-            if validation_object['state'] == 'FAIL':
+            if validation_object["state"] == "FAIL":
                 return True
         return False
 
-    def get_module_name_from_file_suffix(self) -> Optional[str]:
+    def get_module_name_from_file_suffix(
+        self,
+        separator: str = "-",
+        allowed: str = "a-z_",
+        extension: str = "csv",
+        split: Optional[str] = "_",
+    ) -> Optional[str]:
         """Get the module name from file suffix.
+
+        Args:
+            separator: suffix separator, defaults to "-".
+            allowed: characters allowed in suffix, defaults to "a-z_".
+            extension: file extension, defaults to "csv"
+            split (optional): character to split the suffix, defaults to '_'.
+                            (set to None if not required)
 
         Returns:
             str(optional): module name if a match found, else None
         """
         module = None
-        pattern = '^.*(-|_)([a-z]*)\\.(csv|json)$'
+        pattern = f"^.*{separator}([{allowed}]*)\\.{extension}$"
         if match := re.search(pattern, self.filename, re.IGNORECASE):
-            module = match.group(2)
+            file_suffix = match.group(1)
+            if file_suffix:
+                # remove any extra suffixes added by previous gears
+                module = file_suffix.split(split)[0] if split else file_suffix
 
         return module
+
+    def get_parent_project(
+        self, proxy: FlywheelProxy, file: Optional[FileEntry] = None
+    ) -> flywheel.Project:
+        """Gets the parent project that owns this file.
+
+        Args:
+            proxy: The Flywheel proxy
+            file: (optional) the Flywheel FileEntry representing this file
+        """
+        if not file:
+            try:
+                file = proxy.get_file(self.file_id)
+            except ApiException as error:
+                raise GearExecutionError(
+                    f"Failed to find the input file: {error}"
+                ) from error
+
+        project = proxy.get_project_by_id(file.parents.project)
+        if not project:
+            raise GearExecutionError(
+                f"Failed to find the project with ID {file.parents.project}"
+            )
+
+        return project
 
 
 # pylint: disable=too-few-public-methods
@@ -276,9 +355,8 @@ class GearExecutionEnvironment(ABC):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore]
-    ) -> 'GearExecutionEnvironment':
+        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+    ) -> "GearExecutionEnvironment":
         """Creates an execution environment object from the context and
         parameter store.
 
@@ -294,7 +372,7 @@ class GearExecutionEnvironment(ABC):
 
 
 # TODO: remove type ignore when using python 3.12 or above
-E = TypeVar('E', bound=GearExecutionEnvironment)  # type: ignore
+E = TypeVar("E", bound=GearExecutionEnvironment)  # type: ignore
 
 
 # pylint: disable=too-few-public-methods
@@ -305,7 +383,7 @@ class GearEngine:
         self.parameter_store = parameter_store
 
     @classmethod
-    def create_with_parameter_store(cls) -> 'GearEngine':
+    def create_with_parameter_store(cls) -> "GearEngine":
         """Creates a GearEngine with a parameter store defined from environment
         variables.
 
@@ -319,7 +397,8 @@ class GearEngine:
             parameter_store = ParameterStore.create_from_environment()
         except ParameterError as error:
             raise GearExecutionError(
-                f'Unable to create Parameter Store: {error}') from error
+                f"Unable to create Parameter Store: {error}"
+            ) from error
 
         return GearEngine(parameter_store=parameter_store)
 
@@ -338,8 +417,35 @@ class GearEngine:
                 context.init_logging()
                 context.log_config()
                 visitor = gear_type.create(
-                    context=context, parameter_store=self.parameter_store)
+                    context=context, parameter_store=self.parameter_store
+                )
                 visitor.run(context)
         except GearExecutionError as error:
-            log.error('Error: %s', error)
+            log.error("Error: %s", error)
             sys.exit(1)
+
+
+def get_project_from_destination(
+    context: GearToolkitContext, proxy: FlywheelProxy
+) -> flywheel.Project:
+    """Gets parent project from destination container."""
+
+    try:
+        destination = context.get_destination_container()
+    except ApiException as error:
+        raise GearExecutionError(
+            f"Cannot find destination container: {error}"
+        ) from error
+    if destination.container_type != "analysis":  # type: ignore
+        raise GearExecutionError("Expect destination to be an analysis object")
+
+    parent_id = destination.parents.get("project")  # type: ignore
+    if not parent_id:
+        raise GearExecutionError(
+            f"Cannot find parent project for: {destination.id}"  # type: ignore
+        )
+    fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
+    if not fw_project:
+        raise GearExecutionError("Destination project not found")
+
+    return fw_project

@@ -1,4 +1,5 @@
 """Defines class for handling tabular data that needs to be split by site."""
+
 import logging
 import re
 from io import StringIO
@@ -18,14 +19,15 @@ class SiteTable:
     named ADCID or SITE.
     """
 
-    def __init__(self, *, data: pd.DataFrame, site_id_column: str,
-                 site_map: Dict[str, str]) -> None:
+    def __init__(
+        self, *, data: pd.DataFrame, site_id_column: str, site_map: Dict[str, str]
+    ) -> None:
         self.__data_table = data
         self.__site_column = site_id_column
         self.__site_map = site_map
 
     @classmethod
-    def create_from(cls, object_data: StringIO) -> Optional['SiteTable']:
+    def create_from(cls, object_data: StringIO) -> Optional["SiteTable"]:
         """Creates table object and recognizes which column is used for site
         ID.
 
@@ -34,19 +36,19 @@ class SiteTable:
         Returns:
           a wrapper object for the data frame or None if no center id column
         """
-        table_data = pd.read_csv(object_data)
+        table_data = pd.read_csv(object_data, dtype=object)
 
-        if 'ADCID' in table_data.columns:
-            site_id_name = 'ADCID'
-        elif 'SITE' in table_data.columns:
-            site_id_name = 'SITE'
+        if "ADCID" in table_data.columns:
+            site_id_name = "ADCID"
+        elif "SITE" in table_data.columns:
+            site_id_name = "SITE"
         else:
             return None
 
         site_ids = table_data[site_id_name].to_list()
         site_map = {}
         for site_key in site_ids:
-            if site_id_name == 'ADCID':
+            if site_id_name == "ADCID":
                 adcid = str(site_key)
             else:
                 match = re.search(r"([^(]+)\(ADC\s?(\d+)\)", site_key)
@@ -55,9 +57,9 @@ class SiteTable:
                 adcid = match.group(2).strip()
             site_map[adcid] = site_key
 
-        return SiteTable(data=table_data,
-                         site_id_column=site_id_name,
-                         site_map=site_map)
+        return SiteTable(
+            data=table_data, site_id_column=site_id_name, site_map=site_map
+        )
 
     def get_adcids(self) -> Set[str]:
         """Returns the set of ADCIDs for data in the table.
@@ -79,14 +81,19 @@ class SiteTable:
         if not site_id:
             return None
 
-        site_table = self.__data_table.loc[self.__data_table[
-            self.__site_column] == site_id]
+        site_table = self.__data_table.loc[
+            self.__data_table[self.__site_column] == site_id
+        ]
         return site_table.to_csv(index=False)
 
 
-def upload_split_table(*, table: SiteTable,
-                       project_map: Dict[str, Optional[ProjectAdaptor]],
-                       file_name: str, dry_run: bool) -> None:
+def upload_split_table(
+    *,
+    table: SiteTable,
+    project_map: Dict[str, Optional[ProjectAdaptor]],
+    file_name: str,
+    dry_run: bool,
+) -> None:
     """Splits the site table by ADCID and uploads partitions to a project.
 
     Args:
@@ -95,20 +102,24 @@ def upload_split_table(*, table: SiteTable,
     """
     for adcid, project in project_map.items():
         if not project:
-            log.warning('No project for ADCID %s', adcid)
+            log.warning("No project for ADCID %s", adcid)
             continue
 
         site_table = table.select_site(adcid)
         if not site_table:
-            log.error('Unable to select site data for ADCID %s', adcid)
+            log.error("Unable to select site data for ADCID %s", adcid)
             continue
 
         if dry_run:
-            log.info('Dry run: would upload file %s to  %s/%s', file_name,
-                     project.group, project.label)
+            log.info(
+                "Dry run: would upload file %s to  %s/%s",
+                file_name,
+                project.group,
+                project.label,
+            )
             continue
 
-        file_spec = FileSpec(name=file_name,
-                             contents=site_table,
-                             content_type='text/csv')
+        file_spec = FileSpec(
+            name=file_name, contents=site_table, content_type="text/csv"
+        )
         project.upload_file(file_spec)

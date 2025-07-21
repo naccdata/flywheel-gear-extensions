@@ -1,7 +1,7 @@
 """Defines center management computation."""
 
 import logging
-from typing import List
+from typing import Dict, List
 
 from centers.center_group import CenterGroup
 from centers.center_info import CenterInfo
@@ -12,8 +12,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 log = logging.getLogger(__name__)
 
 
-def get_project_roles(flywheel_proxy,
-                      role_names: List[str]) -> List[GroupRole]:
+def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
     """Get the named roles.
 
     Returns all roles matching a name in the list.
@@ -30,36 +29,41 @@ def get_project_roles(flywheel_proxy,
         if role:
             role_list.append(GroupRole(id=role.id))
         else:
-            log.warning('no such role %s', name)
+            log.warning("no such role %s", name)
     return role_list
 
 
-def run(*,
-        proxy: FlywheelProxy,
-        admin_group: NACCGroup,
-        center_list: List[CenterInfo],
-        role_names: List[str],
-        new_only: bool = False):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    admin_group: NACCGroup,
+    center_map: Dict[CenterInfo, List[str]],
+    role_names: List[str],
+    new_only: bool = False,
+):
     """Runs center creation/management.
 
     Args:
       proxy: the proxy for the Flywheel instance
       admin_group: the administrative group
-      center_list: the list of center objects
+      center_map: map of CenterInfo objects to optional list of tags
       role_names: list of project role names
       new_only: whether to only create centers with new tag
     """
     center_roles = get_project_roles(proxy, role_names)
 
-    for center in center_list:
-        if new_only and 'new-center' not in center.tags:  # type: ignore
-            log.info(f"new_only set to True and {center.name} does not " +
-                     "have `new-center` tag, skipping")
+    for center, tags in center_map.items():
+        if new_only and "new-center" not in tags:
+            log.info(
+                f"new_only set to True and {center.name} does not "
+                + "have `new-center` tag, skipping"
+            )
             continue
 
         try:
-            center_group = CenterGroup.create_from_center(center=center,
-                                                          proxy=proxy)
+            center_group = CenterGroup.create_from_center(
+                center=center, tags=tags, proxy=proxy
+            )
         except FlywheelError as error:
             log.warning("Unable to create center: %s", str(error))
             continue

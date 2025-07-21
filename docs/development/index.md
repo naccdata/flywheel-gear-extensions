@@ -169,6 +169,11 @@ The build is managed using [Pants](https://www.pantsbuild.org), and the gear can
 pants package src/docker::
 ```
 
+If you are building on macOS and get a permissions error for a cache file, you can set write permissions for the file in the error and rerun the package command.
+This error seems to be a bug related to the VirtioFS of the Docker virtual machine.
+A suggested alternative from pants is to setting the file sharing to gRPC FUSE.
+This setting is Docker Desktop under Settings/General/Virtual Machine Options.
+
 If you are building/running on macOS with an Apple Silicon chip, building a docker image with the correct architecture is a bit more involved. The following was added to the root BUILD file to support this, so should also handle all the gear builds, but you can update/change how its done for your specific gear.
 
 ```
@@ -286,8 +291,9 @@ fw-beta gear config -i <key-value-assignment> <project-dir>/src/docker
 
 where `<key-value-assignment>` should be of the form `key=value` using a key from the manifest.
 
-If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly.
-In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+> If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly. In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+
+> Similarly, If you want to use a file that already exists in Flywheel (which you will probably want to if your gear pulls metadata from Flywheel such as the project context or file.info) it is easiest to set the input value using a dummy file and replace the file metadata manually. At minimum this means ensuring `file_id` is set, which you can look up with the Flywheel SDK.
 
 Consult `fw-beta gear config --help` for details on the command.
 

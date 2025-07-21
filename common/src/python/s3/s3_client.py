@@ -1,7 +1,8 @@
 """Utilities for using S3 client."""
+
 import logging
 from io import StringIO
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import boto3
 from botocore.config import Config
@@ -38,16 +39,23 @@ class S3BucketReader:
         """Expose name of bucket."""
         return self.__bucket
 
+    def get_file_object(self, filename: str) -> Dict[str, Any]:
+        """Get the file object.
+
+        Args:
+            filename: name of file
+        """
+        return self.__client.get_object(Bucket=self.__bucket, Key=filename)
+
     def read_data(self, filename: str) -> StringIO:
         """Reads the file object from S3 with bucket name and file name.
 
         Args:
-        file_name: name of file
+            filename: name of file
         """
 
-        file_obj = self.__client.get_object(Bucket=self.__bucket, Key=filename)
-
-        return StringIO(file_obj['Body'].read().decode('utf-8'))
+        file_obj = self.get_file_object(filename)
+        return StringIO(file_obj["Body"].read().decode("utf-8"))
 
     def read_directory(self, prefix: str) -> dict[str, dict]:
         """Retrieve all file objects from the directory specified by the prefix
@@ -60,25 +68,25 @@ class S3BucketReader:
         """
 
         file_objects = {}
-        paginator = self.__client.get_paginator('list_objects_v2')
+        paginator = self.__client.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
         for page in pages:
-            if 'Contents' not in page:
+            if "Contents" not in page:
                 continue
 
-            for s3_obj_info in page['Contents']:
+            for s3_obj_info in page["Contents"]:
                 # Skip paths ending in /
-                if not s3_obj_info['Key'].endswith('/'):
-                    s3_obj = self.__client.get_object(Bucket=self.bucket_name,
-                                                      Key=s3_obj_info['Key'])
+                if not s3_obj_info["Key"].endswith("/"):
+                    s3_obj = self.__client.get_object(
+                        Bucket=self.bucket_name, Key=s3_obj_info["Key"]
+                    )
                     if s3_obj:
-                        file_objects[s3_obj_info['Key']] = s3_obj
+                        file_objects[s3_obj_info["Key"]] = s3_obj
 
         return file_objects
 
     @classmethod
-    def create_from(cls,
-                    parameters: S3Parameters) -> Optional['S3BucketReader']:
+    def create_from(cls, parameters: S3Parameters) -> Optional["S3BucketReader"]:
         """Returns the bucket reader using the access credentials in the
         parameters object.
 
@@ -89,19 +97,17 @@ class S3BucketReader:
         """
 
         client = boto3.client(
-            's3',
-            aws_access_key_id=parameters['accesskey'],
-            aws_secret_access_key=parameters['secretkey'],
-            region_name=parameters['region'],
-            config=Config(
-                max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS))
+            "s3",
+            aws_access_key_id=parameters["accesskey"],
+            aws_secret_access_key=parameters["secretkey"],
+            region_name=parameters["region"],
+            config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
+        )
 
-        return S3BucketReader(boto_client=client,
-                              bucket_name=parameters['bucket'])
+        return S3BucketReader(boto_client=client, bucket_name=parameters["bucket"])
 
     @classmethod
-    def create_from_environment(cls,
-                                s3bucket: str) -> Optional['S3BucketReader']:
+    def create_from_environment(cls, s3bucket: str) -> Optional["S3BucketReader"]:
         """Returns the bucket reader using the gearbot access credentials
         stored in the environment variables. Use this method only if nacc-
         flywheel-gear user has access to the specified S3 bucket.
@@ -112,16 +118,16 @@ class S3BucketReader:
           the S3BucketReader
         """
 
-        secret_key = get_environment_variable('AWS_SECRET_ACCESS_KEY')
-        access_id = get_environment_variable('AWS_ACCESS_KEY_ID')
-        region = get_environment_variable('AWS_DEFAULT_REGION')
+        secret_key = get_environment_variable("AWS_SECRET_ACCESS_KEY")
+        access_id = get_environment_variable("AWS_ACCESS_KEY_ID")
+        region = get_environment_variable("AWS_DEFAULT_REGION")
 
         client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=access_id,
             aws_secret_access_key=secret_key,
             region_name=region,
-            config=Config(
-                max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS))
+            config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
+        )
 
         return S3BucketReader(boto_client=client, bucket_name=s3bucket)

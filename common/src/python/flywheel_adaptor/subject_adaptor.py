@@ -15,7 +15,7 @@ from flywheel.rest import ApiException
 from keys.keys import FieldNames, MetadataKeys
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
-from utils.utils import is_duplicate_record
+from uploads.acquisition import upload_to_acquisition
 
 log = logging.getLogger(__name__)
 
@@ -25,57 +25,70 @@ class SubjectError(Exception):
 
 
 class VisitInfo(BaseModel):
-    """Class to represent file information for a particpant visit."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+    """Class to represent file information for a participant visit."""
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     filename: str
     file_id: Optional[str] = None  # Flywheel File ID
     visitdate: str = Field(pattern=DATE_PATTERN)
+    visitnum: Optional[str] = None
+    validated_timestamp: Optional[str] = None
 
 
 class ParticipantVisits(BaseModel):
     """Class to represent visits for a given participant for a given module."""
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     participant: str  # Flywheel subject label
-    module: str  # module label (Flywheel aquisition label)
+    module: str  # module label (Flywheel acquisition label)
     visits: List[VisitInfo]
 
     @classmethod
     def create_from_visit_data(
-            cls, *, filename: str, file_id: str,
-            input_record: Dict[str, Any]) -> "ParticipantVisits":
+        cls,
+        *,
+        filename: str,
+        file_id: str,
+        input_record: Dict[str, Any],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
+    ) -> "ParticipantVisits":
         """Create from input data and visit file details.
 
         Args:
-            filename: Flywheel aquisition file name
-            file_id: Flywheel aquisition file ID
+            filename: Flywheel acquisition file name
+            file_id: Flywheel acquisition file ID
             input_record: input visit data
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
 
         Returns:
             ParticipantVisits object
         """
-        visit_info = VisitInfo(filename=filename,
-                               file_id=file_id,
-                               visitdate=input_record[FieldNames.DATE_COLUMN])
+        visit_info = VisitInfo(
+            filename=filename,
+            file_id=file_id,
+            visitdate=input_record[visitdate_key],
+        )
         return ParticipantVisits(
             participant=input_record[FieldNames.NACCID],
             module=input_record[FieldNames.MODULE].upper(),
-            visits=[visit_info])
+            visits=[visit_info],
+        )
 
     def add_visit(self, *, filename: str, file_id: str, visitdate: str):
         """Add a new visit to the list of visits for this participant.
 
         Args:
-            filename: Flywheel aquisition file name
-            file_id: Flywheel aquisition file ID
+            filename: Flywheel acquisition file name
+            file_id: Flywheel acquisition file ID
             visitdate: visit date
         """
-        visit_info = VisitInfo(filename=filename,
-                               file_id=file_id,
-                               visitdate=visitdate)
+        visit_info = VisitInfo(filename=filename, file_id=file_id, visitdate=visitdate)
         self.visits.append(visit_info)
 
 
@@ -136,7 +149,7 @@ class SubjectAdaptor:
           Session container or None
         """
 
-        return self.sessions.find_first(f'label={label}')
+        return self.sessions.find_first(f"label={label}")
 
     def update(self, info: Dict[str, Any]) -> None:
         """Updates the info object for this subject.
@@ -150,7 +163,7 @@ class SubjectAdaptor:
         """Returns the last failed visit for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
 
         Returns:
             Optional[VisitInfo]: Last failed visit if exists
@@ -167,14 +180,16 @@ class SubjectAdaptor:
         try:
             return VisitInfo.model_validate(last_failed)
         except ValidationError as error:
-            raise SubjectError('Incomplete failed visit metadata for subject '
-                               f'{self.label}/{module} - {error}') from error
+            raise SubjectError(
+                "Incomplete failed visit metadata for subject "
+                f"{self.label}/{module} - {error}"
+            ) from error
 
     def set_last_failed_visit(self, module: str, failed_visit: VisitInfo):
         """Update last failed visit info for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
             failed_visit: failed visit info
         """
 
@@ -189,7 +204,7 @@ class SubjectAdaptor:
         """Reset last failed visit info for this subject for the given module.
 
         Args:
-            module: module label (Flywheel aquisition label)
+            module: module label (Flywheel acquisition label)
         """
 
         # make sure to load the existing metadata first and then modify
@@ -198,7 +213,7 @@ class SubjectAdaptor:
         module_info[MetadataKeys.FAILED] = {}
         updates = {module: module_info}
         # Note: have to use update_info() here for reset to take effect
-        # Using update() will not delete any exsisting data
+        # Using update() will not delete any existing data
         self._subject.update_info(updates)
 
     def upload_file(self, file_spec: FileSpec) -> Optional[List[Dict]]:
@@ -217,18 +232,19 @@ class SubjectAdaptor:
             return self._subject.upload_file(file_spec)
         except ApiException as error:
             raise SubjectError(
-                f'Failed to upload file {file_spec.name} to {self.label} - {error}'
+                f"Failed to upload file {file_spec.name} to {self.label} - {error}"
             ) from error
 
     def upload_acquisition_file(
-            self,
-            *,
-            session_label: str,
-            acquisition_label: str,
-            filename: str,
-            contents: str,
-            content_type: str,
-            skip_duplicates: bool = True) -> Optional[FileEntry]:
+        self,
+        *,
+        session_label: str,
+        acquisition_label: str,
+        filename: str,
+        contents: str,
+        content_type: str,
+        skip_duplicates: bool = True,
+    ) -> Optional[FileEntry]:
         """Uploads a file to a given session/acquisition in this subject.
         Creates new containers if session/acquisition does not exist.
 
@@ -244,62 +260,81 @@ class SubjectAdaptor:
             FileEntry(optional): Flywheel container for the newly uploaded file or None
 
         Raises:
-            SubjectError: if any error occurred while upload
+            ApiException: if any error occurred while upload
         """
 
         session = self.find_session(session_label)
         if not session:
             log.info(
-                'Session %s does not exist in subject %s, creating a new session',
-                session_label, self.label)
+                "Session %s does not exist in subject %s, creating a new session",
+                session_label,
+                self.label,
+            )
             session = self.add_session(session_label)
 
-        acquisition = session.acquisitions.find_first(
-            f'label={acquisition_label}')
+        acquisition = session.acquisitions.find_first(f"label={acquisition_label}")
         if not acquisition:
             log.info(
-                'Acquisition %s does not exist in session %s, '
-                'creating a new acquisition', acquisition_label, session_label)
+                "Acquisition %s does not exist in session %s, "
+                "creating a new acquisition",
+                acquisition_label,
+                session_label,
+            )
             acquisition = session.add_acquisition(label=acquisition_label)
 
-        if skip_duplicates:
-            existing_file = acquisition.get_file(filename)
-            if existing_file and is_duplicate_record(
-                    contents, existing_file.read(), content_type):
-                log.warning('Duplicate file %s already exists at %s/%s/%s',
-                            filename, self.label, session_label,
-                            acquisition_label)
-                return None
+        return upload_to_acquisition(
+            acquisition=acquisition,
+            filename=filename,
+            contents=contents,
+            content_type=content_type,
+            subject_label=self.label,
+            session_label=session_label,
+            acquisition_label=acquisition_label,
+            skip_duplicates=skip_duplicates,
+        )
 
-        record_file_spec = FileSpec(name=filename,
-                                    contents=contents,
-                                    content_type=content_type)
-
-        try:
-            acquisition.upload_file(record_file_spec)
-            acquisition = acquisition.reload()
-            return acquisition.get_file(filename)
-        except ApiException as error:
-            raise SubjectError(
-                f'Failed to upload file {filename} to '
-                f'{self.label}/{session_label}/{acquisition_label}: {error}'
-            ) from error
-
-    def get_acquisition_file_name(self,
-                                  *,
-                                  session: str,
-                                  acquisition: str,
-                                  extension: Optional[str] = 'json',
-                                  connector: Optional[str] = '_') -> str:
+    def get_acquisition_file_name(
+        self,
+        *,
+        session: str,
+        acquisition: str,
+        extension: Optional[str] = "json",
+        connector: Optional[str] = "_",
+    ) -> str:
         """Generate filename in desired format.
 
         Args:
             session_label: Flywheel session label
             acquisition_label: Flywheel acquisition label
             extension (optional): file extension. Defaults to 'json'.
-            connector (optional): connecting charactor, Defauts to '_'
+            connector (optional): connecting character, Defaults to '_'
 
         Returns:
             str: generated filename
         """
-        return f'{self.label}{connector}{session}{connector}{acquisition}.{extension}'
+        return f"{self.label}{connector}{session}{connector}{acquisition}.{extension}"
+
+    def find_acquisition_file(
+        self, *, session_label: str, acquisition_label: str, filename: str
+    ) -> Optional[FileEntry]:
+        """Find a file matches with given session/acquisition/filename in this
+        subject.
+
+        Args:
+            session_label: Flywheel session label
+            acquisition_label: Flywheel acquisition label
+            filename: file name
+
+        Returns:
+            FileEntry(optional): Flywheel container for the file or None
+        """
+
+        session = self.find_session(session_label)
+        if not session:
+            return None
+
+        acquisition = session.acquisitions.find_first(f"label={acquisition_label}")
+        if not acquisition:
+            return None
+
+        return acquisition.get_file(filename)
