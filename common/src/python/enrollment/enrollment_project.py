@@ -29,7 +29,7 @@ class TransferInfo(BaseModel):
         self.transfers = self.transfers if self.transfers else []
         self.transfers.append(record)
 
-    def merge(self, transfer_info: 'TransferInfo') -> None:
+    def merge(self, transfer_info: "TransferInfo") -> None:
         """Merges the records into this object."""
         # TODO: decide if OK to have duplicates
         for record in transfer_info.transfers:
@@ -41,7 +41,7 @@ class EnrollmentProject(ProjectAdaptor):
     center."""
 
     @classmethod
-    def create_from(cls, project: ProjectAdaptor) -> 'EnrollmentProject':
+    def create_from(cls, project: ProjectAdaptor) -> "EnrollmentProject":
         """Converts the project adaptor to an enrollment project.
 
         Args:
@@ -70,7 +70,8 @@ class EnrollmentProject(ProjectAdaptor):
         except ValidationError as error:
             raise EnrollmentError(
                 f"{MetadataKeys.TRANSFERS} metadata in {self.group}/{self.label} "
-                "does not match expected format") from error
+                "does not match expected format"
+            ) from error
 
     def update_transfer_info(self, transfer_info: TransferInfo) -> None:
         """Updates the transfer information for this project.
@@ -78,8 +79,7 @@ class EnrollmentProject(ProjectAdaptor):
         Args:
           transfer_info: the transfer records for this project
         """
-        self.update_info(
-            transfer_info.model_dump(by_alias=True, exclude_none=True))
+        self.update_info(transfer_info.model_dump(by_alias=True, exclude_none=True))
 
     def add_transfers(self, transfers: TransferInfo) -> None:
         """Adds the transfers in the info object to this project.
@@ -100,5 +100,4 @@ class EnrollmentProject(ProjectAdaptor):
         Returns:
           the new subject
         """
-        return EnrollmentSubject.create_from(
-            subject=super().add_subject(label))
+        return EnrollmentSubject.create_from(subject=super().add_subject(label))

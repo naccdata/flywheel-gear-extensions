@@ -2,7 +2,7 @@
     "name": "form-screening",
     "label": "Form Screening",
     "description": "Screens input files and queue for the form-scheduler gear",
-    "version": "1.0.3",
+    "version": "1.2.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-screening:1.0.3"
+            "image": "naccdata/form-screening:1.2.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -27,11 +27,12 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "The input file",
+            "description": "The input file to screen",
             "base": "file",
             "type": {
                 "enum": [
-                    "tabular data"
+                    "tabular data",
+                    "source code"
                 ]
             }
         },
@@ -54,12 +55,16 @@
         "accepted_modules": {
             "description": "Comma-delimited list of accepted modules",
             "type": "string",
-            "default": "ENROLL,UDS,FTLD,LBD"
+            "default": "UDS,FTLD,LBD"
         },
-        "queue_tags": {
-            "description": "Comma-delimited list of queue tags to add",
+        "file_tags": {
+            "description": "Comma-delimited list of tags to add to the file or check whether already tagged",
             "type": "string",
             "default": "queued"
+        },
+        "format_and_tag": {
+            "description": "Whether to format the input file and add file_tags",
+            "type": "boolean"
         },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",

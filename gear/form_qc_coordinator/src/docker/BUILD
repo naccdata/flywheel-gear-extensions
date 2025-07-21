@@ -5,6 +5,7 @@ docker_image(
     source="Dockerfile",
     dependencies=[
         ":manifest",
-        "gear/form_qc_coordinator/src/python/form_qc_coordinator_app:bin"
+        "gear/form_qc_coordinator/src/python/form_qc_coordinator_app:bin",
     ],
-    image_tags=["1.0.1", "latest"])
+    image_tags=["1.2.2", "latest"],
+)

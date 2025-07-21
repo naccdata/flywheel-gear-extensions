@@ -1,4 +1,5 @@
 """Defines the Identifier data class."""
+
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, RootModel, field_validator
@@ -10,20 +11,23 @@ PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
 
 class GUIDField(BaseModel):
     """Base model for models with guid."""
+
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
 
 
 class ADCIDField(BaseModel):
     """Base model for models with adcid."""
+
     adcid: int = Field(ge=0)
 
 
 def clean_ptid(value: str) -> str:
-    return value.strip().lstrip('0')
+    return value.strip().lstrip("0")
 
 
 class CenterFields(ADCIDField):
     """Base model for models with center ids."""
+
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
 
     @field_validator("ptid", mode="before")
@@ -33,16 +37,19 @@ class CenterFields(ADCIDField):
 
 class NACCADCField(BaseModel):
     """Base model for models with naccadc."""
+
     naccadc: int = Field(ge=0)
 
 
 class NACCIDField(BaseModel):
     """Base model for models with naccid."""
+
     naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
 
 
 class OptionalNACCIDField(BaseModel):
     """Base model for models with optional naccid."""
+
     naccid: Optional[str] = Field(max_length=10, pattern=NACCID_PATTERN)
 
 
@@ -58,6 +65,7 @@ class IdentifierList(RootModel):
 
     Otherwise, basically acts like a list.
     """
+
     root: List[IdentifierObject]
 
     def __bool__(self) -> bool:
@@ -83,5 +91,6 @@ class CenterIdentifiers(CenterFields):
 
 class ParticipantIdentifiers(NACCIDField, GUIDField):
     """Model for participant identifiers."""
+
     center_identifiers: CenterIdentifiers
     aliases: Optional[List[str]]

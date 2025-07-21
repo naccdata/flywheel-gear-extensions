@@ -2,6 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.0.5
+
+* Adds delimiter option
+* Does not uppercase extensions
+
 ## 1.0.4
 
 * Changes JSONUploader to use the FW project-hierarchy-upsert API endpoint. This requires a device API key, which is stored in the AWS parameter store. So the gear must be run as a gearbot ("credentials condor") on FW. However, the gear does not use the gearbot API key.

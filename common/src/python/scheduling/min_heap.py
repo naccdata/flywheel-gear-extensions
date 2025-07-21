@@ -3,11 +3,10 @@ from typing import Generic, List, Optional, TypeVar
 
 from scheduling.comparable import Comparable
 
-T = TypeVar('T', bound=Comparable)
+T = TypeVar("T", bound=Comparable)
 
 
 class MinHeap(Generic[T]):
-
     def __init__(self) -> None:
         self.__minheap: List[T] = []
 

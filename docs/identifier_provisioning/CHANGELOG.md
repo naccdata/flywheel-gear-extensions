@@ -2,8 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.3
+## 1.2.5
+* Rebuild for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
 
+## 1.2.4
+* Adds ErrorLogTemplate
+* Strips leading zeros from PTID in error log name
+  
+## 1.2.3
 * Change handling of PTIDs so that are stripped of whitespace and leading zeros.
   
 ## 1.2.2

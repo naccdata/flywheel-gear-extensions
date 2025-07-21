@@ -2,6 +2,22 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.1
+* Catches and reports failure on non-UTF-8-compliant files (instead of crashing)
+
+## 1.2.0
+* Adds functionality for handling multiple pipelines (submission, finalization)
+
+## 1.1.2
+* Fixes a bug in saving error metadata
+  
+## 1.1.1
+* Adds CSV header validation - duplicate columns and empty columns
+* Checks whether the number of columns in data row matches the number of columns in header
+  
+## 1.1.0
+* Formats the input file: remove BOM, change headers to uppercase, remove REDCap specific columns
+  
 ## 1.0.3
 * Upgrades to dependencies
   

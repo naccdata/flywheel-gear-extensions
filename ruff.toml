@@ -11,5 +11,6 @@ target-version = "py311"
 select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818", "SLF001"]
 
 [lint.per-file-ignores]
-# TODO: cannot figure out how to fix this
+# TODO: confirm that this was a yapf/ruff conflict
 "common/src/python/curator/scheduling.py" = ["I001"]
+ "tests/*" = ["SLF001"]

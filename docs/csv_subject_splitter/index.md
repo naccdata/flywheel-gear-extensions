@@ -10,15 +10,18 @@ The labels for session and the file name are determined by the config input `hie
 {
     "session": {
         "template": "<template-text>",
-        "transform": "<transform-name>"
+        "transform": "<transform-name>",
+        "delimiter": "<delimiter>"
     },
     "acquisition": {
         "template": "<template-text>",
-        "transform": "<transform-name>"
+        "transform": "<transform-name>",
+        "delimiter": "<delimiter>"
     },
     "filename": {
         "template": "<template-text>",
-        "transform": "<transform-name>"
+        "transform": "<transform-name>",
+        "delimiter": "<delimiter>"
     }
 }
 ```
@@ -37,6 +40,8 @@ Reference the base of the original file name with `$filename` (e.g., for a file 
 
 Supported transforms are converting the whole label to upper or lower case.
 So, the allowed values are `upper` and `lower`.
+
+A delimiter is also supported; if provided, will replace all spaces in the hierarchy label with the specified string.
 
 As an example, suppose we are splitting biomarker data from a data release designated `2024-12`.
 Also, the data was collected with an assay designated `assay-01`, and we want to use the original filename except in lower case.

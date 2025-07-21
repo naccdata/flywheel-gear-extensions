@@ -15,12 +15,12 @@ def snakecase_ordinal(match: re.Match) -> str:
     prefix = match.group(1)
     suffix = match.group(2)
     if prefix.isalpha():
-        return f'{prefix}_{suffix}'
+        return f"{prefix}_{suffix}"
 
-    if re.search(r'^(ST|ND|RD|TH)$', suffix):
-        return f'{prefix}{suffix}'
+    if re.search(r"^(ST|ND|RD|TH)$", suffix):
+        return f"{prefix}{suffix}"
 
-    return f'{prefix}_{suffix}'
+    return f"{prefix}_{suffix}"
 
 
 def snakecase(word: str) -> str:
@@ -45,7 +45,7 @@ def snakecase(word: str) -> str:
     Returns:
       transformed string
     """
-    word = re.sub(r"([A-Z]+)([A-Z][a-z])", r'\1_\2', word)
+    word = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", word)
     word = re.sub(r"([a-z\d])([A-Z]+)", snakecase_ordinal, word)
     word = re.sub(r"[ \t]+", "_", word)
     word = word.replace("-", "_")

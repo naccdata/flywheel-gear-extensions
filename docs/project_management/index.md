@@ -68,6 +68,8 @@ Notes:
 
 4. Datatypes are strings used for creating ingest containers, and matching to sets of gear rules needed for handling ingest.
 
+5. Each project added under a center group will have `project.info.adcid` set to the ADCID of the center.
+
 
 ### Example
 

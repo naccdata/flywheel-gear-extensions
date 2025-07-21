@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -13,6 +12,8 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
+    get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
@@ -25,18 +26,28 @@ log = logging.getLogger(__name__)
 class AttributeCuratorVisitor(GearExecutionEnvironment):
     """Visitor for the UDS Curator gear."""
 
-    def __init__(self, client: ClientWrapper, project: ProjectAdaptor,
-                 filename_pattern: str):
+    def __init__(
+        self,
+        client: ClientWrapper,
+        project: ProjectAdaptor,
+        filename_pattern: str,
+        curation_tag: str,
+        force_curate: bool = False,
+        blacklist_file: Optional[InputFileWrapper] = None,
+    ):
         super().__init__(client=client)
         self.__project = project
         self.__filename_pattern = filename_pattern
+        self.__curation_tag = curation_tag
+        self.__force_curate = force_curate
+        self.__blacklist_file = blacklist_file
 
     @classmethod
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'AttributeCuratorVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "AttributeCuratorVisitor":
         """Creates a UDS Curator execution visitor.
 
         Args:
@@ -51,46 +62,55 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
-        filename_pattern = context.config.get('filename_pattern', "*.json")
+        blacklist_file = InputFileWrapper.create(
+            input_name="blacklist_file", context=context
+        )
 
-        try:
-            destination = context.get_destination_container()
-        except ApiException as error:
-            raise GearExecutionError(
-                f'Cannot find destination container: {error}') from error
-        if destination.container_type != 'analysis':  # type: ignore
-            raise GearExecutionError(
-                "Expect destination to be an analysis object")
+        filename_pattern = context.config.get("filename_pattern", "*.json")
+        curation_tag = context.config.get("curation_tag", "attribute-curator")
+        force_curate = context.config.get("force_curate", False)
 
-        parent_id = destination.parents.get('project')  # type: ignore
-        if not parent_id:
-            raise GearExecutionError(
-                f'Cannot find parent project for: {destination.id}'  # type: ignore
-            )
-        fw_project = proxy.get_project_by_id(parent_id)  # type: ignore
-        if not fw_project:
-            raise GearExecutionError("Destination project not found")
-
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        return AttributeCuratorVisitor(client=client,
-                                       project=project,
-                                       filename_pattern=filename_pattern)
+        if context.config.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
+        return AttributeCuratorVisitor(
+            client=client,
+            project=project,
+            filename_pattern=filename_pattern,
+            curation_tag=curation_tag,
+            force_curate=force_curate,
+            blacklist_file=blacklist_file,
+        )
 
     def run(self, context: GearToolkitContext) -> None:
-        log.info("Curating project: %s/%s", self.__project.group,
-                 self.__project.label)
+        log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         deriver = AttributeDeriver()
+
+        blacklist = None
+        if self.__blacklist_file:
+            with open(self.__blacklist_file.filepath, mode="r") as fh:
+                blacklist = [x.strip() for x in fh.readlines()]
 
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern)
+                filename_pattern=self.__filename_pattern,
+                blacklist=blacklist,
+            )
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        run(context=context, deriver=deriver, scheduler=scheduler)
+        run(
+            context=context,
+            deriver=deriver,
+            scheduler=scheduler,
+            curation_tag=self.__curation_tag,
+            force_curate=self.__force_curate,
+        )
 
 
 def main():

@@ -1,4 +1,5 @@
 """Tests for projects.*"""
+
 from typing import Optional
 
 import pytest
@@ -28,29 +29,33 @@ class TestStudy:
 
     def test_object(self):
         """Tests for object creation."""
-        project = Study(name="Project Alpha",
-                        study_id='project-alpha',
-                        centers=['ac'],
-                        datatypes=['dicom'],
-                        mode='aggregation',
-                        published=True,
-                        primary=True)
+        project = Study(
+            name="Project Alpha",
+            study_id="project-alpha",
+            centers=["ac"],
+            datatypes=["dicom"],
+            mode="aggregation",
+            published=True,
+            primary=True,
+        )
         assert project.study_id == "project-alpha"
-        assert project.centers == ['ac']
-        assert project.datatypes == ['dicom']
-        assert project.mode == 'aggregation'
+        assert project.centers == ["ac"]
+        assert project.datatypes == ["dicom"]
+        assert project.mode == "aggregation"
         assert project.is_published()
         assert project.is_primary()
 
-        project2 = Study.create({
-            'study': 'Project Alpha',
-            'study-id': 'project-alpha',
-            'centers': ['ac'],
-            'datatypes': ['dicom'],
-            'mode': 'aggregation',
-            'published': True,
-            'primary': True
-        })
+        project2 = Study.create(
+            {
+                "study": "Project Alpha",
+                "study-id": "project-alpha",
+                "centers": ["ac"],
+                "datatypes": ["dicom"],
+                "mode": "aggregation",
+                "published": True,
+                "primary": True,
+            }
+        )
         assert project == project2
 
         with pytest.raises(KeyError):
@@ -59,11 +64,13 @@ class TestStudy:
     def test_apply(self):
         """Test project apply method."""
         visitor = DummyVisitor()
-        project = Study(name='Project Beta',
-                        study_id='beta',
-                        centers=[],
-                        datatypes=[],
-                        mode='aggregation',
-                        published=True)
+        project = Study(
+            name="Project Beta",
+            study_id="beta",
+            centers=[],
+            datatypes=[],
+            mode="aggregation",
+            published=True,
+        )
         project.apply(visitor)
-        assert visitor.project_name == 'Project Beta'
+        assert visitor.project_name == "Project Beta"

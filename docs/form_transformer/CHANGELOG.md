@@ -2,6 +2,23 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.3
+* Update to parameterize the key to pull visit date from (uses `date_field` in `form-date-module-configs.json`)
+
+## 1.4.2
+* Update `update_file_info_metadata` to also ignore empty strings
+
+## 1.4.1
+* Rebuild for handling multiple pipelines (submission, finalization)
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.4.0
+* Adds support for standalone forms submission
+* Strips leading zeros from PTID in error log name
+  
+## 1.3.3
+* Removes pre-processing checks on visit number ordering
+
 ## 1.3.2
 * Fixes a bug in visitnum comparison in pre-processing checks
 * Upgrades to dependencies

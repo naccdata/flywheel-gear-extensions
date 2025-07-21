@@ -1,0 +1,84 @@
+{
+    "gears": [
+        "nacc-file-validator",
+        "identifier-lookup",
+        "form-transformer",
+        "form-qc-coordinator",
+        "form-qc-checker"
+    ],
+    "pipelines": [
+        {
+            "name": "submission",
+            "modules": [
+                "UDS",
+                "FTLD",
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP"
+            ],
+            "tags": [
+                "queued"
+            ],
+            "extensions": [
+                ".csv"
+            ],
+            "starting_gear": {
+                "gear_name": "nacc-file-validator",
+                "inputs": [
+                    {
+                        "label": "input_file",
+                        "file_locator": "matched"
+                    },
+                    {
+                        "label": "validation_schema",
+                        "file_locator": "module",
+                        "file_name": "${module}-schema.json"
+                    }
+                ],
+                "configs": {
+                    "debug": false,
+                    "add_parents": false
+                }
+            },
+            "notify_user": true
+        },
+        {
+            "name": "finalization",
+            "modules": [
+                "UDS"
+            ],
+            "tags": [
+                "submission-completed"
+            ],
+            "extensions": [
+                ".json"
+            ],
+            "starting_gear": {
+                "gear_name": "form-qc-coordinator",
+                "inputs": [
+                    {
+                        "label": "visits_file",
+                        "file_locator": "matched"
+                    },
+                    {
+                        "label": "form_configs_file",
+                        "file_locator": "fixed",
+                        "file_name": "form-data-module-configs.json"
+                    },
+                    {
+                        "label": "qc_configs_file",
+                        "file_locator": "fixed",
+                        "file_name": "form-qc-checker-configs.json"
+                    }
+                ],
+                "configs": {
+                    "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+                    "pipeline": "finalization",
+                    "check_all": false
+                }
+            }
+        }
+    ]
+}

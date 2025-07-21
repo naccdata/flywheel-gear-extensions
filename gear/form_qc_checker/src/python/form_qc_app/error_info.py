@@ -13,8 +13,8 @@ from outputs.errors import (
     system_error,
 )
 from pydantic import BaseModel, ValidationError
-from redcap.redcap_connection import REDCapConnectionError, REDCapReportConnection
-from redcap.redcap_project import REDCapProject
+from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ COMPOSITE_RULES = [RuleLabels.COMPAT, RuleLabels.TEMPORAL, RuleLabels.GDS]
 
 class ErrorDescription(BaseModel):
     """Represents an error description object for a NACC QC check."""
+
     error_code: str
     error_type: str
     var_name: str
@@ -32,7 +33,7 @@ class ErrorDescription(BaseModel):
     full_desc: str
 
     @classmethod
-    def create(cls, entry: Dict[str, str]) -> 'ErrorDescription':
+    def create(cls, entry: Dict[str, str]) -> "ErrorDescription":
         """Creates ErrorDescription object from a dictionary input.
 
         Args:
@@ -73,7 +74,8 @@ class ErrorStore(ABC):
 
     @abstractmethod
     def query_error_database(
-            self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
+        self, error_codes: List[str]
+    ) -> Dict[str, ErrorDescription]:
         """Query the error checks database for the given error codes.
 
         Args:
@@ -85,8 +87,7 @@ class ErrorStore(ABC):
 
         return {}
 
-    def get_qc_check_info(
-            self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
+    def get_qc_check_info(self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
         """Retrieve QC check information by error code.
 
         Args:
@@ -110,10 +111,12 @@ class ErrorStore(ABC):
 class REDCapErrorStore(ErrorStore):
     """Class to retrieve QC checks information from a REDCap project."""
 
-    def __init__(self,
-                 *,
-                 redcap_con: Optional[REDCapReportConnection] = None,
-                 preload: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        redcap_con: Optional[REDCapReportConnection] = None,
+        preload: bool = False,
+    ) -> None:
         self.__redcap_con = redcap_con
         super().__init__(preload)
 
@@ -121,7 +124,7 @@ class REDCapErrorStore(ErrorStore):
         """This method loads the QC checks info from REDCap report."""
 
         if not self.__redcap_con:
-            log.error('REDCap connection not set')
+            log.error("REDCap connection not set")
             return
 
         try:
@@ -133,10 +136,11 @@ class REDCapErrorStore(ErrorStore):
         for record in records_list:
             try:
                 error_desc = ErrorDescription.create(record)
-                self.errors_list[record['error_code']] = error_desc
+                self.errors_list[record["error_code"]] = error_desc
             except ValidationError as error:
-                log.warning("Failed to create error description from %s: %s",
-                            record, error)
+                log.warning(
+                    "Failed to create error description from %s: %s", record, error
+                )
 
     def query_error_database(self, error_codes) -> Dict[str, ErrorDescription]:
         """Query the error checks database for the given error codes.
@@ -161,27 +165,28 @@ class REDCapErrorStore(ErrorStore):
             fields = list(ErrorDescription.__annotations__.keys())
             try:
                 redcap_prj = REDCapProject.create(self.__redcap_con)
-                records_list = redcap_prj.export_records(record_ids=record_ids,
-                                                         fields=fields)
+                records_list = redcap_prj.export_records(
+                    record_ids=record_ids, fields=fields
+                )
                 for record in records_list:
-                    error_code = record['error_code']  # type: ignore
+                    error_code = record["error_code"]  # type: ignore
                     try:
-                        error_desc = ErrorDescription.create(
-                            record)  # type: ignore
+                        error_desc = ErrorDescription.create(record)  # type: ignore
                         qc_checks_list[error_code] = error_desc
                         self.errors_list[error_code] = error_desc
                     except ValidationError as error:
                         log.warning(
                             "Failed to create error description from %s: %s",
-                            record, error)
+                            record,
+                            error,
+                        )
             except REDCapConnectionError as error:
-                log.error('%s for %s', error.message, record_ids)
+                log.error("%s for %s", error.message, record_ids)
 
         return qc_checks_list
 
 
-def replace_nullable_with_required(rule: str, code_schema: Dict[str,
-                                                                Dict]) -> bool:
+def replace_nullable_with_required(rule: str, code_schema: Dict[str, Dict]) -> bool:
     """If code mapping not found in the schema for nullable rule, use the same
     code as required rule if it is defined in the schema.
 
@@ -212,7 +217,7 @@ def is_composite_rule(rule: str) -> bool:
     return rule in COMPOSITE_RULES
 
 
-class ErrorComposer():
+class ErrorComposer:
     """This class composes the error metadata required for the error report.
 
     If error code mapping is available, NACC QC check information will
@@ -247,8 +252,7 @@ class ErrorComposer():
         self.__error_messages = error_messages
         self.__error_writer = error_writer
 
-    def get_qc_check_info(
-            self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
+    def get_qc_check_info(self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
         """Retrieve QC check information for the given error codes from DB.
 
         Args:
@@ -261,14 +265,16 @@ class ErrorComposer():
 
         return self.__error_store.get_qc_check_info(error_codes)
 
-    def __get_qc_error_object(self,
-                              *,
-                              error_type: str,
-                              error_code: str,
-                              error_msg: str,
-                              value: str,
-                              field: str,
-                              line_number: Optional[int] = None) -> FileError:
+    def __get_qc_error_object(
+        self,
+        *,
+        error_type: str,
+        error_code: str,
+        error_msg: str,
+        value: str,
+        field: str,
+        line_number: Optional[int] = None,
+    ) -> FileError:
         """Creates a QCError object from the given input.
 
         Args:
@@ -287,19 +293,21 @@ class ErrorComposer():
             error_type=error_type,  # type: ignore
             error_code=error_code,
             location=CSVLocation(line=line_number, column_name=field)
-            if line_number else JSONLocation(key_path=field),
+            if line_number
+            else JSONLocation(key_path=field),
             value=value,
             message=error_msg,
             ptid=str(self.__input_data[FieldNames.PTID])
-            if FieldNames.PTID in self.__input_data else None,
+            if FieldNames.PTID in self.__input_data
+            else None,
             visitnum=str(self.__input_data[FieldNames.VISITNUM])
-            if FieldNames.VISITNUM in self.__input_data else None)
+            if FieldNames.VISITNUM in self.__input_data
+            else None,
+        )
 
-    def __write_qc_error_no_code(self,
-                                 *,
-                                 error_obj: Any,
-                                 field: str,
-                                 line_number: Optional[int] = None):
+    def __write_qc_error_no_code(
+        self, *, error_obj: Any, field: str, line_number: Optional[int] = None
+    ):
         """Write QC error metadata when NACC QC check info not available.
 
         Args:
@@ -311,22 +319,27 @@ class ErrorComposer():
             *error_obj.info,
             constraint=error_obj.constraint,
             field=field,
-            value=error_obj.value)
+            value=error_obj.value,
+        )
 
-        qc_error = self.__get_qc_error_object(error_type='error',
-                                              error_code='qc-error',
-                                              error_msg=error_msg,
-                                              value=str(error_obj.value),
-                                              field=field,
-                                              line_number=line_number)
+        qc_error = self.__get_qc_error_object(
+            error_type="error",
+            error_code="qc-error",
+            error_msg=error_msg,
+            value=str(error_obj.value),
+            field=field,
+            line_number=line_number,
+        )
         self.__error_writer.write(qc_error)
 
-    def __write_qc_error(self,
-                         *,
-                         error_desc: ErrorDescription,
-                         value: str,
-                         line_number: Optional[int] = None,
-                         other_codes: Optional[str] = None):
+    def __write_qc_error(
+        self,
+        *,
+        error_desc: ErrorDescription,
+        value: str,
+        line_number: Optional[int] = None,
+        other_codes: Optional[str] = None,
+    ):
         """Write QC error metadata when NACC QC check info available.
 
         Args:
@@ -338,21 +351,24 @@ class ErrorComposer():
 
         error_codes = error_desc.error_code
         if other_codes:
-            error_codes += ',' + other_codes
-        qc_error = self.__get_qc_error_object(error_type=error_desc.error_type,
-                                              error_code=error_codes,
-                                              error_msg=error_desc.full_desc,
-                                              value=value,
-                                              field=error_desc.var_name,
-                                              line_number=line_number)
+            error_codes += "," + other_codes
+        qc_error = self.__get_qc_error_object(
+            error_type=error_desc.error_type,
+            error_code=error_codes,
+            error_msg=error_desc.full_desc,
+            value=value,
+            field=error_desc.var_name,
+            line_number=line_number,
+        )
         self.__error_writer.write(qc_error)
 
     def __fill_error_metadata_with_qc_check_info(
-            self,
-            *,
-            error_codes: List[str],
-            error_info_map: Dict[str, Dict],
-            line_number: Optional[int] = None):
+        self,
+        *,
+        error_codes: List[str],
+        error_info_map: Dict[str, Dict],
+        line_number: Optional[int] = None,
+    ):
         """Pull NACC QC check info from the errors database and write detailed
         error metadata.
 
@@ -364,30 +380,35 @@ class ErrorComposer():
 
         qc_check_info = self.get_qc_check_info(error_codes)
         for error_code in error_info_map:
-            error_obj = error_info_map[error_code]['error']
-            field = error_info_map[error_code]['field']
-            other_codes = error_info_map[error_code]['other']
+            error_obj = error_info_map[error_code]["error"]
+            field = error_info_map[error_code]["field"]
+            other_codes = error_info_map[error_code]["other"]
             if error_code in qc_check_info:
                 error_desc = qc_check_info[error_code]
-                self.__write_qc_error(error_desc=error_desc,
-                                      value=str(error_obj.value),
-                                      line_number=line_number,
-                                      other_codes=other_codes)
+                self.__write_qc_error(
+                    error_desc=error_desc,
+                    value=str(error_obj.value),
+                    line_number=line_number,
+                    other_codes=other_codes,
+                )
             else:
-                log.warning('NACC QC check code %s not found in the errors DB',
-                            error_code)
-                self.__write_qc_error_no_code(error_obj=error_obj,
-                                              field=field,
-                                              line_number=line_number)
+                log.warning(
+                    "NACC QC check code %s not found in the errors DB", error_code
+                )
+                self.__write_qc_error_no_code(
+                    error_obj=error_obj, field=field, line_number=line_number
+                )
 
-    def _map_error_with_qc_check_code(self,
-                                      *,
-                                      field: str,
-                                      code_schema: Dict,
-                                      validator_errors: List[Any],
-                                      err_info_map: Dict[str, Dict],
-                                      nacc_error_codes: List[str],
-                                      line_number: Optional[int] = None):
+    def _map_error_with_qc_check_code(
+        self,
+        *,
+        field: str,
+        code_schema: Dict,
+        validator_errors: List[Any],
+        err_info_map: Dict[str, Dict],
+        nacc_error_codes: List[str],
+        line_number: Optional[int] = None,
+    ):
         """Map validator generated errors with NACC QC check code using the
         code map schema.
 
@@ -406,16 +427,18 @@ class ErrorComposer():
             if error.rule != error.schema_path[1]:
                 continue
 
-            if (error.rule not in code_schema
-                    and not replace_nullable_with_required(
-                        error.rule, code_schema)):
+            if error.rule not in code_schema and not replace_nullable_with_required(
+                error.rule, code_schema
+            ):
                 log.warning(
-                    'NACC error code not found '
-                    'for variable %s rule %s - %s', field, error.rule,
-                    error.schema_path)
-                self.__write_qc_error_no_code(error_obj=error,
-                                              field=field,
-                                              line_number=line_number)
+                    "NACC error code not found " "for variable %s rule %s - %s",
+                    field,
+                    error.rule,
+                    error.schema_path,
+                )
+                self.__write_qc_error_no_code(
+                    error_obj=error, field=field, line_number=line_number
+                )
                 continue
 
             if is_composite_rule(error.rule):
@@ -425,21 +448,23 @@ class ErrorComposer():
                     code_index = check[RuleLabels.INDEX]
                     if rule_index == code_index and check[RuleLabels.CODE]:
                         first_code, other_codes = self._split_nacc_error_codes(
-                            check[RuleLabels.CODE])
+                            check[RuleLabels.CODE]
+                        )
                         nacc_error_codes.append(first_code)
                         err_info_map[first_code] = {
-                            'error': error,
-                            'field': field,
-                            'other': other_codes
+                            "error": error,
+                            "field": field,
+                            "other": other_codes,
                         }
             elif code_schema[error.rule][RuleLabels.CODE]:
                 first_code, other_codes = self._split_nacc_error_codes(
-                    code_schema[error.rule][RuleLabels.CODE])
+                    code_schema[error.rule][RuleLabels.CODE]
+                )
                 nacc_error_codes.append(first_code)
                 err_info_map[first_code] = {
-                    'error': error,
-                    'field': field,
-                    'other': other_codes
+                    "error": error,
+                    "field": field,
+                    "other": other_codes,
                 }
 
     # pylint: disable=(no-self-use)
@@ -457,17 +482,18 @@ class ErrorComposer():
 
         return codes_list[0], other
 
-    def compose_system_errors_metadata(self,
-                                       line_number: Optional[int] = None):
+    def compose_system_errors_metadata(self, line_number: Optional[int] = None):
         """Compose error metadata for system errors.
 
         Args:
             line_number (optional): line # in CSV file if record is from CSV
         """
 
-        log.error('System error(s) occurred during validation, '
-                  'please fix the issues below and retry '
-                  'or contact the system administrator.')
+        log.error(
+            "System error(s) occurred during validation, "
+            "please fix the issues below and retry "
+            "or contact the system administrator."
+        )
         log.error(self.__dict_errors)
         for field, err_list in self.__dict_errors.items():
             for error_msg in err_list:
@@ -475,10 +501,12 @@ class ErrorComposer():
                     system_error(
                         error_msg,
                         CSVLocation(line=line_number, column_name=field)
-                        if line_number else JSONLocation(key_path=field)))
+                        if line_number
+                        else JSONLocation(key_path=field),
+                    )
+                )
 
-    def compose_minimal_error_metadata(self,
-                                       line_number: Optional[int] = None):
+    def compose_minimal_error_metadata(self, line_number: Optional[int] = None):
         """Compose error metadata when error code info not available, error
         message will display the library generated error string.
 
@@ -487,24 +515,28 @@ class ErrorComposer():
         """
 
         for field, err_list in self.__dict_errors.items():
-            value = ''
+            value = ""
             if field in self.__input_data:
                 value = self.__input_data[field]
             for error_msg in err_list:
-                qc_error = self.__get_qc_error_object(error_type='error',
-                                                      error_code='qc-error',
-                                                      error_msg=error_msg,
-                                                      value=value,
-                                                      field=field,
-                                                      line_number=line_number)
+                qc_error = self.__get_qc_error_object(
+                    error_type="error",
+                    error_code="qc-error",
+                    error_msg=error_msg,
+                    value=value,
+                    field=field,
+                    line_number=line_number,
+                )
                 self.__error_writer.write(qc_error)
 
     # pylint: disable=(too-many-locals, too-many-branches)
-    def compose_detailed_error_metadata(self,
-                                        *,
-                                        error_tree: Dict[str, Any],
-                                        err_code_map: Dict[str, Dict],
-                                        line_number: Optional[int] = None):
+    def compose_detailed_error_metadata(
+        self,
+        *,
+        error_tree: Dict[str, Any],
+        err_code_map: Dict[str, Dict],
+        line_number: Optional[int] = None,
+    ):
         """Compose detailed error metadata using the error code map to retrieve
         information from the NACC QC checks database.
 
@@ -521,7 +553,7 @@ class ErrorComposer():
         err_info_map: Dict[str, Dict] = {}
         nacc_error_codes: List[str] = []
         for field in self.__dict_errors:
-            value = ''
+            value = ""
             if field in self.__input_data:
                 value = str(self.__input_data[field])
 
@@ -529,12 +561,13 @@ class ErrorComposer():
                 err_list = self.__dict_errors[field]
                 for error_msg in err_list:
                     qc_error = self.__get_qc_error_object(
-                        error_type='error',
-                        error_code='unknown-field',
+                        error_type="error",
+                        error_code="unknown-field",
                         error_msg=error_msg,
                         value=value,
                         field=field,
-                        line_number=line_number)
+                        line_number=line_number,
+                    )
                     self.__error_writer.write(qc_error)
                 continue
 
@@ -546,9 +579,11 @@ class ErrorComposer():
                 validator_errors=validator_errors,
                 err_info_map=err_info_map,
                 nacc_error_codes=nacc_error_codes,
-                line_number=line_number)
+                line_number=line_number,
+            )
 
         self.__fill_error_metadata_with_qc_check_info(
             error_codes=nacc_error_codes,
             error_info_map=err_info_map,
-            line_number=line_number)
+            line_number=line_number,
+        )

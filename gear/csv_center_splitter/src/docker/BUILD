@@ -5,6 +5,7 @@ docker_image(
     source="Dockerfile",
     dependencies=[
         ":manifest",
-        "gear/csv_center_splitter/src/python/csv_center_splitter_app:bin"
+        "gear/csv_center_splitter/src/python/csv_center_splitter_app:bin",
     ],
-    image_tags=["0.2.1", "latest"])
+    image_tags=["0.3.0", "latest"],
+)

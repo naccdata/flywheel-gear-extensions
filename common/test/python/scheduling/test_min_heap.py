@@ -5,7 +5,6 @@ from scheduling.min_heap import MinHeap
 
 
 class Element:
-
     def __init__(self, value: int) -> None:
         self.value = value
 
@@ -20,9 +19,14 @@ class Element:
 
         return self.value < other.value
 
+    def __le__(self, other: Any) -> bool:
+        if not isinstance(other, Element):
+            return False
+
+        return self.value <= other.value
+
 
 class TestPriorityQueue:
-
     def test_empty(self):
         queue = MinHeap[Element]()
 
@@ -39,4 +43,4 @@ class TestPriorityQueue:
         assert e1
         e2 = queue.pop()
         assert e2
-        assert e1 < e2
+        assert e1 <= e2
