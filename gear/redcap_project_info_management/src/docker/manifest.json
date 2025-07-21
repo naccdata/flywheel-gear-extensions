@@ -2,7 +2,7 @@
     "name": "redcap-project-info-management",
     "label": "REDCap Project Info Management",
     "description": "Manages metadata for REDCap form projects",
-    "version": "0.0.8",
+    "version": "0.0.10",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/redcap-project-info-management:0.0.8"
+            "image": "naccdata/redcap-project-info-management:0.0.10"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

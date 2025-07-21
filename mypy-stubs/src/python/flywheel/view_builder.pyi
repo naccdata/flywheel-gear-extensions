@@ -5,14 +5,29 @@ from flywheel.models.data_view import DataView
 
 class ViewBuilder:
 
-    def __init__(self, label: Optional[str], columns: Optional[List[Any]],
-                 container: Optional[str], filename: Optional[str],
-                 process_files: bool, filter: Optional[str], include_ids: bool,
-                 include_labels: bool, match: Optional[str]) -> None:
+    def __init__(self,
+                 label: Optional[str] = None,
+                 description: Optional[str] = None,
+                 public: Optional[bool] = None,
+                 columns: Optional[List[Any]] = None,
+                 container: Optional[str] = None,
+                 filename: Optional[str] = None,
+                 process_files: bool = True,
+                 filter: Optional[str] = None,
+                 include_ids: bool = True,
+                 include_labels: bool = True,
+                 match: Optional[str] = None,
+                 error_column: bool = False) -> None:
         ...
 
     def build(self) -> DataView:
         ...
 
     def missing_data_strategy(self, value) -> 'ViewBuilder':
+        ...
+
+    def file_filter(self, value=None, regex=False) -> 'ViewBuilder':
+        ...
+
+    def file_container(self, container) -> 'ViewBuilder':
         ...

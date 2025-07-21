@@ -9,7 +9,7 @@ def kebab_case(name: str) -> str:
     Returns:
       the name in kebab case
     """
-    return name.lower().replace('_', '-')
+    return name.lower().replace("_", "-")
 
 
 def camel_case(name: str) -> str:
@@ -20,4 +20,4 @@ def camel_case(name: str) -> str:
     Returns:
       the name in camel case
     """
-    return ''.join([token.title() for token in name.split('_')])
+    return "".join([token.title() for token in name.split("_")])

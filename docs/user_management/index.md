@@ -85,3 +85,12 @@ Roles used by NACC for center users include `read-only`, `curate` and `upload`.
 
 If an authorization has no access to a project, it should be left off the list.
 For instance, `submit-form` would have no corresponding role for `ingest-dicom`
+
+## Notification configuration
+
+The gear manifest config includes a `notification_mode` parameter which affects how follow-up messages are sent.
+Allowable values are
+
+- `none` - don't send any follow up messages
+- `date` - send a follow up at 7 day intervals up to 3 times
+- `force` - send all follow up messages

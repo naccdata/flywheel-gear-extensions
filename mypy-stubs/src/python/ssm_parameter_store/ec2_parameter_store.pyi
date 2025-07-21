@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Any
 
 
 class EC2ParameterStore:
@@ -16,6 +16,13 @@ class EC2ParameterStore:
                                decrypt: bool = True,
                                recursive: bool = True,
                                strip_path: bool = True) -> Dict[str, str]:
+        ...
+
+    def get_parameters_with_hierarchy(
+            self,
+            path: str,
+            decrypt: bool = True,
+            strip_path: bool = True) -> Dict[str, Any]:
         ...
 
     ...

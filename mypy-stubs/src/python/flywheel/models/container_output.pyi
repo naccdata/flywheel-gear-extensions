@@ -1,2 +1,2 @@
 class ContainerOutput:
-    pass
+    ...

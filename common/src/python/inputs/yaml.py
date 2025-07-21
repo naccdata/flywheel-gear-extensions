@@ -1,27 +1,14 @@
 """Defines utilities for parsing YAML input."""
+
 import logging
-from typing import Any, Iterator
+from typing import Any, List
 
 import yaml
 
 log = logging.getLogger(__name__)
 
 
-def get_object_lists(yaml_file) -> Iterator[Any]:
-    """Gets lists of objects from the yaml file.
-
-    Assumes the file can have more than one document.
-
-    Args:
-      yaml_file: name of the yaml file
-    Returns:
-      List of lists of object read from the file
-    """
-    with open(yaml_file, 'r', encoding='utf-8') as stream:
-        return get_object_lists_from_stream(stream)
-
-
-def get_object_lists_from_stream(stream) -> Iterator[Any]:
+def load_all_from_stream(stream) -> List[Any]:
     """Gets list of objects from the IO stream.
 
     Assumes the file can have more than one document.
@@ -33,15 +20,17 @@ def get_object_lists_from_stream(stream) -> Iterator[Any]:
       List of lists of objects created from file or None if an error occurs
     """
     try:
-        return yaml.safe_load_all(stream)
+        doc_iter = yaml.safe_load_all(stream)
+        return [doc for doc in doc_iter]
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark
         if mark:
-            raise YAMLReadError(f'Error in YAML: line {mark.line + 1}, '
-                                'column {mark.column + 1}') from error
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+            raise YAMLReadError(
+                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+            ) from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
 
 
 def load_from_stream(stream) -> Any:
@@ -57,11 +46,12 @@ def load_from_stream(stream) -> Any:
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark
         if mark:
-            raise YAMLReadError(f'Error in YAML: line {mark.line + 1}, '
-                                'column {mark.column + 1}') from error
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+            raise YAMLReadError(
+                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+            ) from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:
-        raise YAMLReadError(f'Error in YAML file: {error}') from error
+        raise YAMLReadError(f"Error in YAML file: {error}") from error
 
 
 class YAMLReadError(Exception):

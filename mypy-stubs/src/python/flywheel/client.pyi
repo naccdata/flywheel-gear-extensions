@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 
+from flywheel.models.container_output import ContainerOutput
 import pandas
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.job import Job
@@ -141,9 +142,17 @@ class Client:
     def get_acquisition(self, id: str) -> Acquisition:
         ...
 
-    def get(self, id: str) -> ContainerOutput:
+    def get(self, id: str, **kwargs: Dict[str, Any]) -> ContainerOutput:
         ...
 
-    # return type is ResolverOutput
+    # return: ResolverOutput
     def lookup(self, path):
+        ...
+
+    # return: JobOutput
+    def get_job(self, job_id, **kwargs):
+        ...
+
+    # return: InsertedId
+    def retry_job(self, job_id, **kwargs):
         ...

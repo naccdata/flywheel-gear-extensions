@@ -1,0 +1,11 @@
+{
+	"gear_name": "custom-configs-invalid",
+	"configs": {
+        "test_str": "hello",
+        "test_list": [
+        	{"key": "value"},
+        	2,
+        	"world"
+        ]
+    }
+}

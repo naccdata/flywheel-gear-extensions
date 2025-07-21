@@ -11,7 +11,7 @@ Reads a YAML file that contains a list of objects such as
   project-label: ingest-form
   projects:
   - redcap-pid: 1
-    label: enrollv1
+    label: enroll
 ```
 
 Adds the information to the ingest project metadata for the study within the center group. 

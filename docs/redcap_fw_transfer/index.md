@@ -9,7 +9,7 @@ This gear uses REDCap project information stored in the center group's metadata 
 This gear uses the AWS SSM parameter store, and expects that AWS credentials are available in environment variables (`AWS_SECRET_ACCESS_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_DEFAULT_REGION`) within the Flywheel runtime.
 
 ### Inputs
-JSON schema file defining the accepted fields for each module to be transferred to this project. These files should be named as **[module]-schema.json** (e.g. udsv4-schema.json, enrollv1-schema.json) and should be available in the Flywheel ingest project's project files section. 
+JSON schema file defining the accepted fields for each module to be transferred to this project. These files should be named as **[module]-schema.json** (e.g. uds-schema.json, enroll-schema.json) and should be available in the Flywheel ingest project's project files section. 
 
 ### Running
 This gear is triggered nightly (via a AWS Lambda function) for each form ingest project in a study/center.

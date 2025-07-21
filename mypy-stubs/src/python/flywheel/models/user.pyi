@@ -33,3 +33,7 @@ class User:
     @property
     def email(self) -> Optional[str]:
         ...
+
+    @property
+    def firstlogin(self) -> Optional[str]:
+        ...

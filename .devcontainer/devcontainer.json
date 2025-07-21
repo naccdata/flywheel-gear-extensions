@@ -13,7 +13,8 @@
             "version": "latest",
             "enableNonRootDocker": true,
             "moby": true
-        }
+        },
+        "ghcr.io/devcontainers/features/go:1": {}
     },
     "remoteEnv": {
         "PATH": "${containerEnv:PATH}:/home/vscode/bin"
@@ -28,7 +29,9 @@
             "extensions": [
                 "ms-python.python",
                 "ms-azuretools.vscode-docker",
-                "yzhang.markdown-all-in-one"
+                "streetsidesoftware.code-spell-checker",                
+                "yzhang.markdown-all-in-one",
+                "charliermarsh.ruff"
                 // "mermaidchart.vscode-mermaid-chart"
             ]
         }

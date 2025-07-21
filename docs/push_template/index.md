@@ -1,16 +1,13 @@
 # Push Template
 
-Script to push settings from template projects in an admin group, to projects in center groups.
+Script to push settings from a template project to projects in center groups.
 
-## [Source directory](https://github.com/naccdata/flywheel-gear-extensions/tree/main/push_template)
+## [Source directory](https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/push_template)
 
-## Environment
-
-The script expects the `FW_API_KEY` environment variables to be set, which should be an API key for the FW instance.
 
 ## Flywheel configuration
 
-The script also expects that there is an admin group containing template projects.
+The script expects that there is a group containing template projects.
 The following are copied from a template project:
 
 - gear rules and any associated files
@@ -19,30 +16,15 @@ The following are copied from a template project:
 - applications
 
 A template project has a name like `form-ingest-template` where the first word is the datatype and the second is a pipeline stage.
-Concretely, the name should match the regex `^((\w+)-)?(\w+)-template$`.
+Concretely, the name should match the regex `^((\w+(?:-[\w]+)*)-)?(\w+)-template$`.
 Note that the first group is optional, so possible names are `form-ingest-template` or `accepted-template`.
 The datatype names must match those used in the project description file used in the [project management script](../project_management/index.md).
 
-The stage names are hard-coded in the project management script, and are `ingest`, `accepted` and `retrospective`.
+The stage names are hard-coded in the project management script, and are `ingest`, `accepted` and `retrospective` for aggregation projects and `distribution` for distribution projects.
 
 Projects that are managed by the script should be in groups with a tag matching the regex `adcid-\d+`.
 For example, `adcid-14`.
 These tags can be set using the project management script.
-
-## Running from command-line
-
-The script can be run with 
-
-```bash
-pants run push_template/src/python/template_app:bin
-```
-
-which will push all template projects to pipeline stage projects within tagged groups.
-
-To give command line arguments, add `--` to the command line and give the arguments.
-Available arguments are
-- `--dry_run` to run the script without making changes, and 
-- `--admin_group` to indicate the group in which templates occur. The default admin group is `nacc`.
 
 ## Running from a batch script
 
@@ -61,7 +43,9 @@ The equivalent of the command line arguments above are given in the `config` arg
 config = {
     "dry_run": False,
     "admin_group": "nacc",
-    "new_only": False
+    "new_only": False,
+    "template_project": "form-ingest-template",
+    "template_group": "nacc"
 }
 ```
 

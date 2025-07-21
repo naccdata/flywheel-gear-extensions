@@ -1,13 +1,13 @@
 [GLOBAL]
-pants_version = "2.22.0"
+pants_version = "2.23.1"
 backend_packages = [
-    "pants.backend.build_files.fmt.yapf",
+    "pants.backend.build_files.fmt.ruff",
     "pants.backend.docker",
     "pants.backend.docker.lint.hadolint",
     "pants.backend.python",
     "pants.backend.python.lint.docformatter",
     "pants.backend.experimental.python.lint.ruff.check",
-    "pants.backend.python.lint.yapf",
+    "pants.backend.experimental.python.lint.ruff.format",
     "pants.backend.python.typecheck.mypy",
     "pants.backend.docker",
     "pants.backend.docker.lint.hadolint",
@@ -45,4 +45,13 @@ search_path = ["<PATH>", "<PYENV>"]
 use_rust_parser = true
 
 [update-build-files]
-formatter = "yapf"
+formatter = "ruff"
+
+[pytest]
+args=["-vv"]
+
+# TODO: REMOVE WHEN DEV TESTING IS DONE
+[python-repos]
+find_links = [
+    "file:///workspaces/flywheel-gear-extensions/dist/"
+]

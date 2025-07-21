@@ -30,7 +30,7 @@ sequenceDiagram
     participant puller as Directory Pull
     participant directory as NACC<br/>Directory
     puller ->> directory: get user information
-    puller ->> Flywhel: write directory user file
+    puller ->> Flywheel: write directory user file
 ```
 
 ## User management

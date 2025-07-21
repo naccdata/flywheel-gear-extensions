@@ -1,4 +1,5 @@
 """Module for handling user data from directory."""
+
 import logging
 from typing import Any, Dict, List
 
@@ -24,13 +25,14 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
             continue
 
         if entry.email in user_emails:
-            log.warning('Email %s occurs in more than one contact',
-                        entry.email)
+            log.warning("Email %s occurs in more than one contact", entry.email)
 
         user_list.append(entry)
         user_emails.add(entry.email)
 
-    log.info('Creating directory file with %s entries', len(user_list))
-    return yaml.safe_dump(data=user_list.model_dump(serialize_as_any=True),
-                          allow_unicode=True,
-                          default_flow_style=False)
+    log.info("Creating directory file with %s entries", len(user_list))
+    return yaml.safe_dump(
+        data=user_list.model_dump(serialize_as_any=True),
+        allow_unicode=True,
+        default_flow_style=False,
+    )
