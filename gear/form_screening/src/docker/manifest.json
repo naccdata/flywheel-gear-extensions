@@ -1,0 +1,76 @@
+{
+    "name": "form-screening",
+    "label": "Form Screening",
+    "description": "Screens input files and queue for the form-scheduler gear",
+    "version": "1.2.1",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/form-screening:1.2.1"
+        },
+        "flywheel": {
+            "suite": "NACC Admin Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The input file to screen",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "tabular data",
+                    "source code"
+                ]
+            }
+        },
+        "scheduler_gear_configs_file": {
+            "description": "JSON file with the form-scheduler gear config information",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "accepted_modules": {
+            "description": "Comma-delimited list of accepted modules",
+            "type": "string",
+            "default": "UDS,FTLD,LBD"
+        },
+        "file_tags": {
+            "description": "Comma-delimited list of tags to add to the file or check whether already tagged",
+            "type": "string",
+            "default": "queued"
+        },
+        "format_and_tag": {
+            "description": "Whether to format the input file and add file_tags",
+            "type": "boolean"
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        }
+    },
+    "command": "/bin/run"
+}

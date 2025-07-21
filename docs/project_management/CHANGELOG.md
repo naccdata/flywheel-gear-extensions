@@ -4,7 +4,22 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+* Moves permission management for study into project and group creation.
+
+## 1.1.1
+
+* Changes `CenterGroup.add_project` so that `project.info.adcid` of the new project is set to the ADCID for the center.
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
+
+## 1.0.7
+
+* Update python dependencies
+
+## 1.0.6
+
 * Adds this CHANGELOG
+* Fixes an access error in the implementation of the study mapping.
+* Replaces the study mapping classes with an implementation of the neglected StudyVisitor abstract class.
 
 ## 1.0.2
 

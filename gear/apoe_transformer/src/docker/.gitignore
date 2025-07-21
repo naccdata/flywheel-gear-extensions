@@ -1,0 +1,5 @@
+config.json*
+run.sh
+.input_map.json
+input/
+*.csv

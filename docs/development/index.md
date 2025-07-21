@@ -169,6 +169,11 @@ The build is managed using [Pants](https://www.pantsbuild.org), and the gear can
 pants package src/docker::
 ```
 
+If you are building on macOS and get a permissions error for a cache file, you can set write permissions for the file in the error and rerun the package command.
+This error seems to be a bug related to the VirtioFS of the Docker virtual machine.
+A suggested alternative from pants is to setting the file sharing to gRPC FUSE.
+This setting is Docker Desktop under Settings/General/Virtual Machine Options.
+
 If you are building/running on macOS with an Apple Silicon chip, building a docker image with the correct architecture is a bit more involved. The following was added to the root BUILD file to support this, so should also handle all the gear builds, but you can update/change how its done for your specific gear.
 
 ```
@@ -226,6 +231,12 @@ Before you run the following be sure that `gear/<project-dir>/src/docker/.gitign
 
 #### Basic configuration
 
+The following steps are generalized in `bin/set-up-gear-for-local-run.sh` to automate some of the set up. Assumes the script is being run from the root directory due to local paths.
+
+```bash
+./bin/set-up-gear-for-local-run.sh <project-dir> <FW_API_KEY> [FW path]
+```
+
 1. Change into the project directory
 
    ```bash
@@ -262,7 +273,7 @@ fw-beta gear config --show <project-dir>/src/docker
 ```
 
 >Defaults should already be set in `config.json` for any config or input keys that have them in the manifest.
-You may need to set these for your local run, which may be easy to do by editing the `config.json` file directly.
+You may need to set these for your local run, which may be easier to do by editing the `config.json` file directly.
 
 <i>For any config values that need a value</i> use the command
    
@@ -280,16 +291,29 @@ fw-beta gear config -i <key-value-assignment> <project-dir>/src/docker
 
 where `<key-value-assignment>` should be of the form `key=value` using a key from the manifest.
 
-If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly.
-In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+> If a parameter value has a complex type, it may be difficult to convince your command shell to pass the value correctly. In this case, it can be easier to give a dummy value and edit the `config.json` afterward.
+
+> Similarly, If you want to use a file that already exists in Flywheel (which you will probably want to if your gear pulls metadata from Flywheel such as the project context or file.info) it is easiest to set the input value using a dummy file and replace the file metadata manually. At minimum this means ensuring `file_id` is set, which you can look up with the Flywheel SDK.
 
 Consult `fw-beta gear config --help` for details on the command.
 
 #### Environment Variables
 
-Environment variables are set in the `manifest.json`.
+Flywheel CLI version >= 0.19.0 is required to pass environment variables through to Docker.
 
->Secrets should not be added to the manifest file since it is version controlled.
+Environment variables can be passed to the docker run command using pass-through arguments ([docs](https://flywheel-io.gitlab.io/tools/app/cli/fw-beta/gear/run/#pass-through-arguments)):
+
+```bash
+fw-beta gear run tmp/gear/<gear-structure> -- -e xx=yy
+```
+
+Or, if using a .env file:
+
+```bash
+fw-beta gear run tmp/gear/<gear-structure> -- --env-file .env
+```
+
+>Note the templating script creates a project `.env` file automatically, so you may want to specify a different development file i.e. `.env.local` to store secrets. 
 
 #### Run the gear
 
@@ -300,12 +324,15 @@ fw-beta gear run -p <project-dir>/src/docker
 ```
 
 this will build a file structure in `tmp/gear` using the image name.
+You need to use this directory in the run command.
 
 Then [run the gear](https://flywheel-io.gitlab.io/tools/app/cli/fw-beta/gear/run/)  with the command
 
 ```bash
-fw-beta gear run <project-dir>/src/docker
+fw-beta gear run tmp/gear/<gear-structure>
 ```
+
+where `<gear-structure>` is the directory indicated by the "prepare" command.
 
 As of `fw-beta` version 0.18.0 you can also pass docker arguments directly by using `--` followed by the args. See [Flywheel's usage docs](https://flywheel-io.gitlab.io/tools/app/cli/fw-beta/gear/run/#usage) for more information.
 
@@ -383,7 +410,21 @@ To complete the gear, you will need to
 Generally, `run.py` should handle gathering any inputs, and `main.py` should handle the computation.
 The `common` directory includes common code that may be used across the gears.
 
-Additionally, you should also document your gear. Under `docs`, add a new directory called `docs/<gear-name>` with an `index.md` and `CHANGELOG.md`. The `index.md` should describe your gear as well as the expected inputs and outputs/results, whereas the Changelog should keep track of gear versions. See [Documenting and versioning](#documenting-and-versioning) for more information.
+Additionally, you should also document your gear, which can also be generated using a cookiecutter template:
+
+```bash
+cookiecutter templates/docs --output-dir docs/
+```
+
+which will create the following directory structure:
+
+```bash
+junk_gear
+├── CHANGELOG.md
+└── index.md
+```
+
+The `index.md` should describe your gear as well as the expected inputs and outputs/results, whereas the Changelog should keep track of gear versions. See [Documenting and versioning](#documenting-and-versioning) for more information.
 
 ## Adding common code
 

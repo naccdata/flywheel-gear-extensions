@@ -24,133 +24,162 @@ is an additional release stage where data across centers is consolidated.
 To represent this a study release group is created with a single "master"
 project for managing the consolidated data.
 """
+
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from centers.center_group import CenterError, CenterGroup
-from centers.nacc_group import NACCGroup
+from centers.center_group import (
+    CenterError,
+    CenterGroup,
+    DistributionProjectMetadata,
+    IngestProjectMetadata,
+    ProjectMetadata,
+    StudyMetadata,
+)
+from flywheel.models.access_permission import AccessPermission
 from flywheel_adaptor.flywheel_proxy import (
     FlywheelProxy,
     GroupAdaptor,
     ProjectAdaptor,
 )
 
-from projects.study import Study
+from projects.study import Study, StudyVisitor
 
 log = logging.getLogger(__name__)
 
 
-class StudyMappingAdaptor(ABC):
-    """Defines an adaptor for the coordinating center Study class that supports
-    mapping to a data pipeline using Flywheel groups and projects."""
+class StudyMapper(ABC):
+    """Defines the interface for classes that map study objects to FW
+    containers."""
 
-    def __init__(self, *, study: Study, flywheel_proxy: FlywheelProxy) -> None:
-        """Creates an adaptor mapping the given study to the corresponding
-        objects in the flywheel instance linked by the proxy.
+    @abstractmethod
+    def map_center_pipelines(
+        self, center: CenterGroup, study_info: StudyMetadata
+    ) -> None:
+        """Maps the study to pipelines within a center.
 
         Args:
-            study: the study
-            flywheel_proxy: the proxy for the flywheel instance
-            admin_group: the admin group for managing centers
-            new_only: whether to only process new centers
+          center: the center group
+          study_info: the metadata object to track center projects
         """
-        self.__fw = flywheel_proxy
+
+    @abstractmethod
+    def map_study_pipelines(self) -> None:
+        """Maps the study to study level groups and projects."""
+
+
+class AggregationMapper(StudyMapper):
+    """Defines the mapping of an aggregation study to center and study level
+    pipelines.
+
+    Creates groups at the study level if needed.
+    """
+
+    def __init__(
+        self,
+        *,
+        study: Study,
+        pipelines: List[str],
+        proxy: FlywheelProxy,
+        admin_access: List[AccessPermission],
+    ) -> None:
+        self.__fw = proxy
         self.__study = study
-
-    def has_datatype(self, datatype: str) -> bool:
-        """Indicates whether this study has the datatype.
-
-        Args:
-            datatype: name of the datatype
-        Returns:
-            True if datatype is in this study, False otherwise
-        """
-        return datatype in self.__study.datatypes
-
-    @property
-    def datatypes(self) -> List[str]:
-        """Exposes datatypes of this study."""
-        return self.__study.datatypes
-
-    @property
-    def name(self) -> str:
-        """Exposes study name."""
-        return self.__study.name
-
-    @abstractmethod
-    def add_study(self, center: CenterGroup) -> None:
-        """Adds the study of this mapping to the center."""
-
-    def create_center_pipelines(self) -> None:
-        """Creates data pipelines for centers in this project."""
-        if not self.__study.centers:
-            log.warning(
-                "Not creating center groups for project %s: no centers given",
-                self.__study.name)
-            return
-
-        for center_id in self.__study.centers:
-            group_adaptor = self.__fw.find_group(center_id)
-            if not group_adaptor:
-                log.warning("No group found with center ID %s", center_id)
-                continue
-
-            center_group = CenterGroup.create_from_group_adaptor(
-                adaptor=group_adaptor)
-
-            # TODO: do we need this here? also, added to center management
-            center_group.add_center_portal()
-            try:
-                self.add_study(center=center_group)
-            except CenterError as error:
-                log.error("Error adding study %s to center %s: %s",
-                          self.__study.name, center_group.label, error)
-
-    @abstractmethod
-    def create_release_pipeline(self) -> None:
-        """Creates the release pipeline for this study if the study is a
-        published aggregation study."""
-
-    def create_study_pipelines(self) -> None:
-        """Creates the pipelines for this study."""
-        self.create_center_pipelines()
-        self.create_release_pipeline()
-
-
-class AggregationStudyMapping(StudyMappingAdaptor):
-    """Defines an adaptor for an aggregation Study object that creates data
-    pipelines to support aggregation of data submitted by centers."""
-
-    def __init__(self, *, study: Study, admin_group: NACCGroup,
-                 flywheel_proxy: FlywheelProxy) -> None:
-        super().__init__(study=study, flywheel_proxy=flywheel_proxy)
-
-        self.__admin_access = admin_group.get_user_access()
+        self.__pipelines = pipelines
+        self.__admin_access = admin_access
         self.__release_group: Optional[GroupAdaptor] = None
 
-    def add_study(self, center: CenterGroup) -> None:
-        """Adds aggregation pipeline details center.
+    def map_center_pipelines(
+        self, center: CenterGroup, study_info: StudyMetadata
+    ) -> None:
+        """Creates accepted, ingest and retrospective projects in the group.
+        Updates the study metadata.
+
+        Args:
+          center: the center group
+          study_info: the study metadata
+        """
+        self.__add_accepted(center=center, study_info=study_info)
+        if center.is_active():
+            for pipeline in self.__pipelines:
+                for datatype in self.__study.datatypes:
+                    self.__add_ingest(
+                        center=center,
+                        study_info=study_info,
+                        pipeline=pipeline,
+                        datatype=datatype,
+                    )
+
+        self.__add_retrospective(center)
+
+    def map_study_pipelines(self) -> None:
+        """Creates study group with release project."""
+        if not self.__study.is_published():
+            log.info("Study %s has no release project", self.__study.name)
+            return
+
+        self.__get_release_group()
+        self.__get_master_project()
+
+    def __add_accepted(self, *, center: CenterGroup, study_info: StudyMetadata) -> None:
+        """Creates an accepted project in the center group, and updates the
+        study metadata.
+
+        Args:
+          center: the center group
+          study_info: the study metadata
+        """
+        accepted_label = f"accepted{self.__study.project_suffix()}"
+        accepted_project = center.add_project(accepted_label)
+        study_info.add_accepted(
+            ProjectMetadata(
+                study_id=self.__study.study_id,
+                project_id=accepted_project.id,
+                project_label=accepted_label,
+            )
+        )
+
+    def __add_ingest(
+        self,
+        *,
+        center: CenterGroup,
+        pipeline: str,
+        datatype: str,
+        study_info: StudyMetadata,
+    ) -> None:
+        """Adds an ingest projects for the study datatype to the center.
+
+        Args:
+          center: the center group
+          study_info: the center study metadata
+          pipeline: the name of the pipeline
+          datatype: the name of the datatype
+        """
+        project_label = f"{pipeline}-{datatype.lower()}{self.__study.project_suffix()}"
+        project = center.add_project(project_label)
+        study_info.add_ingest(
+            IngestProjectMetadata(
+                study_id=self.__study.study_id,
+                project_id=project.id,
+                project_label=project_label,
+                datatype=datatype,
+            )
+        )
+
+    def __add_retrospective(self, center: CenterGroup) -> None:
+        """Adds retrospective projects for the study to the center.
 
         Args:
           center: the center group
         """
-        # TODO: deal with duplicate code across mapping classes
-        portal_info = center.get_project_info()
-        study_info = portal_info.get(self.__study)
-        center.add_accepted_project(study=self.__study, study_info=study_info)
-        if center.is_active():
-            for pipeline in ['ingest', 'sandbox']:
-                for datatype in self.__study.datatypes:
-                    center.add_ingest_project(study=self.__study,
-                                              study_info=study_info,
-                                              pipeline=pipeline,
-                                              datatype=datatype)
-        center.update_project_info(portal_info)
+        labels = [
+            f"retrospective-{datatype.lower()}" for datatype in self.__study.datatypes
+        ]
+        for label in labels:
+            center.add_project(label)
 
-        center.add_retrospective_project(self.__study)
-
-    def get_release_group(self) -> Optional[GroupAdaptor]:
+    def __get_release_group(self) -> Optional[GroupAdaptor]:
         """Returns the release group for this study if it is published.
         Otherwise, returns None.
 
@@ -163,14 +192,15 @@ class AggregationStudyMapping(StudyMappingAdaptor):
         release_id = f"release-{self.__study.study_id}"
         assert release_id
         if not self.__release_group:
-            group = self.__fw.get_group(group_label=self.__study.name +
-                                        " Release",
-                                        group_id=release_id)
+            group = self.__fw.get_group(
+                group_label=self.__study.name + " Release", group_id=release_id
+            )
             assert group
             self.__release_group = GroupAdaptor(group=group, proxy=self.__fw)
+            self.__release_group.add_permissions(self.__admin_access)
         return self.__release_group
 
-    def get_master_project(self) -> Optional[ProjectAdaptor]:
+    def __get_master_project(self) -> Optional[ProjectAdaptor]:
         """Returns the FW consolidation project for this project if it is
         published. Otherwise, returns None.
 
@@ -180,48 +210,129 @@ class AggregationStudyMapping(StudyMappingAdaptor):
         if not self.__study.is_published():
             return None
 
-        release_group = self.get_release_group()
-        assert release_group
-        return release_group.get_project(label='master-project')
+        release_group = self.__get_release_group()
+        assert release_group, "study is published"
+        project = release_group.get_project(label="master-project")
+        if project is not None:
+            project.add_admin_users(self.__admin_access)
+        return project
 
-    def create_release_pipeline(self) -> None:
-        """Creates the release pipeline for this study if the study is
-        published."""
-        if not self.__study.is_published():
-            log.info("Study %s has no release project", self.__study.name)
+
+class DistributionMapper(StudyMapper):
+    """Defines a mapping from a distribution study to FW containers."""
+
+    def __init__(self, study: Study) -> None:
+        self.__study = study
+
+    def map_center_pipelines(
+        self, center: CenterGroup, study_info: StudyMetadata
+    ) -> None:
+        """Adds distribution projects for the study to the group.
+
+        Args:
+          center: the center group
+          study_info: the study metadata
+        """
+        for datatype in self.__study.datatypes:
+            self.__add_distribution(
+                center=center, study_info=study_info, datatype=datatype
+            )
+
+    def map_study_pipelines(self) -> None:
+        """Maps the study to study level groups and projects.
+
+        Not implemented for distribution groups.
+        """
+
+    def __add_distribution(
+        self, *, center: CenterGroup, study_info: "StudyMetadata", datatype: str
+    ) -> None:
+        """Adds a distribution project to this center for the study.
+
+        Args:
+        center: the center group
+        study_info: the study metadata
+        datatype: the pipeline data type
+        """
+        project_label = (
+            f"distribution-{datatype.lower()}" f"{self.__study.project_suffix()}"
+        )
+        project = center.add_project(project_label)
+        study_info.add_distribution(
+            DistributionProjectMetadata(
+                study_id=self.__study.study_id,
+                project_id=project.id,
+                project_label=project_label,
+                datatype=datatype,
+            )
+        )
+
+
+class StudyMappingVisitor(StudyVisitor):
+    def __init__(
+        self, flywheel_proxy: FlywheelProxy, admin_access: List[AccessPermission]
+    ) -> None:
+        self.__admin_access = admin_access
+        self.__fw = flywheel_proxy
+        self.__study: Optional[Study] = None
+        self.__mapper: Optional[StudyMapper] = None
+
+    def visit_study(self, study: Study) -> None:
+        """Creates FW containers for the study.
+
+        Args:
+          study: the study definition
+        """
+        if not study.centers:
+            log.warning(
+                "Not creating center groups for project %s: no centers given",
+                study.name,
+            )
             return
 
-        release_group = self.get_release_group()
-        master_project = self.get_master_project()
+        self.__study = study
+        if study.mode == "aggregation":
+            self.__mapper = AggregationMapper(
+                proxy=self.__fw,
+                admin_access=self.__admin_access,
+                study=study,
+                pipelines=["ingest", "sandbox"],
+            )
+        if study.mode == "distribution":
+            self.__mapper = DistributionMapper(study)
 
-        if self.__study.is_published() and self.__admin_access:
-            assert release_group
-            for permission in self.__admin_access:
-                release_group.add_user_access(permission)
+        for center_id in study.centers:
+            self.visit_center(center_id)
 
-            assert master_project
-            master_project.add_admin_users(self.__admin_access)
+        assert self.__mapper
+        self.__mapper.map_study_pipelines()
 
+    def visit_center(self, center_id: str) -> None:
+        """Creates projects within the center for the study.
 
-class DistributionStudyMapping(StudyMappingAdaptor):
-    """Study mapping adaptor that implements creation of distribution
-    studies."""
+        Args:
+          center_id: the ID of the center
+        """
+        assert self.__study, "study must be set"
+        assert self.__mapper, "mapper must be set"
 
-    def __init__(self, *, study: Study, flywheel_proxy: FlywheelProxy) -> None:
-        super().__init__(study=study, flywheel_proxy=flywheel_proxy)
+        group_adaptor = self.__fw.find_group(center_id)
+        if not group_adaptor:
+            log.warning("No group found with center ID %s", center_id)
+            return
 
-    def add_study(self, center: CenterGroup) -> None:
-        """Add distribution pipeline details to center."""
+        try:
+            center = CenterGroup.create_from_group_adaptor(adaptor=group_adaptor)
+        except CenterError as error:
+            log.warning("Unable to create center group: %s", str(error))
+            return
+
         portal_info = center.get_project_info()
         study_info = portal_info.get(self.__study)
-        for datatype in self.__study.datatypes:
-            center.add_distribution_project(study=self.__study,
-                                            study_info=study_info,
-                                            datatype=datatype)
+
+        self.__mapper.map_center_pipelines(center=center, study_info=study_info)
+
         center.update_project_info(portal_info)
 
-    def create_study_pipelines(self) -> None:
-        return self.create_center_pipelines()
-
-    def create_release_pipeline(self) -> None:
-        pass
+    def visit_datatype(self, datatype: str) -> None:
+        """Not implemented."""

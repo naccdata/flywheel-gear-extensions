@@ -1,10 +1,10 @@
 ---
 participant: NACC000001
-module: UDSV4
+module: UDS
 visits:
-  - filename: NACC000001-FORMS-VISIT-1-UDSV4.json
+  - filename: NACC000001_FORMS-VISIT-1_UDS.json
     file-id: 67be00c0c3cec67e08b434f4
     visitdate: 2023-03-20
-  - filename: NACC000001-FORMS-VISIT-2-UDSV4.json
+  - filename: NACC000001_FORMS-VISIT-2_UDS.json
     file-id: 66be00c0c3aec77e08b734d6
     visitdate: 2024-05-24

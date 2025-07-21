@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
@@ -35,5 +35,8 @@ class Acquisition:
     def get_file(self, name: str) -> FileEntry:
         ...
 
-    def upload_file(self, file: FileSpec) -> None:
+    def upload_file(self, file: FileSpec) -> List[Dict]:
+        ...
+
+    def reload(self) -> 'Acquisition':
         ...

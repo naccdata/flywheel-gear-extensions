@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, TextIO, Union
+
 from flywheel.client import Client
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
@@ -7,7 +8,7 @@ from flywheel.models.session import Session
 from flywheel_gear_toolkit.utils.metadata import Metadata
 
 # container type names are listed in flywheel.models.container_type
-Container = Union[Acquisition, Session, Group]
+Container = Union[Acquisition, Session, Group, FileEntry]
 
 
 class GearToolkitContext:
@@ -28,6 +29,11 @@ class GearToolkitContext:
 
     @property
     def destination(self) -> Dict[str, Any]:
+        ...
+
+    @property
+    def config_json(self) -> Dict[str, Any]:
+        """Dictionary representation of `config.json`"""
         ...
 
     def get_destination_container(self) -> Container:
@@ -60,10 +66,17 @@ class GearToolkitContext:
     def open_output(self, name: str, mode: str, encoding: str) -> TextIO:
         ...
 
+    def get_client(self) -> Client:
+        ...
+
     @property
     def metadata(self) -> Metadata:
         ...
 
     @property
     def manifest(self) -> Dict[str, Any]:
+        ...
+
+    @property
+    def output_dir(self):
         ...

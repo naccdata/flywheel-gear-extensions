@@ -1,0 +1,69 @@
+{
+    "name": "attribute-curator",
+    "label": "Attribute Curator",
+    "description": "Curation of derived data for MQT project",
+    "version": "0.4.1",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "analysis",
+            "image": "naccdata/attribute-curator:0.4.1"
+        },
+        "flywheel": {
+            "suite": "Curation",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "read-only": false
+        },
+        "blacklist_file": {
+            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "text"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "filename_pattern": {
+            "description": "Filename pattern to match on",
+            "type": "string",
+            "default": "*.json"
+        },
+        "curation_tag": {
+            "description": "Tag to apply to curated files",
+            "type": "string",
+            "default": "attribute-curator"
+        },
+        "force_curate": {
+            "description": "Curate file even if it's already been curated",
+            "type": "boolean",
+            "default": false
+        },
+        "debug": {
+            "description": "Whether or not to use debug-level logging (level set to DEBUG)",
+            "type": "boolean",
+            "default": false
+        }
+    },
+    "command": "/bin/run"
+}

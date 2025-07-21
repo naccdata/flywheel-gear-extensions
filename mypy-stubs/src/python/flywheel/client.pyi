@@ -148,6 +148,14 @@ class Client:
     def get(self, id: str, **kwargs: Dict[str, Any]) -> ContainerOutput:
         ...
 
-    # return type is ResolverOutput
+    # return: ResolverOutput
     def lookup(self, path):
+        ...
+
+    # return: JobOutput
+    def get_job(self, job_id, **kwargs):
+        ...
+
+    # return: InsertedId
+    def retry_job(self, job_id, **kwargs):
         ...
