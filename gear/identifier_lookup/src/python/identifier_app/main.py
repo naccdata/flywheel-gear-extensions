@@ -12,7 +12,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import IdentifierObject, clean_ptid
-from inputs.csv_reader import CSVVisitor, read_csv
+from inputs.csv_reader import CSVVisitor, CSVVisitorError, read_csv
 from keys.keys import FieldNames
 from outputs.errors import (
     ListErrorWriter,
@@ -158,8 +158,8 @@ class NACCIDLookupVisitor(CSVVisitor):
             input_record: input visit record
             qc_passed: whether the visit passed QC checks
 
-        Returns:
-            bool: True if error log updated successfully, else False
+        Raises:
+            CSVVisitorError, GearExecutionError: if error updating log file
         """
 
         if not self.__project:
@@ -179,9 +179,17 @@ class NACCIDLookupVisitor(CSVVisitor):
             errorlog_template=errorlog_template,
         )
 
+        if not error_log_name:
+            raise CSVVisitorError(
+                f"Invalid values found for "
+                f"{FieldNames.PTID} ({input_record[FieldNames.PTID]}) or "
+                f"{self.__module_configs.date_field} "
+                f"({input_record[self.__module_configs.date_field]})"
+            )
+
         # This is first gear in pipeline validating individual rows
         # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
-        if not error_log_name or not update_error_log_and_qc_metadata(
+        if not update_error_log_and_qc_metadata(
             error_log_name=error_log_name,
             destination_prj=self.__project,
             gear_name=self.__gear_name,
