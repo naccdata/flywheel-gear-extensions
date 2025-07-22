@@ -113,7 +113,6 @@ def upload_to_acquisition(
 
     try:
         acquisition.upload_file(record_file_spec)
-
     except ApiException as error:
         raise UploaderError(
             f"Failed to upload file {filename} to "

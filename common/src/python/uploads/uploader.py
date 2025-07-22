@@ -279,7 +279,7 @@ class FormJSONUploader:
                         contents=json.dumps(record),
                         content_type="application/json",
                     )
-                except (SubjectError, TypeError) as error:
+                except (SubjectError, TypeError, UploaderError) as error:
                     log.error(error)
                     self.__update_visit_error_log(
                         error_log_name=log_file,
