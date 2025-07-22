@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.4
+* Rebuilding for pre-processing checks update
+  
 ## 1.5.3
 * Rebuilding for API call retries
   

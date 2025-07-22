@@ -3,7 +3,8 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.4.5
-* Updates error messages
+* Updates pre-processing error messages
+* Refactors FormPreprocessor class
 
 ## 1.4.4
 * Rebuilding for API call retries

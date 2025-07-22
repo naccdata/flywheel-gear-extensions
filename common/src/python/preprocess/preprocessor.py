@@ -56,6 +56,8 @@ class FormPreprocessor:
 
         # Dispatcher mapping pre-processing checks to their corresponding handlers
         # Checks should be added in the order they need to be evaluated
+        # DON'T add `duplicate-record` check here
+        # It'll be evaluated directly after transformations
         self.__dispatcher: Dict[str, Callable[[PreprocessingContext], bool]] = {
             PreprocessingChecks.VERSION: self.is_accepted_version,
             PreprocessingChecks.PACKET: self.is_accepted_packet,
