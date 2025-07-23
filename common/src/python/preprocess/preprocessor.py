@@ -69,11 +69,11 @@ class FormPreprocessor:
         }
 
         # order the preprocessing checks defined for the module
-        self.__preprocess_checks = []
+        self.__preprocess_checks: List[Callable[[PreprocessingContext], bool]] = []
         if self.__module_configs.preprocess_checks:
-            for check in self.__dispatcher:
+            for check, check_function in self.__dispatcher.items():
                 if check in self.__module_configs.preprocess_checks:
-                    self.__preprocess_checks.append(check)
+                    self.__preprocess_checks.append(check_function)
 
     def is_accepted_packet(self, pp_context: PreprocessingContext) -> bool:
         """Validate whether the provided packet code matches with an expected
@@ -1015,14 +1015,4 @@ class FormPreprocessor:
         )
 
         # execute the pre-processing checks defined for the module
-        for check in self.__preprocess_checks:
-            check_fn = self.__dispatcher.get(check)
-            if not check_fn:
-                raise PreprocessingException(
-                    f"Handler for pre-processing check {check} is not defined"
-                )
-
-            if not check_fn(pp_context):
-                return False
-
-        return True
+        return all(check_fn(pp_context) for check_fn in self.__preprocess_checks)
