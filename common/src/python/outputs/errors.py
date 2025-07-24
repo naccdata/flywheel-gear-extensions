@@ -10,10 +10,12 @@ from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
 from flywheel.file_spec import FileSpec
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import FieldNames, SysErrorCodes
 from pydantic import BaseModel, ConfigDict, Field
+from utils.decorators import api_retry
 
 from outputs.outputs import CSVWriter
 
@@ -64,13 +66,14 @@ preprocess_errors = {
         "must be a date after the last UDSv3 Visit Packet"
     ),
     SysErrorCodes.EXCLUDED_FIELDS: (
-        "Some fields in the input record do not match with the submitted version"
+        "Following fields in the input record do not match "
+        "with the submitted version/packet of the form/module: {0}"
     ),
     SysErrorCodes.INVALID_PACKET: (
         "Provided PACKET code is not in the list of accepted packets for this module"
     ),
     SysErrorCodes.INVALID_VERSION: (
-        "Provided FORMVER is not in the list of " "accepted versions for this module"
+        "Provided FORMVER is not in the list of accepted versions for this module"
     ),
     SysErrorCodes.INVALID_PTID: ("PTID must be no more than 10 characters"),
     SysErrorCodes.INVALID_MODULE: (
@@ -102,8 +105,8 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name> variable) "
-        "for one or more optional form"
+        "Missing submission status (MODE<form name>) variables {0}"
+        "for one or more optional forms"
     ),
 }
 
@@ -324,6 +327,7 @@ def preprocessing_error(
     message: Optional[str] = None,
     ptid: Optional[str] = None,
     visitnum: Optional[str] = None,
+    extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
 
@@ -348,6 +352,9 @@ def preprocessing_error(
 
     if error_code:
         error_message = preprocess_errors.get(error_code, error_message)
+
+    if extra_args:
+        error_message = error_message.format(*extra_args)
 
     return FileError(
         error_type="error",
@@ -517,6 +524,24 @@ class ListHandler(Handler):
         return self.__logs
 
 
+@api_retry
+def update_file_info(file: FileEntry, custom_info: Dict[str, Any]):
+    """Set custom info for the given file.
+
+    Args:
+        file: FileEntry object to set info
+        custom_info: custom info dict,
+                     any existing info under specified top-level key will be replaced
+
+    Raise:
+        ApiException: If failed to update custom info
+    """
+
+    # Note: have to use update_info() here for reset to take effect
+    # Using update() will not delete any existing data
+    file.update_info(custom_info)
+
+
 def update_error_log_and_qc_metadata(
     *,
     error_log_name: str,
@@ -585,10 +610,15 @@ def update_error_log_and_qc_metadata(
     info["qc"][gear_name] = {
         "validation": {"state": state.upper(), "data": updated_errors}
     }
+
     try:
-        new_file.update_info(info)
+        update_file_info(file=new_file, custom_info=info)
     except ApiException as error:
-        log.error("Error in setting QC metadata in file %s - %s", error_log_name, error)
+        log.error(
+            "Error in setting QC metadata in file %s - %s",
+            error_log_name,
+            error,
+        )
         return False
 
     return True
@@ -655,12 +685,10 @@ def reset_error_log_metadata_for_gears(
         return
 
     # make sure to load the existing metadata first and then modify
-    # update_info() will replace everything under the top-level key
+    # update_file_info() will replace everything under the top-level key
     qc_info: Dict[str, Any] = current_log.info.get("qc", {})
 
     for gear_name in gear_names:
         qc_info.pop(gear_name, None)
 
-    # Note: have to use update_info() here for reset to take effect
-    # Using update() will not delete any existing data
-    current_log.update_info({"qc": qc_info})
+    update_file_info(file=current_log, custom_info={"qc": qc_info})

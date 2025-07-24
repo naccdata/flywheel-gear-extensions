@@ -134,3 +134,8 @@ class PreprocessingChecks:
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"
+
+    @classmethod
+    def is_check_defined(cls, check: str) -> bool:
+        class_variables = vars(PreprocessingChecks)
+        return check in class_variables.values()

@@ -298,6 +298,12 @@
                 "ptid",
                 "npformdate"
             ],
+            "errorlog_template": {
+                "id_field": "ptid",
+                "date_field": "npformdate",
+                "suffix": "qc-status",
+                "extension": "log"
+            },
             "initial_packets": [
                 "NP"
             ],
@@ -315,7 +321,7 @@
         "BDS": {
             "hierarchy_labels": {
                 "session": {
-                    "template": "BDS-${visitdate}",
+                    "template": "BDS-RECORD-${visitdate}",
                     "transform": "upper"
                 },
                 "acquisition": {
@@ -347,7 +353,7 @@
         "CLS": {
             "hierarchy_labels": {
                 "session": {
-                    "template": "CLS-${visitdate}",
+                    "template": "CLS-RECORD-${visitdate}",
                     "transform": "upper"
                 },
                 "acquisition": {

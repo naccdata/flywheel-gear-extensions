@@ -57,7 +57,8 @@ def create_mlst_visitor(
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={module.upper(): module_configs},
+        module=module,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 
