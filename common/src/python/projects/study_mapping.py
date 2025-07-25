@@ -44,7 +44,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 
-from projects.study import StudyModel, StudyVisitor
+from projects.study import CenterStudyModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
 
 log = logging.getLogger(__name__)
@@ -316,30 +316,33 @@ class StudyMappingVisitor(StudyVisitor):
         if study.mode == "distribution":
             self.__mapper = DistributionMapper(study=study, proxy=self.__fw)
 
-        for center_id in study.centers:
-            self.visit_center(center_id)
+        for center in study.centers:
+            self.visit_center(center)
 
         assert self.__mapper
         self.__mapper.map_study_pipelines()
 
-    def visit_center(self, center_id: str) -> None:
+    def visit_center(self, center_model: CenterStudyModel) -> None:
         """Creates projects within the center for the study.
 
         Args:
-          center_id: the ID of the center
+          center: the center study model
         """
         assert self.__study, "study must be set"
         assert self.__mapper, "mapper must be set"
 
-        group_adaptor = self.__fw.find_group(center_id)
+        group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
-            log.warning("No group found with center ID %s", center_id)
+            log.warning("No group found with center ID %s", center_model.center_id)
             return
 
         try:
             center = CenterGroup.create_from_group_adaptor(adaptor=group_adaptor)
         except CenterError as error:
             log.warning("Unable to create center group: %s", str(error))
+            return
+
+        if self.__study.is_affiliated() and center_model.uses_coenrollment():
             return
 
         portal_info = center.get_project_info()
