@@ -3,7 +3,7 @@
 from typing import Optional
 
 import pytest
-from projects.study import StudyModel, StudyVisitor
+from projects.study import CenterStudyModel, StudyError, StudyModel, StudyVisitor
 
 
 class DummyVisitor(StudyVisitor):
@@ -14,8 +14,8 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center_id: str) -> None:
-        self.center_id = center_id
+    def visit_center(self, center: CenterStudyModel) -> None:
+        self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
         self.datatype_name = datatype
@@ -30,16 +30,22 @@ class TestStudy:
     def test_object(self):
         """Tests for object creation."""
         project = StudyModel(
-            name="Project Alpha",
+            study="Project Alpha",
             study_id="project-alpha",
-            centers=["ac"],
+            centers=[
+                CenterStudyModel(center_id="ac"),
+                CenterStudyModel(center_id="bc"),
+            ],
             datatypes=["dicom"],
             mode="aggregation",
             published=True,
             study_type="primary",
         )
         assert project.study_id == "project-alpha"
-        assert project.centers == ["ac"]
+        assert project.centers == [
+            CenterStudyModel(center_id="ac"),
+            CenterStudyModel(center_id="bc"),
+        ]
         assert project.datatypes == ["dicom"]
         assert project.mode == "aggregation"
         assert project.is_published()
@@ -49,29 +55,32 @@ class TestStudy:
             {
                 "study": "Project Alpha",
                 "study-id": "project-alpha",
-                "centers": ["ac"],
+                "centers": [
+                    "ac",
+                    {"center-id": "bc", "enrollment-pattern": "co-enrollment"},
+                ],
                 "datatypes": ["dicom"],
                 "mode": "aggregation",
                 "published": True,
-                "primary": True,
+                "study-type": "primary",
             }
         )
         assert project == project2
 
-        with pytest.raises(KeyError):
+        with pytest.raises(StudyError):
             StudyModel.create({})
 
     def test_apply(self):
         """Test project apply method."""
         visitor = DummyVisitor()
         project = StudyModel(
-            name="Project Beta",
+            study="Project Beta",
             study_id="beta",
             centers=[],
             datatypes=[],
             mode="aggregation",
             published=True,
-            study_type="affiliated"
+            study_type="affiliated",
         )
         project.apply(visitor)
         assert visitor.project_name == "Project Beta"

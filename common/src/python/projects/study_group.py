@@ -7,7 +7,9 @@ from projects.study import StudyModel
 class StudyGroup(GroupAdaptor):
     """Defines a group adaptor to represent a study in Flywheel."""
 
-    def __init__(self, *, group: Group, proxy: FlywheelProxy, study: StudyModel) -> None:
+    def __init__(
+        self, *, group: Group, proxy: FlywheelProxy, study: StudyModel
+    ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__study = study
 
