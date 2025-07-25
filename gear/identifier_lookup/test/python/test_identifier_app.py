@@ -133,6 +133,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
+                project=MockProject(),
             ),
             error_writer=error_writer,
         )
@@ -158,6 +159,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
+                project=MockProject(),
             ),
             error_writer=error_writer,
         )
@@ -183,6 +185,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
+                project=MockProject(),
             ),
             error_writer=error_writer,
         )
