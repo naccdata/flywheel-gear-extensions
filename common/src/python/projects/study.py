@@ -2,7 +2,17 @@
 
 import re
 from abc import ABC, abstractmethod
-from typing import Any, List, Literal, Mapping
+from typing import Any, Dict, List, Literal, Mapping
+
+from pydantic import (
+    AliasGenerator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+)
+from serialization.case import kebab_case
 
 
 def convert_to_slug(name: str) -> str:
@@ -23,6 +33,23 @@ def convert_to_slug(name: str) -> str:
     return name.lower()
 
 
+class CenterStudyModel(BaseModel):
+    """Data model to represent study enrollment pattern."""
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=AliasGenerator(alias=kebab_case),
+        extra="forbid",
+    )
+
+    center_id: str
+    enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
+
+    def uses_coenrollment(self) -> bool:
+        """Indicates whether center uses co-enrollment."""
+        return self.enrollment_pattern == "co-enrollment"
+
+
 class StudyVisitor(ABC):
     """Abstract class for a visitor object for studies."""
 
@@ -35,7 +62,7 @@ class StudyVisitor(ABC):
         """
 
     @abstractmethod
-    def visit_center(self, center_id: str) -> None:
+    def visit_center(self, center: CenterStudyModel) -> None:
         """Method to visit the given center within a study.
 
         Args:
@@ -55,104 +82,58 @@ StudyMode = Literal["aggregation", "distribution"]
 StudyType = Literal["primary", "affiliated"]
 
 
-class StudyModel:
-    """Represents a study with data managed at NACC."""
+class StudyModel(BaseModel):
+    """Data model for studies based on the model used in the project-management
+    gear.
 
-    def __init__(
-        self,
-        *,
-        name: str,
-        study_id: str,
-        centers: List[str],
-        datatypes: List[str],
-        mode: StudyMode,
-        published: bool = False,
-        study_type: StudyType,
-    ) -> None:
-        """Initializes a study object.
+    The `mode` indicates whether the study is meant to aggregate or distribute data
+    relative to the centers:
+    * 'aggregation' should be used when data is gathered from the centers and
+      aggregated.
+    * 'distribution' should be used when data is distributed to the centers.
 
-        Args:
-          name: the name of the study
-          study_id: the symbolic ID of study
-          centers: the list of ids for centers in the study
-          mode: whether the study aggregates or distributes data
-          published: whether the data for the study is to be released
-          primary: whether this is the primary study of the coordinating center
-        """
-        self.__name = name
-        self.__centers = centers
-        self.__datatypes = datatypes
-        self.__mode: StudyMode = mode
-        self.__published = published
-        self.__type = study_type
-        self.__study_id = study_id
+    The `study_type` indicates whether the study is 'primary' or 'affiliated'.
+    Affiliated study participants may be co-enrolled in the primary study or
+    separately enrolled.
+    So, for an affiliated study the enrollment pattern of a center determines
+    how data is managed:
+    * for a co-enrollment pattern, participant data will be associated to the
+      primary study.
+    * for separate enrollment, participant data will be associated with the
+      affiliated study.
+    For the primary study, the center enrollment pattern is meaningless.
+    """
 
-    def __eq__(self, __o: object) -> bool:
-        if not isinstance(__o, StudyModel):
-            return False
-        return (
-            __o.name == self.__name
-            and __o.centers == self.centers
-            and __o.datatypes == self.datatypes
-            and __o.__mode == self.__mode
-            and __o.is_published() == self.is_published()
-            and __o.is_primary() == self.is_primary()
-        )
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=AliasGenerator(alias=kebab_case),
+        extra="forbid",
+    )
 
-    def __repr__(self) -> str:
-        return (
-            "Study("
-            f"name={self.__name},"
-            f"study_id={self.__study_id},"
-            f"centers={self.__centers},"
-            f"datatypes={self.__datatypes},"
-            f"mode={self.__mode},"
-            f"published={self.__published},"
-            f"study_type={self.__type}"
-            ")"
-        )
-
-    @property
-    def study_id(self) -> str:
-        """Study ID property."""
-        return self.__study_id
-
-    @property
-    def name(self) -> str:
-        """Study Name property."""
-        return self.__name
-
-    @property
-    def centers(self) -> List[str]:
-        """Study centers property."""
-        return self.__centers
-
-    @property
-    def datatypes(self) -> List[str]:
-        """Study datatypes property."""
-        return self.__datatypes
-
-    @property
-    def mode(self) -> StudyMode:
-        """Study mode property."""
-        return self.__mode
-
-    def is_published(self) -> bool:
-        """Study published predicate."""
-        return self.__published
-
-    def is_affiliated(self) -> bool:
-        """Predicate to indicate whether this is an affiliated study."""
-        return self.__type == "affiliated"
-
-    def is_primary(self) -> bool:
-        """Predicate to indicate whether is the main study of coordinating
-        center."""
-        return self.__type == "primary"
+    name: str = Field(alias="study")
+    study_id: str
+    centers: List[CenterStudyModel]
+    datatypes: List[str]
+    mode: Literal["aggregation", "distribution"]
+    study_type: Literal["primary", "affiliated"]
+    published: bool = Field(False)
 
     def apply(self, visitor: StudyVisitor) -> None:
         """Apply visitor to this Study."""
         visitor.visit_study(self)
+
+    def is_published(self) -> bool:
+        """Study published predicate."""
+        return self.published
+
+    def is_affiliated(self) -> bool:
+        """Predicate to indicate whether this is an affiliated study."""
+        return self.study_type == "affiliated"
+
+    def is_primary(self) -> bool:
+        """Predicate to indicate whether is the main study of coordinating
+        center."""
+        return self.study_type == "primary"
 
     def project_suffix(self) -> str:
         """Creates the suffix that should be added to study pipelines."""
@@ -163,15 +144,45 @@ class StudyModel:
 
     @classmethod
     def create(cls, study: Mapping[str, Any]) -> "StudyModel":
-        """Create study from given mapping."""
+        try:
+            return StudyModel.model_validate(study)
+        except ValidationError as error:
+            raise StudyError(error) from error
 
-        study_mode: StudyMode = study.get("mode", "aggregation")
-        return StudyModel(
-            name=study["study"],
-            study_id=study["study-id"],
-            centers=study["centers"],
-            datatypes=study["datatypes"],
-            mode=study_mode,
-            published=study["published"],
-            study_type="primary" if "primary" in study else "affiliated",
-        )
+    @field_validator("centers", mode="before")
+    @classmethod
+    def center_list(cls, centers: List[str | Dict[str, str]]) -> List[CenterStudyModel]:
+        """Allows validation of an object where centers are given as strings.
+
+        Converts center-ids to CenterStudyModel with co-enrollment enrollment pattern.
+
+        Args:
+          centers: list of string or CenterStudyModel
+        Returns:
+          List with center-ids converted to CenterStudyModel
+        """
+
+        def center_model(
+            value: str | Dict[str, str] | CenterStudyModel,
+        ) -> CenterStudyModel:
+            """Converts value to a CenterStudyModel if required.
+
+            Creates a CenterStudyModel from a center-id by adding the
+            co-enrollment enrollment pattern.
+
+            Args:
+              value: the center-id or a CenterStudyModel
+            Returns:
+              the CenterStudyModel for the value
+            """
+            if isinstance(value, CenterStudyModel):
+                return value
+            if isinstance(value, Dict):
+                return CenterStudyModel.model_validate(value)
+            return CenterStudyModel(center_id=value, enrollment_pattern="co-enrollment")
+
+        return [center_model(value) for value in centers]
+
+
+class StudyError(Exception):
+    """Exception for loading a study."""
