@@ -144,6 +144,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             container_id=file_id, fw_path=proxy.get_lookup_path(file)
         )
         preprocessor = self.__get_preprocessor(
+            module=module,
             form_configs=form_configs,
             ingest_project=prj_adaptor,
             error_writer=error_writer,
@@ -207,6 +208,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
     def __get_preprocessor(
         self,
+        module: str,
         form_configs: FormProjectConfigs,
         ingest_project: ProjectAdaptor,
         error_writer: ListErrorWriter,
@@ -214,6 +216,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         """Initialize the preprocessor for ingest project.
 
         Args:
+          module: module label
           form_configs: the form ingest configs
           ingest_project: Flywheel project adaptor
           error_writer: error metadata writer
@@ -245,7 +248,8 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         return FormPreprocessor(
             primary_key=form_configs.primary_key,
             forms_store=forms_store,
-            module_info=form_configs.module_configs,
+            module=module,
+            module_configs=form_configs.module_configs.get(module),  # type: ignore
             error_writer=error_writer,
         )
 

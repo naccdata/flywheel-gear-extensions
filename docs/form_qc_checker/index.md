@@ -13,7 +13,9 @@ This gear uses the AWS SSM parameter store, and expects that AWS credentials are
 Ideally, qc checks for a participant should be triggered by [Form QC Coordinator](../form_qc_coordinator/index.md). Prevent from manually running this gear on individual visit files.
 
 ### Inputs
-- form_data_file: The form data JSON file to validate, this is required.
+- form_data_file: The form data file (JSON or CSV) to validate, this is required.
+- form_configs_file: A JSON file with forms module configurations, this is required.
+- supplement_data_file: Optional input file for supplement module.
 
 ### Configs
 Gear configs are defined in [manifest.json](../../gear/form_qc_checker/src/docker/manifest.json).

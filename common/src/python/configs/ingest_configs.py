@@ -6,8 +6,8 @@ from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues
-from pydantic import BaseModel, Field, RootModel, ValidationError
+from keys.keys import DefaultValues, PreprocessingChecks
+from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
 
 PipelineType = Literal["submission", "finalization"]
 
@@ -127,6 +127,21 @@ class ModuleConfigs(BaseModel):
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
+
+    @model_validator(mode="after")
+    def validate_preprocess_checks(self) -> "ModuleConfigs":
+        not_defined = []
+        if self.preprocess_checks:
+            for check in self.preprocess_checks:
+                if not PreprocessingChecks.is_check_defined(check):
+                    not_defined.append(check)
+
+            if not_defined:
+                raise ValueError(
+                    f"Following pre-processing checks are not defined: {not_defined}"
+                )
+
+        return self
 
 
 class FormProjectConfigs(BaseModel):

@@ -65,7 +65,8 @@ def create_uds_visitor(
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={DefaultValues.UDS_MODULE: module_configs},
+        module=DefaultValues.UDS_MODULE,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 
@@ -225,7 +226,9 @@ class TestUDSTransform:
         assert len(qc) == 1
         code = SysErrorCodes.EXCLUDED_FIELDS
         assert qc[0]["code"] == code
-        assert qc[0]["message"] == preprocess_errors[code]
+        assert qc[0]["message"] == preprocess_errors[code].format(
+            ["bad1", "bad2", "bad3"]
+        )
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""

@@ -28,7 +28,7 @@ from outputs.errors import (
     unknown_field_error,
 )
 from outputs.outputs import CSVWriter
-from preprocess.preprocessor import FormPreprocessor
+from preprocess.preprocessor import FormPreprocessor, PreprocessingContext
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.processor import FileProcessor
@@ -208,6 +208,11 @@ class CSVFileProcessor(FileProcessor):
             Dict[str, Any]: None if required info missing, else first row as dict
         """
 
+        if not self._module_configs:
+            raise GearExecutionError(
+                f"Failed to find the configurations for module {self._module}"
+            )
+
         self.__input = input_wrapper
         with open(input_wrapper.filepath, mode="r", encoding="utf-8-sig") as file_obj:
             # Validate header and first row of the CSV file
@@ -234,16 +239,14 @@ class CSVFileProcessor(FileProcessor):
                 forms_store=FormsStore(
                     ingest_project=self._project, legacy_project=None
                 ),
-                module_info=self._form_configs.module_configs,
+                module=self._module,
+                module_configs=self._module_configs,
                 error_writer=self._error_writer,
             )
 
-            if not preprocessor.is_accepted_version(
-                input_record=first_row,
-                module=self._module,
-                module_configs=self._module_configs,  # type: ignore
-                line_num=1,
-            ):
+            pp_context = PreprocessingContext(input_record=first_row, line_num=1)
+
+            if not preprocessor.is_accepted_version(pp_context=pp_context):
                 return None
 
             return first_row

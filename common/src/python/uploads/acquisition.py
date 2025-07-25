@@ -6,6 +6,7 @@ from flywheel.file_spec import FileSpec
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+from utils.decorators import api_retry
 
 from uploads.upload_error import UploaderError
 
@@ -53,6 +54,7 @@ def is_duplicate_record(
     # TODO: Handle other content types
 
 
+@api_retry
 def update_file_info_metadata(
     file: FileEntry, input_record: Dict[str, Any], modality: str = "Form"
 ) -> bool:
@@ -83,6 +85,7 @@ def update_file_info_metadata(
     return True
 
 
+@api_retry
 def upload_to_acquisition(
     acquisition: Acquisition,
     filename: str,
