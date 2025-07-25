@@ -2,7 +2,7 @@
 
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Mapping
+from typing import Any, Dict, List, Literal, Mapping, Self
 
 from pydantic import (
     AliasGenerator,
@@ -11,6 +11,7 @@ from pydantic import (
     Field,
     ValidationError,
     field_validator,
+    model_validator,
 )
 from serialization.case import kebab_case
 
@@ -44,10 +45,6 @@ class CenterStudyModel(BaseModel):
 
     center_id: str
     enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
-
-    def uses_coenrollment(self) -> bool:
-        """Indicates whether center uses co-enrollment."""
-        return self.enrollment_pattern == "co-enrollment"
 
 
 class StudyVisitor(ABC):
@@ -126,10 +123,6 @@ class StudyModel(BaseModel):
         """Study published predicate."""
         return self.published
 
-    def is_affiliated(self) -> bool:
-        """Predicate to indicate whether this is an affiliated study."""
-        return self.study_type == "affiliated"
-
     def is_primary(self) -> bool:
         """Predicate to indicate whether is the main study of coordinating
         center."""
@@ -182,6 +175,14 @@ class StudyModel(BaseModel):
             return CenterStudyModel(center_id=value, enrollment_pattern="co-enrollment")
 
         return [center_model(value) for value in centers]
+
+    @model_validator(mode="after")
+    def check_mode_consistency(self) -> Self:
+        """Checks consistency within a study model."""
+        if self.study_type == "primary" and self.mode != "aggregation":
+            raise ValueError("The mode of a primary study must be aggregation")
+
+        return self
 
 
 class StudyError(Exception):
