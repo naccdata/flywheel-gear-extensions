@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.0.0
+## 2.0.1
 
 * Changes study to capture enrollment-pattern for centers within an affiliated study.
 * Only creates pipelines for an affiliated study in a center where separate enrollment is designated.
