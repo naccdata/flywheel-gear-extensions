@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.0.0
 
+* Changes study to capture enrollment-pattern for centers within an affiliated study.
+* Only creates pipelines for an affiliated study in a center where separate enrollment is designated.
 * Moves permission management for study into project and group creation.
 
 ## 1.1.1
