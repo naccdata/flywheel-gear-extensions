@@ -342,7 +342,11 @@ class StudyMappingVisitor(StudyVisitor):
             log.warning("Unable to create center group: %s", str(error))
             return
 
-        if self.__study.is_affiliated() and center_model.uses_coenrollment():
+        if (
+            self.__study.mode == "aggregation"
+            and self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
             return
 
         portal_info = center.get_project_info()
