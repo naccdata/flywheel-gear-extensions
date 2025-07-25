@@ -158,9 +158,7 @@ class CSVTransformVisitor(CSVVisitor):
             self.__module_configs.preprocess_checks
             and PreprocessingChecks.DUPLICATE_RECORD
             in self.__module_configs.preprocess_checks
-            and self.__preprocessor.is_existing_visit(
-                input_record=transformed_row, module=self.module
-            )
+            and self.__preprocessor.is_existing_visit(input_record=transformed_row)
         ):
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
@@ -267,7 +265,6 @@ class CSVTransformVisitor(CSVVisitor):
 
                 if not self.__preprocessor.preprocess(
                     input_record=transformed_row,
-                    module=self.module,
                     line_num=line_num,
                     ivp_record=ivp_packet,
                 ):

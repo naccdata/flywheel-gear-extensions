@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.2
+* Rebuilding for API call retries
+  
 ## 1.2.1
 * Rebuild for handling multiple pipelines (submission, finalization)
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
