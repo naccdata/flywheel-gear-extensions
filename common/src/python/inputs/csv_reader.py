@@ -1,6 +1,7 @@
 """Methods to read and process a CSV file using a row visitor."""
 
 import abc
+import logging
 from abc import ABC, abstractmethod
 from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
@@ -9,11 +10,12 @@ from outputs.errors import (
     ErrorWriter,
     ListErrorWriter,
     empty_file_error,
-    malformed_file_error,
     missing_header_error,
     partially_failed_file_error,
 )
 from utils.snakecase import snakecase
+
+log = logging.getLogger(__name__)
 
 
 class CSVVisitor(ABC):
@@ -107,7 +109,7 @@ def read_csv(
             if limit and count >= limit:
                 break
     except CSVVisitorError as error:
-        error_writer.write(malformed_file_error(str(error)))
+        log.error(f"Error occurred while reading CSV file: {error}")
         return False
 
     if not success and clear_errors and isinstance(error_writer, ListErrorWriter):
