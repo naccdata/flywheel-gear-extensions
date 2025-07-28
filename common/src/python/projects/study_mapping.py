@@ -105,7 +105,7 @@ class StudyMapper(ABC):
         """
         project = center.add_project(pipeline_label)
         if not project:
-            log.error("Failed to create pipeline %s/%s", center.label, pipeline_label)
+            log.error("Failed to create pipeline %s/%s", center.id, pipeline_label)
             return
 
         update_study(project)
@@ -352,7 +352,7 @@ class DistributionMapper(StudyMapper):
         project = study_group.add_project(project_label)
         if not project:
             log.error(
-                "Failed to create project %s/%s", study_group.label, project_label
+                "Failed to create project %s/%s", study_group.id, project_label
             )
 
 
