@@ -1,3 +1,5 @@
+from typing import Optional
+
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
@@ -29,7 +31,7 @@ class StudyGroup(GroupAdaptor):
             study=study,
         )
 
-    def add_project(self, label: str) -> ProjectAdaptor:
+    def add_project(self, label: str) -> Optional[ProjectAdaptor]:
         """Adds a project with the label to this study group.
 
         Args:
@@ -37,13 +39,9 @@ class StudyGroup(GroupAdaptor):
         Returns:
           the created project
         """
-        project = self.get_project(label)
-        if not project:
-            raise StudyError(f"failed to create project {self.label}/{label}")
-
-        project.add_tags(self.get_tags())
-        project.add_admin_users(self.get_user_access())
-        return project
+        return self.get_project(
+            label=label, info_update={"study-id": self.__study.study_id}
+        )
 
 
 class StudyError(Exception):

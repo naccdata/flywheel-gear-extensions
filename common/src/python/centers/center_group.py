@@ -387,7 +387,9 @@ class CenterGroup(CenterAdaptor):
 
     def add_center_portal(self) -> None:
         """Adds a center portal project to this group."""
-        self.add_project("center-portal")
+        project = self.add_project("center-portal")
+        if not project:
+            log.error("Failed to create %s/center-portal", self.label)
 
     def add_redcap_project(self, redcap_project: "REDCapProjectInput") -> None:
         """Adds the REDCap project to the center group.
@@ -471,7 +473,7 @@ class CenterGroup(CenterAdaptor):
             project_info.model_dump(by_alias=True, exclude_none=True)
         )
 
-    def add_project(self, label: str) -> ProjectAdaptor:
+    def add_project(self, label: str) -> Optional[ProjectAdaptor]:
         """Adds a project with the label to this group and returns the
         corresponding ProjectAdaptor.
 
@@ -480,14 +482,7 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the ProjectAdaptor for the project
         """
-        project = self.get_project(label)
-        if not project:
-            raise CenterError(f"failed to create project {self.label}/{label}")
-
-        project.add_tags(self.get_tags())
-        project.update_info({"adcid": self.adcid})
-        project.add_admin_users(self.get_user_access())
-        return project
+        return self.get_project(label=label, info_update={"adcid": self.adcid})
 
     def add_user_roles(
         self,
