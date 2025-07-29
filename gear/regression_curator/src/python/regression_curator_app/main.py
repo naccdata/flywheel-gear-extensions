@@ -10,7 +10,7 @@ from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.errors import ListErrorWriter, unexpected_value_error
+from outputs.errors import ErrorWriter, unexpected_value_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class BaselineLocalizer(ABC):
     def __init__(
         self,
         s3_file: str,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         keep_fields: Optional[List[str]] = None,
     ) -> None:
         self.s3_file = s3_file
@@ -189,7 +189,7 @@ def run(
     s3_qaf_file: str,
     keep_fields: List[str],
     scheduler: ProjectCurationScheduler,
-    error_writer: ListErrorWriter,
+    error_writer: ErrorWriter,
     s3_mqt_file: Optional[str] = None,
 ) -> None:
     """Runs the Attribute Curator process.
