@@ -351,9 +351,7 @@ class DistributionMapper(StudyMapper):
         project_label = f"ingest-{datatype.lower()}"
         project = study_group.add_project(project_label)
         if not project:
-            log.error(
-                "Failed to create project %s/%s", study_group.id, project_label
-            )
+            log.error("Failed to create project %s/%s", study_group.id, project_label)
 
 
 class StudyMappingVisitor(StudyVisitor):
