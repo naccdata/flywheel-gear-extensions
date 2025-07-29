@@ -5,7 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Handler, Logger
-from typing import Any, Dict, List, Literal, MutableSequence, Optional, TextIO
+from typing import Any, Dict, List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
@@ -14,7 +14,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import FieldNames, SysErrorCodes
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from utils.decorators import api_retry
 
 from outputs.outputs import CSVWriter
@@ -156,6 +156,31 @@ class FileError(BaseModel):
             else:
                 result.append(fieldname)
         return result
+
+
+class FileErrorList(RootModel):
+    """Serialization model for lists of FileError."""
+
+    root: List[FileError]
+
+    def __bool__(self) -> bool:
+        return bool(self.root)
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __getitem__(self, item) -> FileError:
+        return self.root[item]
+
+    def __len__(self):
+        return len(self.root)
+
+    def clear(self):
+        self.root.clear()
+
+    def append(self, error: FileError) -> None:
+        """Appends the error to the list."""
+        self.root.append(error)
 
 
 def identifier_error(
@@ -482,10 +507,10 @@ class ListErrorWriter(UserErrorWriter):
         self,
         container_id: str,
         fw_path: str,
-        errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+        errors: Optional[FileErrorList] = None,
     ) -> None:
         super().__init__(container_id, fw_path)
-        self.__errors = [] if errors is None else errors
+        self.__errors = FileErrorList([]) if errors is None else errors
 
     def write(self, error: FileError, set_timestamp: bool = True) -> None:
         """Captures error for writing to metadata.
@@ -495,9 +520,9 @@ class ListErrorWriter(UserErrorWriter):
           set_timestamp: if True, assign the writer timestamp to the error
         """
         self.prepare_error(error, set_timestamp)
-        self.__errors.append(error.model_dump(by_alias=True))
+        self.__errors.append(error)
 
-    def errors(self) -> MutableSequence[Dict[str, Any]]:
+    def errors(self) -> FileErrorList:
         """Returns serialized list of accumulated file errors.
 
         Returns:
@@ -548,7 +573,7 @@ def update_error_log_and_qc_metadata(
     destination_prj: ProjectAdaptor,
     gear_name: str,
     state: str,
-    errors: MutableSequence[Dict[str, Any]],
+    errors: FileErrorList,
     reset_qc_metadata: MetadataCleanupFlag = "NA",
 ) -> bool:
     """Update project level error log file and store error metadata in
@@ -583,7 +608,7 @@ def update_error_log_and_qc_metadata(
     timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
     contents += f"{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n"
     for error in errors:
-        contents += json.dumps(error) + "\n"
+        contents += json.dumps(error.model_dump(by_alias=True)) + "\n"
 
     error_file_spec = FileSpec(
         name=error_log_name, contents=contents, content_type="text", size=len(contents)
@@ -605,7 +630,7 @@ def update_error_log_and_qc_metadata(
         updated_errors = (
             info.get("qc", {}).get(gear_name, {}).get("validation", {}).get("data", [])
         )
-    updated_errors.extend(errors)
+    updated_errors.extend(errors.model_dump(by_alias=True))
 
     info["qc"][gear_name] = {
         "validation": {"state": state.upper(), "data": updated_errors}
