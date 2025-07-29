@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+Adds log message to prevent gear being unresponsive
+
 ## 1.1.0
 * Adds functionality for handling multiple pipelines (submission, finalization)
   
