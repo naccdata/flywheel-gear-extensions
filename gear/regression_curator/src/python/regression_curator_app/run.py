@@ -2,7 +2,7 @@
 
 import logging
 from multiprocessing import Manager
-from typing import List, Optional
+from typing import Any, Dict, List, MutableSequence, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel import FileSpec
@@ -19,13 +19,49 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from outputs.errors import FileError, ListErrorWriter
+from outputs.errors import FileError, UserErrorWriter
 from outputs.outputs import write_csv_to_stream
 from utils.utils import parse_string_to_list
 
 from regression_curator_app.main import run
 
 log = logging.getLogger(__name__)
+
+
+class ManagerListErrorWriter(UserErrorWriter):
+    """Manages errors as dictionary objects to be compatible with
+    multiprocessing."""
+
+    def __init__(
+        self,
+        container_id: str,
+        fw_path: str,
+        errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+    ) -> None:
+        super().__init__(container_id, fw_path)
+        self.__errors = [] if errors is None else errors
+
+    def write(self, error: FileError, set_timestamp: bool = True) -> None:
+        """Captures error for writing to metadata.
+
+        Args:
+          error: the file error object
+          set_timestamp: if True, assign the writer timestamp to the error
+        """
+        self.prepare_error(error, set_timestamp)
+        self.__errors.append(error.model_dump(by_alias=True))
+
+    def errors(self) -> MutableSequence[Dict[str, Any]]:
+        """Returns serialized list of accumulated file errors.
+
+        Returns:
+          List of serialized FileError objects
+        """
+        return self.__errors
+
+    def clear(self):
+        """Clear the errors list."""
+        self.__errors.clear()
 
 
 class RegressionCuratorVisitor(GearExecutionEnvironment):
@@ -111,7 +147,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
                 f"Failed to find the input file: {error}"
             ) from error
 
-        error_writer = ListErrorWriter(
+        error_writer = ManagerListErrorWriter(
             container_id=self.__project.id, fw_path=fw_path, errors=Manager().list()
         )
 
