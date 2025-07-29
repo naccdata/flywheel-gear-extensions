@@ -10,6 +10,7 @@ from gear_execution.gear_execution import (
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
@@ -32,6 +33,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename: str,
         gear_name: str,
         project_names: List[str],
+        modules: List[str],
+        study_id: str,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -39,6 +42,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__output_filename = output_filename
         self.__gear_name = gear_name
         self.__project_names = project_names
+        self.__modules = modules
+        self.__study_id = study_id
 
     @classmethod
     def create(
@@ -64,6 +69,11 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename = context.config.get("output_file", "submission-status.csv")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
+        modules = context.config.get("modules", "").split(",")
+        study_id = context.config.get("study_id")
+        if not study_id:
+            raise GearExecutionError("No study ID provided in the gear config")
+
         gear_name = context.manifest.get("name", "gather-submission-status")
         return GatherSubmissionStatusVisitor(
             client=client,
@@ -72,6 +82,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
+            modules=modules,
+            study_id=study_id,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -98,6 +110,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                     input_file=csv_file,
                     admin_group=admin_group,
                     project_names=self.__project_names,
+                    modules=self.__modules,
+                    study_id=self.__study_id,
                     error_writer=error_writer,
                     output_file=status_file,
                 )

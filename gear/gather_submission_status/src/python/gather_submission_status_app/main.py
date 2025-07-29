@@ -19,16 +19,15 @@ from outputs.errors import (
     malformed_file_error,
     missing_field_error,
 )
-from pydantic import BaseModel, ValidationError, field_serializer, field_validator
+from pydantic import BaseModel, ValidationError, field_validator
 
 log = logging.getLogger(__name__)
 
-Modality = Literal["UDS", "FTLD", "LBD"]
-Study = Literal["adrc", "dvcid", "leads"]
+ModuleName = Literal["UDS", "FTLD", "LBD"]
 QCStatus = Literal["pass", "fail"]
 
 
-def create_status_view(modules: List[Modality]) -> DataView:
+def create_status_view(modules: List[ModuleName]) -> DataView:
     """Creates a dataview for participant submission status for files matching
     the given modalities.
 
@@ -46,6 +45,7 @@ def create_status_view(modules: List[Modality]) -> DataView:
             ColumnModel(data_key="acquisition.label", label="module"),
             ColumnModel(data_key="subject.label", label="naccid"),
             ColumnModel(data_key="file.modified", label="modified_date"),
+            ColumnModel(data_key="file.info.forms.json.visitdate", label="visit_date"),
         ],
         container="acquisition",
         filter_str=f'acquisition.label=|[{",".join(modules)}]',
@@ -63,14 +63,15 @@ class StatusModel(BaseModel):
     be set separately.
     """
 
+    naccid: str
+    module: str
+    visit_date: date
     filename: str
     file_id: str
-    module: str
-    naccid: str
     modified_date: date
     qc_status: Optional[QCStatus] = None
 
-    @field_validator("modified_date", mode="before")
+    @field_validator("modified_date", "visit_date", mode="before")
     def datetime_to_date(cls, value: str) -> date:
         """Converts datetime string to date.
 
@@ -112,9 +113,7 @@ class StatusFilter:
         self.__proxy = proxy
         self.__writer = writer
 
-    def gather_status(
-        self, subject: SubjectAdaptor, modalities: List[Modality]
-    ) -> None:
+    def gather_status(self, subject: SubjectAdaptor, modules: List[ModuleName]) -> None:
         """Gathers submission status details for acquisitions with the
         modalities associated with the subject.
 
@@ -128,7 +127,7 @@ class StatusFilter:
         Raises:
           StatusError if there is an error validating the dataview
         """
-        view = create_status_view(modalities)
+        view = create_status_view(modules)
         response = self.__proxy.read_view_data(view, subject.id)
         response_data = response.read()
         try:
@@ -155,27 +154,7 @@ class StatusRequest(BaseModel):
 
     adcid: int
     naccid: str
-    study: Study
-    modalities: List[Modality]
-
-    @field_serializer("modalities")
-    def serialize_list_as_string(self, modalities: List[Modality]) -> str:
-        return ",".join(modalities)
-
-    @field_validator("modalities", mode="before")
-    @classmethod
-    def modality_list(cls, value: Any) -> List[Modality]:
-        if isinstance(value, list):
-            return value
-        if not isinstance(value, str):
-            raise ValueError(f"expecting modalities to be a string, got {type(value)}")
-
-        modality_list = value.split(",")
-        mismatches = [name for name in modality_list if name not in get_args(Modality)]
-        if mismatches:
-            raise ValueError(f"found unexpected modalities: {', '.join(mismatches)}")
-
-        return modality_list  # type: ignore
+    study: str
 
 
 class SubmissionStatusVisitor(CSVVisitor):
@@ -186,11 +165,15 @@ class SubmissionStatusVisitor(CSVVisitor):
         *,
         admin_group: NACCGroup,
         project_names: List[str],
+        study_id: str,
+        modules: List[ModuleName],
         status_filter: StatusFilter,
         error_writer: ErrorWriter,
     ) -> None:
         self.__admin_group = admin_group
         self.__project_names = project_names
+        self.__study_id = study_id
+        self.__modules = modules
         self.__filter = status_filter
         self.__error_writer = error_writer
         self.__center_map: Dict[int, CenterGroup] = {}
@@ -213,7 +196,9 @@ class SubmissionStatusVisitor(CSVVisitor):
                 self.__center_map[adcid] = center
         return center
 
-    def __get_projects(self, center: CenterGroup, study: Study) -> List[ProjectAdaptor]:
+    def __get_projects(
+        self, center: CenterGroup, study_id: str
+    ) -> List[ProjectAdaptor]:
         """Gets the projects matching the prefix in the center group.
 
         Args:
@@ -225,7 +210,7 @@ class SubmissionStatusVisitor(CSVVisitor):
         projects = self.__project_map.get(center.label, [])
         if not projects:
             for project in self.__project_names:
-                pattern = f"{project}-{study}" if study != "adrc" else project
+                pattern = f"{project}-{study_id}" if study_id != "adrc" else project
                 matching_projects = center.get_matching_projects(pattern)
                 if matching_projects:
                     projects += matching_projects
@@ -261,6 +246,18 @@ class SubmissionStatusVisitor(CSVVisitor):
         except ValidationError as error:
             self.__error_writer.write(malformed_file_error(str(error)))
             return False
+        if status_query.study != self.__study_id:
+            self.__error_writer.write(
+                FileError(
+                    error_code="unexpected-study",
+                    error_type="error",
+                    location=CSVLocation(line=line_num, column_name="study"),
+                    message=(
+                        f'expected "{self.__study_id}" or "adrc",'
+                        f" got {status_query.study}"
+                    ),
+                )
+            )
 
         center = self.__get_center(status_query.adcid)
         if not center:
@@ -274,7 +271,7 @@ class SubmissionStatusVisitor(CSVVisitor):
             )
             return False
 
-        projects = self.__get_projects(center=center, study=status_query.study)
+        projects = self.__get_projects(center=center, study_id=status_query.study)
         if not projects:
             self.__error_writer.write(
                 FileError(
@@ -295,9 +292,7 @@ class SubmissionStatusVisitor(CSVVisitor):
                 continue
 
             try:
-                self.__filter.gather_status(
-                    subject=subject, modalities=status_query.modalities
-                )
+                self.__filter.gather_status(subject=subject, modules=self.__modules)
             except StatusError as error:
                 log.error("error loading status: %s", str(error))
                 continue
@@ -311,6 +306,8 @@ def run(
     output_file: TextIO,
     admin_group: NACCGroup,
     project_names: List[str],
+    modules: List[str],
+    study_id: str,
     proxy: FlywheelProxy,
     error_writer: ErrorWriter,
 ):
@@ -323,6 +320,8 @@ def run(
     visitor = SubmissionStatusVisitor(
         admin_group=admin_group,
         project_names=project_names,
+        modules=modules,  # type: ignore
+        study_id=study_id,
         status_filter=StatusFilter(proxy=proxy, writer=writer),
         error_writer=error_writer,
     )
