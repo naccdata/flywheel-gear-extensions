@@ -24,15 +24,23 @@ So, an input file would look like
 0,"NACC000001","dvcid"
 ```
 
-The gear config includes `project_names`, which a string containing a comma-separated list of project prefixes.
-These prefixes are used with the study to create the pattern used to match the label of the projects from which data is gathered.
-By default, this string is set to `"ingest-form"`.
-If `study` from the input file is `"adrc"`, the project `ingest-form` will be used.
-Otherwise, the study is used as a suffix to the label.
-For instance, if study is `"dvcid"`, the project `ingest-form-dvcid` will be used.
+## Gear config
 
-The gear config also includes `module`, which is a string that is a comma-separated list of form modules.
-The default includes UDS, FTLD and LBD.
+The gear manifest config includes the following parameters:
+
+- `study_id` - Defaults to `adrc`. Should be set to a different value if any participants have data from an affiliated study.
+  For instance, for participants in DVCID that are not co-enrolled in the clinical core, set this to `dvcid`.
+
+- `project_names` - a string containing a comma-separated list of project prefixes.
+  These prefixes are used with the study to create the pattern used to match the label of the projects from which data is gathered.
+  By default, this string is set to `"ingest-form"`.
+
+  If `study` from the input file is `"adrc"`, the project `ingest-form` will be used.
+  Otherwise, the study is used as a suffix to the label.
+  For instance, if study is `"dvcid"`, the project `ingest-form-dvcid` will be used.
+
+- `module` - a string that is a comma-separated list of form modules.
+  The default includes UDS, FTLD and LBD.
 
 
 ## Output file
