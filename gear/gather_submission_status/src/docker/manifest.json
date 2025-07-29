@@ -65,6 +65,7 @@
         "study_id": {
             "description": "The study ID",
             "type": "string",
+            "default": "adrc"
         },
         "output_file": {
             "description": "Name of the output file",

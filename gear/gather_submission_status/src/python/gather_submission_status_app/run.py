@@ -70,10 +70,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
         modules = context.config.get("modules", "").split(",")
-        study_id = context.config.get("study_id")
-        if not study_id:
-            raise GearExecutionError("No study ID provided in the gear config")
-
+        study_id = context.config.get("study_id", "adrc")
         gear_name = context.manifest.get("name", "gather-submission-status")
         return GatherSubmissionStatusVisitor(
             client=client,

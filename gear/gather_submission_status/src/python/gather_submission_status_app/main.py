@@ -172,7 +172,7 @@ class SubmissionStatusVisitor(CSVVisitor):
     ) -> None:
         self.__admin_group = admin_group
         self.__project_names = project_names
-        self.__study_id = study_id
+        self.__expected_studies = {study_id, "adrc"}
         self.__modules = modules
         self.__filter = status_filter
         self.__error_writer = error_writer
@@ -246,14 +246,15 @@ class SubmissionStatusVisitor(CSVVisitor):
         except ValidationError as error:
             self.__error_writer.write(malformed_file_error(str(error)))
             return False
-        if status_query.study != self.__study_id:
+
+        if status_query.study not in self.__expected_studies:
             self.__error_writer.write(
                 FileError(
                     error_code="unexpected-study",
                     error_type="error",
                     location=CSVLocation(line=line_num, column_name="study"),
                     message=(
-                        f'expected "{self.__study_id}" or "adrc",'
+                        f'expected one of {", ".join(self.__expected_studies)},'
                         f" got {status_query.study}"
                     ),
                 )
