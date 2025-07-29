@@ -106,7 +106,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(

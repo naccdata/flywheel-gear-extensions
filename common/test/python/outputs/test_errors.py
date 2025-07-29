@@ -114,4 +114,4 @@ class TestErrorWriter:
             )
         )
         errors = writer.errors()
-        assert errors[0]["container_id"] == "the-id"
+        assert errors[0].container_id == "the-id"

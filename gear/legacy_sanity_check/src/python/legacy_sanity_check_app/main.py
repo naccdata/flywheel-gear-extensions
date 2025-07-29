@@ -272,7 +272,9 @@ class LegacySanityChecker:
         body = (
             f"Project {project_lbl} for {group_lbl} failed "
             + "the following legacy sanity checks:\n\n"
-            + json.dumps(self.__error_writer.errors(), indent=4)
+            + json.dumps(
+                self.__error_writer.errors().model_dump(by_alias=True), indent=4
+            )
         )
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)

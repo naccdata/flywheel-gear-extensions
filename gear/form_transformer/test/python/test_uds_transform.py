@@ -31,8 +31,8 @@ def run_header_test(visitor: CSVTransformVisitor, error_writer: ListErrorWriter)
     # just look at specific fields since stuff like time/set order will vary
     errors = error_writer.errors()
     assert len(errors) == 1
-    assert errors[0]["code"] == "missing-field"
-    assert errors[0]["message"].startswith("Missing one or more required field(s)")
+    assert errors[0].error_code == "missing-field"
+    assert errors[0].message.startswith("Missing one or more required field(s)")
 
 
 def create_uds_visitor(

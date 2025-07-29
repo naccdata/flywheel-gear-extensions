@@ -139,7 +139,9 @@ class QCCoordinator:
             error_writer.write(error_obj)
 
         qc_result = create_qc_result_dict(
-            name="validation", state=status, data=error_writer.errors()
+            name="validation",
+            state=status,
+            data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
         info = (

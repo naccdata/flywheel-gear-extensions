@@ -498,7 +498,7 @@ class CSVTransformVisitor(CSVVisitor):
         info["qc"][self.__gear_name] = {
             "validation": {
                 "state": gear_state.upper(),
-                "data": self.__error_writer.errors(),
+                "data": self.__error_writer.errors().model_dump(by_alias=True),
             }
         }
 
@@ -596,7 +596,7 @@ def run(
         input_file: the input file
         id_column: the subject identifier (usually NACCID)
         module: the module label
-        destination: Flyhweel project container
+        destination: Flywheel project container
         transformer_factory: the factory for column transformers
         preprocessor: class to run pre-processing checks
         module_configs: form ingest configs for the module

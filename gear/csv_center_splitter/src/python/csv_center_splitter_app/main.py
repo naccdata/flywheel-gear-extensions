@@ -192,8 +192,8 @@ def run(
             "The following errors were found while reading input CSV file, "
             + "will not split data."
         )
-        for x in error_writer.errors():
-            log.error(x["message"])
+        for error in error_writer.errors():
+            log.error(error.message)
         return
 
     # filter to centers that were actually found

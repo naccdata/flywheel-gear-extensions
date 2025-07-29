@@ -1,7 +1,7 @@
 """Defines Identifier Provisioning."""
 
 import logging
-from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
+from typing import Any, Dict, Iterator, List, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import (
@@ -34,6 +34,7 @@ from keys.keys import DefaultValues, FieldNames
 from outputs.errors import (
     CSVLocation,
     FileError,
+    FileErrorList,
     ListErrorWriter,
     empty_field_error,
     get_error_log_name,
@@ -55,7 +56,7 @@ def update_record_level_error_log(
     qc_passed: bool,
     project: ProjectAdaptor,
     gear_name: str,
-    errors: MutableSequence[Dict[str, Any]],
+    errors: FileErrorList,
     errorlog_template: Optional[ErrorLogTemplate] = None,
 ):
     """Update error log file for the visit and store error metadata in
