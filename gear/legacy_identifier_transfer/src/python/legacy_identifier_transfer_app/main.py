@@ -8,11 +8,11 @@ from datastore.forms_store import FormsStore
 from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
-from gear_execution.gear_execution import GearExecutionError
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def process_record_collection(
             subject = enrollment_project.add_subject(record.naccid)
             subject.add_enrollment(record)
             success_count += 1
-        except Exception as e:
+        except UploaderError as e:
             log.error(
                 "Failed to create enrollment record for %s: %s", record.naccid, str(e)
             )
@@ -314,36 +314,28 @@ def run(
         bool: True if processing was successful, False otherwise
     """
 
-    try:
-        failed_ids: List[str] = []
-        success = process_legacy_identifiers(
-            identifiers=identifiers,
-            enrollment_project=enrollment_project,
-            forms_store=forms_store,
-            failed_ids=failed_ids,
-            dry_run=dry_run,
+    failed_ids: List[str] = []
+    success = process_legacy_identifiers(
+        identifiers=identifiers,
+        enrollment_project=enrollment_project,
+        forms_store=forms_store,
+        failed_ids=failed_ids,
+        dry_run=dry_run,
+    )
+
+    if len(failed_ids) > 0:
+        log.error("Total number of failed records: %s", len(failed_ids))
+        log.error("List of failed IDs: %s", failed_ids)
+        send_email(
+            sender_email=sender_email,
+            target_emails=target_emails,
+            group_lbl=enrollment_project.group,
+            project_lbl=enrollment_project.label,
+            failed_count=len(failed_ids),
         )
 
-        if len(failed_ids) > 0:
-            log.error("Total number of failed records: %s", len(failed_ids))
-            log.error("List of failed IDs: %s", failed_ids)
-            send_email(
-                sender_email=sender_email,
-                target_emails=target_emails,
-                group_lbl=enrollment_project.group,
-                project_lbl=enrollment_project.label,
-                failed_count=len(failed_ids),
-            )
-
-        if not success:
-            log.error("Error(s) occurred while importing legacy identifiers")
-            return False
-
-    except GearExecutionError as error:
-        log.error("Error during gear execution: %s", str(error))
+    if not success:
+        log.error("Error(s) occurred while importing legacy identifiers")
         return False
-    except Exception as error:
-        log.error("Unexpected error during processing: %s", str(error))
-        raise GearExecutionError(str(error)) from error
 
     return True

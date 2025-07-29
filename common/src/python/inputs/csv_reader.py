@@ -1,6 +1,7 @@
 """Methods to read and process a CSV file using a row visitor."""
 
 import abc
+import logging
 from abc import ABC, abstractmethod
 from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
@@ -9,11 +10,12 @@ from outputs.errors import (
     ErrorWriter,
     ListErrorWriter,
     empty_file_error,
-    malformed_file_error,
     missing_header_error,
     partially_failed_file_error,
 )
 from utils.snakecase import snakecase
+
+log = logging.getLogger(__name__)
 
 
 class CSVVisitor(ABC):
@@ -27,6 +29,8 @@ class CSVVisitor(ABC):
           row: the dictionary for a row from a CSV file
         Returns:
           True if the row was processed without error, False otherwise
+        Raises:
+          CSVVisitorError if an error occurs that requires ending file process
         """
         return True
 
@@ -40,6 +44,10 @@ class CSVVisitor(ABC):
           True if the header has all required fields, False otherwise
         """
         return True
+
+
+class CSVVisitorError(Exception):
+    """Exception to escape execution of a CSVVistor in `read_csv`."""
 
 
 def read_csv(
@@ -100,8 +108,8 @@ def read_csv(
             success = row_success and success
             if limit and count >= limit:
                 break
-    except Exception as error:
-        error_writer.write(malformed_file_error(str(error)))
+    except CSVVisitorError as error:
+        log.error(f"Error occurred while reading CSV file: {error}")
         return False
 
     if not success and clear_errors and isinstance(error_writer, ListErrorWriter):
@@ -111,7 +119,6 @@ def read_csv(
     return success
 
 
-# pylint: disable=(too-few-public-methods)
 class RowValidator(abc.ABC):
     """Abstract class for a RowValidator."""
 

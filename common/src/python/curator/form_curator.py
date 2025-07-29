@@ -6,7 +6,10 @@ from typing import List
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.attribute_deriver import (
+    AttributeDeriver,
+    AttributeDeriverError,
+)
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -80,7 +83,7 @@ class FormCurator(Curator):
         """
         try:
             self.__deriver.curate(table, scope)
-        except Exception as e:
+        except AttributeDeriverError as e:
             self.__failed_files[file_entry.name] = str(e)
             log.error(f"Failed to derive {file_entry.name}: {e}")
             return
