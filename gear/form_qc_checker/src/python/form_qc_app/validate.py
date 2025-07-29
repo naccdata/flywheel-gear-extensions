@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Mapping, Optional
 
 from nacc_form_validator.quality_check import QualityCheck
-from outputs.errors import ListErrorWriter
+from outputs.errors import ErrorWriter
 
 from form_qc_app.error_info import ErrorComposer, ErrorStore
 
@@ -17,7 +17,7 @@ class RecordValidator:
         *,
         qual_check: QualityCheck,
         error_store: ErrorStore,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         codes_map: Optional[Dict[str, Dict]] = None,
     ):
         """Initialize RecordValidator.

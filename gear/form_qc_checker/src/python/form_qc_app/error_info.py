@@ -7,9 +7,9 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from keys.keys import FieldNames, RuleLabels
 from outputs.errors import (
     CSVLocation,
+    ErrorWriter,
     FileError,
     JSONLocation,
-    ListErrorWriter,
     system_error,
 )
 from pydantic import BaseModel, ValidationError
@@ -234,7 +234,7 @@ class ErrorComposer:
         error_store: ErrorStore,
         dict_errors: Dict[str, List[str]],
         error_messages: Dict[int, str],
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
     ) -> None:
         """Initialize the ErrorComposer.
 
