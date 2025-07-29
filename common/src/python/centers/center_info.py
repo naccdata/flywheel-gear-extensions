@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional, Set
 
-from projects.study import StudyVisitor
+from projects.study import CenterStudyModel, StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field
 
 
@@ -45,7 +45,7 @@ class CenterInfo(BaseModel):
 
     def apply(self, visitor: StudyVisitor):
         """Applies visitor to this Center."""
-        visitor.visit_center(self.group)
+        visitor.visit_center(CenterStudyModel(center_id=self.group))
 
 
 class CenterMapInfo(BaseModel):

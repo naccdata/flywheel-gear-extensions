@@ -1,18 +1,22 @@
+from typing import Optional
+
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
-from projects.study import Study
+from projects.study import StudyModel
 
 
 class StudyGroup(GroupAdaptor):
     """Defines a group adaptor to represent a study in Flywheel."""
 
-    def __init__(self, *, group: Group, proxy: FlywheelProxy, study: Study) -> None:
+    def __init__(
+        self, *, group: Group, proxy: FlywheelProxy, study: StudyModel
+    ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__study = study
 
     @classmethod
-    def create(cls, study: Study, proxy: FlywheelProxy) -> "StudyGroup":
+    def create(cls, study: StudyModel, proxy: FlywheelProxy) -> "StudyGroup":
         """Creates a study group for the study object.
 
         Args:
@@ -27,7 +31,7 @@ class StudyGroup(GroupAdaptor):
             study=study,
         )
 
-    def add_project(self, label: str) -> ProjectAdaptor:
+    def add_project(self, label: str) -> Optional[ProjectAdaptor]:
         """Adds a project with the label to this study group.
 
         Args:
@@ -35,13 +39,9 @@ class StudyGroup(GroupAdaptor):
         Returns:
           the created project
         """
-        project = self.get_project(label)
-        if not project:
-            raise StudyError(f"failed to create project {self.label}/{label}")
-
-        project.add_tags(self.get_tags())
-        project.add_admin_users(self.get_user_access())
-        return project
+        return self.get_project(
+            label=label, info_update={"study-id": self.__study.study_id}
+        )
 
 
 class StudyError(Exception):

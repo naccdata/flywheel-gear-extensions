@@ -2,8 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.0.2
 
+* Changes error handling in pipeline project creation so that it logs errors instead of raising an exception. None of these scenarios imply failure for the gear.
+* Refactors project creation in group adaptor combining configuration that had been repeated across center and study group add_project methods.
+* Refactors pipeline project creation in study mapping to ensure a common process and avoid awkward divergence.
+
+## 2.0.1
+
+* Changes study to capture enrollment-pattern for centers within an affiliated study.
+* Only creates pipelines for an affiliated study in a center where separate enrollment is designated.
 * Moves permission management for study into project and group creation.
 
 ## 1.1.1

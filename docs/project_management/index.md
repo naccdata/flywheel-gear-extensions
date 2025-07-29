@@ -34,19 +34,27 @@ The file format is
 ---
 study: <study-name>
 study-id: <string-identifier>
-primary: <whether is primary study>
-centers: <list of center identifiers>
+study_type: <'primary' or 'affiliated'>
+centers: <list of center details>
 datatypes: <list of datatype identifiers>
 mode: <whether data should be aggregated or distributed>
 published: <whether the data is published>
 ```
 
+"Center details" may either be a center identifier or a center-study object.
 Center identifiers are Flywheel group IDs created by the [center management](../center_management/index.md) gear.
+A center-study object has a center identifier labeled as `center-id` and an `enrollment-pattern` that may be `co-enrollment`, or `separate`.
+In the `centers` list, a center identifier is assumed to represent a center-study object with the co-enrollment pattern.
 
 The mode is a string that is either `aggregation` or `distribution`.
 The mode may be omitted for aggregating studies to support older project formats.
 
-Running on the file will create a group for each center that does not already exist, and add new projects:
+Running on the file will create a group for each center that does not already exist, which includes
+
+* a `metadata` project where center-specific metadata can be stored using the project info object.
+* a `center-portal` project where center-level UI extensions for the ADRC portal can be attached.
+  
+Additional projects will be added if the study is either primary or it is affiliated and the center has separate enrollments:
 
 1. pipeline projects for each datatype.
    For aggregating studies, a project will have a name of the form `<pipeline>-<datatype>-<study-id>` where `<pipeline>` is `ingest`, `sandbox` or `retrospective`.
@@ -54,8 +62,7 @@ Running on the file will create a group for each center that does not already ex
    For instance, `ingest-form-leads`.
    For the primary study, the study-id is dropped like `ingest-form`.
 2. An `accepted` pipeline project for an aggregating study, where data that has passed QC is accessible.
-3. a `metadata` project where center-specific metadata can be stored using the project info object.
-4. a `center-portal` project where center-level UI extensions for the ADRC portal can be attached.
+
 
 Notes:
 1. Only one study should have `primary` set to `True`.
@@ -77,6 +84,7 @@ Notes:
 ---
 study: "Project Tau"
 study-id: tau
+study-type: affiliated
 centers:
   - alpha
   - beta-inactive
@@ -88,9 +96,11 @@ published: True
 ---
 study: "Project Zeta"
 study-id: zeta
+study-type: affiliated
 centers:
   - alpha
-  - gamma-adrc
+  - center-id: gamma-adrc
+    enrollment-pattern: separate
 datatypes:
   - form
 mode: aggregation
