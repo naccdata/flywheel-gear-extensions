@@ -234,9 +234,7 @@ class DateTransformer(BaseRecordTransformer):
 class FilterTransformer(BaseRecordTransformer):
     """Defines a transform that applies a field filter to a record."""
 
-    def __init__(
-        self, field_filter: FieldFilter, error_writer: ErrorWriter
-    ) -> None:
+    def __init__(self, field_filter: FieldFilter, error_writer: ErrorWriter) -> None:
         self._transform = field_filter
         self._error_writer = error_writer
 
