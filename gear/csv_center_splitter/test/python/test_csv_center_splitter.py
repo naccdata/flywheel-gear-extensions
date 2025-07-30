@@ -2,7 +2,7 @@
 
 import pytest
 from csv_center_splitter_app.main import CSVVisitorCenterSplitter
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 
 @pytest.fixture(scope="function")

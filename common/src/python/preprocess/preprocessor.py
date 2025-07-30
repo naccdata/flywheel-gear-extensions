@@ -14,8 +14,8 @@ from keys.keys import (
     PreprocessingChecks,
     SysErrorCodes,
 )
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ErrorWriter,
     preprocess_errors,
     preprocessing_error,
 )

@@ -21,7 +21,7 @@ from identifiers.identifiers_lambda_repository import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 from identifier_provisioning_app.main import run
 

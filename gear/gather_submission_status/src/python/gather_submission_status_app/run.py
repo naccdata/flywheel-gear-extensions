@@ -14,7 +14,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 from gather_submission_status_app.main import run
 

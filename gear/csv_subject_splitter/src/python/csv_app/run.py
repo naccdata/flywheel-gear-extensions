@@ -20,7 +20,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterError, ParameterStore
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 
 from csv_app.main import run

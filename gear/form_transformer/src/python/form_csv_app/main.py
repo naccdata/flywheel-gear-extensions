@@ -9,8 +9,8 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     empty_field_error,
     get_error_log_name,
     missing_field_error,

@@ -5,9 +5,8 @@ from abc import ABC, abstractmethod
 from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
 
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
-    ErrorWriter,
-    ListErrorWriter,
     empty_file_error,
     malformed_file_error,
     missing_header_error,

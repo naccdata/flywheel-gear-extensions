@@ -8,8 +8,8 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ErrorWriter,
     empty_field_error,
     missing_field_error,
 )

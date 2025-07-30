@@ -1,5 +1,5 @@
 from keys.keys import FieldNames
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from transform.transformer import DateTransformer, FieldFilter, VersionMap
 
 

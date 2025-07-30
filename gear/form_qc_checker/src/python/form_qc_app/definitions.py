@@ -9,7 +9,8 @@ from typing import Any, Dict, List, Mapping, Optional
 import yaml
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, FieldNames
-from outputs.errors import ErrorWriter, empty_field_error
+from outputs.error_writer import ErrorWriter
+from outputs.errors import empty_field_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 """Defines Legacy Sanity Check."""
 
-import json
 import logging
 from typing import List
 
@@ -14,9 +13,9 @@ from keys.keys import (
     SysErrorCodes,
 )
 from notifications.email import EmailClient, create_ses_client
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     FileError,
-    ListErrorWriter,
     preprocess_errors,
 )
 

@@ -17,9 +17,9 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectError,
 )
 from keys.keys import FieldNames
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     FileError,
-    ListErrorWriter,
     system_error,
     update_error_log_and_qc_metadata,
 )

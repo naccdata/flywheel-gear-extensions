@@ -21,8 +21,8 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import DefaultValues
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     empty_field_error,
     missing_field_error,
     unknown_field_error,

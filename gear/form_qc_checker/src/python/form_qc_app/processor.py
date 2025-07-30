@@ -18,9 +18,9 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     JSONLocation,
-    ListErrorWriter,
     MetadataCleanupFlag,
     empty_field_error,
     empty_file_error,

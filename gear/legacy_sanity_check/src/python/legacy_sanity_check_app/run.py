@@ -18,7 +18,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 
 from legacy_sanity_check_app.main import LegacySanityChecker

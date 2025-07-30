@@ -7,8 +7,8 @@ from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
+from outputs.error_writer import LogErrorWriter
 from outputs.errors import (
-    LogErrorWriter,
     empty_field_error,
     missing_field_error,
 )

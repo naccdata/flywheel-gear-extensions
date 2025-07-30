@@ -14,8 +14,8 @@ from identifiers.identifiers_repository import (
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     get_error_log_name,
     identifier_error,
     missing_field_error,

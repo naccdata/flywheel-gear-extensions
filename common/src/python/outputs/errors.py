@@ -1,11 +1,8 @@
 """Utilities for writing errors to a error log."""
 
-import json
 import logging
-from abc import ABC, abstractmethod
 from datetime import datetime as dt
-from logging import Handler, Logger
-from typing import Any, Dict, List, Literal, Optional, TextIO
+from typing import Any, Dict, List, Literal, Optional
 
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
@@ -14,10 +11,9 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import FieldNames, SysErrorCodes
-from pydantic import BaseModel, ConfigDict, Field, RootModel
 from utils.decorators import api_retry
 
-from outputs.outputs import CSVWriter
+from outputs.error_models import CSVLocation, FileError, FileErrorList, JSONLocation
 
 log = logging.getLogger(__name__)
 
@@ -109,78 +105,6 @@ preprocess_errors = {
         "for one or more optional forms"
     ),
 }
-
-
-class CSVLocation(BaseModel):
-    """Represents location of an error in a CSV file."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    line: int
-    column_name: str
-
-
-class JSONLocation(BaseModel):
-    """Represents the location of an error in a JSON file."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    key_path: str
-
-
-class FileError(BaseModel):
-    """Represents an error that might be found in file during a step in a
-    pipeline."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    timestamp: Optional[str] = None
-    error_type: Literal["alert", "error", "warning"] = Field(serialization_alias="type")
-    error_code: str = Field(serialization_alias="code")
-    location: Optional[CSVLocation | JSONLocation] = None
-    container_id: Optional[str] = None
-    flywheel_path: Optional[str] = None
-    value: Optional[str] = None
-    expected: Optional[str] = None
-    message: str
-    ptid: Optional[str] = None
-    visitnum: Optional[str] = None
-
-    @classmethod
-    def fieldnames(cls) -> List[str]:
-        """Gathers the serialized field names for the class."""
-        result = []
-        for fieldname, field_info in cls.model_fields.items():
-            if field_info.serialization_alias:
-                result.append(field_info.serialization_alias)
-            else:
-                result.append(fieldname)
-        return result
-
-
-class FileErrorList(RootModel):
-    """Serialization model for lists of FileError."""
-
-    root: List[FileError]
-
-    def __bool__(self) -> bool:
-        return bool(self.root)
-
-    def __iter__(self):
-        return iter(self.root)
-
-    def __getitem__(self, item) -> FileError:
-        return self.root[item]
-
-    def __len__(self):
-        return len(self.root)
-
-    def clear(self):
-        self.root.clear()
-
-    def append(self, error: FileError) -> None:
-        """Appends the error to the list."""
-        self.root.append(error)
 
 
 def identifier_error(
@@ -417,136 +341,6 @@ def existing_participant_error(
         location=CSVLocation(column_name=field, line=line),
         message=error_message,
     )
-
-
-class ErrorWriter(ABC):
-    """Abstract class for error write."""
-
-    def __init__(self):
-        """Initializer - sets the timestamp to time of creation."""
-        self.__timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
-
-    def set_timestamp(self, error: FileError) -> None:
-        """Assigns the timestamp to the error."""
-        error.timestamp = self.__timestamp
-
-    @abstractmethod
-    def write(self, error: FileError, set_timestamp: bool = True) -> None:
-        """Writes the error to the output target of implementing class."""
-        pass
-
-
-# pylint: disable=(too-few-public-methods)
-class LogErrorWriter(ErrorWriter):
-    """Writes errors to logger."""
-
-    def __init__(self, log: Logger) -> None:
-        self.__log = log
-        super().__init__()
-
-    def write(self, error: FileError, set_timestamp: bool = True) -> None:
-        """Writes the error to the logger.
-
-        Args:
-          error: the file error object
-          set_timestamp: if True, assign the writer timestamp to the error
-        """
-        if set_timestamp:
-            self.set_timestamp(error)
-        self.__log.error(error.model_dump_json(by_alias=True, indent=4))
-
-
-class UserErrorWriter(ErrorWriter):
-    """Abstract class for a user error writer."""
-
-    def __init__(self, container_id: str, fw_path: str) -> None:
-        self.__container_id = container_id
-        self.__flywheel_path = fw_path
-        super().__init__()
-
-    def set_container(self, error: FileError) -> None:
-        """Assigns the container ID and Flywheel path for the error."""
-        error.container_id = self.__container_id
-        error.flywheel_path = self.__flywheel_path
-
-    def prepare_error(self, error, set_timestamp: bool = True) -> None:
-        """Prepare the error by adding container and timestamp information.
-
-        Args:
-          error: the file error object
-          set_timestamp: if True, assign the writer timestamp to the error
-        """
-        self.set_container(error)
-        if set_timestamp:
-            self.set_timestamp(error)
-
-
-class StreamErrorWriter(UserErrorWriter):
-    """Writes FileErrors to a stream as CSV."""
-
-    def __init__(self, stream: TextIO, container_id: str, fw_path: str) -> None:
-        self.__writer = CSVWriter(stream=stream, fieldnames=FileError.fieldnames())
-        super().__init__(container_id, fw_path)
-
-    def write(self, error: FileError, set_timestamp: bool = True) -> None:
-        """Writes the error to the output stream with flywheel hierarchy
-        information filled in for the reference file.
-
-        Args:
-          error: the file error object
-          set_timestamp: if True, assign the writer timestamp to the error
-        """
-        self.prepare_error(error, set_timestamp)
-        self.__writer.write(error.model_dump(by_alias=True))
-
-
-class ListErrorWriter(UserErrorWriter):
-    """Collects FileErrors to file metadata."""
-
-    def __init__(
-        self,
-        container_id: str,
-        fw_path: str,
-        errors: Optional[FileErrorList] = None,
-    ) -> None:
-        super().__init__(container_id, fw_path)
-        self.__errors = FileErrorList([]) if errors is None else errors
-
-    def write(self, error: FileError, set_timestamp: bool = True) -> None:
-        """Captures error for writing to metadata.
-
-        Args:
-          error: the file error object
-          set_timestamp: if True, assign the writer timestamp to the error
-        """
-        self.prepare_error(error, set_timestamp)
-        self.__errors.append(error)
-
-    def errors(self) -> FileErrorList:
-        """Returns serialized list of accumulated file errors.
-
-        Returns:
-          List of serialized FileError objects
-        """
-        return self.__errors
-
-    def clear(self):
-        """Clear the errors list."""
-        self.__errors.clear()
-
-
-class ListHandler(Handler):
-    """Defines a handler to keep track of logged info."""
-
-    def __init__(self):
-        super().__init__()
-        self.__logs = []
-
-    def emit(self, record):
-        self.__logs.append(json.loads(record.msg))
-
-    def get_logs(self):
-        return self.__logs
 
 
 @api_retry

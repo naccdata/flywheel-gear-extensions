@@ -31,11 +31,11 @@ from identifiers.identifiers_repository import (
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues, FieldNames
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
     CSVLocation,
     FileError,
     FileErrorList,
-    ListErrorWriter,
     empty_field_error,
     get_error_log_name,
     identifier_error,
@@ -151,7 +151,7 @@ class TransferVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         transfer_info: TransferInfo,
         repo: IdentifierRepository,
     ) -> None:
@@ -397,7 +397,7 @@ class NewEnrollmentVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         repo: IdentifierRepository,
         batch: EnrollmentBatch,
     ) -> None:

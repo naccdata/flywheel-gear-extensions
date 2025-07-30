@@ -19,7 +19,7 @@ from notifications.email_list import (
     EmailListError,
     get_redcap_email_list_client,
 )
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from utils.utils import parse_string_to_list
 
 from csv_center_splitter_app.main import run

@@ -8,8 +8,8 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
 from jobs.job_poll import JobPoll
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     empty_field_error,
     missing_field_error,
 )

@@ -4,12 +4,11 @@
 from csv import DictReader
 from io import StringIO
 
+from outputs.error_writer import ListErrorWriter, StreamErrorWriter
 from outputs.errors import (
     CSVLocation,
     FileError,
     JSONLocation,
-    ListErrorWriter,
-    StreamErrorWriter,
     empty_file_error,
     identifier_error,
     missing_header_error,
