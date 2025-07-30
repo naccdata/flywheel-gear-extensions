@@ -29,7 +29,6 @@ class ErrorWriter(ABC):
         pass
 
 
-# pylint: disable=(too-few-public-methods)
 class LogErrorWriter(ErrorWriter):
     """Writes errors to logger."""
 
