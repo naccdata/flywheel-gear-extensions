@@ -453,7 +453,7 @@ class LogErrorWriter(ErrorWriter):
         """
         if set_timestamp:
             self.set_timestamp(error)
-        self.__log.error(json.dumps(error.model_dump(by_alias=True), indent=4))
+        self.__log.error(error.model_dump_json(by_alias=True, indent=4))
 
 
 class UserErrorWriter(ErrorWriter):
@@ -608,7 +608,7 @@ def update_error_log_and_qc_metadata(
     timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
     contents += f"{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n"
     for error in errors:
-        contents += json.dumps(error.model_dump(by_alias=True)) + "\n"
+        contents += error.model_dump_json(by_alias=True) + "\n"
 
     error_file_spec = FileSpec(
         name=error_log_name, contents=contents, content_type="text", size=len(contents)
