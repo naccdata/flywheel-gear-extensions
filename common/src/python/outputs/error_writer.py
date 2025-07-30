@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Logger
@@ -5,8 +6,10 @@ from typing import Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 
-from outputs.errors import FileError, FileErrorList
+from outputs.error_models import FileError, FileErrorList
 from outputs.outputs import CSVWriter
+
+log = logging.getLogger(__name__)
 
 
 class ErrorWriter(ABC):
