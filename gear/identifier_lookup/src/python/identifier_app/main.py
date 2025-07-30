@@ -16,12 +16,11 @@ from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    get_error_log_name,
     identifier_error,
     missing_field_error,
-    update_error_log_and_qc_metadata,
 )
 from outputs.outputs import CSVWriter
+from outputs.qc_logger import get_error_log_name, update_error_log_and_qc_metadata
 
 log = logging.getLogger(__name__)
 

@@ -12,15 +12,14 @@ from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
-    get_error_log_name,
     missing_field_error,
     partially_failed_file_error,
     preprocess_errors,
     preprocessing_error,
     system_error,
     unexpected_value_error,
-    update_error_log_and_qc_metadata,
 )
+from outputs.qc_logger import get_error_log_name, update_error_log_and_qc_metadata
 from preprocess.preprocessor import FormPreprocessor
 from transform.transformer import BaseRecordTransformer, TransformerFactory
 from uploads.uploader import FormJSONUploader

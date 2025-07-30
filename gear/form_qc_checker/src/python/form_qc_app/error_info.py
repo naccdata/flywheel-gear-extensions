@@ -5,11 +5,13 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import FieldNames, RuleLabels
-from outputs.error_writer import ErrorWriter
-from outputs.errors import (
+from outputs.error_models import (
     CSVLocation,
     FileError,
     JSONLocation,
+)
+from outputs.error_writer import ErrorWriter
+from outputs.errors import (
     system_error,
 )
 from pydantic import BaseModel, ValidationError

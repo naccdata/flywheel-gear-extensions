@@ -12,10 +12,9 @@ from flywheel.models.data_view import DataView
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
+from outputs.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    CSVLocation,
-    FileError,
     malformed_file_error,
     missing_field_error,
 )

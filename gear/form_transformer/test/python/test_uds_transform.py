@@ -8,9 +8,9 @@ from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    get_error_log_name,
     preprocess_errors,
 )
+from outputs.qc_logger import get_error_log_name
 from preprocess.preprocessor import FormPreprocessor
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_flywheel import MockProject

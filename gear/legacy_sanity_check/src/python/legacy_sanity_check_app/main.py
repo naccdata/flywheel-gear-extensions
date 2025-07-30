@@ -13,9 +13,9 @@ from keys.keys import (
     SysErrorCodes,
 )
 from notifications.email import EmailClient, create_ses_client
+from outputs.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
     preprocess_errors,
 )
 

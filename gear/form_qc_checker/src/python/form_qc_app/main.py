@@ -26,8 +26,8 @@ from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
+from outputs.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-from outputs.errors import FileErrorList
 from redcap_api.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 
