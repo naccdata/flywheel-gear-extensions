@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -27,8 +27,8 @@ class FileError(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     timestamp: Optional[str] = None
-    error_type: Literal["alert", "error", "warning"] = Field(serialization_alias="type")
-    error_code: str = Field(serialization_alias="code")
+    error_type: Literal["alert", "error", "warning"] = Field(alias="type")
+    error_code: str = Field(alias="code")
     location: Optional[CSVLocation | JSONLocation] = None
     container_id: Optional[str] = None
     flywheel_path: Optional[str] = None
@@ -73,3 +73,92 @@ class FileErrorList(RootModel):
     def append(self, error: FileError) -> None:
         """Appends the error to the list."""
         self.root.append(error)
+
+    def list(self) -> List[FileError]:
+        return self.root
+
+
+QCStatus = Literal["PASS", "FAIL"]
+
+
+class ValidationModel(BaseModel):
+    """Model for the validation data for a gear run.
+
+    Located within file.info.qc.<gear-name>.validation.
+    """
+
+    data: List[FileError] = Field([])
+    state: Optional[QCStatus] = Field(None)
+
+    def extend(self, errors: List[FileError]) -> None:
+        self.data.extend(errors)
+
+
+class GearQCModel(BaseModel):
+    """Model for the FW Job QC gear object in file.info.qc.
+
+    Note: also has job_info.
+    """
+
+    validation: ValidationModel
+
+    def get_status(self) -> Optional[QCStatus]:
+        return self.validation.state
+
+    def get_errors(self) -> List[FileError]:
+        return self.validation.data
+
+    def set_errors(self, errors: List[FileError]) -> None:
+        self.validation.data = errors
+
+    def set_status(self, state: QCStatus) -> None:
+        self.validation.state = state
+
+
+class FileQCModel(BaseModel):
+    """Model for the FW Job QC object at file.info.
+
+    Object at file.info is created by
+    GearToolkitContext.metadata.add_qc_result.
+    """
+
+    qc: Dict[str, GearQCModel]
+
+    def get_status(self, gear_name: str) -> Optional[QCStatus]:
+        """Returns the QC status for the named gear.
+
+        Args:
+          gear_name: the name of the gear
+        Returns: the status from the validation model of the gear. None, if none exists.
+        """
+        gear_model = self.qc.get(gear_name)
+        if gear_model is None:
+            return None
+        return gear_model.get_status()
+
+    def get_errors(self, gear_name: str) -> List[FileError]:
+        gear_model = self.qc.get(gear_name)
+        if gear_model is None:
+            return []
+
+        return gear_model.get_errors()
+
+    def set_errors(
+        self, gear_name: str, status: QCStatus, errors: List[FileError]
+    ) -> None:
+        """Sets the status and errors in the validation model for the gear.
+
+        Args:
+          gear_name: the name of the gear
+          status: the QC status to set
+          errors: the list of errors to set
+        """
+        gear_model = self.qc.get(gear_name)
+        if gear_model is None:
+            self.qc[gear_name] = GearQCModel(
+                validation=ValidationModel(data=errors, state=status)
+            )
+            return
+
+        gear_model.set_errors(errors)
+        gear_model.set_status(status)
