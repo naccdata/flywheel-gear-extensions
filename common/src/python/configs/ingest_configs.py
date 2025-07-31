@@ -103,6 +103,7 @@ class OptionalFormsConfigs(RootModel):
 
 class VisitLabelTemplate(BaseModel):
     """Template for creating a visit label for a data record."""
+
     id_field: str = FieldNames.PTID
     date_field: str = FieldNames.DATE_COLUMN
 
@@ -150,6 +151,7 @@ class ErrorLogTemplate(VisitLabelTemplate):
     The file name is form using the visit label as the prefix, and
     suffix and extension fields from this template.
     """
+
     suffix: Optional[str] = "qc-status"
     extension: Optional[str] = "log"
 
@@ -170,7 +172,8 @@ class ErrorLogTemplate(VisitLabelTemplate):
         if not prefix:
             return None
 
-        return f"{prefix}_{self.suffix}.{self.extension}
+        return f"{prefix}_{self.suffix}.{self.extension}"
+
 
 class SupplementModuleConfigs(BaseModel):
     label: str
