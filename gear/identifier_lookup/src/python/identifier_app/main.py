@@ -14,13 +14,13 @@ from identifiers.identifiers_repository import (
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
+from outputs.error_logger import get_error_log_name, update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,
     missing_field_error,
 )
 from outputs.outputs import CSVWriter
-from outputs.qc_logger import get_error_log_name, update_error_log_and_qc_metadata
 
 log = logging.getLogger(__name__)
 

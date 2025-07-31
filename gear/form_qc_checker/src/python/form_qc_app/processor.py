@@ -18,6 +18,11 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
+from outputs.error_logger import (
+    MetadataCleanupFlag,
+    get_error_log_name,
+    update_error_log_and_qc_metadata,
+)
 from outputs.error_models import JSONLocation
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
@@ -26,11 +31,6 @@ from outputs.errors import (
     malformed_file_error,
     previous_visit_failed_error,
     system_error,
-)
-from outputs.qc_logger import (
-    MetadataCleanupFlag,
-    get_error_log_name,
-    update_error_log_and_qc_metadata,
 )
 
 from form_qc_app.definitions import DefinitionsLoader

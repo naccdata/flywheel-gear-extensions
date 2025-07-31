@@ -9,6 +9,7 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
+from outputs.error_logger import get_error_log_name, update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -19,7 +20,6 @@ from outputs.errors import (
     system_error,
     unexpected_value_error,
 )
-from outputs.qc_logger import get_error_log_name, update_error_log_and_qc_metadata
 from preprocess.preprocessor import FormPreprocessor
 from transform.transformer import BaseRecordTransformer, TransformerFactory
 from uploads.uploader import FormJSONUploader
