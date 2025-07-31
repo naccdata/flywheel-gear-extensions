@@ -9,9 +9,10 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import FieldNames
+from pydantic import ValidationError
 from utils.decorators import api_retry
 
-from outputs.error_models import FileErrorList
+from outputs.error_models import FileErrorList, FileQCModel
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +64,8 @@ def update_error_log_and_qc_metadata(
         bool: True if metadata update is successful, else False
     """
 
-    info: Dict[str, Any] = {"qc": {}}
+    # info: Dict[str, Any] = {"qc": {}}
+    qc_info = FileQCModel(qc={})
     contents = ""
 
     current_log = destination_prj.get_file(error_log_name)
@@ -71,13 +73,20 @@ def update_error_log_and_qc_metadata(
     if current_log:
         current_log = current_log.reload()
         if current_log.info and "qc" in current_log.info and reset_qc_metadata != "ALL":
-            info = current_log.info
+            try:
+                qc_info = FileQCModel.model_validate(current_log.info, by_alias=True)
+            except ValidationError as error:
+                log.error(
+                    "Error loading metadata for log file %s: %s", error_log_name, error
+                )
+                return False
+
         contents = (current_log.read()).decode("utf-8")  # type: ignore
 
     timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
     contents += f"{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n"
-    for error in errors:
-        contents += error.model_dump_json(by_alias=True) + "\n"
+    for qc_error in errors:
+        contents += qc_error.model_dump_json(by_alias=True) + "\n"
 
     error_file_spec = FileSpec(
         name=error_log_name, contents=contents, content_type="text", size=len(contents)
@@ -93,20 +102,15 @@ def update_error_log_and_qc_metadata(
         )
         return False
 
-    updated_errors = []
-    if reset_qc_metadata == "NA":
-        # if not to reset, pull error data that already exists
-        updated_errors = (
-            info.get("qc", {}).get(gear_name, {}).get("validation", {}).get("data", [])
-        )
-    updated_errors.extend(errors.model_dump(by_alias=True))
+    error_list = errors.list()
+    if reset_qc_metadata == "NA":  # do not reset
+        file_errors = qc_info.get_errors(gear_name)
+        error_list.extend(file_errors)
 
-    info["qc"][gear_name] = {
-        "validation": {"state": state.upper(), "data": updated_errors}
-    }
+    qc_info.set_errors(gear_name=gear_name, status=state.upper(), errors=error_list)  # type: ignore
 
     try:
-        update_file_info(file=new_file, custom_info=info)
+        update_file_info(file=new_file, custom_info=qc_info.model_dump(by_alias=True))
     except ApiException as error:
         log.error(
             "Error in setting QC metadata in file %s - %s",
