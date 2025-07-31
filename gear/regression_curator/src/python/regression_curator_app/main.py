@@ -92,8 +92,8 @@ class BaselineLocalizer(ABC):
                 header = self.process_header(row)
                 continue
 
-            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True)) # type: ignore
-            key, data = self.process_row(row) # type: ignore
+            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))  # type: ignore
+            key, data = self.process_row(row)  # type: ignore
 
             if key in baseline:
                 duplicates.add(key)
