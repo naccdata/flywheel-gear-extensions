@@ -160,8 +160,6 @@ class ErrorLogTemplate(VisitLabelTemplate):
         and module as a prefix, and the suffix and extension fields from this
         template.
 
-        The format of the file name is "<visit-label>_<suffix>.<extension>".
-
         Args:
           record: the data record
           module: the module name
@@ -172,7 +170,20 @@ class ErrorLogTemplate(VisitLabelTemplate):
         if not prefix:
             return None
 
-        return f"{prefix}_{self.suffix}.{self.extension}"
+        return self.create_filename(prefix)
+
+    def create_filename(self, visit_label: str) -> str:
+        """Creates a log file name from this template by extending the visit-
+        label.
+
+        The format of the file name is "<visit-label>_<suffix>.<extension>".
+
+        Args:
+          visit_label: the visit label
+        Returns:
+          the file name build by extending the visit label
+        """
+        return f"{visit_label}_{self.suffix}.{self.extension}"
 
 
 class SupplementModuleConfigs(BaseModel):
