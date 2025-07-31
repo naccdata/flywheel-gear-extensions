@@ -3,7 +3,7 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
@@ -80,7 +80,7 @@ class BaselineLocalizer(ABC):
         """
         body = self.localize_s3_file()
         header = None
-        baseline: Dict[str, str] = {}
+        baseline: Dict[str, Any] = {}
         duplicates: Set[str] = set()
 
         # the baselines are extremely large, so stream and process by line
@@ -92,8 +92,8 @@ class BaselineLocalizer(ABC):
                 header = self.process_header(row)
                 continue
 
-            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))
-            key, data = self.process_row(row)
+            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True)) # type: ignore
+            key, data = self.process_row(row) # type: ignore
 
             if key in baseline:
                 duplicates.add(key)
