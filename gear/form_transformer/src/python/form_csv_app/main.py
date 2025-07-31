@@ -9,7 +9,7 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
-from outputs.error_logger import get_error_log_name, update_error_log_and_qc_metadata
+from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -369,10 +369,8 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
-        error_log_name = get_error_log_name(
-            module=self.module,
-            input_data=input_record,
-            errorlog_template=self.__errorlog_template,
+        error_log_name = self.__errorlog_template.instantiate(
+            module=self.module, record=input_record
         )
 
         if not update or not error_log_name:
@@ -419,10 +417,8 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return False
 
-        error_log_name = get_error_log_name(
-            module=self.module,
-            input_data=input_record,
-            errorlog_template=self.__errorlog_template,
+        error_log_name = self.__errorlog_template.instantiate(
+            module=self.module, record=input_record
         )
 
         if not error_log_name:

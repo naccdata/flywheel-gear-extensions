@@ -4,9 +4,9 @@ checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from configs.ingest_configs import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
-from outputs.error_logger import get_error_log_name
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,
@@ -253,7 +253,9 @@ class TestUDSTransform:
         # create "failed" files that already exist in the project
         records = [create_record({"naccid": f"failed-{x}"}) for x in range(3)]
         for i, record in enumerate(records):
-            file_name = get_error_log_name(module=record["module"], input_data=record)
+            file_name = ErrorLogTemplate().instantiate(
+                module=record["module"], record=record
+            )
             assert file_name
 
             form_store.add_subject(
@@ -282,7 +284,9 @@ class TestUDSTransform:
         # check that after updating the states get set to TRUE
         visitor.update_existing_visits_error_log()
         for record in records:
-            file_name = get_error_log_name(module=record["module"], input_data=record)
+            file_name = ErrorLogTemplate().instantiate(
+                module=record["module"], record=record
+            )
             assert file_name
 
             file = project.get_file(file_name)

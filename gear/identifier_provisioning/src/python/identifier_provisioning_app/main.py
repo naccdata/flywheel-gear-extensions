@@ -31,7 +31,7 @@ from identifiers.identifiers_repository import (
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues, FieldNames
-from outputs.error_logger import get_error_log_name, update_error_log_and_qc_metadata
+from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_models import CSVLocation, FileError, FileErrorList
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
@@ -76,10 +76,8 @@ def update_record_level_error_log(
             id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
         )
 
-    error_log_name = get_error_log_name(
-        module=DefaultValues.ENROLLMENT_MODULE,
-        input_data=input_record,
-        errorlog_template=errorlog_template,
+    error_log_name = errorlog_template.instantiate(
+        module=DefaultValues.ENROLLMENT_MODULE, record=input_record
     )
 
     if not error_log_name or not update_error_log_and_qc_metadata(

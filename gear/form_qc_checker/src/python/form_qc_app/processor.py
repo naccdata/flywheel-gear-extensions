@@ -20,7 +20,6 @@ from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
 from outputs.error_logger import (
     MetadataCleanupFlag,
-    get_error_log_name,
     update_error_log_and_qc_metadata,
 )
 from outputs.error_models import JSONLocation
@@ -164,11 +163,8 @@ class FileProcessor(ABC):
         Returns:
             bool: True if error log updated successfully, else False
         """
-
-        error_log_name = get_error_log_name(
-            module=self._module,
-            input_data=input_record,
-            errorlog_template=self._errorlog_template,
+        error_log_name = self._errorlog_template.instantiate(
+            record=input_record, module=self._module
         )
 
         if not error_log_name or not update_error_log_and_qc_metadata(
