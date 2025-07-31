@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime as dt
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel.file_spec import FileSpec
@@ -35,6 +35,87 @@ def update_file_info(file: FileEntry, custom_info: Dict[str, Any]):
     file.update_info(custom_info)
 
 
+def get_log_contents(log_file: FileEntry) -> str:
+    """Returns contents of the log file.
+
+    Decodes content as UTF-8
+
+    Args:
+      log_file: the file entry
+    Return:
+       the contents of the log_file
+    """
+    return log_file.read().decode("utf-8")
+
+
+def get_log_qc_info(log_file: FileEntry) -> Optional[FileQCModel]:
+    """Gets the file.info.qc object for the log file.
+
+    Args:
+      log_file: the file entry for the log file
+    Returns:
+      a QC model object for the log_file. None if the info object could not be parsed.
+    """
+    log_file = log_file.reload()
+    if not log_file.info:
+        return FileQCModel(qc={})
+    if "qc" not in log_file.info:
+        return FileQCModel(qc={})
+
+    try:
+        return FileQCModel.model_validate(log_file.info, by_alias=True)
+    except ValidationError as error:
+        log.error("Error loading metadata for log file %s: %s", log_file.name, error)
+        return None
+
+
+def create_log_entry(*, gear_name: str, state: str, errors: FileErrorList) -> str:
+    """Creates a log entry as a string.
+
+    A log entry consists of a time-stamped row that indicates the gear and the QC status.
+    If the status is FAIL, the list of errors is serialized on subsequent rows.
+
+    Args:
+      gear_name: the gear name
+      state: the QC status for the gear job
+      errors: the list of QC errors
+    Returns:
+      the string representation for the QC log entry
+    """
+    timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
+    entry = f"{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n"
+    for qc_error in errors:
+        entry += qc_error.model_dump_json(by_alias=True) + "\n"
+    return entry
+
+
+def upload_log(
+    *, project: ProjectAdaptor, filename: str, contents: str
+) -> Optional[FileEntry]:
+    """Uploads a file to the projects using the name and contents.
+
+    Args:
+      project: the project
+      filename: the file name
+      contents: the string of file contents
+    Returns:
+      the FileEntry for the file. None if the file could not be uploaded.
+    """
+    error_file_spec = FileSpec(
+        name=filename, contents=contents, content_type="text", size=len(contents)
+    )
+    try:
+        project.upload_file(error_file_spec)
+        project.reload()
+        return project.get_file(filename)
+    except ApiException as error:
+        log.error(
+            f"Failed to upload file {filename} to "
+            f"{project.group}/{project.label}: {error}"
+        )
+        return None
+
+
 def update_error_log_and_qc_metadata(
     *,
     error_log_name: str,
@@ -62,42 +143,28 @@ def update_error_log_and_qc_metadata(
         bool: True if metadata update is successful, else False
     """
 
-    # info: Dict[str, Any] = {"qc": {}}
-    qc_info = FileQCModel(qc={})
+    qc_info: Optional[FileQCModel] = FileQCModel(qc={})
     contents = ""
 
     current_log = destination_prj.get_file(error_log_name)
     # append to existing error details if any
     if current_log:
-        current_log = current_log.reload()
-        if current_log.info and "qc" in current_log.info and reset_qc_metadata != "ALL":
-            try:
-                qc_info = FileQCModel.model_validate(current_log.info, by_alias=True)
-            except ValidationError as error:
-                log.error(
-                    "Error loading metadata for log file %s: %s", error_log_name, error
-                )
-                return False
+        if reset_qc_metadata != "ALL":
+            qc_info = get_log_qc_info(current_log)
 
-        contents = (current_log.read()).decode("utf-8")  # type: ignore
+        contents = get_log_contents(current_log)
 
-    timestamp = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
-    contents += f"{timestamp} QC Status: {gear_name.upper()} - {state.upper()}\n"
-    for qc_error in errors:
-        contents += qc_error.model_dump_json(by_alias=True) + "\n"
+    if qc_info is None:
+        return False
 
-    error_file_spec = FileSpec(
-        name=error_log_name, contents=contents, content_type="text", size=len(contents)
+    contents += create_log_entry(
+        gear_name=gear_name, state=state.upper(), errors=errors
     )
-    try:
-        destination_prj.upload_file(error_file_spec)
-        destination_prj.reload()
-        new_file = destination_prj.get_file(error_log_name)
-    except ApiException as error:
-        log.error(
-            f"Failed to upload file {error_log_name} to "
-            f"{destination_prj.group}/{destination_prj.label}: {error}"
-        )
+
+    new_file = upload_log(
+        project=destination_prj, filename=error_log_name, contents=contents
+    )
+    if new_file is None:
         return False
 
     error_list = errors.list()
@@ -138,12 +205,14 @@ def reset_error_log_metadata_for_gears(
         return
 
     current_log = current_log.reload()
-    if not current_log.info or not current_log.info.get("qc"):
+    if not current_log.info:
         return
 
     # make sure to load the existing metadata first and then modify
     # update_file_info() will replace everything under the top-level key
     qc_info: Dict[str, Any] = current_log.info.get("qc", {})
+    if not qc_info:
+        return
 
     for gear_name in gear_names:
         qc_info.pop(gear_name, None)
