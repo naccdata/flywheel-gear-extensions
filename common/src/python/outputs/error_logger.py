@@ -103,9 +103,11 @@ def update_error_log_and_qc_metadata(
         return False
 
     error_list = errors.list()
-    if reset_qc_metadata == "NA":  # do not reset
+    if reset_qc_metadata == "NA":
+        # extend existing errors with new errors. maintaining order
         file_errors = qc_info.get_errors(gear_name)
-        error_list.extend(file_errors)
+        file_errors.extend(error_list)
+        error_list = file_errors
 
     qc_info.set_errors(gear_name=gear_name, status=state.upper(), errors=error_list)  # type: ignore
 
