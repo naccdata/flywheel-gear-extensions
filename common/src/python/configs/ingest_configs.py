@@ -140,7 +140,7 @@ class VisitLabelTemplate(BaseModel):
 
         components.append(cleaned_ptid)
         components.append(normalized_date)
-        components.append(module)
+        components.append(module.lower())
 
         return "_".join(components)
 
