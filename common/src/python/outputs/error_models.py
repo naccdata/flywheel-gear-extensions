@@ -81,6 +81,23 @@ class FileErrorList(RootModel):
 QCStatus = Literal["PASS", "FAIL"]
 
 
+class ClearedAlertProvenance(BaseModel):
+    """Model for provenance of alert clearance."""
+
+    user: str
+    clear_set_to: bool = Field(alias="clearSetTo")
+    timestamp: str
+
+
+class ClearedAlertModel(BaseModel):
+    """Model for cleared alert."""
+
+    clear: bool
+    finalized: bool
+    provenance: List[ClearedAlertProvenance]
+    alert_hash: str = Field(alias="alertHash")
+
+
 class ValidationModel(BaseModel):
     """Model for the validation data for a gear run.
 
@@ -88,6 +105,7 @@ class ValidationModel(BaseModel):
     """
 
     data: List[FileError] = Field([])
+    cleared: Optional[List[ClearedAlertModel]] = Field([])
     state: Optional[QCStatus] = Field(None)
 
     def extend(self, errors: List[FileError]) -> None:
@@ -124,6 +142,12 @@ class FileQCModel(BaseModel):
 
     qc: Dict[str, GearQCModel]
 
+    def get(self, gear_name: str) -> Optional[GearQCModel]:
+        return self.qc.get(gear_name)
+
+    def set(self, gear_name: str, gear_model: GearQCModel) -> None:
+        self.qc[gear_name] = gear_model
+
     def get_status(self, gear_name: str) -> Optional[QCStatus]:
         """Returns the QC status for the named gear.
 
@@ -131,20 +155,20 @@ class FileQCModel(BaseModel):
           gear_name: the name of the gear
         Returns: the status from the validation model of the gear. None, if none exists.
         """
-        gear_model = self.qc.get(gear_name)
+        gear_model = self.get(gear_name)
         if gear_model is None:
             return None
         return gear_model.get_status()
 
     def get_errors(self, gear_name: str) -> List[FileError]:
-        gear_model = self.qc.get(gear_name)
+        gear_model = self.get(gear_name)
         if gear_model is None:
             return []
 
         return gear_model.get_errors()
 
     def set_errors(
-        self, gear_name: str, status: QCStatus, errors: List[FileError]
+        self, gear_name: str, status: QCStatus, errors: List[FileError] | FileErrorList
     ) -> None:
         """Sets the status and errors in the validation model for the gear.
 
@@ -153,10 +177,13 @@ class FileQCModel(BaseModel):
           status: the QC status to set
           errors: the list of errors to set
         """
+        if isinstance(errors, FileErrorList):
+            errors = errors.list()
+
         gear_model = self.qc.get(gear_name)
         if gear_model is None:
             self.qc[gear_name] = GearQCModel(
-                validation=ValidationModel(data=errors, state=status)
+                validation=ValidationModel(data=errors, state=status, cleared=[])
             )
             return
 
