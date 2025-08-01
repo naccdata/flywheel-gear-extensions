@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 from configs.ingest_configs import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from outputs.error_models import ValidationModel
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,
@@ -60,7 +61,7 @@ def create_uds_visitor(
     # just use UDS for testing
     module_configs = uds_ingest_configs()
     form_store = MockFormsStore(date_field=DATE_FIELD)
-    project = MockProject()
+    project = MockProject(label="uds-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
@@ -257,7 +258,6 @@ class TestUDSTransform:
                 module=record["module"], record=record
             )
             assert file_name
-
             form_store.add_subject(
                 subject_lbl=record["naccid"], form_data=record, file_name=file_name
             )  # type: ignore
@@ -270,8 +270,10 @@ class TestUDSTransform:
                     "info": {
                         "qc": {
                             "form-transformer": {
-                                "state": "FAILED",
-                                "data": [{"msg": "some old failures"}],
+                                "validation": {
+                                    "state": "FAIL",
+                                    "data": [{"msg": "some old failures"}],
+                                }
                             }
                         }
                     },
@@ -283,6 +285,9 @@ class TestUDSTransform:
         # all records should now be in the visitor.__existing_visits
         # check that after updating the states get set to TRUE
         visitor.update_existing_visits_error_log()
+        validation_passed = ValidationModel(
+            data=[], cleared=[], state="PASS"
+        ).model_dump(by_alias=True)
         for record in records:
             file_name = ErrorLogTemplate().instantiate(
                 module=record["module"], record=record
@@ -291,10 +296,10 @@ class TestUDSTransform:
 
             file = project.get_file(file_name)
             assert file
-            assert file.info["qc"]["form-transformer"]["validation"] == {
-                "state": "PASS",
-                "data": [],
-            }
+            assert file.info
+            assert (
+                file.info["qc"]["form-transformer"]["validation"] == validation_passed
+            )
 
     def test_current_batch_duplicates(self):
         """Test duplicates in current batch."""
