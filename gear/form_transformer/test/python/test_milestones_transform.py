@@ -52,7 +52,7 @@ def create_mlst_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     form_store = MockFormsStore(date_field=date_field)
-    project = MockProject()
+    project = MockProject(label="mlst-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
