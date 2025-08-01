@@ -72,7 +72,8 @@ def get_log_qc_info(log_file: FileEntry) -> Optional[FileQCModel]:
 def create_log_entry(*, gear_name: str, state: str, errors: FileErrorList) -> str:
     """Creates a log entry as a string.
 
-    A log entry consists of a time-stamped row that indicates the gear and the QC status.
+    A log entry consists of a time-stamped row that indicates the gear and the
+    QC status.
     If the status is FAIL, the list of errors is serialized on subsequent rows.
 
     Args:
@@ -142,7 +143,6 @@ def update_error_log_and_qc_metadata(
     Returns:
         bool: True if metadata update is successful, else False
     """
-
     qc_info: Optional[FileQCModel] = FileQCModel(qc={})
     contents = ""
 
