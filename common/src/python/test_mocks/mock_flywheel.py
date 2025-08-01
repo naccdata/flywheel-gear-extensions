@@ -42,14 +42,19 @@ class MockFile(BaseModel):
 class MockProject(ProjectAdaptor):
     """Mocked class of the ProjectAdaptor."""
 
-    def __init__(self):
+    def __init__(self, label: str):
         super().__init__(project=None, proxy=None)  # type: ignore
         self.__files: Dict[str, MockFile] = {}
+        self.__label = label
 
     @property
     def files(self) -> Dict[str, MockFile]:
         """Get files."""
         return self.__files
+
+    @property
+    def label(self) -> str:
+        return self.__label
 
     def get_file(self, name: str, *args, **kwargs) -> Optional[MockFile]:
         """Get the file if it exists."""
