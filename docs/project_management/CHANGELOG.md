@@ -2,11 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.0.2
+## 2.1.0
 
 * Changes error handling in pipeline project creation so that it logs errors instead of raising an exception. None of these scenarios imply failure for the gear.
 * Refactors project creation in group adaptor combining configuration that had been repeated across center and study group add_project methods.
 * Refactors pipeline project creation in study mapping to ensure a common process and avoid awkward divergence.
+* Adds flag to study model to indicate whether the study has legacy data, and changes study mapping to use this as indicator to create retrospective pipelines.
 
 ## 2.0.1
 
