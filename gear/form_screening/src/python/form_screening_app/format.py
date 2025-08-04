@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional, TextIO
 
-from inputs.csv_reader import CSVVisitor, CSVVisitorError
+from inputs.csv_reader import CSVVisitor
 from keys.keys import REDCapKeys
 from outputs.errors import ErrorWriter, malformed_file_error
 from outputs.outputs import CSVWriter
@@ -102,6 +102,26 @@ class CSVFormatterVisitor(CSVVisitor):
 
         return True
 
+    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Checks whether the row has the expected number of columns.
+
+        Args:
+          row: the dictionary for the file row
+          line_num: the line number of the row
+        Returns:
+          True if the number of columns matches expected. False, otherwise.
+        """
+        if len(row) != self.__org_header_length:
+            message = (
+                f"Number of columns in line {line_num} "
+                f"do not match with the number of columns in the header row"
+            )
+            self.__error_writer.write(malformed_file_error(message))
+
+            return False
+
+        return True
+
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Remove any REDCap specific columns form the row.
 
@@ -111,14 +131,6 @@ class CSVFormatterVisitor(CSVVisitor):
         Returns:
           True
         """
-
-        if len(row) != self.__org_header_length:
-            message = (
-                f"Number of columns in line {line_num} "
-                f"do not match with the number of columns in the header row"
-            )
-            self.__error_writer.write(malformed_file_error(message))
-            raise CSVVisitorError(message)
 
         out_row = {
             key.strip().lower(): value
