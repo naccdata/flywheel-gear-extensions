@@ -126,8 +126,8 @@ class CSVFormatterVisitor(CSVVisitor):
         """Remove any REDCap specific columns form the row.
 
         Args:
-          header: the list of header names
-
+          row: the dictionary for the input row
+          line_num: the line number of the input row
         Returns:
           True
         """
