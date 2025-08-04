@@ -157,7 +157,7 @@ class TransferVisitor(CSVVisitor):
         self.__error_writer = error_writer
         self.__transfer_info = transfer_info
         self.__repo = repo
-        self.__validator = NewPTIDRowValidator(repo, error_writer)
+        self.__new_ptid_validator = NewPTIDRowValidator(repo, error_writer)
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
         self.__previous_identifiers: Optional[CenterIdentifiers] = None
@@ -342,7 +342,7 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
-        if not self.__validator.check(row, line_num):
+        if not self.__new_ptid_validator.check(row, line_num):
             return True
 
         new_identifiers = CenterIdentifiers(
