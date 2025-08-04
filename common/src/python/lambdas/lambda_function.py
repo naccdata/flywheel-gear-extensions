@@ -77,6 +77,7 @@ class LambdaClient:
         try:
             response = self.__client.invoke(
                 FunctionName=name,
+                Qualifier=request.mode,
                 InvocationType="RequestResponse",
                 Payload=request.model_dump_json().encode("utf-8"),
                 LogType="None",
