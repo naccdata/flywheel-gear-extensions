@@ -15,11 +15,9 @@ from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    get_error_log_name,
     identifier_error,
     missing_field_error,
     system_error,
