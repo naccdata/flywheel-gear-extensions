@@ -30,8 +30,6 @@ class CSVVisitor(ABC):
           line_num: the line number of the row
         Returns:
           True if the row was processed without error, False otherwise
-        Raises:
-          CSVVisitorError if an error occurs that requires ending file process
         """
         return True
 
@@ -49,6 +47,9 @@ class CSVVisitor(ABC):
     def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Checks that the row is valid.
 
+        Override this method if there is a row condition that requires stopping
+        processing of the file.
+
         Args:
           row: the dictionary for a row
           line_num: the line number of the row
@@ -56,10 +57,6 @@ class CSVVisitor(ABC):
           True if the row is valid. False, otherwise.
         """
         return True
-
-
-class CSVVisitorError(Exception):
-    """Exception to escape execution of a CSVVistor in `read_csv`."""
 
 
 def read_csv(
