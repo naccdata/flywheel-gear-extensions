@@ -5,7 +5,7 @@ from typing import Optional
 import pytest
 import yaml
 from centers.center_info import CenterInfo, CenterMapInfo
-from projects.study import Study, StudyVisitor
+from projects.study import CenterStudyModel, StudyModel, StudyVisitor
 from pydantic import ValidationError
 
 
@@ -17,13 +17,13 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center_id: str) -> None:
-        self.center_id = center_id
+    def visit_center(self, center: CenterStudyModel) -> None:
+        self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
         self.datatype_name = datatype
 
-    def visit_study(self, study: Study) -> None:
+    def visit_study(self, study: StudyModel) -> None:
         self.project_name = study.name
 
 

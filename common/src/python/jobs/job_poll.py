@@ -23,8 +23,16 @@ class JobPoll:
             str: job completion status
         """
 
+        sleep_total = 0
+        sleep_interval = 30
+        response_interval = 1800  # 30 mins
         while job.state in ["pending", "running"]:
-            time.sleep(30)
+            # add log message to prevent being unresponsive
+            if (sleep_total % response_interval) == 0:
+                log.info("Job %s is still %s", job.id, job.state)
+
+            time.sleep(sleep_interval)
+            sleep_total += sleep_interval
             job = job.reload()
 
         if job.state == "failed":
