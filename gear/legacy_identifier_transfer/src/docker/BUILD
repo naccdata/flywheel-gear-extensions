@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/legacy_identifier_transfer/src/python/legacy_identifier_transfer_app:bin",
     ],
-    image_tags=["1.1.5", "latest"],
+    image_tags=["1.1.6", "latest"],
 )
