@@ -226,7 +226,7 @@ class AggregationMapper(StudyMapper):
         Args:
           center: the center group
         """
-        if not self.study.is_primary():
+        if not self.study.has_legacy():
             log.warning(
                 "Will not create retrospective projects for study %", self.study.name
             )
