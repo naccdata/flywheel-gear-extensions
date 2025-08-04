@@ -7,6 +7,7 @@ from typing import Any, List
 import pytest
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
+from outputs.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_flywheel import MockProject
@@ -133,7 +134,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(),
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -159,7 +160,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(),
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -185,7 +186,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(),
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -211,7 +212,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(),
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -245,7 +246,7 @@ class TestIdentifierLookup:
                 error_writer=error_writer,
                 gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(),
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
