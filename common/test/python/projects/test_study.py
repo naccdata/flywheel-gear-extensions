@@ -40,6 +40,7 @@ class TestStudy:
             mode="aggregation",
             published=True,
             study_type="primary",
+            legacy=True,
         )
         assert project.study_id == "project-alpha"
         assert project.centers == [
@@ -81,6 +82,7 @@ class TestStudy:
             mode="aggregation",
             published=True,
             study_type="affiliated",
+            legacy=True,
         )
         project.apply(visitor)
         assert visitor.project_name == "Project Beta"

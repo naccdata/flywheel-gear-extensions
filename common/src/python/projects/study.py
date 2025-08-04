@@ -99,6 +99,8 @@ class StudyModel(BaseModel):
     * for separate enrollment, participant data will be associated with the
       affiliated study.
     For the primary study, the center enrollment pattern is meaningless.
+
+    A study with data from the legacy system, should have legacy set to True.
     """
 
     model_config = ConfigDict(
@@ -113,6 +115,7 @@ class StudyModel(BaseModel):
     datatypes: List[str]
     mode: Literal["aggregation", "distribution"]
     study_type: Literal["primary", "affiliated"]
+    legacy: bool = Field(True)
     published: bool = Field(False)
 
     def apply(self, visitor: StudyVisitor) -> None:
@@ -127,6 +130,10 @@ class StudyModel(BaseModel):
         """Predicate to indicate whether is the main study of coordinating
         center."""
         return self.study_type == "primary"
+
+    def has_legacy(self) -> bool:
+        """Predicate to indicate whether the study has legacy data."""
+        return self.legacy
 
     def project_suffix(self) -> str:
         """Creates the suffix that should be added to study pipelines."""
