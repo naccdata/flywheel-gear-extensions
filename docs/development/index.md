@@ -468,13 +468,13 @@ If you add new python dependencies
 1. Format everything
 
     ```bash
-    pants fmt ::
+    pants fix ::
     ```
 
 2. Format just the common subproject
 
     ```bash
-    pants fmt common::
+    pants fix common::
     ```
 
 3. Lint
