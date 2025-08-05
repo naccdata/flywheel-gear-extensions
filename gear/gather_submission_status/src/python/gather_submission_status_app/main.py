@@ -47,7 +47,7 @@ def create_status_view(modules: List[Modality]) -> DataView:
             ColumnModel(data_key="file.modified", label="modified_date"),
         ],
         container="acquisition",
-        filter_str=f'acquisition.label=|[{",".join(modules)}]',
+        filter_str=f"acquisition.label=|[{','.join(modules)}]",
         missing_data_strategy="none",
     )
     builder.file_filter(value=r"^.*\.json", regex=True)

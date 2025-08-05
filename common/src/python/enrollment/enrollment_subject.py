@@ -69,7 +69,7 @@ class EnrollmentSubject(SubjectAdaptor):
             return enrollment_info.enrollment
         except ValidationError as error:
             raise EnrollmentError(
-                f"Info for {self.label}" "does not match expected format"
+                f"Info for {self.label}does not match expected format"
             ) from error
 
     def add_enrollment(self, record: EnrollmentRecord) -> None:
@@ -136,7 +136,7 @@ class EnrollmentSubject(SubjectAdaptor):
             return demographics_info.demographics
         except ValidationError as error:
             raise EnrollmentError(
-                f"info for {self.label}" "does not match expected format"
+                f"info for {self.label}does not match expected format"
             ) from error
 
     def update_demographics_info(self, demographics: Demographics) -> None:

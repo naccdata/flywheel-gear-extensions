@@ -79,10 +79,7 @@ class TestCenterInfo:
     def test_create_from_yaml(self, dummy_center):
         """Test creation from yaml."""
         center_yaml = (
-            "adcid: 7\n"
-            "name: Alpha ADRC\n"
-            "center-id: alpha-adrc\n"
-            "is-active: True"
+            "adcid: 7\nname: Alpha ADRC\ncenter-id: alpha-adrc\nis-active: True"
         )
         center_gen = yaml.safe_load_all(center_yaml)
         center = CenterInfo(**next(iter(center_gen)))
@@ -91,7 +88,7 @@ class TestCenterInfo:
     def test_repr(self, dummy_center):
         """Test representation."""
         assert repr(dummy_center) == (
-            "Center(group=alpha-adrc, " "name=Alpha ADRC, " "adcid=7, " "active=True"
+            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True"
         )
 
 

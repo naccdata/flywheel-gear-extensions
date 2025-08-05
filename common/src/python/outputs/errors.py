@@ -297,8 +297,8 @@ def preprocessing_error(
         error_message = error_message.format(*extra_args)
 
     return FileError(
-        error_type="error",
-        error_code=error_code if error_code else "preprocess-error",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code=error_code if error_code else "preprocess-error", # pyright: ignore[reportCallIssue]
         value=value,
         location=CSVLocation(line=line, column_name=field)
         if line
@@ -312,8 +312,8 @@ def preprocessing_error(
 def partially_failed_file_error() -> FileError:
     """Creates a FileError when input file is not fully approved."""
     return FileError(
-        error_type="error",
-        error_code="partially-failed",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="partially-failed", # pyright: ignore[reportCallIssue]
         message=(
             "Some records in this file did not pass validation, "
             "check the respective record level qc status"
@@ -325,10 +325,10 @@ def existing_participant_error(
     field: str, value: str, line: int, message: Optional[str] = None
 ) -> FileError:
     """Creates a FileError for unexpected existing participant."""
-    error_message = message if message else ("Participant exists for PTID " f"{value}")
+    error_message = message if message else (f"Participant exists for PTID {value}")
     return FileError(
-        error_type="error",
-        error_code="participant-exists",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="participant-exists", # pyright: ignore[reportCallIssue]
         location=CSVLocation(column_name=field, line=line),
         message=error_message,
     )

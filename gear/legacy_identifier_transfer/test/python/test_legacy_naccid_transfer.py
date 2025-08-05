@@ -78,7 +78,7 @@ def mock_form_store():
             FieldNames.MODULE: "uds",
             FieldNames.FORMVER: "3.0",
             FieldNames.VISITNUM: "1",
-            FieldNames.NACCID: f"NACC{100000+i}",
+            FieldNames.NACCID: f"NACC{100000 + i}",
             FieldNames.PTID: f"PTID{i}",
             FieldNames.PACKET: "I",
             DATE_FIELD: "2025-01-01",

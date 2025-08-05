@@ -418,7 +418,7 @@ class CSVTransformVisitor(CSVVisitor):
         visit_file = self.__get_downstream_file(input_record)
         if not visit_file:
             log.error(
-                "Missing file for existing visit, " "failed to update error log - %s",
+                "Missing file for existing visit, failed to update error log - %s",
                 error_log_name,
             )
             return None

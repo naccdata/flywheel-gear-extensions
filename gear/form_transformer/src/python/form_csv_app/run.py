@@ -96,8 +96,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         module = self.__file_input.get_module_name_from_file_suffix()
         if not module:
             raise GearExecutionError(
-                "Expect module suffix in input file name: "
-                f"{self.__file_input.filename}"
+                f"Expect module suffix in input file name: {self.__file_input.filename}"
             )
         module = module.upper()
 

@@ -433,7 +433,7 @@ class ErrorComposer:
                 error.rule, code_schema
             ):
                 log.warning(
-                    "NACC error code not found " "for variable %s rule %s - %s",
+                    "NACC error code not found for variable %s rule %s - %s",
                     field,
                     error.rule,
                     error.schema_path,
