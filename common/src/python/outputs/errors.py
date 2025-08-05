@@ -124,21 +124,27 @@ def identifier_error(
 def empty_file_error() -> FileError:
     """Creates a FileError for an empty input file."""
     return FileError(
-        error_type="error", error_code="empty-file", message="Empty input file" # pyright: ignore[reportCallIssue]
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="empty-file", # pyright: ignore[reportCallIssue]
+        message="Empty input file" 
     )
 
 
 def missing_header_error() -> FileError:
     """Creates a FileError for a missing header."""
     return FileError(
-        error_type="error", error_code="missing-header", message="No file header found" # pyright: ignore[reportCallIssue]
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="missing-header",  # pyright: ignore[reportCallIssue]
+        message="No file header found"
     )
 
 
 def invalid_header_error(message: Optional[str] = None) -> FileError:
     """Creates a FileError for an invalid header."""
     message = message if message else "Invalid header"
-    return FileError(error_type="error", error_code="invalid-header", message=message) # pyright: ignore[reportCallIssue]
+    return FileError(error_type="error",  # pyright: ignore[reportCallIssue]
+                     error_code="invalid-header",  # pyright: ignore[reportCallIssue]
+                     message=message) 
 
 
 def missing_field_error(field: str | set[str]) -> FileError:
@@ -298,7 +304,9 @@ def preprocessing_error(
 
     return FileError(
         error_type="error", # pyright: ignore[reportCallIssue]
-        error_code=error_code if error_code else "preprocess-error", # pyright: ignore[reportCallIssue]
+        error_code=( # pyright: ignore[reportCallIssue]
+            error_code if error_code else "preprocess-error"
+        ),
         value=value,
         location=CSVLocation(line=line, column_name=field)
         if line
