@@ -31,7 +31,8 @@ from inputs.csv_reader import CSVVisitor
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.errors import FileError, ListErrorWriter
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 
@@ -272,7 +273,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(

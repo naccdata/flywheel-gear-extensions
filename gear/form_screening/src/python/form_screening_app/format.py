@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Optional, TextIO
 
 from inputs.csv_reader import CSVVisitor
 from keys.keys import REDCapKeys
-from outputs.errors import ErrorWriter, malformed_file_error
+from outputs.error_writer import ErrorWriter
+from outputs.errors import malformed_file_error
 from outputs.outputs import CSVWriter
 
 

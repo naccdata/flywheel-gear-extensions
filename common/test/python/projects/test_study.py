@@ -30,7 +30,7 @@ class TestStudy:
     def test_object(self):
         """Tests for object creation."""
         project = StudyModel(
-            study="Project Alpha",
+            name="Project Alpha",
             study_id="project-alpha",
             centers=[
                 CenterStudyModel(center_id="ac"),
@@ -75,7 +75,7 @@ class TestStudy:
         """Test project apply method."""
         visitor = DummyVisitor()
         project = StudyModel(
-            study="Project Beta",
+            name="Project Beta",
             study_id="beta",
             centers=[],
             datatypes=[],

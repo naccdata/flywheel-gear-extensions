@@ -19,7 +19,7 @@ class MockFormsStore(FormsStore):
     def __init__(self, date_field: str):
         # make fake/nonsense projects, the methods
         # won't be called anyways
-        project = MockProject()
+        project = MockProject(label="mock-project")
         super().__init__(project, project)
 
         self.__date_field = date_field

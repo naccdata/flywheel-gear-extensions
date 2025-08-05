@@ -272,7 +272,9 @@ class TemplateProject:
         log.info(
             "copying file %s to %s/%s", file.name, destination.group, destination.label
         )
-        file_spec = flywheel.FileSpec(file.name, file.read(), file.mimetype)
+        file_spec = flywheel.FileSpec(
+            file.name, file.read().decode("utf-8"), file.mimetype
+        )
         destination.upload_file(file_spec)
         destination.reload()
 

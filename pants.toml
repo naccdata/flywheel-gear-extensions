@@ -35,7 +35,7 @@ default_repository = "naccdata/{name}"
 [python]
 interpreter_constraints = ["==3.11.*"]
 enable_resolves = true
-resolves = { python-default = "python-default.lock"}
+resolves = { python-default = "python-default.lock", mypy = "mypy.lock" }
 
 [python-bootstrap]
 #  https://www.pantsbuild.org/docs/python-interpreter-compatibility#changing-the-interpreter-search-path.
@@ -49,6 +49,9 @@ formatter = "ruff"
 
 [pytest]
 args=["-vv"]
+
+[mypy]
+install_from_resolve = "mypy"
 
 # TODO: REMOVE WHEN DEV TESTING IS DONE
 [python-repos]

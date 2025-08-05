@@ -14,15 +14,14 @@ from identifiers.identifiers_repository import (
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    get_error_log_name,
     identifier_error,
     missing_field_error,
     system_error,
     unexpected_value_error,
-    update_error_log_and_qc_metadata,
 )
 from outputs.outputs import CSVWriter
 
@@ -182,11 +181,8 @@ class NACCIDLookupVisitor(CSVVisitor):
                 id_field=FieldNames.PTID, date_field=self.__module_configs.date_field
             )
         )
-
-        error_log_name = get_error_log_name(
-            module=self.__module_name,
-            input_data=input_record,
-            errorlog_template=errorlog_template,
+        error_log_name = errorlog_template.instantiate(
+            module=self.__module_name, record=input_record
         )
 
         if not error_log_name:

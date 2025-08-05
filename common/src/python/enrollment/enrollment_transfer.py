@@ -19,8 +19,8 @@ from identifiers.model import (
 )
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ErrorWriter,
     existing_participant_error,
     preprocessing_error,
 )

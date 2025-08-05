@@ -17,12 +17,10 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectError,
 )
 from keys.keys import FieldNames
-from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    system_error,
-    update_error_log_and_qc_metadata,
-)
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
 from uploads.upload_error import UploaderError

@@ -1,5 +1,6 @@
 """Tests for the APOE transformer, namely APOETransformerCSVVisitor."""
 
+import json
 import logging
 
 import pytest
@@ -7,7 +8,21 @@ from apoe_transformer_app.main import (
     APOE_ENCODINGS,
     APOETransformerCSVVisitor,
 )
-from outputs.errors import ListHandler, LogErrorWriter
+from outputs.error_writer import LogErrorWriter
+
+
+class ListHandler(logging.Handler):
+    """Defines a handler to keep track of logged info."""
+
+    def __init__(self):
+        super().__init__()
+        self.__logs = []
+
+    def emit(self, record):
+        self.__logs.append(json.loads(record.msg))
+
+    def get_logs(self):
+        return self.__logs
 
 
 @pytest.fixture(scope="function")

@@ -29,7 +29,7 @@ class APOETransformerVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         file_input: InputFileWrapper,
         filename: str,
-        target_project_id: str,
+        target_project_id: Optional[str],
         local_run: bool,
         delimiter: str,
     ):
