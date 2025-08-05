@@ -113,8 +113,8 @@ def identifier_error(
     """
     error_message = message if message else "Unrecognized participant ID"
     return FileError(
-        error_type="error",
-        error_code="identifier-error",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="identifier-error", # pyright: ignore[reportCallIssue]
         location=CSVLocation(line=line, column_name=field),
         value=value,
         message=error_message,
@@ -124,28 +124,28 @@ def identifier_error(
 def empty_file_error() -> FileError:
     """Creates a FileError for an empty input file."""
     return FileError(
-        error_type="error", error_code="empty-file", message="Empty input file"
+        error_type="error", error_code="empty-file", message="Empty input file" # pyright: ignore[reportCallIssue]
     )
 
 
 def missing_header_error() -> FileError:
     """Creates a FileError for a missing header."""
     return FileError(
-        error_type="error", error_code="missing-header", message="No file header found"
+        error_type="error", error_code="missing-header", message="No file header found" # pyright: ignore[reportCallIssue]
     )
 
 
 def invalid_header_error(message: Optional[str] = None) -> FileError:
     """Creates a FileError for an invalid header."""
     message = message if message else "Invalid header"
-    return FileError(error_type="error", error_code="invalid-header", message=message)
+    return FileError(error_type="error", error_code="invalid-header", message=message) # pyright: ignore[reportCallIssue]
 
 
 def missing_field_error(field: str | set[str]) -> FileError:
     """Creates a FileError for missing field(s) in header."""
     return FileError(
-        error_type="error",
-        error_code="missing-field",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="missing-field", # pyright: ignore[reportCallIssue]
         message=f"Missing one or more required field(s) {field} in the header",
     )
 
@@ -157,8 +157,8 @@ def empty_field_error(
     error_message = message if message else f"Required field(s) {field} cannot be blank"
 
     return FileError(
-        error_type="error",
-        error_code="empty-field",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="empty-field", # pyright: ignore[reportCallIssue]
         location=CSVLocation(line=line, column_name=str(field))
         if line
         else JSONLocation(key_path=str(field)),
@@ -169,8 +169,8 @@ def empty_field_error(
 def malformed_file_error(error: str) -> FileError:
     """Creates a FileError for a malformed input file."""
     return FileError(
-        error_type="error",
-        error_code="malformed-file",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="malformed-file", # pyright: ignore[reportCallIssue]
         message=f"Malformed input file: {error}",
     )
 
@@ -196,8 +196,8 @@ def unexpected_value_error(
     error_message = message if message else (f"Expected {expected} for field {field}")
 
     return FileError(
-        error_type="error",
-        error_code="unexpected-value",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="unexpected-value", # pyright: ignore[reportCallIssue]
         value=value,
         expected=expected,
         location=CSVLocation(line=line, column_name=str(field))
@@ -210,8 +210,8 @@ def unexpected_value_error(
 def unknown_field_error(field: str | set[str]) -> FileError:
     """Creates a FileError for unknown field(s) in file header."""
     return FileError(
-        error_type="error",
-        error_code="unknown-field",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="unknown-field", # pyright: ignore[reportCallIssue]
         message=f"Unknown field(s) {field} in header",
     )
 
@@ -231,8 +231,8 @@ def system_error(
       a FileError object initialized for system error
     """
     return FileError(
-        error_type=error_type,
-        error_code="system-error",
+        error_type=error_type, # pyright: ignore[reportCallIssue]
+        error_code="system-error", # pyright: ignore[reportCallIssue]
         location=error_location,
         message=message,
     )
@@ -241,8 +241,8 @@ def system_error(
 def previous_visit_failed_error(prev_visit: str) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
-        error_type="error",
-        error_code="failed-previous-visit",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="failed-previous-visit", # pyright: ignore[reportCallIssue]
         message=(
             f"Visit file {prev_visit} has to be approved "
             "before evaluating any subsequent visits"
@@ -253,8 +253,8 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
 def non_utf8_file_error() -> FileError:
     """Creates a FileError when a non-utf8 file is attempted to be read."""
     return FileError(
-        error_type="error",
-        error_code="non-utf8-encoding",
+        error_type="error", # pyright: ignore[reportCallIssue]
+        error_code="non-utf8-encoding", # pyright: ignore[reportCallIssue]
         message="File must be UTF-8-compliant",
     )
 
