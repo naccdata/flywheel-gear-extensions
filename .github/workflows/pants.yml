@@ -47,6 +47,9 @@ jobs:
     - name: Check Build
       run: |
         pants update-build-files --check ::
+    - name: Build CoManage
+      run: |
+        pants run comanage:build_client
     - name: Lint
       run: |
         pants lint ::
