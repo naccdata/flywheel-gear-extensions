@@ -30,7 +30,7 @@ class TestStudy:
     def test_object(self):
         """Tests for object creation."""
         project = StudyModel(
-            name="Project Alpha", # pyright: ignore[reportCallIssue]
+            name="Project Alpha",  # pyright: ignore[reportCallIssue]
             study_id="project-alpha",
             centers=[
                 CenterStudyModel(center_id="ac"),
@@ -75,7 +75,7 @@ class TestStudy:
         """Test project apply method."""
         visitor = DummyVisitor()
         project = StudyModel(
-            name="Project Beta", # pyright: ignore[reportCallIssue]
+            name="Project Beta",  # pyright: ignore[reportCallIssue]
             study_id="beta",
             centers=[],
             datatypes=[],
