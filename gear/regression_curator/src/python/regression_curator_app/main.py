@@ -137,8 +137,6 @@ class QAFBaselineLocalizer(BaselineLocalizer):
     BLACKLIST = [
         "naccacsf",
         "naccapsa",
-        "naccftd",
-        "nacclbdm",
         "naccmrsa",
         "naccnapa",
         "naccnmri",
