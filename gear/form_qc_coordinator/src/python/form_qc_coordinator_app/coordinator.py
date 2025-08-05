@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
+    ErrorLogTemplate,
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
@@ -24,14 +25,13 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    get_error_log_name,
     preprocessing_error,
     previous_visit_failed_error,
     system_error,
-    update_error_log_and_qc_metadata,
 )
 
 log = logging.getLogger(__name__)
@@ -139,7 +139,9 @@ class QCCoordinator:
             error_writer.write(error_obj)
 
         qc_result = create_qc_result_dict(
-            name="validation", state=status, data=error_writer.errors()
+            name="validation",
+            state=status,
+            data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
         info = (
@@ -158,12 +160,12 @@ class QCCoordinator:
         except ApiException as error:
             log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
 
-        error_log_name = get_error_log_name(
-            module=self.__module,
-            input_data={
+        error_log_name = ErrorLogTemplate().instantiate(
+            record={
                 f"{FieldNames.PTID}": ptid,
                 f"{FieldNames.DATE_COLUMN}": visitdate,
             },
+            module=self.__module,
         )
 
         project = self.__proxy.get_project_by_id(self.__subject.parents.project)  # type: ignore

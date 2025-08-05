@@ -14,8 +14,8 @@ from keys.keys import (
     PreprocessingChecks,
     SysErrorCodes,
 )
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     preprocess_errors,
     preprocessing_error,
 )
@@ -46,7 +46,7 @@ class FormPreprocessor:
         forms_store: FormsStore,
         module: str,
         module_configs: ModuleConfigs,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
     ) -> None:
         self.__primary_key = primary_key
         self.__forms_store = forms_store

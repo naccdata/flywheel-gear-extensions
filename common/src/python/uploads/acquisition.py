@@ -99,7 +99,7 @@ def upload_to_acquisition(
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
         if existing_file and is_duplicate_record(
-            contents, existing_file.read(), content_type
+            contents, existing_file.read().decode("utf-8"), content_type
         ):
             log.warning(
                 "Duplicate file %s already exists at %s/%s/%s",

@@ -142,7 +142,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
 

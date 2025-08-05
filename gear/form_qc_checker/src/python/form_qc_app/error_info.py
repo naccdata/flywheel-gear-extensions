@@ -5,11 +5,13 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import FieldNames, RuleLabels
-from outputs.errors import (
+from outputs.error_models import (
     CSVLocation,
     FileError,
     JSONLocation,
-    ListErrorWriter,
+)
+from outputs.error_writer import ErrorWriter
+from outputs.errors import (
     system_error,
 )
 from pydantic import BaseModel, ValidationError
@@ -234,7 +236,7 @@ class ErrorComposer:
         error_store: ErrorStore,
         dict_errors: Dict[str, List[str]],
         error_messages: Dict[int, str],
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
     ) -> None:
         """Initialize the ErrorComposer.
 

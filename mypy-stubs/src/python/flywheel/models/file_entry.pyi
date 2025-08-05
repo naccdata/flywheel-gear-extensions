@@ -38,7 +38,7 @@ class FileEntry:
     def parents(self) -> ContainerParents:
         ...
 
-    def read(self) -> str:
+    def read(self) -> bytes:
         ...
 
     @property

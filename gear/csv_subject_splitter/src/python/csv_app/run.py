@@ -20,7 +20,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterError, ParameterStore
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 
 from csv_app.main import run
@@ -137,7 +137,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(
