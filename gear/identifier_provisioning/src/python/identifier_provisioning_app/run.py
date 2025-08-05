@@ -109,7 +109,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         enrollment_project = EnrollmentProject.create_from(project)
         if not enrollment_project:
             raise GearExecutionError(
-                "Unable to get project containing file: " f"{file.parents.project}"
+                f"Unable to get project containing file: {file.parents.project}"
             )
 
         input_path = Path(self.__file_input.filepath)

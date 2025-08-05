@@ -320,7 +320,7 @@ class QCCoordinator:
             date_col_key: date field location in file.info
         """
         log.info(
-            "Visit %s failed, " "there are %s subsequent visits for this participant.",
+            "Visit %s failed, there are %s subsequent visits for this participant.",
             failed_visit,
             len(remaining_visits),
         )

@@ -159,7 +159,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             return UploadTemplateInfo.model_validate(template_list)
         except ValidationError as error:
             raise GearExecutionError(
-                "Error reading label templates: " f"{error}"
+                f"Error reading label templates: {error}"
             ) from error
 
 

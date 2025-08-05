@@ -216,7 +216,7 @@ class FlywheelProxy:
             return group_list[0]
 
         conflict = self.__fw.groups.find_first(
-            f"label=~^{group_label.replace(',','.')}$"
+            f"label=~^{group_label.replace(',', '.')}$"
         )
         if conflict:
             raise FlywheelError(f"Group with label {group_label} exists: {conflict.id}")
@@ -1239,7 +1239,7 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             if conflict:
                 log.info(
-                    "Dry Run: would remove conflicting " "rule %s from project %s",
+                    "Dry Run: would remove conflicting rule %s from project %s",
                     conflict.name,
                     self._project.label,
                 )

@@ -212,7 +212,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 auth_map = AuthMap(project_authorizations=auth_object)
         except YAMLReadError as error:
             raise GearExecutionError(
-                "No authorizations read from auth file" f"{auth_file_path}: {error}"
+                f"No authorizations read from auth file{auth_file_path}: {error}"
             ) from error
         except ValidationError as error:
             raise GearExecutionError(

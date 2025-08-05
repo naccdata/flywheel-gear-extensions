@@ -106,11 +106,11 @@ class JobPoll:
         """
         result = ""
         if states_list:
-            result = f'state=|[{",".join(states_list)}]'
+            result = f"state=|[{','.join(states_list)}]"
         if gears_list:
-            result = f'gear_info.name=|[{",".join(gears_list)}],{result}'
+            result = f"gear_info.name=|[{','.join(gears_list)}],{result}"
         if project_ids_list:
-            result = f'parents.project=|[{",".join(project_ids_list)}],{result}'
+            result = f"parents.project=|[{','.join(project_ids_list)}],{result}"
 
         return result.rstrip(",")
 

@@ -101,7 +101,7 @@ class FieldFilter(BaseModel):
 class FieldTransformations(RootModel):
     """Root model for the form field schema."""
 
-    root: Dict[ModuleName, List[FieldFilter]] = {}  # noqa: RUF012
+    root: Dict[ModuleName, List[FieldFilter]] = {}
 
     def __getitem__(self, key: ModuleName) -> List[FieldFilter]:
         """Returns the FormField schema for the module.
