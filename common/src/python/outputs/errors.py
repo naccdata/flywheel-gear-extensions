@@ -126,7 +126,7 @@ def empty_file_error() -> FileError:
     return FileError(
         error_type="error", # pyright: ignore[reportCallIssue]
         error_code="empty-file", # pyright: ignore[reportCallIssue]
-        message="Empty input file" 
+        message="Empty input file"
     )
 
 
@@ -144,7 +144,7 @@ def invalid_header_error(message: Optional[str] = None) -> FileError:
     message = message if message else "Invalid header"
     return FileError(error_type="error",  # pyright: ignore[reportCallIssue]
                      error_code="invalid-header",  # pyright: ignore[reportCallIssue]
-                     message=message) 
+                     message=message)
 
 
 def missing_field_error(field: str | set[str]) -> FileError:
