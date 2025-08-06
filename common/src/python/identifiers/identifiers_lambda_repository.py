@@ -3,7 +3,7 @@
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -47,6 +47,23 @@ class GUIDRequest(BaseRequest, GUIDField):
 
 class NACCIDRequest(BaseRequest, NACCIDField):
     """Request model for search by NACCID."""
+
+    @model_validator(mode="after")
+    def validate_identifier_mode(self) -> "NACCIDRequest":
+        """Ensures naccid prefix matches with repo mode."""
+        matched = False
+        if self.mode == "prod":
+            matched = self.naccid.startswith("NACC")
+        else:
+            matched = self.naccid.startswith("TEST")
+
+        if not matched:
+            raise ValueError(
+                f"Identifier database mode {self.mode} does not match "
+                f"with the provided NACCID with prefix {self.naccid[:4]}"
+            )
+
+        return self
 
 
 class NACCIDListRequest(NACCIDRequest, ListRequest):
@@ -226,7 +243,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                 name="identifier-naccid-lambda-function",
                 request=NACCIDRequest(mode=self.__mode, naccid=naccid),
             )
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:
@@ -282,7 +299,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                 name="identifier-guid-lambda-function",
                 request=GUIDRequest(mode=self.__mode, guid=guid),
             )
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:
@@ -305,7 +322,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                         mode=self.__mode, adcid=adcid, offset=index, limit=limit
                     ),
                 )
-            except LambdaInvocationError as error:
+            except (LambdaInvocationError, ValidationError) as error:
                 raise IdentifierRepositoryError(error) from error
 
             if response.statusCode != 200:
@@ -335,7 +352,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                         mode=self.__mode, naccid=naccid, offset=index, limit=limit
                     ),
                 )
-            except LambdaInvocationError as error:
+            except (LambdaInvocationError, ValidationError) as error:
                 raise IdentifierRepositoryError(error) from error
 
             if response.statusCode != 200:
