@@ -306,7 +306,7 @@ class FormSchedulerQueue:
                 ColumnModel(data_key="file.tags", label="file_tags"),
             ],
             container="acquisition",
-            filter_str=f'acquisition.label=|[{",".join(modules)}],file.tags={tag}',
+            filter_str=f"acquisition.label=|[{','.join(modules)}],file.tags={tag}",
             missing_data_strategy="drop-row",
         )
 

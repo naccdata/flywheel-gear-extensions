@@ -2,7 +2,7 @@
 
 import pytest
 from csv_center_splitter_app.main import CSVVisitorCenterSplitter
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 
 @pytest.fixture(scope="function")
@@ -51,7 +51,7 @@ class TestCSVVisitorCenterSplitter:
 
         errors = visitor.error_writer.errors()
         assert len(errors) == 2
-        assert errors[0]["message"].startswith("Missing one or more required field(s)")
+        assert errors[0].message.startswith("Missing one or more required field(s)")
 
     def test_visit_row(self, visitor):
         """Test the visit_row method, also checks that split_data property is
@@ -77,4 +77,4 @@ class TestCSVVisitorCenterSplitter:
 
         errors = visitor.error_writer.errors()
         assert len(errors) == 1
-        assert errors[0]["message"] == "Row 1 was invalid: Missing ADCID value"
+        assert errors[0].message == "Row 1 was invalid: Missing ADCID value"

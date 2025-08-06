@@ -213,7 +213,7 @@ class NACCGroup(CenterAdaptor):
         if not self.__admin_project:
             self.__admin_project = self.get_project("project-admin")
             assert self.__admin_project, (
-                "Expecting project-admin project. " "Check user has permissions."
+                "Expecting project-admin project. Check user has permissions."
             )
 
         return self.__admin_project

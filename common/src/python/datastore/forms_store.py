@@ -142,7 +142,7 @@ class FormsStore:
             search_val = f"[{','.join(search_val)}]"
 
         # Dataview to retrieve the previous visits
-        title = "Visits for " f"{project.group}/{project.label}/{subject_lbl}/{module}"
+        title = f"Visits for {project.group}/{project.label}/{subject_lbl}/{module}"
 
         search_col = f"{MetadataKeys.FORM_METADATA_PATH}.{search_col}"
         columns = [
@@ -226,7 +226,7 @@ class FormsStore:
             return None
 
         # Dataview to retrieve the previous visits
-        title = "Visits for " f"{project.group}/{project.label}/{subject_lbl}/{module}"
+        title = f"Visits for {project.group}/{project.label}/{subject_lbl}/{module}"
 
         orderby_col = f"{MetadataKeys.FORM_METADATA_PATH}.{order_by}"
         columns = [

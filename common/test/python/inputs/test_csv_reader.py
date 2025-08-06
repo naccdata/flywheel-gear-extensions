@@ -7,7 +7,8 @@ from typing import Any, Dict, List
 import pytest
 from form_screening_app.format import CSVFormatterVisitor
 from inputs.csv_reader import CSVVisitor, read_csv
-from outputs.errors import StreamErrorWriter, invalid_header_error
+from outputs.error_writer import StreamErrorWriter
+from outputs.errors import invalid_header_error
 
 
 # pylint: disable=(redefined-outer-name)

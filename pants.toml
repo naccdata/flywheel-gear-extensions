@@ -1,5 +1,5 @@
 [GLOBAL]
-pants_version = "2.23.1"
+pants_version = "2.27.0"
 backend_packages = [
     "pants.backend.build_files.fmt.ruff",
     "pants.backend.docker",
@@ -32,10 +32,13 @@ root_patterns = [
 [docker]
 default_repository = "naccdata/{name}"
 
+[dockerfile-parser]
+use_rust_parser = true
+
 [python]
 interpreter_constraints = ["==3.11.*"]
 enable_resolves = true
-resolves = { python-default = "python-default.lock"}
+resolves = { python-default = "python-default.lock", mypy = "mypy.lock" }
 
 [python-bootstrap]
 #  https://www.pantsbuild.org/docs/python-interpreter-compatibility#changing-the-interpreter-search-path.
@@ -49,6 +52,9 @@ formatter = "ruff"
 
 [pytest]
 args=["-vv"]
+
+[mypy]
+install_from_resolve = "mypy"
 
 # TODO: REMOVE WHEN DEV TESTING IS DONE
 [python-repos]

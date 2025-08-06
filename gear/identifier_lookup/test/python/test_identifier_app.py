@@ -7,8 +7,10 @@ from typing import Any, List
 import pytest
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
-from outputs.errors import ListErrorWriter
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_flywheel import MockProject
 
 
 @pytest.fixture(scope="function")
@@ -119,6 +121,7 @@ class TestIdentifierLookup:
     ):
         """Test empty input stream."""
         out_stream = StringIO()
+        misc_errors: List[FileError] = []
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
         success = run(
             input_file=empty_data_stream,
@@ -130,6 +133,8 @@ class TestIdentifierLookup:
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
                 gear_name="dummy",
+                misc_errors=misc_errors,
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -142,6 +147,7 @@ class TestIdentifierLookup:
     ):
         """Test case with no header."""
         out_stream = StringIO()
+        misc_errors: List[FileError] = []
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
         success = run(
             input_file=no_header_stream,
@@ -153,6 +159,8 @@ class TestIdentifierLookup:
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
                 gear_name="dummy",
+                misc_errors=misc_errors,
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -165,6 +173,7 @@ class TestIdentifierLookup:
     ):
         """Test case where header doesn't have ID columns."""
         out_stream = StringIO()
+        misc_errors: List[FileError] = []
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
         success = run(
             input_file=no_ids_stream,
@@ -176,6 +185,8 @@ class TestIdentifierLookup:
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
                 gear_name="dummy",
+                misc_errors=misc_errors,
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -188,6 +199,7 @@ class TestIdentifierLookup:
     ):
         """Test case where everything should match."""
         out_stream = StringIO()
+        misc_errors: List[FileError] = []
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
         success = run(
             input_file=data_stream,
@@ -199,6 +211,8 @@ class TestIdentifierLookup:
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
                 gear_name="dummy",
+                misc_errors=misc_errors,
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -219,6 +233,7 @@ class TestIdentifierLookup:
     ):
         """Test case where there is no matching identifier."""
         out_stream = StringIO()
+        misc_errors: List[FileError] = []
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
         success = run(
             input_file=data_stream,
@@ -230,6 +245,8 @@ class TestIdentifierLookup:
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
                 gear_name="dummy",
+                misc_errors=misc_errors,
+                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )

@@ -260,7 +260,7 @@ class SubjectAdaptor:
             FileEntry(optional): Flywheel container for the newly uploaded file or None
 
         Raises:
-            ApiException: if any error occurred while upload
+            UploaderError: if any error occurred while upload
         """
 
         session = self.find_session(session_label)

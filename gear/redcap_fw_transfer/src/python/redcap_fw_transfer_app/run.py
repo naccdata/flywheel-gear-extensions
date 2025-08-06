@@ -102,7 +102,7 @@ def get_redcap_projects_metadata(
 
         matches += 1
         log.info(
-            "REDCap projects metadata found for center: %s, " "study: %s, project: %s",
+            "REDCap projects metadata found for center: %s, study: %s, project: %s",
             group_adaptor.label,
             study,
             project_label,

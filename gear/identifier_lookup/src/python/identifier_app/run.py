@@ -4,7 +4,7 @@ import logging
 import os
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Literal, Optional, TextIO
+from typing import Dict, List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -31,7 +31,8 @@ from inputs.csv_reader import CSVVisitor
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.errors import ListErrorWriter
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 
@@ -131,12 +132,12 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         identifiers_repo: IdentifierRepository,
         output_file: TextIO,
         error_writer: ListErrorWriter,
+        misc_errors: List[FileError],
     ) -> CSVVisitor:
         module = self.__file_input.get_module_name_from_file_suffix()
         if not module:
             raise GearExecutionError(
-                "Expect module suffix in input file name: "
-                f"{self.__file_input.filename}"
+                f"Expect module suffix in input file name: {self.__file_input.filename}"
             )
         module = module.upper()
 
@@ -186,6 +187,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             error_writer=error_writer,
             gear_name=self.__gear_name,
             project=ProjectAdaptor(project=project, proxy=self.proxy),
+            misc_errors=misc_errors,
         )
 
     def __build_center_lookup(
@@ -228,12 +230,14 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             )
 
             clear_errors = False
+            misc_errors: List[FileError] = []
             if self.__direction == "nacc":
                 lookup_visitor = self.__build_naccid_lookup(
                     file_input=self.__file_input,
                     identifiers_repo=identifiers_repo,
                     output_file=out_file,
                     error_writer=error_writer,
+                    misc_errors=misc_errors,
                 )
                 clear_errors = True
             elif self.__direction == "center":
@@ -259,11 +263,17 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             else:
                 log.info("Contents empty, will not write output file")
 
+            # If there are any miscellaneous errors that can't be reported for a visit
+            # add those to CSV file errors
+            if misc_errors:
+                for error in misc_errors:
+                    error_writer.write(error)
+
             context.metadata.add_qc_result(
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(
