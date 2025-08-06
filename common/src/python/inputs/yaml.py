@@ -26,7 +26,7 @@ def load_all_from_stream(stream) -> List[Any]:
         mark = error.problem_mark
         if mark:
             raise YAMLReadError(
-                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+                f"Error in YAML: line {mark.line + 1}, column {{mark.column + 1}}"
             ) from error
         raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:
@@ -47,7 +47,7 @@ def load_from_stream(stream) -> Any:
         mark = error.problem_mark
         if mark:
             raise YAMLReadError(
-                f"Error in YAML: line {mark.line + 1}, " "column {mark.column + 1}"
+                f"Error in YAML: line {mark.line + 1}, column {{mark.column + 1}}"
             ) from error
         raise YAMLReadError(f"Error in YAML file: {error}") from error
     except yaml.YAMLError as error:

@@ -100,7 +100,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             yaml_text = run(user_report=self.__user_report)
         except RepresenterError as error:
             raise GearExecutionError(
-                "Error: can't create YAML for file" f"{self.__user_filename}: {error}"
+                f"Error: can't create YAML for file{self.__user_filename}: {error}"
             ) from error
 
         with context.open_output(

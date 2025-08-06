@@ -134,7 +134,7 @@ Each gear directory in this repository looks like
 ```
 
 The key parts being the manifest and script files.
-The scripts are inspired by Flwheel's [template project](https://gitlab.com/flywheel-io/scientific-solutions/gears/templates/skeleton).
+The scripts are inspired by Flywheel's [template project](https://gitlab.com/flywheel-io/scientific-solutions/gears/templates/skeleton).
 (Flywheel's template assumes one Gear per repository, which doesn't work for a monorepo.)
 In that template, the Gear has two scripts `run.py` and `main.py` (or, rather, a file with a name specific to the app).
 The `run.py` script manages the environment, and the `main.py` does the computation.
@@ -468,13 +468,13 @@ If you add new python dependencies
 1. Format everything
 
     ```bash
-    pants fmt ::
+    pants fix ::
     ```
 
 2. Format just the common subproject
 
     ```bash
-    pants fmt common::
+    pants fix common::
     ```
 
 3. Lint

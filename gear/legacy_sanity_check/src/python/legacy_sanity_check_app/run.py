@@ -18,7 +18,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 
 from legacy_sanity_check_app.main import LegacySanityChecker
@@ -183,7 +183,10 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 target_emails=self.__target_emails,
                 group_lbl=project.label,
             )
-            raise GearExecutionError(f"Sanity checks failed: {error_writer.errors()}")
+            raise GearExecutionError(
+                "Sanity checks failed: "
+                f"{error_writer.errors().model_dump(by_alias=True)}"
+            )
 
         context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 

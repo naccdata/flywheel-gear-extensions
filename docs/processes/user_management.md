@@ -6,6 +6,8 @@ A center member is authorized as a user of the NACC Directory by the Center Admi
 In this process, the administrator adds a center member to the NACC Directory in REDCap and authorizes their access to the NACC Data Platform.
 Authorization initiates a Data Platform Access survey that prompts the user to provide the email to be used for authentication.
 
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/user_management.md#center-member-authorization)
+
 ```mermaid
 sequenceDiagram
     actor admin as Center<br/>Admin
@@ -22,6 +24,8 @@ sequenceDiagram
 The directory is pulled nightly to Flywheel using the [Directory Pull](../pull_directory/) gear.
 This gear writes a file with user information in an admin project on Flywheel.
 
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/user_management.md#pulling-nacc-directory)
+
 ```mermaid
 sequenceDiagram
     scheduler ->> puller: initiate
@@ -33,9 +37,15 @@ sequenceDiagram
     puller ->> Flywheel: write directory user file
 ```
 
+### Gear
+
+[pull-directory](../pull_directory/index.md)
+
 ## User management
 
 Updates to the NACC directory user file trigger a gear rule that runs the user management gear.
+
+> If this diagram is not rendered properly, view this [document in the repository](https://github.com/naccdata/flywheel-gear-extensions/blob/document-csv-process/docs/processes/user_management.md#user-management)
 
 ```mermaid
 sequenceDiagram
@@ -62,3 +72,7 @@ sequenceDiagram
         end
     end
 ```
+
+### Gear
+
+[user-management](../user_management/index.md)

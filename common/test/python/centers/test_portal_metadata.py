@@ -226,12 +226,12 @@ class TestREDCapUpdate:
         for input_project in input_object.projects:
             ingest_project.add(input_project)
         assert ingest_project, "expect non-null ingest project after update"
-        assert (
-            ingest_project.redcap_projects
-        ), "expect non-null redcap projects after update"
-        assert ingest_project.redcap_projects.get(
-            DefaultValues.ENROLLMENT_MODULE
-        ), "expect non-null redcap project after update"
+        assert ingest_project.redcap_projects, (
+            "expect non-null redcap projects after update"
+        )
+        assert ingest_project.redcap_projects.get(DefaultValues.ENROLLMENT_MODULE), (
+            "expect non-null redcap project after update"
+        )
 
         study_info.add_ingest(ingest_project)
         portal_metadata.add(study_info)

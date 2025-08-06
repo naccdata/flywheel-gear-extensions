@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     preprocess_errors,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -52,12 +52,13 @@ def create_mlst_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     form_store = MockFormsStore(date_field=date_field)
-    project = MockProject()
+    project = MockProject(label="mlst-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={module.upper(): module_configs},
+        module=module,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 

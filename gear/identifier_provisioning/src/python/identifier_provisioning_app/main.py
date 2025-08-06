@@ -1,7 +1,7 @@
 """Defines Identifier Provisioning."""
 
 import logging
-from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
+from typing import Any, Dict, Iterator, List, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import (
@@ -31,18 +31,16 @@ from identifiers.identifiers_repository import (
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues, FieldNames
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import CSVLocation, FileError, FileErrorList
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
-    CSVLocation,
-    FileError,
-    ListErrorWriter,
     empty_field_error,
-    get_error_log_name,
     identifier_error,
     missing_field_error,
     partially_failed_file_error,
     system_error,
     unexpected_value_error,
-    update_error_log_and_qc_metadata,
 )
 from pydantic import ValidationError
 
@@ -55,7 +53,7 @@ def update_record_level_error_log(
     qc_passed: bool,
     project: ProjectAdaptor,
     gear_name: str,
-    errors: MutableSequence[Dict[str, Any]],
+    errors: FileErrorList,
     errorlog_template: Optional[ErrorLogTemplate] = None,
 ):
     """Update error log file for the visit and store error metadata in
@@ -78,10 +76,8 @@ def update_record_level_error_log(
             id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
         )
 
-    error_log_name = get_error_log_name(
-        module=DefaultValues.ENROLLMENT_MODULE,
-        input_data=input_record,
-        errorlog_template=errorlog_template,
+    error_log_name = errorlog_template.instantiate(
+        module=DefaultValues.ENROLLMENT_MODULE, record=input_record
     )
 
     if not error_log_name or not update_error_log_and_qc_metadata(
@@ -150,14 +146,14 @@ class TransferVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         transfer_info: TransferInfo,
         repo: IdentifierRepository,
     ) -> None:
         self.__error_writer = error_writer
         self.__transfer_info = transfer_info
         self.__repo = repo
-        self.__validator = NewPTIDRowValidator(repo, error_writer)
+        self.__new_ptid_validator = NewPTIDRowValidator(repo, error_writer)
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
         self.__previous_identifiers: Optional[CenterIdentifiers] = None
@@ -342,7 +338,7 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
-        if not self.__validator.check(row, line_num):
+        if not self.__new_ptid_validator.check(row, line_num):
             return True
 
         new_identifiers = CenterIdentifiers(
@@ -396,7 +392,7 @@ class NewEnrollmentVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         repo: IdentifierRepository,
         batch: EnrollmentBatch,
     ) -> None:

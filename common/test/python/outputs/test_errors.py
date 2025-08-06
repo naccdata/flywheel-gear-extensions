@@ -4,12 +4,13 @@
 from csv import DictReader
 from io import StringIO
 
-from outputs.errors import (
+from outputs.error_models import (
     CSVLocation,
     FileError,
     JSONLocation,
-    ListErrorWriter,
-    StreamErrorWriter,
+)
+from outputs.error_writer import ListErrorWriter, StreamErrorWriter
+from outputs.errors import (
     empty_file_error,
     identifier_error,
     missing_header_error,
@@ -114,4 +115,4 @@ class TestErrorWriter:
             )
         )
         errors = writer.errors()
-        assert errors[0]["container_id"] == "the-id"
+        assert errors[0].container_id == "the-id"

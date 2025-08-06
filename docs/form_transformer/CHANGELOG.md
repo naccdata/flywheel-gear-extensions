@@ -2,11 +2,18 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.5
+* Updates pre-processing error messages
+* Refactors FormPreprocessor class
+
+## 1.4.4
+* Rebuilding for API call retries
+  
 ## 1.4.3
-* Update to parameterize the key to pull visit date from (uses `date_field` in `form-date-module-configs.json`)
+* Updates to parameterize the key to pull visit date from (uses `date_field` in `form-date-module-configs.json`)
 
 ## 1.4.2
-* Update `update_file_info_metadata` to also ignore empty strings
+* Updates `update_file_info_metadata` to also ignore empty strings
 
 ## 1.4.1
 * Rebuild for handling multiple pipelines (submission, finalization)

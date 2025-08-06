@@ -6,6 +6,9 @@ from flywheel.file_spec import FileSpec
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+from utils.decorators import api_retry
+
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ def is_duplicate_record(
     # TODO: Handle other content types
 
 
+@api_retry
 def update_file_info_metadata(
     file: FileEntry, input_record: Dict[str, Any], modality: str = "Form"
 ) -> bool:
@@ -81,6 +85,7 @@ def update_file_info_metadata(
     return True
 
 
+@api_retry
 def upload_to_acquisition(
     acquisition: Acquisition,
     filename: str,
@@ -94,7 +99,7 @@ def upload_to_acquisition(
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
         if existing_file and is_duplicate_record(
-            contents, existing_file.read(), content_type
+            contents, existing_file.read().decode("utf-8"), content_type
         ):
             log.warning(
                 "Duplicate file %s already exists at %s/%s/%s",
@@ -111,10 +116,11 @@ def upload_to_acquisition(
 
     try:
         acquisition.upload_file(record_file_spec)
-        acquisition = acquisition.reload()
-        return acquisition.get_file(filename)
     except ApiException as error:
-        raise ApiException(
+        raise UploaderError(
             f"Failed to upload file {filename} to "
             f"{subject_label}/{session_label}/{acquisition_label}: {error}"
         ) from error
+
+    acquisition = acquisition.reload()
+    return acquisition.get_file(filename)

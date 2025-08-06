@@ -6,7 +6,8 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import FieldNames, SysErrorCodes
-from outputs.errors import ListErrorWriter, preprocessing_error, unexpected_value_error
+from outputs.error_writer import ErrorWriter
+from outputs.errors import preprocessing_error, unexpected_value_error
 from pydantic import BaseModel, RootModel
 
 log = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class FieldFilter(BaseModel):
         return set(self.fields.get(version_name, set()))
 
     def apply(
-        self, input_record: Dict[str, Any], error_writer: ListErrorWriter, line_num: int
+        self, input_record: Dict[str, Any], error_writer: ErrorWriter, line_num: int
     ) -> Optional[Dict[str, Any]]:
         """Filters the input record by dropping the key-value pairs for fields
         unique to the version.
@@ -69,24 +70,30 @@ class FieldFilter(BaseModel):
             return input_record
 
         transformed = {}
+        incorrectly_filled: List[str] = []
         for field, value in input_record.items():
             if field in drop_fields:
                 # report error if excluded fields expected to be empty, but filled
                 if self.nofill and input_record.get(field):
-                    error_writer.write(
-                        preprocessing_error(
-                            field=self.version_map.fieldname,
-                            value=input_record.get(self.version_map.fieldname, ""),
-                            line=line_num,
-                            error_code=SysErrorCodes.EXCLUDED_FIELDS,
-                            ptid=input_record.get(FieldNames.PTID),
-                            visitnum=input_record.get(FieldNames.VISITNUM),
-                        )
-                    )
-                    return None
+                    incorrectly_filled.append(field)
+
                 continue
 
             transformed[field] = value
+
+        if incorrectly_filled:
+            error_writer.write(
+                preprocessing_error(
+                    field=self.version_map.fieldname,
+                    value=input_record.get(self.version_map.fieldname, ""),
+                    line=line_num,
+                    error_code=SysErrorCodes.EXCLUDED_FIELDS,
+                    ptid=input_record.get(FieldNames.PTID),
+                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    extra_args=[incorrectly_filled],
+                )
+            )
+            return None
 
         return transformed
 
@@ -94,7 +101,7 @@ class FieldFilter(BaseModel):
 class FieldTransformations(RootModel):
     """Root model for the form field schema."""
 
-    root: Dict[ModuleName, List[FieldFilter]] = {}  # noqa: RUF012
+    root: Dict[ModuleName, List[FieldFilter]] = {}
 
     def __getitem__(self, key: ModuleName) -> List[FieldFilter]:
         """Returns the FormField schema for the module.
@@ -187,7 +194,7 @@ class RecordTransformer(BaseRecordTransformer):
 class DateTransformer(BaseRecordTransformer):
     """Defines a transformer that normalizes date fields."""
 
-    def __init__(self, error_writer: ListErrorWriter) -> None:
+    def __init__(self, error_writer: ErrorWriter) -> None:
         self._error_writer = error_writer
 
     def transform(
@@ -228,9 +235,7 @@ class DateTransformer(BaseRecordTransformer):
 class FilterTransformer(BaseRecordTransformer):
     """Defines a transform that applies a field filter to a record."""
 
-    def __init__(
-        self, field_filter: FieldFilter, error_writer: ListErrorWriter
-    ) -> None:
+    def __init__(self, field_filter: FieldFilter, error_writer: ErrorWriter) -> None:
         self._transform = field_filter
         self._error_writer = error_writer
 
@@ -258,7 +263,7 @@ class TransformerFactory:
         self.__transformations = transformations
 
     def create(
-        self, module: Optional[str], error_writer: ListErrorWriter
+        self, module: Optional[str], error_writer: ErrorWriter
     ) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
         this object.

@@ -1,6 +1,5 @@
 """Defines Legacy Sanity Check."""
 
-import json
 import logging
 from typing import List
 
@@ -14,9 +13,9 @@ from keys.keys import (
     SysErrorCodes,
 )
 from notifications.email import EmailClient, create_ses_client
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
     preprocess_errors,
 )
 
@@ -271,8 +270,8 @@ class LegacySanityChecker:
         subject = f"{project_lbl} Sanity Check Failure"
         body = (
             f"Project {project_lbl} for {group_lbl} failed "
-            + "the following legacy sanity checks:\n\n"
-            + json.dumps(self.__error_writer.errors(), indent=4)
+            "the following legacy sanity checks:\n\n"
+            f"{self.__error_writer.errors().model_dump_json(by_alias=True, indent=4)}"
         )
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)

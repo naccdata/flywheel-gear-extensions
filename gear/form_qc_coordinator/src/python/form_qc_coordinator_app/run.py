@@ -319,8 +319,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         )
         if not qc_gear_info:
             raise GearExecutionError(
-                "Error reading qc gear configs file "
-                f"{self.__qc_config_input.filename}"
+                f"Error reading qc gear configs file {self.__qc_config_input.filename}"
             )
 
         run(

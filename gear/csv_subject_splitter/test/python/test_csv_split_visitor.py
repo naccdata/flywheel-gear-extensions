@@ -8,7 +8,7 @@ from csv_app.main import CSVSplitVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import read_csv
-from outputs.errors import StreamErrorWriter
+from outputs.error_writer import StreamErrorWriter
 from uploads.uploader import JSONUploader
 
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
+    ErrorLogTemplate,
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
@@ -24,14 +25,13 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    get_error_log_name,
     preprocessing_error,
     previous_visit_failed_error,
     system_error,
-    update_error_log_and_qc_metadata,
 )
 
 log = logging.getLogger(__name__)
@@ -139,7 +139,9 @@ class QCCoordinator:
             error_writer.write(error_obj)
 
         qc_result = create_qc_result_dict(
-            name="validation", state=status, data=error_writer.errors()
+            name="validation",
+            state=status,
+            data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
         info = (
@@ -158,12 +160,12 @@ class QCCoordinator:
         except ApiException as error:
             log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
 
-        error_log_name = get_error_log_name(
-            module=self.__module,
-            input_data={
+        error_log_name = ErrorLogTemplate().instantiate(
+            record={
                 f"{FieldNames.PTID}": ptid,
                 f"{FieldNames.DATE_COLUMN}": visitdate,
             },
+            module=self.__module,
         )
 
         project = self.__proxy.get_project_by_id(self.__subject.parents.project)  # type: ignore
@@ -184,7 +186,13 @@ class QCCoordinator:
                 f"Failed to update error log for visit {ptid}, {visitdate}"
             )
 
-    def __update_last_failed_visit(self, file_id: str, filename: str, visitdate: str):
+    def __update_last_failed_visit(
+        self,
+        file_id: str,
+        filename: str,
+        visitdate: str,
+        visitnum: Optional[str] = None,
+    ):
         """Update last failed visit details in subject metadata.
 
         Args:
@@ -192,7 +200,9 @@ class QCCoordinator:
             filename: name of the failed visit file
             visitdate: visit date of the failed visit
         """
-        visit_info = VisitInfo(file_id=file_id, filename=filename, visitdate=visitdate)
+        visit_info = VisitInfo(
+            file_id=file_id, filename=filename, visitdate=visitdate, visitnum=visitnum
+        )
         self.__subject.set_last_failed_visit(self.__module, visit_info)
 
     def __get_matching_supplement_visit_file(
@@ -262,7 +272,13 @@ class QCCoordinator:
         return self.__proxy.get_file(matching_visits[0]["file.file_id"])
 
     def __update_visit_metadata_on_failure(
-        self, *, ptid: str, visit_file: FileEntry, visitdate: str, error_obj: FileError
+        self,
+        *,
+        ptid: str,
+        visit_file: FileEntry,
+        visitdate: str,
+        error_obj: FileError,
+        visitnum: Optional[str] = None,
     ) -> None:
         """Set last failed visit and update QC error metadata.
 
@@ -273,7 +289,10 @@ class QCCoordinator:
             error_obj: error metadata to report
         """
         self.__update_last_failed_visit(
-            file_id=visit_file.file_id, filename=visit_file.name, visitdate=visitdate
+            file_id=visit_file.file_id,
+            filename=visit_file.name,
+            visitdate=visitdate,
+            visitnum=visitnum,
         )
         self.__update_qc_error_metadata(
             visit_file=visit_file,
@@ -301,7 +320,7 @@ class QCCoordinator:
             date_col_key: date field location in file.info
         """
         log.info(
-            "Visit %s failed, " "there are %s subsequent visits for this participant.",
+            "Visit %s failed, there are %s subsequent visits for this participant.",
             failed_visit,
             len(remaining_visits),
         )
@@ -435,6 +454,7 @@ class QCCoordinator:
                     ptid=ptid,
                     visit_file=visit_file,
                     visitdate=visitdate,
+                    visitnum=visitnum,
                     error_obj=error_obj,
                 )
                 return None
@@ -521,6 +541,7 @@ class QCCoordinator:
                     ptid=ptid,
                     visit_file=visit_file,
                     visitdate=visitdate,
+                    visitnum=visitnum,
                     error_obj=error_obj,
                 )
                 failed_visit = visit_file.name
