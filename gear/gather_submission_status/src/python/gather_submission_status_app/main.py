@@ -265,8 +265,8 @@ class SubmissionStatusVisitor(CSVVisitor):
         if not center:
             self.__error_writer.write(
                 FileError(
-                    error_code="no-center",
-                    error_type="error",
+                    error_code="no-center", # pyright: ignore[reportCallIssue]
+                    error_type="error", # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=f"value {status_query.adcid} is not a valid ADCID",
                 )
@@ -277,8 +277,8 @@ class SubmissionStatusVisitor(CSVVisitor):
         if not projects:
             self.__error_writer.write(
                 FileError(
-                    error_code="no-projects",
-                    error_type="error",
+                    error_code="no-projects", # pyright: ignore[reportCallIssue]
+                    error_type="error", # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=(
                         f"center {status_query.adcid} has no matching projects "
