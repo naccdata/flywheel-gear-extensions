@@ -9,6 +9,7 @@ from typing import Any, Dict, Literal, Optional
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
+    IdentifierRepositoryError,
 )
 from identifiers.model import (
     NACCID_PATTERN,
@@ -22,6 +23,7 @@ from keys.keys import FieldNames, SysErrorCodes
 from outputs.errors import (
     ErrorWriter,
     existing_participant_error,
+    identifier_error,
     preprocessing_error,
 )
 from pydantic import BaseModel, Field
@@ -192,13 +194,32 @@ class NewPTIDRowValidator(RowValidator):
           True if no existing NACCID is found for the PTID, False otherwise
         """
         ptid = row["ptid"]
-        identifier = self.__identifiers.get(adcid=row["adcid"], ptid=ptid)
+        adcid = row["adcid"]
+
+        try:
+            identifier = self.__identifiers.get(adcid=adcid, ptid=ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.PTID,
+                    value=ptid,
+                    line=line_number,
+                    message=(
+                        "Error in looking up Identifier for "
+                        f"ADCID {adcid}, PTID {ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
         if not identifier:
             return True
 
-        log.info("Found participant for (%s,%s)", row["adcid"], row["ptid"])
+        log.info("Found participant for (%s,%s)", adcid, ptid)
         self.__error_writer.write(
-            existing_participant_error(field="ptid", line=line_number, value=ptid)
+            existing_participant_error(
+                field=FieldNames.PTID, line=line_number, value=ptid
+            )
         )
         return False
 
@@ -224,14 +245,27 @@ class NewGUIDRowValidator(RowValidator):
             return True
 
         guid = row["guid"]
-        identifier = self.__identifiers.get(guid=guid)
+
+        try:
+            identifier = self.__identifiers.get(guid=guid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.GUID,
+                    value=guid,
+                    line=line_number,
+                    message=f"Error in looking up Identifier for GUID {guid}: {error}",
+                )
+            )
+            return False
+
         if not identifier:
             return True
 
-        log.info("Found participant for GUID %s", row["guid"])
+        log.info("Found participant for GUID %s", guid)
         self.__error_writer.write(
             existing_participant_error(
-                field="guid",
+                field=FieldNames.GUID,
                 line=line_number,
                 value=guid,
                 message=f"Participant exists for GUID {guid}",

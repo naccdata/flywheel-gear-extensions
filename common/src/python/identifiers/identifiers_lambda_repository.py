@@ -248,6 +248,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         if response.statusCode == 200:
             return IdentifierObject.model_validate_json(response.body)
+
         if response.statusCode == 404:
             return None
 
