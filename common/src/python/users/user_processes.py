@@ -305,7 +305,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             entry.registry_id
         )
 
-        # this cannot happen, user should have been claimed if it reaches this step
+        # user should have been claimed if it reaches this step
         if not registry_person or not registry_person.email_address:
             log.error(
                 "Failed to find a claimed user with Registry ID %s and email %s",
