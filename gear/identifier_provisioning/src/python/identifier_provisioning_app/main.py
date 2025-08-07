@@ -241,8 +241,8 @@ class TransferVisitor(CSVVisitor):
 
         self.__error_writer.write(
             FileError(
-                error_type="error",
-                error_code="mismatched-id",
+                error_type="error",  # pyright: ignore[reportCallIssue]
+                error_code="mismatched-id",  # pyright: ignore[reportCallIssue]
                 location=CSVLocation(line=line_num, column_name=FieldNames.NACCID),
                 message=(
                     "mismatched NACCID for "
