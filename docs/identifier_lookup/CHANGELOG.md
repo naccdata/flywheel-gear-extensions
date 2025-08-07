@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.3
+* Rebuilding to call identifier lambda function alias depending on request mode
+  
 ## 1.2.2
 * Rebuilding for API call retries
   

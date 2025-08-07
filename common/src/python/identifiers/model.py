@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, RootModel, field_validator
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
-NACCID_PATTERN = r"^NACC\d{6}$"
+NACCID_PATTERN = r"^(NACC|TEST)\d{6}$"
 PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
 
 
@@ -58,6 +58,8 @@ class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
 
     Hides unconventional naming of fields and has NACCID as string.
     """
+
+    active: bool = True
 
 
 class IdentifierList(RootModel):
