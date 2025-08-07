@@ -305,8 +305,8 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             entry.registry_id
         )
 
-        # this cannot happen, user should have been claimed if it reaches this step
-        if not registry_person or not registry_person.organization_email_addresses:
+        # user should have been claimed if it reaches this step
+        if not registry_person or not registry_person.email_address:
             log.error(
                 "Failed to find a claimed user with Registry ID %s and email %s",
                 entry.registry_id,
@@ -323,20 +323,16 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
 
         self.__update_email(user=fw_user, email=entry.email)
 
-        auth_email = registry_person.organization_email_addresses[0].mail
-        if entry.auth_email and not registry_person.has_matching_auth_email(
-            entry.auth_email
-        ):
-            log.warning(
-                "Registry ID %s is claimed with email %s - provided auth email is %s",
-                entry.registry_id,
-                auth_email,
-                entry.auth_email,
+        registry_address = registry_person.email_address
+        if not registry_address:
+            log.error(
+                "Registry record does not have email address: %s", entry.registry_id
             )
+            return
 
         self.__authorize_user(
             user=fw_user,
-            auth_email=auth_email,
+            auth_email=registry_address.mail,
             center_id=entry.adcid,
             authorizations=entry.authorizations,
         )
