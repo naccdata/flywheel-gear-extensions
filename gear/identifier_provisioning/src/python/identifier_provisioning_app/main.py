@@ -133,8 +133,7 @@ class EnrollmentBatch:
         identifiers = repo.create_list(query)
         log.info("created %s new NACCIDs", len(identifiers))
         if len(query) != len(identifiers):
-            log.warning("expected %s new IDs, got %s",
-                        len(query), len(identifiers))
+            log.warning("expected %s new IDs, got %s", len(query), len(identifiers))
 
         for identifier in identifiers:
             record = self.__records.get(identifier.ptid)
@@ -247,8 +246,7 @@ class TransferVisitor(CSVVisitor):
             FileError(
                 error_type="error",  # pyright: ignore[reportCallIssue]
                 error_code="mismatched-id",  # pyright: ignore[reportCallIssue]
-                location=CSVLocation(
-                    line=line_num, column_name=FieldNames.NACCID),
+                location=CSVLocation(line=line_num, column_name=FieldNames.NACCID),
                 message=(
                     "mismatched NACCID for "
                     f"{source} "
@@ -325,12 +323,10 @@ class TransferVisitor(CSVVisitor):
             return False
         previous_ptid = row[FieldNames.OLDPTID]
         if not previous_ptid:
-            self.__error_writer.write(
-                empty_field_error(FieldNames.OLDPTID, line_num))
+            self.__error_writer.write(empty_field_error(FieldNames.OLDPTID, line_num))
             return False
 
-        ptid_identifier = self.__repo.get(
-            adcid=previous_adcid, ptid=previous_ptid)
+        ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
         if not ptid_identifier:
             self.__error_writer.write(
                 identifier_error(
@@ -488,8 +484,7 @@ class NewEnrollmentVisitor(CSVVisitor):
                     center_identifier=CenterIdentifiers(
                         adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
                     ),
-                    guid=row.get(FieldNames.GUID) if row.get(
-                        FieldNames.GUID) else None,
+                    guid=row.get(FieldNames.GUID) if row.get(FieldNames.GUID) else None,
                     naccid=None,
                     start_date=enroll_date,
                 )
@@ -541,7 +536,9 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer, repo=repo, transfer_info=transfer_info
         )
         self.__validator = CenterValidator(
-            center_id=center_id, date_field=FieldNames.ENRLFRM_DATE, error_writer=error_writer
+            center_id=center_id,
+            date_field=FieldNames.ENRLFRM_DATE,
+            error_writer=error_writer,
         )
 
     def visit_header(self, header: List[str]) -> bool:
@@ -635,8 +632,7 @@ class ProvisioningVisitor(CSVVisitor):
 
         # No further processing implemented for transfers, so update visit level log
         # TODO - need to change when processing transfers implemented
-        success = self.__transfer_in_visitor.visit_row(
-            row=row, line_num=line_num)
+        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
         update_record_level_error_log(
             input_record=row,
             qc_passed=success,
@@ -715,7 +711,7 @@ def run(
                     message=message,
                     visit_keys=VisitKeys(
                         ptid=record_info[FieldNames.PTID],
-                        visitdate=record_info[FieldNames.ENRLFRM_DATE],
+                        date=record_info[FieldNames.ENRLFRM_DATE],
                     ),
                 )
             )
@@ -738,7 +734,7 @@ def run(
                     message=message,
                     visit_keys=VisitKeys(
                         ptid=record_info[FieldNames.PTID],
-                        visitdate=record_info[FieldNames.ENRLFRM_DATE],
+                        date=record_info[FieldNames.ENRLFRM_DATE],
                         naccid=record.naccid,
                     ),
                 )

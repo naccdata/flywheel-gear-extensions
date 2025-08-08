@@ -24,7 +24,7 @@ class JSONLocation(BaseModel):
 class VisitKeys(BaseModel):
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
-    visitdate: Optional[str] = None
+    date: Optional[str] = None
     naccid: Optional[str] = None
 
     @classmethod
@@ -32,7 +32,7 @@ class VisitKeys(BaseModel):
         return VisitKeys(
             ptid=record.get(FieldNames.PTID),
             visitnum=record.get(FieldNames.VISITNUM),
-            visitdate=record.get(date_field),
+            date=record.get(date_field),
             naccid=record.get(FieldNames.NACCID),
         )
 
@@ -54,7 +54,7 @@ class FileError(BaseModel):
     message: str
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
-    visitdate: Optional[str] = None
+    date: Optional[str] = None
     naccid: Optional[str] = None
 
     @classmethod

@@ -70,7 +70,10 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
         self.__validator = CenterValidator(
-            center_id=adcid, date_field=module_configs.date_field, error_writer=error_writer)
+            center_id=adcid,
+            date_field=module_configs.date_field,
+            error_writer=error_writer,
+        )
         self.__misc_errors = misc_errors
 
     def __get_writer(self) -> CSVWriter:
@@ -299,8 +302,7 @@ class CenterLookupVisitor(CSVVisitor):
         Raises:
           GearExecutionError if the identifiers repository raises an error
         """
-        naccid = row.get(FieldNames.NACCID, row.get(
-            FieldNames.NACCID.upper(), None))
+        naccid = row.get(FieldNames.NACCID, row.get(FieldNames.NACCID.upper(), None))
 
         if naccid is None:
             raise GearExecutionError(f"NACCID not found in row {line_num}")
@@ -308,13 +310,11 @@ class CenterLookupVisitor(CSVVisitor):
         try:
             identifier = self.__identifiers_repo.get(naccid=naccid)
         except IdentifierRepositoryError as error:
-            raise GearExecutionError(
-                f"Lookup of {naccid} failed: {error}") from error
+            raise GearExecutionError(f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
             self.__error_writer.write(
-                identifier_error(line=line_num, value=naccid,
-                                 field=FieldNames.NACCID)
+                identifier_error(line=line_num, value=naccid, field=FieldNames.NACCID)
             )
             return False
 

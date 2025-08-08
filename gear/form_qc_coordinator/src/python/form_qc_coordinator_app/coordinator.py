@@ -81,8 +81,7 @@ class QCCoordinator:
         self.__subject = subject
         self.__module = module
         self.__form_project_configs = form_project_configs
-        self.__module_configs = self.__form_project_configs.module_configs.get(
-            module)
+        self.__module_configs = self.__form_project_configs.module_configs.get(module)
         self.__qc_gear_info = qc_gear_info
         self.__proxy = proxy
         self.__configs_file = configs_file
@@ -133,8 +132,7 @@ class QCCoordinator:
         """
 
         error_writer = ListErrorWriter(
-            container_id=visit_file.id, fw_path=self.__proxy.get_lookup_path(
-                visit_file)
+            container_id=visit_file.id, fw_path=self.__proxy.get_lookup_path(visit_file)
         )
 
         if error_obj:
@@ -153,16 +151,14 @@ class QCCoordinator:
         )
 
         # add qc-coordinator gear info to visit file metadata
-        updated_qc_info = self.__metadata.add_gear_info(
-            "qc", visit_file, **qc_result)
+        updated_qc_info = self.__metadata.add_gear_info("qc", visit_file, **qc_result)
         gear_name = self.__metadata.name  # type: ignore
         info["qc"][gear_name] = updated_qc_info["qc"][gear_name]
 
         try:
             visit_file.update_info(info)
         except ApiException as error:
-            log.error("Error in setting QC metadata in file %s - %s",
-                      visit_file, error)
+            log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
 
         error_log_name = ErrorLogTemplate().instantiate(
             record={
@@ -172,16 +168,14 @@ class QCCoordinator:
             module=self.__module,
         )
 
-        project = self.__proxy.get_project_by_id(
-            self.__subject.parents.project)  # type: ignore
+        project = self.__proxy.get_project_by_id(self.__subject.parents.project)  # type: ignore
 
         if (
             not error_log_name
             or not project
             or not update_error_log_and_qc_metadata(
                 error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(
-                    project=project, proxy=self.__proxy),
+                destination_prj=ProjectAdaptor(project=project, proxy=self.__proxy),
                 gear_name=gear_name,
                 state=status,
                 errors=error_writer.errors(),
@@ -357,7 +351,7 @@ class QCCoordinator:
                 visit_keys=VisitKeys(
                     ptid=ptid,
                     visitnum=visit.get(visitnum_key),
-                    visitdate=visitdate,
+                    date=visitdate,
                     naccid=visit.get(naccid_key),
                 ),
             )
@@ -418,8 +412,7 @@ class QCCoordinator:
         try:
             return (
                 self.__proxy.get_file(visit["file.file_id"]),
-                self.__proxy.get_acquisition(
-                    visit["file.parents.acquisition"]),
+                self.__proxy.get_acquisition(visit["file.parents.acquisition"]),
             )
         except ApiException as error:
             raise GearExecutionError(
@@ -471,7 +464,7 @@ class QCCoordinator:
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
                     visit_keys=VisitKeys(
-                        ptid=ptid, visitnum=visitnum, visitdate=visitdate, naccid=naccid
+                        ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -502,8 +495,7 @@ class QCCoordinator:
         assert self.__module_configs, "module configurations cannot be null"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
-        date_col_key = MetadataKeys.get_column_key(
-            self.__module_configs.date_field)
+        date_col_key = MetadataKeys.get_column_key(self.__module_configs.date_field)
         visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
         naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
 
@@ -525,8 +517,7 @@ class QCCoordinator:
                 continue
 
             try:
-                visit_file, destination = self.__get_visit_file_and_destination(
-                    visit)
+                visit_file, destination = self.__get_visit_file_and_destination(visit)
                 qc_gear_inputs = self.__build_qc_gear_inputs(
                     visit_file=visit_file,
                     ptid=ptid,
@@ -565,9 +556,7 @@ class QCCoordinator:
             if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
                     message=f"Errors occurred while running gear {gear_name}",
-                    visit_keys=VisitKeys(
-                        ptid=ptid, visitnum=visitnum, visitdate=visitdate
-                    ),
+                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,
