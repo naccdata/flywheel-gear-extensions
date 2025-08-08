@@ -302,7 +302,9 @@ class CenterLookupVisitor(CSVVisitor):
             raise GearExecutionError(f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
-            self.__error_writer.write(identifier_error(line=line_num, value=naccid))
+            self.__error_writer.write(
+                identifier_error(line=line_num, value=naccid, field=FieldNames.NACCID)
+            )
             return False
 
         row[FieldNames.ADCID] = identifier.adcid

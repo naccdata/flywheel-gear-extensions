@@ -5,7 +5,7 @@ from typing import Any, List, Literal, Optional
 
 from keys.keys import SysErrorCodes
 
-from outputs.error_models import CSVLocation, FileError, JSONLocation
+from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,11 @@ preprocess_errors = {
 
 
 def identifier_error(
-    line: int, value: str, field: str = "ptid", message: Optional[str] = None
+    line: int,
+    value: str,
+    field: str = "ptid",
+    message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for an unrecognized PTID error in a CSV file.
 
@@ -118,6 +122,9 @@ def identifier_error(
         location=CSVLocation(line=line, column_name=field),
         value=value,
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
     )
 
 
