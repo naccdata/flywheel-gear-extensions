@@ -125,6 +125,7 @@ def identifier_error(
         ptid=visit_keys.ptid if visit_keys else None,
         visitnum=visit_keys.visitnum if visit_keys else None,
         visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -184,6 +185,7 @@ def empty_field_error(
         ptid=visit_keys.ptid if visit_keys else None,
         visitnum=visit_keys.visitnum if visit_keys else None,
         visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -202,6 +204,7 @@ def unexpected_value_error(
     expected: str,
     line: Optional[int] = None,
     message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -225,6 +228,10 @@ def unexpected_value_error(
         if line
         else JSONLocation(key_path=str(field)),
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 

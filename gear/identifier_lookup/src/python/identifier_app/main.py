@@ -195,8 +195,8 @@ class NACCIDLookupVisitor(CSVVisitor):
             self.__misc_errors.append(
                 unexpected_value_error(
                     field=f"{FieldNames.PTID} or {self.__module_configs.date_field}",
-                    value=" ",
-                    expected=" ",
+                    value="",
+                    expected="",
                     message=message,
                 )
             )

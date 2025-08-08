@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
 from pydantic import BaseModel, RootModel
@@ -194,8 +195,11 @@ class RecordTransformer(BaseRecordTransformer):
 class DateTransformer(BaseRecordTransformer):
     """Defines a transformer that normalizes date fields."""
 
-    def __init__(self, error_writer: ErrorWriter) -> None:
+    def __init__(
+        self, error_writer: ErrorWriter, date_field: Optional[str] = None
+    ) -> None:
         self._error_writer = error_writer
+        self.__date_field = date_field if date_field else FieldNames.DATE_COLUMN
 
     def transform(
         self, input_record: Dict[str, Any], line_num: int
@@ -209,26 +213,30 @@ class DateTransformer(BaseRecordTransformer):
         Returns:
             Transformed record or None if there's processing errors
         """
-        if FieldNames.DATE_COLUMN not in input_record:
+
+        if self.__date_field not in input_record:
             return input_record
 
         normalized_date = convert_date(
-            date_string=input_record[FieldNames.DATE_COLUMN],
+            date_string=input_record[self.__date_field],
             date_format=DEFAULT_DATE_FORMAT,
         )  # type: ignore
         if not normalized_date:
             self._error_writer.write(
                 unexpected_value_error(
-                    field=FieldNames.DATE_COLUMN,
-                    value=input_record[FieldNames.DATE_COLUMN],
+                    field=self.__date_field,
+                    value=input_record[self.__date_field],
                     expected="",
                     message="Expected a valid date string",
                     line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self.__date_field
+                    ),
                 )
             )
             return None
 
-        input_record[FieldNames.DATE_COLUMN] = normalized_date
+        input_record[self.__date_field] = normalized_date
         return input_record
 
 
@@ -263,7 +271,10 @@ class TransformerFactory:
         self.__transformations = transformations
 
     def create(
-        self, module: Optional[str], error_writer: ErrorWriter
+        self,
+        module: Optional[str],
+        date_field: Optional[str],
+        error_writer: ErrorWriter,
     ) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
         this object.
@@ -273,6 +284,7 @@ class TransformerFactory:
 
         Args:
           module: the module name
+          date_field: date field name for the module
           error_writer: error metadata writer
 
         Returns:

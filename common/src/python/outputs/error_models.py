@@ -25,6 +25,7 @@ class VisitKeys(BaseModel):
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
     visitdate: Optional[str] = None
+    naccid: Optional[str] = None
 
     @classmethod
     def create_from(cls, record: Dict[str, Any], date_field: str) -> "VisitKeys":
@@ -32,6 +33,7 @@ class VisitKeys(BaseModel):
             ptid=record.get(FieldNames.PTID),
             visitnum=record.get(FieldNames.VISITNUM),
             visitdate=record.get(date_field),
+            naccid=record.get(FieldNames.NACCID),
         )
 
 
@@ -53,6 +55,7 @@ class FileError(BaseModel):
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
     visitdate: Optional[str] = None
+    naccid: Optional[str] = None
 
     @classmethod
     def fieldnames(cls) -> List[str]:

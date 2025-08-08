@@ -151,7 +151,7 @@ class CSVTransformVisitor(CSVVisitor):
         # Set transformer for the module
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
-                self.__module, self.__error_writer
+                self.__module, self.__date_field, self.__error_writer
             )
 
         transformed_row = self.__transformer.transform(row, line_num)
@@ -346,9 +346,12 @@ class CSVTransformVisitor(CSVVisitor):
         self.__error_writer.write(
             unexpected_value_error(
                 field=FieldNames.MODULE,
-                value=row_module,  # type: ignore
-                expected=self.__module,  # type: ignore
+                value=row_module,
+                expected=self.__module,
                 line=line_num,
+                visit_keys=VisitKeys.create_from(
+                    record=row, date_field=self.__date_field
+                ),
             )
         )
 

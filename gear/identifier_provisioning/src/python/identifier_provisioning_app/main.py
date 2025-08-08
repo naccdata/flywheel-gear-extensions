@@ -502,6 +502,9 @@ class NewEnrollmentVisitor(CSVVisitor):
                             expected=context["pattern"],
                             message=f"Invalid {field_name.upper()}",
                             line=line_num,
+                            visit_keys=VisitKeys.create_from(
+                                record=row, date_field=FieldNames.ENRLFRM_DATE
+                            ),
                         )
                     )
 
