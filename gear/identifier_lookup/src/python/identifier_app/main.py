@@ -15,7 +15,7 @@ from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileError
+from outputs.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,
@@ -216,7 +216,14 @@ class NACCIDLookupVisitor(CSVVisitor):
                 "Failed to update error log for visit "
                 f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
             )
-            self.__misc_errors.append(system_error(message))
+            self.__misc_errors.append(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self.__module_configs.date_field
+                    ),
+                )
+            )
             return False
 
         return True

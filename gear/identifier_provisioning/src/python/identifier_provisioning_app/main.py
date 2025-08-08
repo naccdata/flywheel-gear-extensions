@@ -704,7 +704,15 @@ def run(
                 f"{record.center_identifier.ptid}"
             )
             log.error(message)
-            error_writer.write(system_error(message=message))
+            error_writer.write(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys(
+                        ptid=record_info[FieldNames.PTID],
+                        visitdate=record_info[FieldNames.ENRLFRM_DATE],
+                    ),
+                )
+            )
             update_record_level_error_log(
                 input_record=record_info,
                 qc_passed=False,
@@ -719,7 +727,16 @@ def run(
         if enrollment_project.find_subject(label=record.naccid):
             message = f"Subject with NACCID {record.naccid} exists"
             log.error(message)
-            error_writer.write(system_error(message=message))
+            error_writer.write(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys(
+                        ptid=record_info[FieldNames.PTID],
+                        visitdate=record_info[FieldNames.ENRLFRM_DATE],
+                        naccid=record.naccid,
+                    ),
+                )
+            )
             update_record_level_error_log(
                 input_record=record_info,
                 qc_passed=False,

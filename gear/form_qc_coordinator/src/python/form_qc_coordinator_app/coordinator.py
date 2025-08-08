@@ -26,7 +26,7 @@ from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileError
+from outputs.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,
@@ -535,7 +535,10 @@ class QCCoordinator:
             # If QC gear did not complete, stop evaluating any subsequent visits
             if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
-                    f"Errors occurred while running gear {gear_name} on this file"
+                    message=f"Errors occurred while running gear {gear_name}",
+                    visit_keys=VisitKeys(
+                        ptid=ptid, visitnum=visitnum, visitdate=visitdate
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,

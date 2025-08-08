@@ -323,7 +323,13 @@ class JSONFileProcessor(FileProcessor):
             )
             log.error(message)
             self._error_writer.write(
-                system_error(message, JSONLocation(key_path=self._pk_field))
+                system_error(
+                    message=message,
+                    error_location=JSONLocation(key_path=self._pk_field),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_data, date_field=self._date_field
+                    ),
+                )
             )
             return None
 

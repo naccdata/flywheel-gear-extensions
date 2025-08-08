@@ -248,6 +248,7 @@ def system_error(
     message: str,
     error_location: Optional[CSVLocation | JSONLocation] = None,
     error_type: Literal["alert", "error", "warning"] = "error",
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError object for a system error.
 
@@ -263,6 +264,10 @@ def system_error(
         error_code="system-error",  # pyright: ignore[reportCallIssue]
         location=error_location,
         message=message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 

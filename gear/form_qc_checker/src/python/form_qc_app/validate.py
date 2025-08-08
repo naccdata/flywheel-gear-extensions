@@ -18,6 +18,7 @@ class RecordValidator:
         qual_check: QualityCheck,
         error_store: ErrorStore,
         error_writer: ErrorWriter,
+        date_field: str,
         codes_map: Optional[Dict[str, Dict]] = None,
     ):
         """Initialize RecordValidator.
@@ -26,11 +27,13 @@ class RecordValidator:
             qual_check: NACC data quality checker object
             error_store: database connection to retrieve NACC QC chek info
             error_writer: error writer object to output error metadata
+            date_field: date field for the module
             codes_map(optional): schema to map NACC QC checks to validation errors
         """
         self.__qc = qual_check
         self.__error_store = error_store
         self.__error_writer = error_writer
+        self.__date_field = date_field
         self.__codes_map = codes_map
 
     def get_validation_schema(self) -> Dict[str, Mapping]:
@@ -64,6 +67,7 @@ class RecordValidator:
             dict_errors=dict_errors,
             error_messages=error_messages,
             error_writer=self.__error_writer,
+            date_field=self.__date_field,
         )
 
         if sys_failure:
