@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.1
+
+* Fixes bug in logging message in study mapping.
+  
 ## 2.1.0
 
 * Changes error handling in pipeline project creation so that it logs errors instead of raising an exception. None of these scenarios imply failure for the gear.
