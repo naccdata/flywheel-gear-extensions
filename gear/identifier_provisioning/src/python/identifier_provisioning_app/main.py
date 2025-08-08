@@ -198,7 +198,15 @@ class TransferVisitor(CSVVisitor):
 
         self.__naccid = row[FieldNames.NACCID]
         if not self.__naccid:
-            self.__error_writer.write(empty_field_error(FieldNames.NACCID, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=FieldNames.NACCID,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
+                )
+            )
             return False
 
         self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
@@ -303,7 +311,15 @@ class TransferVisitor(CSVVisitor):
 
         previous_adcid = row[FieldNames.OLDADCID]
         if previous_adcid is None:
-            self.__error_writer.write(empty_field_error(FieldNames.OLDADCID, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=FieldNames.OLDADCID,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
+                )
+            )
             return False
         previous_ptid = row[FieldNames.OLDPTID]
         if not previous_ptid:

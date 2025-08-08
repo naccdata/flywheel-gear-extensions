@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Mapping, Optional
 import yaml
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, FieldNames
+from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
 from s3.s3_client import S3BucketReader
@@ -312,7 +313,14 @@ class DefinitionsLoader:
             submission_status[form] = int(mode) != DefaultValues.NOTFILLED
 
         if missing:
-            self.__error_writer.write(empty_field_error(set(missing)))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=set(missing),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_data, date_field=self.__module_configs.date_field
+                    ),
+                )
+            )
             raise DefinitionException(
                 f"Missing optional forms submission status fields {missing}"
             )

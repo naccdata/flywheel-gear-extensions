@@ -166,7 +166,10 @@ def missing_field_error(field: str | set[str]) -> FileError:
 
 
 def empty_field_error(
-    field: str | set[str], line: Optional[int] = None, message: Optional[str] = None
+    field: str | set[str],
+    line: Optional[int] = None,
+    message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for empty field(s)."""
     error_message = message if message else f"Required field(s) {field} cannot be blank"
@@ -178,6 +181,9 @@ def empty_field_error(
         if line
         else JSONLocation(key_path=str(field)),
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
     )
 
 

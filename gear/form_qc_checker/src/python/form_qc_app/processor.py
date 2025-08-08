@@ -22,7 +22,7 @@ from outputs.error_logger import (
     MetadataCleanupFlag,
     update_error_log_and_qc_metadata,
 )
-from outputs.error_models import JSONLocation
+from outputs.error_models import JSONLocation, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -304,7 +304,14 @@ class JSONFileProcessor(FileProcessor):
                 found_all = False
 
         if not found_all:
-            self._error_writer.write(empty_field_error(empty_fields))
+            self._error_writer.write(
+                empty_field_error(
+                    field=empty_fields,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_data, date_field=self._date_field
+                    ),
+                )
+            )
             return None
 
         subject_lbl = input_data[self._pk_field]

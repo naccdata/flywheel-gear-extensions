@@ -11,7 +11,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileQCModel, QCStatus
+from outputs.error_models import FileQCModel, QCStatus, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -130,7 +130,15 @@ class CSVTransformVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
-            self.__error_writer.write(empty_field_error(empty_fields, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=empty_fields,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
+                )
+            )
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
