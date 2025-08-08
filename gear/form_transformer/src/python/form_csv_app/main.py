@@ -256,8 +256,9 @@ class CSVTransformVisitor(CSVVisitor):
                                 value=visit_num,
                                 line=line_num,
                                 error_code=SysErrorCodes.DIFF_VISITDATE,
-                                ptid=transformed_row[FieldNames.PTID],
-                                visitnum=visit_num,
+                                visit_keys=VisitKeys.create_from(
+                                    record=transformed_row, date_field=self.__date_field
+                                ),
                             )
                         )
                         success = False
@@ -599,8 +600,9 @@ class CSVTransformVisitor(CSVVisitor):
                     value=visitdate,
                     line=line_num,
                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                    ptid=record.get(FieldNames.PTID),
-                    visitnum=record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=record, date_field=self.__date_field
+                    ),
                 )
             )
 

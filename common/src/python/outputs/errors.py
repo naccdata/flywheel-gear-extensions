@@ -304,8 +304,7 @@ def preprocessing_error(
     line: Optional[int] = None,
     error_code: Optional[str] = None,
     message: Optional[str] = None,
-    ptid: Optional[str] = None,
-    visitnum: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
     extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
@@ -316,8 +315,8 @@ def preprocessing_error(
       line (optional): the line number
       error_code (optional): pre-processing error code
       message (optional): the error message
-      ptid (optional): PTID if known
-      visitnum (optional): visitnum if known
+      visit_keys (optional): key fields to identify a visit
+      extra_args (optional): extra arguments to format error message
 
     Returns:
       the constructed FileError
@@ -345,8 +344,10 @@ def preprocessing_error(
         if line
         else JSONLocation(key_path=field),
         message=error_message,
-        ptid=ptid,
-        visitnum=visitnum,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
