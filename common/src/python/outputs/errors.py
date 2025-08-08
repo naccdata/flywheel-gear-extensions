@@ -271,7 +271,9 @@ def system_error(
     )
 
 
-def previous_visit_failed_error(prev_visit: str) -> FileError:
+def previous_visit_failed_error(
+    prev_visit: str, visit_keys: Optional[VisitKeys] = None
+) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
         error_type="error",  # pyright: ignore[reportCallIssue]
@@ -280,6 +282,10 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
             f"Visit file {prev_visit} has to be approved "
             "before evaluating any subsequent visits"
         ),
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        visitdate=visit_keys.visitdate if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 

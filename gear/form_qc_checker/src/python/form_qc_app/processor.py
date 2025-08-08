@@ -259,7 +259,12 @@ class JSONFileProcessor(FileProcessor):
             # has a failed previous visit
             if failed_visit.visitdate < visitdate:
                 self._error_writer.write(
-                    previous_visit_failed_error(failed_visit.filename)
+                    previous_visit_failed_error(
+                        prev_visit=failed_visit.filename,
+                        visit_keys=VisitKeys.create_from(
+                            record=self.__input_record, date_field=self._date_field
+                        ),
+                    )
                 )
                 return "DIFFERENT"
 

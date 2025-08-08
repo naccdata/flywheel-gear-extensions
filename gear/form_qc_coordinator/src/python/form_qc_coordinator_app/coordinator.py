@@ -309,6 +309,7 @@ class QCCoordinator:
         failed_visit: str,
         ptid_key: str,
         date_col_key: str,
+        visitnum_key: str,
     ):
         """Update error metadata in the visit files that were not processed due
         to a failure of a previous visit.
@@ -316,8 +317,9 @@ class QCCoordinator:
         Args:
             remaining_visits: visits that were not processed
             failed_visit: name of the failed visit
-            ptid_key: primary key location in file.info
+            ptid_key: ptid field location in file.info
             date_col_key: date field location in file.info
+            visitnum_key: visitnum field location in file.info
         """
         log.info(
             "Visit %s failed, there are %s subsequent visits for this participant.",
@@ -325,11 +327,15 @@ class QCCoordinator:
             len(remaining_visits),
         )
         log.info("Adding error metadata to respective visit files")
+
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
+
         while len(remaining_visits) > 0:
             visit = remaining_visits.popleft()
             file_id = visit["file.file_id"]
             visitdate = visit[date_col_key]
             ptid = visit[ptid_key]
+
             try:
                 visit_file = self.__proxy.get_file(file_id)
             except ApiException as error:
@@ -340,7 +346,15 @@ class QCCoordinator:
                     "Error metadata not updated for visit %s", visit["file.name"]
                 )
                 continue
-            error_obj = previous_visit_failed_error(failed_visit)
+            error_obj = previous_visit_failed_error(
+                prev_visit=failed_visit,
+                visit_keys=VisitKeys(
+                    ptid=ptid,
+                    visitnum=visit.get(visitnum_key),
+                    visitdate=visitdate,
+                    naccid=visit.get(naccid_key),
+                ),
+            )
             self.__update_qc_error_metadata(
                 visit_file=visit_file,
                 error_obj=error_obj,
@@ -571,4 +585,5 @@ class QCCoordinator:
                 failed_visit=failed_visit,
                 ptid_key=ptid_key,
                 date_col_key=date_col_key,
+                visitnum_key=visitnum_key,
             )
