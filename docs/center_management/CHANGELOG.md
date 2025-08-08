@@ -4,12 +4,13 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
-* Updates how tags are handled by the CenterInfo model
-* Updates to read in files with `utf-8-sig` to handle BOM encoding
+* tbd
 
-## 1.1.0
+## 1.1.1
 
 * Add "audit" to list of custom roles.
+* Restores tags to CenterInfo model. Previous changes were failing.
+* Updates to read in files with `utf-8-sig` to handle BOM encoding
 
 ## 1.0.6
 * Fix center map index type
