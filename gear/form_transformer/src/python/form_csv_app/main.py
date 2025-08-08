@@ -19,6 +19,7 @@ from outputs.errors import (
     partially_failed_file_error,
     preprocess_errors,
     preprocessing_error,
+    system_error,
     unexpected_value_error,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -414,38 +415,38 @@ class CSVTransformVisitor(CSVVisitor):
         error_log_name: str,
         downstream_gears: List[str],
         info: FileQCModel,
-    ) -> Optional[QCStatus]:
+    ) -> QCStatus:
         visit_file = self.__get_downstream_file(input_record)
         if not visit_file:
             log.error(
-                "Missing file for existing visit, failed to update error log - %s",
-                error_log_name,
+                "Missing file for existing visit, "
+                f"failed to update error log {error_log_name}"
             )
-            return None
+            return "FAIL"
 
         if not visit_file.info_exists:
-            log.error("No QC metadata for existing visit")
-            return None
+            log.error(f"No QC metadata in existing visit file {visit_file.name}")
+            return "FAIL"
 
         visit_file = visit_file.reload()
         try:
             visit_info = FileQCModel.model_validate(visit_file.info)
         except ValidationError as error:
-            log.error("Unexpected QC metadata: %s", error)
-            return None
+            log.error(
+                f"Unexpected QC metadata in visit file {visit_file.name}: {error}"
+            )
+            return "FAIL"
 
         for ds_gear in downstream_gears:
             ds_gear_metadata = visit_info.get(ds_gear)
             if not ds_gear_metadata:
                 log.warning(
-                    "QC metadata not found for gear %s in the "
-                    "existing duplicate visit file %s",
-                    ds_gear,
-                    visit_file.name,
+                    f"QC metadata not found for gear {ds_gear} "
+                    f"in the existing visit file {visit_file.name}"
                 )
                 continue
 
-            log.info("copying metadata for gear %s", ds_gear)
+            log.info(f"copying metadata for gear {ds_gear}")
             info.set(gear_name=ds_gear, gear_model=ds_gear_metadata)
 
         return "PASS"
@@ -501,13 +502,6 @@ class CSVTransformVisitor(CSVVisitor):
                     f"error reading {self.__project}/{error_log_name} metadata: {error}"
                 )
 
-        # TODO: decide whether we need to show this warning, commenting out for now
-        # self.__error_writer.write(
-        #     system_error(message=(
-        #         f'Found duplicate visit {visit_file_name}, exit submission pipeline'
-        #     ),
-        #                  error_type='warning'))
-
         if downstream_gears:
             status = self.__copy_metadata(
                 input_record=input_record,
@@ -515,9 +509,16 @@ class CSVTransformVisitor(CSVVisitor):
                 downstream_gears=downstream_gears,
                 info=info,
             )
-            if status:
-                gear_state = status
 
+            if status != "PASS":
+                self.__error_writer.write(
+                    system_error(
+                        message=("Failed to load QC metadata from existing visit file"),
+                        error_type="warning",
+                    )
+                )
+
+            gear_state = status
         else:
             log.warning(
                 "No downstream gears defined for current gear %s", self.__gear_name
