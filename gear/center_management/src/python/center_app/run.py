@@ -9,9 +9,9 @@ array of centers:
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
-from centers.center_info import CenterInfo
+from centers.center_info import CenterList
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -22,6 +22,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
+from pydantic import ValidationError
 
 from center_app.main import run
 
@@ -72,7 +73,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
             new_only=context.config.get("new_only", False),
         )
 
-    def __get_center_map(self, center_file_path: str) -> Dict[CenterInfo, List[str]]:
+    def __get_center_list(self, center_file_path: str) -> CenterList:
         """Get the centers from the file.
 
         Args:
@@ -90,12 +91,10 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         if not object_list:
             raise GearExecutionError("No centers found in center file")
 
-        center_map = {}
-        for center_doc in object_list:
-            tags = center_doc.pop("tags", None)
-            center_map[CenterInfo(**center_doc)] = tags
-
-        return center_map
+        try:
+            return CenterList.model_validate(object_list)
+        except ValidationError as error:
+            raise GearExecutionError(f"Error in center file: {error}") from error
 
     def run(self, context: GearToolkitContext) -> None:
         """Executes the gear.
@@ -109,7 +108,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         run(
             proxy=self.proxy,
             admin_group=self.admin_group(admin_id=self.__admin_id),
-            center_map=self.__get_center_map(self.__center_filepath),
+            center_list=self.__get_center_list(self.__center_filepath),
             role_names=["audit", "curate", "upload", "gear-bot"],
             new_only=self.__new_only,
         )
