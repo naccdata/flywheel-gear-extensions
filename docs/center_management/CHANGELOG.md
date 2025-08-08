@@ -7,6 +7,10 @@ All notable changes to this gear are documented in this file.
 * Updates how tags are handled by the CenterInfo model
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
 
+## 1.1.0
+
+* Add "audit" to list of custom roles.
+
 ## 1.0.6
 * Fix center map index type
   
