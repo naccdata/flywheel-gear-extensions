@@ -110,7 +110,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
             proxy=self.proxy,
             admin_group=self.admin_group(admin_id=self.__admin_id),
             center_map=self.__get_center_map(self.__center_filepath),
-            role_names=["curate", "upload", "gear-bot"],
+            role_names=["audit", "curate", "upload", "gear-bot"],
             new_only=self.__new_only,
         )
 
