@@ -90,6 +90,10 @@ class TestErrorWriter:
                 value="the-value",
                 expected=None,
                 message="the-message",
+                ptid="the-ptid",
+                visitnum="the-visitnum",
+                date="the-date",
+                naccid="the-naccid",
             )
         )
         stream.seek(0)
