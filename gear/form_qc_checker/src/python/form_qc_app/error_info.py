@@ -298,12 +298,10 @@ class ErrorComposer:
             else JSONLocation(key_path=field),
             value=value,
             message=error_msg,
-            ptid=str(self.__input_data[FieldNames.PTID])
-            if FieldNames.PTID in self.__input_data
-            else None,
-            visitnum=str(self.__input_data[FieldNames.VISITNUM])
-            if FieldNames.VISITNUM in self.__input_data
-            else None,
+            ptid=self.__input_data.get(FieldNames.PTID),
+            visitnum=self.__input_data.get(FieldNames.VISITNUM),
+            date=self.__input_data.get(self.__date_field),
+            naccid=self.__input_data.get(FieldNames.NACCID),
         )
 
     def __write_qc_error_no_code(
