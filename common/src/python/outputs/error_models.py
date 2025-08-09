@@ -1,5 +1,6 @@
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
+from keys.keys import FieldNames
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
@@ -20,6 +21,22 @@ class JSONLocation(BaseModel):
     key_path: str
 
 
+class VisitKeys(BaseModel):
+    ptid: Optional[str] = None
+    visitnum: Optional[str] = None
+    date: Optional[str] = None
+    naccid: Optional[str] = None
+
+    @classmethod
+    def create_from(cls, record: Dict[str, Any], date_field: str) -> "VisitKeys":
+        return VisitKeys(
+            ptid=record.get(FieldNames.PTID),
+            visitnum=record.get(FieldNames.VISITNUM),
+            date=record.get(date_field),
+            naccid=record.get(FieldNames.NACCID),
+        )
+
+
 class FileError(BaseModel):
     """Represents an error that might be found in file during a step in a
     pipeline."""
@@ -37,6 +54,8 @@ class FileError(BaseModel):
     message: str
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
+    date: Optional[str] = None
+    naccid: Optional[str] = None
 
     @classmethod
     def fieldnames(cls) -> List[str]:

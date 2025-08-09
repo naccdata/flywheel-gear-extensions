@@ -18,7 +18,7 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from keys.keys import FieldNames
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileError
+from outputs.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 
@@ -282,7 +282,12 @@ class FormJSONUploader:
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
-                        error_obj=system_error(message=str(error)),
+                        error_obj=system_error(
+                            message=str(error),
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
+                        ),
                     )
                     success = False
                     continue
@@ -299,7 +304,10 @@ class FormJSONUploader:
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
-                            message=f"Error in setting file {visit_file_name} metadata"
+                            message=f"Error in setting file {visit_file_name} metadata",
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
                         ),
                     )
                     success = False

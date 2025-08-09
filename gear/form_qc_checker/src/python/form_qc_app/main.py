@@ -288,6 +288,7 @@ def run(  # noqa: C901
         qual_check=qual_check,
         error_store=error_store,
         error_writer=error_writer,
+        date_field=date_field,
         codes_map=codes_map,
     )
 
