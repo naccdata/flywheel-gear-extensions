@@ -249,11 +249,11 @@ class SubmissionStatusVisitor(CSVVisitor):
         if status_query.study not in self.__expected_studies:
             self.__error_writer.write(
                 FileError(
-                    error_code="unexpected-study",
-                    error_type="error",
+                    error_code="unexpected-study", # pyright: ignore[reportCallIssue]
+                    error_type="error", # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="study"),
                     message=(
-                        f'expected one of {", ".join(self.__expected_studies)},'
+                        f"expected one of {', '.join(self.__expected_studies)},"
                         f" got {status_query.study}"
                     ),
                 )

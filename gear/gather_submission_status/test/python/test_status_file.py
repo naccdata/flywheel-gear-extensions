@@ -15,7 +15,7 @@ class TestSubmissionStatus:
         writer.writerow(query.model_dump())
 
         assert output_stream.getvalue() == (
-            '"adcid","naccid","study"\n' '"0","NACC000000","adrc"\n'
+            '"adcid","naccid","study"\n"0","NACC000000","adrc"\n'
         )
 
         output_stream.seek(0)

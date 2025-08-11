@@ -10,7 +10,6 @@ from gear_execution.gear_execution import (
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
-    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
