@@ -1,10 +1,10 @@
 """Defines center management computation."""
 
 import logging
-from typing import Dict, List
+from typing import List
 
 from centers.center_group import CenterGroup
-from centers.center_info import CenterInfo
+from centers.center_info import CenterList
 from centers.nacc_group import NACCGroup
 from flywheel.models.group_role import GroupRole
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
@@ -37,7 +37,7 @@ def run(
     *,
     proxy: FlywheelProxy,
     admin_group: NACCGroup,
-    center_map: Dict[CenterInfo, List[str]],
+    center_list: CenterList,
     role_names: List[str],
     new_only: bool = False,
 ):
@@ -52,8 +52,8 @@ def run(
     """
     center_roles = get_project_roles(proxy, role_names)
 
-    for center, tags in center_map.items():
-        if new_only and "new-center" not in tags:
+    for center in center_list:
+        if new_only and center.tags and "new-center" not in center.tags:
             log.info(
                 f"new_only set to True and {center.name} does not "
                 + "have `new-center` tag, skipping"
@@ -61,6 +61,7 @@ def run(
             continue
 
         try:
+            tags = list(center.tags) if center.tags else None
             center_group = CenterGroup.create_from_center(
                 center=center, tags=tags, proxy=proxy
             )
