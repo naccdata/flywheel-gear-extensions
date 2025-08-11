@@ -3,7 +3,7 @@
 import logging
 from csv import DictWriter
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional, TextIO, get_args
+from typing import Any, Dict, List, Literal, Optional, TextIO
 
 from centers.center_group import CenterGroup
 from centers.nacc_group import NACCGroup
@@ -12,7 +12,14 @@ from flywheel.models.data_view import DataView
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
-from outputs.error_models import CSVLocation, FileError
+from outputs.error_models import (
+    CSVLocation,
+    FileError,
+    FileQCModel,
+    FileQCVisitor,
+    QCStatus,
+    ValidationModel,
+)
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     malformed_file_error,
@@ -23,7 +30,6 @@ from pydantic import BaseModel, ValidationError, field_validator
 log = logging.getLogger(__name__)
 
 ModuleName = Literal["UDS", "FTLD", "LBD"]
-QCStatus = Literal["pass", "fail"]
 
 
 def create_status_view(modules: List[ModuleName]) -> DataView:
@@ -104,6 +110,16 @@ class StatusError(Exception):
     """Exception for status filter."""
 
 
+class StatusVisitor(FileQCVisitor):
+    def __init__(self, status: StatusModel, writer: DictWriter) -> None:
+        self.__status = status
+        self.__writer = writer
+
+    def visit_validation_model(self, validation_model: ValidationModel) -> None:
+        self.__status.qc_status = validation_model.state
+        self.__writer.writerow(self.__status.model_dump())
+
+
 class StatusFilter:
     """Process for handling submission status of files for particular
     subjects."""
@@ -138,14 +154,12 @@ class StatusFilter:
 
         for status in response_model.data:
             file = self.__proxy.get_file(status.file_id)
-            qc_object = file.get("info", {}).get("qc", {})
-            for gear_name in qc_object:
-                qc_state = qc_object.get(gear_name).get("validation", {}).get("state")
-                status.qc_status = (
-                    qc_state.lower() if qc_state.lower() in get_args(QCStatus) else None
-                )
-
-            self.__writer.writerow(status.model_dump())
+            try:
+                qc_info = FileQCModel.model_validate(file.info)
+            except ValidationError as error:
+                log.error(f"Unexpected QC metadata for file {file.name}: {error}")
+                continue
+            qc_info.apply(StatusVisitor(status=status, writer=self.__writer))
 
 
 class StatusRequest(BaseModel):
