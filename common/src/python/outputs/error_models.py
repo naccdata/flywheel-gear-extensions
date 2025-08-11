@@ -4,6 +4,29 @@ from keys.keys import FieldNames
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
+class FileQCVisitor:
+    def visit_file_model(self, file_model: "FileQCModel") -> None:
+        for gear_model in file_model.qc.values():
+            gear_model.apply(self)
+
+    def visit_gear_model(self, gear_model: "GearQCModel") -> None:
+        gear_model.validation.apply(self)
+
+    def visit_validation_model(self, validation_model: "ValidationModel") -> None:
+        pass
+
+    def visit_file_error(self, file_error: "FileError") -> None:
+        pass
+
+    def visit_cleared_alert(self, cleared_alert: "ClearedAlertModel") -> None:
+        pass
+
+    def visit_alert_provenance(
+        self, alert_provenance: "ClearedAlertProvenance"
+    ) -> None:
+        pass
+
+
 class CSVLocation(BaseModel):
     """Represents location of an error in a CSV file."""
 
@@ -68,6 +91,9 @@ class FileError(BaseModel):
                 result.append(fieldname)
         return result
 
+    def apply(self, visitor: FileQCVisitor) -> None:
+        visitor.visit_file_error(self)
+
 
 class FileErrorList(RootModel):
     """Serialization model for lists of FileError."""
@@ -107,6 +133,9 @@ class ClearedAlertProvenance(BaseModel):
     clear_set_to: bool = Field(alias="clearSetTo")
     timestamp: str
 
+    def apply(self, visitor: FileQCVisitor) -> None:
+        visitor.visit_alert_provenance(self)
+
 
 class ClearedAlertModel(BaseModel):
     """Model for cleared alert."""
@@ -115,6 +144,9 @@ class ClearedAlertModel(BaseModel):
     finalized: bool
     provenance: List[ClearedAlertProvenance]
     alert_hash: str = Field(alias="alertHash")
+
+    def apply(self, visitor: FileQCVisitor) -> None:
+        visitor.visit_cleared_alert(self)
 
 
 class ValidationModel(BaseModel):
@@ -129,6 +161,9 @@ class ValidationModel(BaseModel):
 
     def extend(self, errors: List[FileError]) -> None:
         self.data.extend(errors)
+
+    def apply(self, visitor: FileQCVisitor) -> None:
+        visitor.visit_validation_model(self)
 
 
 class GearQCModel(BaseModel):
@@ -150,6 +185,9 @@ class GearQCModel(BaseModel):
 
     def set_status(self, state: QCStatus) -> None:
         self.validation.state = state
+
+    def apply(self, visitor: FileQCVisitor):
+        visitor.visit_gear_model(self)
 
 
 class FileQCModel(BaseModel):
@@ -208,3 +246,6 @@ class FileQCModel(BaseModel):
 
         gear_model.set_errors(errors)
         gear_model.set_status(status)
+
+    def apply(self, visitor: FileQCVisitor):
+        visitor.visit_file_model(self)
