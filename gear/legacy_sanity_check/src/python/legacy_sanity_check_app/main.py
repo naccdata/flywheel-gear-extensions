@@ -77,8 +77,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{num_legacy} initial visits in retrospective",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -110,8 +110,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{len(init_packets)} initial visits in ingest",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -129,8 +129,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{len(init_packets)} non-I4 visits in ingest",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -217,8 +217,8 @@ class LegacySanityChecker:
                 log.error(f"Duplicate records found for {duplicate_val}")
                 self.__error_writer.write(
                     FileError(
-                        error_type="error",
-                        error_code="duplicate-visits",
+                        error_type="error",  # type: ignore
+                        error_code="duplicate-visits",  # type: ignore
                         value=duplicate_val,
                         message="Duplicate records found between ingest "
                         + "and retrospective projects",
