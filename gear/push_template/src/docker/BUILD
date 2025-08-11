@@ -4,5 +4,5 @@ docker_image(
     name="push-template",
     source="Dockerfile",
     dependencies=[":manifest", "gear/push_template/src/python/template_app:bin"],
-    image_tags=["1.1.0", "latest"],
+    image_tags=["2.0.0", "latest"],
 )

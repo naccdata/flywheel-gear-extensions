@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+* Updates error metadata to include date and naccid
+  
 ## 1.4.5
 * Updates pre-processing error messages
 * Refactors FormPreprocessor class

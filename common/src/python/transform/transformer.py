@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
 from pydantic import BaseModel, RootModel
@@ -51,7 +52,11 @@ class FieldFilter(BaseModel):
         return set(self.fields.get(version_name, set()))
 
     def apply(
-        self, input_record: Dict[str, Any], error_writer: ErrorWriter, line_num: int
+        self,
+        input_record: Dict[str, Any],
+        error_writer: ErrorWriter,
+        line_num: int,
+        date_field: str,
     ) -> Optional[Dict[str, Any]]:
         """Filters the input record by dropping the key-value pairs for fields
         unique to the version.
@@ -60,6 +65,7 @@ class FieldFilter(BaseModel):
           input_record: the record to filter
           error_writer: error metadata writer
           line_num: line number in the input CSV
+          date_field: date field name for the module
 
         Returns:
           the input_record without the keys for the excluded fields or None
@@ -88,8 +94,9 @@ class FieldFilter(BaseModel):
                     value=input_record.get(self.version_map.fieldname, ""),
                     line=line_num,
                     error_code=SysErrorCodes.EXCLUDED_FIELDS,
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=date_field
+                    ),
                     extra_args=[incorrectly_filled],
                 )
             )
@@ -194,8 +201,11 @@ class RecordTransformer(BaseRecordTransformer):
 class DateTransformer(BaseRecordTransformer):
     """Defines a transformer that normalizes date fields."""
 
-    def __init__(self, error_writer: ErrorWriter) -> None:
+    def __init__(
+        self, error_writer: ErrorWriter, date_field: Optional[str] = None
+    ) -> None:
         self._error_writer = error_writer
+        self._date_field = date_field if date_field else FieldNames.DATE_COLUMN
 
     def transform(
         self, input_record: Dict[str, Any], line_num: int
@@ -209,35 +219,45 @@ class DateTransformer(BaseRecordTransformer):
         Returns:
             Transformed record or None if there's processing errors
         """
-        if FieldNames.DATE_COLUMN not in input_record:
+
+        if self._date_field not in input_record:
             return input_record
 
         normalized_date = convert_date(
-            date_string=input_record[FieldNames.DATE_COLUMN],
+            date_string=input_record[self._date_field],
             date_format=DEFAULT_DATE_FORMAT,
         )  # type: ignore
         if not normalized_date:
             self._error_writer.write(
                 unexpected_value_error(
-                    field=FieldNames.DATE_COLUMN,
-                    value=input_record[FieldNames.DATE_COLUMN],
+                    field=self._date_field,
+                    value=input_record[self._date_field],
                     expected="",
                     message="Expected a valid date string",
                     line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self._date_field
+                    ),
                 )
             )
             return None
 
-        input_record[FieldNames.DATE_COLUMN] = normalized_date
+        input_record[self._date_field] = normalized_date
         return input_record
 
 
 class FilterTransformer(BaseRecordTransformer):
     """Defines a transform that applies a field filter to a record."""
 
-    def __init__(self, field_filter: FieldFilter, error_writer: ErrorWriter) -> None:
+    def __init__(
+        self,
+        field_filter: FieldFilter,
+        error_writer: ErrorWriter,
+        date_field: Optional[str] = None,
+    ) -> None:
         self._transform = field_filter
         self._error_writer = error_writer
+        self._date_field = date_field if date_field else FieldNames.DATE_COLUMN
 
     def transform(
         self, input_record: Dict[str, Any], line_num: int
@@ -255,6 +275,7 @@ class FilterTransformer(BaseRecordTransformer):
             input_record=input_record,
             error_writer=self._error_writer,
             line_num=line_num,
+            date_field=self._date_field,
         )
 
 
@@ -263,7 +284,10 @@ class TransformerFactory:
         self.__transformations = transformations
 
     def create(
-        self, module: Optional[str], error_writer: ErrorWriter
+        self,
+        module: Optional[str],
+        date_field: Optional[str],
+        error_writer: ErrorWriter,
     ) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
         this object.
@@ -273,16 +297,19 @@ class TransformerFactory:
 
         Args:
           module: the module name
+          date_field: date field name for the module
           error_writer: error metadata writer
 
         Returns:
           the record transformer
         """
         transformer_list: List[BaseRecordTransformer] = []
-        transformer_list.append(DateTransformer(error_writer))
+        transformer_list.append(DateTransformer(error_writer, date_field=date_field))
         if module:
             filter_list = self.__transformations.get(module)
             for field_filter in filter_list:
-                transformer_list.append(FilterTransformer(field_filter, error_writer))
+                transformer_list.append(
+                    FilterTransformer(field_filter, error_writer, date_field)
+                )
 
         return RecordTransformer(transformer_list)

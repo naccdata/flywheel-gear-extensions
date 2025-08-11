@@ -31,7 +31,7 @@ class TestFieldFilter:
             "dummy": "alpha-raw",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1)
+        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
 
         assert record == input_record
 
@@ -52,7 +52,7 @@ class TestFieldFilter:
             "b2": "",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1)
+        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
         assert record
         assert [k for k in record if k in input_record and k not in ["b1", "b2"]]
 
@@ -72,7 +72,7 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1)
+        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
 
         assert not record
 
@@ -92,7 +92,7 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1)
+        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
 
         assert record
         assert [k for k in record if k in input_record and k != "b1"]

@@ -5,7 +5,6 @@ Based on code written by David Parker, davidparker@flywheel.io
 """
 
 import logging
-import re
 from string import Template
 from typing import Dict, List, Optional
 
@@ -38,28 +37,19 @@ class TemplateProject:
     def get_pattern(self) -> Optional[str]:
         """Returns the regex pattern for the prefix this template applies to.
 
+        Removes the "-template" prefix from the project label to create the pattern.
+
         Returns:
             Regex pattern for project label prefix that matches this template.
         """
-        template_matcher = re.compile(r"^((\w+(?:-[\w]+)*)-)?(\w+)-template$")
-        # match group for pipeline datatype
-        datatype_group = 2
-        # match group for pipeline stage
-        stage_group = 3
+        if not self.__source_project.label.endswith("-template"):
+            raise TemplateError(
+                f"Template project label {self.__source_project.label} "
+                'does not end with "-template"'
+            )
 
-        match = template_matcher.match(self.__source_project.label)
-        if not match:
-            log.error("template label doesn't match expected pattern")
-            return None
-
-        stage = match.group(stage_group)
-        pattern = rf"^{stage}"
-
-        datatype = match.group(datatype_group)
-        if datatype:
-            pattern = rf"^{pattern}-{datatype}"
-
-        return pattern
+        prefix = "-".join(self.__source_project.label.split("-")[:-1])
+        return rf"^{prefix}"
 
     def copy_to(
         self, destination: ProjectAdaptor, *, value_map: Optional[Dict[str, str]] = None
@@ -376,3 +366,7 @@ class TemplateProject:
                 return False
 
         return True
+
+
+class TemplateError(Exception):
+    """Error for project templating."""

@@ -290,5 +290,5 @@ class TestAuthMap:
         assert load_map == auth_map_alpha
 
         yaml_list = yaml.safe_load("---\n- blah\n- blah\n")
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError):  # type: ignore
             AuthMap(project_authorizations=yaml_list)

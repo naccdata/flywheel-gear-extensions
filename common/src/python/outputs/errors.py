@@ -5,7 +5,7 @@ from typing import Any, List, Literal, Optional
 
 from keys.keys import SysErrorCodes
 
-from outputs.error_models import CSVLocation, FileError, JSONLocation
+from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,11 @@ preprocess_errors = {
 
 
 def identifier_error(
-    line: int, value: str, field: str = "ptid", message: Optional[str] = None
+    line: int,
+    value: str,
+    field: str = "ptid",
+    message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for an unrecognized PTID error in a CSV file.
 
@@ -118,6 +122,10 @@ def identifier_error(
         location=CSVLocation(line=line, column_name=field),
         value=value,
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -159,7 +167,10 @@ def missing_field_error(field: str | set[str]) -> FileError:
 
 
 def empty_field_error(
-    field: str | set[str], line: Optional[int] = None, message: Optional[str] = None
+    field: str | set[str],
+    line: Optional[int] = None,
+    message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for empty field(s)."""
     error_message = message if message else f"Required field(s) {field} cannot be blank"
@@ -171,6 +182,10 @@ def empty_field_error(
         if line
         else JSONLocation(key_path=str(field)),
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -189,6 +204,7 @@ def unexpected_value_error(
     expected: str,
     line: Optional[int] = None,
     message: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -212,6 +228,10 @@ def unexpected_value_error(
         if line
         else JSONLocation(key_path=str(field)),
         message=error_message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -228,6 +248,7 @@ def system_error(
     message: str,
     error_location: Optional[CSVLocation | JSONLocation] = None,
     error_type: Literal["alert", "error", "warning"] = "error",
+    visit_keys: Optional[VisitKeys] = None,
 ) -> FileError:
     """Creates a FileError object for a system error.
 
@@ -243,10 +264,16 @@ def system_error(
         error_code="system-error",  # pyright: ignore[reportCallIssue]
         location=error_location,
         message=message,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
-def previous_visit_failed_error(prev_visit: str) -> FileError:
+def previous_visit_failed_error(
+    prev_visit: str, visit_keys: Optional[VisitKeys] = None
+) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
         error_type="error",  # pyright: ignore[reportCallIssue]
@@ -255,6 +282,10 @@ def previous_visit_failed_error(prev_visit: str) -> FileError:
             f"Visit file {prev_visit} has to be approved "
             "before evaluating any subsequent visits"
         ),
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 
@@ -273,8 +304,7 @@ def preprocessing_error(
     line: Optional[int] = None,
     error_code: Optional[str] = None,
     message: Optional[str] = None,
-    ptid: Optional[str] = None,
-    visitnum: Optional[str] = None,
+    visit_keys: Optional[VisitKeys] = None,
     extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
@@ -285,8 +315,8 @@ def preprocessing_error(
       line (optional): the line number
       error_code (optional): pre-processing error code
       message (optional): the error message
-      ptid (optional): PTID if known
-      visitnum (optional): visitnum if known
+      visit_keys (optional): key fields to identify a visit
+      extra_args (optional): extra arguments to format error message
 
     Returns:
       the constructed FileError
@@ -314,8 +344,10 @@ def preprocessing_error(
         if line
         else JSONLocation(key_path=field),
         message=error_message,
-        ptid=ptid,
-        visitnum=visitnum,
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 

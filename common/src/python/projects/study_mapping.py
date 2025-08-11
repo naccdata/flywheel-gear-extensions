@@ -228,7 +228,7 @@ class AggregationMapper(StudyMapper):
         """
         if not self.study.has_legacy():
             log.warning(
-                "Will not create retrospective projects for study %", self.study.name
+                "Will not create retrospective projects for study %s", self.study.name
             )
             return
 
