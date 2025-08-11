@@ -5,23 +5,25 @@ from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
+from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileQCModel, QCStatus, VisitKeys
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     empty_field_error,
-    get_error_log_name,
     missing_field_error,
     partially_failed_file_error,
     preprocess_errors,
     preprocessing_error,
     system_error,
     unexpected_value_error,
-    update_error_log_and_qc_metadata,
 )
 from preprocess.preprocessor import FormPreprocessor
+from pydantic import ValidationError
 from transform.transformer import BaseRecordTransformer, TransformerFactory
 from uploads.uploader import FormJSONUploader
 
@@ -119,6 +121,7 @@ class CSVTransformVisitor(CSVVisitor):
           True if the row was processed without error, False otherwise
         """
 
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         found_all = True
@@ -129,7 +132,15 @@ class CSVTransformVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
-            self.__error_writer.write(empty_field_error(empty_fields, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=empty_fields,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
+                )
+            )
             self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
@@ -142,7 +153,7 @@ class CSVTransformVisitor(CSVVisitor):
         # Set transformer for the module
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
-                self.__module, self.__error_writer
+                self.__module, self.__date_field, self.__error_writer
             )
 
         transformed_row = self.__transformer.transform(row, line_num)
@@ -247,8 +258,9 @@ class CSVTransformVisitor(CSVVisitor):
                                 value=visit_num,
                                 line=line_num,
                                 error_code=SysErrorCodes.DIFF_VISITDATE,
-                                ptid=transformed_row[FieldNames.PTID],
-                                visitnum=visit_num,
+                                visit_keys=VisitKeys.create_from(
+                                    record=transformed_row, date_field=self.__date_field
+                                ),
                             )
                         )
                         success = False
@@ -337,9 +349,12 @@ class CSVTransformVisitor(CSVVisitor):
         self.__error_writer.write(
             unexpected_value_error(
                 field=FieldNames.MODULE,
-                value=row_module,  # type: ignore
-                expected=self.__module,  # type: ignore
+                value=row_module,
+                expected=self.__module,
                 line=line_num,
+                visit_keys=VisitKeys.create_from(
+                    record=row, date_field=self.__date_field
+                ),
             )
         )
 
@@ -370,13 +385,13 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
-        error_log_name = get_error_log_name(
-            module=self.module,
-            input_data=input_record,
-            errorlog_template=self.__errorlog_template,
+        error_log_name = self.__errorlog_template.instantiate(
+            module=self.module, record=input_record
         )
+        if not error_log_name:
+            return None
 
-        if not update or not error_log_name:
+        if not update:
             return error_log_name
 
         if not update_error_log_and_qc_metadata(
@@ -395,12 +410,67 @@ class CSVTransformVisitor(CSVVisitor):
 
         return error_log_name
 
+    def __get_downstream_file(
+        self, input_record: Dict[str, Any]
+    ) -> Optional[FileEntry]:
+        assert self.__project
+        visit_file_id = input_record.get("file_id")
+        if not visit_file_id:
+            return None
+
+        visit_file = self.__project.proxy.get_file(visit_file_id)
+        if not visit_file:
+            return None
+        return visit_file
+
+    def __copy_metadata(
+        self,
+        input_record: Dict[str, Any],
+        error_log_name: str,
+        downstream_gears: List[str],
+        info: FileQCModel,
+    ) -> QCStatus:
+        visit_file = self.__get_downstream_file(input_record)
+        if not visit_file:
+            log.error(
+                "Missing file for existing visit, "
+                f"failed to update error log {error_log_name}"
+            )
+            return "FAIL"
+
+        if not visit_file.info_exists:
+            log.error(f"No QC metadata in existing visit file {visit_file.name}")
+            return "FAIL"
+
+        visit_file = visit_file.reload()
+        try:
+            visit_info = FileQCModel.model_validate(visit_file.info)
+        except ValidationError as error:
+            log.error(
+                f"Unexpected QC metadata in visit file {visit_file.name}: {error}"
+            )
+            return "FAIL"
+
+        for ds_gear in downstream_gears:
+            ds_gear_metadata = visit_info.get(ds_gear)
+            if not ds_gear_metadata:
+                log.warning(
+                    f"QC metadata not found for gear {ds_gear} "
+                    f"in the existing visit file {visit_file.name}"
+                )
+                continue
+
+            log.info(f"copying metadata for gear {ds_gear}")
+            info.set(gear_name=ds_gear, gear_model=ds_gear_metadata)
+
+        return "PASS"
+
     def __copy_downstream_gears_metadata(
         self,
         *,
         input_record: Dict[str, Any],
         downstream_gears: Optional[List[str]] = None,
-        gear_state: str = "PASS",
+        gear_state: QCStatus = "PASS",
     ) -> bool:
         """Copy any downstream gears metadata from visit file to error log
         file.
@@ -414,96 +484,69 @@ class CSVTransformVisitor(CSVVisitor):
             bool: True if copying metadata successful
         """
 
-        if not self.__project or not self.module:
-            log.warning(
-                "Parent project or module not specified to update visit error log"
-            )
+        if self.__project is None:
+            log.warning("Parent project not specified to update visit error log")
+            return False
+        if not self.module:
+            log.warning("Module not specified to update visit error log")
             return False
 
-        error_log_name = get_error_log_name(
-            module=self.module,
-            input_data=input_record,
-            errorlog_template=self.__errorlog_template,
+        error_log_name = self.__errorlog_template.instantiate(
+            module=self.module, record=input_record
         )
-
         if not error_log_name:
             return False
 
         error_log_file = self.__project.get_file(error_log_name)
         if not error_log_file:
             log.error(
-                "Failed to retrieve visit error log file %s from project",
+                "Failed to retrieve visit error log file %s/%s",
+                self.__project.label,
                 error_log_name,
             )
             return False
 
         error_log_file = error_log_file.reload()
-        info = (
-            error_log_file.info
-            if (error_log_file.info and "qc" in error_log_file.info)
-            else {"qc": {}}
-        )
-
-        # TODO: decide whether we need to show this warning, commenting out for now
-        # self.__error_writer.write(
-        #     system_error(message=(
-        #         f'Found duplicate visit {visit_file_name}, exit submission pipeline'
-        #     ),
-        #                  error_type='warning'))
-
-        if downstream_gears:
-            visit_file = None
-            visit_file_id = input_record.get("file_id")
-            if visit_file_id:
-                visit_file = self.__project.proxy.get_file(visit_file_id)
-            else:
+        info = FileQCModel(qc={})
+        if error_log_file.info and "qc" in error_log_file.info:
+            try:
+                info = FileQCModel.model_validate(error_log_file.info)
+            except ValidationError as error:
                 log.error(
-                    "Missing file id for existing visit, "
-                    "failed to update error log - %s",
-                    error_log_name,
+                    f"error reading {self.__project}/{error_log_name} metadata: {error}"
                 )
 
-            if visit_file and visit_file.info_exists:
-                visit_file = visit_file.reload()
+        if downstream_gears:
+            status = self.__copy_metadata(
+                input_record=input_record,
+                error_log_name=error_log_name,
+                downstream_gears=downstream_gears,
+                info=info,
+            )
 
-                for ds_gear in downstream_gears:
-                    ds_gear_metadata = visit_file.info.get("qc", {}).get(ds_gear, {})
-                    if not ds_gear_metadata:
-                        log.warning(
-                            "QC metadata not found for gear %s in the "
-                            "existing duplicate visit file %s",
-                            ds_gear,
-                            visit_file.name,
-                        )
-                        continue
-
-                    info["qc"][ds_gear] = ds_gear_metadata
-            else:
-                gear_state = "FAIL"
+            if status != "PASS":
                 self.__error_writer.write(
                     system_error(
-                        message=(
-                            "Failed to load QC metadata from existing "
-                            "duplicate visit file"
-                        ),
+                        message=("Failed to load QC metadata from existing visit file"),
                         error_type="warning",
                     )
                 )
+
+            gear_state = status
         else:
             log.warning(
                 "No downstream gears defined for current gear %s", self.__gear_name
             )
 
         # add current gear
-        info["qc"][self.__gear_name] = {
-            "validation": {
-                "state": gear_state.upper(),
-                "data": self.__error_writer.errors(),
-            }
-        }
+        info.set_errors(
+            gear_name=self.__gear_name,
+            status=gear_state.upper(),  # type: ignore
+            errors=self.__error_writer.errors(),
+        )
 
         try:
-            error_log_file.update_info(info)
+            error_log_file.update_info(info.model_dump(by_alias=True))
         except ApiException as error:
             log.error(error)
             return False
@@ -559,8 +602,9 @@ class CSVTransformVisitor(CSVVisitor):
                     value=visitdate,
                     line=line_num,
                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                    ptid=record.get(FieldNames.PTID),
-                    visitnum=record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=record, date_field=self.__date_field
+                    ),
                 )
             )
 
@@ -596,7 +640,7 @@ def run(
         input_file: the input file
         id_column: the subject identifier (usually NACCID)
         module: the module label
-        destination: Flyhweel project container
+        destination: Flywheel project container
         transformer_factory: the factory for column transformers
         preprocessor: class to run pre-processing checks
         module_configs: form ingest configs for the module

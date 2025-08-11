@@ -18,17 +18,18 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues, FieldNames, MetadataKeys
-from outputs.errors import (
-    JSONLocation,
-    ListErrorWriter,
+from outputs.error_logger import (
     MetadataCleanupFlag,
+    update_error_log_and_qc_metadata,
+)
+from outputs.error_models import JSONLocation, VisitKeys
+from outputs.error_writer import ListErrorWriter
+from outputs.errors import (
     empty_field_error,
     empty_file_error,
-    get_error_log_name,
     malformed_file_error,
     previous_visit_failed_error,
     system_error,
-    update_error_log_and_qc_metadata,
 )
 
 from form_qc_app.definitions import DefinitionsLoader
@@ -162,11 +163,8 @@ class FileProcessor(ABC):
         Returns:
             bool: True if error log updated successfully, else False
         """
-
-        error_log_name = get_error_log_name(
-            module=self._module,
-            input_data=input_record,
-            errorlog_template=self._errorlog_template,
+        error_log_name = self._errorlog_template.instantiate(
+            record=input_record, module=self._module
         )
 
         if not error_log_name or not update_error_log_and_qc_metadata(
@@ -261,7 +259,12 @@ class JSONFileProcessor(FileProcessor):
             # has a failed previous visit
             if failed_visit.visitdate < visitdate:
                 self._error_writer.write(
-                    previous_visit_failed_error(failed_visit.filename)
+                    previous_visit_failed_error(
+                        prev_visit=failed_visit.filename,
+                        visit_keys=VisitKeys.create_from(
+                            record=self.__input_record, date_field=self._date_field
+                        ),
+                    )
                 )
                 return "DIFFERENT"
 
@@ -306,7 +309,14 @@ class JSONFileProcessor(FileProcessor):
                 found_all = False
 
         if not found_all:
-            self._error_writer.write(empty_field_error(empty_fields))
+            self._error_writer.write(
+                empty_field_error(
+                    field=empty_fields,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_data, date_field=self._date_field
+                    ),
+                )
+            )
             return None
 
         subject_lbl = input_data[self._pk_field]
@@ -318,7 +328,13 @@ class JSONFileProcessor(FileProcessor):
             )
             log.error(message)
             self._error_writer.write(
-                system_error(message, JSONLocation(key_path=self._pk_field))
+                system_error(
+                    message=message,
+                    error_location=JSONLocation(key_path=self._pk_field),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_data, date_field=self._date_field
+                    ),
+                )
             )
             return None
 

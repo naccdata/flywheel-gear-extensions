@@ -4,12 +4,13 @@
 from csv import DictReader
 from io import StringIO
 
-from outputs.errors import (
+from outputs.error_models import (
     CSVLocation,
     FileError,
     JSONLocation,
-    ListErrorWriter,
-    StreamErrorWriter,
+)
+from outputs.error_writer import ListErrorWriter, StreamErrorWriter
+from outputs.errors import (
     empty_file_error,
     identifier_error,
     missing_header_error,
@@ -23,8 +24,8 @@ class TestFileError:
         """Tests that serialization produces a dict with the location a
         string."""
         error = FileError(
-            error_type="error",
-            error_code="the-error",
+            error_type="error",  # pyright: ignore[reportCallIssue]
+            error_code="the-error",  # pyright: ignore[reportCallIssue]
             location=JSONLocation(key_path="k1.k2.k3"),
             value="the-value",
             message="the-message",
@@ -82,13 +83,17 @@ class TestErrorWriter:
         )
         writer.write(
             FileError(
-                error_type="error",
-                error_code="the-error",
+                error_type="error",  # pyright: ignore[reportCallIssue]
+                error_code="the-error",  # pyright: ignore[reportCallIssue]
                 location=CSVLocation(line=10, column_name="ptid"),
                 container_id=None,
                 value="the-value",
                 expected=None,
                 message="the-message",
+                ptid="the-ptid",
+                visitnum="the-visitnum",
+                date="the-date",
+                naccid="the-naccid",
             )
         )
         stream.seek(0)
@@ -104,8 +109,8 @@ class TestErrorWriter:
         writer = ListErrorWriter(container_id="the-id", fw_path="the-path")
         writer.write(
             FileError(
-                error_type="error",
-                error_code="the-error",
+                error_type="error",  # pyright: ignore[reportCallIssue]
+                error_code="the-error",  # pyright: ignore[reportCallIssue]
                 location=CSVLocation(line=10, column_name="ptid"),
                 container_id=None,
                 value="the-value",
@@ -114,4 +119,4 @@ class TestErrorWriter:
             )
         )
         errors = writer.errors()
-        assert errors[0]["container_id"] == "the-id"
+        assert errors[0].container_id == "the-id"

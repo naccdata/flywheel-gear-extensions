@@ -19,8 +19,9 @@ from identifiers.model import (
 )
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_models import VisitKeys
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ErrorWriter,
     existing_participant_error,
     preprocessing_error,
 )
@@ -266,8 +267,11 @@ class CenterValidator(RowValidator):
     """Row validator to check whether the row has the correct ADCID and the
     PTID matches expected format."""
 
-    def __init__(self, center_id: int, error_writer: ErrorWriter) -> None:
+    def __init__(
+        self, center_id: int, date_field: str, error_writer: ErrorWriter
+    ) -> None:
         self.__center_id = center_id
+        self.__date_field = date_field
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
@@ -291,6 +295,9 @@ class CenterValidator(RowValidator):
                     value=row[FieldNames.ADCID],
                     line=line_number,
                     error_code=SysErrorCodes.ADCID_MISMATCH,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
                 )
             )
             valid = False
@@ -303,6 +310,9 @@ class CenterValidator(RowValidator):
                     value=ptid,
                     line=line_number,
                     error_code=SysErrorCodes.INVALID_PTID,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
                 )
             )
             valid = False

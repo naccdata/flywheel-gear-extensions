@@ -2,8 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.1.0
 
+* Changes authorization mapping lookup so that authorization rules will match a study qualified project if only general pipeline rules are defined.
+
+## 2.0.0
+
+* Changes check for claimed record by relaxing requirement that record includes an OIDC asserted email address.
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
 * Add error handling for CoManageMessage validation errors in user registry.
 * Add error handling for RegistryError errors in user management gear.

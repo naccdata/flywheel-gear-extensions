@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
+    ErrorLogTemplate,
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
@@ -24,14 +25,13 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError, VisitKeys
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    get_error_log_name,
     preprocessing_error,
     previous_visit_failed_error,
     system_error,
-    update_error_log_and_qc_metadata,
 )
 
 log = logging.getLogger(__name__)
@@ -139,7 +139,9 @@ class QCCoordinator:
             error_writer.write(error_obj)
 
         qc_result = create_qc_result_dict(
-            name="validation", state=status, data=error_writer.errors()
+            name="validation",
+            state=status,
+            data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
         info = (
@@ -158,12 +160,12 @@ class QCCoordinator:
         except ApiException as error:
             log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
 
-        error_log_name = get_error_log_name(
-            module=self.__module,
-            input_data={
+        error_log_name = ErrorLogTemplate().instantiate(
+            record={
                 f"{FieldNames.PTID}": ptid,
                 f"{FieldNames.DATE_COLUMN}": visitdate,
             },
+            module=self.__module,
         )
 
         project = self.__proxy.get_project_by_id(self.__subject.parents.project)  # type: ignore
@@ -307,6 +309,8 @@ class QCCoordinator:
         failed_visit: str,
         ptid_key: str,
         date_col_key: str,
+        visitnum_key: str,
+        naccid_key: str,
     ):
         """Update error metadata in the visit files that were not processed due
         to a failure of a previous visit.
@@ -314,20 +318,24 @@ class QCCoordinator:
         Args:
             remaining_visits: visits that were not processed
             failed_visit: name of the failed visit
-            ptid_key: primary key location in file.info
+            ptid_key: ptid field location in file.info
             date_col_key: date field location in file.info
+            visitnum_key: visitnum field location in file.info
+            naccid_key: naccid field location in file.info
         """
         log.info(
-            "Visit %s failed, " "there are %s subsequent visits for this participant.",
+            "Visit %s failed, there are %s subsequent visits for this participant.",
             failed_visit,
             len(remaining_visits),
         )
         log.info("Adding error metadata to respective visit files")
+
         while len(remaining_visits) > 0:
             visit = remaining_visits.popleft()
             file_id = visit["file.file_id"]
             visitdate = visit[date_col_key]
             ptid = visit[ptid_key]
+
             try:
                 visit_file = self.__proxy.get_file(file_id)
             except ApiException as error:
@@ -338,7 +346,15 @@ class QCCoordinator:
                     "Error metadata not updated for visit %s", visit["file.name"]
                 )
                 continue
-            error_obj = previous_visit_failed_error(failed_visit)
+            error_obj = previous_visit_failed_error(
+                prev_visit=failed_visit,
+                visit_keys=VisitKeys(
+                    ptid=ptid,
+                    visitnum=visit.get(visitnum_key),
+                    date=visitdate,
+                    naccid=visit.get(naccid_key),
+                ),
+            )
             self.__update_qc_error_metadata(
                 visit_file=visit_file,
                 error_obj=error_obj,
@@ -409,7 +425,8 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
-        visitnum: Optional[str],
+        visitnum: Optional[str] = None,
+        naccid: Optional[str] = None,
     ) -> Optional[Dict[str, FileEntry]]:
         """Populate the inputs required for QC gear, report errors if required
         input files cannot be found.
@@ -419,6 +436,7 @@ class QCCoordinator:
             ptid: participant identifier
             visitdate: visit date
             visitnum (optional): visit number
+            naccid (optional): NACCID
 
         Returns:
             Dict[str, FileEntry (optional): gear input dictionary or None
@@ -445,8 +463,9 @@ class QCCoordinator:
                     field=FieldNames.MODULE,
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
-                    ptid=ptid,
-                    visitnum=visitnum,
+                    visit_keys=VisitKeys(
+                        ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,
@@ -478,6 +497,7 @@ class QCCoordinator:
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
         date_col_key = MetadataKeys.get_column_key(self.__module_configs.date_field)
         visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
 
         # sort the visits in the ascending order of visit date
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
@@ -490,6 +510,7 @@ class QCCoordinator:
             visitdate = visit[date_col_key]
             ptid = visit[ptid_key]
             visitnum = visit.get(visitnum_key)
+            naccid = visit.get(naccid_key)
 
             # skip if module file was validated after the finalization trigger
             if self.__is_outdated_trigger(visit):
@@ -502,6 +523,7 @@ class QCCoordinator:
                     ptid=ptid,
                     visitdate=visitdate,
                     visitnum=visitnum,
+                    naccid=naccid,
                 )
             except GearExecutionError as error:
                 raise error
@@ -533,7 +555,8 @@ class QCCoordinator:
             # If QC gear did not complete, stop evaluating any subsequent visits
             if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
-                    f"Errors occurred while running gear {gear_name} on this file"
+                    message=f"Errors occurred while running gear {gear_name}",
+                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,
@@ -566,4 +589,6 @@ class QCCoordinator:
                 failed_visit=failed_visit,
                 ptid_key=ptid_key,
                 date_col_key=date_col_key,
+                visitnum_key=visitnum_key,
+                naccid_key=naccid_key,
             )

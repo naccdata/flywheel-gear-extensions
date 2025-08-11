@@ -12,10 +12,9 @@ from flywheel.models.data_view import DataView
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
+from outputs.error_models import CSVLocation, FileError
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    CSVLocation,
-    ErrorWriter,
-    FileError,
     malformed_file_error,
     missing_field_error,
 )
@@ -48,7 +47,7 @@ def create_status_view(modules: List[ModuleName]) -> DataView:
             ColumnModel(data_key="file.info.forms.json.visitdate", label="visit_date"),
         ],
         container="acquisition",
-        filter_str=f'acquisition.label=|[{",".join(modules)}]',
+        filter_str=f"acquisition.label=|[{','.join(modules)}]",
         missing_data_strategy="none",
     )
     builder.file_filter(value=r"^.*\.json", regex=True)
@@ -264,8 +263,8 @@ class SubmissionStatusVisitor(CSVVisitor):
         if not center:
             self.__error_writer.write(
                 FileError(
-                    error_code="no-center",
-                    error_type="error",
+                    error_code="no-center",  # pyright: ignore[reportCallIssue]
+                    error_type="error",  # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=f"value {status_query.adcid} is not a valid ADCID",
                 )
@@ -276,8 +275,8 @@ class SubmissionStatusVisitor(CSVVisitor):
         if not projects:
             self.__error_writer.write(
                 FileError(
-                    error_code="no-projects",
-                    error_type="error",
+                    error_code="no-projects",  # pyright: ignore[reportCallIssue]
+                    error_type="error",  # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=(
                         f"center {status_query.adcid} has no matching projects "

@@ -216,7 +216,7 @@ class FlywheelProxy:
             return group_list[0]
 
         conflict = self.__fw.groups.find_first(
-            f"label=~^{group_label.replace(',','.')}$"
+            f"label=~^{group_label.replace(',', '.')}$"
         )
         if conflict:
             raise FlywheelError(f"Group with label {group_label} exists: {conflict.id}")
@@ -913,7 +913,9 @@ class GroupAdaptor:
         for role in roles:
             self.add_role(role)
 
-    def get_project(self, label: str) -> Optional["ProjectAdaptor"]:
+    def get_project(
+        self, label: str, info_update: Optional[dict[str, Any]] = None
+    ) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given label.
 
         Creates a new project if none exists.
@@ -927,7 +929,12 @@ class GroupAdaptor:
         if not project:
             return None
 
-        return ProjectAdaptor(project=project, proxy=self._fw)
+        adaptor = ProjectAdaptor(project=project, proxy=self._fw)
+        adaptor.add_tags(self.get_tags())
+        if info_update:
+            adaptor.update_info(info_update)
+        adaptor.add_admin_users(self.get_user_access())
+        return adaptor
 
     def get_project_by_id(self, project_id: str) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given ID.
@@ -1232,7 +1239,7 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             if conflict:
                 log.info(
-                    "Dry Run: would remove conflicting " "rule %s from project %s",
+                    "Dry Run: would remove conflicting rule %s from project %s",
                     conflict.name,
                     self._project.label,
                 )

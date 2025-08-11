@@ -15,7 +15,8 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
-from outputs.errors import ListErrorWriter, unexpected_value_error
+from outputs.error_writer import ErrorWriter
+from outputs.errors import unexpected_value_error
 from utils.decorators import api_retry
 from utils.utils import flatten_dict
 
@@ -30,7 +31,7 @@ class RegressionCurator(Curator):
     def __init__(
         self,
         qaf_baseline: MutableMapping,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         mqt_baseline: Optional[MutableMapping] = None,
     ) -> None:
         super().__init__()

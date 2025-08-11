@@ -3,14 +3,15 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.errors import ListErrorWriter, unexpected_value_error
+from outputs.error_writer import ErrorWriter
+from outputs.errors import unexpected_value_error
 from s3.s3_client import S3BucketReader
 
 log = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class BaselineLocalizer(ABC):
     def __init__(
         self,
         s3_file: str,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         keep_fields: Optional[List[str]] = None,
     ) -> None:
         self.s3_file = s3_file
@@ -79,7 +80,7 @@ class BaselineLocalizer(ABC):
         """
         body = self.localize_s3_file()
         header = None
-        baseline: Dict[str, str] = {}
+        baseline: Dict[str, Any] = {}
         duplicates: Set[str] = set()
 
         # the baselines are extremely large, so stream and process by line
@@ -91,8 +92,8 @@ class BaselineLocalizer(ABC):
                 header = self.process_header(row)
                 continue
 
-            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))
-            key, data = self.process_row(row)
+            row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))  # type: ignore
+            key, data = self.process_row(row)  # type: ignore
 
             if key in baseline:
                 duplicates.add(key)
@@ -189,7 +190,7 @@ def run(
     s3_qaf_file: str,
     keep_fields: List[str],
     scheduler: ProjectCurationScheduler,
-    error_writer: ListErrorWriter,
+    error_writer: ErrorWriter,
     s3_mqt_file: Optional[str] = None,
 ) -> None:
     """Runs the Attribute Curator process.

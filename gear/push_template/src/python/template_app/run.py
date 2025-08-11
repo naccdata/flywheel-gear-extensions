@@ -14,7 +14,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.context_parser import get_api_key
 from inputs.parameter_store import ParameterStore
-from projects.template_project import TemplateProject
+from projects.template_project import TemplateError, TemplateProject
 
 from template_app.main import run
 
@@ -86,11 +86,14 @@ class TemplatingVisitor(GearExecutionEnvironment):
                 " does not exist"
             )
 
-        run(
-            admin_group=self.admin_group(admin_id=self.__admin_id),
-            new_only=self.__new_only,
-            template=TemplateProject(project=projects[0], proxy=self.proxy),
-        )
+        try:
+            run(
+                admin_group=self.admin_group(admin_id=self.__admin_id),
+                new_only=self.__new_only,
+                template=TemplateProject(project=projects[0], proxy=self.proxy),
+            )
+        except TemplateError as error:
+            raise GearExecutionError(error) from error
 
 
 def main():

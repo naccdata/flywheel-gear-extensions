@@ -15,7 +15,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 from gather_submission_status_app.main import run
 
@@ -117,7 +117,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(

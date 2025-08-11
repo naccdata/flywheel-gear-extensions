@@ -5,8 +5,9 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
+from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues, PreprocessingChecks
+from keys.keys import DefaultValues, FieldNames, PreprocessingChecks
 from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
 
 PipelineType = Literal["submission", "finalization"]
@@ -100,11 +101,89 @@ class OptionalFormsConfigs(RootModel):
         return version_configs.get(packet)
 
 
-class ErrorLogTemplate(BaseModel):
-    id_field: str
-    date_field: str
+class VisitLabelTemplate(BaseModel):
+    """Template for creating a visit label for a data record."""
+
+    id_field: str = FieldNames.PTID
+    date_field: str = FieldNames.DATE_COLUMN
+
+    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
+        """Instantiates this using the values for the template fields and
+        module to create a visit-label.
+
+        Constructs the label as "<id-field>_<date-field>_<module>".
+
+        Args:
+          record: the data record
+          module: the module name
+        Returns:
+          the visit-label if all fields exist. None, otherwise.
+        """
+        components = []
+        ptid = record.get(self.id_field)
+        if not ptid:
+            return None
+
+        cleaned_ptid = ptid.strip().lstrip("0")
+        if not cleaned_ptid:
+            return None
+
+        visitdate = record.get(self.date_field)
+        if not visitdate:
+            return None
+
+        normalized_date = convert_date(
+            date_string=visitdate, date_format=DEFAULT_DATE_FORMAT
+        )
+        if not normalized_date:
+            return None
+
+        components.append(cleaned_ptid)
+        components.append(normalized_date)
+        components.append(module.lower())
+
+        return "_".join(components)
+
+
+class ErrorLogTemplate(VisitLabelTemplate):
+    """Template for creating the name of an error log file.
+
+    The file name is form using the visit label as the prefix, and
+    suffix and extension fields from this template.
+    """
+
     suffix: Optional[str] = "qc-status"
     extension: Optional[str] = "log"
+
+    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
+        """Instantiates the template using the visit-label built for the record
+        and module as a prefix, and the suffix and extension fields from this
+        template.
+
+        Args:
+          record: the data record
+          module: the module name
+        Returns:
+          the file name if the visit label can be built. None, otherwise.
+        """
+        prefix = super().instantiate(record=record, module=module)
+        if not prefix:
+            return None
+
+        return self.create_filename(prefix)
+
+    def create_filename(self, visit_label: str) -> str:
+        """Creates a log file name from this template by extending the visit-
+        label.
+
+        The format of the file name is "<visit-label>_<suffix>.<extension>".
+
+        Args:
+          visit_label: the visit label
+        Returns:
+          the file name build by extending the visit label
+        """
+        return f"{visit_label}_{self.suffix}.{self.extension}"
 
 
 class SupplementModuleConfigs(BaseModel):

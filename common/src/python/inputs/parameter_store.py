@@ -319,7 +319,7 @@ class ParameterStore:
             self.__client.put_parameter(
                 Name=param_name_token, Value=token, Type="SecureString", Overwrite=True
             )
-        except Exception as error:
+        except ClientError as error:
             raise ParameterError(
                 f"Failed to store parameters at {param_path}: {error}"
             ) from error

@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.exceptions import ApiException
@@ -60,25 +60,6 @@ class RegistryPerson:
     def as_coperson_message(self) -> CoPersonMessage:
         return self.__coperson_message
 
-    def has_matching_auth_email(self, auth_email: str) -> bool:
-        """Check whether the auth email matches with the organization email
-        that the registry entry was claimed.
-
-        Args:
-            auth_email: auth email provided in NACC directory
-
-        Returns:
-            bool: True if the auth emailed matches with org email
-        """
-        if not self.organization_email_addresses:
-            return False
-
-        for org_email in self.organization_email_addresses:
-            if org_email.mail.lower() == auth_email.lower():
-                return True
-
-        return False
-
     @property
     def creation_date(self) -> Optional[datetime]:
         """Returns the creation date for this person in the registry.
@@ -101,6 +82,20 @@ class RegistryPerson:
             return []
 
         return self.__coperson_message.email_address
+
+    @property
+    def email_address(self) -> Optional[EmailAddress]:
+        """Returns an email address for this coperson.
+
+        Returns:
+          An email if one exists. None, otherwise.
+        """
+        if self.organization_email_addresses:
+            return self.organization_email_addresses[0]
+        if self.__coperson_message.email_address:
+            return self.__coperson_message.email_address[0]
+
+        return None
 
     @property
     def primary_name(self) -> Optional[str]:
@@ -136,6 +131,39 @@ class RegistryPerson:
         ]
         return bool(email_addresses)
 
+    def is_active(self) -> bool:
+        """Indicates whether the CoPerson record is active.
+
+        Returns:
+          True if the CoPerson record is active. False, otherwise.
+        """
+        if self.__coperson_message.co_person is None:
+            return False
+
+        return self.__coperson_message.co_person.status == "A"
+
+    def identifiers(
+        self, predicate: Callable[[Identifier], bool] = lambda x: True
+    ) -> List[Identifier]:
+        """Returns the list of identifiers for this CoPerson.
+
+        If a predicate is given, returns the identifiers satisfying the predicate.
+        Default predicate includes all identifiers.
+
+        Args:
+          predicate: a function indicating identifiers to include
+        Returns:
+          the list of identifiers satisfying the predicate
+        """
+        if self.__coperson_message.identifier is None:
+            return []
+
+        return [
+            identifier
+            for identifier in self.__coperson_message.identifier
+            if predicate(identifier)
+        ]
+
     def is_claimed(self) -> bool:
         """Indicates whether the CoPerson record is claimed.
 
@@ -145,7 +173,17 @@ class RegistryPerson:
         Returns:
           True if the record has been claimed. False, otherwise.
         """
-        return bool(self.__get_claim_org())
+        if not self.is_active():
+            return False
+
+        if self.email_address is None:
+            return False
+
+        identifiers = self.identifiers(
+            predicate=lambda identifier: identifier.type == "oidcsub"
+            and identifier.identifier.startswith("http://cilogon.org")
+        )
+        return bool(identifiers)
 
     def __get_claim_org(self) -> Optional[OrgIdentity]:
         """Returns the first claimed organizational identity.

@@ -17,14 +17,13 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectError,
 )
 from keys.keys import FieldNames
-from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    system_error,
-    update_error_log_and_qc_metadata,
-)
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError, VisitKeys
+from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +78,7 @@ class JSONUploader:
           subject: the subject
           record: the record data
         Raises:
-          UploaderError or ApiException if a failure occurs during the upload
+          UploaderError if a failure occurs during the upload
         """
         session_label = self.__session_template.instantiate(record)
         acquisition_label = self.__acquisition_template.instantiate(record)
@@ -278,12 +277,17 @@ class FormJSONUploader:
                         contents=json.dumps(record),
                         content_type="application/json",
                     )
-                except (SubjectError, TypeError) as error:
+                except (SubjectError, TypeError, UploaderError) as error:
                     log.error(error)
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
-                        error_obj=system_error(message=str(error)),
+                        error_obj=system_error(
+                            message=str(error),
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
+                        ),
                     )
                     success = False
                     continue
@@ -300,7 +304,10 @@ class FormJSONUploader:
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
-                            message=f"Error in setting file {visit_file_name} metadata"
+                            message=f"Error in setting file {visit_file_name} metadata",
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
                         ),
                     )
                     success = False
@@ -318,7 +325,3 @@ class FormJSONUploader:
 
         success = success and self.__create_pending_visits_file()
         return success
-
-
-class UploaderError(Exception):
-    pass

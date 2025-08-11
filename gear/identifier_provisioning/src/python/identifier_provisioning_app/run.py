@@ -21,7 +21,7 @@ from identifiers.identifiers_lambda_repository import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 
 from identifier_provisioning_app.main import run
 
@@ -109,7 +109,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         enrollment_project = EnrollmentProject.create_from(project)
         if not enrollment_project:
             raise GearExecutionError(
-                "Unable to get project containing file: " f"{file.parents.project}"
+                f"Unable to get project containing file: {file.parents.project}"
             )
 
         input_path = Path(self.__file_input.filepath)
@@ -134,7 +134,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)

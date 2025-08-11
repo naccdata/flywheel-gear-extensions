@@ -340,7 +340,7 @@ def set_gear_inputs(
         gear_input_file = project.get_file(name=filename)  # type: ignore
         if not gear_input_file:
             raise GearExecutionError(
-                f"Cannot find required input file {filename} " f"for gear {gear_name}"
+                f"Cannot find required input file {filename} for gear {gear_name}"
             )
 
         gear_inputs[label] = gear_input_file

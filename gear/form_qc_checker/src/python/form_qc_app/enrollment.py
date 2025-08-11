@@ -21,8 +21,9 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import DefaultValues
+from outputs.error_models import VisitKeys
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     empty_field_error,
     missing_field_error,
     unknown_field_error,
@@ -46,6 +47,7 @@ class EnrollmentFormVisitor(CSVVisitor):
     def __init__(
         self,
         required_fields: set[str],
+        date_field: str,
         error_writer: ListErrorWriter,
         processor: "CSVFileProcessor",
         validator: Optional[RecordValidator] = None,
@@ -55,12 +57,14 @@ class EnrollmentFormVisitor(CSVVisitor):
 
         Args:
             required_fields: list of required field
+            date_field: date field for enrollment form
             error_writer: error metadata writer
             processor: file processor
             validator (optional): helper for validating input records
             output_stream (optional): output stream
         """
         self.__required_fields = required_fields
+        self.__date_field = date_field
         self.__error_writer = error_writer
         self.__processor = processor
         self.__validator = validator
@@ -128,6 +132,7 @@ class EnrollmentFormVisitor(CSVVisitor):
           True if required fields occur in the row, False otherwise
         """
 
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         found_all = True
@@ -138,7 +143,15 @@ class EnrollmentFormVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
-            self.__error_writer.write(empty_field_error(empty_fields, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=empty_fields,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
+                )
+            )
             if self.__validator:
                 self.__processor.update_visit_error_log(
                     input_record=row, qc_passed=False, reset_qc_metadata="ALL"
@@ -221,6 +234,7 @@ class CSVFileProcessor(FileProcessor):
                 error_writer=self._error_writer,
                 visitor=EnrollmentFormVisitor(
                     required_fields=set(self._req_fields),
+                    date_field=self._date_field,
                     error_writer=self._error_writer,
                     processor=self,
                 ),
@@ -291,6 +305,7 @@ class CSVFileProcessor(FileProcessor):
         out_stream = StringIO()
         enrl_visitor = EnrollmentFormVisitor(
             required_fields=set(self._req_fields),
+            date_field=self._date_field,
             error_writer=self._error_writer,
             processor=self,
             validator=validator,

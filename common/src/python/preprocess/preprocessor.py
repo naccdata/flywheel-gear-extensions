@@ -14,8 +14,9 @@ from keys.keys import (
     PreprocessingChecks,
     SysErrorCodes,
 )
+from outputs.error_models import VisitKeys
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     preprocess_errors,
     preprocessing_error,
 )
@@ -46,7 +47,7 @@ class FormPreprocessor:
         forms_store: FormsStore,
         module: str,
         module_configs: ModuleConfigs,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
     ) -> None:
         self.__primary_key = primary_key
         self.__forms_store = forms_store
@@ -106,8 +107,9 @@ class FormPreprocessor:
                     value=packet,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.INVALID_PACKET,
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -143,8 +145,9 @@ class FormPreprocessor:
                     value=str(version),
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.INVALID_VERSION,
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -212,8 +215,9 @@ class FormPreprocessor:
                     value="",
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                     extra_args=[missing_vars],
                 )
             )
@@ -262,8 +266,9 @@ class FormPreprocessor:
                     value=current_date,
                     line=line_num,
                     error_code=date_error,
-                    ptid=ptid,
-                    visitnum=current_visitnum,
+                    visit_keys=VisitKeys.create_from(
+                        record=current_record, date_field=date_field
+                    ),
                 )
             )
             correct_order = False
@@ -366,8 +371,9 @@ class FormPreprocessor:
                     value=packet,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.MULTIPLE_IVP,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -386,8 +392,9 @@ class FormPreprocessor:
                         value=packet,
                         line=pp_context.line_num,
                         error_code=SysErrorCodes.MISSING_IVP,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM],
+                        visit_keys=VisitKeys.create_from(
+                            record=input_record, date_field=module_configs.date_field
+                        ),
                     )
                 )
                 return False
@@ -434,8 +441,9 @@ class FormPreprocessor:
                     value=packet,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.IVP_EXISTS,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -509,8 +517,9 @@ class FormPreprocessor:
                     value=input_record[date_field],
                     line=line_num,
                     error_code=SysErrorCodes.DIFF_VISITNUM,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=date_field
+                    ),
                 )
             )
             return False
@@ -525,7 +534,7 @@ class FormPreprocessor:
             module=module,
             legacy=True,
             search_col=date_field,
-            search_val=input_record[date_field],
+            search_val=input_record[self.__module_configs.date_field],
             search_op="=",
             extra_columns=[FieldNames.VISITNUM],
         )
@@ -537,12 +546,13 @@ class FormPreprocessor:
         ):
             self.__error_writer.write(
                 preprocessing_error(
-                    field=date_field,
-                    value=input_record[date_field],
+                    field=self.__module_configs.date_field,
+                    value=input_record[self.__module_configs.date_field],
                     line=line_num,
                     error_code=SysErrorCodes.DIFF_VISITNUM,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self.__module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -587,8 +597,9 @@ class FormPreprocessor:
                     value=input_record[FieldNames.VISITNUM],
                     line=line_num,
                     error_code=SysErrorCodes.DIFF_VISITDATE,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=date_field
+                    ),
                 )
             )
             return False
@@ -609,7 +620,9 @@ class FormPreprocessor:
         )
 
         if legacy_matches and self.__find_conflicting_visits(
-            visits=legacy_matches, field=date_field, value=input_record[date_field]
+            visits=legacy_matches,
+            field=date_field,
+            value=input_record[self.__module_configs.date_field],
         ):
             self.__error_writer.write(
                 preprocessing_error(
@@ -617,8 +630,9 @@ class FormPreprocessor:
                     value=input_record[FieldNames.VISITNUM],
                     line=line_num,
                     error_code=SysErrorCodes.DIFF_VISITDATE,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self.__module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -664,7 +678,7 @@ class FormPreprocessor:
             module=legacy_module,
             legacy=True,
             search_col=date_field,
-            search_val=input_record[date_field],
+            search_val=input_record[module_configs.date_field],
             search_op="<=",
             extra_columns=[FieldNames.VISITNUM],
             find_all=True,
@@ -684,8 +698,9 @@ class FormPreprocessor:
                     value=packet,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.MISSING_UDS_V3,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -723,8 +738,9 @@ class FormPreprocessor:
                         value=packet,
                         line=pp_context.line_num,
                         error_code=SysErrorCodes.MISSING_UDS_I4,
-                        ptid=input_record[FieldNames.PTID],
-                        visitnum=input_record[FieldNames.VISITNUM],
+                        visit_keys=VisitKeys.create_from(
+                            record=input_record, date_field=module_configs.date_field
+                        ),
                     )
                 )
                 return False
@@ -825,8 +841,9 @@ class FormPreprocessor:
                         if supplement_module.exact_match
                         else SysErrorCodes.UDS_NOT_EXIST
                     ),
-                    ptid=input_record.get(FieldNames.PTID),
-                    visitnum=input_record.get(FieldNames.VISITNUM),
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -861,8 +878,9 @@ class FormPreprocessor:
                     value=self.__module,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.UDS_NOT_MATCH,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
@@ -891,8 +909,9 @@ class FormPreprocessor:
                     value=packet,
                     line=pp_context.line_num,
                     error_code=SysErrorCodes.INVALID_MODULE_PACKET,
-                    ptid=input_record[FieldNames.PTID],
-                    visitnum=input_record[FieldNames.VISITNUM],
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=module_configs.date_field
+                    ),
                 )
             )
             return False
