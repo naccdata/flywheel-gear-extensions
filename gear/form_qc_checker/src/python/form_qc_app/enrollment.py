@@ -132,7 +132,7 @@ class EnrollmentFormVisitor(CSVVisitor):
           True if required fields occur in the row, False otherwise
         """
 
-        # TODO: why are errors being cleared here?
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         found_all = True

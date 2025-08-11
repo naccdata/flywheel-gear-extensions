@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+* Updates error metadata to include date and naccid
+
 ## 1.5.4
 * Rebuilding for pre-processing checks update
   

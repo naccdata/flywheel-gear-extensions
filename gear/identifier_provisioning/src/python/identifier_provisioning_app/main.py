@@ -580,7 +580,9 @@ class ProvisioningVisitor(CSVVisitor):
           True if the row is a valid enrollment or transfer.  False, otherwise.
         """
 
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
+
         try:
             if not self.__validator.check(row=row, line_number=line_num):
                 update_record_level_error_log(

@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+* Updates error metadata to include date and naccid
+  
 ## 1.2.6
 * Rebuilding for API call retries
   

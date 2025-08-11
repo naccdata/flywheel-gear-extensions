@@ -120,6 +120,8 @@ class CSVTransformVisitor(CSVVisitor):
         Returns:
           True if the row was processed without error, False otherwise
         """
+
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         found_all = True

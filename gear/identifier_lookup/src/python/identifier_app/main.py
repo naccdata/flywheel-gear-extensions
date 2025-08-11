@@ -128,6 +128,8 @@ class NACCIDLookupVisitor(CSVVisitor):
         Returns:
           True if there is a NACCID for the PTID, False otherwise
         """
+
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         # check for valid ADCID and PTID
