@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, get_args
 
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -16,7 +16,7 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from outputs.error_writer import ListErrorWriter
 
-from gather_submission_status_app.main import run
+from gather_submission_status_app.main import ModuleName, run
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename: str,
         gear_name: str,
         project_names: List[str],
-        modules: List[str],
+        modules: List[ModuleName],
         study_id: str,
     ):
         super().__init__(client=client)
@@ -69,6 +69,12 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
         modules = context.config.get("modules", "").split(",")
+        unexpected_modules = [
+            module for module in modules if module not in get_args(ModuleName)
+        ]
+        if unexpected_modules:
+            log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
+
         study_id = context.config.get("study_id", "adrc")
         gear_name = context.manifest.get("name", "gather-submission-status")
         return GatherSubmissionStatusVisitor(
@@ -78,7 +84,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
-            modules=modules,
+            modules=[module for module in get_args(ModuleName) if module in modules],
             study_id=study_id,
         )
 

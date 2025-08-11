@@ -306,7 +306,7 @@ def run(
     output_file: TextIO,
     admin_group: NACCGroup,
     project_names: List[str],
-    modules: List[str],
+    modules: List[ModuleName],
     study_id: str,
     proxy: FlywheelProxy,
     error_writer: ErrorWriter,
@@ -320,7 +320,7 @@ def run(
     visitor = SubmissionStatusVisitor(
         admin_group=admin_group,
         project_names=project_names,
-        modules=modules,  # type: ignore
+        modules=modules,
         study_id=study_id,
         status_filter=StatusFilter(proxy=proxy, writer=writer),
         error_writer=error_writer,
