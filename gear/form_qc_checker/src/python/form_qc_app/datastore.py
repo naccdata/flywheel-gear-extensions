@@ -63,6 +63,7 @@ class DatastoreHelper(Datastore):
 
         # cache for grabbing previous records
         self.__prev_visits: Dict[str, Any] = {}
+        self.__initial_visit: Dict[str, Any] | None = None
 
     def __pull_adcids_list(self) -> Optional[List[int]]:
         """Pull the list of ADCIDs from the admin group metadata project.
@@ -100,18 +101,16 @@ class DatastoreHelper(Datastore):
             )
             return None
 
-    def __get_previous_visits(
-        self, current_record: Dict[str, str]
-    ) -> Optional[List[Dict[str, str]]]:
-        """Retrieve the list of previous visits for the specified participant.
+    def __validate_current_record(self, current_record: Dict[str, Any]) -> bool:
+        """Validate the current record and ensure it has all required fields.
+        Technically this should not happen, but run as a sanity check.
 
         Args:
             current_record: record currently being validated
 
         Returns:
-            List[Dict[str, str]]: previous visit records if found, else None
+            bool: whether or not record has all required fields
         """
-
         required_fields = [self.pk_field, self.orderby, FieldNames.MODULE]
 
         found_all = True
@@ -120,14 +119,26 @@ class DatastoreHelper(Datastore):
                 log.error(
                     (
                         "Field %s not set in current visit data, "
-                        "cannot retrieve the previous visits"
+                        "cannot retrieve the previous/initial visits"
                     ),
                     field,
                 )
                 found_all = False
 
-        # this cannot happen, just a sanity check
-        if not found_all:
+        return found_all
+
+    def __get_previous_visits(
+        self, current_record: Dict[str, Any]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Retrieve the list of previous visits for the specified participant.
+
+        Args:
+            current_record: record currently being validated
+
+        Returns:
+            List[Dict[str, Any]]: previous visit records if found, else None
+        """
+        if not self.__validate_current_record(current_record):
             return None
 
         subject_lbl = current_record[self.pk_field]
@@ -207,9 +218,47 @@ class DatastoreHelper(Datastore):
 
         return legacy_visits
 
+    def __get_initial_visit(self, current_record: Dict[str, Any]) -> Dict[str, Any]:
+        """Retrieve the initial visit for the specified participant.
+
+        Args:
+            current_record: record currently being validated
+
+        Returns:
+            List[Dict[str, Any]: initial visit record if found, else empty dict
+        """
+        if not self.__validate_current_record(current_record):
+            return {}
+
+        subject_lbl = current_record[self.pk_field]
+        module = current_record[FieldNames.MODULE].upper()
+
+        initial_visit = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=module,
+            legacy=False,
+            search_col=FieldNames.PACKET,
+            search_val=self.__module_configs.initial_packets,
+            search_op=DefaultValues.FW_SEARCH_OR,
+            qc_gear=DefaultValues.QC_GEAR,
+        )
+
+        if not initial_visit:
+            log.warning("No initial visit found for %s, module %s", subject_lbl, module)
+            return {}
+
+        # technically can't happen, but sanity check
+        if initial_visit and len(initial_visit) > 1:
+            log.warning(
+                "Multiple initial visits found for %s, module %s", subject_lbl, module
+            )
+            return {}
+
+        return initial_visit[0]
+
     def get_previous_record(
-        self, current_record: Dict[str, str]
-    ) -> Optional[Dict[str, str]]:
+        self, current_record: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the previous visit record for
         the specified participant.
 
@@ -230,20 +279,35 @@ class DatastoreHelper(Datastore):
             acq_id=latest_rec_info["file.parents.acquisition"],
         )
 
+    def __check_nonempty(
+        self,
+        ignore_empty_fields: List[str],
+        visit_data: Optional[Dict[str, Any]],
+    ) -> bool:
+        """Returns whether all specified fields are not empty in visit_data.
+
+        Args:
+            ignore_empty_fields: Field(s) to check for blanks
+            visit_data: Record to check
+        """
+        if not visit_data:
+            return False
+
+        return all(visit_data.get(field) for field in ignore_empty_fields)
+
     def get_previous_nonempty_record(
-        self, current_record: Dict[str, str], fields: List[str]
-    ) -> Optional[Dict[str, str]]:
+        self, current_record: Dict[str, Any], ignore_empty_fields: List[str]
+    ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method to return the previous record where
         all fields are NOT empty for the specified participant.
 
         Args:
             current_record: Record currently being validated
-            fields: Field(s) to check for blanks
+            ignore_empty_fields: Field(s) to check for blanks
 
         Returns:
             Dict[str, str]: Previous non-empty record if found, else None
         """
-
         prev_visits = self.__get_previous_visits(current_record)
         if not prev_visits:
             return None
@@ -253,19 +317,45 @@ class DatastoreHelper(Datastore):
                 file_name=visit["file.name"], acq_id=visit["file.parents.acquisition"]
             )
 
-            if not visit_data:
-                continue
-
-            found_all = True
-            for field in fields:
-                if not visit_data.get(field):
-                    found_all = False
-                    break
-
-            if found_all:
+            if self.__check_nonempty(ignore_empty_fields, visit_data):
                 return visit_data
 
-        log.warning("No previous visit found with non-empty values for %s", fields)
+        log.warning(
+            "No previous visit found with non-empty values for %s", ignore_empty_fields
+        )
+        return None
+
+    def get_initial_record(
+        self, current_record: Dict[str, Any], ignore_empty_fields: List[str]
+    ) -> Optional[Dict[str, Any]]:
+        """Overriding the abstract method, get the initial visit record for the
+        specified participant if non-empty.
+
+        Args:
+            current_record: record currently being validated
+            ignore_empty_fields: Field(s) to check for blanks
+
+        Returns:
+            dict[str, str]: initial visit record if found and non-empty,
+                            None otherwise
+        """
+        # will be None if we've never looked for it, and empty dict if
+        # we tried looking for it but it could not be found
+        if self.__initial_visit is None:
+            self.__initial_visit = self.__get_initial_visit(current_record)
+
+        if not self.__initial_visit:
+            return None
+
+        visit_data = self.__forms_store.get_visit_data(
+            file_name=self.__initial_visit["file.name"],
+            acq_id=self.__initial_visit["file.parents.acquisition"],
+        )
+
+        if self.__check_nonempty(ignore_empty_fields, visit_data):
+            return visit_data
+
+        log.warning("Initial visit has non-empty values for %s", ignore_empty_fields)
         return None
 
     def is_valid_rxcui(self, drugid: int) -> bool:
