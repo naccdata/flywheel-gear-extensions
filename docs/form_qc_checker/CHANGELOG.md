@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.6.0
+
+* Updates `nacc-form-validator` to `1.6.0` and defines the new `get_initial_record` Datastore method
 * Updates error metadata to include date and naccid
 
 ## 1.5.4
