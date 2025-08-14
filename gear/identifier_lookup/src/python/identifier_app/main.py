@@ -311,7 +311,7 @@ class CenterLookupVisitor(CSVVisitor):
 
         try:
             identifier = self.__identifiers_repo.get(naccid=naccid)
-        except IdentifierRepositoryError as error:
+        except (IdentifierRepositoryError, TypeError) as error:
             raise GearExecutionError(f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
