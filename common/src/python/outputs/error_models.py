@@ -1,30 +1,62 @@
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
 from keys.keys import FieldNames
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
-class FileQCVisitor:
+class QCVisitor(ABC):
+    """Abstract base class for QC visitors."""
+
+    @abstractmethod
     def visit_file_model(self, file_model: "FileQCModel") -> None:
-        for gear_model in file_model.qc.values():
-            gear_model.apply(self)
+        """Applies this visitor to the file model.
 
+        Args:
+          file_model: the model to visit
+        """
+
+    @abstractmethod
     def visit_gear_model(self, gear_model: "GearQCModel") -> None:
-        gear_model.validation.apply(self)
+        """Applies this method to the gear model.
 
+        Args:
+          gear_model: the model to visit
+        """
+
+    @abstractmethod
     def visit_validation_model(self, validation_model: "ValidationModel") -> None:
-        pass
+        """Applies this visitor to the validation model.
 
+        Args:
+          validation_model: the model to visit
+        """
+
+    @abstractmethod
     def visit_file_error(self, file_error: "FileError") -> None:
-        pass
+        """Applies this visitor to the file error model.
 
+        Args:
+          file_error: the model to visit
+        """
+
+    @abstractmethod
     def visit_cleared_alert(self, cleared_alert: "ClearedAlertModel") -> None:
-        pass
+        """Applies this visitor to the cleared alert model.
 
+        Args:
+          cleared_aler: the model to visit
+        """
+
+    @abstractmethod
     def visit_alert_provenance(
         self, alert_provenance: "ClearedAlertProvenance"
     ) -> None:
-        pass
+        """Applies this visitor to the cleared alert provenance model.
+
+        Args:
+          alert_provenance: the model to visit
+        """
 
 
 class CSVLocation(BaseModel):
@@ -91,7 +123,7 @@ class FileError(BaseModel):
                 result.append(fieldname)
         return result
 
-    def apply(self, visitor: FileQCVisitor) -> None:
+    def apply(self, visitor: QCVisitor) -> None:
         visitor.visit_file_error(self)
 
 
@@ -133,7 +165,7 @@ class ClearedAlertProvenance(BaseModel):
     clear_set_to: bool = Field(alias="clearSetTo")
     timestamp: str
 
-    def apply(self, visitor: FileQCVisitor) -> None:
+    def apply(self, visitor: QCVisitor) -> None:
         visitor.visit_alert_provenance(self)
 
 
@@ -145,7 +177,7 @@ class ClearedAlertModel(BaseModel):
     provenance: List[ClearedAlertProvenance]
     alert_hash: str = Field(alias="alertHash")
 
-    def apply(self, visitor: FileQCVisitor) -> None:
+    def apply(self, visitor: QCVisitor) -> None:
         visitor.visit_cleared_alert(self)
 
 
@@ -162,7 +194,7 @@ class ValidationModel(BaseModel):
     def extend(self, errors: List[FileError]) -> None:
         self.data.extend(errors)
 
-    def apply(self, visitor: FileQCVisitor) -> None:
+    def apply(self, visitor: QCVisitor) -> None:
         visitor.visit_validation_model(self)
 
 
@@ -186,7 +218,7 @@ class GearQCModel(BaseModel):
     def set_status(self, state: QCStatus) -> None:
         self.validation.state = state
 
-    def apply(self, visitor: FileQCVisitor):
+    def apply(self, visitor: QCVisitor):
         visitor.visit_gear_model(self)
 
 
@@ -247,5 +279,5 @@ class FileQCModel(BaseModel):
         gear_model.set_errors(errors)
         gear_model.set_status(status)
 
-    def apply(self, visitor: FileQCVisitor):
+    def apply(self, visitor: QCVisitor):
         visitor.visit_file_model(self)
