@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.4.6
 * Updates error metadata to include date and naccid
   
 ## 1.4.5

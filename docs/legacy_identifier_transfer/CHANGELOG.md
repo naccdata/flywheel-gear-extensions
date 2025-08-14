@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Updates to use new identifier lambda functions with restructured identifiers database
+  
 ## 1.1.6
 * Rebuilding to call identifier lambda function alias depending on request mode
   
