@@ -257,8 +257,8 @@ class DatastoreHelper(Datastore):
         return initial_visit[0]
 
     def get_previous_record(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+            self, current_record: Dict[str, Any]
+        ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the previous visit record for
         the specified participant.
 
@@ -281,8 +281,8 @@ class DatastoreHelper(Datastore):
 
     def __check_nonempty(
         self,
-        ignore_empty_fields: List[str],
-        visit_data: Optional[Dict[str, Any]],
+        ignore_empty_fields: Optional[List[str]] = None,
+        visit_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Returns whether all specified fields are not empty in visit_data.
 
@@ -290,6 +290,9 @@ class DatastoreHelper(Datastore):
             ignore_empty_fields: Field(s) to check for blanks
             visit_data: Record to check
         """
+        if not ignore_empty_fields:
+            return True
+
         if not visit_data:
             return False
 
@@ -326,7 +329,9 @@ class DatastoreHelper(Datastore):
         return None
 
     def get_initial_record(
-        self, current_record: Dict[str, Any], ignore_empty_fields: List[str]
+        self,
+        current_record: Dict[str, Any],
+        ignore_empty_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the initial visit record for the
         specified participant if non-empty.
