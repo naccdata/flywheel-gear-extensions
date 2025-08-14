@@ -24,7 +24,7 @@ class QCReportBaseModel(BaseModel):
     gear: str
 
 
-class FileQCVisitor(QCVisitor):
+class FileQCReportVisitor(QCVisitor):
     """Base implementation of the QCVisitor abstract base class."""
 
     def __init__(self) -> None:
@@ -100,7 +100,7 @@ class FileQCVisitor(QCVisitor):
 ValidationTransformer = Callable[[str, ValidationModel], QCReportBaseModel]
 
 
-class StatusVisitor(FileQCVisitor):
+class StatusReportVisitor(FileQCReportVisitor):
     """Defines a QC reporting visitor for gathering submission status report
     for a file."""
 
@@ -137,7 +137,7 @@ class StatusVisitor(FileQCVisitor):
 ErrorTransformer = Callable[[str, FileError], QCReportBaseModel]
 
 
-class ErrorVisitor(FileQCVisitor):
+class ErrorReportVisitor(FileQCReportVisitor):
     """Defines a QC reporting visitor for gathering error report for a file."""
 
     def __init__(self, transformer: ErrorTransformer) -> None:
