@@ -45,7 +45,7 @@ class QCVisitor(ABC):
         """Applies this visitor to the cleared alert model.
 
         Args:
-          cleared_aler: the model to visit
+          cleared_alert: the model to visit
         """
 
     @abstractmethod
