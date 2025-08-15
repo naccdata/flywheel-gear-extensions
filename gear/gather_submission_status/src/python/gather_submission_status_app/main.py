@@ -102,9 +102,8 @@ class RequestClusteringVisitor(CSVVisitor):
                 pattern = project if study_id == "adrc" else f"{project}-{study_id}"
                 matching_projects = center.get_matching_projects(pattern)
                 if matching_projects:
-                    project_list = self.project_map.get(center.label, [])
-                    project_list.extend(matching_projects)
-                    self.project_map[center.label] = project_list
+                    projects.extend(matching_projects)
+            self.project_map[center.label] = projects
 
         return projects
 
