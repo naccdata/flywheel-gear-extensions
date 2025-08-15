@@ -9,7 +9,7 @@ This gear takes a CSV file containing a list of participants and generates a CSV
 The input file should have the following columns:
 
 - `adcid`: the ADCID for the center where the participant data is collected. An integer.
-- `naccid`: the NACCID for the participant. A string.
+- `ptid`: the center assigned participant ID for the participant. A string.
 - `study`: the name of the study in lowercase. A string
 
 The "study" should be the study for which the data was collected.
@@ -19,9 +19,9 @@ If the participant is co-enrolled and the data was collected for the ADRC clinic
 So, an input file would look like
 
 ```csv
-"adcid","naccid","study"
-0,"NACC000000","adrc"
-0,"NACC000001","dvcid"
+"adcid","ptid","study"
+0,"123456","adrc"
+0,"654321","dvcid"
 ```
 
 ## Gear config
@@ -47,10 +47,9 @@ The gear manifest config includes the following parameters:
 
 The output file contains a row for each file that the participant has
 
-- `filename`: the name of the file
-- `file_id`: the Flywheel file ID
+- `gear`: the name of the processing stage
 - `module`: the form module
-- `naccid`: the NACCID
-- `modified_date`: the date the file was last modified
+- `ptid`: the Flywheel file ID
+- `status`: the NACCID
 - `visit_date`: the visit date from the file
-- `qc_status`: indicates pass/fail status of QC checks
+
