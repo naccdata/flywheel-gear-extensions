@@ -1,8 +1,14 @@
 """Defines QCVisitor classes for creating reports from QC data."""
 
+import logging
+import re
+from collections.abc import Set
+from csv import DictWriter
 from typing import Callable, List, Optional
 
-from pydantic import BaseModel
+from flywheel.models.file_entry import FileEntry
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from pydantic import BaseModel, ValidationError
 
 from outputs.error_models import (
     ClearedAlertModel,
@@ -12,7 +18,10 @@ from outputs.error_models import (
     GearQCModel,
     QCVisitor,
     ValidationModel,
+    VisitKeys,
 )
+
+log = logging.getLogger(__name__)
 
 
 class QCReportBaseModel(BaseModel):
@@ -24,10 +33,37 @@ class QCReportBaseModel(BaseModel):
     gear: str
 
 
+ValidationTransformer = Callable[[str, VisitKeys, ValidationModel], QCReportBaseModel]
+ErrorTransformer = Callable[[str, VisitKeys, FileError], QCReportBaseModel]
+
+
+class QCTransformerError(Exception):
+    """Error for transformers."""
+
+
 class FileQCReportVisitor(QCVisitor):
-    """Base implementation of the QCVisitor abstract base class."""
+    """Base implementation of the QCVisitor abstract base class.
+
+    The entrypoint for this visitor is the visit_file_model() method, applied
+    to the FileQCModel derived from the file.info.qc of a qc-status log file.
+    But is meant to be used for several files by calling `set_visit()` with the
+    visit keys derived from the log file name before applying the visitor to the
+    file qc model.
+    This pattern is shown here
+
+    ```
+    file_visitor.set_visit(visit_keys)
+    qc_model.apply(file_visitor)
+    ```
+
+    and is implemented in `ProjectReportVisitor.visit_file()`.
+
+    This visitor stores a VisitKeys object for the visit associated with the
+    file, and the gear name for the gear model being visited.
+    """
 
     def __init__(self) -> None:
+        self.__visit_details: Optional[VisitKeys] = None
         self.__gear_name: Optional[str] = None
         self.__table: List[QCReportBaseModel] = []
 
@@ -52,6 +88,11 @@ class FileQCReportVisitor(QCVisitor):
         """
         return self.__table
 
+    @property
+    def visit_details(self) -> Optional[VisitKeys]:
+        """Returns the details for the visit associated with the file."""
+        return self.__visit_details
+
     def add(self, item: QCReportBaseModel) -> None:
         """Appends a report object to the table.
 
@@ -59,6 +100,14 @@ class FileQCReportVisitor(QCVisitor):
           item: the report object
         """
         self.__table.append(item)
+
+    def clear(self) -> None:
+        """Clears the table in this visitor."""
+        self.__table = []
+
+    def set_visit(self, visit: VisitKeys) -> None:
+        self.clear()
+        self.__visit_details = visit
 
     def visit_file_model(self, file_model: FileQCModel) -> None:
         """Defines visit for a file model.
@@ -97,12 +146,14 @@ class FileQCReportVisitor(QCVisitor):
         pass
 
 
-ValidationTransformer = Callable[[str, ValidationModel], QCReportBaseModel]
-
-
 class StatusReportVisitor(FileQCReportVisitor):
     """Defines a QC reporting visitor for gathering submission status report
-    for a file."""
+    for a file.
+
+    To use this class, define an extension of QCReportBaseModel, and a
+    function (or other Callable) that matches the ValidationTransformer
+    type and maps to  the report model.
+    """
 
     def __init__(self, transformer: ValidationTransformer) -> None:
         """Initializes a status visitor.
@@ -126,19 +177,25 @@ class StatusReportVisitor(FileQCReportVisitor):
         Args:
           validation_model: the model to visit
         """
+        if self.visit_details is None:
+            return
         if validation_model.state is None:
             return
         if self.gear_name is None:
             return
 
-        self.add(self.__transformer(self.gear_name, validation_model))
-
-
-ErrorTransformer = Callable[[str, FileError], QCReportBaseModel]
+        self.add(
+            self.__transformer(self.gear_name, self.visit_details, validation_model)
+        )
 
 
 class ErrorReportVisitor(FileQCReportVisitor):
-    """Defines a QC reporting visitor for gathering error report for a file."""
+    """Defines a QC reporting visitor for gathering error report for a file.
+
+    To use this class, define an extension of QCReportBaseModel, and a
+    function (or other Callable) that matches the ErrorTransformer type
+    and maps to  the report model.
+    """
 
     def __init__(self, transformer: ErrorTransformer) -> None:
         """Initializes an error visitor.
@@ -180,5 +237,112 @@ class ErrorReportVisitor(FileQCReportVisitor):
         """
         if self.gear_name is None:
             return
+        if self.visit_details is None:
+            return
 
-        self.add(self.__transformer(self.gear_name, file_error))
+        self.add(self.__transformer(self.gear_name, self.visit_details, file_error))
+
+
+class ProjectReportVisitor:
+    """Defines a partial hierarchy visitor for gathering submission status data
+    from a project.
+
+    Applies the file_visitor to qc-status log files in a project to
+    gather report objects. Report objects are written to the DictWriter.
+    """
+
+    def __init__(
+        self,
+        modules: Set[str],
+        ptid_set: Set[str],
+        file_visitor: FileQCReportVisitor,
+        writer: DictWriter,
+    ) -> None:
+        self.__writer = writer
+        self.__modules = modules
+        self.__ptid_set = ptid_set
+        self.__file_visitor = file_visitor
+        pattern = r"^([!-~]{1,10})_(\d{4}-\d{2}-\d{2})_(\w+)_qc-status.log$"
+        self.__matcher = re.compile(pattern)
+
+    def __get_visit_key(self, filename: str) -> Optional[VisitKeys]:
+        """Returns a VisitKeys object with ptid, module and visit date set
+        extracted from a qc-status log filename.
+
+        Additionally, checks that ptid and module correspond to those in this
+        visitor.
+
+        Args:
+          filename: the filename
+        Returns:
+          the visit keys object with values set if filename matches the log
+          filename pattern.
+          None, otherwise.
+        """
+        match = self.__matcher.match(filename)
+        if not match:
+            return None
+
+        ptid = match.group(1)
+        if ptid not in self.__ptid_set:
+            return None
+
+        module = match.group(3)
+        if module not in self.__modules:
+            return None
+
+        visitdate = match.group(2)
+
+        return VisitKeys(ptid=ptid, date=visitdate, module=module)
+
+    def visit_file(self, file: FileEntry) -> None:
+        """Applies the file visitor to a qc-status log file with matching ptid
+        and module, and writes the gathered report objects using the writer.
+
+        Args:
+          file: the file entry
+        """
+        visit = self.__get_visit_key(file.name)
+        if visit is None:
+            return
+        if visit.ptid is None:
+            return
+        if visit.module is None:
+            return
+        if visit.date is None:
+            return
+
+        if file.info.get("qc", None) is None:
+            return
+
+        try:
+            qc_model = FileQCModel.model_validate(file.info)
+        except ValidationError as error:
+            log.warning("Failed to load QC data for %s: %s", file.name, error)
+            return
+
+        self.__file_visitor.set_visit(visit)
+        try:
+            qc_model.apply(self.__file_visitor)
+        except QCTransformerError as error:
+            log.error(
+                "Unexpected QC transformation error for file %s: %s", file.name, error
+            )
+            return
+
+        for item in self.__file_visitor.table:
+            self.__writer.writerow(item.model_dump())
+
+    def visit_project(self, project: ProjectAdaptor) -> None:
+        """Applies the file_visitor to qc-status log files in the project.
+
+        Args:
+          project: the project
+        """
+        for file in project.files:
+            if not self.__matcher.match(file.name):
+                continue
+            if not file.info.get("qc"):
+                continue
+
+            self.visit_file(file)
