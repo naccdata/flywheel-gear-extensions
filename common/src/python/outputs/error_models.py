@@ -79,6 +79,7 @@ class JSONLocation(BaseModel):
 class VisitKeys(BaseModel):
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
+    module: Optional[str] = None
     date: Optional[str] = None
     naccid: Optional[str] = None
 
@@ -89,6 +90,7 @@ class VisitKeys(BaseModel):
             visitnum=record.get(FieldNames.VISITNUM),
             date=record.get(date_field),
             naccid=record.get(FieldNames.NACCID),
+            module=record.get(FieldNames.MODULE),
         )
 
 
