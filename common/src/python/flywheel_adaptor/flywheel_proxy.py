@@ -1070,7 +1070,7 @@ class ProjectAdaptor:
         """The list of files associated with this project."""
         return self._project.files
 
-    def get_file(self, name: str) -> FileEntry:
+    def get_file(self, name: str) -> Optional[FileEntry]:
         """Gets the file from the enclosed project.
 
         Args:
