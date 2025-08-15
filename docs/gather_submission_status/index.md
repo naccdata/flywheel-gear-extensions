@@ -47,7 +47,7 @@ The gear manifest config includes the following parameters:
 
 The output file contains a row for each file that the participant has
 
-- `gear`: the name of the processing stage
+- `stage`: the name of the processing stage
 - `module`: the form module
 - `ptid`: the Flywheel file ID
 - `status`: the NACCID
