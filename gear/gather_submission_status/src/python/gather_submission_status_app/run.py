@@ -15,8 +15,13 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from outputs.error_writer import ListErrorWriter
+from outputs.qc_report import FileQCReportVisitor, StatusReportVisitor
 
 from gather_submission_status_app.main import ModuleName, run
+from gather_submission_status_app.visit_submission_status import (
+    StatusReportModel,
+    status_transformer,
+)
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +39,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         project_names: List[str],
         modules: List[ModuleName],
         study_id: str,
+        file_visitor: FileQCReportVisitor,
+        fieldnames: List[str],
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -43,6 +50,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__project_names = project_names
         self.__modules = modules
         self.__study_id = study_id
+        self.__file_visitor = file_visitor
+        self.__report_fieldnames = fieldnames
 
     @classmethod
     def create(
@@ -77,6 +86,10 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
         study_id = context.config.get("study_id", "adrc")
         gear_name = context.manifest.get("name", "gather-submission-status")
+
+        file_visitor = StatusReportVisitor(status_transformer)
+        fieldnames = list(StatusReportModel.model_fields.keys())
+
         return GatherSubmissionStatusVisitor(
             client=client,
             file_input=file_input,
@@ -86,6 +99,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             project_names=project_names,
             modules=[module for module in get_args(ModuleName) if module in modules],
             study_id=study_id,
+            file_visitor=file_visitor,
+            fieldnames=fieldnames,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -108,12 +123,13 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 self.__output_filename, mode="w", encoding="utf-8"
             ) as status_file:
                 success = run(
-                    proxy=self.proxy,
                     input_file=csv_file,
                     admin_group=admin_group,
                     project_names=self.__project_names,
                     modules=self.__modules,
                     study_id=self.__study_id,
+                    file_visitor=self.__file_visitor,
+                    report_fieldnames=self.__report_fieldnames,
                     error_writer=error_writer,
                     output_file=status_file,
                 )
