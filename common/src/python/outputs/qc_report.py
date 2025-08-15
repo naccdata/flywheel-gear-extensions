@@ -27,10 +27,10 @@ log = logging.getLogger(__name__)
 class QCReportBaseModel(BaseModel):
     """Base model for QC reports.
 
-    Includes the gear name.
+    Includes the gear name as the pipeline stage
     """
 
-    gear: str
+    stage: str
 
 
 ValidationTransformer = Callable[[str, VisitKeys, ValidationModel], QCReportBaseModel]
