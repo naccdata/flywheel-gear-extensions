@@ -44,6 +44,6 @@ def status_transformer(
         ptid=visit.ptid,
         module=visit.module,
         visitdate=visit.date,
-        gear=gear_name,
+        stage=gear_name,
         status=validation_model.state,
     )

@@ -24,7 +24,7 @@ def test_transformer():
         assert validation_model.state, "expect validation state to be set"
         assert visit.ptid, "expect visit ptid to be set"
         return StatusReportTestModel(
-            gear=gear_name, ptid=visit.ptid, status=validation_model.state
+            stage=gear_name, ptid=visit.ptid, status=validation_model.state
         )
 
     return transformer
@@ -60,6 +60,6 @@ class TestStatusVisitor:
         qc_model.apply(visitor)
 
         assert visitor.table == [
-            StatusReportTestModel(gear="one", ptid="dummy", status="FAIL"),
-            StatusReportTestModel(gear="two", ptid="dummy", status="PASS"),
+            StatusReportTestModel(stage="one", ptid="dummy", status="FAIL"),
+            StatusReportTestModel(stage="two", ptid="dummy", status="PASS"),
         ]
