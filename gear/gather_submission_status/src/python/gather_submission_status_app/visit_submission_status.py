@@ -1,4 +1,5 @@
 """Definitions for status reports."""
+
 from typing import Optional
 
 from outputs.error_models import QCStatus, ValidationModel, VisitKeys
@@ -9,7 +10,8 @@ from outputs.qc_report import (
 
 
 class StatusReportModel(QCReportBaseModel):
-    """Data model for status reports"""
+    """Data model for status reports."""
+
     ptid: str
     module: str
     visitdate: str

@@ -17,7 +17,9 @@ from pydantic import field_validator
 class MockFile(FileEntry):
     """Pydantic to mock a Flywheel file object."""
 
-    def __init__(self, name: str, info: Optional[Dict[str, Any]] = None, contents: str = "") -> None:
+    def __init__(
+        self, name: str, info: Optional[Dict[str, Any]] = None, contents: str = ""
+    ) -> None:
         info = info if info else {}
         super().__init__(name=name, info=info)
         self.contents = contents
