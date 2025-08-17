@@ -77,6 +77,7 @@ class JSONLocation(BaseModel):
 
 
 class VisitKeys(BaseModel):
+    adcid: Optional[str] = None
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
     module: Optional[str] = None
@@ -86,6 +87,7 @@ class VisitKeys(BaseModel):
     @classmethod
     def create_from(cls, record: Dict[str, Any], date_field: str) -> "VisitKeys":
         return VisitKeys(
+            adcid=record.get(FieldNames.ADCID),
             ptid=record.get(FieldNames.PTID),
             visitnum=record.get(FieldNames.VISITNUM),
             date=record.get(date_field),
