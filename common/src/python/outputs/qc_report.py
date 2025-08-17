@@ -305,6 +305,7 @@ class ProjectReportVisitor:
         visit = self.__get_visit_key(file.name)
         if visit is None:
             return
+
         if visit.ptid is None:
             return
         if visit.module is None:
