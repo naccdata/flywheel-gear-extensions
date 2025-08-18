@@ -253,11 +253,13 @@ class ProjectReportVisitor:
 
     def __init__(
         self,
+        adcid: int,
         modules: Set[str],
         ptid_set: Set[str],
         file_visitor: FileQCReportVisitor,
         writer: DictWriter,
     ) -> None:
+        self.__adcid = adcid
         self.__writer = writer
         self.__modules = modules
         self.__ptid_set = ptid_set
@@ -322,6 +324,7 @@ class ProjectReportVisitor:
             log.warning("Failed to load QC data for %s: %s", file.name, error)
             return
 
+        visit.adcid = self.__adcid
         self.__file_visitor.set_visit(visit)
         try:
             qc_model.apply(self.__file_visitor)
