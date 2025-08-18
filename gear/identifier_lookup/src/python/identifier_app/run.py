@@ -42,12 +42,13 @@ log = logging.getLogger(__name__)
 def get_identifiers(
     identifiers_repo: IdentifierRepository, adcid: int
 ) -> Dict[str, IdentifierObject]:
-    """Gets all of the Identifier objects from the identifier database using
-    the RDSParameters.
+    """Gets all of the Identifier objects from the identifier database for the
+    specified center.
 
     Args:
-      rds_parameters: the credentials for RDS MySQL with identifiers database
-      adcid: the center ID
+      identifiers_repo: identifiers repository
+      adcid: the ADCID for the center
+
     Returns:
       the dictionary mapping from PTID to Identifier object
     """
@@ -171,7 +172,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             identifiers = get_identifiers(
                 identifiers_repo=identifiers_repo, adcid=adcid
             )
-        except IdentifierRepositoryError as error:
+        except (IdentifierRepositoryError, TypeError) as error:
             raise GearExecutionError(error) from error
 
         if not identifiers:

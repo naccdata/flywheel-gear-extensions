@@ -189,6 +189,7 @@ class TransferVisitor(CSVVisitor):
         Args:
           row: the dictionary for the input row
           line_num: the line number of the row
+
         Returns:
           True if the rows has no expected NACCID, or the NACCID in the row
           exists. False otherwise.
@@ -209,21 +210,28 @@ class TransferVisitor(CSVVisitor):
             )
             return False
 
-        self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
-        if self.__naccid_identifier:
-            return True
+        try:
+            self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
+
+            if self.__naccid_identifier:
+                return True
+
+            message = f"Did not find an active participant for NACCID {self.__naccid}"
+        except (IdentifierRepositoryError, TypeError) as error:
+            message = f"Error in looking up NACCID {self.__naccid}: {error}"
 
         self.__error_writer.write(
             identifier_error(
                 field=FieldNames.NACCID,
                 value=self.__naccid,
                 line=line_num,
-                message=f"Did not find participant for NACCID {self.__naccid}",
+                message=message,
                 visit_keys=VisitKeys.create_from(
                     record=row, date_field=FieldNames.ENRLFRM_DATE
                 ),
             )
         )
+
         return False
 
     def _match_naccid(self, identifier, source, line_num: int) -> bool:
@@ -272,21 +280,35 @@ class TransferVisitor(CSVVisitor):
         if not guid_available(row):
             return True
 
-        guid_identifier = self.__repo.get(guid=row[FieldNames.GUID])
+        guid = row[FieldNames.GUID]
+        try:
+            guid_identifier = self.__repo.get(guid=guid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.GUID,
+                    value=guid,
+                    line=line_num,
+                    message=f"Error in looking up Identifier for GUID {guid}: {error}",
+                )
+            )
+            return False
+
         if not guid_identifier:
             self.__error_writer.write(
                 identifier_error(
                     field=FieldNames.GUID,
-                    value=row[FieldNames.GUID],
+                    value=guid,
                     line=line_num,
-                    message=f"No NACCID found for GUID {row[FieldNames.GUID]}",
+                    message=f"No active Identifier found for GUID {guid}",
                     visit_keys=VisitKeys.create_from(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
             )
             return False
-        if not self._match_naccid(guid_identifier, row[FieldNames.GUID], line_num):
+
+        if not self._match_naccid(guid_identifier, guid, line_num):
             return False
 
         self.__naccid_identifier = guid_identifier
@@ -326,7 +348,21 @@ class TransferVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(FieldNames.OLDPTID, line_num))
             return False
 
-        ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+        try:
+            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    value=previous_ptid,
+                    line=line_num,
+                    message=(
+                        f"Error in looking up NACCID for ADCID {previous_adcid}, "
+                        f"PTID {previous_ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
         if not ptid_identifier:
             self.__error_writer.write(
                 identifier_error(

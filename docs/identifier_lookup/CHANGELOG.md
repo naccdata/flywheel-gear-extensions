@@ -2,8 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.3.0
+* Updates to use new identifier lambda functions with restructured identifiers database
 * Updates error metadata to include date and naccid
+  
+## 1.2.3
+* Rebuilding to call identifier lambda function alias depending on request mode
   
 ## 1.2.2
 * Rebuilding for API call retries

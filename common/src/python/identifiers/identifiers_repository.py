@@ -84,23 +84,31 @@ class IdentifierRepository(abc.ABC):
 
     @abstractmethod
     @overload
-    def list(self, adcid: int) -> List[IdentifierObject]: ...
+    def list(self, *, naccid: str) -> List[IdentifierObject]: ...
+
+    @abstractmethod
+    @overload
+    def list(self, *, adcid: int) -> List[IdentifierObject]: ...
 
     @abstractmethod
     @overload
     def list(self) -> List[IdentifierObject]: ...
 
     @abstractmethod
-    def list(self, adcid: Optional[int] = None) -> List[IdentifierObject]:
+    def list(
+        self, *, adcid: Optional[int] = None, naccid: Optional[str] = None
+    ) -> List[IdentifierObject]:
         """Returns the list of all identifiers in the repository.
 
         If an ADCID is given filters identifiers by the center.
+        If an NACCID is given returns identifiers for that NACCID.
 
         Args:
           adcid: the ADCID used for filtering
+          naccid: the NACCID used for filtering
 
         Returns:
-          List of all identifiers in the repository
+          List of all identifiers in the repository or ones matching with filters
         """
 
 
