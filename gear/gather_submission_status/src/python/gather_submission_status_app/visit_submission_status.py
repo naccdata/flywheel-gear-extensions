@@ -12,7 +12,7 @@ from outputs.qc_report import (
 class StatusReportModel(QCReportBaseModel):
     """Data model for status reports."""
 
-    adcid: str
+    adcid: int
     ptid: str
     module: str
     visitdate: str
