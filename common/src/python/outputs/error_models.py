@@ -77,7 +77,7 @@ class JSONLocation(BaseModel):
 
 
 class VisitKeys(BaseModel):
-    adcid: Optional[str] = None
+    adcid: Optional[int] = None
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
     module: Optional[str] = None
