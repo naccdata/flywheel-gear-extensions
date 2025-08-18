@@ -207,9 +207,11 @@ def run(
             log.warning("No participants found for center %s", center_label)
             continue
         ptid_set = {request.ptid for request in request_list}
+        request_adcid = request_list[0].adcid  # all requests have same adcid
 
         for project in project_list:
             project_visitor = ProjectReportVisitor(
+                adcid=request_adcid,
                 modules=set(modules),
                 ptid_set=ptid_set,
                 file_visitor=file_visitor,
