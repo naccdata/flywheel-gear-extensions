@@ -202,10 +202,15 @@ def run(
 
     project_map = clustering.project_map
     for center_label, project_list in project_map.items():
+        if not project_list:
+            log.warning("No projects found for center %s participants", center_label)
+            continue
+
         request_list = clustering.request_map.get(center_label)
         if not request_list:
             log.warning("No participants found for center %s", center_label)
             continue
+
         ptid_set = {request.ptid for request in request_list}
         request_adcid = request_list[0].adcid  # all requests have same adcid
 
