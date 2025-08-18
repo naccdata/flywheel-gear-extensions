@@ -88,7 +88,7 @@ class TestCenterInfo:
     def test_repr(self, dummy_center):
         """Test representation."""
         assert repr(dummy_center) == (
-            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True"
+            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True, tags=None"
         )
 
 

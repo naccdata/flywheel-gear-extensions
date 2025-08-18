@@ -1190,10 +1190,14 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             log.info("Dry Run: %s", log_message)
             return True
+        try:
+            self._project.update_permission(
+                role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
+            )
+        except ApiException as error:
+            log.error("Failed to add user role to project: %s", error)
+            return False
 
-        self._project.update_permission(
-            role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
-        )
         self.__pull_project()
         return True
 
