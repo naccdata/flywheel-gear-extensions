@@ -12,6 +12,7 @@ from outputs.qc_report import (
 class StatusReportModel(QCReportBaseModel):
     """Data model for status reports."""
 
+    adcid: str
     ptid: str
     module: str
     visitdate: str
@@ -37,10 +38,16 @@ def status_transformer(
     Raises:
       QCTransformerError if the visit ptid, module and date are not set
     """
-    if visit.ptid is None or visit.module is None or visit.date is None:
+    if (
+        visit.adcid is None
+        or visit.ptid is None
+        or visit.module is None
+        or visit.date is None
+    ):
         raise QCTransformerError("Cannot generate status incomplete visit details")
 
     return StatusReportModel(
+        adcid=visit.adcid,
         ptid=visit.ptid,
         module=visit.module,
         visitdate=visit.date,
