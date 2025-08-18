@@ -119,7 +119,7 @@ This is done with `inputs.parameter_store.get_parameter_store()`.
 The Dockerfile sets up the Gear's working environment
 
    ```docker
-   FROM python:3.10
+   FROM python:3.11
 
    ENV BASE_DIR=/flywheel/v0
    RUN mkdir -p ${BASE_DIR}/input
