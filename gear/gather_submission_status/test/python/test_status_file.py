@@ -1,7 +1,7 @@
 from csv import DictReader, DictWriter
 from io import StringIO
 
-from gather_submission_status_app.main import StatusRequest
+from gather_submission_status_app.status_request import StatusRequest
 
 
 class TestSubmissionStatus:
