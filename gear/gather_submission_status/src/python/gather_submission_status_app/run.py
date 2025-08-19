@@ -1,6 +1,7 @@
 """Entry script for Gather Submission Status."""
 
 import logging
+from csv import DictWriter
 from pathlib import Path
 from typing import List, Optional, get_args
 
@@ -18,6 +19,7 @@ from outputs.error_writer import ListErrorWriter
 from outputs.qc_report import FileQCReportVisitor, StatusReportVisitor
 
 from gather_submission_status_app.main import ModuleName, run
+from gather_submission_status_app.status_request import RequestClusteringVisitor
 from gather_submission_status_app.visit_submission_status import (
     StatusReportModel,
     status_transformer,
@@ -37,7 +39,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename: str,
         gear_name: str,
         project_names: List[str],
-        modules: List[ModuleName],
+        modules: set[ModuleName],
         study_id: str,
         file_visitor: FileQCReportVisitor,
         fieldnames: List[str],
@@ -97,7 +99,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
-            modules=[module for module in get_args(ModuleName) if module in modules],
+            modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
             file_visitor=file_visitor,
             fieldnames=fieldnames,
@@ -119,19 +121,24 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             )
 
             admin_group = self.admin_group(admin_id=self.__admin_id)
+            clustering = RequestClusteringVisitor(
+                admin_group=admin_group,
+                study_id=self.__study_id,
+                project_names=self.__project_names,
+                error_writer=error_writer,
+            )
             with context.open_output(
                 self.__output_filename, mode="w", encoding="utf-8"
             ) as status_file:
+                writer = DictWriter(status_file, fieldnames=self.__report_fieldnames)
+                writer.writeheader()
                 success = run(
                     input_file=csv_file,
-                    admin_group=admin_group,
-                    project_names=self.__project_names,
                     modules=self.__modules,
-                    study_id=self.__study_id,
+                    clustering_visitor=clustering,
                     file_visitor=self.__file_visitor,
-                    report_fieldnames=self.__report_fieldnames,
+                    writer=writer,
                     error_writer=error_writer,
-                    output_file=status_file,
                 )
 
             context.metadata.add_qc_result(
