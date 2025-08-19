@@ -2,12 +2,12 @@
 
 import logging
 import re
-from collections.abc import Set
 from csv import DictWriter
 from typing import Callable, List, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from keys.types import ModuleName
 from pydantic import BaseModel, ValidationError
 
 from outputs.error_models import (
@@ -254,8 +254,8 @@ class ProjectReportVisitor:
     def __init__(
         self,
         adcid: int,
-        modules: Set[str],
-        ptid_set: Set[str],
+        modules: set[ModuleName],
+        ptid_set: set[str],
         file_visitor: FileQCReportVisitor,
         writer: DictWriter,
     ) -> None:
@@ -289,8 +289,8 @@ class ProjectReportVisitor:
         if ptid not in self.__ptid_set:
             return None
 
-        module = match.group(3)
-        if module not in self.__modules:
+        module = match.group(3).upper()
+        if module.upper() not in self.__modules:
             return None
 
         visitdate = match.group(2)
@@ -309,14 +309,16 @@ class ProjectReportVisitor:
             return
 
         if visit.ptid is None:
+            log.warning("No visit PTID for %s", file.name)
             return
         if visit.module is None:
+            log.warning("No visit module for %s", file.name)
             return
         if visit.date is None:
+            log.warning("No visit date for file %s", file.name)
             return
 
-        if file.info.get("qc", None) is None:
-            return
+        file = file.reload()
 
         try:
             qc_model = FileQCModel.model_validate(file.info)
@@ -346,7 +348,10 @@ class ProjectReportVisitor:
         for file in project.files:
             if not self.__matcher.match(file.name):
                 continue
+
+            file = file.reload()
             if not file.info.get("qc"):
+                log.warning("file does not have qc: %s", file.name)
                 continue
 
             self.visit_file(file)
