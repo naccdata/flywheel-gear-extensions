@@ -6,7 +6,7 @@ Should be used when starting from centers already created using
 
 import logging
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, overload
 
 import flywheel
 from flywheel.models.group import Group
@@ -175,43 +175,62 @@ class CenterGroup(CenterAdaptor):
         """Indicates whether the center is active."""
         return self.__is_active
 
-    def get_matching_projects(self, prefix: str) -> List[ProjectAdaptor]:
+    @overload
+    def get_matching_projects(self, *, prefix: str) -> List[ProjectAdaptor]:
         """Returns the projects for the center with labels that match the
         prefix.
+
+        Args:
+          prefix: the prefix to match
 
         Returns:
           the list of matching projects for the group
         """
-        pattern = re.compile(rf"^{prefix}")
+        ...
+
+    @overload
+    def get_matching_projects(self, *, pattern: str) -> List[ProjectAdaptor]:
+        """Returns the projects for the center with labels that match the full
+        pattern.
+
+        Args:
+          pattern: the pattern to match
+
+        Returns:
+          the list of matching projects for the group
+        """
+        ...
+
+    def get_matching_projects(
+        self, *, prefix: Optional[str] = None, pattern: Optional[str] = None
+    ) -> List[ProjectAdaptor]:
+        """Returns the projects for the center with labels that match whichever
+        of the prefix or pattern that is set.
+
+        Args:
+          prefix: the project name prefix to match
+          pattern: the project name pattern to match
+        Returns:
+          the list of matching projects for the group
+        Raises:
+          TypeError if both arguments are None
+        """
+        if prefix is None and pattern is None:
+            raise TypeError("Pattern must not be null")
+
+        if prefix is not None:
+            if pattern is not None:
+                raise TypeError("Only one pattern argument may be set")
+            project_pattern = re.compile(rf"^{prefix}")
+
+        if pattern is not None:
+            project_pattern = re.compile(rf"^{pattern}$")
+
         return [
             ProjectAdaptor(project=project, proxy=self.proxy())
             for project in self.projects()
-            if pattern.match(project.label)
+            if project_pattern.match(project.label)
         ]
-
-    def get_ingest_projects(self) -> List[ProjectAdaptor]:
-        """Returns the ingest projects for the center.
-
-        Returns:
-          the list of ingest projects
-        """
-        projects: List[ProjectAdaptor] = []
-        for stage in self.__ingest_stages:
-            projects = projects + self.get_matching_projects(f"{stage}-")
-
-        return projects
-
-    def get_accepted_project(self) -> Optional[ProjectAdaptor]:
-        """Returns the accepted project for this center.
-
-        Returns:
-          the project labeled 'accepted', None if there is none
-        """
-        projects = self.get_matching_projects("accepted")
-        if not projects:
-            return None
-
-        return projects[0]
 
     @classmethod
     def get_datatype(cls, *, stage: str, label: str) -> Optional[str]:
@@ -243,7 +262,7 @@ class CenterGroup(CenterAdaptor):
 
         datatypes = []
         for stage in self.__ingest_stages:
-            projects = self.get_matching_projects(f"{stage}-")
+            projects = self.get_matching_projects(prefix=f"{stage}-")
             for project in projects:
                 datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
                 if datatype:
@@ -253,7 +272,7 @@ class CenterGroup(CenterAdaptor):
         return self.__datatypes
 
     def apply_to_ingest(
-        self, *, stage: str, template_map: Dict[str, Dict[str, TemplateProject]]
+        self, *, template_map: Dict[str, Dict[str, TemplateProject]]
     ) -> None:
         """Applies the templates to the ingest stage projects in group.
 
@@ -262,26 +281,26 @@ class CenterGroup(CenterAdaptor):
         For instance, `ingest-form` or `retrospective-dicom`.
 
         Args:
-          stage: name of ingest stage
           template_map: map from datatype to stage to template project
         """
-        ingest_projects = self.get_matching_projects(f"{stage}-")
-        if not ingest_projects:
-            log.warning("no ingest stage projects for group %s", self.label)
-            return
+        for stage in self.__ingest_stages:
+            ingest_projects = self.get_matching_projects(prefix=f"{stage}-")
+            if not ingest_projects:
+                log.warning("no ingest stage projects for group %s", self.label)
+                return
 
-        for project in ingest_projects:
-            datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
-            if not datatype:
-                log.info("ingest project %s has no datatype", project.label)
-                continue
+            for project in ingest_projects:
+                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
+                if not datatype:
+                    log.info("ingest project %s has no datatype", project.label)
+                    continue
 
-            self.__apply_to(
-                stage=stage,
-                template_map=template_map,
-                project=project,
-                datatype=datatype,
-            )
+                self.__apply_to(
+                    stage=stage,
+                    template_map=template_map,
+                    project=project,
+                    datatype=datatype,
+                )
 
     def apply_to_accepted(
         self, template_map: Dict[str, Dict[str, TemplateProject]]
@@ -294,8 +313,7 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
-        stage = "accepted"
-        accepted_projects = self.get_matching_projects(stage)
+        accepted_projects = self.get_matching_projects(prefix="accepted")
         if not accepted_projects:
             log.warning("no accepted stage project in center group %s", self.label)
             return
@@ -303,7 +321,7 @@ class CenterGroup(CenterAdaptor):
         self.__apply_to(
             template_map=template_map,
             project=accepted_projects[0],
-            stage=stage,
+            stage="accepted",
             datatype="all",
         )
 
@@ -346,8 +364,8 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
-        for stage in self.__ingest_stages:
-            self.apply_to_ingest(stage=stage, template_map=template_map)
+
+        self.apply_to_ingest(template_map=template_map)
 
         self.apply_to_accepted(template_map)
 
@@ -361,7 +379,7 @@ class CenterGroup(CenterAdaptor):
         if not prefix_pattern:
             return
 
-        projects = self.get_matching_projects(prefix_pattern)
+        projects = self.get_matching_projects(prefix=prefix_pattern)
         for project in projects:
             template.copy_to(
                 project,
