@@ -11,15 +11,24 @@ from gear_execution.gear_execution import (
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from outputs.error_writer import ListErrorWriter
-from outputs.qc_report import FileQCReportVisitor, StatusReportVisitor
+from outputs.qc_report import (
+    ErrorReportVisitor,
+    FileQCReportVisitor,
+    StatusReportVisitor,
+)
 
 from gather_submission_status_app.main import ModuleName, run
 from gather_submission_status_app.status_request import RequestClusteringVisitor
+from gather_submission_status_app.visit_submission_error import (
+    ErrorReportModel,
+    error_transformer,
+)
 from gather_submission_status_app.visit_submission_status import (
     StatusReportModel,
     status_transformer,
@@ -89,8 +98,18 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         study_id = context.config.get("study_id", "adrc")
         gear_name = context.manifest.get("name", "gather-submission-status")
 
-        file_visitor = StatusReportVisitor(status_transformer)
+        query_type_arg = context.config.get("query_type", "status")
+        if query_type_arg not in ["error", "status"]:
+            raise GearExecutionError(f"Invalid query_type: {query_type_arg}")
+
+        query_type = query_type_arg if query_type_arg == "error" else "status"
+
+        file_visitor: FileQCReportVisitor = StatusReportVisitor(status_transformer)
         fieldnames = list(StatusReportModel.model_fields.keys())
+
+        if query_type == "error":
+            file_visitor = ErrorReportVisitor(error_transformer)
+            fieldnames = list(ErrorReportModel.model_fields.keys())
 
         return GatherSubmissionStatusVisitor(
             client=client,
