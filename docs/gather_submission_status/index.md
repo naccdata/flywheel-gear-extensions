@@ -1,8 +1,6 @@
 # Gather-Submission-Status Gear
 
-This gear takes a CSV file containing a list of participants and generates a CSV file containing the status for form submissions for the participants.
-
-> Note: this gear determines the status of data that is associated with a participant. It will not capture errors earlier in the process for files that consist of lists of participants.
+This gear takes a CSV file containing a list of participants and generates a CSV file that depending on the configuration either contains the status of form submissions for the participants, or the errors for the form submissions.
 
 ## Input file
 
@@ -10,13 +8,9 @@ The input file should have the following columns:
 
 - `adcid`: the ADCID for the center where the participant data is collected. An integer.
 - `ptid`: the center assigned participant ID for the participant. A string.
-- `study`: the name of the study in lowercase. A string
+- `study`: the name of the study in lowercase. A string.
 
-The "study" should be the study for which the data was collected.
-For a participant enrolled solely in DVCID, the study should be given as `dvcid`.
-If the participant is co-enrolled and the data was collected for the ADRC clinical core, the value of study should be `adrc`.
-
-So, an input file would look like
+An input file would look like
 
 ```csv
 "adcid","ptid","study"
@@ -24,7 +18,14 @@ So, an input file would look like
 0,"654321","dvcid"
 ```
 
-## Gear config
+The *study* should be the study for which the data was collected.
+For instance, if a participant is enrolled solely in DVCID, the study should be given as `dvcid`.
+If the participant is co-enrolled in an ADRC clinical core, the value of study should be `adrc`.
+Since, these data streams are kept separate, the qualification is required to find the submissions.
+
+
+
+## Gear configuration
 
 The gear manifest config includes the following parameters:
 
@@ -42,14 +43,32 @@ The gear manifest config includes the following parameters:
 - `module` - a string that is a comma-separated list of form modules.
   The default includes UDS, FTLD and LBD.
 
+- `query_type` - a string that is either `"error"` or `"status"` indicating whether to generate an error or status report.
+
 
 ## Output file
 
-The output file contains a row for each file that the participant has
+Both output files contain a row for each file that the participant has with the columns
 
-- `stage`: the name of the processing stage
+- `stage`: the processing stage (aka, the "gear")
+- `adcid`: the center ADCID (from the input file)
+- `ptid`: the participant PTID (from the input file)
 - `module`: the form module
-- `ptid`: the Flywheel file ID
-- `status`: the NACCID
 - `visit_date`: the visit date from the file
 
+The status output file also contains the column
+
+- `status`: the PASS/FAIL status of the data
+
+The report output file contains the columns
+
+- `timestamp` - timestamp for the error generation
+- `type` - one of "alert", "error", "warning"
+- `code` - error code for UDS
+- `message` - error message
+- `container_id` - the flywheel specific ID for the file container
+- `flywheel_path` - the path of the file in flywheel
+- `value` - value found
+- `expected` - value expected
+- `visitnum` - the visit number in submission
+- `naccid` - the naccid for the participant
