@@ -1,7 +1,8 @@
 """Definitions for status reports."""
 
-from typing import Optional
+from typing import Optional, get_args
 
+from keys.types import ModuleName
 from outputs.error_models import QCStatus, ValidationModel, VisitKeys
 from outputs.qc_report import (
     QCReportBaseModel,
@@ -14,7 +15,7 @@ class StatusReportModel(QCReportBaseModel):
 
     adcid: int
     ptid: str
-    module: str
+    module: ModuleName
     visitdate: str
     status: Optional[QCStatus] = None
 
@@ -46,10 +47,13 @@ def status_transformer(
     ):
         raise QCTransformerError("Cannot generate status incomplete visit details")
 
+    if visit.module not in get_args(ModuleName):
+        raise QCTransformerError(f"Unexpected module name: {visit.module}")
+
     return StatusReportModel(
         adcid=visit.adcid,
         ptid=visit.ptid,
-        module=visit.module,
+        module=visit.module,  # pyright: ignore[reportArgumentType]
         visitdate=visit.date,
         stage=gear_name,
         status=validation_model.state,
