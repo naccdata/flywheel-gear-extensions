@@ -186,13 +186,13 @@ class NewPTIDRowValidator(RowValidator):
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
-        """Checks that PTID does not already correspond to a NACCID.
+        """Checks that ADCID, PTID does not already correspond to a NACCID.
 
         Args:
           row: the dictionary for the row
 
         Returns:
-          True if no existing NACCID is found for the PTID, False otherwise
+          True if no existing NACCID is found for the ADCID, PTID, False otherwise
         """
         ptid = row["ptid"]
         adcid = row["adcid"]

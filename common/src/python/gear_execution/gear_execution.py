@@ -245,18 +245,26 @@ class InputFileWrapper:
 
         return InputFileWrapper(file_input=file_input)
 
-    def get_validation_objects(self) -> List[Dict[str, Any]]:
+    def get_validation_objects(
+        self, gear_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Gets the QC validation objects from the file QC info."""
         result = []
-        for gear_object in self.file_qc_info.values():
+
+        gear_objects = self.file_qc_info.values()
+        if gear_name:
+            gear_objects = [self.file_qc_info.get(gear_name, {})]
+
+        for gear_object in gear_objects:
             validation_object = gear_object.get("validation", {})
             if validation_object:
                 result.append(validation_object)
+
         return result
 
-    def has_qc_errors(self) -> bool:
+    def has_qc_errors(self, gear_name: Optional[str] = None) -> bool:
         """Check the QC validation objects in the file QC info for failures."""
-        validation_objects = self.get_validation_objects()
+        validation_objects = self.get_validation_objects(gear_name=gear_name)
         for validation_object in validation_objects:
             if validation_object["state"] == "FAIL":
                 return True

@@ -133,7 +133,8 @@ class EnrollmentBatch:
         identifiers = repo.create_list(query)
         log.info("created %s new NACCIDs", len(identifiers))
         if len(query) != len(identifiers):
-            log.warning("expected %s new IDs, got %s", len(query), len(identifiers))
+            log.warning("expected %s new IDs, got %s",
+                        len(query), len(identifiers))
 
         for identifier in identifiers:
             record = self.__records.get(identifier.ptid)
@@ -254,7 +255,8 @@ class TransferVisitor(CSVVisitor):
             FileError(
                 error_type="error",  # pyright: ignore[reportCallIssue]
                 error_code="mismatched-id",  # pyright: ignore[reportCallIssue]
-                location=CSVLocation(line=line_num, column_name=FieldNames.NACCID),
+                location=CSVLocation(
+                    line=line_num, column_name=FieldNames.NACCID),
                 message=(
                     "mismatched NACCID for "
                     f"{source} "
@@ -345,11 +347,13 @@ class TransferVisitor(CSVVisitor):
             return False
         previous_ptid = row[FieldNames.OLDPTID]
         if not previous_ptid:
-            self.__error_writer.write(empty_field_error(FieldNames.OLDPTID, line_num))
+            self.__error_writer.write(
+                empty_field_error(FieldNames.OLDPTID, line_num))
             return False
 
         try:
-            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+            ptid_identifier = self.__repo.get(
+                adcid=previous_adcid, ptid=previous_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
             self.__error_writer.write(
                 identifier_error(
@@ -520,7 +524,8 @@ class NewEnrollmentVisitor(CSVVisitor):
                     center_identifier=CenterIdentifiers(
                         adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
                     ),
-                    guid=row.get(FieldNames.GUID) if row.get(FieldNames.GUID) else None,
+                    guid=row.get(FieldNames.GUID) if row.get(
+                        FieldNames.GUID) else None,
                     naccid=None,
                     start_date=enroll_date,
                 )
@@ -602,8 +607,6 @@ class ProvisioningVisitor(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Provisions a NACCID for the ADCID and PTID.
 
-        First checks that the row has the form name as the module.
-        Then checks form to determine processing.
         If form is
         - a new enrollment, then applies the NewEnrollmentVisitor.
         - a transfer TransferVisitor.
@@ -619,18 +622,18 @@ class ProvisioningVisitor(CSVVisitor):
         # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
-        try:
-            if not self.__validator.check(row=row, line_number=line_num):
-                update_record_level_error_log(
-                    input_record=row,
-                    qc_passed=False,
-                    project=self.__project,
-                    gear_name=self.__gear_name,
-                    errors=self.__error_writer.errors(),
-                )
-                return False
+        if not self.__validator.check(row=row, line_number=line_num):
+            update_record_level_error_log(
+                input_record=row,
+                qc_passed=False,
+                project=self.__project,
+                gear_name=self.__gear_name,
+                errors=self.__error_writer.errors(),
+            )
+            return False
 
-            if is_new_enrollment(row):
+        if is_new_enrollment(row):
+            try:
                 success = self.__enrollment_visitor.visit_row(
                     row=row, line_num=line_num
                 )
@@ -643,34 +646,35 @@ class ProvisioningVisitor(CSVVisitor):
                         errors=self.__error_writer.errors(),
                     )
                 return success
-        except IdentifierRepositoryError as error:
-            message = (
-                f"Failed to assign a NACCID for PTID {row[FieldNames.PTID]}: {error}"
-            )
-            log.error(message)
-            self.__error_writer.write(
-                identifier_error(
-                    message=message,
-                    field=FieldNames.PTID,
-                    value=row[FieldNames.PTID],
-                    line=line_num,
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
+            except IdentifierRepositoryError as error:
+                message = (
+                    f"Failed to assign a NACCID for PTID {row[FieldNames.PTID]}: {error}"
                 )
-            )
-            update_record_level_error_log(
-                input_record=row,
-                qc_passed=False,
-                project=self.__project,
-                gear_name=self.__gear_name,
-                errors=self.__error_writer.errors(),
-            )
-            return False
+                log.error(message)
+                self.__error_writer.write(
+                    identifier_error(
+                        message=message,
+                        field=FieldNames.PTID,
+                        value=row[FieldNames.PTID],
+                        line=line_num,
+                        visit_keys=VisitKeys.create_from(
+                            record=row, date_field=FieldNames.ENRLFRM_DATE
+                        ),
+                    )
+                )
+                update_record_level_error_log(
+                    input_record=row,
+                    qc_passed=False,
+                    project=self.__project,
+                    gear_name=self.__gear_name,
+                    errors=self.__error_writer.errors(),
+                )
+                return False
 
         # No further processing implemented for transfers, so update visit level log
         # TODO - need to change when processing transfers implemented
-        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+        success = self.__transfer_in_visitor.visit_row(
+            row=row, line_num=line_num)
         update_record_level_error_log(
             input_record=row,
             qc_passed=success,
@@ -717,6 +721,7 @@ def run(
             ),
             clear_errors=True,
         )
+
         if not success:
             log.warning(
                 "Some records in the input file failed validation. "
