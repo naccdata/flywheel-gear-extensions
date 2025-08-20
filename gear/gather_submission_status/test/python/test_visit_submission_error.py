@@ -11,8 +11,8 @@ class TestErrorTransformer:
         )
         file_error = FileError(
             timestamp="time",
-            error_type="warning", # pyright: ignore[reportCallIssue]
-            error_code="code", # pyright: ignore[reportCallIssue]
+            error_type="warning",  # pyright: ignore[reportCallIssue]
+            error_code="code",  # pyright: ignore[reportCallIssue]
             location=CSVLocation(line=10, column_name="test-column"),
             container_id=None,
             flywheel_path="path",
