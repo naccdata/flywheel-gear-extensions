@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.4
+
+* Change so that metadata from qc-status logs is used rather than acquisition files.
+
 ## 0.2.1
 
 * Adds visit date to output.

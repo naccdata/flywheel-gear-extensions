@@ -2,7 +2,7 @@
     "name": "gather-submission-status",
     "label": "Gather Submission Status",
     "description": "A gear for gathering form submission status",
-    "version": "0.3.1",
+    "version": "0.3.4",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/gather-submission-status:0.3.1"
+            "image": "naccdata/gather-submission-status:0.3.4"
         },
         "flywheel": {
             "suite": "Utility",
@@ -61,6 +61,11 @@
             "description": "Comma-separated list of form modules to include",
             "type": "string",
             "default": "UDS,FTLD,LBD"
+        },
+        "query_type": {
+            "description": "The type of report, either \"status\" or \"error\"",
+            "type": "string",
+            "enum": ["status", "error"]
         },
         "study_id": {
             "description": "The study ID",
