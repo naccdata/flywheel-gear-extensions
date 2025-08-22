@@ -133,8 +133,7 @@ class EnrollmentBatch:
         identifiers = repo.create_list(query)
         log.info("created %s new NACCIDs", len(identifiers))
         if len(query) != len(identifiers):
-            log.warning("expected %s new IDs, got %s",
-                        len(query), len(identifiers))
+            log.warning("expected %s new IDs, got %s", len(query), len(identifiers))
 
         for identifier in identifiers:
             record = self.__records.get(identifier.ptid)
@@ -198,7 +197,7 @@ class TransferVisitor(CSVVisitor):
         if not has_known_naccid(row):
             return True
 
-        self.__naccid = row[FieldNames.NACCID]
+        self.__naccid = row.get(FieldNames.NACCID)
         if not self.__naccid:
             self.__error_writer.write(
                 empty_field_error(
@@ -235,32 +234,33 @@ class TransferVisitor(CSVVisitor):
 
         return False
 
-    def _match_naccid(self, identifier, source, line_num: int) -> bool:
+    def _match_naccid(
+        self, identifier: IdentifierObject, source: str, line_num: int
+    ) -> bool:
         """Checks whether the identifier matches the NACCID in the visitor.
 
         Args:
           identifier: the identifier to match
-          source: string describing source column for NACCID
+          source: string describing columns for NACCID lookup
           line_num: the line number
+
         Returns:
           True if the identifier matches the NACCID. False, otherwise.
         """
         if not self.__naccid_identifier:
-            return False
+            return True
 
-        if identifier == self.__naccid_identifier:
+        if identifier.naccid == self.__naccid_identifier.naccid:
             return True
 
         self.__error_writer.write(
             FileError(
                 error_type="error",  # pyright: ignore[reportCallIssue]
                 error_code="mismatched-id",  # pyright: ignore[reportCallIssue]
-                location=CSVLocation(
-                    line=line_num, column_name=FieldNames.NACCID),
+                location=CSVLocation(line=line_num, column_name=source),
                 message=(
-                    "mismatched NACCID for "
-                    f"{source} "
-                    f"and provided NACCID {self.__naccid}"
+                    "Different NACCIDs found for the input data in this form: "
+                    f"{identifier.naccid}, {self.__naccid_identifier.naccid}"
                 ),
             )
         )
@@ -310,7 +310,7 @@ class TransferVisitor(CSVVisitor):
             )
             return False
 
-        if not self._match_naccid(guid_identifier, guid, line_num):
+        if not self._match_naccid(guid_identifier, FieldNames.GUID, line_num):
             return False
 
         self.__naccid_identifier = guid_identifier
@@ -333,35 +333,26 @@ class TransferVisitor(CSVVisitor):
         if not previously_enrolled(row):
             return True
 
-        previous_adcid = row[FieldNames.OLDADCID]
-        if previous_adcid is None:
-            self.__error_writer.write(
-                empty_field_error(
-                    field=FieldNames.OLDADCID,
-                    line=line_num,
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
-                )
-            )
-            return False
-        previous_ptid = row[FieldNames.OLDPTID]
-        if not previous_ptid:
-            self.__error_writer.write(
-                empty_field_error(FieldNames.OLDPTID, line_num))
-            return False
+        previous_adcid = row.get(FieldNames.OLDADCID)
+        previous_ptid = row.get(FieldNames.OLDPTID)
+
+        # OLDPTID is not a required field in the form
+        if not previous_adcid or not previous_ptid:
+            return True
 
         try:
-            ptid_identifier = self.__repo.get(
-                adcid=previous_adcid, ptid=previous_ptid)
+            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
             self.__error_writer.write(
                 identifier_error(
                     value=previous_ptid,
                     line=line_num,
                     message=(
-                        f"Error in looking up NACCID for ADCID {previous_adcid}, "
-                        f"PTID {previous_ptid}: {error}"
+                        f"Error in looking up NACCID for OLDADCID {previous_adcid}, "
+                        f"OLDPTID {previous_ptid}: {error}"
+                    ),
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
             )
@@ -373,8 +364,8 @@ class TransferVisitor(CSVVisitor):
                     value=previous_ptid,
                     line=line_num,
                     message=(
-                        f"No NACCID found for ADCID {previous_adcid}, "
-                        f"PTID {previous_ptid}"
+                        f"No NACCID found for OLDADCID {previous_adcid}, "
+                        f"OLDPTID {previous_ptid}"
                     ),
                     visit_keys=VisitKeys.create_from(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
@@ -384,14 +375,11 @@ class TransferVisitor(CSVVisitor):
             return False
 
         if not self._match_naccid(
-            ptid_identifier, f"{previous_adcid}-{previous_ptid}", line_num
+            ptid_identifier, f"{FieldNames.OLDADCID}-{FieldNames.OLDPTID}", line_num
         ):
             return False
 
         self.__naccid_identifier = ptid_identifier
-        self.__previous_identifiers = CenterIdentifiers(
-            adcid=previous_adcid, ptid=previous_ptid
-        )
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
@@ -404,11 +392,7 @@ class TransferVisitor(CSVVisitor):
           True if the row is a valid transfer. False, otherwise.
         """
         if not self.__new_ptid_validator.check(row, line_num):
-            return True
-
-        new_identifiers = CenterIdentifiers(
-            adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
-        )
+            return False
 
         if not self._naccid_visit(row=row, line_num=line_num):
             return False
@@ -418,10 +402,6 @@ class TransferVisitor(CSVVisitor):
 
         if not self._prevenrl_visit(row=row, line_num=line_num):
             return False
-
-        naccid = None
-        if self.__naccid_identifier:
-            naccid = self.__naccid_identifier.naccid
 
         try:
             enroll_date = parse_date(
@@ -439,16 +419,30 @@ class TransferVisitor(CSVVisitor):
             )
             return False
 
+        new_identifiers = CenterIdentifiers(
+            adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
+        )
+
+        self.__previous_identifiers = CenterIdentifiers(
+            adcid=row.get(FieldNames.OLDADCID, "unknown"),
+            ptid=row.get(FieldNames.OLDPTID, "unknown"),
+        )
+
         self.__transfer_info.add(
             TransferRecord(
                 date=enroll_date,
                 initials=row[FieldNames.ENRLFRM_INITL],
                 center_identifiers=new_identifiers,
                 previous_identifiers=self.__previous_identifiers,
-                naccid=naccid,
+                naccid=self.__naccid_identifier.naccid
+                if self.__naccid_identifier
+                else None,
+                guid=row.get(FieldNames.GUID),
             )
         )
-        log.info("Transfer found on line %s", line_num)
+
+        log.info("Participant transfer found on line %s", line_num)
+
         return True
 
 
@@ -524,8 +518,7 @@ class NewEnrollmentVisitor(CSVVisitor):
                     center_identifier=CenterIdentifiers(
                         adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
                     ),
-                    guid=row.get(FieldNames.GUID) if row.get(
-                        FieldNames.GUID) else None,
+                    guid=row.get(FieldNames.GUID) if row.get(FieldNames.GUID) else None,
                     naccid=None,
                     start_date=enroll_date,
                 )
@@ -648,7 +641,8 @@ class ProvisioningVisitor(CSVVisitor):
                 return success
             except IdentifierRepositoryError as error:
                 message = (
-                    f"Failed to assign a NACCID for PTID {row[FieldNames.PTID]}: {error}"
+                    "Failed to assign a NACCID for PTID "
+                    f"{row[FieldNames.PTID]}: {error}"
                 )
                 log.error(message)
                 self.__error_writer.write(
@@ -671,10 +665,9 @@ class ProvisioningVisitor(CSVVisitor):
                 )
                 return False
 
-        # No further processing implemented for transfers, so update visit level log
-        # TODO - need to change when processing transfers implemented
-        success = self.__transfer_in_visitor.visit_row(
-            row=row, line_num=line_num)
+        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+
+        # Update visit level log for the transfer request
         update_record_level_error_log(
             input_record=row,
             qc_passed=success,
@@ -682,6 +675,7 @@ class ProvisioningVisitor(CSVVisitor):
             gear_name=self.__gear_name,
             errors=self.__error_writer.errors(),
         )
+
         return success
 
 
@@ -733,7 +727,7 @@ def run(
             len(enrollment_batch),
         )
         enrollment_batch.commit(repo)
-    except IdentifierRepositoryError as error:
+    except (IdentifierRepositoryError, ValidationError) as error:
         raise GearExecutionError(error) from error
 
     for record in enrollment_batch:
@@ -804,7 +798,6 @@ def run(
             errors=error_writer.errors(),
         )
 
-    # TODO - add record level error reporting when implementing transfer processing
     enrollment_project.add_transfers(transfer_info)
 
     if not success:

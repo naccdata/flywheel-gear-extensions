@@ -12,6 +12,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import (
+    GUID_PATTERN,
     NACCID_PATTERN,
     PTID_PATTERN,
     CenterIdentifiers,
@@ -94,6 +95,7 @@ class TransferRecord(BaseModel):
     center_identifiers: CenterIdentifiers
     previous_identifiers: Optional[CenterIdentifiers] = None
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
+    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
 
 
 class EnrollmentRecord(GUIDField, OptionalNACCIDField):
