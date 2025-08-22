@@ -1,237 +1,231 @@
 """Classes for NACC directory user credentials."""
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, NewType, Optional
+from datetime import date
+from typing import Literal, Optional, get_args
 
-from flywheel.models.user import User
-from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+)
 
-from users.authorizations import Authorizations
+from users.authorizations import (
+    ActivityPrefixType,
+    DatatypeNameType,
+    StudyAuthorizations,
+    convert_to_activity,
+)
+from users.user_entry import ActiveUserEntry, PersonName, UserEntry
 
 log = logging.getLogger(__name__)
 
 
-class PersonName(BaseModel):
-    """Type class for a person's name."""
+AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
-    first_name: str
-    last_name: str
 
-    def as_str(self) -> str:
-        """Returns this name as a string with first and last names separated by
-        a space.
+def get_activity_prefix(
+    access_level: AuthorizationAccessLevel,
+) -> Optional[ActivityPrefixType]:
+    """Returns the activity prefix for the access level.
 
-        Returns:
-          The first and last name concatenated and separated by a space.
+    Args:
+      access_level: the access level
+    Returns:
+      the corresponding activity prefix if not NoAccess. Otherwise, None.
+    """
+    if access_level == "ViewAccess":
+        return "view"
+    if access_level == "SubmitAudit":
+        return "submit-audit"
+
+    return None
+
+
+class StudyAccessMap(BaseModel):
+    """Defines a data model for a map from study id to access level map
+    objects.
+
+    Used as an intermediate for computing the authorizations from a
+    DirectoryAuthorizations object.
+    """
+
+    access_level_map: dict[str, StudyAuthorizations] = {}
+
+    def add(
+        self,
+        study_id: str,
+        access_level: AuthorizationAccessLevel,
+        datatype: DatatypeNameType,
+    ) -> None:
+        """Adds the datatype to this map for the study id at the access level.
+
+        Args:
+          study_id: the study id
+          access_level: the access level
+          datatype: the datatype
         """
-        return f"{self.first_name} {self.last_name}"
+        authorizations = self.access_level_map.get(study_id)
+        if authorizations is None:
+            authorizations = StudyAuthorizations(study_id=study_id, activities=[])
+        activity_prefix = get_activity_prefix(access_level)
+        if activity_prefix is not None:
+            authorizations.activities.append(
+                convert_to_activity(activity_prefix=activity_prefix, datatype=datatype)
+            )
+        self.access_level_map[study_id] = authorizations
+
+    def get_authorizations(self) -> list[StudyAuthorizations]:
+        """Returns the list of Authorizations objects from this study access
+        map."""
+        return list(self.access_level_map.values())
 
 
-EntryDictType = NewType(
-    "EntryDictType", Dict[str, str | int | PersonName | Authorizations]
-)
+class DirectoryAuthorizations(BaseModel):
+    """Data model for deserializing a json object from a directory permission
+    report."""
 
-
-class UserEntry(BaseModel):
-    """A base directory user entry."""
-
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-    name: PersonName
+    record_id: int
+    firstname: str
+    lastname: str
     email: str
-    auth_email: Optional[str] = Field(default=None)
-    active: bool
-    registration_date: Optional[datetime] = None
+    auth_email: str = Field(alias="fw_email")
+    inactive: bool = Field(alias="archive_contact")
+    org_name: str = Field(alias="contact_company_name")
+    adcid: int = Field(alias="adresearchctr")
+    flywheel_access: bool
+    adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="naccid_enroll_access"
+    )
+    web_report_access_web: bool = Field(alias="web_report_access___web")
+    web_report_access_repdash: bool = Field(alias="web_report_access___repdash")
+    web_report_access_scandash: bool = Field(alias="web_report_access___scandash")
+    study_selections_adrc: bool = Field(alias="study_selections___p30")
+    study_selections_affiliatedstudy: bool = Field(
+        alias="study_selections___affiliatedstudy"
+    )
+    adrc_form_access_level: AuthorizationAccessLevel = Field(
+        alias="p30_clin_forms_access_level"
+    )
+    adrc_dicom_access_level: AuthorizationAccessLevel = Field(
+        alias="p30_imaging_access_level"
+    )
+    adrc_biomarker_access_level: AuthorizationAccessLevel = Field(
+        alias="p30_flbm_access_level"
+    )
+    adrc_genetic_access_level: AuthorizationAccessLevel = Field(
+        alias="p30_genetic_access_level"
+    )
+    affiliated_study_leads: bool = Field(alias="affiliated_study___leads")
+    affiliated_study_dvcid: bool = Field(alias="affiliated_study___dvcid")
+    affiliated_study_allftd: bool = Field(alias="affiliated_study___allftd")
+    affiliated_study_dlbc: bool = Field(alias="affiliated_study___dlbc")
+    affiliated_study_clariti: bool = Field(alias="affiliated_study___clariti")
+    leads_form_access_level: AuthorizationAccessLevel = Field(
+        alias="leads_clin_forms_access_level"
+    )
+    dvcid_form_access_level: AuthorizationAccessLevel = Field(
+        alias="dvcid_clin_forms_access_level"
+    )
+    allftd_form_access_level: AuthorizationAccessLevel = Field(
+        alias="allftd_clin_forms_access_level"
+    )
+    dlbc_form_access_level: AuthorizationAccessLevel = Field(
+        alias="dlbc_clin_forms_access_level"
+    )
+    clariti_form_access_level: AuthorizationAccessLevel = Field(
+        alias="cl_clin_forms_access_level"
+    )
+    clariti_dicom_access_level: AuthorizationAccessLevel = Field(
+        alias="cl_imaging_access_level"
+    )
+    clariti_biomarker_access_level: AuthorizationAccessLevel = Field(
+        alias="cl_flbm_access_level"
+    )
+    clariti_pay_access_level: AuthorizationAccessLevel = Field(
+        alias="cl_pay_access_level"
+    )
+    clariti_ror_access_level: AuthorizationAccessLevel = Field(
+        alias="cl_ror_access_level"
+    )
+    permissions_approval: bool
+    permissions_approval_date: date
 
-    @property
-    def first_name(self) -> str:
-        """The first name for this directory entry."""
-        return self.name.first_name
+    @field_validator(
+        "adrc_enrollment_access_level",
+        "adrc_form_access_level",
+        "adrc_dicom_access_level",
+        "adrc_biomarker_access_level",
+        "adrc_genetic_access_level",
+        "leads_form_access_level",
+        "dvcid_form_access_level",
+        "allftd_form_access_level",
+        "dlbc_form_access_level",
+        "clariti_form_access_level",
+        "clariti_dicom_access_level",
+        "clariti_biomarker_access_level",
+        "clariti_pay_access_level",
+        "clariti_ror_access_level",
+        mode="before",
+    )
+    def convert_access_level(cls, access_level: str) -> AuthorizationAccessLevel:
+        if access_level == "ViewAccess":
+            return "ViewAccess"
+        if access_level == "SubmitAudit":
+            return "SubmitAudit"
 
-    @property
-    def last_name(self) -> str:
-        """The last name for this directory entry."""
-        return self.name.last_name
+        return "NoAccess"
 
-    @property
-    def full_name(self) -> str:
-        """The full name for this directory entry."""
-        return self.name.as_str()
-
-    def as_dict(self) -> EntryDictType:
-        """Builds a dictionary for this directory entry.
+    def __parse_fields(self) -> StudyAccessMap:
+        """Parses the fields of this object for access level permissions and
+        constructs a mapping study -> access-level -> datatypes.
 
         Returns:
-          A dictionary with values of this entry
+          the mapping of study and access level to datatype
         """
-        return self.model_dump(serialize_as_any=True)  # type: ignore
+        study_map = StudyAccessMap()
+        field_names = DirectoryAuthorizations.model_fields.keys()
+        for field_name in field_names:
+            if not field_name.endswith("_access_level"):
+                continue
 
-    @classmethod
-    def create(cls, entry: Dict[str, Any]) -> "UserEntry":
-        """Creates an object from a dictionary. Expects dictionary to match
-        output of `as_dict`
+            access_level = getattr(self, field_name)
+            if access_level == "NoAccess":
+                continue
 
-        Args:
-          entry: the dictionary for entry
-        Returns:
-          The dictionary object
-        """
-        try:
-            if entry.get("active"):
-                return ActiveUserEntry.create(entry)
+            temp_list = field_name.split("_")
+            if len(temp_list) != 4:
+                continue
+            study, datatype, *tail = temp_list
+            if datatype not in get_args(DatatypeNameType):
+                log.warning(
+                    "the data type %s is ignored for %s %s",
+                    datatype,
+                    self.firstname,
+                    self.lastname,
+                )
+                continue
 
-            return UserEntry.model_validate(entry)
-        except ValidationError as error:
-            log.error("Error creating user entry from %s: %s", entry, error)
-            raise UserFormatError(f"Error creating user entry: {error}") from error
+            study_map.add(study_id=study, access_level=access_level, datatype=datatype)  # type: ignore
+        return study_map
 
-    @classmethod
-    def create_from_record(cls, record: Dict[str, Any]) -> Optional["UserEntry"]:
-        """Creates a UserEntry from a data platform authorization report record
-        from the NACC Directory in REDCap.
-
-        Creates a UserEntry object if the record is marked as archived.
-        Otherwise, creates an ActiveUserEntry.
-        Ignores records that have incomplete or unverified authorization emails.
-
-        Args:
-          record: a dictionary containing report record for user
-        Returns:
-          the dictionary entry for the record. None, if record is incomplete
-        """
-
-        name = PersonName(first_name=record["firstname"], last_name=record["lastname"])
-        email = record["email"].lower()
-        auth_email = record.get("fw_email")
-
-        if record["archive_contact"] == "1":
-            log.info("Creating inactive user record for %s", email)
+    def to_user_entry(self) -> UserEntry:
+        """Converts this DirectoryAuthorizations object to a UserEntry."""
+        name = PersonName(first_name=self.firstname, last_name=self.lastname)
+        email = self.email
+        auth_email = self.auth_email
+        if self.inactive:
             return UserEntry(
                 name=name, email=email, auth_email=auth_email, active=False
             )
 
-        if int(record["nacc_data_platform_access_information_complete"]) != 2:
-            log.warning("Ignoring user %s: incomplete data platform access", email)
-            return None
-
-        authorizations = Authorizations.create_from_record(
-            study_id="adrc", activities=record["flywheel_access_activities"]
-        )
-
-        org_name = record["contact_company_name"]
-        center_id = record["adresearchctr"]
-        if not center_id.isdigit():
-            center_id = "-1"
-            if org_name.lower() == "nacc":
-                center_id = "0"
-
-        log.info("Creating active user record for %s", email)
+        authorizations = self.__parse_fields().get_authorizations()
         return ActiveUserEntry(
-            org_name=org_name,
-            adcid=int(center_id),
+            org_name=self.org_name,
+            adcid=int(self.adcid),
             name=name,
             email=email,
             auth_email=auth_email,
             authorizations=authorizations,
             active=True,
         )
-
-
-class ActiveUserEntry(UserEntry):
-    """A user entry from Flywheel access report of the NACC directory."""
-
-    org_name: str
-    adcid: int
-    authorizations: Authorizations
-
-    def register(self, registry_id: str) -> "RegisteredUserEntry":
-        """Adds the registry id to this user entry.
-
-        Args:
-          registry_id: the registry ID
-        Returns:
-          this object with the registry ID added
-        """
-        return RegisteredUserEntry(
-            name=self.name,
-            email=self.email,
-            auth_email=self.auth_email,
-            active=self.active,
-            org_name=self.org_name,
-            adcid=self.adcid,
-            authorizations=self.authorizations,
-            registry_id=registry_id,
-            registration_date=self.registration_date,
-        )
-
-    @classmethod
-    def create(cls, entry: Dict[str, Any]) -> "ActiveUserEntry":
-        """Creates an object from a dictionary. Expects dictionary to match
-        output of `as_dict`
-
-        Args:
-          entry: the dictionary for entry
-        Returns:
-          The dictionary object
-        """
-        try:
-            return ActiveUserEntry.model_validate(entry)
-        except ValidationError as error:
-            log.error("Error creating user entry from %s: %s", entry, error)
-            raise UserFormatError(f"Error creating user entry: {error}") from error
-
-
-class RegisteredUserEntry(ActiveUserEntry):
-    """User directory entry extended with a registry ID."""
-
-    registry_id: str
-
-    @property
-    def user_id(self) -> str:
-        """The user ID for this directory entry."""
-        return self.registry_id
-
-    def as_user(self) -> User:
-        """Creates a user object from the directory entry.
-
-        Flywheel constraint (true as of version 17): the user ID and email must be
-        the same even if ID is an ePPN in add_user
-
-        Args:
-        user_entry: the directory entry for the user
-        Returns:
-        the User object for flywheel User created from the directory entry
-        """
-        return User(
-            id=self.user_id,
-            firstname=self.first_name,
-            lastname=self.last_name,
-            email=self.user_id,
-        )
-
-
-class UserFormatError(Exception):
-    """Exception class for user format errors."""
-
-
-class UserEntryList(RootModel):
-    """Class to support serialization of directory entry list.
-
-    Use model_dump(serialize_as_any=True)
-    """
-
-    root: List[UserEntry]
-
-    def __iter__(self):
-        return iter(self.root)
-
-    def __getitem__(self, item) -> UserEntry:
-        return self.root[item]
-
-    def __len__(self):
-        return len(self.root)
-
-    def append(self, entry: UserEntry) -> None:
-        """Appends the user entry to the list."""
-        self.root.append(entry)
