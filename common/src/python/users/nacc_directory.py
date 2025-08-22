@@ -93,7 +93,7 @@ class DirectoryAuthorizations(BaseModel):
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
     adcid: int = Field(alias="adresearchctr")
-    flywheel_access: bool
+    portal_access: bool = Field(alias="flywheel_access")
     adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="naccid_enroll_access"
     )
@@ -209,8 +209,11 @@ class DirectoryAuthorizations(BaseModel):
             study_map.add(study_id=study, access_level=access_level, datatype=datatype)  # type: ignore
         return study_map
 
-    def to_user_entry(self) -> UserEntry:
+    def to_user_entry(self) -> Optional[UserEntry]:
         """Converts this DirectoryAuthorizations object to a UserEntry."""
+        if not self.portal_access:
+            return None
+
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
         auth_email = self.auth_email
