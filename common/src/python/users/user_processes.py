@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, Generic, List, Literal, Optional, TypeVar
+from typing import Dict, Generic, List, Literal, Optional, Sequence, TypeVar
 
 from centers.nacc_group import NACCGroup
 from coreapi_client.models.identifier import Identifier
@@ -10,8 +10,8 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from notifications.email import DestinationModel, EmailClient, TemplateDataModel
 
-from users.authorizations import AuthMap, Authorizations
-from users.nacc_directory import ActiveUserEntry, RegisteredUserEntry, UserEntry
+from users.authorizations import AuthMap, StudyAuthorizations
+from users.user_entry import ActiveUserEntry, RegisteredUserEntry, UserEntry
 from users.user_registry import RegistryPerson, UserRegistry
 
 log = logging.getLogger(__name__)
@@ -362,7 +362,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         user: User,
         auth_email: str,
         center_id: int,
-        authorizations: Authorizations,
+        authorizations: Sequence[StudyAuthorizations],
     ) -> None:
         """Adds authorizations to the user.
 
@@ -386,7 +386,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         center_group.add_user_roles(
             user=user,
             auth_email=auth_email,
-            authorizations=authorizations,
+            authorization_list=authorizations,
             auth_map=self.__env.authorization_map,
         )
 
