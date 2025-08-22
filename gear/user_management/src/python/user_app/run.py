@@ -20,7 +20,7 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
-from users.nacc_directory import UserEntry, UserFormatError
+from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_processes import (
     NotificationClient,
     NotificationModeType,
@@ -189,8 +189,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
         user_list: UserQueue[UserEntry] = UserQueue()
         for user_doc in object_list:
             try:
-                user_entry = UserEntry.create(user_doc)
-            except UserFormatError as error:
+                if user_doc.get("active"):
+                    user_entry = UserEntry.model_validate(user_doc)
+                else:
+                    user_entry = ActiveUserEntry.model_validate(user_doc)
+            except ValidationError as error:
                 log.error("Error creating user entry: %s", error)
                 continue
 
