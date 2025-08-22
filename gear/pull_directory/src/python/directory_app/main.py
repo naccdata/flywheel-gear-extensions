@@ -4,7 +4,9 @@ import logging
 from typing import Any, Dict, List
 
 import yaml
-from users.nacc_directory import UserEntry, UserEntryList
+from pydantic import ValidationError
+from users.nacc_directory import DirectoryAuthorizations
+from users.user_entry import UserEntryList
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +22,13 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
     user_list = UserEntryList([])
     user_emails = set()
     for user_record in user_report:
-        entry = UserEntry.create_from_record(user_record)
+        try:
+            dir_record = DirectoryAuthorizations.model_validate(user_record)
+        except ValidationError as error:
+            log.error("Error loading user record: %s", error)
+            continue
+
+        entry = dir_record.to_user_entry()
         if not entry:
             continue
 
