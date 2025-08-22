@@ -1,89 +1,43 @@
 """Defines components related to user authorizations."""
 
-from typing import Dict, List, Literal, Optional, Sequence, Set
+from typing import Dict, Literal, Sequence, Set
 
+from keys.types import DatatypeNameType
 from pydantic import BaseModel
 
-DatatypeNameType = Literal["form", "dicom", "enrollment"]
-AuthNameType = Literal[
-    "submit-form",
-    "submit-dicom",
-    "submit-enrollment",
-    "audit-data",
-    "approve-data",
-    "view-reports",
-]
+ActivityPrefixType = Literal["submit-audit", "view"]
 
 
-class Authorizations(BaseModel):
+def convert_to_activity(
+    activity_prefix: ActivityPrefixType, datatype: DatatypeNameType
+) -> str:
+    """Converts the datatype to a authorization activity by adding the prefix.
+
+    Args:
+      activity_prefix: the prefix to add
+      datatype: the datatype
+    """
+    return f"{activity_prefix}-{datatype}"
+
+
+def convert_to_activities(
+    activity_prefix: ActivityPrefixType, datatypes: Sequence[DatatypeNameType]
+) -> list[str]:
+    """Creates a list of activities from the list of datatypes using the
+    activity name prefix.
+
+    Args:
+      activity_prefix: the activity name prefix
+      datatypes: a sequence of datatype names
+    """
+    return [convert_to_activity(activity_prefix, datatype) for datatype in datatypes]
+
+
+class StudyAuthorizations(BaseModel):
     """Type class for authorizations."""
 
     study_id: str
-    submit: List[DatatypeNameType]
-    audit_data: bool
-    approve_data: bool
-    view_reports: bool
-    _activities: Optional[List[AuthNameType]] = None
-
-    def get_activities(self) -> List[AuthNameType]:
-        """Returns the list of names of authorized activities.
-
-        Returns:
-          The list of names of authorized activities
-        """
-        if self._activities:
-            return self._activities
-
-        activities: List[AuthNameType] = []
-        if self.submit:
-            for datatype in self.submit:
-                activities.append(f"submit-{datatype}")  # type: ignore
-        if self.audit_data:
-            activities.append("audit-data")
-        if self.approve_data:
-            activities.append("approve-data")
-        if self.view_reports:
-            activities.append("view-reports")
-
-        self._activities = activities
-        return self._activities
-
-    @classmethod
-    def create_from_record(
-        cls, *, study_id: str, activities: Sequence[str]
-    ) -> "Authorizations":
-        """Creates an Authorizations object directory access activities.
-
-        Activities from the NACC directory are represented as a string
-        consisting of a comma-separated list of letters.
-
-        The letters represent the following activities:
-        - a: submit form data
-        - b: submit image data
-        - c: audit data
-        - d: approve data
-        - e: view reports
-
-        Args:
-          study_id: the study ID for scope of authorizations
-          activities: a string containing activities
-        Returns:
-          The Authorizations object
-        """
-        modalities: List[DatatypeNameType] = []
-        if "a" in activities:
-            modalities.append("form")
-            modalities.append("enrollment")
-        if "b" in activities:
-            modalities.append("dicom")
-
-        return Authorizations(
-            study_id=study_id,
-            submit=modalities,
-            audit_data=bool("c" in activities),
-            approve_data=("d" in activities),
-            view_reports=("e" in activities),
-        )
+    activities: list[str]
 
 
 class AuthMap(BaseModel):
@@ -94,7 +48,9 @@ class AuthMap(BaseModel):
 
     project_authorizations: Dict[str, Dict[str, str]]
 
-    def get(self, *, project_label: str, authorizations: Authorizations) -> Set[str]:
+    def get(
+        self, *, project_label: str, authorizations: StudyAuthorizations
+    ) -> Set[str]:
         """Gets the roles for a project and authorizations.
 
         Matches project label against the authorization keys.
@@ -119,7 +75,7 @@ class AuthMap(BaseModel):
             return roles
 
         activity_map = self.project_authorizations[pipeline_label]
-        for activity in authorizations.get_activities():
+        for activity in authorizations.activities:
             role_name = activity_map.get(activity)
             if role_name:
                 roles.add(role_name)
