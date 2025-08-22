@@ -1,8 +1,30 @@
 """Tests for user directory."""
 
+from typing import Any
+
 import yaml
-from users.authorizations import Authorizations
-from users.nacc_directory import ActiveUserEntry, PersonName, UserEntry, UserEntryList
+from pydantic import ValidationError
+from users.authorizations import StudyAuthorizations
+from users.nacc_directory import (
+    ActiveUserEntry,
+    DirectoryAuthorizations,
+    PersonName,
+    UserEntry,
+)
+from users.user_entry import UserEntryList
+
+
+def create_user_entry(entry: dict[str, Any]) -> UserEntry:
+    if entry.get("active"):
+        try:
+            return ActiveUserEntry.model_validate(entry)
+        except ValidationError as error:
+            raise AssertionError(error) from error
+
+    try:
+        return UserEntry.model_validate(entry)
+    except ValidationError as error:
+        raise AssertionError(error) from error
 
 
 # pylint: disable=(no-self-use,too-few-public-methods)
@@ -17,24 +39,58 @@ class TestUserEntry:
             auth_email="ools@that.org",
             active=False,
         )
-        entry2 = UserEntry.create_from_record(
-            {
-                "contact_company_name": "the center",
-                "adresearchctr": "0",
-                "firstname": "ooly",
-                "lastname": "puppy",
-                "email": "ools@that.org",
-                "fw_email": "ools@that.org",
-                "flywheel_access_activities": "a,c,d,e",
-                "nacc_data_platform_access_information_complete": "2",
-                "archive_contact": "1",
-            }
-        )
+        try:
+            dir_record = DirectoryAuthorizations.model_validate(
+                {
+                    "record_id": "222",
+                    "contact_company_name": "the center",
+                    "adresearchctr": "0",
+                    "firstname": "ooly",
+                    "lastname": "puppy",
+                    "email": "ools@that.org",
+                    "fw_email": "ools@that.org",
+                    "flywheel_access_activities": "a,c,d,e",
+                    "nacc_data_platform_access_information_complete": "2",
+                    "archive_contact": "1",
+                    "flywheel_access": "1",
+                    "naccid_enroll_access": "ViewAccess",
+                    "web_report_access___web": "1",
+                    "web_report_access___repdash": "1",
+                    "web_report_access___scandash": "1",
+                    "study_selections___p30": "1",
+                    "study_selections___affiliatedstudy": "1",
+                    "p30_clin_forms_access_level": "SubmitAudit",
+                    "p30_imaging_access_level": "SubmitAudit",
+                    "p30_flbm_access_level": "SubmitAudit",
+                    "p30_genetic_access_level": "ViewAccess",
+                    "affiliated_study___leads": "0",
+                    "affiliated_study___dvcid": "0",
+                    "affiliated_study___allftd": "0",
+                    "affiliated_study___dlbc": "0",
+                    "affiliated_study___clariti": "1",
+                    "leads_clin_forms_access_level": "",
+                    "dvcid_clin_forms_access_level": "",
+                    "allftd_clin_forms_access_level": "",
+                    "dlbc_clin_forms_access_level": "",
+                    "cl_clin_forms_access_level": "NoAccess",
+                    "cl_imaging_access_level": "NoAccess",
+                    "cl_flbm_access_level": "ViewAccess",
+                    "cl_pay_access_level": "NoAccess",
+                    "cl_ror_access_level": "NoAccess",
+                    "permissions_approval": "1",
+                    "permissions_approval_date": "2025-08-13",
+                },
+                by_alias=True,
+            )
+        except ValidationError as error:
+            raise AssertionError(error) from error
+
+        entry2 = dir_record.to_user_entry()
         assert entry == entry2
         entry_yaml = yaml.safe_dump(entry.as_dict())
         entry_object = yaml.safe_load(entry_yaml)
         print(entry_object)
-        entry3 = UserEntry.create(entry_object)
+        entry3 = create_user_entry(entry_object)
         assert entry == entry3
 
     def test_active(self):
@@ -44,39 +100,70 @@ class TestUserEntry:
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=Authorizations(
-                study_id="adrc",
-                submit=["form", "enrollment"],
-                audit_data=True,
-                approve_data=True,
-                view_reports=True,
-            ),
+            authorizations=[
+                StudyAuthorizations(
+                    study_id="adrc",
+                    activities=["submit-audit-enrollment", "submit-audit-form"],
+                )
+            ],
             active=True,
             auth_email="chip_auth@theorg.org",
         )
 
-        assert entry.authorizations.audit_data
+        assert "submit-audit-form" in entry.authorizations[0].activities
 
         # assumes study_id is adrc
-        entry2 = UserEntry.create_from_record(
-            {
-                "contact_company_name": "the center",
-                "adresearchctr": "0",
-                "firstname": "chip",
-                "lastname": "puppy",
-                "email": "chip@theorg.org",
-                "fw_email": "chip_auth@theorg.org",
-                "flywheel_access_activities": "a,c,d,e",
-                "nacc_data_platform_access_information_complete": "2",
-                "archive_contact": "0",
-            }
-        )
+        try:
+            dir_record = DirectoryAuthorizations.model_validate(
+                {
+                    "record_id": "333",
+                    "contact_company_name": "the center",
+                    "adresearchctr": "0",
+                    "firstname": "chip",
+                    "lastname": "puppy",
+                    "email": "chip@theorg.org",
+                    "fw_email": "chip_auth@theorg.org",
+                    "archive_contact": "0",
+                    "flywheel_access": "1",
+                    "naccid_enroll_access": "SubmitAudit",
+                    "web_report_access___web": "1",
+                    "web_report_access___repdash": "1",
+                    "web_report_access___scandash": "1",
+                    "study_selections___p30": "1",
+                    "study_selections___affiliatedstudy": "1",
+                    "p30_clin_forms_access_level": "SubmitAudit",
+                    "p30_imaging_access_level": "NoAccess",
+                    "p30_flbm_access_level": "NoAccess",
+                    "p30_genetic_access_level": "NoAccess",
+                    "affiliated_study___leads": "0",
+                    "affiliated_study___dvcid": "0",
+                    "affiliated_study___allftd": "0",
+                    "affiliated_study___dlbc": "0",
+                    "affiliated_study___clariti": "1",
+                    "leads_clin_forms_access_level": "",
+                    "dvcid_clin_forms_access_level": "",
+                    "allftd_clin_forms_access_level": "",
+                    "dlbc_clin_forms_access_level": "",
+                    "cl_clin_forms_access_level": "NoAccess",
+                    "cl_imaging_access_level": "NoAccess",
+                    "cl_flbm_access_level": "NoAccess",
+                    "cl_pay_access_level": "NoAccess",
+                    "cl_ror_access_level": "NoAccess",
+                    "permissions_approval": "1",
+                    "permissions_approval_date": "2025-08-13",
+                },
+                by_alias=True,
+            )
+        except ValidationError as error:
+            raise AssertionError(error) from error
+
+        entry2 = dir_record.to_user_entry()
         assert entry == entry2
 
         entry_yaml = yaml.safe_dump(entry.as_dict())
         entry_object = yaml.safe_load(entry_yaml)
         print(entry_object)
-        entry3 = UserEntry.create(entry_object)
+        entry3 = create_user_entry(entry_object)
         assert entry == entry3
 
     def test_list_serialization(self):
@@ -94,13 +181,12 @@ class TestUserEntry:
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=Authorizations(
-                study_id="dummy",
-                submit=["form", "enrollment"],
-                audit_data=True,
-                approve_data=True,
-                view_reports=True,
-            ),
+            authorizations=[
+                StudyAuthorizations(
+                    study_id="dummy",
+                    activities=["submit-audit-form", "submit-audit-enrollment"],
+                )
+            ],
             active=True,
             auth_email="chip_auth@theorg.org",
         )
