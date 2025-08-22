@@ -6,7 +6,7 @@ Should be used when starting from centers already created using
 
 import logging
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 import flywheel
 from flywheel.models.group import Group
@@ -14,14 +14,15 @@ from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
+from keys.types import DatatypeNameType
 from projects.study import StudyModel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
 from redcap_api.redcap_repository import REDCapParametersRepository
 from serialization.case import kebab_case
-from users.authorizations import AuthMap
-from users.nacc_directory import Authorizations
+from users.authorizations import AuthMap, convert_to_activity
+from users.nacc_directory import StudyAuthorizations
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_info import CenterInfo
@@ -488,7 +489,31 @@ class CenterGroup(CenterAdaptor):
         self,
         user: User,
         auth_email: str,
-        authorizations: Authorizations,
+        authorization_list: Sequence[StudyAuthorizations],
+        auth_map: AuthMap,
+    ) -> None:
+        """Adds user to authorized projects in the center group and to any
+        associated NACC REDCap projects for data entry.
+
+        Args:
+          user: the user to add
+          auth_email: the email used in the registry
+          authorization_list: the study authorizations for the user
+          auth_map: authorizations to roles mapping
+        """
+        for authorizations in authorization_list:
+            self.add_study_roles(
+                user=user,
+                auth_email=auth_email,
+                authorizations=authorizations,
+                auth_map=auth_map,
+            )
+
+    def add_study_roles(
+        self,
+        user: User,
+        auth_email: str,
+        authorizations: StudyAuthorizations,
         auth_map: AuthMap,
     ) -> None:
         """Adds user to authorized projects in the center group and to any
@@ -580,7 +605,7 @@ class CenterGroup(CenterAdaptor):
         *,
         user: User,
         project_id: str,
-        authorizations: Authorizations,
+        authorizations: StudyAuthorizations,
         auth_map: AuthMap,
     ) -> bool:
         """Adds user to the project with the role.
@@ -629,7 +654,7 @@ class CenterGroup(CenterAdaptor):
         user: User,
         auth_email: str,
         form_ingest_project: "FormIngestProjectMetadata",
-        authorizations: Authorizations,
+        authorizations: StudyAuthorizations,
     ) -> bool:
         """Adds user to the respective REDCap project for direct data entry.
 
@@ -654,17 +679,15 @@ class CenterGroup(CenterAdaptor):
             )
             return False
 
-        activities = authorizations.get_activities()
-
         success = True
         for redcap_metadata in form_ingest_project.redcap_projects.values():
-            submission_type = redcap_metadata.get_submission_type()
+            submission_activity = redcap_metadata.get_submission_activity()
             # User doesn't have submission privileges for this module
-            if submission_type not in activities:
+            if submission_activity not in authorizations.activities:
                 log.info(
-                    "Skipping %s due to insufficient user permissions %s",
-                    submission_type,
-                    activities,
+                    "Skipping %s: activity is not in user authorizations %s",
+                    submission_activity,
+                    authorizations.activities,
                 )
                 continue
 
@@ -761,10 +784,10 @@ class REDCapFormProjectMetadata(BaseModel):
     def is_enrollment(self) -> bool:
         return self.label.upper() == DefaultValues.ENROLLMENT_MODULE
 
-    def get_submission_type(self) -> str:
-        datatype = "enrollment" if self.is_enrollment() else "form"
+    def get_submission_activity(self) -> str:
+        datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
-        return f"submit-{datatype}"
+        return convert_to_activity(activity_prefix="submit-audit", datatype=datatype)
 
 
 class FormIngestProjectMetadata(IngestProjectMetadata):
