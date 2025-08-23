@@ -1,10 +1,11 @@
 import csv
 from collections import defaultdict
 from io import StringIO
-from typing import Any, DefaultDict, Dict, List
+from typing import Any, DefaultDict, Dict, List, Optional
 
 import pytest
 from csv_app.main import CSVSplitVisitor
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import read_csv
@@ -104,20 +105,31 @@ def non_visit_data_stream(valid_non_visit_table):
     yield stream
 
 
+class MockFile(FileEntry):
+    def __init__(self, record: Dict[str, Any]):
+        self.__record = record
+        self.__info: Dict[str, Any] = {}
+
+    def update_info(self, info: Dict[str, Any]) -> None:
+        self.__info.update(info)
+
+
 class MockUploader(JSONUploader):
     def __init__(self, skip_duplicates: bool = True):
-        self.__records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.__records: DefaultDict[str, List[MockFile]] = defaultdict(list)
         self.__skip_duplicates = skip_duplicates
 
     def upload_record(
         self,
         subject_label: str,
         record: Dict[str, Any],
-    ) -> None:
+    ) -> Optional[MockFile]:
         if self.__skip_duplicates and record in self.__records[subject_label]:
-            return
+            return None
 
-        self.__records[subject_label].append(record)
+        file = MockFile(record)
+        self.__records[subject_label].append(file)
+        return file
 
     @property
     def records(self):
@@ -156,6 +168,7 @@ class TestCSVSplitVisitor:
             uploader=MockUploader(),
             project=MockProject(),
             error_writer=error_writer,
+            source_file="dummy_file.csv",
         )
 
         no_errors = read_csv(
@@ -178,6 +191,7 @@ class TestCSVSplitVisitor:
             uploader=MockUploader(),
             project=MockProject(),
             error_writer=error_writer,
+            source_file="dummy_file.csv",
         )
         no_errors = read_csv(
             input_file=visit_data_stream, error_writer=error_writer, visitor=visitor
@@ -197,6 +211,7 @@ class TestCSVSplitVisitor:
             uploader=MockUploader(),
             project=MockProject(),
             error_writer=error_writer,
+            source_file="dummy_file.csv",
         )
         no_errors = read_csv(
             input_file=non_visit_data_stream, error_writer=error_writer, visitor=visitor
@@ -218,6 +233,7 @@ class TestCSVSplitVisitor:
             uploader=uploader,
             project=MockProject(),
             error_writer=error_writer,
+            source_file="dummy_file.csv",
         )
 
         no_errors = read_csv(

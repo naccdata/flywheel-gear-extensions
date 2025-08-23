@@ -1,11 +1,12 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from typing import Any, Dict, List, TextIO
+from typing import Any, Dict, List
 
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
+from gear_execution.gear_execution import InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_writer import ErrorWriter
@@ -13,6 +14,7 @@ from outputs.errors import (
     empty_field_error,
     missing_field_error,
 )
+from uploads.acquisition import set_file_source
 from uploads.uploader import JSONUploader, UploaderError
 
 log = logging.getLogger(__name__)
@@ -28,11 +30,13 @@ class CSVSplitVisitor(CSVVisitor):
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
+        source_file: str,
     ) -> None:
         self.__req_fields = req_fields
         self.__project = project
         self.__uploader = uploader
         self.__error_writer = error_writer
+        self.__source_file = source_file
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares the visitor to process rows using the given header columns.
@@ -73,13 +77,22 @@ class CSVSplitVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
+        file = None
         try:
-            self.__uploader.upload_record(
+            file = self.__uploader.upload_record(
                 subject_label=row[FieldNames.NACCID], record=row
             )
         except UploaderError as error:
             log.error("Error (line: %s): %s", line_num, str(error))
             # TODO: save error details for notification email
+            return False
+
+        if file is None:
+            log.error("Failed to upload record for line %s", line_num)
+            return False
+
+        if not set_file_source(file, self.__source_file):
+            log.error("Failed to set source_file on %s", file.name)
             return False
 
         return True
@@ -94,9 +107,8 @@ def run(
     *,
     proxy: FlywheelProxy,
     hierarchy_client: HierarchyCreationClient,
-    input_file: TextIO,
+    file_input: InputFileWrapper,
     destination: ProjectAdaptor,
-    environment: Dict[str, Any],
     template_map: UploadTemplateInfo,
     error_writer: ErrorWriter,
     preserve_case: bool,
@@ -105,31 +117,32 @@ def run(
     Uploads the JSON file to the respective acquisition in Flywheel.
 
     Args:
-        input_file: the input file
+        file_input: the input file
         destination: Flywheel project container
-        environment: dictionary of variables describing environment for labels
         template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
         preserve_case: Whether or not to preserve header case
     Returns:
         bool: True if upload successful
     """
-    result = read_csv(
-        input_file=input_file,
-        error_writer=error_writer,
-        visitor=CSVSplitVisitor(
-            req_fields=[FieldNames.NACCID],
-            project=destination,
-            uploader=JSONUploader(
-                proxy=proxy,
-                hierarchy_client=hierarchy_client,
-                project=destination,
-                template_map=template_map,
-                environment=environment,
-            ),
+    with open(file_input.filepath, mode="r", encoding="utf-8-sig") as input_file:
+        result = read_csv(
+            input_file=input_file,
             error_writer=error_writer,
-        ),
-        preserve_case=preserve_case,
-    )
+            visitor=CSVSplitVisitor(
+                req_fields=[FieldNames.NACCID],
+                project=destination,
+                uploader=JSONUploader(
+                    proxy=proxy,
+                    hierarchy_client=hierarchy_client,
+                    project=destination,
+                    template_map=template_map,
+                    environment={"filename": file_input.basename},
+                ),
+                error_writer=error_writer,
+                source_file=file_input.filename,
+            ),
+            preserve_case=preserve_case,
+        )
 
-    return result
+        return result

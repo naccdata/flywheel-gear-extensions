@@ -86,6 +86,18 @@ def update_file_info_metadata(
 
 
 @api_retry
+def set_file_source(file: FileEntry, source_file: str) -> bool:
+    """Sets the source_file in the file's metadata."""
+    try:
+        file.update_info({"source_file": source_file})
+    except ApiException as error:
+        log.error("Error in setting file %s metadata - %s", file.name, error)
+        return False
+
+    return True
+
+
+@api_retry
 def upload_to_acquisition(
     acquisition: Acquisition,
     filename: str,

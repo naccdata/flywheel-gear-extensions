@@ -116,34 +116,30 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         project = self.__file_input.get_parent_project(proxy, file=file)
         template_map = self.__load_template(self.__hierarchy_labels)
 
-        with open(
-            self.__file_input.filepath, mode="r", encoding="utf-8-sig"
-        ) as csv_file:
-            error_writer = ListErrorWriter(
-                container_id=file_id, fw_path=proxy.get_lookup_path(file)
-            )
-            success = run(
-                proxy=proxy,
-                hierarchy_client=hierarchy_client,
-                input_file=csv_file,
-                destination=ProjectAdaptor(project=project, proxy=proxy),
-                environment={"filename": self.__file_input.basename},
-                template_map=template_map,
-                error_writer=error_writer,
-                preserve_case=self.__preserve_case,
-            )
+        error_writer = ListErrorWriter(
+            container_id=file_id, fw_path=proxy.get_lookup_path(file)
+        )
+        success = run(
+            proxy=proxy,
+            hierarchy_client=hierarchy_client,
+            file_input=self.__file_input,
+            destination=ProjectAdaptor(project=project, proxy=proxy),
+            template_map=template_map,
+            error_writer=error_writer,
+            preserve_case=self.__preserve_case,
+        )
 
-            context.metadata.add_qc_result(
-                self.__file_input.file_input,
-                name="validation",
-                state="PASS" if success else "FAIL",
-                data=error_writer.errors().model_dump(by_alias=True),
-            )
+        context.metadata.add_qc_result(
+            self.__file_input.file_input,
+            name="validation",
+            state="PASS" if success else "FAIL",
+            data=error_writer.errors().model_dump(by_alias=True),
+        )
 
-            context.metadata.add_file_tags(
-                self.__file_input.file_input,
-                tags=context.manifest.get("name", "csv-subject-splitter"),
-            )
+        context.metadata.add_file_tags(
+            self.__file_input.file_input,
+            tags=context.manifest.get("name", "csv-subject-splitter"),
+        )
 
     def __load_template(self, template_list: Dict[str, str]) -> UploadTemplateInfo:
         """Creates the list of label templates from the input objects.
