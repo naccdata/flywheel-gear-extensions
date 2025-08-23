@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.6
+* Fixes bug where `set_alias=True` was missing in `update_input_file_qc_status`, causing `error_code` and `error_type` to be reported instead of `code` and `type`
+
 ## 1.5.5
 * Updates error metadata to include date and naccid
 
