@@ -32,6 +32,8 @@ from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 
+TransferStatus = Literal["pending", "approved", "rejected"]
+
 
 class GenderIdentity(BaseModel):
     """Model for Gender Identity demographic data."""
@@ -69,7 +71,8 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
+            birth_date=datetime(
+                int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
             gender_identity=GenderIdentity(
                 man=row["enrlgenman"] if row["enrlgenman"] else None,
                 woman=row["enrlgenwoman"] if row["enrlgenwoman"] else None,
@@ -90,12 +93,16 @@ class Demographics(BaseModel):
 class TransferRecord(BaseModel):
     """Model representing transfer between centers."""
 
-    date: datetime
-    initials: str
+    status: TransferStatus
+    request_date: datetime
     center_identifiers: CenterIdentifiers
+    updated_date: datetime
+    submitter: str  # FW user who uploaded the transfer form
+    initials: Optional[str] = None
     previous_identifiers: Optional[CenterIdentifiers] = None
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
+    demographics: Optional[Demographics] = None
 
 
 class EnrollmentRecord(GUIDField, OptionalNACCIDField):

@@ -89,7 +89,10 @@ class TestEnrollmentSerialization:
 class TestTransferRecord:
     def test_complete_record(self):
         transfer = {
-            "date": datetime.today(),
+            "status": "pending",
+            "request_date": datetime.today(),
+            "updated_date": datetime.today(),
+            "submitter": "testuser@uw.edu",
             "initials": "bk",
             "center_identifiers": {"adcid": 0, "ptid": "11111"},
             "previous_identifiers": {"adcid": 0, "ptid": "22222"},
@@ -102,7 +105,10 @@ class TestTransferRecord:
 
     def test_incomplete_record(self):
         transfer = {
-            "date": datetime.today(),
+            "status": "pending",
+            "request_date": datetime.today(),
+            "updated_date": datetime.today(),
+            "submitter": "testuser@uw.edu",
             "initials": "bk",
             "center_identifiers": {"adcid": 0, "ptid": "11111"},
         }

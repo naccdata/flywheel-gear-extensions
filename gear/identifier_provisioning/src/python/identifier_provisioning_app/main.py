@@ -1,6 +1,7 @@
 """Defines Identifier Provisioning."""
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
@@ -13,6 +14,7 @@ from dates.form_dates import (
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
     CenterValidator,
+    Demographics,
     EnrollmentRecord,
     NewGUIDRowValidator,
     NewPTIDRowValidator,
@@ -149,10 +151,12 @@ class TransferVisitor(CSVVisitor):
         error_writer: ErrorWriter,
         transfer_info: TransferInfo,
         repo: IdentifierRepository,
+        submitter: str,
     ) -> None:
         self.__error_writer = error_writer
         self.__transfer_info = transfer_info
         self.__repo = repo
+        self.__submitter = submitter
         self.__new_ptid_validator = NewPTIDRowValidator(repo, error_writer)
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
@@ -430,14 +434,18 @@ class TransferVisitor(CSVVisitor):
 
         self.__transfer_info.add(
             TransferRecord(
-                date=enroll_date,
-                initials=row[FieldNames.ENRLFRM_INITL],
+                status="pending",
+                request_date=enroll_date,
+                updated_date=datetime.now(),
+                submitter=self.__submitter,
                 center_identifiers=new_identifiers,
+                initials=row.get(FieldNames.ENRLFRM_INITL),
                 previous_identifiers=self.__previous_identifiers,
                 naccid=self.__naccid_identifier.naccid
                 if self.__naccid_identifier
                 else None,
                 guid=row.get(FieldNames.GUID),
+                demographics=Demographics.create_from(row=row),
             )
         )
 
@@ -559,6 +567,7 @@ class ProvisioningVisitor(CSVVisitor):
         repo: IdentifierRepository,
         gear_name: str,
         project: ProjectAdaptor,
+        submitter: str,
     ) -> None:
         self.__error_writer = error_writer
         self.__project = project
@@ -567,7 +576,7 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer, repo=repo, batch=batch
         )
         self.__transfer_in_visitor = TransferVisitor(
-            error_writer, repo=repo, transfer_info=transfer_info
+            error_writer, repo=repo, submitter=submitter, transfer_info=transfer_info
         )
         self.__validator = CenterValidator(
             center_id=center_id,
@@ -687,6 +696,7 @@ def run(
     enrollment_project: EnrollmentProject,
     error_writer: ListErrorWriter,
     gear_name: str,
+    submitter: str,
 ):
     """Runs identifier provisioning process.
 
@@ -697,8 +707,9 @@ def run(
       enrollment_project: the project tracking enrollment
       error_writer: the error output writer
       gear_name: gear name
+      submitter: User/Job uploaded the CSV file
     """
-    transfer_info = TransferInfo(transfers=[])
+    transfer_info = TransferInfo(transfers={})
     enrollment_batch = EnrollmentBatch()
     try:
         success = read_csv(
@@ -712,6 +723,7 @@ def run(
                 transfer_info=transfer_info,
                 gear_name=gear_name,
                 project=enrollment_project,
+                submitter=submitter,
             ),
             clear_errors=True,
         )

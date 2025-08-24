@@ -113,6 +113,16 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 f"Unable to get project containing file: {file.parents.project}"
             )
 
+        user = self.proxy.find_user(file.origin.id)
+        if user:
+            # lookup the user's email; if not set to the file origin id
+            submitter = user.email if user.email else file.origin.id
+        else:
+            submitter = file.origin.id
+            log.warning(
+                f"Owner of the file {file.origin.id} does not match a user on Flywheel"
+            )
+
         input_path = Path(self.__file_input.filepath)
         gear_name = context.manifest.get("name", "identifier-provisioning")
 
@@ -130,6 +140,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                     client=LambdaClient(client=create_lambda_client()),
                     mode=self.__identifiers_mode,
                 ),
+                submitter=submitter,
             )
 
             context.metadata.add_qc_result(
