@@ -3,9 +3,7 @@
 import logging
 from typing import Any, Dict, List, TextIO
 
-from configs.ingest_configs import UploadTemplateInfo
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_writer import ErrorWriter
@@ -13,6 +11,7 @@ from outputs.errors import (
     empty_field_error,
     missing_field_error,
 )
+from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader, UploaderError
 
 log = logging.getLogger(__name__)
@@ -24,11 +23,13 @@ class CSVSplitVisitor(CSVVisitor):
     def __init__(
         self,
         *,
+        provenance: FileProvenance,
         req_fields: List[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
     ) -> None:
+        self.__provenance = provenance
         self.__req_fields = req_fields
         self.__project = project
         self.__uploader = uploader
@@ -73,13 +74,22 @@ class CSVSplitVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
+        file = None
         try:
-            self.__uploader.upload_record(
+            file = self.__uploader.upload_record(
                 subject_label=row[FieldNames.NACCID], record=row
             )
         except UploaderError as error:
             log.error("Error (line: %s): %s", line_num, str(error))
             # TODO: save error details for notification email
+            return False
+
+        if file is None:
+            log.error("Failed to upload record for line %s", line_num)
+            return False
+
+        if not self.__provenance.set_provenance(file):
+            log.error("Failed to set provenance on %s", file.name)
             return False
 
         return True
@@ -92,12 +102,10 @@ def notify_upload_errors():
 
 def run(
     *,
-    proxy: FlywheelProxy,
-    hierarchy_client: HierarchyCreationClient,
+    provenance: FileProvenance,
+    uploader: JSONUploader,
     input_file: TextIO,
     destination: ProjectAdaptor,
-    environment: Dict[str, Any],
-    template_map: UploadTemplateInfo,
     error_writer: ErrorWriter,
     preserve_case: bool,
 ) -> bool:
@@ -105,10 +113,10 @@ def run(
     Uploads the JSON file to the respective acquisition in Flywheel.
 
     Args:
+        provenance: The FileProvenance to track source
+        uploader: JSONUploader; will handle uploading each record
         input_file: the input file
         destination: Flywheel project container
-        environment: dictionary of variables describing environment for labels
-        template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
         preserve_case: Whether or not to preserve header case
     Returns:
@@ -118,15 +126,10 @@ def run(
         input_file=input_file,
         error_writer=error_writer,
         visitor=CSVSplitVisitor(
+            provenance=provenance,
             req_fields=[FieldNames.NACCID],
             project=destination,
-            uploader=JSONUploader(
-                proxy=proxy,
-                hierarchy_client=hierarchy_client,
-                project=destination,
-                template_map=template_map,
-                environment=environment,
-            ),
+            uploader=uploader,
             error_writer=error_writer,
         ),
         preserve_case=preserve_case,
