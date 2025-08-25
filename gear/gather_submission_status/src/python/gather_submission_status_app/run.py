@@ -109,7 +109,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
         if query_type == "error":
             file_visitor = ErrorReportVisitor(error_transformer)
-            fieldnames = list(ErrorReportModel.model_fields.keys())
+            fieldnames = ErrorReportModel.serialized_fieldnames()
 
         return GatherSubmissionStatusVisitor(
             client=client,

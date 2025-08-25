@@ -3,8 +3,9 @@
 from typing import Any, get_args
 
 from keys.types import ModuleName
-from outputs.error_models import FileError, VisitKeys
+from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from outputs.qc_report import QCReportBaseModel, QCTransformerError
+from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 
 class ErrorReportModel(QCReportBaseModel, FileError):
@@ -12,6 +13,39 @@ class ErrorReportModel(QCReportBaseModel, FileError):
 
     adcid: int
     module: ModuleName
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Creates a dictionary for an error report model with location field
+        replaced by fields from the location object.
+
+        Uses a handler that does the standard serialization and then modifies
+        the result.
+
+        Args:
+          handler: the "plain" serializer
+        """
+        report_model = handler(self)  # use standard serialization
+        location: dict[str, Any] = report_model.pop("location", {})
+        if location:
+            report_model.update(location)
+
+        return report_model
+
+    @classmethod
+    def serialized_fieldnames(cls) -> list[str]:
+        """Returns the list of fieldnames in the serialized error report
+        object.
+
+        Ensures CSV created from any object will have corresponding
+        fieldnames. Removes location and replaces with the field names
+        from CSVLocation and JSONLocation.
+        """
+        fieldnames = set(cls.fieldnames())
+        csv_fields = set(CSVLocation.model_fields.keys())
+        json_fields = set(JSONLocation.model_fields.keys())
+
+        return list((fieldnames - {"location"}).union(csv_fields).union(json_fields))
 
 
 def error_transformer(
@@ -45,9 +79,6 @@ def error_transformer(
         raise QCTransformerError(f"Unexpected module name: {visit.module}")
 
     error_model = file_error.model_dump()
-    location: dict[str, Any] = error_model.pop("location", {})
-    if location:
-        error_model.update(location)
 
     return ErrorReportModel.model_validate(
         {
