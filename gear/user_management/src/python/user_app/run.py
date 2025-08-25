@@ -198,11 +198,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 continue
 
             if not user_entry.approved:
-                log.warning(
-                    "Skipping unapproved user with email %s for center",
-                    user_entry.email,
-                    user_entry.adcid,
-                )
+                log.warning("Skipping unapproved user with email %s", user_entry.email)
                 continue
 
             user_list.enqueue(user_entry)
