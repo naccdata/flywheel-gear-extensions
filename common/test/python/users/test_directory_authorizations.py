@@ -87,7 +87,8 @@ class TestDirectoryAuthorizations:
             "contact_company_name": "an institution",
             "adresearchctr": "999",
             "archive_contact": "0",
-        }
+        },
+        by_alias=True,
     )
     assert auths
     assert not auths.inactive
