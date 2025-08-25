@@ -2,7 +2,7 @@
     "name": "csv-subject-splitter",
     "label": "CSV Subject Splitter",
     "description": "Converts rows of CSV file to subject JSON files based on NACCID",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/csv-subject-splitter:1.0.5"
+            "image": "naccdata/csv-subject-splitter:1.0.6"
         },
         "flywheel": {
             "suite": "Curation",
