@@ -38,6 +38,7 @@ class TestUserEntry:
             email="ools@that.org",
             auth_email="ools@that.org",
             active=False,
+            approved=True,
         )
         try:
             dir_record = DirectoryAuthorizations.model_validate(
@@ -107,6 +108,7 @@ class TestUserEntry:
                 )
             ],
             active=True,
+            approved=True,
             auth_email="chip_auth@theorg.org",
         )
 
@@ -174,6 +176,7 @@ class TestUserEntry:
             email="ools@that.org",
             auth_email="ools@that.org",
             active=False,
+            approved=True,
         )
         user_list.append(entry1)
         entry2 = ActiveUserEntry(
@@ -188,6 +191,7 @@ class TestUserEntry:
                 )
             ],
             active=True,
+            approved=True,
             auth_email="chip_auth@theorg.org",
         )
         user_list.append(entry2)

@@ -89,6 +89,7 @@ class ActiveUserEntry(UserEntry):
             email=self.email,
             auth_email=self.auth_email,
             active=self.active,
+            approved=self.approved,
             org_name=self.org_name,
             adcid=self.adcid,
             authorizations=self.authorizations,
