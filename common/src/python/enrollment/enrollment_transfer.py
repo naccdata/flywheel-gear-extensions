@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 
-TransferStatus = Literal["pending", "approved", "rejected"]
+TransferStatus = Literal["pending", "approved", "rejected", "completed"]
 
 
 class GenderIdentity(BaseModel):

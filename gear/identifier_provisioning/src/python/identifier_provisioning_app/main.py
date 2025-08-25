@@ -339,10 +339,20 @@ class TransferVisitor(CSVVisitor):
             return True
 
         previous_adcid = row.get(FieldNames.OLDADCID)
-        previous_ptid = row.get(FieldNames.OLDPTID)
+        if previous_adcid is None:
+            self.__error_writer.write(
+                empty_field_error(
+                    field=FieldNames.OLDADCID,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
+                )
+            )
+            return False
 
-        # OLDPTID is not a required field in the form
-        if not previous_adcid or not previous_ptid:
+        previous_ptid = row.get(FieldNames.OLDPTID)
+        if not previous_ptid:  # OLDPTID is not a required field in the form
             return True
 
         try:
@@ -429,7 +439,7 @@ class TransferVisitor(CSVVisitor):
         )
 
         self.__previous_identifiers = CenterIdentifiers(
-            adcid=row.get(FieldNames.OLDADCID, "unknown"),
+            adcid=row[FieldNames.OLDADCID],
             ptid=row.get(FieldNames.OLDPTID, "unknown"),
         )
 
