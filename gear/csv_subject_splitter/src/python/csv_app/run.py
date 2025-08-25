@@ -22,6 +22,8 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterError, ParameterStore
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
+from uploads.provenance import FileProvenance
+from uploads.uploader import JSONUploader
 
 from csv_app.main import run
 
@@ -114,32 +116,44 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             ) from error
 
         project = self.__file_input.get_parent_project(proxy, file=file)
+        destination = ProjectAdaptor(project=project, proxy=proxy)
         template_map = self.__load_template(self.__hierarchy_labels)
 
-        error_writer = ListErrorWriter(
-            container_id=file_id, fw_path=proxy.get_lookup_path(file)
-        )
-        success = run(
+        provenance = FileProvenance.create_from_parent(proxy, file)
+        uploader = JSONUploader(
             proxy=proxy,
             hierarchy_client=hierarchy_client,
-            file_input=self.__file_input,
-            destination=ProjectAdaptor(project=project, proxy=proxy),
+            project=destination,
             template_map=template_map,
-            error_writer=error_writer,
-            preserve_case=self.__preserve_case,
+            environment={"filename": self.__file_input.basename},
         )
 
-        context.metadata.add_qc_result(
-            self.__file_input.file_input,
-            name="validation",
-            state="PASS" if success else "FAIL",
-            data=error_writer.errors().model_dump(by_alias=True),
-        )
+        with open(
+            self.__file_input.filepath, mode="r", encoding="utf-8-sig"
+        ) as csv_file:
+            error_writer = ListErrorWriter(
+                container_id=file_id, fw_path=proxy.get_lookup_path(file)
+            )
+            success = run(
+                provenance=provenance,
+                uploader=uploader,
+                input_file=csv_file,
+                destination=destination,
+                error_writer=error_writer,
+                preserve_case=self.__preserve_case,
+            )
 
-        context.metadata.add_file_tags(
-            self.__file_input.file_input,
-            tags=context.manifest.get("name", "csv-subject-splitter"),
-        )
+            context.metadata.add_qc_result(
+                self.__file_input.file_input,
+                name="validation",
+                state="PASS" if success else "FAIL",
+                data=error_writer.errors().model_dump(by_alias=True),
+            )
+
+            context.metadata.add_file_tags(
+                self.__file_input.file_input,
+                tags=context.manifest.get("name", "csv-subject-splitter"),
+            )
 
     def __load_template(self, template_list: Dict[str, str]) -> UploadTemplateInfo:
         """Creates the list of label templates from the input objects.

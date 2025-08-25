@@ -1,7 +1,7 @@
 import csv
 from collections import defaultdict
 from io import StringIO
-from typing import Any, DefaultDict, Dict, List, Optional
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 import pytest
 from csv_app.main import CSVSplitVisitor
@@ -10,6 +10,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import read_csv
 from outputs.error_writer import StreamErrorWriter
+from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader
 
 
@@ -156,20 +157,34 @@ class MockProject(ProjectAdaptor):
 class TestCSVSplitVisitor:
     """Tests csv-subject transformation."""
 
-    def test_missing_column_headers(self, missing_columns_stream):
-        """test missing expected column headers."""
+    def __create_dummy_visitor(
+        self, uploader: Optional[MockUploader] = None
+    ) -> Tuple[CSVSplitVisitor, StringIO, StreamErrorWriter]:
+        """Create dummy visitor and error writer for testing."""
         err_stream = StringIO()
-        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
         error_writer = StreamErrorWriter(
             stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
         )
+
+        provenance = FileProvenance(
+            file_id="123456789",
+            file_name="dummy_file.csv",
+            flywheel_path="fw://dummy-container/dummy_file.csv",
+        )
+
         visitor = CSVSplitVisitor(
+            provenance=provenance,
             req_fields=["naccid"],
-            uploader=MockUploader(),
+            uploader=MockUploader() if uploader is None else uploader,
             project=MockProject(),
             error_writer=error_writer,
-            source_file="dummy_file.csv",
         )
+
+        return visitor, err_stream, error_writer
+
+    def test_missing_column_headers(self, missing_columns_stream):
+        """test missing expected column headers."""
+        visitor, err_stream, error_writer = self.__create_dummy_visitor()
 
         no_errors = read_csv(
             input_file=missing_columns_stream,
@@ -181,18 +196,7 @@ class TestCSVSplitVisitor:
 
     def test_valid_visit(self, visit_data_stream):
         """Test case where data corresponds to form completed at visit."""
-        err_stream = StringIO()
-        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(
-            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
-        )
-        visitor = CSVSplitVisitor(
-            req_fields=["naccid"],
-            uploader=MockUploader(),
-            project=MockProject(),
-            error_writer=error_writer,
-            source_file="dummy_file.csv",
-        )
+        visitor, err_stream, error_writer = self.__create_dummy_visitor()
         no_errors = read_csv(
             input_file=visit_data_stream, error_writer=error_writer, visitor=visitor
         )
@@ -201,18 +205,7 @@ class TestCSVSplitVisitor:
 
     def test_valid_non_visit(self, non_visit_data_stream):
         """Test case where data does not correspond to visit."""
-        err_stream = StringIO()
-        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(
-            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
-        )
-        visitor = CSVSplitVisitor(
-            req_fields=["naccid"],
-            uploader=MockUploader(),
-            project=MockProject(),
-            error_writer=error_writer,
-            source_file="dummy_file.csv",
-        )
+        visitor, err_stream, error_writer = self.__create_dummy_visitor()
         no_errors = read_csv(
             input_file=non_visit_data_stream, error_writer=error_writer, visitor=visitor
         )
@@ -222,18 +215,9 @@ class TestCSVSplitVisitor:
 
     def test_duplicates(self, visit_data_stream_duplicates):
         """Test uploading duplicate visits only results in 1 record."""
-        err_stream = StringIO()
-        # records: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
-        error_writer = StreamErrorWriter(
-            stream=err_stream, container_id="dummy", fw_path="dummy/dummy"
-        )
         uploader = MockUploader()
-        visitor = CSVSplitVisitor(
-            req_fields=["naccid"],
-            uploader=uploader,
-            project=MockProject(),
-            error_writer=error_writer,
-            source_file="dummy_file.csv",
+        visitor, err_stream, error_writer = self.__create_dummy_visitor(
+            uploader=uploader
         )
 
         no_errors = read_csv(

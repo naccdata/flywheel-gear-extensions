@@ -1,12 +1,9 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TextIO
 
-from configs.ingest_configs import UploadTemplateInfo
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
-from gear_execution.gear_execution import InputFileWrapper
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
 from outputs.error_writer import ErrorWriter
@@ -14,7 +11,7 @@ from outputs.errors import (
     empty_field_error,
     missing_field_error,
 )
-from uploads.acquisition import set_file_source
+from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader, UploaderError
 
 log = logging.getLogger(__name__)
@@ -26,17 +23,17 @@ class CSVSplitVisitor(CSVVisitor):
     def __init__(
         self,
         *,
+        provenance: FileProvenance,
         req_fields: List[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
-        source_file: str,
     ) -> None:
+        self.__provenance = provenance
         self.__req_fields = req_fields
         self.__project = project
         self.__uploader = uploader
         self.__error_writer = error_writer
-        self.__source_file = source_file
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares the visitor to process rows using the given header columns.
@@ -91,8 +88,8 @@ class CSVSplitVisitor(CSVVisitor):
             log.error("Failed to upload record for line %s", line_num)
             return False
 
-        if not set_file_source(file, self.__source_file):
-            log.error("Failed to set source_file on %s", file.name)
+        if not self.__provenance.set_provenance(file):
+            log.error("Failed to set provenance on %s", file.name)
             return False
 
         return True
@@ -105,11 +102,10 @@ def notify_upload_errors():
 
 def run(
     *,
-    proxy: FlywheelProxy,
-    hierarchy_client: HierarchyCreationClient,
-    file_input: InputFileWrapper,
+    provenance: FileProvenance,
+    uploader: JSONUploader,
+    input_file: TextIO,
     destination: ProjectAdaptor,
-    template_map: UploadTemplateInfo,
     error_writer: ErrorWriter,
     preserve_case: bool,
 ) -> bool:
@@ -117,32 +113,26 @@ def run(
     Uploads the JSON file to the respective acquisition in Flywheel.
 
     Args:
-        file_input: the input file
+        provenance: The FileProvenance to track source
+        uploader: JSONUploader; will handle uploading each record
+        input_file: the input file
         destination: Flywheel project container
-        template_map: string templates for FW hierarchy labels
         error_writer: the writer for error output
         preserve_case: Whether or not to preserve header case
     Returns:
         bool: True if upload successful
     """
-    with open(file_input.filepath, mode="r", encoding="utf-8-sig") as input_file:
-        result = read_csv(
-            input_file=input_file,
+    result = read_csv(
+        input_file=input_file,
+        error_writer=error_writer,
+        visitor=CSVSplitVisitor(
+            provenance=provenance,
+            req_fields=[FieldNames.NACCID],
+            project=destination,
+            uploader=uploader,
             error_writer=error_writer,
-            visitor=CSVSplitVisitor(
-                req_fields=[FieldNames.NACCID],
-                project=destination,
-                uploader=JSONUploader(
-                    proxy=proxy,
-                    hierarchy_client=hierarchy_client,
-                    project=destination,
-                    template_map=template_map,
-                    environment={"filename": file_input.basename},
-                ),
-                error_writer=error_writer,
-                source_file=file_input.filename,
-            ),
-            preserve_case=preserve_case,
-        )
+        ),
+        preserve_case=preserve_case,
+    )
 
-        return result
+    return result
