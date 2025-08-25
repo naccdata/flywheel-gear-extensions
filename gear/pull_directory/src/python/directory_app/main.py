@@ -23,7 +23,9 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
     user_emails = set()
     for user_record in user_report:
         try:
-            dir_record = DirectoryAuthorizations.model_validate(user_record)
+            dir_record = DirectoryAuthorizations.model_validate(
+                user_record, by_alias=True
+            )
         except ValidationError as error:
             log.error("Error loading user record: %s", error)
             continue
