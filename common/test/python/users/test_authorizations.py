@@ -3,19 +3,13 @@
 import pytest
 import yaml
 from pydantic import ValidationError
-from users.authorizations import AuthMap, Authorizations
+from users.authorizations import AuthMap, StudyAuthorizations, convert_to_activities
 
 
 @pytest.fixture
 def empty_auth():
     """Empty authorizations."""
-    yield Authorizations(
-        study_id="dummy",
-        submit=[],
-        audit_data=False,
-        approve_data=False,
-        view_reports=False,
-    )
+    yield StudyAuthorizations(study_id="dummy", activities=[])
 
 
 @pytest.fixture
@@ -24,25 +18,19 @@ def auth_map_alpha():
     auth_map = AuthMap(
         project_authorizations={
             "accepted": {
-                "approve-data": "read-only",
-                "audit-data": "read-only",
-                "view-reports": "read-only",
-                "submit-form": "read-only",
-                "submit-dicom": "read-only",
+                "submit-audit-form": "read-only",
+                "view-form": "read-only",
+                "submit-audit-dicom": "read-only",
             },
             "ingest-form": {
-                "approve-data": "read-only",
-                "audit-data": "read-only",
-                "view-reports": "read-only",
-                "submit-form": "upload",
+                "view-form": "read-only",
+                "submit-audit-form": "upload",
             },
             "ingest-enrollment": {
-                "approve-data": "read-only",
-                "audit-data": "read-only",
-                "view-reports": "read-only",
-                "submit-enrollment": "upload",
+                "view-enrollment": "read-only",
+                "submit-audit-enrollment": "upload",
             },
-            "sandbox-form": {"submit-form": "upload"},
+            "sandbox-form": {"submit-audit-form": "upload"},
         }
     )
     yield auth_map
@@ -54,196 +42,56 @@ def auth_map_alpha_yaml():
     yield (
         "---\n"
         "accepted:\n"
-        "  approve-data: read-only\n"
-        "  audit-data: read-only\n"
-        "  view-reports: read-only\n"
-        "  submit-form: read-only\n"
-        "  submit-dicom: read-only\n"
-        "ingest-enrollment:\n"
-        "  approve-data: read-only\n"
-        "  audit-data: read-only\n"
-        "  view-reports: read-only\n"
-        "  submit-enrollment: upload\n"
+        "  submit-audit-form: read-only\n"
+        "  view-form: read-only\n"
+        "  submit-audit-dicom: read-only\n"
         "ingest-form:\n"
-        "  approve-data: read-only\n"
-        "  audit-data: read-only\n"
-        "  view-reports: read-only\n"
-        "  submit-form: upload\n"
+        "  view-form: read-only\n"
+        "  submit-audit-form: upload\n"
+        "ingest-enrollment:\n"
+        "  view-enrollment: read-only\n"
+        "  submit-audit-enrollment: upload\n"
         "sandbox-form:\n"
-        "  submit-form: upload\n"
+        "  submit-audit-form: upload\n"
     )
 
 
 @pytest.fixture
 def alpha_authorizations():
     """Authorizations object."""
-    yield Authorizations(
+    yield StudyAuthorizations(
         study_id="dummy",
-        submit=["form", "enrollment"],
-        audit_data=True,
-        approve_data=True,
-        view_reports=True,
+        activities=convert_to_activities(
+            activity_prefix="submit-audit", datatypes=["form", "enrollment"]
+        ),
     )
 
 
 @pytest.fixture
 def beta_authorizations():
     """Authorizations object."""
-    yield Authorizations(
-        study_id="dummy",
-        submit=["dicom"],
-        audit_data=False,
-        approve_data=True,
-        view_reports=False,
+    activities = convert_to_activities(
+        activity_prefix="submit-audit", datatypes=["dicom"]
     )
-
-
-class TestAuthorizations:
-    """Tests for Authorizations activities."""
-
-    # pylint: disable=(redefined-outer-name,no-self-use)
-    def test_activities(self):
-        """Test get_activities."""
-        authorizations = Authorizations(
-            study_id="dummy",
-            submit=["form", "dicom"],
-            audit_data=True,
-            approve_data=True,
-            view_reports=True,
-        )
-        assert set(authorizations.get_activities()) == {
-            "audit-data",
-            "approve-data",
-            "submit-form",
-            "submit-dicom",
-            "view-reports",
-        }
-
-        authorizations = Authorizations(
-            study_id="dummy",
-            submit=["form"],
-            audit_data=True,
-            approve_data=True,
-            view_reports=False,
-        )
-        assert set(authorizations.get_activities()) == {
-            "audit-data",
-            "approve-data",
-            "submit-form",
-        }
-
-    # pylint: disable=(redefined-outer-name,no-self-use)
-    def test_create_from_record(self):
-        """Test create_from_record."""
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a", "b", "c", "d", "e"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment", "dicom"],
-            audit_data=True,
-            approve_data=True,
-            view_reports=True,
-        )
-
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a", "b", "c", "d"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment", "dicom"],
-            audit_data=True,
-            approve_data=True,
-            view_reports=False,
-        )
-
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a", "b", "c"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment", "dicom"],
-            audit_data=True,
-            approve_data=False,
-            view_reports=False,
-        )
-
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a", "b"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment", "dicom"],
-            audit_data=False,
-            approve_data=False,
-            view_reports=False,
-        )
-
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment"],
-            audit_data=False,
-            approve_data=False,
-            view_reports=False,
-        )
-
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=[]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=[],
-            audit_data=False,
-            approve_data=False,
-            view_reports=False,
-        )
-
-    # pylint: disable=(redefined-outer-name,no-self-use)
-    def test_create_from_record_invalid(self):
-        """Test create_from_record with invalid input."""
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=["a", "b", "x"]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=["form", "enrollment", "dicom"],
-            audit_data=False,
-            approve_data=False,
-            view_reports=False,
-        )
-
-    # pylint: disable=(redefined-outer-name,no-self-use)
-    def test_create_from_record_empty(self):
-        """Test create_from_record with empty input."""
-        authorizations = Authorizations.create_from_record(
-            study_id="dummy", activities=[]
-        )
-        assert authorizations == Authorizations(
-            study_id="dummy",
-            submit=[],
-            audit_data=False,
-            approve_data=False,
-            view_reports=False,
-        )
+    activities.append("view-form")
+    yield StudyAuthorizations(
+        study_id="dummy",
+        activities=activities,
+    )
 
 
 class TestAuthMap:
     """Tests for AuthMap."""
 
-    # pylint: disable=(redefined-outer-name,no-self-use)
-    def test_empty_map(self, empty_auth: Authorizations):
+    def test_empty_map(self, empty_auth: StudyAuthorizations):
         """Test empty map."""
         auth_map = AuthMap(project_authorizations={})
         assert auth_map.get(project_label="dummy", authorizations=empty_auth) == set()
 
-    # pylint: disable=(redefined-outer-name,no-self-use)
     def test_authmap(
         self,
-        alpha_authorizations: Authorizations,
-        beta_authorizations: Authorizations,
+        alpha_authorizations: StudyAuthorizations,
+        beta_authorizations: StudyAuthorizations,
         auth_map_alpha: AuthMap,
     ):
         """Test authmap."""
@@ -252,7 +100,7 @@ class TestAuthMap:
         ) == {"read-only"}
         assert auth_map_alpha.get(
             project_label="ingest-form", authorizations=alpha_authorizations
-        ) == {"read-only", "upload"}
+        ) == {"upload"}
         assert (
             auth_map_alpha.get(
                 project_label="ingest-dicom", authorizations=alpha_authorizations
@@ -282,7 +130,6 @@ class TestAuthMap:
             == set()
         )
 
-    # pylint: disable=(redefined-outer-name,no-self-use)
     def test_yaml(self, auth_map_alpha: AuthMap, auth_map_alpha_yaml: str):
         """Test YAML conversion."""
         yaml_object = yaml.safe_load(auth_map_alpha_yaml)
