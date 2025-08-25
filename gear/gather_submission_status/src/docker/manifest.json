@@ -2,7 +2,7 @@
     "name": "gather-submission-status",
     "label": "Gather Submission Status",
     "description": "A gear for gathering form submission status",
-    "version": "0.3.4",
+    "version": "0.4.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/gather-submission-status:0.3.4"
+            "image": "naccdata/gather-submission-status:0.4.0"
         },
         "flywheel": {
             "suite": "Utility",

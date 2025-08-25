@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.4.0
+
+* Adds generation of an error report from the qc-status logs.
+
 ## 0.3.4
 
 * Change so that metadata from qc-status logs is used rather than acquisition files.
