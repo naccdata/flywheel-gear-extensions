@@ -1,3 +1,4 @@
+"""Defines models for representing user entries in the directory."""
 import logging
 from datetime import datetime
 from typing import NewType, Optional
@@ -11,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 class PersonName(BaseModel):
-    """Type class for a person's name."""
+    """Data model for a person's name."""
 
     first_name: str
     last_name: str
@@ -40,6 +41,7 @@ class UserEntry(BaseModel):
     email: str
     auth_email: Optional[str] = Field(default=None)
     active: bool
+    approved: bool
     registration_date: Optional[datetime] = None
 
     @property
