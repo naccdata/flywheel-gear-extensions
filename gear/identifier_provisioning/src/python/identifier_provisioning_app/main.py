@@ -33,6 +33,7 @@ from identifiers.identifiers_repository import (
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues, FieldNames
+from notifications.email import EmailClient, create_ses_client
 from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
 from outputs.error_writer import ErrorWriter, ListErrorWriter
@@ -688,6 +689,34 @@ class ProvisioningVisitor(CSVVisitor):
         return success
 
 
+def send_email(
+    sender_email: str,
+    target_emails: List[str],
+    group_lbl: str,
+    project_lbl: str,
+    transfer_ptids: List[str],
+) -> None:
+    """Send a raw email notifying target emails of the transfer request(s).
+
+    Args:
+        sender_email: The sender email
+        target_emails: The target email(s)
+        group_lbl: Flywheel group label
+        project_lbl: Flywheel project label
+        transfer_ptids: PTIDs pending for transfer
+    """
+    client = EmailClient(client=create_ses_client(), source=sender_email)
+
+    subject = f"Participant transfer request for {group_lbl}/{project_lbl}"
+    body = (
+        "\n\nParticipant transfer request(s) submitted for PTIDs "
+        f"{transfer_ptids} in enrollment project {group_lbl}/{project_lbl}.\n"
+        "Please review the details in project Information tab under transfers.\n\n"
+    )
+
+    client.send_raw(destinations=target_emails, subject=subject, body=body)
+
+
 def run(
     *,
     input_file: TextIO,
@@ -697,6 +726,8 @@ def run(
     error_writer: ListErrorWriter,
     gear_name: str,
     submitter: str,
+    sender_email: str,
+    target_emails: List[str],
 ):
     """Runs identifier provisioning process.
 
@@ -708,6 +739,8 @@ def run(
       error_writer: the error output writer
       gear_name: gear name
       submitter: User/Job uploaded the CSV file
+      sender_email: The source email to send transfer request notification
+      target_emails: The target email(s) that the notification to be delivered
     """
     transfer_info = TransferInfo(transfers={})
     enrollment_batch = EnrollmentBatch()
@@ -810,7 +843,15 @@ def run(
             errors=error_writer.errors(),
         )
 
-    enrollment_project.add_transfers(transfer_info)
+    if len(transfer_info.transfers) > 0:
+        enrollment_project.add_transfers(transfer_info)
+        send_email(
+            sender_email=sender_email,
+            target_emails=target_emails,
+            group_lbl=enrollment_project.group,
+            project_lbl=enrollment_project.label,
+            transfer_ptids=list(transfer_info.transfers.keys()),
+        )
 
     if not success:
         error_writer.clear()

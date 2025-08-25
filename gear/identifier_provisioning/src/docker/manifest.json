@@ -56,6 +56,16 @@
             "description": "Enrollment form module name",
             "type": "string",
             "default": "enroll"
+        },
+        "sender_email": {
+            "description": "The source email to send the transfer pending notification",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of destination emails to send the notification to",
+            "type": "string",
+            "default": "nacc_dev@uw.edu"
         }
     },
     "command": "/bin/run"

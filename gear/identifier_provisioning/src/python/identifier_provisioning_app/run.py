@@ -126,10 +126,15 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         input_path = Path(self.__file_input.filepath)
         gear_name = context.manifest.get("name", "identifier-provisioning")
 
+        error_writer = ListErrorWriter(
+            container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
+        )
+
+        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
+        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
+
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
-            error_writer = ListErrorWriter(
-                container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
-            )
             success = run(
                 input_file=csv_file,
                 center_id=adcid,
@@ -141,6 +146,8 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                     mode=self.__identifiers_mode,
                 ),
                 submitter=submitter,
+                sender_email=sender_email,
+                target_emails=target_emails,
             )
 
             context.metadata.add_qc_result(

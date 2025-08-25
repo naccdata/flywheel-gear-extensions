@@ -71,8 +71,7 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(
-                int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
+            birth_date=datetime(int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
             gender_identity=GenderIdentity(
                 man=row["enrlgenman"] if row["enrlgenman"] else None,
                 woman=row["enrlgenwoman"] if row["enrlgenwoman"] else None,
