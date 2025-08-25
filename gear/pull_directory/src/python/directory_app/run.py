@@ -82,7 +82,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         """Runs the directory pull gear.
 
         Args:
-            engine (GearExecutionEngine): The gear execution engine.
+            context: the gear execution context
         """
         assert context, "Gear context required"
         assert self.__user_filename, "User filename required"

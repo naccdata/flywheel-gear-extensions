@@ -2,6 +2,20 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.4.0
+
+* Adds generation of an error report from the qc-status logs.
+
+## 0.3.4
+
+* Change so that metadata from qc-status logs is used rather than acquisition files.
+
+## 0.2.1
+
+* Adds visit date to output.
+* Moves list of form modules to gear manifest, so that same modules are searched for all participants.
+* Add study ID to gear manifest that is used to check for valid study IDs in query file.
+
 ## 0.1.3
 
 * Adds gear to pull status details of files in ingest projects for a list of participants

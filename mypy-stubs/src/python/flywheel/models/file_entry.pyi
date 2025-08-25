@@ -1,11 +1,13 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from flywheel.models.container_parents import ContainerParents
 from flywheel.models.file_origin import FileOrigin
 
 
 class FileEntry:
+
+    def __init__(self, name:Optional[str], info:Optional[Dict[str, Any]]) -> None: ...
 
     @property
     def id(self) -> str:
