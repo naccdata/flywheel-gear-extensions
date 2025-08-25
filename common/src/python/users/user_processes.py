@@ -688,16 +688,17 @@ class UserProcess(BaseUserProcess[UserEntry]):
         Args:
           entry: the user entry
         """
-        if entry.active:
-            if not entry.auth_email:
-                log.info("Ignoring active user with no auth email: %s", entry.email)
-                return
+        if not entry.active:
+            self.__inactive_queue.enqueue(entry)
+            return
 
-            if isinstance(entry, ActiveUserEntry):
-                self.__active_queue.enqueue(entry)
-                return
+        if not entry.auth_email:
+            log.info("Ignoring active user with no auth email: %s", entry.email)
+            return
 
-        self.__inactive_queue.enqueue(entry)
+        if isinstance(entry, ActiveUserEntry):
+            self.__active_queue.enqueue(entry)
+
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Splits the queue into active and inactive queues of entries, and
