@@ -213,13 +213,15 @@ class DirectoryAuthorizations(BaseModel):
         """Converts this DirectoryAuthorizations object to a UserEntry."""
         if not self.portal_access:
             return None
+        if not self.permissions_approval:
+            return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
         auth_email = self.auth_email
         if self.inactive:
             return UserEntry(
-                name=name, email=email, auth_email=auth_email, active=False
+                name=name, email=email, auth_email=auth_email, active=False, approved=self.permissions_approval
             )
 
         authorizations = self.__parse_fields().get_authorizations()
@@ -231,4 +233,5 @@ class DirectoryAuthorizations(BaseModel):
             auth_email=auth_email,
             authorizations=authorizations,
             active=True,
+            approved=self.permissions_approval
         )
