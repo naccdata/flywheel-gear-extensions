@@ -64,7 +64,10 @@ def update_input_file_qc_status(
     status_str = "PASS" if qc_passed else "FAIL"
 
     gear_context.metadata.add_qc_result(
-        input_wrapper.file_input, name="validation", state=status_str, data=errors
+        input_wrapper.file_input,
+        name="validation",
+        state=status_str,
+        data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
     fail_tag = f"{gear_name}-FAIL"
