@@ -143,12 +143,12 @@ def get_qc_errors(project: MockProject):
     """
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
-    error_logs = {
-        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
-    }
+    error_logs = [
+        file for file in project.files if file.name.endswith("_qc-status.log")
+    ]
     assert error_logs
 
-    error_file = list(error_logs.values())[0]  # noqa: RUF015
+    error_file = error_logs[0]
     return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 
