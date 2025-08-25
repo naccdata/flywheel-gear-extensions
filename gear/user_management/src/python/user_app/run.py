@@ -189,12 +189,16 @@ class UserManagementVisitor(GearExecutionEnvironment):
         user_list: UserQueue[UserEntry] = UserQueue()
         for user_doc in object_list:
             try:
-                if user_doc.get("active"):
+                if not user_doc.get("active"):
                     user_entry = UserEntry.model_validate(user_doc)
                 else:
                     user_entry = ActiveUserEntry.model_validate(user_doc)
             except ValidationError as error:
                 log.error("Error creating user entry: %s", error)
+                continue
+
+            if not user_entry.approved:
+                log.warning("Skipping unapproved user with email %s for center", user_entry.email, user_entry.adcid)
                 continue
 
             user_list.enqueue(user_entry)
