@@ -60,7 +60,7 @@ The status output file also contains the column
 
 - `status`: the PASS/FAIL status of the data
 
-The report output file contains the columns
+The error report output file contains the columns
 
 - `timestamp` - timestamp for the error generation
 - `type` - one of "alert", "error", "warning"
