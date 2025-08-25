@@ -1,4 +1,5 @@
 """Defines models for representing user entries in the directory."""
+
 import logging
 from datetime import datetime
 from typing import NewType, Optional

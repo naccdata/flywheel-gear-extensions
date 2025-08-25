@@ -66,8 +66,6 @@ class AuthMap(BaseModel):
         """
         roles: Set[str] = set()
 
-        
-
         pipeline_label = project_label
         if pipeline_label not in self.project_authorizations:
             # remove the suffix in case it is a study ID

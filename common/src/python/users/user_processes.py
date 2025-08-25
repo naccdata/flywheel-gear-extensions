@@ -699,7 +699,6 @@ class UserProcess(BaseUserProcess[UserEntry]):
         if isinstance(entry, ActiveUserEntry):
             self.__active_queue.enqueue(entry)
 
-
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Splits the queue into active and inactive queues of entries, and
         then applies appropriate processes to each.

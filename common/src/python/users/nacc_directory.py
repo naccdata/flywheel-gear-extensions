@@ -221,7 +221,11 @@ class DirectoryAuthorizations(BaseModel):
         auth_email = self.auth_email
         if self.inactive:
             return UserEntry(
-                name=name, email=email, auth_email=auth_email, active=False, approved=self.permissions_approval
+                name=name,
+                email=email,
+                auth_email=auth_email,
+                active=False,
+                approved=self.permissions_approval,
             )
 
         authorizations = self.__parse_fields().get_authorizations()
@@ -233,5 +237,5 @@ class DirectoryAuthorizations(BaseModel):
             auth_email=auth_email,
             authorizations=authorizations,
             active=True,
-            approved=self.permissions_approval
+            approved=self.permissions_approval,
         )
