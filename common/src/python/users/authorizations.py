@@ -66,6 +66,8 @@ class AuthMap(BaseModel):
         """
         roles: Set[str] = set()
 
+        
+
         pipeline_label = project_label
         if pipeline_label not in self.project_authorizations:
             # remove the suffix in case it is a study ID
@@ -74,7 +76,7 @@ class AuthMap(BaseModel):
         if pipeline_label not in self.project_authorizations:
             return roles
 
-        activity_map = self.project_authorizations[pipeline_label]
+        activity_map = self.project_authorizations.get(pipeline_label, {})
         for activity in authorizations.activities:
             role_name = activity_map.get(activity)
             if role_name:
