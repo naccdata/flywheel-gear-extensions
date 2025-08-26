@@ -10,10 +10,8 @@ from identifiers.identifiers_lambda_repository import (
     IdentifierRepositoryError,
     IdentifiersLambdaRepository,
 )
-from identifiers.model import (
-    IdentifierObject,
-    IdentifierUpdateObject,
-)
+from identifiers.identifiers_repository import IdentifierUpdateObject
+from identifiers.model import IdentifierObject
 
 log = logging.getLogger(__name__)
 
@@ -157,8 +155,8 @@ class TransferProcessor:
         if not success:
             return None
 
-        new_identifier = IdentifierUpdateObject.create_from_transfer_record(
-            transfer_record=self.__transfer_record, active=True
+        new_identifier = self.__transfer_record.get_identifier_update_object(
+            active=True
         )
         try:
             success = self.__repo.add_or_update(identifier=new_identifier)

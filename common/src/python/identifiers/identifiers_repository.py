@@ -14,7 +14,8 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
-    IdentifierUpdateObject,
+    NACCIDField,
+    OptionalNACCADCField,
 )
 
 log = logging.getLogger(__name__)
@@ -22,6 +23,30 @@ log = logging.getLogger(__name__)
 
 class IdentifierQueryObject(CenterIdentifiers, GUIDField):
     """Query model creating objects."""
+
+
+class IdentifierUpdateObject(
+    CenterIdentifiers, GUIDField, OptionalNACCADCField, NACCIDField
+):
+    """Request model for identifier updates.
+
+    Has NACCID as string. NACCADC is optional
+    """
+
+    active: bool
+
+    @classmethod
+    def create_from_identifier(
+        cls, identifier: IdentifierObject, active: bool
+    ) -> "IdentifierUpdateObject":
+        return IdentifierUpdateObject(
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            naccadc=identifier.naccadc,
+            active=active,
+        )
 
 
 class IdentifierRepository(abc.ABC):

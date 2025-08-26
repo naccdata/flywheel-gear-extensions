@@ -10,6 +10,7 @@ from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
     IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
     GUID_PATTERN,
@@ -102,6 +103,23 @@ class TransferRecord(BaseModel):
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     demographics: Optional[Demographics] = None
+
+    def get_identifier_update_object(self, active: bool) -> IdentifierUpdateObject:
+        """Creates an object for adding/modifying a record in the repository.
+
+        Returns:
+          the identifier update object to add/modify record with known NACCID
+        """
+        assert self.naccid, "NACCID is required for identifier update"
+
+        return IdentifierUpdateObject(
+            naccid=self.naccid,
+            adcid=self.center_identifiers.adcid,
+            ptid=self.center_identifiers.ptid,
+            guid=self.guid,
+            active=active,
+            naccadc=None,
+        )
 
 
 class EnrollmentRecord(GUIDField, OptionalNACCIDField):

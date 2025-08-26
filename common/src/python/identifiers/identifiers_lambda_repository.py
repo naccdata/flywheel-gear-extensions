@@ -9,6 +9,7 @@ from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
     IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
     ADCIDField,
@@ -16,7 +17,6 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
-    IdentifierUpdateObject,
     NACCIDField,
 )
 
