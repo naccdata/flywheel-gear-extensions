@@ -47,6 +47,7 @@ from outputs.errors import (
     unexpected_value_error,
 )
 from pydantic import ValidationError
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -137,8 +138,7 @@ class EnrollmentBatch:
         identifiers = repo.create_list(query)
         log.info("created %s new NACCIDs", len(identifiers))
         if len(query) != len(identifiers):
-            log.warning("expected %s new IDs, got %s",
-                        len(query), len(identifiers))
+            log.warning("expected %s new IDs, got %s", len(query), len(identifiers))
 
         for identifier in identifiers:
             record = self.__records.get(identifier.ptid)
@@ -357,8 +357,7 @@ class TransferVisitor(CSVVisitor):
             return True
 
         try:
-            ptid_identifier = self.__repo.get(
-                adcid=previous_adcid, ptid=previous_ptid)
+            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
             self.__error_writer.write(
                 identifier_error(
@@ -596,8 +595,7 @@ class NewEnrollmentVisitor(CSVVisitor):
                     center_identifier=CenterIdentifiers(
                         adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
                     ),
-                    guid=row.get(FieldNames.GUID) if row.get(
-                        FieldNames.GUID) else None,
+                    guid=row.get(FieldNames.GUID) if row.get(FieldNames.GUID) else None,
                     naccid=None,
                     start_date=enroll_date,
                 )
@@ -745,8 +743,7 @@ class ProvisioningVisitor(CSVVisitor):
                 )
                 return False
 
-        success = self.__transfer_in_visitor.visit_row(
-            row=row, line_num=line_num)
+        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
 
         # Update visit level log for the transfer request
         update_record_level_error_log(
@@ -902,13 +899,32 @@ def run(
             success = False
             continue
 
-        subject = enrollment_project.add_subject(record.naccid)
-        subject.add_enrollment(record)
-        # subject.update_demographics_info(demographics)
+        try:
+            log.info(
+                f"Adding new subject {record.naccid} to enrollment project "
+                f"{enrollment_project.group}/{enrollment_project.label}"
+            )
+            subject = enrollment_project.add_subject(record.naccid)
+            subject.add_enrollment(record)
+            # subject.update_demographics_info(demographics)
+        except UploaderError as error:
+            success = False
+            message = f"Failed to create enrollment record for {record.naccid}: {error}"
+            log.error(message)
+            error_writer.write(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys(
+                        ptid=record_info[FieldNames.PTID],
+                        date=record_info[FieldNames.ENRLFRM_DATE],
+                        naccid=record.naccid,
+                    ),
+                )
+            )
 
         update_record_level_error_log(
             input_record=record_info,
-            qc_passed=True,
+            qc_passed=not error_writer.has_errors(),
             project=enrollment_project,
             gear_name=gear_name,
             errors=error_writer.errors(),

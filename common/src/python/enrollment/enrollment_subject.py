@@ -4,15 +4,18 @@ from datetime import datetime
 from typing import Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT
+from flywheel.models.session import Session
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import CenterFields, GUIDField, NACCIDField
 from keys.keys import DefaultValues
 from pydantic import BaseModel, ValidationError
+from uploads.acquisition import upload_to_acquisition
 
 from enrollment.enrollment_transfer import (
     Demographics,
     EnrollmentError,
     EnrollmentRecord,
+    EnrollmentStatus,
 )
 
 
@@ -20,6 +23,7 @@ class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
 
     update_date: datetime
+    status: EnrollmentStatus
     legacy: Optional[bool] = False
 
 
@@ -81,6 +85,46 @@ class EnrollmentSubject(SubjectAdaptor):
         self.upload_enrollment(record)
         self.update_enrollment_info(record)
 
+    def update_enrollment(self, record: EnrollmentRecord) -> None:
+        """Updates enrollment info this subject.
+
+        Args:
+          record: the enrollment info to be updated
+
+        Raises:
+            EnrollmentError: if error occurs while updating info
+        """
+        enroll_sessions = self.sessions.find(
+            f"label=~{DefaultValues.ENRL_SESSION_LBL_PRFX}"
+        )
+        if len(enroll_sessions) > 1:
+            raise EnrollmentError(
+                f"Multiple enrollment sessions found for subject {self.label}"
+            )
+
+        session: Session = enroll_sessions[0]
+        acquisition = session.acquisitions.find_first(
+            f"label={DefaultValues.ENROLLMENT_MODULE}"
+        )
+        if not acquisition:
+            raise EnrollmentError(
+                f"Failed to find acquisition in session {self.label}/{session.label}"
+            )
+
+        upload_to_acquisition(
+            acquisition=acquisition,
+            filename=self.get_acquisition_file_name(
+                session=session.label, acquisition=DefaultValues.ENROLLMENT_MODULE
+            ),
+            contents=record.model_dump_json(exclude_none=True),
+            content_type="application/json",
+            subject_label=self.label,
+            session_label=session.label,
+            acquisition_label=DefaultValues.ENROLLMENT_MODULE,
+            skip_duplicates=False,
+        )
+        self.update_enrollment_info(record)
+
     def update_enrollment_info(self, record: EnrollmentRecord) -> None:
         """Update the enrollment info of this subject.
 
@@ -93,7 +137,8 @@ class EnrollmentSubject(SubjectAdaptor):
             ptid=record.center_identifier.ptid,
             naccid=record.naccid,
             guid=record.guid,
-            update_date=record.start_date,
+            update_date=record.end_date if record.end_date else record.start_date,
+            status=record.status,
             legacy=record.legacy,
         )
         self.update(EnrollmentInfo(enrollment=identifiers).model_dump())

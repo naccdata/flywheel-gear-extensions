@@ -124,19 +124,15 @@ def run(
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    enrollment_record = transfer_processor.update_database(
-        current_identifier=current_identifier
-    )
-    if not enrollment_record:
+    if not transfer_processor.update_database(current_identifier=current_identifier):
         raise GearExecutionError(
             f"Failed to update identifiers database for transfer request PTID {ptid} "
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    if not transfer_processor.add_enrollment_record(enrollment_record):
+    if not transfer_processor.add_or_update_enrollment_records():
         raise GearExecutionError(
-            f"Failed to add enrollment record for transfer request PTID {ptid} "
-            f"in enrollment project {enroll_project.group}/{enroll_project.label}"
+            f"Failed to update enrollment records for transfer request PTID {ptid}"
         )
 
     # TODO: soft link participant data from previous center to new center

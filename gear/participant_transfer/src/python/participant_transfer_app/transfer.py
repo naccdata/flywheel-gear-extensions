@@ -5,13 +5,19 @@ from datetime import datetime
 from typing import Optional
 
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
-from enrollment.enrollment_transfer import EnrollmentRecord, TransferRecord
+from enrollment.enrollment_subject import EnrollmentSubject
+from enrollment.enrollment_transfer import (
+    EnrollmentError,
+    EnrollmentRecord,
+    TransferRecord,
+)
 from identifiers.identifiers_lambda_repository import (
     IdentifierRepositoryError,
     IdentifiersLambdaRepository,
 )
 from identifiers.identifiers_repository import IdentifierUpdateObject
 from identifiers.model import IdentifierObject
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +104,8 @@ class TransferProcessor:
 
         if identifier:
             if identifier.active:
-                log.error(f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
+                log.error(
+                    f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
                 return None
 
             if identifier.naccid != prev_identifier.naccid:
@@ -123,9 +130,7 @@ class TransferProcessor:
         self.__transfer_record.guid = prev_identifier.guid
         return prev_identifier
 
-    def update_database(
-        self, current_identifier: IdentifierObject
-    ) -> Optional[EnrollmentRecord]:
+    def update_database(self, current_identifier: IdentifierObject) -> bool:
         """Update the identifiers database.
 
         - Set previous center's record to inactive
@@ -135,7 +140,7 @@ class TransferProcessor:
             current_identifier: current identifier object
 
         Returns:
-            EnrollmentRecord (optional): if database update successful, else None
+            bool: True if database update successful, else False
         """
 
         success = False
@@ -150,54 +155,68 @@ class TransferProcessor:
                 "Error in updating identifiers database for "
                 f"{current_identifier.adcid}, {current_identifier.ptid}: {error}"
             )
-            return None
+            return False
 
         if not success:
-            return None
+            return False
 
         new_identifier = self.__transfer_record.get_identifier_update_object(
             active=True
         )
         try:
-            success = self.__repo.add_or_update(identifier=new_identifier)
+            return self.__repo.add_or_update(identifier=new_identifier)
         except IdentifierRepositoryError as error:
             log.error(
                 "Error in updating identifiers database for "
                 f"{new_identifier.adcid}, {new_identifier.ptid}: {error}"
             )
-            return None
+            return False
 
-        if not success:
-            return None
+    def add_or_update_enrollment_records(self) -> bool:
+        """Adds/updates the enrollment records in current and previous
+        enrollment projects.
 
-        return EnrollmentRecord(
+        Args:
+            record: Enrollment record to be updated
+
+        Returns:
+            bool: True if add/update successful
+        """
+
+        record = EnrollmentRecord(
             center_identifier=self.__transfer_record.center_identifiers,
             guid=self.__transfer_record.guid,
             naccid=self.__transfer_record.naccid,
             start_date=self.__transfer_record.request_date,
         )
 
-    def add_enrollment_record(self, record: EnrollmentRecord) -> bool:
-        """_summary_
-
-        Args:
-            record (EnrollmentRecord): _description_
-
-        Returns:
-            bool: _description_
-        """
         assert record.naccid, "NACCID is required"
-        if self.__enroll_project.find_subject(label=record.naccid):
-            log.error(
-                f"Subject with NACCID {record.naccid} exists in project "
-                f"{self.__enroll_project.group}/{self.__enroll_project.label}"
-            )
 
+        subject = self.__enroll_project.find_subject(label=record.naccid)
+        try:
+            if not subject:
+                log.info(
+                    f"Adding new subject {record.naccid} to enrollment project "
+                    f"{self.__enroll_project.group}/{self.__enroll_project.label}"
+                )
+                enroll_subject = self.__enroll_project.add_subject(
+                    record.naccid)
+                enroll_subject.add_enrollment(record)
+            else:
+                log.info(
+                    f"Subject with NACCID {record.naccid} exists in project "
+                    f"{self.__enroll_project.group}/{self.__enroll_project.label}"
+                )
+                enroll_subject = EnrollmentSubject.create_from(subject)
+                enroll_subject.update_enrollment(record)
+        except (EnrollmentError, UploaderError) as error:
+            log.error(
+                f"Failed to create/update enrollment record "
+                f"for {record.naccid}: {error}"
+            )
             return False
 
-        subject = self.__enroll_project.add_subject(record.naccid)
-        subject.add_enrollment(record)
-
+        # TODO: update the record in previous center's enrollment project
         return True
 
     def update_transfer_info(self) -> None:

@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 log = logging.getLogger(__name__)
 
 TransferStatus = Literal["pending", "approved", "rejected", "completed"]
+EnrollmentStatus = Literal["active", "transferred"]
 
 
 class GenderIdentity(BaseModel):
@@ -128,8 +129,7 @@ class EnrollmentRecord(GUIDField, OptionalNACCIDField):
     center_identifier: CenterIdentifiers
     start_date: datetime
     end_date: Optional[datetime] = None
-    transfer_from: Optional[TransferRecord] = None
-    transfer_to: Optional[TransferRecord] = None
+    status: EnrollmentStatus = "active"
     legacy: Optional[bool] = False
 
     def query_object(self) -> IdentifierQueryObject:
