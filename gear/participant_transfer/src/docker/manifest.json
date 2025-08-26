@@ -46,6 +46,24 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
+        "enrollment_project": {
+            "description": "The enrollment project flywheel path (group/project) which contain pending transfer information",
+            "type": "string"
+        },
+        "participant_id": {
+            "description": "The PTID of the participant to be transferred",
+            "type": "string"
+        },
+        "source_email": {
+            "description": "The source email to send the transfer completion notification",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
         }
     },
     "command": "/bin/run"
