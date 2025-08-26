@@ -1,10 +1,11 @@
 """Utilities for invoking AWS Lambda functions."""
 
 import logging
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
+from identifiers.identifiers_lambda_repository import IdentifiersMode
 from inputs.environment import get_environment_variable
 from pydantic import BaseModel, ValidationError
 
@@ -34,7 +35,7 @@ def create_lambda_client():
 class BaseRequest(BaseModel):
     """Base model for request objects with connection mode."""
 
-    mode: Optional[Literal["dev", "prod"]] = "prod"
+    mode: Optional[IdentifiersMode] = "prod"
 
 
 class ResponseObject(BaseModel):

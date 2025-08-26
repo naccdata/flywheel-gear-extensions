@@ -116,9 +116,30 @@ def run(
         identifiers_repo=identifiers_repo,
     )
 
-    enrollment_record = transfer_processor.update_identifiers_database()
+    current_identifier = transfer_processor.find_identifier_record()
+    if not current_identifier:
+        raise GearExecutionError(
+            f"Failed to find valid identifier record for transfer request PTID {ptid} "
+            f"in enrollment project {enroll_project.group}/{enroll_project.label}"
+        )
+
+    enrollment_record = transfer_processor.update_database(
+        current_identifier=current_identifier
+    )
     if not enrollment_record:
         raise GearExecutionError(
             f"Failed to update identifiers database for transfer request PTID {ptid} "
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
+
+    if not transfer_processor.add_enrollment_record(enrollment_record):
+        raise GearExecutionError(
+            f"Failed to add enrollment record for transfer request PTID {ptid} "
+            f"in enrollment project {enroll_project.group}/{enroll_project.label}"
+        )
+
+    # TODO: soft link participant data from previous center to new center
+
+    transfer_processor.update_transfer_info()
+
+    # TODO: send email

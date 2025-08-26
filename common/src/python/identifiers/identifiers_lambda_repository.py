@@ -16,8 +16,11 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    IdentifierUpdateObject,
     NACCIDField,
 )
+
+IdentifiersMode = Literal["dev", "prod"]
 
 
 class ListRequest(BaseRequest):
@@ -70,15 +73,33 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
     """Request model to search all matching identifiers for a NACCID."""
 
 
+class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
+    """Request model for adding/updating Identifier with known NACCID."""
+
+    active: bool
+    naccadc: Optional[int]
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, identifier: IdentifierUpdateObject
+    ) -> "KnownIdentifierRequest":
+        return KnownIdentifierRequest(
+            mode=mode,
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            active=identifier.active,
+            naccadc=identifier.naccadc,
+        )
+
+
 class ListResponseObject(BaseModel):
     """Model for return object with partial list of Identifiers."""
 
     offset: int
     limit: int
     data: List[IdentifierObject]
-
-
-IdentifiersMode = Literal["dev", "prod"]
 
 
 class IdentifiersLambdaRepository(IdentifierRepository):
@@ -369,3 +390,27 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             index += limit
 
         return identifier_list
+
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
+        """Adds/updates the Identifier record in the repository.
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else false
+        """
+        try:
+            response = self.__client.invoke(
+                name="add-update-identifier-lambda-function",
+                request=KnownIdentifierRequest.create_from(
+                    mode=self.__mode, identifier=identifier
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode not in (200, 201):
+            raise IdentifierRepositoryError("No identifier created or updated")
+
+        return True

@@ -111,6 +111,17 @@ class IdentifierRepository(abc.ABC):
           List of all identifiers in the repository or ones matching with filters
         """
 
+    @abstractmethod
+    def add_or_update(self, identifier: IdentifierObject) -> bool:
+        """Adds/updates the Identifier record in the repository.
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else False
+        """
+
 
 class IdentifierRepositoryError(Exception):
     """Exception for case when identifier is not matched."""

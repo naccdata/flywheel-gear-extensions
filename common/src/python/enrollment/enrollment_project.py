@@ -85,8 +85,8 @@ class EnrollmentProject(ProjectAdaptor):
         """
         self.update_info(transfer_info.model_dump(by_alias=True, exclude_none=True))
 
-    def add_transfers(self, transfers: TransferInfo) -> None:
-        """Adds the transfers in the info object to this project.
+    def add_or_update_transfers(self, transfers: TransferInfo) -> None:
+        """Adds/updates the transfers in the info object to this project.
 
         Args:
           transfers: the transfer info object

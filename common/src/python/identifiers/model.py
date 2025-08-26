@@ -2,6 +2,7 @@
 
 from typing import List, Optional
 
+from enrollment.enrollment_transfer import TransferRecord
 from pydantic import BaseModel, Field, RootModel, field_validator
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
@@ -41,6 +42,12 @@ class NACCADCField(BaseModel):
     naccadc: int = Field(ge=0)
 
 
+class OptionalNACCADCField(BaseModel):
+    """Base model for models with optional naccadc."""
+
+    naccadc: Optional[int] = Field(ge=0)
+
+
 class NACCIDField(BaseModel):
     """Base model for models with naccid."""
 
@@ -60,6 +67,45 @@ class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
     """
 
     active: bool = True
+
+
+class IdentifierUpdateObject(
+    CenterFields, GUIDField, OptionalNACCADCField, NACCIDField
+):
+    """Request model for identifier updates.
+
+    Has NACCID as string. NACCADC is optionals
+    """
+
+    active: bool
+
+    @classmethod
+    def create_from_identifier(
+        cls, identifier: IdentifierObject, active: bool
+    ) -> "IdentifierUpdateObject":
+        return IdentifierUpdateObject(
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            naccadc=identifier.naccadc,
+            active=active,
+        )
+
+    @classmethod
+    def create_from_transfer_record(
+        cls, transfer_record: TransferRecord, active: bool
+    ) -> "IdentifierUpdateObject":
+        assert transfer_record.naccid, "NACCID is required"
+
+        return IdentifierUpdateObject(
+            naccid=transfer_record.naccid,
+            adcid=transfer_record.center_identifiers.adcid,
+            ptid=transfer_record.center_identifiers.ptid,
+            guid=transfer_record.guid,
+            active=active,
+            naccadc=None,
+        )
 
 
 class IdentifierList(RootModel):

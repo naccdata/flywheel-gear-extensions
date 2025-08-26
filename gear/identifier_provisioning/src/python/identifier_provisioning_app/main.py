@@ -137,7 +137,8 @@ class EnrollmentBatch:
         identifiers = repo.create_list(query)
         log.info("created %s new NACCIDs", len(identifiers))
         if len(query) != len(identifiers):
-            log.warning("expected %s new IDs, got %s", len(query), len(identifiers))
+            log.warning("expected %s new IDs, got %s",
+                        len(query), len(identifiers))
 
         for identifier in identifiers:
             record = self.__records.get(identifier.ptid)
@@ -356,7 +357,8 @@ class TransferVisitor(CSVVisitor):
             return True
 
         try:
-            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+            ptid_identifier = self.__repo.get(
+                adcid=previous_adcid, ptid=previous_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
             self.__error_writer.write(
                 identifier_error(
@@ -594,7 +596,8 @@ class NewEnrollmentVisitor(CSVVisitor):
                     center_identifier=CenterIdentifiers(
                         adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
                     ),
-                    guid=row.get(FieldNames.GUID) if row.get(FieldNames.GUID) else None,
+                    guid=row.get(FieldNames.GUID) if row.get(
+                        FieldNames.GUID) else None,
                     naccid=None,
                     start_date=enroll_date,
                 )
@@ -742,7 +745,8 @@ class ProvisioningVisitor(CSVVisitor):
                 )
                 return False
 
-        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+        success = self.__transfer_in_visitor.visit_row(
+            row=row, line_num=line_num)
 
         # Update visit level log for the transfer request
         update_record_level_error_log(
@@ -911,7 +915,7 @@ def run(
         )
 
     if len(transfer_info.transfers) > 0:
-        enrollment_project.add_transfers(transfer_info)
+        enrollment_project.add_or_update_transfers(transfer_info)
         send_email(
             sender_email=sender_email,
             target_emails=target_emails,
