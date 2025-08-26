@@ -39,6 +39,7 @@ from outputs.error_models import CSVLocation, FileError, FileErrorList, VisitKey
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
     empty_field_error,
+    existing_participant_error,
     identifier_error,
     missing_field_error,
     partially_failed_file_error,
@@ -158,7 +159,6 @@ class TransferVisitor(CSVVisitor):
         self.__transfer_info = transfer_info
         self.__repo = repo
         self.__submitter = submitter
-        self.__new_ptid_validator = NewPTIDRowValidator(repo, error_writer)
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
         self.__previous_identifiers: Optional[CenterIdentifiers] = None
@@ -184,7 +184,7 @@ class TransferVisitor(CSVVisitor):
 
         return True
 
-    def _naccid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __naccid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits a row to process a known NACCID to gather existing
         identifiers.
 
@@ -239,7 +239,7 @@ class TransferVisitor(CSVVisitor):
 
         return False
 
-    def _match_naccid(
+    def __match_naccid(
         self, identifier: IdentifierObject, source: str, line_num: int
     ) -> bool:
         """Checks whether the identifier matches the NACCID in the visitor.
@@ -271,7 +271,7 @@ class TransferVisitor(CSVVisitor):
         )
         return False
 
-    def _guid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __guid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits the row for an available GUID to gather existing identifiers.
 
         Checks whether identifiers match those already found.
@@ -315,14 +315,14 @@ class TransferVisitor(CSVVisitor):
             )
             return False
 
-        if not self._match_naccid(guid_identifier, FieldNames.GUID, line_num):
+        if not self.__match_naccid(guid_identifier, FieldNames.GUID, line_num):
             return False
 
         self.__naccid_identifier = guid_identifier
 
         return True
 
-    def _prevenrl_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __prevenrl_visit(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visits the row for a previous enrollment to gather identifiers.
 
         Checks that identifiers match those already found.
@@ -389,12 +389,69 @@ class TransferVisitor(CSVVisitor):
             )
             return False
 
-        if not self._match_naccid(
+        if not self.__match_naccid(
             ptid_identifier, f"{FieldNames.OLDADCID}-{FieldNames.OLDPTID}", line_num
         ):
             return False
 
         self.__naccid_identifier = ptid_identifier
+
+        return True
+
+    def __check_adcid_ptid(self, row: Dict[str, Any], line_number: int) -> bool:
+        """Checks that ADCID, PTID does not already correspond to an active
+        NACCID.
+
+        Args:
+          row: the dictionary for the row
+
+        Returns:
+          True if no active NACCID is found for the ADCID, PTID, False otherwise
+        """
+
+        ptid = row["ptid"]
+        adcid = row["adcid"]
+
+        try:
+            identifier = self.__repo.get(adcid=adcid, ptid=ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.PTID,
+                    value=ptid,
+                    line=line_number,
+                    message=(
+                        "Error in looking up Identifier for "
+                        f"ADCID {adcid}, PTID {ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
+        if not identifier:
+            return True
+
+        if identifier.active:
+            log.info(
+                "Found active participant for (%s, %s): %s",
+                adcid,
+                ptid,
+                identifier.naccid,
+            )
+            self.__error_writer.write(
+                existing_participant_error(
+                    field=FieldNames.PTID, line=line_number, value=ptid
+                )
+            )
+            return False
+
+        if not self.__match_naccid(
+            identifier, f"{FieldNames.ADCID}-{FieldNames.PTID}", line_number
+        ):
+            return False
+
+        self.__naccid_identifier = identifier
+
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
@@ -406,16 +463,16 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
-        if not self.__new_ptid_validator.check(row, line_num):
+        if not self.__naccid_visit(row=row, line_num=line_num):
             return False
 
-        if not self._naccid_visit(row=row, line_num=line_num):
+        if not self.__guid_visit(row=row, line_num=line_num):
             return False
 
-        if not self._guid_visit(row=row, line_num=line_num):
+        if not self.__prevenrl_visit(row=row, line_num=line_num):
             return False
 
-        if not self._prevenrl_visit(row=row, line_num=line_num):
+        if not self.__check_adcid_ptid(row=row, line_number=line_num):
             return False
 
         try:
