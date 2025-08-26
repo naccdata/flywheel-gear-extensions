@@ -14,6 +14,7 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    IdentifierUpdateObject,
 )
 
 log = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ class IdentifierRepository(abc.ABC):
         """
 
     @abstractmethod
-    def add_or_update(self, identifier: IdentifierObject) -> bool:
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
         """Adds/updates the Identifier record in the repository.
 
         Args:

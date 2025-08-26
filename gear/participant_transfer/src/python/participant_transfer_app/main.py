@@ -8,7 +8,8 @@ from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import TransferRecord
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
-from transfer import TransferProcessor
+
+from participant_transfer_app.transfer import TransferProcessor
 
 log = logging.getLogger(__name__)
 

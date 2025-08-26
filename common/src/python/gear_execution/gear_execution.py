@@ -251,7 +251,7 @@ class InputFileWrapper:
         """Gets the QC validation objects from the file QC info."""
         result = []
 
-        gear_objects = self.file_qc_info.values()
+        gear_objects = list(self.file_qc_info.values())
         if gear_name:
             gear_objects = [self.file_qc_info.get(gear_name, {})]
 
