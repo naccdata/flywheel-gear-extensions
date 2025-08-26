@@ -1065,7 +1065,12 @@ class ProjectAdaptor:
         """
         self._project.update(description=description)
 
-    def get_file(self, name: str):
+    @property
+    def files(self) -> List[FileEntry]:
+        """The list of files associated with this project."""
+        return self._project.files
+
+    def get_file(self, name: str) -> Optional[FileEntry]:
         """Gets the file from the enclosed project.
 
         Args:
@@ -1190,10 +1195,14 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             log.info("Dry Run: %s", log_message)
             return True
+        try:
+            self._project.update_permission(
+                role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
+            )
+        except ApiException as error:
+            log.error("Failed to add user role to project: %s", error)
+            return False
 
-        self._project.update_permission(
-            role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
-        )
         self.__pull_project()
         return True
 

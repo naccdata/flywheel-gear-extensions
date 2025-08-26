@@ -6,19 +6,27 @@ complexity.
 """
 
 import copy
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from flywheel.file_spec import FileSpec
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
 
 
-class MockFile(BaseModel):
+class MockFile(FileEntry):
     """Pydantic to mock a Flywheel file object."""
 
-    name: str
-    info: Dict[str, Any] = {}
-    contents: str = ""
+    def __init__(
+        self, name: str, info: Optional[Dict[str, Any]] = None, contents: str = ""
+    ) -> None:
+        info = info if info else {}
+        super().__init__(name=name, info=info)
+        self.contents = contents
+
+    # name: str
+    # info: Dict[str, Any] = {}
+    # contents: str = ""
 
     @field_validator("info", mode="before")
     @classmethod
@@ -48,15 +56,15 @@ class MockProject(ProjectAdaptor):
         self.__label = label
 
     @property
-    def files(self) -> Dict[str, MockFile]:
+    def files(self) -> List[FileEntry]:
         """Get files."""
-        return self.__files
+        return list(self.__files.values())
 
     @property
     def label(self) -> str:
         return self.__label
 
-    def get_file(self, name: str, *args, **kwargs) -> Optional[MockFile]:
+    def get_file(self, name: str) -> Optional[FileEntry]:
         """Get the file if it exists."""
         return self.__files.get(name, None)
 
