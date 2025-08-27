@@ -27,7 +27,7 @@ class TransferProcessor:
 
     - Updates identifiers database
     - Adds the subject to enrollment project
-    - Soft link participant data from previous center to new center
+    - Updates subject enrollment metadata in both centers
     """
 
     def __init__(
@@ -104,8 +104,7 @@ class TransferProcessor:
 
         if identifier:
             if identifier.active:
-                log.error(
-                    f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
+                log.error(f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
                 return None
 
             if identifier.naccid != prev_identifier.naccid:
@@ -199,8 +198,7 @@ class TransferProcessor:
                     f"Adding new subject {record.naccid} to enrollment project "
                     f"{self.__enroll_project.group}/{self.__enroll_project.label}"
                 )
-                enroll_subject = self.__enroll_project.add_subject(
-                    record.naccid)
+                enroll_subject = self.__enroll_project.add_subject(record.naccid)
                 enroll_subject.add_enrollment(record)
             else:
                 log.info(

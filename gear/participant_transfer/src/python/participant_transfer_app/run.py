@@ -19,8 +19,8 @@ from identifiers.identifiers_lambda_repository import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-
 from participant_transfer_app.main import run
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
@@ -97,13 +97,18 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         )
 
         admin_group = self.admin_group(admin_id=self.__admin_id)
+        datatypes = parse_string_to_list(
+            context.config.get("datatypes", "form,scan,dicom")
+        )
         source_email = context.config.get("source_email", "nacchelp@uw.edu")
 
         run(
+            proxy=self.proxy,
             admin_group=admin_group,
             enroll_project=enroll_project,
             ptid=self.__ptid,
             identifiers_repo=identifiers_repo,
+            datatypes=datatypes,
             source_email=source_email,
             dry_run=self.client.dry_run,
         )

@@ -18,22 +18,13 @@
             "image": "naccdata/participant-transfer:0.0.1"
         },
         "flywheel": {
-            "suite": "Utility",
+            "suite": "NACC Admin Gears",
             "show-job": true
         }
     },
     "inputs": {
         "api-key": {
             "base": "api-key"
-        },
-        "input_file": {
-            "description": "The input file",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
         }
     },
     "config": {
@@ -59,6 +50,11 @@
         "participant_id": {
             "description": "The PTID of the participant to be transferred",
             "type": "string"
+        },
+        "datatypes": {
+            "description": "Comma-delimited list of datatypes to be transferred",
+            "type": "string",
+            "default": "form,scan,dicom"
         },
         "source_email": {
             "description": "The source email to send the transfer completion notification",
