@@ -49,6 +49,7 @@ class DefaultValues:
     UDS_MODULE = "UDS"
     MDS_MODULE = "MDS"
     BDS_MODULE = "BDS"
+    NP_MODULE = "NP"
     GEARBOT_USER_ID = "nacc-flywheel-gear@uw.edu"
     NACC_GROUP_ID = "nacc"
     METADATA_PRJ_LBL = "metadata"
@@ -123,6 +124,9 @@ class SysErrorCodes:
     DUPLICATE_VISIT = "preprocess-022"
     LOWER_VISITNUM = "preprocess-023"
     MISSING_SUBMISSION_STATUS = "preprocess-024"
+    MISSING_PACKET_FOR_NP_FINALIZE = "preprocess-025"
+    DEATH_DATE_MISMATCH = "preprocess-026"
+    AUTOPSY_NP_MISMATCH = "preprocess-027"
 
 
 class PreprocessingChecks:
@@ -130,7 +134,7 @@ class PreprocessingChecks:
     VERSION = "version"
     PACKET = "packet"
     OPTIONAL_FORMS = "optional-forms"
-    SUPPLEMENT_MODULE = "supplement-module"
+    SUPPLEMENT_MODULES = "supplement-modules"
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"

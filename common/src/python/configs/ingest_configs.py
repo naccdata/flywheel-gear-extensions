@@ -193,6 +193,11 @@ class SupplementModuleConfigs(BaseModel):
     exact_match: Optional[bool] = True
 
 
+class SupplementModuleConfigsList(BaseModel):
+    op: Optional[Literal["and", "or"]] = "and"
+    modules: List[SupplementModuleConfigs]
+
+
 class ModuleConfigs(BaseModel):
     initial_packets: List[str]
     followup_packets: List[str]
@@ -202,7 +207,7 @@ class ModuleConfigs(BaseModel):
     required_fields: List[str]
     legacy_module: Optional[str] = None
     legacy_date: Optional[str] = None
-    supplement_module: Optional[SupplementModuleConfigs] = None
+    supplement_modules: Optional[SupplementModuleConfigsList] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
