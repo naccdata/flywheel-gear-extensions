@@ -42,24 +42,52 @@ class TransferProcessor:
         self.__enroll_project = enroll_project
         self.__repo = identifiers_repo
 
-    def find_identifier_record(self) -> Optional[IdentifierObject]:
-        """Find the identifier object corresponding to the OLDADCID, OLDPTID.
-
-        - validates whether there is an active NACCID for OLDADCID, OLDPTID
-        - compare with NACCID provided in transfer request
-        - check whether current ADCID, PTID has an inactive NACCID
-        - check whether GUID found in database matches with provided GUID
+    def __get_identifier_for_previous_center(self) -> Optional[IdentifierObject]:
+        """Find the previous center's identifier record for this participant.
 
         Returns:
-            IdentifierObject (optional): True if NACCID and GUID is valid, else False
+            IdentifierObject (optional): Identifier record if found, else None
         """
-        adcid = self.__transfer_record.center_identifiers.adcid
-        ptid = self.__transfer_record.center_identifiers.ptid
         old_adcid = self.__transfer_record.previous_identifiers.adcid  # type: ignore
         old_ptid = self.__transfer_record.previous_identifiers.ptid  # type: ignore
 
+        if old_ptid == "unknown":
+            if not self.__transfer_record.naccid:
+                log.error(
+                    "Cannot process the transfer request for "
+                    f"PTID {self.__transfer_record.center_identifiers.ptid}, "
+                    "no NACCID or previous PTID provided in the transfer record"
+                )
+                return None
+
+            try:
+                identifiers = self.__repo.list(naccid=self.__transfer_record.naccid)
+            except (IdentifierRepositoryError, TypeError) as error:
+                log.error(
+                    f"Error in looking up identifier for "
+                    f"NACCID {self.__transfer_record.naccid}: {error}"
+                )
+                return None
+
+            if not identifiers:
+                log.error(
+                    "No identifier records found in the database for  "
+                    f"NACCID {self.__transfer_record.naccid}"
+                )
+                return None
+
+            for identifier in identifiers:
+                if identifier.adcid == old_adcid:
+                    return identifier
+
+            log.error(
+                f"No matching participant found for previous ADCID {old_adcid} "
+                f"and NACCID {self.__transfer_record.naccid}"
+            )
+            return None
+
         try:
-            prev_identifier = self.__repo.get(adcid=old_adcid, ptid=old_ptid)
+            return self.__repo.get(adcid=old_adcid, ptid=old_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
             log.error(
                 f"Error in looking up NACCID for OLDADCID {old_adcid}, "
@@ -67,9 +95,28 @@ class TransferProcessor:
             )
             return None
 
+    def find_identifier_record(self) -> Optional[IdentifierObject]:
+        """Find the active identifier object for this participant.
+
+        - check whether there is an active record for this participant in old center
+        - check whether current ADCID, PTID has an active NACCID
+        - check whether NACCID found in database matches with provided NACCID
+        - check whether GUID found in database matches with provided GUID
+
+        Returns:
+            IdentifierObject (optional): Identifier object if active record found
+        """
+        adcid = self.__transfer_record.center_identifiers.adcid
+        ptid = self.__transfer_record.center_identifiers.ptid
+        old_adcid = self.__transfer_record.previous_identifiers.adcid  # type: ignore
+        old_ptid = self.__transfer_record.previous_identifiers.ptid  # type: ignore
+
+        prev_identifier = self.__get_identifier_for_previous_center()
+
         if not prev_identifier or not prev_identifier.active:
             log.error(
-                f"Active NACCID not found for OLDADCID {old_adcid}, OLDPTID {old_ptid}"
+                "Failed to find an active identifier record in the database "
+                f"for this participant for ADCID {old_adcid}"
             )
             return None
 

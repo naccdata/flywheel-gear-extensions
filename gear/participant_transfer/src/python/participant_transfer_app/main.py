@@ -46,13 +46,9 @@ def review_transfer_info(
         )
         return None
 
-    if (
-        not transfer_record.previous_identifiers
-        or transfer_record.previous_identifiers.ptid == "unknown"
-    ):
+    if not transfer_record.previous_identifiers:
         log.error(
-            f"Missing or invalid previous_identifiers info in "
-            f"transfer request for PTID {ptid}"
+            f"Missing previous_identifiers info in transfer request for PTID {ptid}"
         )
         return None
 
