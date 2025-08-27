@@ -5,14 +5,14 @@ import logging
 import sys
 
 from flywheel_gear_toolkit import GearToolkitContext
-
 # This design with a separate main and parser module
 # allows the gear to be publishable and the main interfaces
 # to it can then be imported in another project which enables
 # chaining multiple gears together.
 from loni_csv_metadata_processor_app.main import run
 from loni_csv_metadata_processor_app.parser import parse_config
-from loni_csv_metadata_processor_app.utils.results_processor import process_results
+from loni_csv_metadata_processor_app.utils.results_processor import \
+    process_results
 
 # The run.py should be as minimal as possible.
 # The gear is split up into 2 main components. The run.py file which is executed
@@ -32,7 +32,7 @@ def main(context: GearToolkitContext) -> None:  # pragma: no cover
     # Pass the args, kwargs to fw_gear_skeleton.main.run function to execute
     # the main functionality of the gear.
     results = run(input_path=csv_path)
-    
+
     # Process results and add tags to the output file
     process_results(context, results)
 
