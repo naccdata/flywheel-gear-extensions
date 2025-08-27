@@ -3,12 +3,12 @@
 import pytest
 from centers.center_group import (
     CenterProjectMetadata,
+    CenterStudyMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
     ProjectMetadata,
     REDCapFormProjectMetadata,
     REDCapProjectInput,
-    StudyMetadata,
 )
 from keys.keys import DefaultValues
 from pydantic import ValidationError
@@ -142,9 +142,10 @@ def study_object(
     projects = {}
     projects[project_with_datatype.project_label] = project_with_datatype
     projects[ingest_project_with_redcap.project_label] = ingest_project_with_redcap
-    yield StudyMetadata(
+    yield CenterStudyMetadata(
         study_id="test",
         study_name="Test",
+        study_adcid=0,
         ingest_projects=projects,
         accepted_project=project_without_datatype,
     )
@@ -162,10 +163,10 @@ class TestStudyMetadataSerialization:
         assert "study-name" in study_dump
         assert "ingest-projects" in study_dump
         assert "accepted-project" in study_dump
-        assert len(study_dump.keys()) == 5
+        assert len(study_dump.keys()) == 6
 
         try:
-            model_object = StudyMetadata.model_validate(study_dump)
+            model_object = CenterStudyMetadata.model_validate(study_dump)
             assert model_object == study_object
         except ValidationError as error:
             assert False, error  # noqa: B011
@@ -177,7 +178,7 @@ def portal_metadata(study_object):
     """Creates portal info object."""
     studies = {}
     studies[study_object.study_id] = study_object
-    yield CenterProjectMetadata(studies=studies)
+    yield CenterProjectMetadata(adcid=0, active=True, studies=studies)
 
 
 class TestCenterPortalMetadataSerialization:
@@ -187,7 +188,7 @@ class TestCenterPortalMetadataSerialization:
         """Test serialization of portal info."""
         portal_dump = portal_metadata.model_dump(by_alias=True, exclude_none=True)
         assert portal_dump
-        assert len(portal_dump.keys()) == 1
+        assert len(portal_dump.keys()) == 3
         assert "studies" in portal_dump
 
         try:

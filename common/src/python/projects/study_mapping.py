@@ -32,10 +32,10 @@ from typing import Callable, List, Optional
 from centers.center_group import (
     CenterError,
     CenterGroup,
+    CenterStudyMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
     ProjectMetadata,
-    StudyMetadata,
 )
 from flywheel.models.access_permission import AccessPermission
 from flywheel_adaptor.flywheel_proxy import (
@@ -68,7 +68,7 @@ class StudyMapper(ABC):
 
     @abstractmethod
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata
     ) -> None:
         """Maps the study to pipelines within a center.
 
@@ -132,7 +132,7 @@ class AggregationMapper(StudyMapper):
         self.__release_group: Optional[GroupAdaptor] = None
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata
     ) -> None:
         """Creates accepted, ingest and retrospective projects in the group.
         Updates the study metadata.
@@ -163,7 +163,9 @@ class AggregationMapper(StudyMapper):
         self.__get_release_group()
         self.__get_master_project()
 
-    def __add_accepted(self, *, center: CenterGroup, study_info: StudyMetadata) -> None:
+    def __add_accepted(
+        self, *, center: CenterGroup, study_info: CenterStudyMetadata
+    ) -> None:
         """Creates an accepted project in the center group, and updates the
         study metadata.
 
@@ -193,7 +195,7 @@ class AggregationMapper(StudyMapper):
         center: CenterGroup,
         pipeline: str,
         datatype: str,
-        study_info: StudyMetadata,
+        study_info: CenterStudyMetadata,
     ) -> None:
         """Adds an ingest projects for the study datatype to the center.
 
@@ -290,7 +292,7 @@ class DistributionMapper(StudyMapper):
         super().__init__(study=study, proxy=proxy)
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata
     ) -> None:
         """Adds distribution projects for the study to the group.
 
@@ -313,7 +315,7 @@ class DistributionMapper(StudyMapper):
             self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
-        self, *, center: CenterGroup, study_info: "StudyMetadata", datatype: str
+        self, *, center: CenterGroup, study_info: "CenterStudyMetadata", datatype: str
     ) -> None:
         """Adds a distribution project to this center for the study.
 
@@ -421,7 +423,9 @@ class StudyMappingVisitor(StudyVisitor):
             return
 
         portal_info = center.get_project_info()
-        study_info = portal_info.get(self.__study)
+        study_info = portal_info.get(
+            study=self.__study, study_adcid=center_model.study_adcid
+        )
 
         self.__mapper.map_center_pipelines(center=center, study_info=study_info)
 

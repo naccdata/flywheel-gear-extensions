@@ -14,6 +14,7 @@ from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
+from keys.types import PipelineStage
 from projects.study import StudyModel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
@@ -37,7 +38,12 @@ class CenterGroup(CenterAdaptor):
     ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages = ["ingest", "retrospective", "sandbox", "distribution"]
+        self.__ingest_stages: List[PipelineStage] = [
+            "ingest",
+            "retrospective",
+            "sandbox",
+            "distribution",
+        ]
         self.__adcid = adcid
         self.__is_active = active
         self.__center_portal: Optional[ProjectAdaptor] = None
@@ -463,10 +469,14 @@ class CenterGroup(CenterAdaptor):
 
         info = metadata_project.get_info()
         if not info:
-            return CenterProjectMetadata(studies={})
+            return CenterProjectMetadata(
+                adcid=self.adcid, active=self.__is_active, studies={}
+            )
 
         if "studies" not in info:
-            return CenterProjectMetadata(studies={})
+            return CenterProjectMetadata(
+                adcid=self.adcid, active=self.__is_active, studies={}
+            )
 
         try:
             return CenterProjectMetadata.model_validate(info)
@@ -832,7 +842,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         return self.redcap_projects.get(module_name, None)
 
 
-class StudyMetadata(BaseModel):
+class CenterStudyMetadata(BaseModel):
     """Metadata for study details within a participating center."""
 
     model_config = ConfigDict(
@@ -841,6 +851,7 @@ class StudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
+    study_adcid: int
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
@@ -898,9 +909,11 @@ class StudyMetadata(BaseModel):
 class CenterProjectMetadata(BaseModel):
     """Metadata to be stored in center portal project."""
 
-    studies: Dict[str, StudyMetadata]
+    adcid: int
+    active: bool
+    studies: Dict[str, CenterStudyMetadata]
 
-    def add(self, study: StudyMetadata) -> None:
+    def add(self, study: CenterStudyMetadata) -> None:
         """Adds study metadata to the studies.
 
         Args:
@@ -911,7 +924,7 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(self, study: StudyModel) -> StudyMetadata:
+    def get(self, study: StudyModel, study_adcid: Optional[int]) -> CenterStudyMetadata:
         """Gets the study metadata for the study id.
 
         Creates a new StudyMetadata object if it does not exist.
@@ -925,7 +938,10 @@ class CenterProjectMetadata(BaseModel):
         if study_info:
             return study_info
 
-        study_info = StudyMetadata(study_id=study.study_id, study_name=study.name)
+        adcid = study_adcid if study_adcid is not None else self.adcid
+        study_info = CenterStudyMetadata(
+            study_id=study.study_id, study_name=study.name, study_adcid=adcid
+        )
         self.add(study_info)
         return study_info
 

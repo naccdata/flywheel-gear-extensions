@@ -2,7 +2,7 @@
 
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Mapping, Self
+from typing import Any, Dict, List, Literal, Mapping, Optional, Self
 
 from pydantic import (
     AliasGenerator,
@@ -44,6 +44,7 @@ class CenterStudyModel(BaseModel):
     )
 
     center_id: str
+    study_adcid: Optional[int] = None
     enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
 
 
