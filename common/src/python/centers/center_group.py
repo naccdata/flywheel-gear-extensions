@@ -772,6 +772,7 @@ class DistributionProjectMetadata(ProjectMetadata):
 class IngestProjectMetadata(ProjectMetadata):
     """Metadata for an ingest project of a center."""
 
+    study_adcid: int
     datatype: str
 
 
@@ -818,6 +819,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         """
         return FormIngestProjectMetadata(
             study_id=ingest.study_id,
+            study_adcid=ingest.study_adcid,
             project_id=ingest.project_id,
             project_label=ingest.project_label,
             datatype=ingest.datatype,
@@ -924,7 +926,9 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(self, study: StudyModel, study_adcid: Optional[int]) -> CenterStudyMetadata:
+    def get(
+        self, study: StudyModel, study_adcid: Optional[int] = None
+    ) -> CenterStudyMetadata:
         """Gets the study metadata for the study id.
 
         Creates a new StudyMetadata object if it does not exist.
