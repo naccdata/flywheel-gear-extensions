@@ -136,3 +136,6 @@ dmypy.json
 
 # System
 .DS_Store
+
+# Copilot settings
+.github/instructions

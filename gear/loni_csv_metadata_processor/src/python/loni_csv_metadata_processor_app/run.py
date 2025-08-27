@@ -1,58 +1,57 @@
-"""Entry script for loni_csv_metadata_processor."""
+#!/usr/bin/env python
+"""The run script."""
 
 import logging
-
-from typing import Optional
+import sys
 
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import (
-    ClientWrapper,
-    ContextClient,
-    GearEngine,
-    GearExecutionEnvironment,
-)
+# This design with a separate main and parser module
+# allows the gear to be publishable and the main interfaces
+# to it can then be imported in another project which enables
+# chaining multiple gears together.
 from loni_csv_metadata_processor_app.main import run
-from inputs.parameter_store import ParameterStore
+from loni_csv_metadata_processor_app.parser import parse_config
+from loni_csv_metadata_processor_app.utils.results_processor import \
+    process_results
+
+# The run.py should be as minimal as possible.
+# The gear is split up into 2 main components. The run.py file which is executed
+# when the container runs. The run.py file then imports the rest of the gear as a
+# module.
+
 
 log = logging.getLogger(__name__)
 
 
-class loni_csv_metadata_processorVisitor(GearExecutionEnvironment):
-    """Visitor for the loni_csv_metadata_processor gear."""
+def main(context: GearToolkitContext) -> None:  # pragma: no cover
+    """
+    Parse gear config and run the processor.
 
-    def __init__(self, client: ClientWrapper):
-        super().__init__(client=client)
+    Args:
+        context: The GearToolkitContext containing configuration and connections.
+    """
+    # Call parse_config to extract the args, kwargs from the context
+    # (e.g. config.json).
+    dry_run, csv_path = parse_config(context)
 
-    @classmethod
-    def create(
-        cls,
-        context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'loni_csv_metadata_processorVisitor':
-        """Creates a loni_csv_metadata_processor execution visitor.
+    # Pass the args, kwargs to fw_gear_skeleton.main.run function to execute
+    # the main functionality of the gear.
+    results = run(input_path=csv_path)
 
-        Args:
-            context: The gear context.
-            parameter_store: The parameter store
-        Returns:
-          the execution environment
-        Raises:
-          GearExecutionError if any expected inputs are missing
-        """
+    # Process results and add tags to the output file
+    process_results(context, results)
 
-        client = ContextClient.create(context=context)
-
-        return loni_csv_metadata_processorVisitor(client=client)
-
-    def run(self, context: GearToolkitContext) -> None:
-        run(proxy=self.proxy)
+    # Exit with success code
+    sys.exit(0)
 
 
-def main():
-    """Main method for loni_csv_metadata_processor."""
+# Only execute if file is run as main, not when imported by another module
+if __name__ == "__main__":  # pragma: no cover
+    # Get access to gear config, inputs, and sdk client if enabled.
+    with GearToolkitContext() as gear_context:
+        # Initialize logging, set logging level based on `debug` configuration
+        # key in gear config.
+        gear_context.init_logging()
 
-    GearEngine().run(gear_type=loni_csv_metadata_processorVisitor)
-
-
-if __name__ == "__main__":
-    main()
+        # Pass the gear context into main function defined above.
+        main(gear_context)
