@@ -210,6 +210,7 @@ class AggregationMapper(StudyMapper):
             study_info.add_ingest(
                 IngestProjectMetadata(
                     study_id=self.study.study_id,
+                    study_adcid=study_info.study_adcid,
                     project_id=project.id,
                     project_label=project.label,
                     datatype=datatype,
