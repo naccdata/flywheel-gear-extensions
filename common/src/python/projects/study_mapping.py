@@ -216,6 +216,7 @@ class AggregationMapper(StudyMapper):
                     datatype=datatype,
                 )
             )
+            project.update_info({"study_adcid": study_info.study_adcid})
 
         self.add_pipeline(
             center=center,
