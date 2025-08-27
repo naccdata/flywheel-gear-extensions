@@ -5,11 +5,11 @@ from typing import Dict, Literal, Sequence, Set
 from keys.types import DatatypeNameType
 from pydantic import BaseModel
 
-ActivityPrefixType = Literal["submit-audit", "view"]
+ActionType = Literal["submit-audit", "view"]
 
 
 def convert_to_activity(
-    activity_prefix: ActivityPrefixType, datatype: DatatypeNameType
+    activity_prefix: ActionType, datatype: DatatypeNameType
 ) -> str:
     """Converts the datatype to a authorization activity by adding the prefix.
 
@@ -21,7 +21,7 @@ def convert_to_activity(
 
 
 def convert_to_activities(
-    activity_prefix: ActivityPrefixType, datatypes: Sequence[DatatypeNameType]
+    activity_prefix: ActionType, datatypes: Sequence[DatatypeNameType]
 ) -> list[str]:
     """Creates a list of activities from the list of datatypes using the
     activity name prefix.
@@ -32,12 +32,15 @@ def convert_to_activities(
     """
     return [convert_to_activity(activity_prefix, datatype) for datatype in datatypes]
 
+class Activity(BaseModel):
+    data: DatatypeNameType
+    action: ActionType
 
 class StudyAuthorizations(BaseModel):
     """Type class for authorizations."""
 
     study_id: str
-    activities: list[str]
+    activities: dict[DatatypeNameType, Activity]
 
 
 class AuthMap(BaseModel):
