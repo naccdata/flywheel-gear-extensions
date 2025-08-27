@@ -332,6 +332,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise IdentifierRepositoryError(response.body)
 
     def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+        """Get the identifier records for the provided ADCID.
+
+        Args:
+            adcid: ADCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the adcid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -362,6 +373,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return identifier_list
 
     def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+        """Get the identifier records for the provided NACCID.
+
+        Args:
+            naccid: NACCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the naccid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -392,7 +414,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return identifier_list
 
     def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
-        """Adds/updates the Identifier record in the repository.
+        """Adds/updates an identifier record with known NACCID to the database.
+        Update the active status of the identifier record if found or add a new
+        identifier record for provided (ADCID, PTID, NACCID).
 
         Args:
           identifier: Identifier record to add/update

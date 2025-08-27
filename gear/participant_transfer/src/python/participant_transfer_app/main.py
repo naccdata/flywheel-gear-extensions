@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from centers.nacc_group import NACCGroup
 from enrollment.enrollment_project import EnrollmentProject
-from enrollment.enrollment_transfer import TransferRecord
+from enrollment.enrollment_transfer import EnrollmentError, TransferRecord
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
@@ -29,7 +29,12 @@ def review_transfer_info(
         TransferRecord (optional): TransferRecord if transfer is in approved status
     """
 
-    transfer_info = enroll_project.get_transfer_info()
+    try:
+        transfer_info = enroll_project.get_transfer_info()
+    except EnrollmentError as error:
+        log.error(error)
+        return None
+
     transfer_record = transfer_info.transfers.get(ptid)
     if not transfer_record:
         log.error(f"No transfer request found for PTID {ptid}")
@@ -145,7 +150,7 @@ def run(
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    if not transfer_processor.add_or_update_enrollment_records():
+    if not transfer_processor.add_or_update_enrollment_records(prev_center=prev_center):
         raise GearExecutionError(
             f"Failed to update enrollment records for transfer request PTID {ptid}"
         )
