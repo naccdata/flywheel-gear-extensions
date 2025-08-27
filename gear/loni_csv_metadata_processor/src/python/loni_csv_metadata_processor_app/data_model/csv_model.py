@@ -20,6 +20,10 @@ class CSVType(Enum):
 class CSVRecord(BaseModel):
     """
     Base class for CSV records.
+
+    Attributes:
+        id: Unique identifier for the record
+        record_type: Type of the CSV record (MRI, PET, or BASE)
     """
 
     # Common fields for all CSV types
@@ -35,6 +39,10 @@ class CSVRecord(BaseModel):
 class MRIRecord(CSVRecord):
     """
     Record type for MRI CSV files.
+
+    Contains fields specific to MRI records with field_a1 and field_a2 as
+    required fields. Additional fields can be dynamically added as this uses
+    Pydantic's 'extra=allow' config.
     """
 
     # Required fields specific to MRI
@@ -52,6 +60,10 @@ class MRIRecord(CSVRecord):
 class PETRecord(CSVRecord):
     """
     Record type for PET CSV files.
+
+    Contains fields specific to PET records with field_b1 and field_b2 as
+    required fields. Additional fields can be dynamically added as this uses
+    Pydantic's 'extra=allow' config.
     """
 
     # Required fields specific to PET
@@ -68,6 +80,9 @@ class PETRecord(CSVRecord):
 class CSVDataModel:
     """
     Represents a single-row CSV file with validation capabilities.
+
+    This class handles loading a CSV file, determining its type (MRI or PET),
+    and creating the appropriate record instance based on the headers.
     """
 
     def __init__(self, csv_path):
@@ -91,11 +106,15 @@ class CSVDataModel:
         """
         Determine the record class based on CSV headers.
 
+        Examines the headers against the TYPE_INDICATORS mapping to identify
+        whether the CSV represents an MRI or PET record.
+
         Args:
             headers: List of column headers from the CSV file.
 
         Returns:
             The appropriate record class (MRIRecord or PETRecord).
+            Defaults to MRIRecord if type cannot be determined.
         """
         headers_set = set(headers)
 
@@ -115,8 +134,13 @@ class CSVDataModel:
         """
         Load the CSV data from the file.
 
+        Opens the CSV file and reads the headers and the first row of data.
+        This method only processes the first row, as the model is designed
+        for single-row CSV files.
+
         Returns:
-            Tuple of (headers, row_data)
+            Tuple of (headers, row_data) where headers is a list of column names
+            and row_data is a dictionary mapping column names to values.
         """
         with open(self.csv_path, "r", newline="") as csv_file:
             reader = csv.DictReader(csv_file)
@@ -130,7 +154,11 @@ class CSVDataModel:
 
     def load(self):
         """
-        Load the CSV file.
+        Load the CSV file and create the appropriate record instance.
+
+        This method loads the data from the CSV file, determines the record type
+        based on the headers, and initializes the appropriate record instance.
+        The record can be retrieved using the get_record() method.
         """
         # Load the CSV data
         headers, row_data = self._load_csv_data()
@@ -145,7 +173,10 @@ class CSVDataModel:
         """
         Get the record from the CSV file.
 
+        This method should be called after load() to retrieve the created record.
+
         Returns:
-            The CSV record or None if not loaded.
+            The CSV record (MRIRecord or PETRecord instance) or None if the file
+            has not been loaded yet.
         """
         return self.record

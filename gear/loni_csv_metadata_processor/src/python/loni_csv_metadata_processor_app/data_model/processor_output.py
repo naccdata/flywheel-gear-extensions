@@ -23,6 +23,11 @@ class ProcessorOutput(BaseModel):
 class ProcessState(Enum):
     """
     Enum representing the state of a processor's execution.
+
+    Members:
+        PASS: Processing completed successfully
+        FAIL: Processing failed
+        UNKNOWN: Processing state is not determined yet
     """
 
     PASS = auto()

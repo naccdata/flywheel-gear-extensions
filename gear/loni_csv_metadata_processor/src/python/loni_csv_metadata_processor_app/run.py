@@ -24,7 +24,12 @@ log = logging.getLogger(__name__)
 
 
 def main(context: GearToolkitContext) -> None:  # pragma: no cover
-    """Parses gear config and run."""
+    """
+    Parse gear config and run the processor.
+
+    Args:
+        context: The GearToolkitContext containing configuration and connections.
+    """
     # Call parse_config to extract the args, kwargs from the context
     # (e.g. config.json).
     dry_run, csv_path = parse_config(context)

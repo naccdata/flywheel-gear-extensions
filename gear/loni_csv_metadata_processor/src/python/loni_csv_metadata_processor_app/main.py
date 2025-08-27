@@ -27,11 +27,6 @@ class CSVMetadataProcessor:
     ):
         """
         Initialize the CSV metadata processor.
-
-        Args:
-            input_path: Path to the input CSV file.
-            qc_thresholds: Dictionary mapping QC metric names to threshold values.
-            scan_type_keywords: Dictionary mapping keywords to scan types.
         """
         self.processors: List[BaseProcessor] = []
         self.file_tagger = None
@@ -53,11 +48,10 @@ class CSVMetadataProcessor:
         Process a CSV file.
 
         Args:
-            csv_path: Path to the CSV file to process. If None, uses the path
-                provided at initialization.
+            csv_path: Path to the CSV file to process.
 
         Returns:
-            Dictionary with processing results.
+            Dictionary with processing results, keyed by processor name.
         """
 
         # Load and validate CSV data
@@ -90,8 +84,7 @@ def run(
     """Runs the loni_csv_metadata_processor process.
 
     Args:
-        gear_context: The Gear Toolkit context for interacting with Flywheel.
-        input_path: Optional path to the input CSV file.
+        input_path: Path to the input CSV file.
 
     Returns:
         Dictionary with processing results.
