@@ -210,13 +210,13 @@ class AggregationMapper(StudyMapper):
             study_info.add_ingest(
                 IngestProjectMetadata(
                     study_id=self.study.study_id,
-                    study_adcid=study_info.study_adcid,
+                    pipeline_adcid=study_info.pipeline_adcid,
                     project_id=project.id,
                     project_label=project.label,
                     datatype=datatype,
                 )
             )
-            project.update_info({"study_adcid": study_info.study_adcid})
+            project.update_info({"pipeline_adcid": study_info.pipeline_adcid})
 
         self.add_pipeline(
             center=center,
@@ -426,7 +426,7 @@ class StudyMappingVisitor(StudyVisitor):
 
         portal_info = center.get_project_info()
         study_info = portal_info.get(
-            study=self.__study, study_adcid=center_model.study_adcid
+            study=self.__study, pipeline_adcid=center_model.pipeline_adcid
         )
 
         self.__mapper.map_center_pipelines(center=center, study_info=study_info)

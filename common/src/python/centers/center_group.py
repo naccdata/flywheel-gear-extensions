@@ -772,7 +772,7 @@ class DistributionProjectMetadata(ProjectMetadata):
 class IngestProjectMetadata(ProjectMetadata):
     """Metadata for an ingest project of a center."""
 
-    study_adcid: int
+    pipeline_adcid: int
     datatype: str
 
 
@@ -819,7 +819,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         """
         return FormIngestProjectMetadata(
             study_id=ingest.study_id,
-            study_adcid=ingest.study_adcid,
+            pipeline_adcid=ingest.pipeline_adcid,
             project_id=ingest.project_id,
             project_label=ingest.project_label,
             datatype=ingest.datatype,
@@ -853,7 +853,7 @@ class CenterStudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
-    study_adcid: int
+    pipeline_adcid: int
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
@@ -927,7 +927,7 @@ class CenterProjectMetadata(BaseModel):
         self.studies[study.study_id] = study
 
     def get(
-        self, study: StudyModel, study_adcid: Optional[int] = None
+        self, study: StudyModel, pipeline_adcid: Optional[int] = None
     ) -> CenterStudyMetadata:
         """Gets the study metadata for the study id.
 
@@ -942,9 +942,9 @@ class CenterProjectMetadata(BaseModel):
         if study_info:
             return study_info
 
-        adcid = study_adcid if study_adcid is not None else self.adcid
+        adcid = pipeline_adcid if pipeline_adcid is not None else self.adcid
         study_info = CenterStudyMetadata(
-            study_id=study.study_id, study_name=study.name, study_adcid=adcid
+            study_id=study.study_id, study_name=study.name, pipeline_adcid=adcid
         )
         self.add(study_info)
         return study_info

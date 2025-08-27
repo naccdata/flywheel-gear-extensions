@@ -20,7 +20,7 @@ def project_with_datatype():
     """Returns a ProjectMetadata object with datatype."""
     yield IngestProjectMetadata(
         study_id="test",
-        study_adcid=0,
+        pipeline_adcid=0,
         project_id="9999999999",
         project_label="ingest-blah-test",
         datatype="blah",
@@ -33,7 +33,7 @@ def form_ingest_without_redcap():
     """Returns a form ingest project without redcap info."""
     yield IngestProjectMetadata(
         study_id="alpha",
-        study_adcid=0,
+        pipeline_adcid=0,
         project_id="11111111",
         project_label="ingest-form-alpha",
         datatype="form",
@@ -46,7 +46,7 @@ def ingest_project_with_redcap():
     """Returns a form ingest project."""
     yield FormIngestProjectMetadata(
         study_id="test",
-        study_adcid=0,
+        pipeline_adcid=0,
         project_id="88888888",
         project_label="ingest-form-test",
         datatype="form",
@@ -148,7 +148,7 @@ def study_object(
     yield CenterStudyMetadata(
         study_id="test",
         study_name="Test",
-        study_adcid=0,
+        pipeline_adcid=0,
         ingest_projects=projects,
         accepted_project=project_without_datatype,
     )

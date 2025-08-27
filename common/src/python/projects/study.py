@@ -44,7 +44,7 @@ class CenterStudyModel(BaseModel):
     )
 
     center_id: str
-    study_adcid: Optional[int] = None
+    pipeline_adcid: Optional[int] = None
     enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
 
 
