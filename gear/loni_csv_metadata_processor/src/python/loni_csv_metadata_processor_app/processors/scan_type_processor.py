@@ -1,57 +1,79 @@
 """
 Processor for determining scan type.
 """
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from loni_csv_metadata_processor_app.data_model.csv_model import CSVDataModel
-from loni_csv_metadata_processor_app.utils.file_tagger import FileTagger
+from loni_csv_metadata_processor_app.data_model.csv_model import CSVRecord
+from loni_csv_metadata_processor_app.data_model.processor_output import ProcessState, ProcessorOutput
 from loni_csv_metadata_processor_app.processors.base_processor import BaseProcessor
+from loni_csv_metadata_processor_app.processors.handlers.base_handler import RecordHandler
+from loni_csv_metadata_processor_app.processors.handlers.mri_scan_type_handler import MRIScanTypeHandler
+from loni_csv_metadata_processor_app.processors.handlers.pet_scan_type_handler import PETScanTypeHandler
 
 
 class ScanTypeProcessor(BaseProcessor):
     """
     Processor that determines the type of scan performed.
+    Uses type-specific handlers to implement record type-specific logic.
     """
     
-    def __init__(self, file_tagger: FileTagger, scan_type_keywords: Dict[str, str] = None):
+    def __init__(
+        self,
+        scan_type_keywords: Optional[Dict[str, str]] = None
+    ):
         """
         Initialize the scan type processor.
         
         Args:
-            file_tagger: Utility for tagging files.
             scan_type_keywords: Dictionary mapping keywords to scan types.
         """
-        super().__init__(file_tagger)
+        super().__init__()
         self.scan_type_keywords = scan_type_keywords or {}
+        
+        # Initialize handlers for different record types
+        self.handlers: List[RecordHandler] = [
+            MRIScanTypeHandler(scan_type_keywords),
+            PETScanTypeHandler(scan_type_keywords)
+        ]
     
-    def process(self, data_model: CSVDataModel) -> Dict[str, str]:
+    def process(self, record: CSVRecord) -> ProcessorOutput:
         """
-        Process the CSV data to determine scan types.
+        Process the CSV record to determine scan types.
+        Uses appropriate handler based on the record type.
         
         Args:
-            data_model: The CSV data model to process.
+            record: The CSV record to process.
             
         Returns:
-            Dictionary mapping record IDs to determined scan types.
+            ProcessorOutput with status and scan type value, or None if processing failed.
         """
-        results = {}
-        
-        # Placeholder for actual scan type determination logic
-        # This would analyze each record to determine the scan type
-        
-        # Placeholder for tagging based on scan type
-        # self.file_tagger.tag_file(...)
-        
-        return results
-    
-    def _determine_scan_type(self, record_data: Dict) -> Optional[str]:
-        """
-        Helper method to determine scan type from record data.
-        
-        Args:
-            record_data: Data from a single CSV record.
+        try:
+            if not record:
+                self.set_state(ProcessState.FAIL)
+                return ProcessorOutput(status="fail", value=None)
             
-        Returns:
-            Determined scan type or None if undetermined.
-        """
-        pass
+            # Find the appropriate handler for this record type
+            handler = self._get_handler_for_record(record)
+            
+            if handler:
+                # Process the record with the type-specific handler
+                result = handler.handle(record)
+                
+                if result and result.get('scan_type'):
+                    self.set_state(ProcessState.PASS)
+                    return ProcessorOutput(status="pass", value=result)
+                else:
+                    self.set_state(ProcessState.FAIL)
+                    return ProcessorOutput(status="fail", value=None)
+            else:
+                # No suitable handler found for this record type
+                self.set_state(ProcessState.FAIL)
+                return ProcessorOutput(
+                    status="fail", 
+                    value={"error": f"Unsupported record type: {record.record_type}"}
+                )
+                                
+        except Exception as e:
+            print(f"Error in ScanTypeProcessor: {e}")
+            self.set_state(ProcessState.FAIL)
+            return ProcessorOutput(status="fail", value=None)

@@ -1,32 +1,71 @@
 """
 CSV Data Model for representing and validating CSV data.
 """
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+import csv
+from enum import Enum
+
+from pydantic import BaseModel
 
 
-@dataclass
-class CSVRecord:
+class CSVType(Enum):
     """
-    Represents a single record (row) from the CSV file.
+    Defines the types of CSV files that can be processed.
     """
-    # These fields will be populated based on the actual CSV structure
-    raw_data: Dict[str, Any]
+    MRI = "mri"
+    PET = "pet"
+    BASE = "base"
+
+
+class CSVRecord(BaseModel):
+    """
+    Base class for CSV records.
+    """
+    # Common fields for all CSV types
+    id: str
+    record_type: CSVType = CSVType.BASE
+
+    class Config:
+        """Pydantic configuration."""
+        extra = "allow"  # Allow additional fields beyond what's defined
+
+
+class MRIRecord(CSVRecord):
+    """
+    Record type for MRI CSV files.
+    """
+    # Required fields specific to MRI
+    # typing will be specified in the full model
     
-    def __post_init__(self):
-        """
-        Validate the record after initialization.
-        """
-        pass
+    field_a1 = None
+    field_a2 = None
+    
+    # Optional fields
+    field_a3 = None
+
+    record_type: CSVType = CSVType.MRI
+
+
+
+class PETRecord(CSVRecord):
+    """
+    Record type for PET CSV files.
+    """
+    # Required fields specific to PET
+    # typing will be specified in the full model
+    field_b1 = None
+    field_b2 = None
+    
+    # Optional fields
+    field_b3 = None
+
+    record_type: CSVType = CSVType.PET
 
 
 class CSVDataModel:
     """
-    Represents the entire CSV file with validation capabilities.
+    Represents a single-row CSV file with validation capabilities.
     """
-    
-    def __init__(self, csv_path: Path):
+    def __init__(self, csv_path):
         """
         Initialize the CSV data model.
         
@@ -34,34 +73,74 @@ class CSVDataModel:
             csv_path: Path to the CSV file to process.
         """
         self.csv_path = csv_path
-        self.records: List[CSVRecord] = []
+        self.record = None
         
-    def load(self) -> None:
-        """
-        Load and validate the CSV file.
+        # Mapping of column patterns to CSV types
+        # can be initialized from the Record class keys
+        self.TYPE_INDICATORS = {
+            CSVType.MRI: {"field_a1", "field_a2"},
+            CSVType.PET: {"field_b1", "field_b2"},
+        }
         
-        Raises:
-            ValueError: If the CSV file is invalid.
+    def determine_record_class(self, headers):
         """
-        pass
-    
-    def get_records(self) -> List[CSVRecord]:
-        """
-        Get all records from the CSV file.
-        
-        Returns:
-            List of CSVRecord objects.
-        """
-        return self.records
-    
-    def get_record_by_id(self, record_id: str) -> Optional[CSVRecord]:
-        """
-        Get a specific record by its ID.
+        Determine the record class based on CSV headers.
         
         Args:
-            record_id: The ID of the record to retrieve.
+            headers: List of column headers from the CSV file.
             
         Returns:
-            The requested record or None if not found.
+            The appropriate record class (MRIRecord or PETRecord).
         """
-        pass
+        headers_set = set(headers)
+        
+        # Check headers against required columns for each type
+        for csv_type, required_columns in self.TYPE_INDICATORS.items():
+            if required_columns.issubset(headers_set):
+                # Return the appropriate record class based on the CSV type
+                if csv_type == CSVType.MRI:
+                    return MRIRecord
+                elif csv_type == CSVType.PET:
+                    return PETRecord
+                
+        # Default to MRIRecord for outline purposes
+        return MRIRecord
+    
+    def _load_csv_data(self):
+        """
+        Load the CSV data from the file.
+        
+        Returns:
+            Tuple of (headers, row_data)
+        """
+        with open(self.csv_path, "r", newline="") as csv_file:
+            reader = csv.DictReader(csv_file)
+            headers = reader.fieldnames or []
+            
+            # Read the first row only
+            rows = list(reader)
+            row_data = rows[0] if rows else {}
+            
+            return headers, row_data
+    
+    def load(self):
+        """
+        Load the CSV file.
+        """
+        # Load the CSV data
+        headers, row_data = self._load_csv_data()
+        
+        # Determine the record class directly from the headers
+        record_class = self.determine_record_class(headers)
+            
+        # Create the record instance
+        self.record = record_class(**row_data)
+    
+    def get_record(self):
+        """
+        Get the record from the CSV file.
+        
+        Returns:
+            The CSV record or None if not loaded.
+        """
+        return self.record

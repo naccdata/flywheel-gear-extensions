@@ -1,62 +1,36 @@
 """
-Utility for tagging files.
+Utility for tagging files in Flywheel using the Gear Toolkit.
 """
-from pathlib import Path
-from typing import Dict, Any, Union, Optional
+from typing import Any, Dict, Optional
+
+from loni_csv_metadata_processor_app.data_model.processor_output import ProcessorOutput
 
 
 class FileTagger:
     """
-    Utility class for tagging files with metadata.
+    Utility class for tagging Flywheel files with metadata via the Gear Toolkit.
     """
-    
-    def __init__(self, tag_storage_path: Optional[Path] = None):
+
+    def __init__(self, gear_context: Any = None):
         """
-        Initialize the file tagger.
-        
+        Initialize the file tagger with the gear toolkit context.
+
         Args:
-            tag_storage_path: Optional path to store tag metadata.
+            gear_context: The Gear Toolkit context for interacting with Flywheel.
         """
-        self.tag_storage_path = tag_storage_path
+        self.gear_context = gear_context
     
-    def tag_file(self, file_path: Union[str, Path], tag_name: str, tag_value: Any = None) -> bool:
+    def add_tag_to_metadata(self, tag_name: str, output: ProcessorOutput) -> None:
         """
-        Tag a file with metadata.
-        
+        Add a tag to the metadata.json file.
+
         Args:
-            file_path: Path to the file to tag.
-            tag_name: The name of the tag to apply.
-            tag_value: Optional value associated with the tag.
-            
-        Returns:
-            True if tagging was successful, False otherwise.
+            tag_name: Name of the tag to add (typically processor name).
+            output: Processor output containing status and value to tag with.
         """
-        # Placeholder for actual tagging implementation
-        pass
-    
-    def get_file_tags(self, file_path: Union[str, Path]) -> Dict[str, Any]:
-        """
-        Get all tags for a file.
+        # This is a placeholder implementation
+        # In a real implementation, this would use the gear toolkit to add metadata
+        # to the .metadata.json file for the appropriate container
         
-        Args:
-            file_path: Path to the file to get tags for.
-            
-        Returns:
-            Dictionary of tag names to tag values.
-        """
-        # Placeholder for actual tag retrieval implementation
-        return {}
-    
-    def remove_file_tag(self, file_path: Union[str, Path], tag_name: str) -> bool:
-        """
-        Remove a tag from a file.
-        
-        Args:
-            file_path: Path to the file to remove the tag from.
-            tag_name: The name of the tag to remove.
-            
-        Returns:
-            True if tag was removed, False otherwise.
-        """
-        # Placeholder for actual tag removal implementation
-        pass
+        print(f"Adding tag {tag_name} with value={output.value}")
+        # Implementation will use gear_context to add metadata
