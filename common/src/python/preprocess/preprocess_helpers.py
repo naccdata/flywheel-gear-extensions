@@ -124,11 +124,22 @@ class FormPreprocessorErrorHandler:
     def write_visitnum_error(self,
                              pp_context: PreprocessingContext,
                              error_code: SysErrorCodes) -> None:
-        """Write a packet-related preprocessing error."""
+        """Write a visitnum-related preprocessing error."""
         visitnum = input_record[FieldNames.VISITNUM]
         self.write_preprocessing_error(
             field=FieldNames.VISITNUM,
             value=visitnum,
+            pp_context=pp_context,
+            error_code=error_code)
+
+    def write_formver_error(self,
+                            pp_context: PreprocessingContext,
+                            error_code: SysErrorCodes) -> None:
+        """Write a formver-related preprocessing error."""
+        version = input_record[FieldNames.FORMVER]
+        self.write_preprocessing_error(
+            field=FieldNames.FORMVER,
+            value=version,
             pp_context=pp_context,
             error_code=error_code)
 

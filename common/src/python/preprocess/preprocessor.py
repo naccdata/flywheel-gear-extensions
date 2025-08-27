@@ -87,7 +87,9 @@ class FormPreprocessor:
             packet not in module_configs.initial_packets
             and packet not in module_configs.followup_packets
         ):
-            self.__error_handler.write_packet_error(pp_context, SysErrorCodes.INVALID_PACKET)
+            self.__error_handler.write_packet_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.INVALID_PACKET)
             return False
 
         return True
@@ -109,9 +111,7 @@ class FormPreprocessor:
         version = float(input_record[FieldNames.FORMVER])
         accepted_versions = [float(version) for version in module_configs.versions]
         if version not in accepted_versions:
-            self.__error_handler.write_preprocessing_error(
-                field=FieldNames.FORMVER,
-                value=str(version),
+            self.__error_handler.write_formver_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.INVALID_VERSION)
             return False
@@ -305,7 +305,9 @@ class FormPreprocessor:
 
         # this cannot happen, adding as a sanity check
         if initial_packets and len(initial_packets) > 1:
-            self.__error_handler.write_packet_error(pp_context, SysErrorCodes.MULTIPLE_IVP)
+            self.__error_handler.write_packet_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.MULTIPLE_IVP)
             return False
 
         initial_packet = initial_packets[0] if initial_packets else None
@@ -316,7 +318,9 @@ class FormPreprocessor:
 
         if packet in module_configs.followup_packets:
             if not initial_packet:
-                self.__error_handler.write_packet_error(pp_context, SysErrorCodes.MISSING_IVP)
+                self.__error_handler.write_packet_error(
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.MISSING_IVP)
                 return False
 
             return self.__compare_visit_order(
@@ -352,8 +356,10 @@ class FormPreprocessor:
                 input_record[FieldNames.PACKET],
             )
 
-            self.__error_handler.write_packet_error(pp_context, SysErrorCodes.IVP_EXISTS,
-                                      suppress_logs=True)
+            self.__error_handler.write_packet_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.IVP_EXISTS,
+                suppress_logs=True)
             return False
 
         return True
@@ -572,7 +578,9 @@ class FormPreprocessor:
                 return True
 
             # For I4 reject, since UDSv3 visit must present to submit I4
-            self.__error_handler.write_packet_error(pp_context, SysErrorCodes.MISSING_UDS_V3)
+            self.__error_handler.write_packet_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.MISSING_UDS_V3)
             return False
 
         # If participant has UDSv3 visits and trying to submit FVP packet
@@ -602,7 +610,9 @@ class FormPreprocessor:
                 not i4_visit
                 or i4_visit[date_lbl] >= input_record[module_configs.date_field]
             ):
-                self.__error_handler.write_packet_error(pp_context, SysErrorCodes.MISSING_UDS_I4)
+                self.__error_handler.write_packet_error(
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.MISSING_UDS_I4)
                 return False
 
         # If participant has UDSv3 visits and trying to submit I4 packet
@@ -721,7 +731,10 @@ class FormPreprocessor:
                     else SysErrorCodes.UDS_NOT_EXIST
 
             message = f"Could not find supplement modules for {self.__module}"
-            self.__error_handler.write_module_error(pp_context, error_code, message=message)
+            self.__error_handler.write_module_error(
+                pp_context=pp_context,
+                error_code=error_code,
+                message=message)
             return False
 
         return True
@@ -773,7 +786,9 @@ class FormPreprocessor:
                 supplement_visit[visitnum_lbl],
             )
             self.__error_handler.write_module_error(
-                pp_context, SysErrorCodes.UDS_NOT_MATCH, suppress_logs=True)
+                pp_context=pp_context,
+                error_code=SysErrorCodes.UDS_NOT_MATCH,
+                suppress_logs=True)
             return False
 
         packet = input_record[FieldNames.PACKET]
@@ -794,8 +809,10 @@ class FormPreprocessor:
                 supplement_visit[date_lbl],
                 supplement_visit[visitnum_lbl],
             )
-            self.__error_handler.write_packet_error(pp_context, SysErrorCodes.INVALID_MODULE_PACKET,
-                                      suppress_logs=True)
+            self.__error_handler.write_module_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.INVALID_MODULE_PACKET,
+                suppress_logs=True)
             return False
 
         return True
