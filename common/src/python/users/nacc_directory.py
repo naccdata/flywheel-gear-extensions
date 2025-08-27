@@ -11,7 +11,7 @@ from pydantic import (
 )
 
 from users.authorizations import (
-    ActivityPrefixType,
+    ActionType,
     DatatypeNameType,
     StudyAuthorizations,
     convert_to_activity,
@@ -26,7 +26,7 @@ AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
 def get_activity_prefix(
     access_level: AuthorizationAccessLevel,
-) -> Optional[ActivityPrefixType]:
+) -> Optional[ActionType]:
     """Returns the activity prefix for the access level.
 
     Args:
