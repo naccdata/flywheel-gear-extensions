@@ -2,7 +2,7 @@
 
 from typing import Any, Callable, Dict, List, Literal, Optional
 
-from flywheel import FileOutput, Project
+from flywheel import FileEntry, Project
 
 ERROR_HEADER_NAMES: List[str] = [
     "type",
@@ -26,7 +26,7 @@ ERROR_HEADER_NAMES: List[str] = [
 STATUS_HEADER_NAMES: List[str] = ["name", "id", "gear", "status"]
 
 
-def qc_data(file_object: FileOutput) -> Dict[str, Any]:
+def qc_data(file_object: FileEntry) -> Dict[str, Any]:
     """Returns the QC object in the metadata for the file.
 
     Args:
@@ -88,7 +88,7 @@ def status_data(
 
 
 def build_qc_info_list(
-    file_object: FileOutput,
+    file_object: FileEntry,
     insert_info: Callable[[Dict[str, Any], str, List[Dict[str, Any]]], None],
 ) -> List[Dict[str, Any]]:
     """Build dictionaries for output of QC data for the file using the insert
@@ -109,7 +109,7 @@ def build_qc_info_list(
 
 
 def get_qc_data(
-    project: Project, info_builder: Callable[[FileOutput], List[Dict[str, Any]]]
+    project: Project, info_builder: Callable[[FileEntry], List[Dict[str, Any]]]
 ) -> List[Dict[str, Any]]:
     """Helper function to create list of dictionaries created by the info
     builder function applied to files in the project.
@@ -140,7 +140,7 @@ def get_error_data(project: Project) -> List[Dict[str, Any]]:
       project: the flywheel project object
     """
 
-    def build_error_info_list(file_object: FileOutput) -> List[Dict[str, Any]]:
+    def build_error_info_list(file_object: FileEntry) -> List[Dict[str, Any]]:
         """Builds a list of error table information from the file dictionary
         object.
 
@@ -181,7 +181,7 @@ def get_status_data(project: Project) -> List[Dict[str, Any]]:
       a list of containing status info objects for files in the project
     """
 
-    def build_status_info_list(file_object: FileOutput) -> List[Dict[str, Any]]:
+    def build_status_info_list(file_object: FileEntry) -> List[Dict[str, Any]]:
         """Returns a list of dictionaries containg QC status data for the file.
 
         Args:
