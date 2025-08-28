@@ -3,7 +3,7 @@ python_distribution(
     dependencies=[
         "nacc-common/src/python:nacc-common-lib",
         "nacc-common/src/python:py_typed",
-        "mypy-stubs/src/python/flywheel:lib"
+        "mypy-stubs/src/python/flywheel:lib",
     ],
     wheel=True,
     sdist=True,
