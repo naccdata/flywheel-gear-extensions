@@ -8,9 +8,7 @@ from pydantic import BaseModel
 ActionType = Literal["submit-audit", "view"]
 
 
-def convert_to_activity(
-    activity_prefix: ActionType, datatype: DatatypeNameType
-) -> str:
+def convert_to_activity(activity_prefix: ActionType, datatype: DatatypeNameType) -> str:
     """Converts the datatype to a authorization activity by adding the prefix.
 
     Args:
@@ -32,9 +30,11 @@ def convert_to_activities(
     """
     return [convert_to_activity(activity_prefix, datatype) for datatype in datatypes]
 
+
 class Activity(BaseModel):
     data: DatatypeNameType
     action: ActionType
+
 
 class StudyAuthorizations(BaseModel):
     """Type class for authorizations."""
