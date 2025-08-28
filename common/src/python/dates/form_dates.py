@@ -58,12 +58,14 @@ def convert_date(*, date_string: str, date_format: str) -> Optional[str]:
         return None
 
 
-def build_date(*,
-               year: Optional[str] = None,
-               month: Optional[str] = None,
-               day: Optional[str] = None) -> Optional[datetime]:
-    """Build date from year, month, and day strings. If any are None,
-    or cannot be converted to proper ints, return None.
+def build_date(
+    *,
+    year: Optional[str] = None,
+    month: Optional[str] = None,
+    day: Optional[str] = None,
+) -> Optional[datetime]:
+    """Build date from year, month, and day strings. If any are None, or cannot
+    be converted to proper ints, return None.
 
     Args:
         year: The year

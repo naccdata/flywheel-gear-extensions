@@ -106,7 +106,7 @@ preprocess_errors = {
     SysErrorCodes.AUTOPSY_NP_INVALID: (
         "AUTOPSY should equal 1 in the most recent Milestone form in order for the NP "
         "form to be accepted "
-    )
+    ),
 }
 
 

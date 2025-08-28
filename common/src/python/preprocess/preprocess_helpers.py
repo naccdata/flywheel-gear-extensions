@@ -1,6 +1,5 @@
-"""
-Helper classes to aid with the FormPreprocessor.
-"""
+"""Helper classes to aid with the FormPreprocessor."""
+
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -8,7 +7,6 @@ from typing import Any, Dict, List, Optional
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import (
     FieldNames,
-    SysErrorCodes,
 )
 from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
@@ -16,7 +14,6 @@ from outputs.errors import (
     preprocess_errors,
     preprocessing_error,
 )
-from uploads.acquisition import is_duplicate_dict
 
 log = logging.getLogger(__name__)
 
@@ -37,23 +34,22 @@ class FormPreprocessorErrorHandler:
     """Class to handle writing preprocessing errors."""
 
     def __init__(
-        self,
-        module: str,
-        module_configs: ModuleConfigs,
-        error_writer: ErrorWriter
+        self, module: str, module_configs: ModuleConfigs, error_writer: ErrorWriter
     ) -> None:
         self.__module = module
         self.__module_configs = module_configs
         self.__error_writer = error_writer
 
-    def write_preprocessing_error(self,
-                                  field: str,
-                                  value: Any,
-                                  pp_context: PreprocessingContext,
-                                  error_code: str,
-                                  suppress_logs: bool = False,
-                                  message: Optional[str] = None,
-                                  extra_args: Optional[List[Any]] = None) -> None:
+    def write_preprocessing_error(
+        self,
+        field: str,
+        value: Any,
+        pp_context: PreprocessingContext,
+        error_code: str,
+        suppress_logs: bool = False,
+        message: Optional[str] = None,
+        extra_args: Optional[List[Any]] = None,
+    ) -> None:
         """Write a preprocessing error.
 
         Args:
@@ -69,9 +65,9 @@ class FormPreprocessorErrorHandler:
         """
         input_record = pp_context.input_record
         if not suppress_logs:
-            error_msg = preprocess_errors.get(error_code, 'Preprocessing error')
+            error_msg = preprocess_errors.get(error_code, "Preprocessing error")
             stderr_msg = (
-                f"{error_code} - {self.__module}/{input_record[FieldNames.FORMVER]}"
+                f"{error_msg} - {self.__module}/{input_record[FieldNames.FORMVER]}"
                 f"/{input_record[FieldNames.PACKET]}"
             )
 
@@ -88,17 +84,18 @@ class FormPreprocessorErrorHandler:
                 error_code=error_code,
                 message=message,
                 visit_keys=VisitKeys.create_from(
-                    record=input_record,
-                    date_field=self.__module_configs.date_field
+                    record=input_record, date_field=self.__module_configs.date_field
                 ),
-                extra_args=[extra_args]
+                extra_args=[extra_args],
             )
         )
 
-    def write_packet_error(self,
-                           pp_context: PreprocessingContext,
-                           error_code: str,
-                           suppress_logs: bool = False) -> None:
+    def write_packet_error(
+        self,
+        pp_context: PreprocessingContext,
+        error_code: str,
+        suppress_logs: bool = False,
+    ) -> None:
         """Write a packet-related preprocessing error."""
         input_record = pp_context.input_record
         packet = input_record[FieldNames.PACKET]
@@ -107,13 +104,16 @@ class FormPreprocessorErrorHandler:
             value=packet,
             pp_context=pp_context,
             error_code=error_code,
-            suppress_logs=suppress_logs)
+            suppress_logs=suppress_logs,
+        )
 
-    def write_module_error(self,
-                           pp_context: PreprocessingContext,
-                           error_code: str,
-                           suppress_logs: bool = False,
-                           message: Optional[str] = None) -> None:
+    def write_module_error(
+        self,
+        pp_context: PreprocessingContext,
+        error_code: str,
+        suppress_logs: bool = False,
+        message: Optional[str] = None,
+    ) -> None:
         """Write a module-related preprocessing error."""
         self.write_preprocessing_error(
             field=FieldNames.MODULE,
@@ -121,11 +121,12 @@ class FormPreprocessorErrorHandler:
             pp_context=pp_context,
             error_code=error_code,
             suppress_logs=suppress_logs,
-            message=message)
+            message=message,
+        )
 
-    def write_visitnum_error(self,
-                             pp_context: PreprocessingContext,
-                             error_code: str) -> None:
+    def write_visitnum_error(
+        self, pp_context: PreprocessingContext, error_code: str
+    ) -> None:
         """Write a visitnum-related preprocessing error."""
         input_record = pp_context.input_record
         visitnum = input_record[FieldNames.VISITNUM]
@@ -133,11 +134,12 @@ class FormPreprocessorErrorHandler:
             field=FieldNames.VISITNUM,
             value=visitnum,
             pp_context=pp_context,
-            error_code=error_code)
+            error_code=error_code,
+        )
 
-    def write_formver_error(self,
-                            pp_context: PreprocessingContext,
-                            error_code: str) -> None:
+    def write_formver_error(
+        self, pp_context: PreprocessingContext, error_code: str
+    ) -> None:
         """Write a formver-related preprocessing error."""
         input_record = pp_context.input_record
         version = input_record[FieldNames.FORMVER]
@@ -145,12 +147,15 @@ class FormPreprocessorErrorHandler:
             field=FieldNames.FORMVER,
             value=version,
             pp_context=pp_context,
-            error_code=error_code)
+            error_code=error_code,
+        )
 
-    def write_date_error(self,
-                         pp_context: PreprocessingContext,
-                         error_code: str,
-                         date_field: Optional[str] = None) -> None:
+    def write_date_error(
+        self,
+        pp_context: PreprocessingContext,
+        error_code: str,
+        date_field: Optional[str] = None,
+    ) -> None:
         """Write a date-related preprocessing error."""
         if not date_field:
             date_field = self.__module_configs.date_field
@@ -162,4 +167,5 @@ class FormPreprocessorErrorHandler:
             field=date_field,
             value=date_value,
             pp_context=pp_context,
-            error_code=error_code)
+            error_code=error_code,
+        )

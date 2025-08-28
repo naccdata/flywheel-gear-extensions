@@ -139,8 +139,8 @@ class PreprocessingChecks:
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"
-    CLINICAL_FORMS = 'clinical-forms'
-    NP_MLST_RESTRICTIONS = 'np-mlst-restrictions'
+    CLINICAL_FORMS = "clinical-forms"
+    NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

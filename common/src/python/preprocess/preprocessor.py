@@ -8,8 +8,8 @@ from configs.ingest_configs import (
     ModuleConfigs,
     SupplementModuleConfigs,
 )
-from dates.form_dates import build_date
 from datastore.forms_store import FormFilter, FormsStore
+from dates.form_dates import build_date
 from keys.keys import (
     DefaultValues,
     FieldNames,
@@ -19,12 +19,13 @@ from keys.keys import (
 )
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocess_errors
-from preprocess.preprocess_helpers import (
-    PreprocessingContext,
-    FormPreprocessorErrorHandler,
-    PreprocessingException
-)
 from uploads.acquisition import is_duplicate_dict
+
+from preprocess.preprocess_helpers import (
+    FormPreprocessorErrorHandler,
+    PreprocessingContext,
+    PreprocessingException,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,9 +47,7 @@ class FormPreprocessor:
         self.__module = module
         self.__module_configs = module_configs
         self.__error_handler = FormPreprocessorErrorHandler(
-            module=module,
-            module_configs=module_configs,
-            error_writer=error_writer
+            module=module, module_configs=module_configs, error_writer=error_writer
         )
 
         # Dispatcher mapping pre-processing checks to their corresponding handlers
@@ -94,8 +93,8 @@ class FormPreprocessor:
             and packet not in module_configs.followup_packets
         ):
             self.__error_handler.write_packet_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.INVALID_PACKET)
+                pp_context=pp_context, error_code=SysErrorCodes.INVALID_PACKET
+            )
             return False
 
         return True
@@ -118,8 +117,8 @@ class FormPreprocessor:
         accepted_versions = [float(version) for version in module_configs.versions]
         if version not in accepted_versions:
             self.__error_handler.write_formver_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.INVALID_VERSION)
+                pp_context=pp_context, error_code=SysErrorCodes.INVALID_VERSION
+            )
             return False
 
         return True
@@ -176,7 +175,7 @@ class FormPreprocessor:
                 value="",
                 pp_context=pp_context,
                 error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
-                extra_args=missing_vars
+                extra_args=missing_vars,
             )
             return False
 
@@ -217,8 +216,7 @@ class FormPreprocessor:
 
         if date_to_compare >= current_date:
             self.__error_handler.write_date_error(
-                pp_context=pp_context,
-                error_code=date_error
+                pp_context=pp_context, error_code=date_error
             )
             correct_order = False
 
@@ -313,8 +311,8 @@ class FormPreprocessor:
         # this cannot happen, adding as a sanity check
         if initial_packets and len(initial_packets) > 1:
             self.__error_handler.write_packet_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.MULTIPLE_IVP)
+                pp_context=pp_context, error_code=SysErrorCodes.MULTIPLE_IVP
+            )
             return False
 
         initial_packet = initial_packets[0] if initial_packets else None
@@ -326,8 +324,8 @@ class FormPreprocessor:
         if packet in module_configs.followup_packets:
             if not initial_packet:
                 self.__error_handler.write_packet_error(
-                    pp_context=pp_context,
-                    error_code=SysErrorCodes.MISSING_IVP)
+                    pp_context=pp_context, error_code=SysErrorCodes.MISSING_IVP
+                )
                 return False
 
             return self.__compare_visit_order(
@@ -367,7 +365,8 @@ class FormPreprocessor:
             self.__error_handler.write_packet_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.IVP_EXISTS,
-                suppress_logs=True)
+                suppress_logs=True,
+            )
             return False
 
         return True
@@ -430,8 +429,7 @@ class FormPreprocessor:
             value=input_record[FieldNames.VISITNUM],
         ):
             self.__error_handler.write_date_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.DIFF_VISITNUM
+                pp_context=pp_context, error_code=SysErrorCodes.DIFF_VISITNUM
             )
             return False
 
@@ -492,8 +490,7 @@ class FormPreprocessor:
             visits=visitnum_matches, field=date_field, value=input_record[date_field]
         ):
             self.__error_handler.write_visitnum_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.DIFF_VISITDATE
+                pp_context=pp_context, error_code=SysErrorCodes.DIFF_VISITDATE
             )
             return False
 
@@ -518,8 +515,7 @@ class FormPreprocessor:
             value=input_record[self.__module_configs.date_field],
         ):
             self.__error_handler.write_visitnum_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.DIFF_VISITDATE
+                pp_context=pp_context, error_code=SysErrorCodes.DIFF_VISITDATE
             )
             return False
 
@@ -579,8 +575,8 @@ class FormPreprocessor:
 
             # For I4 reject, since UDSv3 visit must present to submit I4
             self.__error_handler.write_packet_error(
-                pp_context=pp_context,
-                error_code=SysErrorCodes.MISSING_UDS_V3)
+                pp_context=pp_context, error_code=SysErrorCodes.MISSING_UDS_V3
+            )
             return False
 
         # If participant has UDSv3 visits and trying to submit FVP packet
@@ -611,8 +607,8 @@ class FormPreprocessor:
                 or i4_visit[date_lbl] >= input_record[module_configs.date_field]
             ):
                 self.__error_handler.write_packet_error(
-                    pp_context=pp_context,
-                    error_code=SysErrorCodes.MISSING_UDS_I4)
+                    pp_context=pp_context, error_code=SysErrorCodes.MISSING_UDS_I4
+                )
                 return False
 
         # If participant has UDSv3 visits and trying to submit I4 packet
@@ -639,8 +635,9 @@ class FormPreprocessor:
         Returns:
             bool: False if conflict found
         """
-        return (self.__check_visitdate_visitnum(pp_context)
-                and self.__check_visitnum_visitdate(pp_context))
+        return self.__check_visitdate_visitnum(
+            pp_context
+        ) and self.__check_visitnum_visitdate(pp_context)
 
     def _check_supplement_module(self, pp_context: PreprocessingContext) -> bool:
         """Check whether a matching supplement module found.
@@ -674,7 +671,8 @@ class FormPreprocessor:
                     SysErrorCodes.UDS_NOT_MATCH
                     if supplement_module.exact_match
                     else SysErrorCodes.UDS_NOT_EXIST
-                ))
+                ),
+            )
             return False
 
         # just checking for supplement existence
@@ -689,14 +687,13 @@ class FormPreprocessor:
                 f"{input_record[module_configs.date_field]}"
             )
 
-        return self.__check_supplement_exact_match(supplement_visits[0],
-                                                   pp_context)
+        return self.__check_supplement_exact_match(supplement_visits[0], pp_context)
 
     def __get_supplement_visits(
         self,
         supplement_module: SupplementModuleConfigs,
-        pp_context: PreprocessingContext
-        ) -> Optional[List[Dict[str, str]]]:
+        pp_context: PreprocessingContext,
+    ) -> Optional[List[Dict[str, str]]]:
         """Get supplement visits for the given supplement module.
 
         Args:
@@ -734,9 +731,9 @@ class FormPreprocessor:
 
         return supplement_visits
 
-    def __check_supplement_exact_match(self,
-                                       supplement_visit: Dict[str, str],
-                                       pp_context: PreprocessingContext) -> bool:
+    def __check_supplement_exact_match(
+        self, supplement_visit: Dict[str, str], pp_context: PreprocessingContext
+    ) -> bool:
         """Check that the found supplement visit matches exactly.
 
         Args:
@@ -782,7 +779,8 @@ class FormPreprocessor:
             self.__error_handler.write_module_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.UDS_NOT_MATCH,
-                suppress_logs=True)
+                suppress_logs=True,
+            )
             return False
 
         packet = input_record[FieldNames.PACKET]
@@ -806,7 +804,8 @@ class FormPreprocessor:
             self.__error_handler.write_packet_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.INVALID_MODULE_PACKET,
-                suppress_logs=True)
+                suppress_logs=True,
+            )
             return False
 
         return True
@@ -897,13 +896,13 @@ class FormPreprocessor:
             True if the preprocessing checks pass, false otherwise
         """
         # treat each form like a fake supplement module and see if any visits exist
-        for module in [DefaultValues.UDS_MODULE,
-                       DefaultValues.BDS_MODULE,
-                       DefaultValues.MDS_MODULE]:
+        for module in [
+            DefaultValues.UDS_MODULE,
+            DefaultValues.BDS_MODULE,
+            DefaultValues.MDS_MODULE,
+        ]:
             supplement_module = SupplementModuleConfigs(
-                label=module,
-                date_field=FieldNames.DATE_COLUMN,
-                exact_match=False
+                label=module, date_field=FieldNames.DATE_COLUMN, exact_match=False
             )
 
             # passes if at least one visit is found
@@ -912,13 +911,14 @@ class FormPreprocessor:
 
         # no clinical visits found; fail preprocessing check
         self.__error_handler.write_module_error(
-            pp_context=pp_context,
-            error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED)
+            pp_context=pp_context, error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED
+        )
 
         return False
 
     def _check_np_mlst_restrictions(self, pp_context: PreprocessingContext) -> bool:
-        """Check NP/MLST restrictions; compares NP form against most recent MLST form.
+        """Check NP/MLST restrictions; compares NP form against most recent
+        MLST form.
 
         Args:
             pp_context: preprocessing context
@@ -926,8 +926,10 @@ class FormPreprocessor:
             True if the preprocessing checks pass, false otherwise
         """
         if self.__module != DefaultValues.NP_MODULE:
-            raise PreprocessingException("Cannot evaluate NP/MLST preprocessing " +
-                f"checks for non-NP module: {self.__module}")
+            raise PreprocessingException(
+                "Cannot evaluate NP/MLST preprocessing "
+                + f"checks for non-NP module: {self.__module}"
+            )
 
         assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
@@ -952,12 +954,14 @@ class FormPreprocessor:
         mlst_year = mlst_form.get("deathyr")
         np_year = input_record.get("npdodyr")
 
-        mlst_dod = build_date(year=mlst_year,
-                              month=mlst_form.get("deathmo"),
-                              day=mlst_form.get("deathdy"))
-        np_dod = build_date(year=np_year,
-                            month=input_record.get("npdodmo"),
-                            day=input_record.get("npdoddy"))
+        mlst_dod = build_date(
+            year=mlst_year, month=mlst_form.get("deathmo"), day=mlst_form.get("deathdy")
+        )
+        np_dod = build_date(
+            year=np_year,
+            month=input_record.get("npdodmo"),
+            day=input_record.get("npdoddy"),
+        )
 
         result_dod = True
         # MLST may have not had month/day defined (unknown 99s)
@@ -966,14 +970,16 @@ class FormPreprocessor:
         if not mlst_dod and mlst_year is not None:
             result_dod = mlst_year == np_year
         else:
-            result_dod = ((mlst_dod is not None and np_dod is not None)
-                          and (mlst_dod == np_dod))
+            result_dod = (mlst_dod is not None and np_dod is not None) and (
+                mlst_dod == np_dod
+            )
 
         if not result_dod:
             self.__error_handler.write_date_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.DEATH_DATE_MISMATCH,
-                date_field="npdodyr")
+                date_field="npdodyr",
+            )
 
         # preprocess-027: autopsy must be 1 in MLST form for NP to be accepted
         result_autopsy = mlst_form.get("autopsy") == 1
@@ -982,7 +988,8 @@ class FormPreprocessor:
                 field="autopsy",
                 value=mlst_form.get("autopsy"),
                 pp_context=pp_context,
-                error_code=SysErrorCodes.AUTOPSY_NP_INVALID)
+                error_code=SysErrorCodes.AUTOPSY_NP_INVALID,
+            )
 
         return result_dod and result_autopsy
 
