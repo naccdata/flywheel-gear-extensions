@@ -30,6 +30,7 @@ from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
 from fw_client.client import FWClient
 from fw_utils import AttrDict
+from utils.decorators import api_retry
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 
@@ -215,7 +216,7 @@ class FlywheelProxy:
             return group_list[0]
 
         conflict = self.__fw.groups.find_first(
-            f"label=~^{group_label.replace(',','.')}$"
+            f"label=~^{group_label.replace(',', '.')}$"
         )
         if conflict:
             raise FlywheelError(f"Group with label {group_label} exists: {conflict.id}")
@@ -912,7 +913,9 @@ class GroupAdaptor:
         for role in roles:
             self.add_role(role)
 
-    def get_project(self, label: str) -> Optional["ProjectAdaptor"]:
+    def get_project(
+        self, label: str, info_update: Optional[dict[str, Any]] = None
+    ) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given label.
 
         Creates a new project if none exists.
@@ -926,7 +929,12 @@ class GroupAdaptor:
         if not project:
             return None
 
-        return ProjectAdaptor(project=project, proxy=self._fw)
+        adaptor = ProjectAdaptor(project=project, proxy=self._fw)
+        adaptor.add_tags(self.get_tags())
+        if info_update:
+            adaptor.update_info(info_update)
+        adaptor.add_admin_users(self.get_user_access())
+        return adaptor
 
     def get_project_by_id(self, project_id: str) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given ID.
@@ -1057,7 +1065,12 @@ class ProjectAdaptor:
         """
         self._project.update(description=description)
 
-    def get_file(self, name: str):
+    @property
+    def files(self) -> List[FileEntry]:
+        """The list of files associated with this project."""
+        return self._project.files
+
+    def get_file(self, name: str) -> Optional[FileEntry]:
         """Gets the file from the enclosed project.
 
         Args:
@@ -1081,6 +1094,7 @@ class ProjectAdaptor:
         """
         return self._project.read_file(name)
 
+    @api_retry
     def upload_file(self, file_spec: flywheel.FileSpec) -> None:
         """Uploads the indicated file to enclosed project.
 
@@ -1181,10 +1195,14 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             log.info("Dry Run: %s", log_message)
             return True
+        try:
+            self._project.update_permission(
+                role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
+            )
+        except ApiException as error:
+            log.error("Failed to add user role to project: %s", error)
+            return False
 
-        self._project.update_permission(
-            role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
-        )
         self.__pull_project()
         return True
 
@@ -1230,7 +1248,7 @@ class ProjectAdaptor:
         if self._fw.dry_run:
             if conflict:
                 log.info(
-                    "Dry Run: would remove conflicting " "rule %s from project %s",
+                    "Dry Run: would remove conflicting rule %s from project %s",
                     conflict.name,
                     self._project.label,
                 )

@@ -14,12 +14,14 @@ from identifiers.identifiers_repository import (
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import FieldNames
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError, VisitKeys
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
-    get_error_log_name,
     identifier_error,
     missing_field_error,
-    update_error_log_and_qc_metadata,
+    system_error,
+    unexpected_value_error,
 )
 from outputs.outputs import CSVWriter
 
@@ -43,6 +45,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         module_configs: ModuleConfigs,
         error_writer: ListErrorWriter,
         gear_name: str,
+        misc_errors: List[FileError],
         project: Optional[ProjectAdaptor] = None,
     ) -> None:
         """
@@ -54,6 +57,7 @@ class NACCIDLookupVisitor(CSVVisitor):
             module_configs: form ingest configurations for the module
             error_writer: the error output writer
             gear_name: gear name
+            misc_errors: list to store errors occur while updating visit error log
             project: Flywheel project adaptor
         """
         self.__identifiers = identifiers
@@ -65,7 +69,12 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__gear_name = gear_name
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
-        self.__validator = CenterValidator(center_id=adcid, error_writer=error_writer)
+        self.__validator = CenterValidator(
+            center_id=adcid,
+            date_field=module_configs.date_field,
+            error_writer=error_writer,
+        )
+        self.__misc_errors = misc_errors
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -119,6 +128,8 @@ class NACCIDLookupVisitor(CSVVisitor):
         Returns:
           True if there is a NACCID for the PTID, False otherwise
         """
+
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
         # check for valid ADCID and PTID
@@ -142,15 +153,17 @@ class NACCIDLookupVisitor(CSVVisitor):
         row[FieldNames.NACCID] = identifier.naccid
         row[FieldNames.MODULE] = self.__module_name
 
+        if not self.__update_visit_error_log(input_record=row, qc_passed=True):
+            return False
+
         writer = self.__get_writer()
         writer.write(row)
-        self.__update_visit_error_log(input_record=row, qc_passed=True)
 
         return True
 
     def __update_visit_error_log(
         self, *, input_record: Dict[str, Any], qc_passed: bool
-    ):
+    ) -> bool:
         """Update error log file for the visit and store error metadata in
         file.info.qc.
 
@@ -159,12 +172,13 @@ class NACCIDLookupVisitor(CSVVisitor):
             qc_passed: whether the visit passed QC checks
 
         Returns:
-            bool: True if error log updated successfully, else False
+            bool: False if errors occur while updating log file
         """
 
         if not self.__project:
-            log.warning("Parent project not specified to upload visit error log")
-            return
+            raise GearExecutionError(
+                "Parent project not specified to upload visit error log"
+            )
 
         errorlog_template = (
             self.__module_configs.errorlog_template
@@ -173,15 +187,30 @@ class NACCIDLookupVisitor(CSVVisitor):
                 id_field=FieldNames.PTID, date_field=self.__module_configs.date_field
             )
         )
-        error_log_name = get_error_log_name(
-            module=self.__module_name,
-            input_data=input_record,
-            errorlog_template=errorlog_template,
+        error_log_name = errorlog_template.instantiate(
+            module=self.__module_name, record=input_record
         )
+
+        if not error_log_name:
+            message = (
+                f"Invalid values found for "
+                f"{FieldNames.PTID} ({input_record[FieldNames.PTID]}) or "
+                f"{self.__module_configs.date_field} "
+                f"({input_record[self.__module_configs.date_field]})"
+            )
+            self.__misc_errors.append(
+                unexpected_value_error(
+                    field=f"{FieldNames.PTID} or {self.__module_configs.date_field}",
+                    value="",
+                    expected="",
+                    message=message,
+                )
+            )
+            return False
 
         # This is first gear in pipeline validating individual rows
         # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
-        if not error_log_name or not update_error_log_and_qc_metadata(
+        if not update_error_log_and_qc_metadata(
             error_log_name=error_log_name,
             destination_prj=self.__project,
             gear_name=self.__gear_name,
@@ -189,10 +218,21 @@ class NACCIDLookupVisitor(CSVVisitor):
             errors=self.__error_writer.errors(),
             reset_qc_metadata="ALL",
         ):
-            raise GearExecutionError(
+            message = (
                 "Failed to update error log for visit "
                 f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
             )
+            self.__misc_errors.append(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys.create_from(
+                        record=input_record, date_field=self.__module_configs.date_field
+                    ),
+                )
+            )
+            return False
+
+        return True
 
 
 class CenterLookupVisitor(CSVVisitor):
@@ -271,11 +311,13 @@ class CenterLookupVisitor(CSVVisitor):
 
         try:
             identifier = self.__identifiers_repo.get(naccid=naccid)
-        except IdentifierRepositoryError as error:
+        except (IdentifierRepositoryError, TypeError) as error:
             raise GearExecutionError(f"Lookup of {naccid} failed: {error}") from error
 
         if not identifier:
-            self.__error_writer.write(identifier_error(line=line_num, value=naccid))
+            self.__error_writer.write(
+                identifier_error(line=line_num, value=naccid, field=FieldNames.NACCID)
+            )
             return False
 
         row[FieldNames.ADCID] = identifier.adcid

@@ -1,6 +1,5 @@
 """Defines Legacy Sanity Check."""
 
-import json
 import logging
 from typing import List
 
@@ -14,9 +13,9 @@ from keys.keys import (
     SysErrorCodes,
 )
 from notifications.email import EmailClient, create_ses_client
+from outputs.error_models import FileError
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    FileError,
-    ListErrorWriter,
     preprocess_errors,
 )
 
@@ -78,8 +77,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{num_legacy} initial visits in retrospective",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -111,8 +110,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{len(init_packets)} initial visits in ingest",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -130,8 +129,8 @@ class LegacySanityChecker:
             )
             self.__error_writer.write(
                 FileError(
-                    error_type="error",
-                    error_code=SysErrorCodes.MULTIPLE_IVP,
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
                     value=f"{len(init_packets)} non-I4 visits in ingest",
                     message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
                 )
@@ -218,8 +217,8 @@ class LegacySanityChecker:
                 log.error(f"Duplicate records found for {duplicate_val}")
                 self.__error_writer.write(
                     FileError(
-                        error_type="error",
-                        error_code="duplicate-visits",
+                        error_type="error",  # type: ignore
+                        error_code="duplicate-visits",  # type: ignore
                         value=duplicate_val,
                         message="Duplicate records found between ingest "
                         + "and retrospective projects",
@@ -271,8 +270,8 @@ class LegacySanityChecker:
         subject = f"{project_lbl} Sanity Check Failure"
         body = (
             f"Project {project_lbl} for {group_lbl} failed "
-            + "the following legacy sanity checks:\n\n"
-            + json.dumps(self.__error_writer.errors(), indent=4)
+            "the following legacy sanity checks:\n\n"
+            f"{self.__error_writer.errors().model_dump_json(by_alias=True, indent=4)}"
         )
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)

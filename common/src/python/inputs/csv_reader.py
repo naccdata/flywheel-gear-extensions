@@ -1,19 +1,20 @@
 """Methods to read and process a CSV file using a row visitor."""
 
 import abc
+import logging
 from abc import ABC, abstractmethod
 from csv import DictReader
 from typing import Any, Dict, List, Optional, TextIO
 
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
-    ErrorWriter,
-    ListErrorWriter,
     empty_file_error,
-    malformed_file_error,
     missing_header_error,
     partially_failed_file_error,
 )
 from utils.snakecase import snakecase
+
+log = logging.getLogger(__name__)
 
 
 class CSVVisitor(ABC):
@@ -25,6 +26,7 @@ class CSVVisitor(ABC):
 
         Args:
           row: the dictionary for a row from a CSV file
+          line_num: the line number of the row
         Returns:
           True if the row was processed without error, False otherwise
         """
@@ -38,6 +40,20 @@ class CSVVisitor(ABC):
           header: list of header names
         Returns:
           True if the header has all required fields, False otherwise
+        """
+        return True
+
+    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Checks that the row is valid.
+
+        Override this method if there is a row condition that requires stopping
+        processing of the file.
+
+        Args:
+          row: the dictionary for a row
+          line_num: the line number of the row
+        Returns:
+          True if the row is valid. False, otherwise.
         """
         return True
 
@@ -89,20 +105,18 @@ def read_csv(
     if not success:
         return False
 
-    try:
-        for count, record in enumerate(reader):
-            if not preserve_case:
-                record = {
-                    snakecase(key.strip()): value for key, value in record.items()
-                }
+    for count, record in enumerate(reader):
+        if not preserve_case:
+            record = {snakecase(key.strip()): value for key, value in record.items()}
 
-            row_success = visitor.visit_row(record, line_num=count + 1)
-            success = row_success and success
-            if limit and count >= limit:
-                break
-    except Exception as error:
-        error_writer.write(malformed_file_error(str(error)))
-        return False
+        if not visitor.valid_row(record, line_num=count + 1):
+            success = False
+            break
+
+        row_success = visitor.visit_row(record, line_num=count + 1)
+        success = row_success and success
+        if limit and count >= limit:
+            break
 
     if not success and clear_errors and isinstance(error_writer, ListErrorWriter):
         error_writer.clear()
@@ -111,7 +125,6 @@ def read_csv(
     return success
 
 
-# pylint: disable=(too-few-public-methods)
 class RowValidator(abc.ABC):
     """Abstract class for a RowValidator."""
 

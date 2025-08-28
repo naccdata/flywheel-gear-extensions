@@ -5,7 +5,7 @@ from typing import Optional
 import pytest
 import yaml
 from centers.center_info import CenterInfo, CenterMapInfo
-from projects.study import Study, StudyVisitor
+from projects.study import CenterStudyModel, StudyModel, StudyVisitor
 from pydantic import ValidationError
 
 
@@ -17,13 +17,13 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center_id: str) -> None:
-        self.center_id = center_id
+    def visit_center(self, center: CenterStudyModel) -> None:
+        self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
         self.datatype_name = datatype
 
-    def visit_study(self, study: Study) -> None:
+    def visit_study(self, study: StudyModel) -> None:
         self.project_name = study.name
 
 
@@ -79,10 +79,7 @@ class TestCenterInfo:
     def test_create_from_yaml(self, dummy_center):
         """Test creation from yaml."""
         center_yaml = (
-            "adcid: 7\n"
-            "name: Alpha ADRC\n"
-            "center-id: alpha-adrc\n"
-            "is-active: True"
+            "adcid: 7\nname: Alpha ADRC\ncenter-id: alpha-adrc\nis-active: True"
         )
         center_gen = yaml.safe_load_all(center_yaml)
         center = CenterInfo(**next(iter(center_gen)))
@@ -91,7 +88,7 @@ class TestCenterInfo:
     def test_repr(self, dummy_center):
         """Test representation."""
         assert repr(dummy_center) == (
-            "Center(group=alpha-adrc, " "name=Alpha ADRC, " "adcid=7, " "active=True"
+            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True, tags=None"
         )
 
 

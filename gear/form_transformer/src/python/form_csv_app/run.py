@@ -18,7 +18,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
 from transform.transformer import FieldTransformations, TransformerFactory
@@ -96,8 +96,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         module = self.__file_input.get_module_name_from_file_suffix()
         if not module:
             raise GearExecutionError(
-                "Expect module suffix in input file name: "
-                f"{self.__file_input.filename}"
+                f"Expect module suffix in input file name: {self.__file_input.filename}"
             )
         module = module.upper()
 
@@ -144,6 +143,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             container_id=file_id, fw_path=proxy.get_lookup_path(file)
         )
         preprocessor = self.__get_preprocessor(
+            module=module,
             form_configs=form_configs,
             ingest_project=prj_adaptor,
             error_writer=error_writer,
@@ -169,7 +169,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
@@ -207,13 +207,15 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
     def __get_preprocessor(
         self,
+        module: str,
         form_configs: FormProjectConfigs,
         ingest_project: ProjectAdaptor,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
     ) -> FormPreprocessor:
         """Initialize the preprocessor for ingest project.
 
         Args:
+          module: module label
           form_configs: the form ingest configs
           ingest_project: Flywheel project adaptor
           error_writer: error metadata writer
@@ -245,7 +247,8 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         return FormPreprocessor(
             primary_key=form_configs.primary_key,
             forms_store=forms_store,
-            module_info=form_configs.module_configs,
+            module=module,
+            module_configs=form_configs.module_configs.get(module),  # type: ignore
             error_writer=error_writer,
         )
 

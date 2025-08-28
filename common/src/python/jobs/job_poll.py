@@ -23,8 +23,16 @@ class JobPoll:
             str: job completion status
         """
 
+        sleep_total = 0
+        sleep_interval = 30
+        response_interval = 1800  # 30 mins
         while job.state in ["pending", "running"]:
-            time.sleep(30)
+            # add log message to prevent being unresponsive
+            if (sleep_total % response_interval) == 0:
+                log.info("Job %s is still %s", job.id, job.state)
+
+            time.sleep(sleep_interval)
+            sleep_total += sleep_interval
             job = job.reload()
 
         if job.state == "failed":
@@ -32,6 +40,7 @@ class JobPoll:
             job = job.reload()
 
             if job.state == "failed" and job.retried is not None:
+                log.info("Job %s was retried", job.id)
                 return "retried"
 
         log.info("Job %s finished with status: %s", job.id, job.state)
@@ -97,11 +106,11 @@ class JobPoll:
         """
         result = ""
         if states_list:
-            result = f'state=|[{",".join(states_list)}]'
+            result = f"state=|[{','.join(states_list)}]"
         if gears_list:
-            result = f'gear_info.name=|[{",".join(gears_list)}],{result}'
+            result = f"gear_info.name=|[{','.join(gears_list)}],{result}"
         if project_ids_list:
-            result = f'parents.project=|[{",".join(project_ids_list)}],{result}'
+            result = f"parents.project=|[{','.join(project_ids_list)}],{result}"
 
         return result.rstrip(",")
 

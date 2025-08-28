@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.3
+* Rebuild for error metadata updates
+  
+## 1.2.2
+* Remove gear failure on missing tag
+* Rebuilding for API call retries
+
 ## 1.2.1
 * Catches and reports failure on non-UTF-8-compliant files (instead of crashing)
 

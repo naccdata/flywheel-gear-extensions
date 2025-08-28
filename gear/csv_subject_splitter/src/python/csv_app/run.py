@@ -20,8 +20,10 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterError, ParameterStore
-from outputs.errors import ListErrorWriter
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
+from uploads.provenance import FileProvenance
+from uploads.uploader import JSONUploader
 
 from csv_app.main import run
 
@@ -114,7 +116,17 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             ) from error
 
         project = self.__file_input.get_parent_project(proxy, file=file)
+        destination = ProjectAdaptor(project=project, proxy=proxy)
         template_map = self.__load_template(self.__hierarchy_labels)
+
+        provenance = FileProvenance.create_from_parent(proxy, file)
+        uploader = JSONUploader(
+            proxy=proxy,
+            hierarchy_client=hierarchy_client,
+            project=destination,
+            template_map=template_map,
+            environment={"filename": self.__file_input.basename},
+        )
 
         with open(
             self.__file_input.filepath, mode="r", encoding="utf-8-sig"
@@ -123,12 +135,10 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 container_id=file_id, fw_path=proxy.get_lookup_path(file)
             )
             success = run(
-                proxy=proxy,
-                hierarchy_client=hierarchy_client,
+                provenance=provenance,
+                uploader=uploader,
                 input_file=csv_file,
-                destination=ProjectAdaptor(project=project, proxy=proxy),
-                environment={"filename": self.__file_input.basename},
-                template_map=template_map,
+                destination=destination,
                 error_writer=error_writer,
                 preserve_case=self.__preserve_case,
             )
@@ -137,7 +147,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state="PASS" if success else "FAIL",
-                data=error_writer.errors(),
+                data=error_writer.errors().model_dump(by_alias=True),
             )
 
             context.metadata.add_file_tags(
@@ -159,7 +169,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             return UploadTemplateInfo.model_validate(template_list)
         except ValidationError as error:
             raise GearExecutionError(
-                "Error reading label templates: " f"{error}"
+                f"Error reading label templates: {error}"
             ) from error
 
 

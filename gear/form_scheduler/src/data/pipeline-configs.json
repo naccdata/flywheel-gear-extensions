@@ -12,7 +12,11 @@
             "modules": [
                 "UDS",
                 "FTLD",
-                "LBD"
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP"
             ],
             "tags": [
                 "queued"
@@ -46,7 +50,7 @@
                 "UDS"
             ],
             "tags": [
-                "submission-complete"
+                "submission-completed"
             ],
             "extensions": [
                 ".json"
@@ -71,6 +75,7 @@
                 ],
                 "configs": {
                     "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+                    "pipeline": "finalization",
                     "check_all": false
                 }
             }

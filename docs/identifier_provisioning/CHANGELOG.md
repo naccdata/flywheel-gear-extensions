@@ -2,6 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.0
+* Updates to use new identifier lambda functions with restructured identifiers database
+* Updates error metadata to include date and naccid
+  
+## 1.2.7
+* Rebuilding to call identifier lambda function alias depending on request mode
+  
+## 1.2.6
+* Rebuilding for API call retries
+  
 ## 1.2.5
 * Rebuild for handling multiple pipelines (submission, finalization)
 * Updates to read in files with `utf-8-sig` to handle BOM encoding

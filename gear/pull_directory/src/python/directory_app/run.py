@@ -82,7 +82,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         """Runs the directory pull gear.
 
         Args:
-            engine (GearExecutionEngine): The gear execution engine.
+            context: the gear execution context
         """
         assert context, "Gear context required"
         assert self.__user_filename, "User filename required"
@@ -100,7 +100,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             yaml_text = run(user_report=self.__user_report)
         except RepresenterError as error:
             raise GearExecutionError(
-                "Error: can't create YAML for file" f"{self.__user_filename}: {error}"
+                f"Error: can't create YAML for file{self.__user_filename}: {error}"
             ) from error
 
         with context.open_output(

@@ -69,8 +69,6 @@ class PipelineQueue(BaseModel):
         """
 
         # skip over files that do not match the accepted modules for the pipeline
-        # Note: Issue Manager currently tag all files when they are finalized
-        #       without checking for any dependent modules
         if module.upper() not in self.modules:
             log.warning(
                 "File %s is not in the accepted modules %s for pipeline `%s`",
@@ -308,7 +306,7 @@ class FormSchedulerQueue:
                 ColumnModel(data_key="file.tags", label="file_tags"),
             ],
             container="acquisition",
-            filter_str=f'acquisition.label=|[{",".join(modules)}],file.tags={tag}',
+            filter_str=f"acquisition.label=|[{','.join(modules)}],file.tags={tag}",
             missing_data_strategy="drop-row",
         )
 

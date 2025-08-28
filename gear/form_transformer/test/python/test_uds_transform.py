@@ -4,11 +4,12 @@ checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from configs.ingest_configs import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from outputs.error_models import ValidationModel
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
-    get_error_log_name,
     preprocess_errors,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -31,8 +32,8 @@ def run_header_test(visitor: CSVTransformVisitor, error_writer: ListErrorWriter)
     # just look at specific fields since stuff like time/set order will vary
     errors = error_writer.errors()
     assert len(errors) == 1
-    assert errors[0]["code"] == "missing-field"
-    assert errors[0]["message"].startswith("Missing one or more required field(s)")
+    assert errors[0].error_code == "missing-field"
+    assert errors[0].message.startswith("Missing one or more required field(s)")
 
 
 def create_uds_visitor(
@@ -60,12 +61,13 @@ def create_uds_visitor(
     # just use UDS for testing
     module_configs = uds_ingest_configs()
     form_store = MockFormsStore(date_field=DATE_FIELD)
-    project = MockProject()
+    project = MockProject(label="uds-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={DefaultValues.UDS_MODULE: module_configs},
+        module=DefaultValues.UDS_MODULE,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 
@@ -141,12 +143,12 @@ def get_qc_errors(project: MockProject):
     """
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
-    error_logs = {
-        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
-    }
+    error_logs = [
+        file for file in project.files if file.name.endswith("_qc-status.log")
+    ]
     assert error_logs
 
-    error_file = list(error_logs.values())[0]  # noqa: RUF015
+    error_file = error_logs[0]
     return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 
@@ -225,7 +227,9 @@ class TestUDSTransform:
         assert len(qc) == 1
         code = SysErrorCodes.EXCLUDED_FIELDS
         assert qc[0]["code"] == code
-        assert qc[0]["message"] == preprocess_errors[code]
+        assert qc[0]["message"] == preprocess_errors[code].format(
+            ["bad1", "bad2", "bad3"]
+        )
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
@@ -250,9 +254,10 @@ class TestUDSTransform:
         # create "failed" files that already exist in the project
         records = [create_record({"naccid": f"failed-{x}"}) for x in range(3)]
         for i, record in enumerate(records):
-            file_name = get_error_log_name(module=record["module"], input_data=record)
+            file_name = ErrorLogTemplate().instantiate(
+                module=record["module"], record=record
+            )
             assert file_name
-
             form_store.add_subject(
                 subject_lbl=record["naccid"], form_data=record, file_name=file_name
             )  # type: ignore
@@ -265,8 +270,10 @@ class TestUDSTransform:
                     "info": {
                         "qc": {
                             "form-transformer": {
-                                "state": "FAILED",
-                                "data": [{"msg": "some old failures"}],
+                                "validation": {
+                                    "state": "FAIL",
+                                    "data": [{"msg": "some old failures"}],
+                                }
                             }
                         }
                     },
@@ -278,16 +285,21 @@ class TestUDSTransform:
         # all records should now be in the visitor.__existing_visits
         # check that after updating the states get set to TRUE
         visitor.update_existing_visits_error_log()
+        validation_passed = ValidationModel(
+            data=[], cleared=[], state="PASS"
+        ).model_dump(by_alias=True)
         for record in records:
-            file_name = get_error_log_name(module=record["module"], input_data=record)
+            file_name = ErrorLogTemplate().instantiate(
+                module=record["module"], record=record
+            )
             assert file_name
 
             file = project.get_file(file_name)
             assert file
-            assert file.info["qc"]["form-transformer"]["validation"] == {
-                "state": "PASS",
-                "data": [],
-            }
+            assert file.info
+            assert (
+                file.info["qc"]["form-transformer"]["validation"] == validation_passed
+            )
 
     def test_current_batch_duplicates(self):
         """Test duplicates in current batch."""

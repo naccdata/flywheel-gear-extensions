@@ -1,7 +1,7 @@
 """Defines Identifier Provisioning."""
 
 import logging
-from typing import Any, Dict, Iterator, List, MutableSequence, Optional, TextIO
+from typing import Any, Dict, Iterator, List, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import (
@@ -31,18 +31,16 @@ from identifiers.identifiers_repository import (
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues, FieldNames
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
+from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
-    CSVLocation,
-    FileError,
-    ListErrorWriter,
     empty_field_error,
-    get_error_log_name,
     identifier_error,
     missing_field_error,
     partially_failed_file_error,
     system_error,
     unexpected_value_error,
-    update_error_log_and_qc_metadata,
 )
 from pydantic import ValidationError
 
@@ -55,7 +53,7 @@ def update_record_level_error_log(
     qc_passed: bool,
     project: ProjectAdaptor,
     gear_name: str,
-    errors: MutableSequence[Dict[str, Any]],
+    errors: FileErrorList,
     errorlog_template: Optional[ErrorLogTemplate] = None,
 ):
     """Update error log file for the visit and store error metadata in
@@ -78,10 +76,8 @@ def update_record_level_error_log(
             id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
         )
 
-    error_log_name = get_error_log_name(
-        module=DefaultValues.ENROLLMENT_MODULE,
-        input_data=input_record,
-        errorlog_template=errorlog_template,
+    error_log_name = errorlog_template.instantiate(
+        module=DefaultValues.ENROLLMENT_MODULE, record=input_record
     )
 
     if not error_log_name or not update_error_log_and_qc_metadata(
@@ -150,14 +146,14 @@ class TransferVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         transfer_info: TransferInfo,
         repo: IdentifierRepository,
     ) -> None:
         self.__error_writer = error_writer
         self.__transfer_info = transfer_info
         self.__repo = repo
-        self.__validator = NewPTIDRowValidator(repo, error_writer)
+        self.__new_ptid_validator = NewPTIDRowValidator(repo, error_writer)
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
         self.__previous_identifiers: Optional[CenterIdentifiers] = None
@@ -193,6 +189,7 @@ class TransferVisitor(CSVVisitor):
         Args:
           row: the dictionary for the input row
           line_num: the line number of the row
+
         Returns:
           True if the rows has no expected NACCID, or the NACCID in the row
           exists. False otherwise.
@@ -202,21 +199,39 @@ class TransferVisitor(CSVVisitor):
 
         self.__naccid = row[FieldNames.NACCID]
         if not self.__naccid:
-            self.__error_writer.write(empty_field_error(FieldNames.NACCID, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=FieldNames.NACCID,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
+                )
+            )
             return False
 
-        self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
-        if self.__naccid_identifier:
-            return True
+        try:
+            self.__naccid_identifier = self.__repo.get(naccid=self.__naccid)
+
+            if self.__naccid_identifier:
+                return True
+
+            message = f"Did not find an active participant for NACCID {self.__naccid}"
+        except (IdentifierRepositoryError, TypeError) as error:
+            message = f"Error in looking up NACCID {self.__naccid}: {error}"
 
         self.__error_writer.write(
             identifier_error(
                 field=FieldNames.NACCID,
                 value=self.__naccid,
                 line=line_num,
-                message=f"Did not find participant for NACCID {self.__naccid}",
+                message=message,
+                visit_keys=VisitKeys.create_from(
+                    record=row, date_field=FieldNames.ENRLFRM_DATE
+                ),
             )
         )
+
         return False
 
     def _match_naccid(self, identifier, source, line_num: int) -> bool:
@@ -237,8 +252,8 @@ class TransferVisitor(CSVVisitor):
 
         self.__error_writer.write(
             FileError(
-                error_type="error",
-                error_code="mismatched-id",
+                error_type="error",  # pyright: ignore[reportCallIssue]
+                error_code="mismatched-id",  # pyright: ignore[reportCallIssue]
                 location=CSVLocation(line=line_num, column_name=FieldNames.NACCID),
                 message=(
                     "mismatched NACCID for "
@@ -265,18 +280,35 @@ class TransferVisitor(CSVVisitor):
         if not guid_available(row):
             return True
 
-        guid_identifier = self.__repo.get(guid=row[FieldNames.GUID])
+        guid = row[FieldNames.GUID]
+        try:
+            guid_identifier = self.__repo.get(guid=guid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.GUID,
+                    value=guid,
+                    line=line_num,
+                    message=f"Error in looking up Identifier for GUID {guid}: {error}",
+                )
+            )
+            return False
+
         if not guid_identifier:
             self.__error_writer.write(
                 identifier_error(
                     field=FieldNames.GUID,
-                    value=row[FieldNames.GUID],
+                    value=guid,
                     line=line_num,
-                    message=f"No NACCID found for GUID {row[FieldNames.GUID]}",
+                    message=f"No active Identifier found for GUID {guid}",
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
                 )
             )
             return False
-        if not self._match_naccid(guid_identifier, row[FieldNames.GUID], line_num):
+
+        if not self._match_naccid(guid_identifier, guid, line_num):
             return False
 
         self.__naccid_identifier = guid_identifier
@@ -301,14 +333,36 @@ class TransferVisitor(CSVVisitor):
 
         previous_adcid = row[FieldNames.OLDADCID]
         if previous_adcid is None:
-            self.__error_writer.write(empty_field_error(FieldNames.OLDADCID, line_num))
+            self.__error_writer.write(
+                empty_field_error(
+                    field=FieldNames.OLDADCID,
+                    line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
+                )
+            )
             return False
         previous_ptid = row[FieldNames.OLDPTID]
         if not previous_ptid:
             self.__error_writer.write(empty_field_error(FieldNames.OLDPTID, line_num))
             return False
 
-        ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+        try:
+            ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    value=previous_ptid,
+                    line=line_num,
+                    message=(
+                        f"Error in looking up NACCID for ADCID {previous_adcid}, "
+                        f"PTID {previous_ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
         if not ptid_identifier:
             self.__error_writer.write(
                 identifier_error(
@@ -317,6 +371,9 @@ class TransferVisitor(CSVVisitor):
                     message=(
                         f"No NACCID found for ADCID {previous_adcid}, "
                         f"PTID {previous_ptid}"
+                    ),
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
             )
@@ -342,7 +399,7 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
-        if not self.__validator.check(row, line_num):
+        if not self.__new_ptid_validator.check(row, line_num):
             return True
 
         new_identifiers = CenterIdentifiers(
@@ -396,7 +453,7 @@ class NewEnrollmentVisitor(CSVVisitor):
 
     def __init__(
         self,
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
         repo: IdentifierRepository,
         batch: EnrollmentBatch,
     ) -> None:
@@ -481,6 +538,9 @@ class NewEnrollmentVisitor(CSVVisitor):
                             expected=context["pattern"],
                             message=f"Invalid {field_name.upper()}",
                             line=line_num,
+                            visit_keys=VisitKeys.create_from(
+                                record=row, date_field=FieldNames.ENRLFRM_DATE
+                            ),
                         )
                     )
 
@@ -512,7 +572,9 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer, repo=repo, transfer_info=transfer_info
         )
         self.__validator = CenterValidator(
-            center_id=center_id, error_writer=error_writer
+            center_id=center_id,
+            date_field=FieldNames.ENRLFRM_DATE,
+            error_writer=error_writer,
         )
 
     def visit_header(self, header: List[str]) -> bool:
@@ -554,7 +616,9 @@ class ProvisioningVisitor(CSVVisitor):
           True if the row is a valid enrollment or transfer.  False, otherwise.
         """
 
+        # processing a new row, clear previous errors if any
         self.__error_writer.clear()
+
         try:
             if not self.__validator.check(row=row, line_number=line_num):
                 update_record_level_error_log(
@@ -590,6 +654,9 @@ class ProvisioningVisitor(CSVVisitor):
                     field=FieldNames.PTID,
                     value=row[FieldNames.PTID],
                     line=line_num,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    ),
                 )
             )
             update_record_level_error_log(
@@ -677,7 +744,15 @@ def run(
                 f"{record.center_identifier.ptid}"
             )
             log.error(message)
-            error_writer.write(system_error(message=message))
+            error_writer.write(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys(
+                        ptid=record_info[FieldNames.PTID],
+                        date=record_info[FieldNames.ENRLFRM_DATE],
+                    ),
+                )
+            )
             update_record_level_error_log(
                 input_record=record_info,
                 qc_passed=False,
@@ -692,7 +767,16 @@ def run(
         if enrollment_project.find_subject(label=record.naccid):
             message = f"Subject with NACCID {record.naccid} exists"
             log.error(message)
-            error_writer.write(system_error(message=message))
+            error_writer.write(
+                system_error(
+                    message=message,
+                    visit_keys=VisitKeys(
+                        ptid=record_info[FieldNames.PTID],
+                        date=record_info[FieldNames.ENRLFRM_DATE],
+                        naccid=record.naccid,
+                    ),
+                )
+            )
             update_record_level_error_log(
                 input_record=record_info,
                 qc_passed=False,

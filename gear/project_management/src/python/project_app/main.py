@@ -6,7 +6,7 @@ from typing import List
 from centers.nacc_group import NACCGroup
 from flywheel.models.group_role import GroupRole
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from projects.study import Study
+from projects.study import StudyModel
 from projects.study_mapping import StudyMappingVisitor
 
 log = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
     return role_list
 
 
-def run(*, proxy: FlywheelProxy, admin_group: NACCGroup, study_list: List[Study]):
+def run(*, proxy: FlywheelProxy, admin_group: NACCGroup, study_list: List[StudyModel]):
     """Runs project pipeline creation/management.
 
     Args:

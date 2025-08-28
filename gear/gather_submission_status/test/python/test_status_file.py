@@ -1,14 +1,12 @@
 from csv import DictReader, DictWriter
 from io import StringIO
 
-from gather_submission_status_app.main import StatusRequest
+from gather_submission_status_app.status_request import StatusRequest
 
 
 class TestSubmissionStatus:
     def test_query(self):
-        query = StatusRequest(
-            adcid=0, naccid="NACC000000", study="adrc", modalities=["UDS", "LBD"]
-        )
+        query = StatusRequest(adcid=0, ptid="NACC000000", study="adrc")
         output_stream = StringIO()
         writer = DictWriter(
             output_stream, fieldnames=StatusRequest.model_fields, dialect="unix"
@@ -17,8 +15,7 @@ class TestSubmissionStatus:
         writer.writerow(query.model_dump())
 
         assert output_stream.getvalue() == (
-            '"adcid","naccid","study","modalities"\n'
-            '"0","NACC000000","adrc","UDS,LBD"\n'
+            '"adcid","ptid","study"\n"0","NACC000000","adrc"\n'
         )
 
         output_stream.seek(0)

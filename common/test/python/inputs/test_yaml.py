@@ -10,12 +10,12 @@ from inputs.yaml import load_all_from_stream, load_from_stream
 
 @pytest.fixture
 def single_object():
-    yield ("---\n" "k1: v1\n" "k2: v2\n")
+    yield ("---\nk1: v1\nk2: v2\n")
 
 
 @pytest.fixture
 def two_objects():
-    yield ("---\n" "k1: v1\n" "k2: v2\n" "---\n" "k1: v1\n" "k2: v2\n")
+    yield ("---\nk1: v1\nk2: v2\n---\nk1: v1\nk2: v2\n")
 
 
 @pytest.fixture

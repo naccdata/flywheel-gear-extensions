@@ -9,6 +9,7 @@ from typing import Any, Dict, Literal, Optional
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
+    IdentifierRepositoryError,
 )
 from identifiers.model import (
     NACCID_PATTERN,
@@ -19,9 +20,11 @@ from identifiers.model import (
 )
 from inputs.csv_reader import RowValidator
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_models import VisitKeys
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    ErrorWriter,
     existing_participant_error,
+    identifier_error,
     preprocessing_error,
 )
 from pydantic import BaseModel, Field
@@ -192,13 +195,32 @@ class NewPTIDRowValidator(RowValidator):
           True if no existing NACCID is found for the PTID, False otherwise
         """
         ptid = row["ptid"]
-        identifier = self.__identifiers.get(adcid=row["adcid"], ptid=ptid)
+        adcid = row["adcid"]
+
+        try:
+            identifier = self.__identifiers.get(adcid=adcid, ptid=ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.PTID,
+                    value=ptid,
+                    line=line_number,
+                    message=(
+                        "Error in looking up Identifier for "
+                        f"ADCID {adcid}, PTID {ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
         if not identifier:
             return True
 
-        log.info("Found participant for (%s,%s)", row["adcid"], row["ptid"])
+        log.info("Found participant for (%s,%s)", adcid, ptid)
         self.__error_writer.write(
-            existing_participant_error(field="ptid", line=line_number, value=ptid)
+            existing_participant_error(
+                field=FieldNames.PTID, line=line_number, value=ptid
+            )
         )
         return False
 
@@ -224,14 +246,27 @@ class NewGUIDRowValidator(RowValidator):
             return True
 
         guid = row["guid"]
-        identifier = self.__identifiers.get(guid=guid)
+
+        try:
+            identifier = self.__identifiers.get(guid=guid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.GUID,
+                    value=guid,
+                    line=line_number,
+                    message=f"Error in looking up Identifier for GUID {guid}: {error}",
+                )
+            )
+            return False
+
         if not identifier:
             return True
 
-        log.info("Found participant for GUID %s", row["guid"])
+        log.info("Found participant for GUID %s", guid)
         self.__error_writer.write(
             existing_participant_error(
-                field="guid",
+                field=FieldNames.GUID,
                 line=line_number,
                 value=guid,
                 message=f"Participant exists for GUID {guid}",
@@ -266,8 +301,11 @@ class CenterValidator(RowValidator):
     """Row validator to check whether the row has the correct ADCID and the
     PTID matches expected format."""
 
-    def __init__(self, center_id: int, error_writer: ErrorWriter) -> None:
+    def __init__(
+        self, center_id: int, date_field: str, error_writer: ErrorWriter
+    ) -> None:
         self.__center_id = center_id
+        self.__date_field = date_field
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
@@ -291,6 +329,9 @@ class CenterValidator(RowValidator):
                     value=row[FieldNames.ADCID],
                     line=line_number,
                     error_code=SysErrorCodes.ADCID_MISMATCH,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
                 )
             )
             valid = False
@@ -303,6 +344,9 @@ class CenterValidator(RowValidator):
                     value=ptid,
                     line=line_number,
                     error_code=SysErrorCodes.INVALID_PTID,
+                    visit_keys=VisitKeys.create_from(
+                        record=row, date_field=self.__date_field
+                    ),
                 )
             )
             valid = False

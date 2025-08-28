@@ -5,11 +5,9 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import FieldNames, RuleLabels
+from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from outputs.error_writer import ErrorWriter
 from outputs.errors import (
-    CSVLocation,
-    FileError,
-    JSONLocation,
-    ListErrorWriter,
     system_error,
 )
 from pydantic import BaseModel, ValidationError
@@ -234,7 +232,8 @@ class ErrorComposer:
         error_store: ErrorStore,
         dict_errors: Dict[str, List[str]],
         error_messages: Dict[int, str],
-        error_writer: ListErrorWriter,
+        error_writer: ErrorWriter,
+        date_field: str,
     ) -> None:
         """Initialize the ErrorComposer.
 
@@ -244,6 +243,7 @@ class ErrorComposer:
             dict_errors: list of error messages by variable
             error_messages: list of error messages by validator error codes
             error_writer: the error output writer
+            date_field: date field for the module
         """
 
         self.__input_data = input_data
@@ -251,6 +251,7 @@ class ErrorComposer:
         self.__dict_errors = dict_errors
         self.__error_messages = error_messages
         self.__error_writer = error_writer
+        self.__date_field = date_field
 
     def get_qc_check_info(self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
         """Retrieve QC check information for the given error codes from DB.
@@ -290,19 +291,17 @@ class ErrorComposer:
         """
 
         return FileError(
-            error_type=error_type,  # type: ignore
-            error_code=error_code,
+            error_type=error_type,  # pyright: ignore[reportCallIssue]
+            error_code=error_code,  # pyright: ignore[reportCallIssue]
             location=CSVLocation(line=line_number, column_name=field)
             if line_number
             else JSONLocation(key_path=field),
             value=value,
             message=error_msg,
-            ptid=str(self.__input_data[FieldNames.PTID])
-            if FieldNames.PTID in self.__input_data
-            else None,
-            visitnum=str(self.__input_data[FieldNames.VISITNUM])
-            if FieldNames.VISITNUM in self.__input_data
-            else None,
+            ptid=self.__input_data.get(FieldNames.PTID),
+            visitnum=self.__input_data.get(FieldNames.VISITNUM),
+            date=self.__input_data.get(self.__date_field),
+            naccid=self.__input_data.get(FieldNames.NACCID),
         )
 
     def __write_qc_error_no_code(
@@ -431,7 +430,7 @@ class ErrorComposer:
                 error.rule, code_schema
             ):
                 log.warning(
-                    "NACC error code not found " "for variable %s rule %s - %s",
+                    "NACC error code not found for variable %s rule %s - %s",
                     field,
                     error.rule,
                     error.schema_path,
@@ -499,10 +498,13 @@ class ErrorComposer:
             for error_msg in err_list:
                 self.__error_writer.write(
                     system_error(
-                        error_msg,
-                        CSVLocation(line=line_number, column_name=field)
+                        message=error_msg,
+                        error_location=CSVLocation(line=line_number, column_name=field)
                         if line_number
                         else JSONLocation(key_path=field),
+                        visit_keys=VisitKeys.create_from(
+                            record=self.__input_data, date_field=self.__date_field
+                        ),
                     )
                 )
 

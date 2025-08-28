@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel.file_spec import FileSpec
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -17,14 +18,13 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectError,
 )
 from keys.keys import FieldNames
-from outputs.errors import (
-    FileError,
-    ListErrorWriter,
-    system_error,
-    update_error_log_and_qc_metadata,
-)
+from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_models import FileError, VisitKeys
+from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
+from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)
 
@@ -71,15 +71,19 @@ class JSONUploader:
 
         return success
 
-    def upload_record(self, subject_label: str, record: Dict[str, Any]) -> None:
+    def upload_record(
+        self, subject_label: str, record: Dict[str, Any]
+    ) -> Optional[FileEntry]:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
         Args:
           subject: the subject
           record: the record data
+        Returns:
+          The uploaded FileEntry, if uploaded successfully, None otherwise
         Raises:
-          UploaderError or ApiException if a failure occurs during the upload
+          UploaderError if a failure occurs during the upload
         """
         session_label = self.__session_template.instantiate(record)
         acquisition_label = self.__acquisition_template.instantiate(record)
@@ -101,7 +105,7 @@ class JSONUploader:
             record, environment=self.__environment
         )
 
-        upload_to_acquisition(
+        return upload_to_acquisition(
             acquisition=acquisition,
             filename=filename,
             contents=json.dumps(record),
@@ -138,6 +142,7 @@ class FormJSONUploader:
         filename: str,
         file_id: str,
         input_record: Dict[str, Any],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
     ):
         """Add the visit to the list of visits pending for QC for the
         participant.
@@ -147,6 +152,7 @@ class FormJSONUploader:
             filename: Flywheel acquisition file name
             file_id: Flywheel acquisition file ID
             input_record: input visit data
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
         """
         visit_mapping: VisitMapping
         subject_lbl = input_record[FieldNames.NACCID]
@@ -155,11 +161,14 @@ class FormJSONUploader:
             visit_mapping["visits"].add_visit(
                 filename=filename,
                 file_id=file_id,
-                visitdate=input_record[FieldNames.DATE_COLUMN],
+                visitdate=input_record[visitdate_key],
             )
         else:
             participant_visits = ParticipantVisits.create_from_visit_data(
-                filename=filename, file_id=file_id, input_record=input_record
+                filename=filename,
+                file_id=file_id,
+                input_record=input_record,
+                visitdate_key=visitdate_key,
             )
             visit_mapping = {"subject": subject, "visits": participant_visits}
             self.__pending_visits[subject_lbl] = visit_mapping
@@ -222,7 +231,11 @@ class FormJSONUploader:
         ):
             log.error("Failed to update visit error log file %s", error_log_name)
 
-    def upload(self, participant_records: Dict[str, Dict[str, Dict[str, Any]]]) -> bool:
+    def upload(
+        self,
+        participant_records: Dict[str, Dict[str, Dict[str, Any]]],
+        visitdate_key: str = FieldNames.DATE_COLUMN,
+    ) -> bool:
         """Converts a transformed CSV record to a JSON file and uploads it to
         the respective acquisition in Flywheel.
 
@@ -231,6 +244,7 @@ class FormJSONUploader:
 
         Args:
             participant_visits: set of visits to upload, by participant
+            visitdate_key: Key to get visitdate from - defaults to `visitdate`
 
         Returns:
             bool: True if uploads are successful
@@ -268,12 +282,17 @@ class FormJSONUploader:
                         contents=json.dumps(record),
                         content_type="application/json",
                     )
-                except (SubjectError, TypeError) as error:
+                except (SubjectError, TypeError, UploaderError) as error:
                     log.error(error)
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
-                        error_obj=system_error(message=str(error)),
+                        error_obj=system_error(
+                            message=str(error),
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
+                        ),
                     )
                     success = False
                     continue
@@ -290,7 +309,10 @@ class FormJSONUploader:
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
-                            message=f"Error in setting file {visit_file_name} metadata"
+                            message=f"Error in setting file {visit_file_name} metadata",
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
                         ),
                     )
                     success = False
@@ -303,11 +325,8 @@ class FormJSONUploader:
                     filename=visit_file_name,
                     file_id=new_file.file_id,
                     input_record=record,
+                    visitdate_key=visitdate_key,
                 )
 
         success = success and self.__create_pending_visits_file()
         return success
-
-
-class UploaderError(Exception):
-    pass

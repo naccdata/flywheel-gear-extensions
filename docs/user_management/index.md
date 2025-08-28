@@ -9,7 +9,7 @@ The user management utility reads user information from the user directory file 
    3. add user roles (from authorization file) to Flywheel projects.
 3. remind the user if their record has not been claimed
 
-For more on the user enrollment process see the [process documentation](https://github.com/naccdata/flywheel-gear-extensions/blob/main/docs/user_management/process.md)
+For more on the user enrollment process see the [process documentation](../processes/user_management.md)
 
 ## Environment
 

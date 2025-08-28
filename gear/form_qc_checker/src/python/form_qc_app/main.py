@@ -8,7 +8,7 @@ validator) for validating the inputs.
 import json
 import logging
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, MutableSequence, Optional
+from typing import Any, Dict, Optional
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
@@ -26,7 +26,8 @@ from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
-from outputs.errors import ListErrorWriter
+from outputs.error_models import FileErrorList
+from outputs.error_writer import ListErrorWriter
 from redcap_api.redcap_connection import REDCapReportConnection
 from s3.s3_client import S3BucketReader
 
@@ -47,7 +48,7 @@ def update_input_file_qc_status(
     input_wrapper: InputFileWrapper,
     file: FileEntry,
     qc_passed: bool,
-    errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+    errors: Optional[FileErrorList] = None,
 ):
     """Write validation status to input file metadata and add gear tag.
     Detailed errors for each visit is recorded in the error log for the visit.
@@ -63,7 +64,10 @@ def update_input_file_qc_status(
     status_str = "PASS" if qc_passed else "FAIL"
 
     gear_context.metadata.add_qc_result(
-        input_wrapper.file_input, name="validation", state=status_str, data=errors
+        input_wrapper.file_input,
+        name="validation",
+        state=status_str,
+        data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
     fail_tag = f"{gear_name}-FAIL"
@@ -287,6 +291,7 @@ def run(  # noqa: C901
         qual_check=qual_check,
         error_store=error_store,
         error_writer=error_writer,
+        date_field=date_field,
         codes_map=codes_map,
     )
 

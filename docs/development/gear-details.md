@@ -72,7 +72,7 @@ which describes a Docker image target that depends on the manifest file, and the
 
 ## Gear scripts
 
-The scripts are inspired by Flwheel's [template project](https://gitlab.com/flywheel-io/scientific-solutions/gears/templates/skeleton).
+The scripts are inspired by Flywheel's [template project](https://gitlab.com/flywheel-io/scientific-solutions/gears/templates/skeleton).
 (Flywheel's template assumes one Gear per repository, which doesn't work for a monorepo.)
 In that template, the Gear has two scripts `run.py` and `main.py` (or, rather, a file with a name specific to the app).
 The `run.py` script manages the environment, and the `main.py` does the computation.
@@ -119,7 +119,7 @@ This is done with `inputs.parameter_store.get_parameter_store()`.
 The Dockerfile sets up the Gear's working environment
 
    ```docker
-   FROM python:3.10
+   FROM python:3.11
 
    ENV BASE_DIR=/flywheel/v0
    RUN mkdir -p ${BASE_DIR}/input
@@ -151,10 +151,10 @@ Look at the FW gear documentation for more detail, but there are three key detai
              image_tags=["0.0.1", "latest"])
    ```
 
-   Running `package` on `projectmanagement/src/docker` builds two images `naccdata/project-management:0.0.1` and `naccdata/project-management:latest`.
+   Running `package` on `project_management/src/docker` builds two images `naccdata/project-management:0.0.1` and `naccdata/project-management:latest`.
    (Note that the `naccdata/` prefix to the repository name is set in `pants.toml`.)
 
-   The mainfest file needs to match these image details in three ways.
+   The manifest file needs to match these image details in three ways.
    First, the `name` field should correspond to the `docker_image` target name in the build file.
    Second, the `custom.gear-builder.image` should be the full repository name for the image.
    And, third, the `version` field should correspond to tag of the image used in `custom.gear-builder.image`.

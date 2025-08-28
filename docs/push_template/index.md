@@ -15,16 +15,10 @@ The following are copied from a template project:
 - the project description (may use `$adrc` as the placeholder for the center name)
 - applications
 
-A template project has a name like `form-ingest-template` where the first word is the datatype and the second is a pipeline stage.
-Concretely, the name should match the regex `^((\w+(?:-[\w]+)*)-)?(\w+)-template$`.
-Note that the first group is optional, so possible names are `form-ingest-template` or `accepted-template`.
-The datatype names must match those used in the project description file used in the [project management script](../project_management/index.md).
+A template project has a name like `ingest-form-template` where the prefix without `-template` is the prefix of labels of projects in the system.
+Concretely, the name should match the regex `^\w+(-[\w]+)*-template$`.
 
-The stage names are hard-coded in the project management script, and are `ingest`, `accepted` and `retrospective` for aggregation projects and `distribution` for distribution projects.
-
-Projects that are managed by the script should be in groups with a tag matching the regex `adcid-\d+`.
-For example, `adcid-14`.
-These tags can be set using the project management script.
+Projects that are managed by the script occur in the groups for centers that are listed in `project.info.centers` of `nacc/metadata`.
 
 ## Running from a batch script
 

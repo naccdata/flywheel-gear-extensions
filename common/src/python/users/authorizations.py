@@ -97,6 +97,11 @@ class AuthMap(BaseModel):
     def get(self, *, project_label: str, authorizations: Authorizations) -> Set[str]:
         """Gets the roles for a project and authorizations.
 
+        Matches project label against the authorization keys.
+        If the label has a study suffix, e.g. "ingest-form-dvcid", will first
+        check the full label, and if that fails will remove the suffix and
+        retry (e.g., "ingest-form").
+
         Args:
             project_id: the project ID
             authorizations: the authorizations
@@ -105,13 +110,18 @@ class AuthMap(BaseModel):
         """
         roles: Set[str] = set()
 
-        if project_label not in self.project_authorizations:
+        pipeline_label = project_label
+        if pipeline_label not in self.project_authorizations:
+            # remove the suffix in case it is a study ID
+            pipeline_label = "-".join(project_label.split("-")[:-1])
+
+        if pipeline_label not in self.project_authorizations:
             return roles
 
-        activity_map = self.project_authorizations[project_label]
+        activity_map = self.project_authorizations[pipeline_label]
         for activity in authorizations.get_activities():
-            rolename = activity_map.get(activity)
-            if rolename:
-                roles.add(rolename)
+            role_name = activity_map.get(activity)
+            if role_name:
+                roles.add(role_name)
 
         return roles

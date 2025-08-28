@@ -44,6 +44,12 @@ jobs:
         # but will cause the cache entry to grow without bound over time.
         # See https://www.pantsbuild.org/2.21/docs/using-pants/using-pants-in-ci for tips on how to periodically clean it up.
         # Alternatively you change gha-cache-key to ignore old caches.
+    - name: Check Build
+      run: |
+        pants update-build-files --check ::
+    - name: Build CoManage
+      run: |
+        pants run comanage:build_client
     - name: Lint
       run: |
         pants lint ::

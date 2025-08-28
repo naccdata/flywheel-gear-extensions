@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import FieldNames, SysErrorCodes
+from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
-    ListErrorWriter,
     preprocess_errors,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -52,12 +52,13 @@ def create_mlst_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     form_store = MockFormsStore(date_field=date_field)
-    project = MockProject()
+    project = MockProject(label="mlst-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
         forms_store=form_store,
-        module_info={module.upper(): module_configs},
+        module=module,
+        module_configs=module_configs,
         error_writer=error_writer,
     )
 
@@ -110,12 +111,12 @@ def get_qc_errors(project: MockProject):
     """
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
-    error_logs = {
-        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
-    }
+    error_logs = [
+        file for file in project.files if file.name.endswith("_qc-status.log")
+    ]
     assert error_logs
 
-    error_file = list(error_logs.values())[0]  # noqa: RUF015
+    error_file = error_logs[0]
     return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 

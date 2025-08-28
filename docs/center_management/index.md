@@ -23,7 +23,7 @@ Notes:
    The choice will be visible to centers, but they will not need to type the value in regular interactions. 
    Staff, on the other hand, will need to use the strings in filters.
 
-2. The `adcid` is an assigned code used to identify the center within submited data.
+2. The `adcid` is an assigned code used to identify the center within submitted data.
    Each center has a unique ADC ID.
 
 ### Example

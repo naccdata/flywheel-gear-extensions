@@ -4,5 +4,5 @@ docker_image(
     name="identifier-lookup",
     source="Dockerfile",
     dependencies=[":manifest", "gear/identifier_lookup/src/python/identifier_app:bin"],
-    image_tags=["1.2.1", "latest"],
+    image_tags=["1.3.0", "latest"],
 )

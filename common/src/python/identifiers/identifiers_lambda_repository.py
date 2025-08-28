@@ -3,7 +3,7 @@
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -47,6 +47,27 @@ class GUIDRequest(BaseRequest, GUIDField):
 
 class NACCIDRequest(BaseRequest, NACCIDField):
     """Request model for search by NACCID."""
+
+    @model_validator(mode="after")
+    def validate_identifier_mode(self) -> "NACCIDRequest":
+        """Ensures naccid prefix matches with repo mode."""
+        matched = False
+        if self.mode == "prod":
+            matched = self.naccid.startswith("NACC")
+        else:
+            matched = self.naccid.startswith("TEST")
+
+        if not matched:
+            raise ValueError(
+                f"Identifier database mode {self.mode} does not match "
+                f"with the provided NACCID with prefix {self.naccid[:4]}"
+            )
+
+        return self
+
+
+class NACCIDListRequest(NACCIDRequest, ListRequest):
+    """Request model to search all matching identifiers for a NACCID."""
 
 
 class ListResponseObject(BaseModel):
@@ -165,56 +186,47 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise TypeError("Invalid arguments")
 
     @overload
-    def list(self, adcid: int) -> List[IdentifierObject]: ...
+    def list(self, *, naccid: str) -> List[IdentifierObject]: ...
+
+    @overload
+    def list(self, *, adcid: int) -> List[IdentifierObject]: ...
 
     @overload
     def list(self) -> List[IdentifierObject]: ...
 
-    def list(self, adcid: Optional[int] = None) -> List[IdentifierObject]:
+    def list(
+        self, *, adcid: Optional[int] = None, naccid: Optional[str] = None
+    ) -> List[IdentifierObject]:
         """Returns the list of all identifiers in the repository.
 
         If an ADCID is given filters identifiers by the center.
+        If an NACCID is given returns identifiers for that NACCID.
 
         Args:
           adcid: the ADCID used for filtering
+          naccid: the NACCID used for filtering
 
         Returns:
-          List of all identifiers in the repository
+          List of all identifiers in the repository or ones matching with filters
+
         Raises:
-          IdentifierRepositoryError if the lambda invocation has an error
+          IdentifierRepositoryError: if the lambda invocation has an error
+          TypeError: if both ADCID and NACCID provided as arguments
         """
-        if adcid is None:
-            # TODO: this is not implemented by lambda
-            return []
 
-        identifier_list: List[IdentifierObject] = []
-        index = 0
-        limit = 100
-        read_length = limit
-        while read_length == limit:
-            try:
-                response = self.__client.invoke(
-                    name="identifier-adcid-lambda-function",
-                    request=ADCIDRequest(
-                        mode=self.__mode, adcid=adcid, offset=index, limit=limit
-                    ),
-                )
-            except LambdaInvocationError as error:
-                raise IdentifierRepositoryError(error) from error
+        if adcid is not None and naccid is not None:
+            raise TypeError(
+                "Invalid arguments: can only filter by ADCID or NACCID (not both)"
+            )
 
-            if response.statusCode != 200:
-                raise IdentifierRepositoryError(response.body)
+        if adcid is not None:
+            return self.__list_for_adcid(adcid)
 
-            try:
-                response_object = ListResponseObject.model_validate_json(response.body)
-            except ValidationError as error:
-                raise IdentifierRepositoryError(error) from error
+        if naccid is not None:
+            return self.__list_for_naccid(naccid)
 
-            identifier_list += response_object.data
-            read_length = len(response_object.data)
-            index += limit
-
-        return identifier_list
+        # TODO: this is not implemented by lambda
+        return []
 
     def __get_by_naccid(self, naccid: str) -> Optional[IdentifierObject]:
         """Returns the IdentifierObject for the NACCID.
@@ -231,11 +243,12 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                 name="identifier-naccid-lambda-function",
                 request=NACCIDRequest(mode=self.__mode, naccid=naccid),
             )
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:
             return IdentifierObject.model_validate_json(response.body)
+
         if response.statusCode == 404:
             return None
 
@@ -287,7 +300,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                 name="identifier-guid-lambda-function",
                 request=GUIDRequest(mode=self.__mode, guid=guid),
             )
-        except LambdaInvocationError as error:
+        except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:
@@ -296,3 +309,63 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             return None
 
         raise IdentifierRepositoryError(response.body)
+
+    def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+        identifier_list: List[IdentifierObject] = []
+        index = 0
+        limit = 100
+        read_length = limit
+        while read_length == limit:
+            try:
+                response = self.__client.invoke(
+                    name="identifier-adcid-lambda-function",
+                    request=ADCIDRequest(
+                        mode=self.__mode, adcid=adcid, offset=index, limit=limit
+                    ),
+                )
+            except (LambdaInvocationError, ValidationError) as error:
+                raise IdentifierRepositoryError(error) from error
+
+            if response.statusCode != 200:
+                raise IdentifierRepositoryError(response.body)
+
+            try:
+                response_object = ListResponseObject.model_validate_json(response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
+            identifier_list += response_object.data
+            read_length = len(response_object.data)
+            index += limit
+
+        return identifier_list
+
+    def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+        identifier_list: List[IdentifierObject] = []
+        index = 0
+        limit = 100
+        read_length = limit
+        while read_length == limit:
+            try:
+                response = self.__client.invoke(
+                    name="list-identifiers-for-naccid-lambda-function",
+                    request=NACCIDListRequest(
+                        mode=self.__mode, naccid=naccid, offset=index, limit=limit
+                    ),
+                )
+            except (LambdaInvocationError, ValidationError) as error:
+                raise IdentifierRepositoryError(error) from error
+
+            if response.statusCode != 200:
+                raise IdentifierRepositoryError(response.body)
+
+            try:
+                response_object = ListResponseObject.model_validate_json(response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
+            identifier_list += response_object.data
+            read_length = len(response_object.data)
+            index += limit
+
+        return identifier_list
