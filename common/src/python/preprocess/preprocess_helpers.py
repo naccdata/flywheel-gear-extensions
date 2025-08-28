@@ -91,7 +91,7 @@ class FormPreprocessorErrorHandler:
             visit_keys=VisitKeys.create_from(
                 record=record, date_field=self.__module_configs.date_field
             ),
-            extra_args=extra_args
+            extra_args=[extra_args]
         )
 
     def write_packet_error(self,
@@ -145,10 +145,13 @@ class FormPreprocessorErrorHandler:
 
     def write_date_error(self,
                          pp_context: PreprocessingContext,
-                         error_code: SysErrorCodes) -> None:
+                         error_code: SysErrorCodes,
+                         date_field: str = None) -> None:
         """Write a date-related preprocessing error."""
+        if not date_field:
+            date_field = self.__module_configs.date_field
+
         input_record = pp_context.input_record
-        date_field = self.__module_configs.date_field
         date_value = input_record[date_field]
 
         self.write_preprocessing_error(

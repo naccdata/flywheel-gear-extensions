@@ -146,16 +146,11 @@
                     ]
                 }
             },
-            "supplement_modules": {
-                "op": "and",
-                "modules": [
-                    {
-                        "label": "UDS",
-                        "version": "4.0",
-                        "date_field": "visitdate",
-                        "exact_match": true
-                    }
-                ]
+            "supplement_module": {
+                "label": "UDS",
+                "version": "4.0",
+                "date_field": "visitdate",
+                "exact_match": true
             },
             "preprocess_checks": [
                 "duplicate-record",
@@ -223,16 +218,11 @@
                     ]
                 }
             },
-            "supplement_modules": {
-                "op": "and",
-                "modules": [
-                    {
-                        "label": "UDS",
-                        "version": "4.0",
-                        "date_field": "visitdate",
-                        "exact_match": true
-                    }
-                ]
+            "supplement_module": {
+                "label": "UDS",
+                "version": "4.0",
+                "date_field": "visitdate",
+                "exact_match": true
             },
             "preprocess_checks": [
                 "duplicate-record",
@@ -280,15 +270,10 @@
                 "packet",
                 "supplement-modules"
             ],
-            "supplement_modules": {
-                "op": "and",
-                "modules": [
-                    {
-                        "label": "UDS",
-                        "date_field": "visitdate",
-                        "exact_match": false
-                    }
-                ]
+            "supplement_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "exact_match": false
             }
         },
         "NP": {
@@ -327,31 +312,13 @@
                 "11.0"
             ],
             "date_field": "npformdate",
-            "supplement_modules": {
-                "op": "or",
-                "modules": [
-                    {
-                        "label": "UDS",
-                        "date_field": "visitdate",
-                        "exact_match": false
-                    },
-                    {
-                        "label": "BDS",
-                        "date_field": "visitdate",
-                        "exact_match": false
-                    },
-                    {
-                        "label": "MDS",
-                        "date_field": "visitdate",
-                        "exact_match": false
-                    }
-                ]
-            },
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
                 "packet",
-                "supplement-modules"
+                "supplement-modules",
+                "clinical-form",
+                "np-mlst-restrictions"
             ]
         },
         "BDS": {

@@ -50,6 +50,7 @@ class DefaultValues:
     MDS_MODULE = "MDS"
     BDS_MODULE = "BDS"
     NP_MODULE = "NP"
+    MLST_MODULE = "MLST"
     GEARBOT_USER_ID = "nacc-flywheel-gear@uw.edu"
     NACC_GROUP_ID = "nacc"
     METADATA_PRJ_LBL = "metadata"
@@ -124,9 +125,9 @@ class SysErrorCodes:
     DUPLICATE_VISIT = "preprocess-022"
     LOWER_VISITNUM = "preprocess-023"
     MISSING_SUBMISSION_STATUS = "preprocess-024"
-    MISSING_PACKET_FOR_NP_FINALIZE = "preprocess-025"
+    CLINICAL_FORM_REQUIRED = "preprocess-025"
     DEATH_DATE_MISMATCH = "preprocess-026"
-    AUTOPSY_NP_MISMATCH = "preprocess-027"
+    AUTOPSY_NP_INVALID = "preprocess-027"
 
 
 class PreprocessingChecks:
@@ -134,10 +135,11 @@ class PreprocessingChecks:
     VERSION = "version"
     PACKET = "packet"
     OPTIONAL_FORMS = "optional-forms"
-    SUPPLEMENT_MODULES = "supplement-modules"
+    SUPPLEMENT_MODULE = "supplement-module"
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"
+    NP_MLST_RESTRICTIONS = 'np-mlst-restrictions'
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

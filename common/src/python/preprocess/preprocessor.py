@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
+from dates.form_dates import build_date
 from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import (
     DefaultValues,
@@ -58,7 +59,8 @@ class FormPreprocessor:
             PreprocessingChecks.IVP: self._check_initial_visit,
             PreprocessingChecks.UDSV4_IVP: self._check_udsv4_initial_visit,
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
-            PreprocessingChecks.SUPPLEMENT_MODULES: self._check_supplement_modules,
+            PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
+            PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
         }
 
         # order the preprocessing checks defined for the module
@@ -170,7 +172,7 @@ class FormPreprocessor:
                 value="",
                 pp_context=pp_context,
                 error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
-                extra_args=[missing_vars]
+                extra_args=missing_vars
             )
             return False
 
@@ -651,8 +653,8 @@ class FormPreprocessor:
             line_num=pp_context.line_num,
         )
 
-    def _check_supplement_modules(self, pp_context: PreprocessingContext) -> bool:
-        """Check whether a matching supplement module found. May require multiple.
+    def _check_supplement_module(self, pp_context: PreprocessingContext) -> bool:
+        """Check whether a matching supplement module found.
 
         Args:
             pp_context: preprocessing context
@@ -664,89 +666,71 @@ class FormPreprocessor:
         assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
         module_configs = self.__module_configs
-        supplement_modules = module_configs.supplement_modules
         input_record = pp_context.input_record
 
-        if not supplement_modules or not supplement_modules.modules:
+        if not module_configs.supplement_module:
             log.warning(
                 "Supplement module information not defined for module %s",
                 self.__module,
             )
             return True
 
-        supplement_visits: Dict[str, Any] = {}
-        all_found = True
+        supplement_module = module_configs.supplement_module
 
-        for supplement_module in supplement_modules:
-            found_visits = self.__forms_store.query_form_data(
+        supplement_visits = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=supplement_module.label,
+            legacy=False,
+            search_col=supplement_module.date_field,
+            search_val=input_record[module_configs.date_field],
+            search_op="=" if supplement_module.exact_match else "<=",
+            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
+            if supplement_module.exact_match
+            else None,
+        )
+
+        if not supplement_visits and not supplement_module.exact_match:
+            supplement_visits = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
                 module=supplement_module.label,
-                legacy=False,
+                legacy=True,
                 search_col=supplement_module.date_field,
                 search_val=input_record[module_configs.date_field],
-                search_op="=" if supplement_module.exact_match else "<=",
-                extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
-                if supplement_module.exact_match
-                else None,
+                search_op="<=",
             )
 
-            if not found_visits and not supplement_module.exact_match:
-                found_visits = self.__forms_store.query_form_data(
-                    subject_lbl=pp_context.subject_lbl,
-                    module=supplement_module.label,
-                    legacy=True,
-                    search_col=supplement_module.date_field,
-                    search_val=input_record[module_configs.date_field],
-                    search_op="<=",
-                )
-
-            if found_visits:
-                # if exact match, there should also only be exactly one matching visit
-                if supplement_module.exact_match and len(found_visits) > 1:
-                    raise PreprocessingException(
-                        "More than one matching supplement visit exist for "
-                        f"{pp_context.subject_lbl}/{supplement_module.label}/"
-                        f"{input_record[module_configs.date_field]}"
-                    )
-
-                    # check exact match; return false if not an exact match (fail fast)
-                    if not self.__check_supplement_exact_match(supplement_module,
-                                                               found_visits[0],
-                                                               pp_context):
-                        return False
-
-                supplement_visits[supplement_module.label] = found_visits
-
-            elif supplement_modules.op == 'and':
-                all_found = False
-                break
-
-        if not supplement_visits or not all_found:
-            error_code = None
-            if self.__module == DefaultValues.NP_MODULE:
-                error_code = SysErrorCodes.MISSING_PACKET_FOR_NP_FINALIZE
-            elif any(s.label == DefaultValues.UDS for s in supplement_modules):
-                error_code = SysErrorCodes.UDS_NOT_MATCH \
-                    if supplement_module.exact_match \
-                    else SysErrorCodes.UDS_NOT_EXIST
-
-            message = f"Could not find supplement modules for {self.__module}"
+        if not supplement_visits:
             self.__error_handler.write_module_error(
                 pp_context=pp_context,
-                error_code=error_code,
+                error_code=(
+                    SysErrorCodes.UDS_NOT_MATCH
+                    if supplement_module.exact_match
+                    else SysErrorCodes.UDS_NOT_EXIST
+                ),
                 message=message)
             return False
 
-        return True
+        # just checking for supplement existence
+        if not supplement_module.exact_match:
+            return True
+
+        # If checking for exact match, there should be only one matching visit
+        if len(supplement_visits) > 1:
+            raise PreprocessingException(
+                "More than one matching supplement visit exist for "
+                f"{pp_context.subject_lbl}/{supplement_module.label}/"
+                f"{input_record[module_configs.date_field]}"
+            )
+
+        return self.__check_supplement_exact_match(supplement_visits[0],
+                                                   pp_context)
 
     def __check_supplement_exact_match(self,
-                                       supplement_module: SupplementModuleConfigs,
                                        supplement_visit: Dict[str, str],
                                        pp_context: PreprocessingContext) -> bool:
         """Check that the found supplement visit matches exactly.
 
         Args:
-            supplement_module: SupplementModuleConfigs
             supplement_visit: Found supplement visit to compare for exact match
             pp_context: PreprocessingContext; contains:
                 input_record: Input record of current visit to compare for exact match
@@ -756,23 +740,22 @@ class FormPreprocessor:
         """
         """
         NOTE: Currently this assumes an exact match on an UDS visit, which at the
-            moment is the only context in which this is called (NP for example
-            simply requires the supplement forms exist, but FTLD/LBD need to
-            match a specific UDS visit).
+            moment is the only context in which this is called.
 
             Since this logic does not currently make sense for other modules, throw
             an error and implement as needed.
         """
+        module_configs = self.__module_configs
+        supplement_module = module_configs.supplement_module
+
         if supplement_module.module != DefaultValues.UDS_MODULE:
             raise PreprocessingException(
                 f"Supplement exact match check undefined for {supplement_module.module}"
             )
 
         input_record = pp_context.input_record
-
         date_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{supplement_module.date_field}"
         visitnum_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}"
-        module_configs = self.__module_configs
 
         if supplement_visit[visitnum_lbl] != input_record[FieldNames.VISITNUM]:
             log.error(
@@ -809,7 +792,7 @@ class FormPreprocessor:
                 supplement_visit[date_lbl],
                 supplement_visit[visitnum_lbl],
             )
-            self.__error_handler.write_module_error(
+            self.__error_handler.write_packet_error(
                 pp_context=pp_context,
                 error_code=SysErrorCodes.INVALID_MODULE_PACKET,
                 suppress_logs=True)
@@ -894,6 +877,72 @@ class FormPreprocessor:
             return True
 
         return False
+
+    def _check_np_mlst_restrictions(self, pp_context: PreprocessingContext) -> bool:
+        """Check NP/MLST restrictions; compares NP form against most recent MLST form.
+
+        Args:
+            pp_context: preprocessing context
+        Returns:
+            True if the preprocessing checks pass, false otherwise
+        """
+        if self.__module != DefaultValues.NP_MODULE:
+            raise PreprocessingException("Cannot evaluate NP/MLST preprocessing " +
+                f"checks for non-NP module: {self.__module}")
+
+        # get most recent MLST form
+        all_mlst_forms = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=DefaultValues.MLST_MODULE,
+            legacy=False,
+            search_col=FieldNames.DATE_COLUMN,
+            extra_columns=["deathmo", "deathdy", "deathyr", "autopsy"],
+            find_all=True,
+        )
+
+        # if no MLST forms, passes by default
+        if not all_mlst_forms:
+            return True
+
+        mlst_form = all_mlst_forms[0]
+        input_record = pp_context.input_record
+
+        # preprocess-026: death dates in MLST/NP must match
+        mlst_year = mlst_form.get("deathyr")
+        np_year = input_record.get("npdodyr")
+
+        mlst_dod = build_date(year=mlst_year,
+                              month=mlst_form.get("deathmo"),
+                              day=mlst_form.get("deathdy"))
+        np_dod = build_date(year=np_year,
+                            month=input_record.get("npdodmo"),
+                            day=input_record.get("npdoddy"))
+
+        result_dod = True
+        # MLST may have not had month/day defined (unknown 99s)
+        # if so, compare year directly
+        # otherwise check both exist and are equal to each other
+        if not mlst_dod and mlst_year is not None:
+            result_dod = mlst_year == np_year
+        else:
+            result_dod = (mlst_dod and np_dod) and (mlst_dod == np_dod)
+
+        if not result_dod:
+            self.__error_handler.write_date_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.DEATH_DATE_MISMATCH,
+                date_field="npdodyr")
+
+        # preprocess-027: autopsy must be 1 in MLST form for NP to be accepted
+        result_autopsy = mlst_form.get("autopsy") == 1
+        if not result_autopsy:
+            self.__error_handler.write_preprocessing_error(
+                field="autopsy",
+                value=mlst_form.get("autopsy"),
+                pp_context=pp_context,
+                error_code=SysErrorCodes.AUTOPSY_NP_INVALID)
+
+        return result_dod and result_autopsy
 
     def preprocess(
         self,
