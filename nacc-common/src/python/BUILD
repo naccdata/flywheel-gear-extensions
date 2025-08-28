@@ -4,5 +4,3 @@ resource(
 )
 
 python_sources(name="nacc-common-lib")
-
-
