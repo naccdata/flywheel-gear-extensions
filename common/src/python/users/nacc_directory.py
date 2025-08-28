@@ -14,7 +14,6 @@ from users.authorizations import (
     ActionType,
     DatatypeNameType,
     StudyAuthorizations,
-    convert_to_activity,
 )
 from users.user_entry import ActiveUserEntry, PersonName, UserEntry
 
@@ -67,12 +66,10 @@ class StudyAccessMap(BaseModel):
         """
         authorizations = self.access_level_map.get(study_id)
         if authorizations is None:
-            authorizations = StudyAuthorizations(study_id=study_id, activities=[])
-        activity_prefix = get_activity_prefix(access_level)
-        if activity_prefix is not None:
-            authorizations.activities.append(
-                convert_to_activity(activity_prefix=activity_prefix, datatype=datatype)
-            )
+            authorizations = StudyAuthorizations(study_id=study_id)
+        action = get_activity_prefix(access_level)
+        if action is not None:
+            authorizations.add(datatype=datatype, action=action)
         self.access_level_map[study_id] = authorizations
 
     def get_authorizations(self) -> list[StudyAuthorizations]:
