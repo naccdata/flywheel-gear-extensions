@@ -11,6 +11,6 @@ python_distribution(
         description="NACC flywheel type stubs",
         author="NACC",
         author_email="nacchelp@uw.edu",
-        url="https://github.com/naccdata/flywheel-gear-extensions"
-    )
+        url="https://github.com/naccdata/flywheel-gear-extensions",
+    ),
 )
