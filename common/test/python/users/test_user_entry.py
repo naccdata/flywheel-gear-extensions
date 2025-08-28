@@ -4,7 +4,7 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
-from users.authorizations import StudyAuthorizations
+from users.authorizations import Activity, StudyAuthorizations
 from users.nacc_directory import (
     ActiveUserEntry,
     DirectoryAuthorizations,
@@ -104,7 +104,12 @@ class TestUserEntry:
             authorizations=[
                 StudyAuthorizations(
                     study_id="adrc",
-                    activities=["submit-audit-enrollment", "submit-audit-form"],
+                    activities={
+                        "enrollment": Activity(
+                            data="enrollment", action="submit-audit"
+                        ),
+                        "form": Activity(data="form", action="submit-audit"),
+                    },
                 )
             ],
             active=True,
@@ -187,7 +192,12 @@ class TestUserEntry:
             authorizations=[
                 StudyAuthorizations(
                     study_id="dummy",
-                    activities=["submit-audit-form", "submit-audit-enrollment"],
+                    activities={
+                        "form": Activity(data="form", action="submit-audit"),
+                        "enrollment": Activity(
+                            data="enrollment", action="submit-audit"
+                        ),
+                    },
                 )
             ],
             active=True,

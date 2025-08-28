@@ -3,13 +3,16 @@
 import pytest
 import yaml
 from pydantic import ValidationError
-from users.authorizations import AuthMap, StudyAuthorizations, convert_to_activities
+from users.authorizations import (
+    AuthMap,
+    StudyAuthorizations,
+)
 
 
 @pytest.fixture
 def empty_auth():
     """Empty authorizations."""
-    yield StudyAuthorizations(study_id="dummy", activities=[])
+    yield StudyAuthorizations(study_id="dummy")
 
 
 @pytest.fixture
@@ -59,25 +62,19 @@ def auth_map_alpha_yaml():
 @pytest.fixture
 def alpha_authorizations():
     """Authorizations object."""
-    yield StudyAuthorizations(
-        study_id="dummy",
-        activities=convert_to_activities(
-            activity_prefix="submit-audit", datatypes=["form", "enrollment"]
-        ),
-    )
+    authorizations = StudyAuthorizations(study_id="dummy")
+    authorizations.add(datatype="form", action="submit-audit")
+    authorizations.add(datatype="enrollment", action="submit-audit")
+    yield authorizations
 
 
 @pytest.fixture
 def beta_authorizations():
     """Authorizations object."""
-    activities = convert_to_activities(
-        activity_prefix="submit-audit", datatypes=["dicom"]
-    )
-    activities.append("view-form")
-    yield StudyAuthorizations(
-        study_id="dummy",
-        activities=activities,
-    )
+    authorizations = StudyAuthorizations(study_id="dummy")
+    authorizations.add(datatype="dicom", action="submit-audit")
+    authorizations.add(datatype="form", action="view")
+    yield authorizations
 
 
 class TestAuthMap:
