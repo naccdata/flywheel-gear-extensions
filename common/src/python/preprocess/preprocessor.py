@@ -4,7 +4,10 @@ import logging
 from collections.abc import Callable
 from typing import Any, Dict, List, Optional
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import (
+    ModuleConfigs,
+    SupplementModuleConfigs,
+)
 from dates.form_dates import build_date
 from datastore.forms_store import FormFilter, FormsStore
 from keys.keys import (
@@ -60,6 +63,7 @@ class FormPreprocessor:
             PreprocessingChecks.UDSV4_IVP: self._check_udsv4_initial_visit,
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
+            PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
         }
 
@@ -203,7 +207,7 @@ class FormPreprocessor:
         Returns:
             bool: True if records are in correct order
         """
-        date_field = self.module_configs.date_field
+        date_field = self.__module_configs.date_field
         input_record = pp_context.input_record
 
         correct_order = True
@@ -273,6 +277,7 @@ class FormPreprocessor:
 
         if packet in module_configs.followup_packets and ivp_record:
             return self.__compare_visit_order(
+                pp_context=pp_context,
                 date_to_compare=ivp_record[module_configs.date_field],
                 visitnum_to_compare=ivp_record[FieldNames.VISITNUM],
                 date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
@@ -326,6 +331,7 @@ class FormPreprocessor:
                 return False
 
             return self.__compare_visit_order(
+                pp_context=pp_context,
                 date_to_compare=initial_packet[date_lbl],
                 visitnum_to_compare=initial_packet[visitnum_lbl],
                 date_error=SysErrorCodes.LOWER_FVP_VISITDATE,
@@ -393,25 +399,21 @@ class FormPreprocessor:
 
         return False
 
-    def __check_visitdate_visitnum(
-        self,
-        *,
-        subject_lbl: str,
-        input_record: Dict[str, Any],
-        line_num: int,
-    ) -> bool:
+    def __check_visitdate_visitnum(self, pp_context: PreprocessingContext) -> bool:
         """Check for conflicting visitnum for same visit date.
 
         Args:
-            subject_lbl: Flywheel subject label
-            input_record: input visit record
-            line_num: line number in CSV file
+            pp_context: preprocessing context
 
         Returns:
             bool: False, if a conflicting visitnum found
         """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
+        subject_lbl = pp_context.subject_lbl
+        input_record = pp_context.input_record
         date_field = self.__module_configs.date_field
+
         date_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=self.__module,
@@ -461,25 +463,21 @@ class FormPreprocessor:
 
         return True
 
-    def __check_visitnum_visitdate(
-        self,
-        *,
-        subject_lbl: str,
-        input_record: Dict[str, Any],
-        line_num: int,
-    ) -> bool:
+    def __check_visitnum_visitdate(self, pp_context: PreprocessingContext) -> bool:
         """Check for conflicting visit date for same visitnum.
 
         Args:
-            subject_lbl: Flywheel subject label
-            input_record: input visit record
-            line_num: line number in CSV file
+            pp_context: preprocessing context
 
         Returns:
             bool: False, if a conflicting visit date found
         """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
+        subject_lbl = pp_context.subject_lbl
+        input_record = pp_context.input_record
         date_field = self.__module_configs.date_field
+
         visitnum_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=self.__module,
@@ -623,6 +621,7 @@ class FormPreprocessor:
             date_field_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{date_field}"
             visitnum_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}"
             return self.__compare_visit_order(
+                pp_context=pp_context,
                 date_to_compare=legacy_visit[date_field_lbl],
                 visitnum_to_compare=legacy_visit[visitnum_lbl],
                 date_error=SysErrorCodes.LOWER_I4_VISITDATE,
@@ -640,18 +639,8 @@ class FormPreprocessor:
         Returns:
             bool: False if conflict found
         """
-
-        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
-
-        return self.__check_visitdate_visitnum(
-            subject_lbl=pp_context.subject_lbl,
-            input_record=pp_context.input_record,
-            line_num=pp_context.line_num,
-        ) and self.__check_visitnum_visitdate(
-            subject_lbl=pp_context.subject_lbl,
-            input_record=pp_context.input_record,
-            line_num=pp_context.line_num,
-        )
+        return (self.__check_visitdate_visitnum(pp_context)
+                and self.__check_visitnum_visitdate(pp_context))
 
     def _check_supplement_module(self, pp_context: PreprocessingContext) -> bool:
         """Check whether a matching supplement module found.
@@ -676,6 +665,50 @@ class FormPreprocessor:
             return True
 
         supplement_module = module_configs.supplement_module
+        supplement_visits = self.__get_supplement_visits(supplement_module, pp_context)
+
+        if not supplement_visits:
+            self.__error_handler.write_module_error(
+                pp_context=pp_context,
+                error_code=(
+                    SysErrorCodes.UDS_NOT_MATCH
+                    if supplement_module.exact_match
+                    else SysErrorCodes.UDS_NOT_EXIST
+                ))
+            return False
+
+        # just checking for supplement existence
+        if not supplement_module.exact_match:
+            return True
+
+        # If checking for exact match, there should be only one matching visit
+        if len(supplement_visits) > 1:
+            raise PreprocessingException(
+                "More than one matching supplement visit exist for "
+                f"{pp_context.subject_lbl}/{supplement_module.label}/"
+                f"{input_record[module_configs.date_field]}"
+            )
+
+        return self.__check_supplement_exact_match(supplement_visits[0],
+                                                   pp_context)
+
+    def __get_supplement_visits(
+        self,
+        supplement_module: SupplementModuleConfigs,
+        pp_context: PreprocessingContext
+        ) -> Optional[List[Dict[str, str]]]:
+        """Get supplement visits for the given supplement module.
+
+        Args:
+            supplement_module: The SupplementModuleConfigs
+            pp_context: preprocessing context
+        Returns:
+            List of supplement visits, if found
+        """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        module_configs = self.__module_configs
+        input_record = pp_context.input_record
 
         supplement_visits = self.__forms_store.query_form_data(
             subject_lbl=pp_context.subject_lbl,
@@ -699,31 +732,7 @@ class FormPreprocessor:
                 search_op="<=",
             )
 
-        if not supplement_visits:
-            self.__error_handler.write_module_error(
-                pp_context=pp_context,
-                error_code=(
-                    SysErrorCodes.UDS_NOT_MATCH
-                    if supplement_module.exact_match
-                    else SysErrorCodes.UDS_NOT_EXIST
-                ),
-                message=message)
-            return False
-
-        # just checking for supplement existence
-        if not supplement_module.exact_match:
-            return True
-
-        # If checking for exact match, there should be only one matching visit
-        if len(supplement_visits) > 1:
-            raise PreprocessingException(
-                "More than one matching supplement visit exist for "
-                f"{pp_context.subject_lbl}/{supplement_module.label}/"
-                f"{input_record[module_configs.date_field]}"
-            )
-
-        return self.__check_supplement_exact_match(supplement_visits[0],
-                                                   pp_context)
+        return supplement_visits
 
     def __check_supplement_exact_match(self,
                                        supplement_visit: Dict[str, str],
@@ -748,9 +757,11 @@ class FormPreprocessor:
         module_configs = self.__module_configs
         supplement_module = module_configs.supplement_module
 
-        if supplement_module.module != DefaultValues.UDS_MODULE:
+        assert supplement_module, "supplement_module required"
+
+        if supplement_module.label != DefaultValues.UDS_MODULE:
             raise PreprocessingException(
-                f"Supplement exact match check undefined for {supplement_module.module}"
+                f"Supplement exact match check undefined for {supplement_module.label}"
             )
 
         input_record = pp_context.input_record
@@ -812,7 +823,6 @@ class FormPreprocessor:
         Returns:
             bool: True if a matching visit found
         """
-
         subject_lbl = input_record[self.__primary_key]
         date_field = self.__module_configs.date_field
         log.info(
@@ -878,6 +888,35 @@ class FormPreprocessor:
 
         return False
 
+    def _check_clinical_forms(self, pp_context: PreprocessingContext) -> bool:
+        """Check at least one clinical form (UDS, BDS, MDS) exists.
+
+        Args:
+            pp_context: preprocessing context
+        Returns:
+            True if the preprocessing checks pass, false otherwise
+        """
+        # treat each form like a fake supplement module and see if any visits exist
+        for module in [DefaultValues.UDS_MODULE,
+                       DefaultValues.BDS_MODULE,
+                       DefaultValues.MDS_MODULE]:
+            supplement_module = SupplementModuleConfigs(
+                label=module,
+                date_field=FieldNames.DATE_COLUMN,
+                exact_match=False
+            )
+
+            # passes if at least one visit is found
+            if self.__get_supplement_visits(supplement_module, pp_context) is not None:
+                return True
+
+        # no clinical visits found; fail preprocessing check
+        self.__error_handler.write_module_error(
+            pp_context=pp_context,
+            error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED)
+
+        return False
+
     def _check_np_mlst_restrictions(self, pp_context: PreprocessingContext) -> bool:
         """Check NP/MLST restrictions; compares NP form against most recent MLST form.
 
@@ -889,6 +928,8 @@ class FormPreprocessor:
         if self.__module != DefaultValues.NP_MODULE:
             raise PreprocessingException("Cannot evaluate NP/MLST preprocessing " +
                 f"checks for non-NP module: {self.__module}")
+
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
         # get most recent MLST form
         all_mlst_forms = self.__forms_store.query_form_data(
@@ -925,7 +966,8 @@ class FormPreprocessor:
         if not mlst_dod and mlst_year is not None:
             result_dod = mlst_year == np_year
         else:
-            result_dod = (mlst_dod and np_dod) and (mlst_dod == np_dod)
+            result_dod = ((mlst_dod is not None and np_dod is not None)
+                          and (mlst_dod == np_dod))
 
         if not result_dod:
             self.__error_handler.write_date_error(

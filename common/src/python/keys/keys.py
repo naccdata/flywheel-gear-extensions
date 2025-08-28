@@ -139,6 +139,7 @@ class PreprocessingChecks:
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"
+    CLINICAL_FORMS = 'clinical-forms'
     NP_MLST_RESTRICTIONS = 'np-mlst-restrictions'
 
     @classmethod

@@ -159,7 +159,7 @@
                 "optional-forms",
                 "ivp",
                 "visit-conflict",
-                "supplement-modules"
+                "supplement-module"
             ]
         },
         "FTLD": {
@@ -231,7 +231,7 @@
                 "optional-forms",
                 "ivp",
                 "visit-conflict",
-                "supplement-modules"
+                "supplement-module"
             ]
         },
         "MLST": {
@@ -268,7 +268,7 @@
                 "duplicate-record",
                 "version",
                 "packet",
-                "supplement-modules"
+                "supplement-module"
             ],
             "supplement_module": {
                 "label": "UDS",
@@ -316,8 +316,7 @@
                 "duplicate-record",
                 "version",
                 "packet",
-                "supplement-modules",
-                "clinical-form",
+                "clinical-forms",
                 "np-mlst-restrictions"
             ]
         },

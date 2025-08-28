@@ -4,7 +4,6 @@ All notable changes to this gear are documented in this file.
 
 ## 1.5.0
 * Adds new NP/MLST-related preprocessing checks (025, 026, and 027)
-    * Refactors supplement form logic to evaluate multiple modules (required for 025)
 * Adds `preprocess.preprocess_helpers.py` which includes helepr preprocesser classes
     * Refactors how error codes are written to reduce redundancy
 
