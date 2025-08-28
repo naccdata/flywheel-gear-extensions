@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
-from identifiers.identifiers_lambda_repository import IdentifiersMode
+from identifiers.model import IdentifiersMode
 from inputs.environment import get_environment_variable
 from pydantic import BaseModel, ValidationError
 

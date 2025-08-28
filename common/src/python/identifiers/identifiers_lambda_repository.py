@@ -17,10 +17,9 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    IdentifiersMode,
     NACCIDField,
 )
-
-IdentifiersMode = Literal["dev", "prod"]
 
 
 class ListRequest(BaseRequest):
@@ -434,7 +433,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         except (LambdaInvocationError, ValidationError) as error:
             raise IdentifierRepositoryError(error) from error
 
-        if response.statusCode not in (200, 201):
-            raise IdentifierRepositoryError("No identifier created or updated")
+        if response.statusCode != 200:
+            raise IdentifierRepositoryError(
+                f"No identifier created or updated: {response.body}"
+            )
 
         return True

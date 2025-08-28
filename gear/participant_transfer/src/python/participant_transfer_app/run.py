@@ -14,13 +14,14 @@ from gear_execution.gear_execution import (
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
-    IdentifiersMode,
 )
+from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from participant_transfer_app.main import run
 from utils.utils import parse_string_to_list
+
+from participant_transfer_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -61,18 +62,22 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        client = GearBotClient.create(
+            context=context, parameter_store=parameter_store)
 
         enroll_project_path = context.config.get("enrollment_project")
         if not enroll_project_path:
-            raise GearExecutionError("Missing required gear config enrollment_project")
+            raise GearExecutionError(
+                "Missing required gear config enrollment_project")
 
         ptid = context.config.get("participant_id")
         if not ptid:
-            raise GearExecutionError("Missing required gear config participant_id")
+            raise GearExecutionError(
+                "Missing required gear config participant_id")
 
-        mode = context.config.get("identifiers_mode", "prod")
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        mode = context.config.get("database_mode", "prod")
+        admin_id = context.config.get(
+            "admin_group", DefaultValues.NACC_GROUP_ID)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -100,7 +105,9 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         datatypes = parse_string_to_list(
             context.config.get("datatypes", "form,scan,dicom")
         )
-        source_email = context.config.get("source_email", "nacchelp@uw.edu")
+        source_email = context.config.get("sender_email", "naccmail@uw.edu")
+        target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
 
         run(
             proxy=self.proxy,
@@ -117,7 +124,8 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Manage Participant Transfer."""
 
-    GearEngine.create_with_parameter_store().run(gear_type=ParticipantTransferVisitor)
+    GearEngine.create_with_parameter_store().run(
+        gear_type=ParticipantTransferVisitor)
 
 
 if __name__ == "__main__":

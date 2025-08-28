@@ -16,8 +16,8 @@ from gear_execution.gear_execution import (
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
-    IdentifiersMode,
 )
+from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
@@ -130,8 +130,8 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
         )
 
-        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        sender_email = context.config.get("sender_email", "naccmail@uw.edu")
+        target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:

@@ -1,12 +1,14 @@
 """Defines the Identifier data class."""
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
 NACCID_PATTERN = r"^(NACC|TEST)\d{6}$"
 PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
+
+IdentifiersMode = Literal["dev", "prod"]
 
 
 class GUIDField(BaseModel):
