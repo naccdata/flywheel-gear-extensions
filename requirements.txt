@@ -28,4 +28,4 @@ ratelimit>=2.2.1
 ratelimit-types>=0.0.1
 redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.1/redcap_api-0.1.1-py3-none-any.whl
 nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl
-nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-1.4.2.dev0-py3-none-any.whl
+nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-1.4.2.dev1.tar.gz

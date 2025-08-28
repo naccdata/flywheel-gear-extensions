@@ -53,7 +53,7 @@ class FormCurator(Curator):
 
         # in this context we only care about those at subject.info.derived.cross-sectional,
         # so parse out and strip down to the derived variable name
-        parent_location = "subject.info.derived.cross-sectional"
+        parent_location = "subject.info.derived.cross-sectional."
         return [x.replace(parent_location, "") for x in attributes
                 if x.startswith(parent_location)]
 
@@ -136,7 +136,7 @@ class FormCurator(Curator):
                 "longitudinal-data.uds",
                 "neuropathology",
                 "study-parameters.uds",
-                # "working",  # FOR 1.5.0 OF THE ATTRIBUTE-DERIVER
+                "working",
             ]:
                 subject_table.pop(field)
 
@@ -204,6 +204,7 @@ class FormCurator(Curator):
             derived.update(scope_derived[scope])
             file_entry.update_info({"derived": derived})
 
-        # push subject metadata
+        # push subject metadata; need to replace due to potentially
+        # cleaned-up metadata
         if subject_table:
-            subject.update_info(subject_table.to_dict())
+            subject.replace_info(subject_table.to_dict())

@@ -9,6 +9,7 @@ All notable changes to this gear are documented in this file.
 * Adds CLS, FTLD, and LBD scopes (scope not yet used in `1.4.2` of `nacc-attribute-deriver` and ignored)
 * Reports version of the attribute deriver for better tracking
 * Updates to pass `subject_table` (FW subject.info) around heap evaluation instead of reloading on every file, reducing API calls
+    * Also ensures/enforces subject metadata is not updated until ALL files have been curated
 * Compiles regex for faster execution
 
 ## 0.4.1
