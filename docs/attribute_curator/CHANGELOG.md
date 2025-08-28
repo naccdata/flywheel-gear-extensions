@@ -2,11 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.5.0
+## 0.4.2
 
-* Updates `nacc-attribute-deriver` to `1.5.0`, which introduces a significant number of new derived variables
-* Updates `force-curate` to also clear `working` metadata (introduced in `1.5.0`)
-* Adds CLS, FTLD, and LBD scopes
+* Updates `nacc-attribute-deriver` to `1.4.2`, which exposes curation rules by scope
+* Updates backpropagation logic to handle NP and UDS-specific derived variables
+* Adds CLS, FTLD, and LBD scopes (scope not yet used in `1.4.2` of `nacc-attribute-deriver` and ignored)
 * Reports version of the attribute deriver for better tracking
 * Updates to pass `subject_table` (FW subject.info) around heap evaluation instead of reloading on every file, reducing API calls
 * Compiles regex for faster execution
@@ -14,7 +14,7 @@ All notable changes to this gear are documented in this file.
 ## 0.4.1
 
 * Updates `nacc-attribute-deriver` to `1.4.1`
-* Updates to handle MEDS (scope not yet used in 1.4.1 and ignored)
+* Updates to handle MEDS (scope not yet used in `1.4.1` of `nacc-attribute-deriver` and ignored)
 * Adds `debug` argument to reduce verbosity of logging statements
 * Splits out scheduler models - updates curation `post_process` to take in `FileModel` instead of string `file_id` so it can access the filename without making an API call
 

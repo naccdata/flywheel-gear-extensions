@@ -6,8 +6,9 @@ from typing import List
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.schema.errors import AttributeDeriverError
 from nacc_attribute_deriver.symbol_table import SymbolTable
-from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
 from utils.decorators import api_retry
 
 from .curator import Curator
@@ -25,6 +26,36 @@ class FormCurator(Curator):
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__deriver = deriver
         self.__failed_files = Manager().dict()
+
+        # get expected cross-sectional derived variables by scope
+        self.__scoped_variables = {
+            FormScope.NP: self.__extract_attributes(FormScope.NP),
+            FormScope.UDS: self.__extract_attributes(FormScope.UDS),
+        }
+
+    def __extract_attributes(self, scope: str) -> List[str]:
+        """Extracts the attributes for the given scope.
+
+        Args:
+            scope: the scope to extract rules for
+        Returns:
+            List of attributes (locations)
+        """
+        curation_rules = self.__deriver.get_curation_rules(scope)
+        if not curation_rules:
+            raise AttributeDeriverError(
+                f"Cannot find any curation rules for scope: {scope}")
+
+        attributes = []
+        for rule in curation_rules:
+            for assignment in rule.assignments:
+                attributes.append(assignment.attribute)
+
+        # in this context we only care about those at subject.info.derived.cross-sectional,
+        # so parse out and strip down to the derived variable name
+        parent_location = "subject.info.derived.cross-sectional"
+        return [x.replace(parent_location, "") for x in attributes
+                if x.startswith(parent_location)]
 
     @property
     def failed_files(self) -> DictProxy:
@@ -105,7 +136,7 @@ class FormCurator(Curator):
                 "longitudinal-data.uds",
                 "neuropathology",
                 "study-parameters.uds",
-                "working",
+                # "working",  # FOR 1.5.0 OF THE ATTRIBUTE-DERIVER
             ]:
                 subject_table.pop(field)
 
@@ -143,17 +174,34 @@ class FormCurator(Curator):
         if not cs_derived:
             return
 
-        log.debug(f"Back-propagating cross-sectional UDS variables for {subject.label}")
+        # filter out to the scopes
+        scope_derived = {
+            FormScope.UDS: {},
+            FormScope.NP: {}
+        }
+
+        for k, v in cs_derived.items():
+            for scope in [FormScope.UDS, FormScope.NP]:
+                if k in self.__scoped_variables[scope]:
+                    scope_derived[scope][k] = v
+
+        log.debug(f"Back-propagating cross-sectional variables for {subject.label}")
         for file in processed_files:
-            # ignore non-UDS files
-            if not file.filename.endswith("_UDS.json"):
+            scope = None
+            if file.filename.endswith("_UDS.json"):
+                scope = FormScope.UDS
+            elif file.filename.endswith("_NP.json"):
+                scope = FormScope.NP
+
+            # ignore non-NP/UDS files
+            if not scope:
                 continue
 
             file_entry = self.sdk_client.get_file(file.file_id)
             file_entry = file_entry.reload()
 
             derived = file_entry.info.get("derived", {})
-            derived.update(cs_derived)
+            derived.update(scope_derived[scope])
             file_entry.update_info({"derived": derived})
 
         # push subject metadata
