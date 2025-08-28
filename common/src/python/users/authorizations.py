@@ -1,46 +1,36 @@
 """Defines components related to user authorizations."""
 
-from typing import Dict, Literal, Sequence, Set
+from typing import Dict, Literal, Set
 
 from keys.types import DatatypeNameType
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer
 
 ActionType = Literal["submit-audit", "view"]
-
-
-def convert_to_activity(activity_prefix: ActionType, datatype: DatatypeNameType) -> str:
-    """Converts the datatype to a authorization activity by adding the prefix.
-
-    Args:
-      activity_prefix: the prefix to add
-      datatype: the datatype
-    """
-    return f"{activity_prefix}-{datatype}"
-
-
-def convert_to_activities(
-    activity_prefix: ActionType, datatypes: Sequence[DatatypeNameType]
-) -> list[str]:
-    """Creates a list of activities from the list of datatypes using the
-    activity name prefix.
-
-    Args:
-      activity_prefix: the activity name prefix
-      datatypes: a sequence of datatype names
-    """
-    return [convert_to_activity(activity_prefix, datatype) for datatype in datatypes]
 
 
 class Activity(BaseModel):
     data: DatatypeNameType
     action: ActionType
 
+    @model_serializer
+    def string_activity(self) -> str:
+        return f"{self.action}-{self.data}"
+
 
 class StudyAuthorizations(BaseModel):
     """Type class for authorizations."""
 
     study_id: str
-    activities: dict[DatatypeNameType, Activity]
+    activities: dict[DatatypeNameType, Activity] = {}
+
+    def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
+        """Adds an activity with the datatype and action to the authorizations.
+
+        Args:
+          datatype: the datatype
+          action: the action
+        """
+        self.activities[datatype] = Activity(data=datatype, action=action)
 
 
 class AuthMap(BaseModel):

@@ -21,7 +21,7 @@ from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, Validatio
 from redcap_api.redcap_project import REDCapRoles
 from redcap_api.redcap_repository import REDCapParametersRepository
 from serialization.case import kebab_case
-from users.authorizations import AuthMap, convert_to_activity
+from users.authorizations import Activity, AuthMap
 from users.nacc_directory import StudyAuthorizations
 
 from centers.center_adaptor import CenterAdaptor
@@ -802,10 +802,10 @@ class REDCapFormProjectMetadata(BaseModel):
     def is_enrollment(self) -> bool:
         return self.label.upper() == DefaultValues.ENROLLMENT_MODULE
 
-    def get_submission_activity(self) -> str:
+    def get_submission_activity(self) -> Activity:
         datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
-        return convert_to_activity(activity_prefix="submit-audit", datatype=datatype)
+        return Activity(data=datatype, action="submit-audit")
 
 
 class FormIngestProjectMetadata(IngestProjectMetadata):
