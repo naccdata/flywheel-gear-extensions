@@ -149,12 +149,12 @@ class FormCurator(Curator):
     ) -> None:
         """Run post-processing on the entire subject.
 
-        1. Adds `affiliated` tag to affiliate subjects if
+        1. Pushes final subject_table back to FW
+        2. Adds `affiliated` tag to affiliate subjects if
             subject.info.derived.affiliate is set
             (via nacc-attribute-deriver)
-        2. Run a second pass over all UDS forms and apply
+        3. Run a second pass over all NP/UDS forms and apply
             cross-sectional values.
-        3. Pushes final subject_table back to FW
 
         Args:
             subject: Subject to post-process
@@ -162,6 +162,11 @@ class FormCurator(Curator):
                 and curation results
             processed_files: List of FileModels that were processed
         """
+        # push subject metadata; need to replace due to potentially
+        # cleaned-up metadata
+        if subject_table:
+            subject.replace_info(subject_table.to_dict())
+
         derived = subject_table.get("derived", {})
         affiliate = derived.get("affiliate", None)
         cs_derived = derived.get("cross-sectional", None)
@@ -203,8 +208,3 @@ class FormCurator(Curator):
             derived = file_entry.info.get("derived", {})
             derived.update(scope_derived[scope])
             file_entry.update_info({"derived": derived})
-
-        # push subject metadata; need to replace due to potentially
-        # cleaned-up metadata
-        if subject_table:
-            subject.replace_info(subject_table.to_dict())
