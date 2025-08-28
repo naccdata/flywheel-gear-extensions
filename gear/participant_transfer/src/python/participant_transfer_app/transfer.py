@@ -51,10 +51,8 @@ class TransferProcessor:
         Returns:
             IdentifierObject (optional): Identifier record if found, else None
         """
-        old_adcid = self.__transfer_record.previous_identifiers.adcid  # type: ignore
-        old_ptid = self.__transfer_record.previous_identifiers.ptid  # type: ignore
 
-        if old_ptid == "unknown":
+        if not self.__transfer_record.previous_ptid:
             if not self.__transfer_record.naccid:
                 log.error(
                     "Cannot process the transfer request for "
@@ -80,21 +78,25 @@ class TransferProcessor:
                 return None
 
             for identifier in identifiers:
-                if identifier.adcid == old_adcid:
+                if identifier.adcid == self.__transfer_record.previous_adcid:
                     return identifier
 
             log.error(
-                f"No matching participant found for previous ADCID {old_adcid} "
-                f"and NACCID {self.__transfer_record.naccid}"
+                f"No matching PTID found for NACCID {self.__transfer_record.naccid}"
+                f"and previous ADCID {self.__transfer_record.previous_adcid}"
             )
             return None
 
         try:
-            return self.__repo.get(adcid=old_adcid, ptid=old_ptid)
+            return self.__repo.get(
+                adcid=self.__transfer_record.previous_adcid,
+                ptid=self.__transfer_record.previous_ptid,
+            )
         except (IdentifierRepositoryError, TypeError) as error:
             log.error(
-                f"Error in looking up NACCID for OLDADCID {old_adcid}, "
-                f"OLDPTID {old_ptid}: {error}"
+                f"Error in looking up NACCID for "
+                f"OLDADCID {self.__transfer_record.previous_adcid}, "
+                f"OLDPTID {self.__transfer_record.previous_ptid}: {error}"
             )
             return None
 
@@ -111,8 +113,8 @@ class TransferProcessor:
         """
         adcid = self.__transfer_record.center_identifiers.adcid
         ptid = self.__transfer_record.center_identifiers.ptid
-        old_adcid = self.__transfer_record.previous_identifiers.adcid  # type: ignore
-        old_ptid = self.__transfer_record.previous_identifiers.ptid  # type: ignore
+        old_adcid = self.__transfer_record.previous_adcid
+        old_ptid = self.__transfer_record.previous_ptid
 
         curr_identifier = self.__get_identifier_for_previous_center()
 
@@ -138,11 +140,10 @@ class TransferProcessor:
             and curr_identifier.guid
             and self.__transfer_record.guid != curr_identifier.guid
         ):
-            log.error(
+            log.warning(
                 f"GUID mismatch: found in database {curr_identifier.guid}, "
                 f"provided in transfer record {self.__transfer_record.guid}"
             )
-            return None
 
         try:
             identifier = self.__repo.get(adcid=adcid, ptid=ptid)
@@ -169,18 +170,14 @@ class TransferProcessor:
                 and curr_identifier.guid
                 and identifier.guid != curr_identifier.guid
             ):
-                log.error(
+                log.warning(
                     f"GUID mismatch: GUID for ({adcid}, {ptid}): {identifier.guid}, "
                     f"GUID for ({old_adcid}, {old_ptid}): {curr_identifier.guid}"
                 )
-                return None
 
-        # update transfer record
+        # update the transfer record
         self.__transfer_record.naccid = curr_identifier.naccid
-        self.__transfer_record.guid = curr_identifier.guid
-        self.__transfer_record.previous_identifiers = CenterIdentifiers(
-            adcid=curr_identifier.adcid, ptid=curr_identifier.ptid
-        )
+        self.__transfer_record.previous_ptid = curr_identifier.ptid
 
         return curr_identifier
 
@@ -245,7 +242,8 @@ class TransferProcessor:
             start_date=self.__transfer_record.request_date,
         )
 
-        assert record.naccid, "NACCID is required"
+        assert record.naccid, "Missing NACCID"
+        assert self.__transfer_record.previous_ptid, "Missing previous PTID"
 
         # add a record to new center's enrollment project
         subject = self.__enroll_project.find_subject(label=record.naccid)
@@ -288,12 +286,13 @@ class TransferProcessor:
             )
             return True  # returning true since this is possible
 
-        assert self.__transfer_record.previous_identifiers, "no previous_identifiers"
-
         prev_enroll_subject = EnrollmentSubject.create_from(prev_subject)
 
         updated_record = EnrollmentRecord(
-            center_identifier=self.__transfer_record.previous_identifiers,
+            center_identifier=CenterIdentifiers(
+                adcid=self.__transfer_record.previous_adcid,
+                ptid=self.__transfer_record.previous_ptid,
+            ),
             guid=self.__transfer_record.guid,
             naccid=self.__transfer_record.naccid,
             start_date=self.__transfer_record.request_date,

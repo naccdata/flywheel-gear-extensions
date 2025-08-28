@@ -2,7 +2,7 @@
     "name": "participant-transfer",
     "label": "Manage Participant Transfer",
     "description": "Gear to manage participant transfers between centers",
-    "version": "0.0.1",
+    "version": "0.0.5",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/participant-transfer:0.0.1"
+            "image": "naccdata/participant-transfer:0.0.5"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -38,6 +38,11 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot"
         },
+        "database_mode": {
+            "description": "Whether to lookup identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
         "admin_group": {
             "description": "Name of the admin group",
             "type": "string",
@@ -56,8 +61,13 @@
             "type": "string",
             "default": "form,scan,dicom"
         },
-        "source_email": {
-            "description": "The source email to send the transfer completion notification",
+        "sender_email": {
+            "description": "The source email to send the transfer completion notification or error report",
+            "type": "string",
+            "default": "naccmail@uw.edu"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of destination emails to send the notification to",
             "type": "string",
             "default": "nacchelp@uw.edu"
         }

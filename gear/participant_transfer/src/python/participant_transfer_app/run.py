@@ -105,7 +105,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         datatypes = parse_string_to_list(
             context.config.get("datatypes", "form,scan,dicom")
         )
-        source_email = context.config.get("sender_email", "naccmail@uw.edu")
+        sender_email = context.config.get("sender_email", "naccmail@uw.edu")
         target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
@@ -116,7 +116,8 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             ptid=self.__ptid,
             identifiers_repo=identifiers_repo,
             datatypes=datatypes,
-            source_email=source_email,
+            sender_email=sender_email,
+            target_emails=target_emails,
             dry_run=self.client.dry_run,
         )
 

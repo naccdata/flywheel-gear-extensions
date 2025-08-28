@@ -51,9 +51,9 @@ def review_transfer_info(
         )
         return None
 
-    if not transfer_record.previous_identifiers:
+    if not transfer_record.previous_adcid:
         log.error(
-            f"Missing previous_identifiers info in transfer request for PTID {ptid}"
+            f"Missing previous ADCID in transfer request for PTID {ptid}"
         )
         return None
 
@@ -68,9 +68,9 @@ def review_transfer_info(
         valid = False
 
     adcids_list = admin_group.get_adcids()
-    if transfer_record.previous_identifiers.adcid not in adcids_list:
+    if transfer_record.previous_adcid not in adcids_list:
         log.error(
-            f"Invalid previous ADCID {transfer_record.previous_identifiers.adcid} in "
+            f"Invalid previous ADCID {transfer_record.previous_adcid} in "
             f"transfer request for PTID {ptid}"
         )
         valid = False
@@ -86,7 +86,8 @@ def run(
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
-    source_email: str,
+    sender_email: str,
+    target_emails: List[str],
     dry_run: bool,
 ):
     """Runs the Manage Participant Transfer process.
@@ -98,7 +99,8 @@ def run(
         ptid: PTID to be transferred
         identifiers_repo: Identifiers lambda repository
         datatypes: List of datatypes to be transferred
-        source_email: sender email address to send the transfer complete notification
+        sender_email: sender email address to send the transfer complete notification
+        target_emails: The target email(s) that the notification to be delivered
         dry_run: Whether to do a dry run
     """
 

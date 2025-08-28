@@ -162,7 +162,6 @@ class TransferVisitor(CSVVisitor):
         self.__submitter = submitter
         self.__naccid_identifier: Optional[IdentifierObject] = None
         self.__naccid: Optional[str] = None
-        self.__previous_identifiers: Optional[CenterIdentifiers] = None
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has expected column headings.
@@ -496,11 +495,6 @@ class TransferVisitor(CSVVisitor):
             adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
         )
 
-        self.__previous_identifiers = CenterIdentifiers(
-            adcid=row[FieldNames.OLDADCID],
-            ptid=row.get(FieldNames.OLDPTID, "unknown"),
-        )
-
         self.__transfer_info.add(
             TransferRecord(
                 status="pending",
@@ -509,7 +503,8 @@ class TransferVisitor(CSVVisitor):
                 submitter=self.__submitter,
                 center_identifiers=new_identifiers,
                 initials=row.get(FieldNames.ENRLFRM_INITL),
-                previous_identifiers=self.__previous_identifiers,
+                previous_adcid=row[FieldNames.OLDADCID],
+                previous_ptid=row.get(FieldNames.OLDPTID),
                 naccid=self.__naccid_identifier.naccid
                 if self.__naccid_identifier
                 else None,

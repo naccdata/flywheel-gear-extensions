@@ -29,7 +29,7 @@ from outputs.errors import (
     identifier_error,
     preprocessing_error,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
 
@@ -37,8 +37,31 @@ TransferStatus = Literal["pending", "approved", "rejected", "completed"]
 EnrollmentStatus = Literal["active", "transferred"]
 
 
+def empty_str_to_none(value: Any) -> Optional[str]:
+    if isinstance(value, str) and value.strip() == "":
+        return None
+
+    return value
+
+
 class GenderIdentity(BaseModel):
     """Model for Gender Identity demographic data."""
+
+    @field_validator(
+        "man",
+        "woman",
+        "transgender_man",
+        "transgender_woman",
+        "nonbinary",
+        "two_spirit",
+        "other",
+        "other_term",
+        "dont_know",
+        "no_answer",
+        mode="before",
+    )
+    def convert_to_none(cls, value: Any) -> Optional[str]:
+        return empty_str_to_none(value)
 
     man: Optional[Literal[1]]
     woman: Optional[Literal[1]]
@@ -73,20 +96,18 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
+            birth_date=datetime(int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
             gender_identity=GenderIdentity(
-                man=row["enrlgenman"] if row["enrlgenman"] else None,
-                woman=row["enrlgenwoman"] if row["enrlgenwoman"] else None,
-                transgender_man=row["enrlgentrman"] if row["enrlgentrman"] else None,
-                transgender_woman=row["enrlgentrwoman"]
-                if row["enrlgentrwoman"]
-                else None,
-                nonbinary=row["enrlgennonbi"] if row["enrlgennonbi"] else None,
-                two_spirit=row["enrlgentwospir"] if row["enrlgentwospir"] else None,
-                other=row["enrlgenoth"] if row["enrlgenoth"] else None,
-                other_term=row["enrlgenothx"] if row["enrlgenothx"] else None,
-                dont_know=row["enrlgendkn"] if row["enrlgendkn"] else None,
-                no_answer=row["enrlgennoans"] if row["enrlgennoans"] else None,
+                man=row.get("enrlgenman"),
+                woman=row.get("enrlgenwoman"),
+                transgender_man=row.get("enrlgentrman"),
+                transgender_woman=row.get("enrlgentrwoman"),
+                nonbinary=row.get("enrlgennonbi"),
+                two_spirit=row.get("enrlgentwospir"),
+                other=row.get("enrlgenoth"),
+                other_term=row.get("enrlgenothx"),
+                dont_know=row.get("enrlgendkn"),
+                no_answer=row.get("enrlgennoans"),
             ),
         )
 
@@ -94,13 +115,18 @@ class Demographics(BaseModel):
 class TransferRecord(BaseModel):
     """Model representing transfer between centers."""
 
+    @field_validator("naccid", "guid", "initials", "previous_ptid", mode="before")
+    def convert_to_none(cls, value: Any) -> Optional[str]:
+        return empty_str_to_none(value)
+
     status: TransferStatus
     request_date: datetime
     center_identifiers: CenterIdentifiers
     updated_date: datetime
     submitter: str  # FW user who uploaded the transfer form
     initials: Optional[str] = None
-    previous_identifiers: Optional[CenterIdentifiers] = None
+    previous_adcid: int = Field(ge=0)
+    previous_ptid: Optional[str] = Field(max_length=10, pattern=PTID_PATTERN)
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     demographics: Optional[Demographics] = None
