@@ -1,6 +1,6 @@
 import pytest
 from configs.ingest_configs import ModuleConfigs
-from preprocess.preprocess_helpers import (
+from preprocess.preprocessor_helpers import (
     PreprocessingContext,
 )
 

@@ -21,7 +21,7 @@ from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocess_errors
 from uploads.acquisition import is_duplicate_dict
 
-from preprocess.preprocess_helpers import (
+from preprocess.preprocessor_helpers import (
     FormPreprocessorErrorHandler,
     PreprocessingContext,
     PreprocessingException,
