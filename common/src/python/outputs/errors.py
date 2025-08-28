@@ -92,7 +92,7 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name>) variables {0}"
+        "Missing submission status (MODE<form name>) variables {0} "
         "for one or more optional forms"
     ),
     SysErrorCodes.CLINICAL_FORM_REQUIRED: (

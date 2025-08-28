@@ -196,3 +196,34 @@ class TestFormPreprocessorErrorHandler:
             date_field,
             error_code,
         )
+
+    def test_write_custom_error_with_args(self, uds_module_configs, uds_pp_context):
+        """Test writing a custom error with extra args."""
+        handler, error_writer = self.__create_error_handler(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        input_record = uds_pp_context.input_record
+        field = "MODExx"
+        input_record[field] = "dummy-mode"
+
+        error_code = SysErrorCodes.MISSING_SUBMISSION_STATUS
+        handler.write_preprocessing_error(
+            field=field,
+            value=input_record[field],
+            pp_context=uds_pp_context,
+            error_code=error_code,
+            extra_args=["mode1", "mode2", "mode3"],
+        )
+
+        self.__check_error(
+            error_writer,
+            uds_pp_context,
+            input_record[field],
+            field,
+            error_code,
+            message=(
+                "Missing submission status (MODE<form name>) variables "
+                "['mode1', 'mode2', 'mode3'] for one or more optional forms"
+            ),
+        )
