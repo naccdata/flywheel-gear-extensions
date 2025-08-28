@@ -2,7 +2,17 @@
 
 Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordinating Center (NACC).
 
-- [Development Guide](development/index.md)
+- Development:
+  - Gears:
+    - [Gear Development Guide](development/index.md)
+    - [Gear Bot](development/gear-bot.md)
+    - [Gear Details](development/gear-details.md)
+  
+  - Packages:
+    - [nacc-common Development Guide](development/nacc-common.md)
+
+- Packages:
+  - [nacc-common](./nacc_common/index.md)
   
 - Processes:
   - Center management
