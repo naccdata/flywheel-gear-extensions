@@ -120,7 +120,7 @@ def run(
             f"Cannot find center metadata for the new center - ADCID: {adcid}"
         )
 
-    oldadcid = transfer_record.previous_identifiers.adcid  # type: ignore
+    oldadcid = transfer_record.previous_adcid
     prev_center = admin_group.get_center(oldadcid)
     if not prev_center or not prev_center.get_metadata():
         raise GearExecutionError(

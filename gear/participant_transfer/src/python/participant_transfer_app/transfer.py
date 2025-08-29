@@ -52,7 +52,10 @@ class TransferProcessor:
             IdentifierObject (optional): Identifier record if found, else None
         """
 
-        if not self.__transfer_record.previous_ptid:
+        if (
+            not self.__transfer_record.previous_ptid
+            or self.__transfer_record.previous_ptid == "unknown"
+        ):
             if not self.__transfer_record.naccid:
                 log.error(
                     "Cannot process the transfer request for "

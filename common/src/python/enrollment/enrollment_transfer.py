@@ -37,7 +37,7 @@ TransferStatus = Literal["pending", "approved", "rejected", "completed"]
 EnrollmentStatus = Literal["active", "transferred"]
 
 
-def empty_str_to_none(value: Any) -> Optional[str]:
+def empty_str_to_none(value: Any) -> Optional[Any]:
     if isinstance(value, str) and value.strip() == "":
         return None
 
@@ -60,19 +60,19 @@ class GenderIdentity(BaseModel):
         "no_answer",
         mode="before",
     )
-    def convert_to_none(cls, value: Any) -> Optional[str]:
+    def convert_to_none(cls, value: Any) -> Optional[int]:
         return empty_str_to_none(value)
 
-    man: Optional[Literal[1]]
-    woman: Optional[Literal[1]]
-    transgender_man: Optional[Literal[1]]
-    transgender_woman: Optional[Literal[1]]
-    nonbinary: Optional[Literal[1]]
-    two_spirit: Optional[Literal[1]]
-    other: Optional[Literal[1]]
-    other_term: Optional[Literal[1]]
-    dont_know: Optional[Literal[1]]
-    no_answer: Optional[Literal[1]]
+    man: Optional[int] = None
+    woman: Optional[int] = None
+    transgender_man: Optional[int] = None
+    transgender_woman: Optional[int] = None
+    nonbinary: Optional[int] = None
+    two_spirit: Optional[int] = None
+    other: Optional[int] = None
+    other_term: Optional[int] = None
+    dont_know: Optional[int] = None
+    no_answer: Optional[int] = None
 
 
 class Demographics(BaseModel):
@@ -96,7 +96,8 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
+            birth_date=datetime(
+                int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
             gender_identity=GenderIdentity(
                 man=row.get("enrlgenman"),
                 woman=row.get("enrlgenwoman"),
@@ -126,7 +127,8 @@ class TransferRecord(BaseModel):
     submitter: str  # FW user who uploaded the transfer form
     initials: Optional[str] = None
     previous_adcid: int = Field(ge=0)
-    previous_ptid: Optional[str] = Field(max_length=10, pattern=PTID_PATTERN)
+    previous_ptid: Optional[str] = Field(
+        None, max_length=10, pattern=PTID_PATTERN)
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     demographics: Optional[Demographics] = None
