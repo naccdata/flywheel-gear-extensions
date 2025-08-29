@@ -92,8 +92,20 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name>) variables {0}"
+        "Missing submission status (MODE<form name>) variables {0} "
         "for one or more optional forms"
+    ),
+    SysErrorCodes.CLINICAL_FORM_REQUIRED: (
+        "Participant must have a UDS, BDS, or MDS packet submitted before "
+        "the NP form can finalize"
+    ),
+    SysErrorCodes.DEATH_DATE_MISMATCH: (
+        "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
+        "must match the date of death on the on NP form (NPDODMO, NPDODDY, NPDODYR)"
+    ),
+    SysErrorCodes.AUTOPSY_NP_INVALID: (
+        "AUTOPSY should equal 1 in the most recent Milestone form in order for the NP "
+        "form to be accepted "
     ),
 }
 

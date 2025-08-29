@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.1
+
+* Rebuilt for new preprocessing checks in config
+
 ## 1.3.0
 * Updates to use new identifier lambda functions with restructured identifiers database
 * Updates error metadata to include date and naccid

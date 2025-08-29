@@ -315,7 +315,9 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
-                "packet"
+                "packet",
+                "clinical-forms",
+                "np-mlst-restrictions"
             ]
         },
         "BDS": {
