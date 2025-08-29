@@ -149,9 +149,12 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         study_redcap_metadata = StudyREDCapProjectsList([])
         # collect updated REDCap project mapping metadata for the study
         for center in centers.values():
+            if center.is_pipeline():
+                continue
             if not center.active:
                 continue
 
+            assert center.group is not None
             group_adaptor = self.proxy.find_group(center.group)
             if not group_adaptor:
                 log.warning("Cannot find Flywheel group for Center ID %s", center.group)

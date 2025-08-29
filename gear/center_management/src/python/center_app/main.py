@@ -53,6 +53,9 @@ def run(
     center_roles = get_project_roles(proxy, role_names)
 
     for center in center_list:
+        if center.is_pipeline():
+            continue
+
         if new_only and center.tags and "new-center" not in center.tags:
             log.info(
                 f"new_only set to True and {center.name} does not "

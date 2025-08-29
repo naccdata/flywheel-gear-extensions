@@ -182,8 +182,12 @@ class NACCGroup(CenterAdaptor):
         centers = []
         center_map = self.get_center_map()
         for center_info in center_map.centers.values():
+            if center_info.is_pipeline():
+                continue
+
             group_id = center_info.group
-            group = self._fw.find_group(group_id=(group_id))
+            assert group_id is not None
+            group = self._fw.find_group(group_id=group_id)
             if group:
                 center = CenterGroup.create_from_group_adaptor(adaptor=group)
                 centers.append(center)

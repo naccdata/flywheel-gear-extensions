@@ -109,6 +109,9 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the CenterGroup for the center
         """
+        if center.group is None:
+            raise CenterError(f"Center info is not a group: {center.name}")
+
         group = proxy.get_group(group_label=center.name, group_id=center.group)
         assert group, "No group for center"
 
