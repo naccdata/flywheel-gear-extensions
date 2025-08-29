@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/participant_transfer/src/python/participant_transfer_app:bin",
     ],
-    image_tags=["0.0.5", "latest"],
+    image_tags=["0.0.9", "latest"],
 )

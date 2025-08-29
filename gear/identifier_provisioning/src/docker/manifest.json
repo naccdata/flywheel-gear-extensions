@@ -2,7 +2,7 @@
     "name": "identifier-provisioning",
     "label": "Identifier Provisioning",
     "description": "Gear for provisioning NACCIDs from Enrollment forms",
-    "version": "1.3.0",
+    "version": "2.0.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-provisioning:1.3.0"
+            "image": "naccdata/identifier-provisioning:2.0.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -60,12 +60,12 @@
         "sender_email": {
             "description": "The source email to send the transfer pending notification",
             "type": "string",
-            "default": "nacchelp@uw.edu"
+            "default": "nacc_dev@uw.edu"
         },
         "target_emails": {
             "description": "Comma-delimited list of destination emails to send the notification to",
             "type": "string",
-            "default": "nacc_dev@uw.edu"
+            "default": "nacchelp@uw.edu"
         }
     },
     "command": "/bin/run"
