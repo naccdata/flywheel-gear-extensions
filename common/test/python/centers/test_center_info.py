@@ -68,7 +68,7 @@ class TestCenterInfo:
             CenterInfo()  # type: ignore
 
         with pytest.raises(ValidationError):
-            CenterInfo(name="Alpha ADRC", adcid=7)  # type: ignore
+            CenterInfo(name="Alpha ADRC")  # type: ignore
 
     def test_apply(self, dummy_center):
         """Test that visitor applied."""
@@ -112,3 +112,21 @@ class TestCenterMapInfo:
         """Test getting."""
         assert dummy_center_map.get(7) == dummy_center
         assert not dummy_center_map.get(1)
+
+
+class TestCenterInfoSerialization:
+    def test_center(self):
+        center = CenterInfo(
+            adcid=0, name="dummy", group="dummy", active=True, tags=("one", "two")
+        )
+        center_dump = center.model_dump(by_alias=True)
+        center_load = CenterInfo.model_validate(center_dump, by_alias=True)
+        assert center == center_load
+
+    def test_pipeline(self):
+        pipeline = CenterInfo(
+            adcid=0, name="dummy", group=None, type="pipeline", active=True
+        )
+        pipeline_dump = pipeline.model_dump(by_alias=True, exclude_none=True)
+        pipeline_load = CenterInfo.model_validate(pipeline_dump, by_alias=True)
+        assert pipeline_load == pipeline
