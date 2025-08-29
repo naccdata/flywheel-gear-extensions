@@ -216,12 +216,19 @@ class UserManagementVisitor(GearExecutionEnvironment):
         try:
             with open(auth_file_path, "r", encoding="utf-8-sig") as auth_file:
                 auth_object = load_from_stream(auth_file)
-                auth_map = AuthMap(project_authorizations=auth_object)
+                auth_map = AuthMap.model_validate(
+                    auth_object,
+                    context={"role_map": self.proxy.get_roles()},
+                )
         except YAMLReadError as error:
             raise GearExecutionError(
                 f"No authorizations read from auth file{auth_file_path}: {error}"
             ) from error
         except ValidationError as error:
+            raise GearExecutionError(
+                f"Unexpected format in auth file {auth_file_path}: {error}"
+            ) from error
+        except TypeError as error:
             raise GearExecutionError(
                 f"Unexpected format in auth file {auth_file_path}: {error}"
             ) from error
