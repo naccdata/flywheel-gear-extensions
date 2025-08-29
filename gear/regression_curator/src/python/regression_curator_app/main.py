@@ -3,7 +3,7 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
@@ -135,7 +135,8 @@ class QAFBaselineLocalizer(BaselineLocalizer):
 
     # these are derived variables that have NOT been defined yet
     # eventually should all be defined, but hardcode to ignore for now
-    BLACKLIST = [
+    # mainly MP
+    BLACKLIST: ClassVar = [
         "naccacsf",
         "naccapsa",
         "naccmrsa",
@@ -148,10 +149,8 @@ class QAFBaselineLocalizer(BaselineLocalizer):
         "naccnift",
         "naccmria",
         "naccmrfi",
-        "naccnmri",
         "naccmnum",
         "naccmrdy",
-        "naccmrsa",
         "naccmvol",
         "naccicv",
         "naccwmvl",
@@ -160,8 +159,6 @@ class QAFBaselineLocalizer(BaselineLocalizer):
         "naccaptf",
         "naccapnm",
         "naccaptd",
-        "naccnapa",
-        "naccapsa",
         "naccabbp",
         "nacccore",
         "naccdadd",
@@ -194,9 +191,15 @@ class QAFBaselineLocalizer(BaselineLocalizer):
             {
                 k: v
                 for k, v in row.items()
-                if (k in self.keep_fields) or
-                ((k.startswith("nacc") or k.startswith("ngds") or k.startswith("ncds"))
-                 and k not in self.BLACKLIST)
+                if (k in self.keep_fields)
+                or (
+                    (
+                        k.startswith("nacc")
+                        or k.startswith("ngds")
+                        or k.startswith("ncds")
+                    )
+                    and k not in self.BLACKLIST
+                )
             }
         )
 

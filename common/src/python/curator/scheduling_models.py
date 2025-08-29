@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
-
 VISIT_PATTERN = re.compile(
     r"^"
     r"(?P<pass1>.+("

@@ -131,7 +131,7 @@ class RegressionCurator(Curator):
         # report on any derived variables in record but not in found_vars
         missing = set(record.keys()) - set(found_vars.keys())
         for field in missing:
-            if field in ['visitdate']:
+            if field in ["visitdate"]:
                 continue
 
             expected = str(record[field]).strip()
@@ -150,7 +150,7 @@ class RegressionCurator(Curator):
             self.__error_writer.write(
                 unexpected_value_error(
                     field=f"{prefix}.{field}",
-                    value=None,
+                    value="",
                     expected=expected,
                     message=msg,
                 )
@@ -178,7 +178,10 @@ class RegressionCurator(Curator):
 
         derived_vars = table.get("file.info.derived", None)
         if not derived_vars or not any(
-            x.lower().startswith("nacc") or x.lower().startswith("ngds") for x in derived_vars
+            x.lower().startswith("nacc")
+            or x.lower().startswith("ngds")
+            or x.lower().starstwith("ncds")
+            for x in derived_vars
         ):
             log.debug(f"No derived variables found for {file_entry.name}, skipping")
             return

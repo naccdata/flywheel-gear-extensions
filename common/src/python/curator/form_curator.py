@@ -1,7 +1,7 @@
 import logging
 from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
-from typing import List
+from typing import Any, Dict, List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -44,18 +44,23 @@ class FormCurator(Curator):
         curation_rules = self.__deriver.get_curation_rules(scope)
         if not curation_rules:
             raise AttributeDeriverError(
-                f"Cannot find any curation rules for scope: {scope}")
+                f"Cannot find any curation rules for scope: {scope}"
+            )
 
         attributes = []
         for rule in curation_rules:
             for assignment in rule.assignments:
                 attributes.append(assignment.attribute)
 
-        # in this context we only care about those at subject.info.derived.cross-sectional,
+        # in this context we only care about those at
+        # subject.info.derived.cross-sectional,
         # so parse out and strip down to the derived variable name
         parent_location = "subject.info.derived.cross-sectional."
-        return [x.replace(parent_location, "") for x in attributes
-                if x.startswith(parent_location)]
+        return [
+            x.replace(parent_location, "")
+            for x in attributes
+            if x.startswith(parent_location)
+        ]
 
     @property
     def failed_files(self) -> DictProxy:
@@ -75,7 +80,7 @@ class FormCurator(Curator):
 
     @api_retry
     def apply_file_curation(self, file_entry: FileEntry, table: SymbolTable) -> None:
-        """Applies the file-specific curated information back to FW
+        """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived and copies it back up to the file.
         """
@@ -141,7 +146,7 @@ class FormCurator(Curator):
                 subject_table.pop(field)
 
     @api_retry
-    def post_process(
+    def post_process(  # noqa: C901
         self,
         subject: Subject,
         subject_table: SymbolTable,
@@ -165,7 +170,7 @@ class FormCurator(Curator):
         # push subject metadata; need to replace due to potentially
         # cleaned-up metadata
         if subject_table:
-            subject.replace_info(subject_table.to_dict())
+            subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
         affiliate = derived.get("affiliate", None)
@@ -180,10 +185,7 @@ class FormCurator(Curator):
             return
 
         # filter out to the scopes
-        scope_derived = {
-            FormScope.UDS: {},
-            FormScope.NP: {}
-        }
+        scope_derived: Dict[str, Dict[str, Any]] = {FormScope.UDS: {}, FormScope.NP: {}}
 
         for k, v in cs_derived.items():
             for scope in [FormScope.UDS, FormScope.NP]:
