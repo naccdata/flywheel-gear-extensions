@@ -3,7 +3,8 @@
 
 NOTE: Many of these checks rely heavily on Flywheel querying, which
 isn't easily mocked. So some tests are more sanity checks than
-anything.
+anything, and some checks aren't yet tested here in the interest
+of time.
 """
 
 import copy
@@ -155,7 +156,9 @@ class TestFormPreprocessor:
             ),
         )
 
-    def test_check_supplement_module_exact_match(self, uds_module_configs, uds_pp_context):
+    def test_check_supplement_module_exact_match(
+        self, uds_module_configs, uds_pp_context
+    ):
         """Tests the _check_supplement_module check - exact matches."""
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
@@ -169,8 +172,12 @@ class TestFormPreprocessor:
 
         # add input record to form store so they match exactly
         input_record = uds_pp_context.input_record
-        input_record.update({f"{MetadataKeys.FORM_METADATA_PATH}.{k}": v
-                             for k, v in input_record.items()})
+        input_record.update(
+            {
+                f"{MetadataKeys.FORM_METADATA_PATH}.{k}": v
+                for k, v in input_record.items()
+            }
+        )
 
         forms_store.set_form_data([copy.deepcopy(input_record)])
         assert processor._check_supplement_module(uds_pp_context)
@@ -215,12 +222,14 @@ class TestFormPreprocessor:
         # will return false at first since nothing in form store, so NOT an
         # existing visit
         input_record = uds_pp_context.input_record
-        input_record.update({
-            "file_id": "12345",
-            "file.file_id": "12345",
-            "file.name": "dummy.csv",
-            "file.parents.acquisition": "dummy-acquisition",
-        })
+        input_record.update(
+            {
+                "file_id": "12345",
+                "file.file_id": "12345",
+                "file.name": "dummy.csv",
+                "file.parents.acquisition": "dummy-acquisition",
+            }
+        )
         assert not processor.is_existing_visit(input_record=input_record)
 
         # add input record to form store so they match exactly
@@ -259,8 +268,8 @@ class TestFormPreprocessor:
     def test_check_np_mlst_restrictions(self, np_module_configs, np_pp_context):
         """Tests the _check_np_mlst_restrictions check.
 
-        file.info.forms.json must be added to all MLST record values just by the
-        way the data is queried.
+        file.info.forms.json must be added to all MLST record values
+        just by the way the data is queried.
         """
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.NP_MODULE, np_module_configs
@@ -303,25 +312,34 @@ class TestFormPreprocessor:
             error_writer.clear()
 
         # fail when the DODs don't match
-        test_record.update({
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 12,  # type: ignore
-            f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1})  # type: ignore
+        test_record.update(
+            {
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 12,  # type: ignore
+                f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1,  # type: ignore
+            }
+        )  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
         error_writer.clear()
 
         # pass DOD when day/month is 99, so it compares years
-        test_record.update({
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 99,  # type: ignore
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "99"})
+        test_record.update(
+            {
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 99,  # type: ignore
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "99",
+            }
+        )
 
         assert processor._check_np_mlst_restrictions(np_pp_context)
 
         # fail DOD when MLST is None
-        test_record.update({
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": None,  # type: ignore
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": None,  # type: ignore
-            f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": None})  # type: ignore
+        test_record.update(
+            {
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": None,  # type: ignore
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": None,  # type: ignore
+                f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": None,  # type: ignore
+            }
+        )  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
         error_writer.clear()

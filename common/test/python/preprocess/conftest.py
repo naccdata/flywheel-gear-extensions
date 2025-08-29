@@ -44,11 +44,12 @@ def uds_module_configs():
             "udsv4-ivp",
             "visit-conflict",
         ],
+        # UDS doesn't actually rely on itself, just done for testing
         "supplement_module": {
-            "label": "UDS",  # UDS doesn't actually rely on itself, just done for testing
+            "label": "UDS",
             "version": "4.0",
             "date_field": "visitdate",
-            "exact_match": True
+            "exact_match": True,
         },
     }
     return ModuleConfigs(**configs)
@@ -103,7 +104,7 @@ def np_module_configs():
             "label": "UDS",
             "version": "4.0",
             "date_field": "visitdate",
-            "exact_match": False
+            "exact_match": False,
         },
     }
     return ModuleConfigs(**configs)

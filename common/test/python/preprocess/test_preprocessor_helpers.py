@@ -28,7 +28,7 @@ class TestFormPreprocessorErrorHandler:
             module_config: corresponding ModuleConfigs to use
         Returns:
             FormPreprocessorErrorHandler: the handler object to test
-            StringIO: error stream to inspect for testing
+            ListErrorWriter: error writer to inspect for testing
         """
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
         handler = FormPreprocessorErrorHandler(

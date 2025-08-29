@@ -956,7 +956,7 @@ class FormPreprocessor:
         mlst_dod = build_date(
             year=mlst_year,
             month=mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathmo"),
-            day=mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathdy")
+            day=mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathdy"),
         )
         np_dod = build_date(
             year=np_year,
