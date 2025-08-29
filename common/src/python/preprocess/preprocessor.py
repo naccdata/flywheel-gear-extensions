@@ -939,7 +939,6 @@ class FormPreprocessor:
             module=DefaultValues.MLST_MODULE,
             legacy=False,
             search_col=FieldNames.DATE_COLUMN,
-            extra_columns=["deathmo", "deathdy", "deathyr", "autopsy"],
             find_all=True,
         )
 
@@ -951,11 +950,13 @@ class FormPreprocessor:
         input_record = pp_context.input_record
 
         # preprocess-026: death dates in MLST/NP must match
-        mlst_year = mlst_form.get("deathyr")
+        mlst_year = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathyr")
         np_year = input_record.get("npdodyr")
 
         mlst_dod = build_date(
-            year=mlst_year, month=mlst_form.get("deathmo"), day=mlst_form.get("deathdy")
+            year=mlst_year,
+            month=mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathmo"),
+            day=mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathdy")
         )
         np_dod = build_date(
             year=np_year,
@@ -982,7 +983,7 @@ class FormPreprocessor:
             )
 
         # preprocess-027: autopsy must be 1 in MLST form for NP to be accepted
-        autopsy = mlst_form.get("autopsy", "")
+        autopsy = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.autopsy", "")
         if autopsy is None:
             autopsy = ""
 

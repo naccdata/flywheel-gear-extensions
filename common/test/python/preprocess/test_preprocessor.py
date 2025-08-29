@@ -1,12 +1,17 @@
 # ruff: noqa: SLF001
-"""Tests preprocessing checks."""
+"""Tests preprocessing checks.
+
+NOTE: Many of these checks rely heavily on Flywheel querying, which
+isn't easily mocked. So some tests are more sanity checks than
+anything.
+"""
 
 import copy
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import preprocess_errors
 from preprocess.preprocessor import FormPreprocessor
@@ -36,6 +41,7 @@ class MockFormsStore(FormsStore):
 
     def get_visit_data(self, **kwargs) -> Dict[str, str] | None:
         return self.__form_data[0] if self.__form_data else None
+
 
 class TestFormPreprocessor:
     """Tests FormPreprocessor methods and preprocessing checks."""
@@ -149,12 +155,59 @@ class TestFormPreprocessor:
             ),
         )
 
-    def test_is_existing_visit(self, uds_module_configs, uds_pp_context):
-        """Tests the is_existing_visit method.
+    def test_check_supplement_module_exact_match(self, uds_module_configs, uds_pp_context):
+        """Tests the _check_supplement_module check - exact matches."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
 
-        This isn't the best test since in practice it relies a lot on querying,
-        so this is more of a sanity checker.
-        """
+        # will fail at first since nothing in forms store; different error code
+        # from not an exact match though
+        assert not processor._check_supplement_module(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.UDS_NOT_MATCH)
+        error_writer.clear()
+
+        # add input record to form store so they match exactly
+        input_record = uds_pp_context.input_record
+        input_record.update({f"{MetadataKeys.FORM_METADATA_PATH}.{k}": v
+                             for k, v in input_record.items()})
+
+        forms_store.set_form_data([copy.deepcopy(input_record)])
+        assert processor._check_supplement_module(uds_pp_context)
+
+        # modify packet to followup visit so that they don't match anymore
+        input_record[FieldNames.PACKET] = "F"
+        assert not processor._check_supplement_module(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.INVALID_MODULE_PACKET)
+        error_writer.clear()
+
+        # I4 should pass
+        input_record[FieldNames.PACKET] = "I4"
+        assert processor._check_supplement_module(uds_pp_context)
+
+        # modify visitnum so that they don't match anymore
+        input_record[FieldNames.VISITNUM] = "dummy"
+        assert not processor._check_supplement_module(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.UDS_NOT_MATCH)
+        error_writer.clear()
+
+    def test_check_supplement_module_not_exact(self, np_module_configs, np_pp_context):
+        """Tests the _check_supplement_module check - exact match not required."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.NP_MODULE, np_module_configs
+        )
+
+        # will fail at first since nothing in forms store; different error
+        # code from an exact match though
+        assert not processor._check_supplement_module(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.UDS_NOT_EXIST)
+
+        # add dummy record to store; should pass because it just has to exit
+        forms_store.set_form_data([{"dummy": "dummy"}])
+        assert processor._check_supplement_module(np_pp_context)
+
+    def test_is_existing_visit(self, uds_module_configs, uds_pp_context):
+        """Tests the is_existing_visit method."""
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
@@ -204,7 +257,11 @@ class TestFormPreprocessor:
             assert processor._check_clinical_forms(np_pp_context)
 
     def test_check_np_mlst_restrictions(self, np_module_configs, np_pp_context):
-        """Tests the _check_np_mlst_restrictions check."""
+        """Tests the _check_np_mlst_restrictions check.
+
+        file.info.forms.json must be added to all MLST record values just by the
+        way the data is queried.
+        """
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.NP_MODULE, np_module_configs
         )
@@ -214,19 +271,19 @@ class TestFormPreprocessor:
 
         # add MLST forms; make sure it actually tests the most recent
         test_record = {
-            "deathyr": "2025",
-            "deathmo": "8",
-            "deathdy": "27",
-            "autopsy": "1",
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": "2025",
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": "8",
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "27",
+            f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": "1",
         }
         forms_store.set_form_data(
             [
                 test_record,
                 {
-                    "deathyr": "INVALID",
-                    "deathmo": "INVALID",
-                    "deathdy": "INVALID",
-                    "autopsy": "0",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": "INVALID",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": "INVALID",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "INVALID",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": "0",
                 },
             ]
         )
@@ -240,23 +297,31 @@ class TestFormPreprocessor:
 
         # fail on autopsy != 1
         for value in [0, 2, None]:
-            test_record["autopsy"] = value  # type: ignore
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = value  # type: ignore
             assert not processor._check_np_mlst_restrictions(np_pp_context)
             self.__assert_error_raised(error_writer, SysErrorCodes.AUTOPSY_NP_INVALID)
             error_writer.clear()
 
         # fail when the DODs don't match
-        test_record.update({"deathmo": 12, "autopsy": 1})  # type: ignore
+        test_record.update({
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 12,  # type: ignore
+            f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1})  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
         error_writer.clear()
 
         # pass DOD when day/month is 99, so it compares years
-        test_record.update({"deathmo": 99, "deathdy": "99"})  # type: ignore
+        test_record.update({
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 99,  # type: ignore
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "99"})
+
         assert processor._check_np_mlst_restrictions(np_pp_context)
 
         # fail DOD when MLST is None
-        test_record.update({"deathyr": None, "deathmo": None, "deathdy": None})  # type: ignore
+        test_record.update({
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": None,  # type: ignore
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": None,  # type: ignore
+            f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": None})  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
         error_writer.clear()
@@ -270,7 +335,7 @@ class TestFormPreprocessor:
         error_writer.clear()
 
         # fail when both fail
-        test_record["autopsy"] = None  # type: ignore
+        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
 
         assert len(error_writer.errors()) == 2
