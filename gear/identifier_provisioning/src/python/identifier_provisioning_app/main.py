@@ -774,7 +774,7 @@ def send_email(
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
-    subject = f"Participant transfer request for {group_lbl}/{project_lbl}"
+    subject = f"Participant Transfer Request for {group_lbl}/{project_lbl}"
     body = (
         "\n\nParticipant transfer request(s) submitted for PTIDs "
         f"{transfer_ptids} in enrollment project {group_lbl}/{project_lbl}.\n"

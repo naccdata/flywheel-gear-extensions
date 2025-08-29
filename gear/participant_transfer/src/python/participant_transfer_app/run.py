@@ -21,6 +21,7 @@ from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from utils.utils import parse_string_to_list
 
+from participant_transfer_app.email import send_failure_email
 from participant_transfer_app.main import run
 
 log = logging.getLogger(__name__)
@@ -105,17 +106,27 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
-        run(
-            proxy=self.proxy,
-            admin_group=admin_group,
-            enroll_project=enroll_project,
-            ptid=self.__ptid,
-            identifiers_repo=identifiers_repo,
-            datatypes=datatypes,
-            sender_email=sender_email,
-            target_emails=target_emails,
-            dry_run=self.client.dry_run,
-        )
+        try:
+            run(
+                proxy=self.proxy,
+                admin_group=admin_group,
+                enroll_project=enroll_project,
+                ptid=self.__ptid,
+                identifiers_repo=identifiers_repo,
+                datatypes=datatypes,
+                sender_email=sender_email,
+                target_emails=target_emails,
+                dry_run=self.client.dry_run,
+            )
+        except GearExecutionError as error:
+            send_failure_email(
+                sender_email=sender_email,
+                target_emails=target_emails,
+                project_path=self.__enroll_project_path,
+                ptid=self.__ptid,
+                error=str(error),
+            )
+            raise GearExecutionError from error
 
 
 def main():
