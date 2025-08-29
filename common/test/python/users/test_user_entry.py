@@ -106,9 +106,9 @@ class TestUserEntry:
                     study_id="adrc",
                     activities={
                         "enrollment": Activity(
-                            data="enrollment", action="submit-audit"
+                            datatype="enrollment", action="submit-audit"
                         ),
-                        "form": Activity(data="form", action="submit-audit"),
+                        "form": Activity(datatype="form", action="submit-audit"),
                     },
                 )
             ],
@@ -117,7 +117,7 @@ class TestUserEntry:
             auth_email="chip_auth@theorg.org",
         )
 
-        assert "submit-audit-form" in entry.authorizations[0].activities
+        assert "submit-audit-form" in entry.authorizations[0]  # type: ignore
 
         # assumes study_id is adrc
         try:
@@ -193,9 +193,9 @@ class TestUserEntry:
                 StudyAuthorizations(
                     study_id="dummy",
                     activities={
-                        "form": Activity(data="form", action="submit-audit"),
+                        "form": Activity(datatype="form", action="submit-audit"),
                         "enrollment": Activity(
-                            data="enrollment", action="submit-audit"
+                            datatype="enrollment", action="submit-audit"
                         ),
                     },
                 )
