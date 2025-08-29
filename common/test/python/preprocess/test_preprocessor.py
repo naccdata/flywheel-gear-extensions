@@ -89,6 +89,7 @@ class TestFormPreprocessor:
 
         assert file_error.error_code == error_code
         assert file_error.message == message
+        error_writer.clear()  # clear for next test
 
     def test_is_accepted_packet(self, uds_module_configs, uds_pp_context):
         """Tests the is_accepted_packet check."""
@@ -156,6 +157,91 @@ class TestFormPreprocessor:
             ),
         )
 
+    def test_check_initial_visit_new_subject(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_initial_visit check when it is an
+        initial packet and new subject."""
+        processor, error_writer, _ = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        # make it a new subject
+        uds_pp_context.subject_lbl = "new-subject"
+
+        for packet in ["I", "I4"]:
+            uds_pp_context.input_record[FieldNames.PACKET] = packet
+            assert processor._check_initial_visit(uds_pp_context)
+
+        # will fail if FVP since no initial packet exists
+        uds_pp_context.input_record[FieldNames.PACKET] = "F"
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.MISSING_IVP)
+
+    def test_check_initial_visit_ivp_in_same_batch(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_initial_visit check when an IVP visit was
+        passed in the same batch."""
+        processor, error_writer, _ = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        # make them the same but FVP packet so they conflict
+        uds_pp_context.ivp_record = copy.deepcopy(uds_pp_context.input_record)
+        uds_pp_context.input_record[FieldNames.PACKET] = "F"
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
+
+        # make it an earlier date, should still fail
+        uds_pp_context.input_record[FieldNames.DATE_COLUMN] = "1900-01-01"
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
+
+        # make it a later date, should now pass
+        uds_pp_context.input_record[FieldNames.DATE_COLUMN] = "3000-01-01"
+        assert processor._check_initial_visit(uds_pp_context)
+
+    def test_check_initial_visit_ivp_exists(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_initial_visit check when an IVP visit
+        exists in FW and is queried."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        # first fail on multiple IVP
+        forms_store.set_form_data([{"dummy": "dummy"} for _ in range(2)])
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.MULTIPLE_IVP)
+
+        # next set same record in forms store; since still IVP, make it
+        # the exact same record, so seen as an update
+        input_record = uds_pp_context.input_record
+        input_record.update({
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+            f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I"
+        })
+        forms_store.set_form_data([copy.deepcopy(input_record)])
+        assert processor._check_initial_visit(uds_pp_context)
+
+        # now make a "different" IVP record by changing the date, so will fail
+        input_record[FieldNames.DATE_COLUMN] = "2025-02-02"
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.IVP_EXISTS)
+
+        # alternatively different visitnumber
+        input_record[FieldNames.DATE_COLUMN] = "2025-01-01"
+        input_record[FieldNames.VISITNUM] = "0"
+        assert not processor._check_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.IVP_EXISTS)
+
+        # allow if I4
+        input_record[FieldNames.PACKET] = "I4"
+        assert processor._check_initial_visit(uds_pp_context)
+
     def test_check_supplement_module_exact_match(
         self, uds_module_configs, uds_pp_context
     ):
@@ -168,7 +254,6 @@ class TestFormPreprocessor:
         # from not an exact match though
         assert not processor._check_supplement_module(uds_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.UDS_NOT_MATCH)
-        error_writer.clear()
 
         # add input record to form store so they match exactly
         input_record = uds_pp_context.input_record
@@ -186,7 +271,6 @@ class TestFormPreprocessor:
         input_record[FieldNames.PACKET] = "F"
         assert not processor._check_supplement_module(uds_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.INVALID_MODULE_PACKET)
-        error_writer.clear()
 
         # I4 should pass
         input_record[FieldNames.PACKET] = "I4"
@@ -196,7 +280,6 @@ class TestFormPreprocessor:
         input_record[FieldNames.VISITNUM] = "dummy"
         assert not processor._check_supplement_module(uds_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.UDS_NOT_MATCH)
-        error_writer.clear()
 
     def test_check_supplement_module_not_exact(self, np_module_configs, np_pp_context):
         """Tests the _check_supplement_module check - exact match not required."""
@@ -309,7 +392,6 @@ class TestFormPreprocessor:
             test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = value  # type: ignore
             assert not processor._check_np_mlst_restrictions(np_pp_context)
             self.__assert_error_raised(error_writer, SysErrorCodes.AUTOPSY_NP_INVALID)
-            error_writer.clear()
 
         # fail when the DODs don't match
         test_record.update(
@@ -320,7 +402,6 @@ class TestFormPreprocessor:
         )  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
-        error_writer.clear()
 
         # pass DOD when day/month is 99, so it compares years
         test_record.update(
@@ -342,7 +423,6 @@ class TestFormPreprocessor:
         )  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
-        error_writer.clear()
 
         # fail DOD when both dates are None
         np_pp_context.input_record.update(
@@ -350,7 +430,6 @@ class TestFormPreprocessor:
         )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
-        error_writer.clear()
 
         # fail when both fail
         test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None  # type: ignore
