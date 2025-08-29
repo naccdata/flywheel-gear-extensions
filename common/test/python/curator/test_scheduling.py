@@ -39,10 +39,13 @@ class TestFileModel:
         assert fm("NACCXXX_historic_apoe_genotype.json").visit_pass == "pass2"
 
         # pass1
+        assert fm("NACCXXX_CLS-RECORD-2012-02-10_CLS.json").visit_pass == "pass1"
         assert fm("NACCXXX_NP-RECORD-2012-02-10_NP.json").visit_pass == "pass1"
         assert fm("NACCXXX_MDS-RECORD-2006-03-23_MDS.json").visit_pass == "pass1"
         assert fm("NACCXXX_MILESTONE-2011-10-26_MLST.json").visit_pass == "pass1"
         assert fm("NACCXXX_FORMS-VISIT-2_MEDS.json").visit_pass == "pass1"
+        assert fm("NACCXXX_FORMS-VISIT-3_FTLD.json").visit_pass == "pass1"
+        assert fm("NACCXXX_FORMS-VISIT-4_LBD.json").visit_pass == "pass1"
 
         assert fm("NACCXXX_apoe_genotype.json").visit_pass == "pass1"
         assert fm("NACCXXX_niagads_availability.json").visit_pass == "pass1"
