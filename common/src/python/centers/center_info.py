@@ -22,6 +22,7 @@ class CenterInfo(BaseModel):
     adcid: int
     name: str
     group: Optional[str] = Field(
+        None,
         validation_alias=AliasChoices("center_id", "center-id", "group"),
         serialization_alias="center-id",
     )
