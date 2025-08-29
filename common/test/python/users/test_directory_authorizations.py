@@ -1,4 +1,4 @@
-from users.authorizations import StudyAuthorizations
+from users.authorizations import Activity, StudyAuthorizations
 from users.nacc_directory import ActiveUserEntry, DirectoryAuthorizations, UserEntry
 
 
@@ -102,12 +102,15 @@ class TestDirectoryAuthorizations:
     assert user_entry.authorizations == [
         StudyAuthorizations(
             study_id="adrc",
-            activities=[
-                "view-enrollment",
-                "submit-audit-form",
-                "submit-audit-dicom",
-                "submit-audit-biomarker",
-            ],
+            activities={
+                "enrollment": Activity(datatype="enrollment", action="view"),
+                "form": Activity(datatype="form", action="submit-audit"),
+                "dicom": Activity(datatype="dicom", action="submit-audit"),
+                "biomarker": Activity(datatype="biomarker", action="submit-audit"),
+            },
         ),
-        StudyAuthorizations(study_id="clariti", activities=["view-biomarker"]),
+        StudyAuthorizations(
+            study_id="clariti",
+            activities={"biomarker": Activity(datatype="biomarker", action="view")},
+        ),
     ]
