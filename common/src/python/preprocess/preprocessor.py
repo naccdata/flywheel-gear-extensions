@@ -940,6 +940,7 @@ class FormPreprocessor:
             legacy=False,
             search_col=FieldNames.DATE_COLUMN,
             find_all=True,
+            extra_columns=["deathyr", "deathmo", "deathdy", "autopsy"],
         )
 
         # if no MLST forms, passes by default
