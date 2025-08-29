@@ -46,7 +46,7 @@ class NACCADCField(BaseModel):
 class OptionalNACCADCField(BaseModel):
     """Base model for models with optional naccadc."""
 
-    naccadc: Optional[int] = Field(ge=0)
+    naccadc: Optional[int] = Field(None, ge=0)
 
 
 class NACCIDField(BaseModel):
@@ -58,7 +58,7 @@ class NACCIDField(BaseModel):
 class OptionalNACCIDField(BaseModel):
     """Base model for models with optional naccid."""
 
-    naccid: Optional[str] = Field(max_length=10, pattern=NACCID_PATTERN)
+    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
 class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):

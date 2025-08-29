@@ -184,14 +184,14 @@ class TransferProcessor:
 
         return curr_identifier
 
-    def update_database(self, current_identifier: IdentifierObject) -> bool:
+    def update_database(self, existing_identifier: IdentifierObject) -> bool:
         """Update the identifiers database.
 
         - Set previous center's record to inactive
         - Add/update current center's record (set to active)
 
         Args:
-            current_identifier: current identifier object
+            existing_identifier: current identifier object
 
         Returns:
             bool: True if database update successful, else False
@@ -201,13 +201,13 @@ class TransferProcessor:
         try:
             success = self.__repo.add_or_update(
                 identifier=IdentifierUpdateObject.create_from_identifier(
-                    identifier=current_identifier, active=False
+                    identifier=existing_identifier, active=False
                 )
             )
         except (IdentifierRepositoryError, ValidationError) as error:
             log.error(
                 "Error in updating identifiers database for "
-                f"{current_identifier.adcid}, {current_identifier.ptid}: {error}"
+                f"{existing_identifier.adcid}, {existing_identifier.ptid}: {error}"
             )
             return False
 
@@ -227,12 +227,15 @@ class TransferProcessor:
             )
             return False
 
-    def add_or_update_enrollment_records(self, prev_center: CenterGroup) -> bool:
+    def add_or_update_enrollment_records(
+        self, prev_center: CenterGroup, prev_identifier: IdentifierObject
+    ) -> bool:
         """Adds/updates the enrollment records in current and previous
         enrollment projects.
 
         Args:
             prev_center: Flywheel group for the previous center
+            prev_identifier: Identifier record for previous center
 
         Returns:
             bool: True if add/update successful
@@ -291,29 +294,28 @@ class TransferProcessor:
 
         prev_enroll_subject = EnrollmentSubject.create_from(prev_subject)
 
-        updated_record = EnrollmentRecord(
-            center_identifier=CenterIdentifiers(
-                adcid=self.__transfer_record.previous_adcid,
-                ptid=self.__transfer_record.previous_ptid,
-            ),
-            guid=self.__transfer_record.guid,
-            naccid=self.__transfer_record.naccid,
-            start_date=self.__transfer_record.request_date,
-            end_date=datetime.now(),
-            status="transferred",
-        )
-
         try:
             enroll_info = prev_enroll_subject.get_enrollment_info()
-            if enroll_info:
-                if enroll_info.status != "active":
-                    log.error(
-                        f"Participant {record.naccid} enrollment status != active in "
-                        f"{prev_enroll_project.group}/{prev_enroll_project.label}"
-                    )
-                    return False
+            if enroll_info and enroll_info.status != "active":
+                log.error(
+                    f"Participant {record.naccid} enrollment status != active in "
+                    f"{prev_enroll_project.group}/{prev_enroll_project.label}"
+                )
+                return False
 
-                updated_record.start_date = enroll_info.update_date
+            updated_record = EnrollmentRecord(
+                center_identifier=CenterIdentifiers(
+                    adcid=self.__transfer_record.previous_adcid,
+                    ptid=self.__transfer_record.previous_ptid,
+                ),
+                start_date=enroll_info.update_date
+                if enroll_info
+                else self.__transfer_record.request_date,
+                naccid=prev_identifier.naccid,
+                guid=prev_identifier.guid,
+                end_date=datetime.now(),
+                status="transferred",
+            )
 
             prev_enroll_subject.update_enrollment(updated_record)
         except (EnrollmentError, UploaderError, ValidationError) as error:

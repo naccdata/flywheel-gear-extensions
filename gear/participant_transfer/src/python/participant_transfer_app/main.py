@@ -137,26 +137,28 @@ def run(
         identifiers_repo=identifiers_repo,
     )
 
-    current_identifier = transfer_processor.find_identifier_record()
-    if not current_identifier:
+    existing_identifier = transfer_processor.find_identifier_record()
+    if not existing_identifier:
         raise GearExecutionError(
             f"Failed to find valid identifier record for transfer request PTID {ptid} "
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    if not transfer_processor.update_database(current_identifier=current_identifier):
+    if not transfer_processor.update_database(existing_identifier=existing_identifier):
         raise GearExecutionError(
             f"Failed to update identifiers database for transfer request PTID {ptid} "
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    if not transfer_processor.add_or_update_enrollment_records(prev_center=prev_center):
+    if not transfer_processor.add_or_update_enrollment_records(
+        prev_center=prev_center, prev_identifier=existing_identifier
+    ):
         raise GearExecutionError(
             f"Failed to update enrollment records for transfer request PTID {ptid}"
         )
 
     copy_helper = CopyHelper(
-        subject_label=current_identifier.naccid,
+        subject_label=existing_identifier.naccid,
         proxy=proxy,
         new_center=new_center,
         prev_center=prev_center,
@@ -165,13 +167,13 @@ def run(
     if not copy_helper.copy_participant(datatypes=datatypes):
         raise GearExecutionError(
             "Error(s) occurred while copying data for "
-            f"participant {current_identifier.naccid}"
+            f"participant {existing_identifier.naccid}"
         )
 
     if not copy_helper.monitor_job_status():
         raise GearExecutionError(
             "One or more soft-copy jobs failed for "
-            f"participant {current_identifier.naccid}"
+            f"participant {existing_identifier.naccid}"
         )
 
     transfer_processor.update_transfer_info()
