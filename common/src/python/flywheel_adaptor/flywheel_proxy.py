@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Literal, Optional
 
 import flywheel
 from flywheel import (
@@ -59,7 +59,7 @@ class FlywheelProxy:
         self.__fw = client
         self.__fw_client = fw_client
         self.__dry_run = dry_run
-        self.__project_roles: Optional[Mapping[str, RoleOutput]] = None
+        self.__project_roles: Optional[dict[str, RoleOutput]] = None
         self.__project_admin_role: Optional[RoleOutput] = None
 
     @property
@@ -295,7 +295,7 @@ class FlywheelProxy:
         """
         return self.__fw.projects.find_first(f"_id={project_id}")
 
-    def get_roles(self) -> Mapping[str, RoleOutput]:
+    def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
 
         Does not include access roles for Groups.
@@ -1130,7 +1130,7 @@ class ProjectAdaptor:
         """
         return self.add_user_roles(user=user, roles=[role])
 
-    def add_user_roles(self, user: User, roles: List[RoleOutput]) -> bool:
+    def add_user_roles(self, user: User, roles: Iterable[RoleOutput]) -> bool:
         """Adds the roles to the user in the project.
 
         Args:
