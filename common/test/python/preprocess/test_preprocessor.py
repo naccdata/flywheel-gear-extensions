@@ -157,11 +157,9 @@ class TestFormPreprocessor:
             ),
         )
 
-    def test_check_initial_visit_new_subject(
-        self, uds_module_configs, uds_pp_context
-    ):
-        """Tests the _check_initial_visit check when it is an
-        initial packet and new subject."""
+    def test_check_initial_visit_new_subject(self, uds_module_configs, uds_pp_context):
+        """Tests the _check_initial_visit check when it is an initial packet
+        and new subject."""
         processor, error_writer, _ = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
@@ -181,8 +179,8 @@ class TestFormPreprocessor:
     def test_check_initial_visit_ivp_in_same_batch(
         self, uds_module_configs, uds_pp_context
     ):
-        """Tests the _check_initial_visit check when an IVP visit was
-        passed in the same batch."""
+        """Tests the _check_initial_visit check when an IVP visit was passed in
+        the same batch."""
         processor, error_writer, _ = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
@@ -202,11 +200,9 @@ class TestFormPreprocessor:
         uds_pp_context.input_record[FieldNames.DATE_COLUMN] = "3000-01-01"
         assert processor._check_initial_visit(uds_pp_context)
 
-    def test_check_initial_visit_ivp_exists(
-        self, uds_module_configs, uds_pp_context
-    ):
-        """Tests the _check_initial_visit check when an IVP visit
-        exists in FW and is queried."""
+    def test_check_initial_visit_ivp_exists(self, uds_module_configs, uds_pp_context):
+        """Tests the _check_initial_visit check when an IVP visit exists in FW
+        and is queried."""
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
@@ -219,11 +215,13 @@ class TestFormPreprocessor:
         # next set same record in forms store; since still IVP, make it
         # the exact same record, so seen as an update
         input_record = uds_pp_context.input_record
-        input_record.update({
-            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
-            f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
-            f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I"
-        })
+        input_record.update(
+            {
+                f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+                f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+                f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I",
+            }
+        )
         forms_store.set_form_data([copy.deepcopy(input_record)])
         assert processor._check_initial_visit(uds_pp_context)
 
@@ -242,19 +240,19 @@ class TestFormPreprocessor:
         input_record[FieldNames.PACKET] = "I4"
         assert processor._check_initial_visit(uds_pp_context)
 
-    def test_check_udsv4_initial_visit(
-        self, uds_module_configs, uds_pp_context
-    ):
+    def test_check_udsv4_initial_visit(self, uds_module_configs, uds_pp_context):
         """Tests the _check_udsv4_initial_visit check, i.e. I4 requirements."""
         processor, error_writer, forms_store = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
         input_record = uds_pp_context.input_record
-        input_record.update({
-            FieldNames.PACKET: "I4",
-            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
-            f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
-        })
+        input_record.update(
+            {
+                FieldNames.PACKET: "I4",
+                f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+                f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+            }
+        )
 
         # fail on missing UDSv3 visit for I4
         assert not processor._check_udsv4_initial_visit(uds_pp_context)
