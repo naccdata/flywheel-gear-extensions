@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Sequence, overload
 
 import flywheel
 from flywheel.models.group import Group
-from flywheel.models.role_output import RoleOutput
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
@@ -655,16 +654,7 @@ class CenterGroup(CenterAdaptor):
             )
             return False
 
-        role_map = self._fw.get_roles()
-        roles: List[RoleOutput] = []
-        for role_name in role_set:
-            role = role_map.get(role_name)
-            if role:
-                roles.append(role)
-            else:
-                log.warning("No role %s found", role_name)
-
-        return project.add_user_roles(user=user, roles=roles)
+        return project.add_user_roles(user=user, roles=role_set)
 
     def __add_user_to_redcap_project(
         self,
@@ -805,7 +795,7 @@ class REDCapFormProjectMetadata(BaseModel):
     def get_submission_activity(self) -> Activity:
         datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
-        return Activity(data=datatype, action="submit-audit")
+        return Activity(datatype=datatype, action="submit-audit")
 
 
 class FormIngestProjectMetadata(IngestProjectMetadata):
