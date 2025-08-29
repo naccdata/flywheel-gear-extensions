@@ -89,6 +89,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
         file_id = self.__file_input.file_id
         file = self.proxy.get_file(file_id)
+        file = file.reload()
         group_id = file.parents.group
         file_group = self.proxy.find_group(group_id=group_id)
         if not file_group:
@@ -113,14 +114,17 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 f"Unable to get project containing file: {file.parents.project}"
             )
 
-        user = self.proxy.find_user(file.origin.id)
+        user_id = file.info.get("uploader")
+        if not user_id:
+            user_id = file.origin.id
+        user = self.proxy.find_user(user_id)
         if user:
             # lookup the user's email; if not set to the file origin id
-            submitter = user.email if user.email else file.origin.id
+            submitter = user.email if user.email else user_id
         else:
-            submitter = file.origin.id
+            submitter = user_id
             log.warning(
-                f"Owner of the file {file.origin.id} does not match a user on Flywheel"
+                f"Owner of the file {user_id} does not match a user on Flywheel"
             )
 
         input_path = Path(self.__file_input.filepath)

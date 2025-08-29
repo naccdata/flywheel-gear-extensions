@@ -52,9 +52,7 @@ def review_transfer_info(
         return None
 
     if not transfer_record.previous_adcid:
-        log.error(
-            f"Missing previous ADCID in transfer request for PTID {ptid}"
-        )
+        log.error(f"Missing previous ADCID in transfer request for PTID {ptid}")
         return None
 
     valid = True

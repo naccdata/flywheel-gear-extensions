@@ -62,22 +62,18 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(
-            context=context, parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         enroll_project_path = context.config.get("enrollment_project")
         if not enroll_project_path:
-            raise GearExecutionError(
-                "Missing required gear config enrollment_project")
+            raise GearExecutionError("Missing required gear config enrollment_project")
 
         ptid = context.config.get("participant_id")
         if not ptid:
-            raise GearExecutionError(
-                "Missing required gear config participant_id")
+            raise GearExecutionError("Missing required gear config participant_id")
 
         mode = context.config.get("database_mode", "prod")
-        admin_id = context.config.get(
-            "admin_group", DefaultValues.NACC_GROUP_ID)
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -125,8 +121,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Manage Participant Transfer."""
 
-    GearEngine.create_with_parameter_store().run(
-        gear_type=ParticipantTransferVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=ParticipantTransferVisitor)
 
 
 if __name__ == "__main__":
