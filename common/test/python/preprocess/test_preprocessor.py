@@ -242,6 +242,39 @@ class TestFormPreprocessor:
         input_record[FieldNames.PACKET] = "I4"
         assert processor._check_initial_visit(uds_pp_context)
 
+    def test_check_udsv4_initial_visit(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_udsv4_initial_visit check, i.e. I4 requirements."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+        input_record = uds_pp_context.input_record
+        input_record.update({
+            FieldNames.PACKET: "I4",
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+        })
+
+        # fail on missing UDSv3 visit for I4
+        assert not processor._check_udsv4_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.MISSING_UDS_V3)
+
+        # fail when legacy visit exists but is same as current I4 record
+        legacy_record = copy.deepcopy(input_record)
+        forms_store.set_form_data([legacy_record])
+        assert not processor._check_udsv4_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_I4_VISITDATE)
+
+        # fail when there is an I4/FVP conflict
+        input_record[FieldNames.PACKET] = "F"
+        assert not processor._check_udsv4_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.MISSING_UDS_I4)
+
+        # pass when just FVP (ensured valid by other preprocessing checks)
+        forms_store.set_form_data([])
+        assert processor._check_udsv4_initial_visit(uds_pp_context)
+
     def test_check_supplement_module_exact_match(
         self, uds_module_configs, uds_pp_context
     ):
