@@ -982,11 +982,15 @@ class FormPreprocessor:
             )
 
         # preprocess-027: autopsy must be 1 in MLST form for NP to be accepted
-        result_autopsy = mlst_form.get("autopsy") == 1
+        autopsy = mlst_form.get("autopsy", "")
+        if autopsy is None:
+            autopsy = ""
+
+        result_autopsy = str(autopsy) == "1"
         if not result_autopsy:
             self.__error_handler.write_preprocessing_error(
                 field="autopsy",
-                value=mlst_form.get("autopsy"),
+                value=str(autopsy),
                 pp_context=pp_context,
                 error_code=SysErrorCodes.AUTOPSY_NP_INVALID,
             )
