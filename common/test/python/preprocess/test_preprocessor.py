@@ -1,6 +1,7 @@
 # ruff: noqa: SLF001
 """Tests preprocessing checks."""
 
+import copy
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
@@ -27,6 +28,14 @@ class MockFormsStore(FormsStore):
     def query_form_data(self, **kwargs) -> Optional[List[Dict[str, str]]]:
         return self.__form_data
 
+    def query_form_data_with_custom_filters(
+        self,
+        **kwargs,
+    ) -> Optional[List[Dict[str, str]]]:
+        return self.__form_data
+
+    def get_visit_data(self, **kwargs) -> Dict[str, str] | None:
+        return self.__form_data[0] if self.__form_data else None
 
 class TestFormPreprocessor:
     """Tests FormPreprocessor methods and preprocessing checks."""
@@ -139,6 +148,37 @@ class TestFormPreprocessor:
                 "['modeb1', 'modeb7'] for one or more optional forms"
             ),
         )
+
+    def test_is_existing_visit(self, uds_module_configs, uds_pp_context):
+        """Tests the is_existing_visit method.
+
+        This isn't the best test since in practice it relies a lot on querying,
+        so this is more of a sanity checker.
+        """
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        # will return false at first since nothing in form store, so NOT an
+        # existing visit
+        input_record = uds_pp_context.input_record
+        input_record.update({
+            "file_id": "12345",
+            "file.file_id": "12345",
+            "file.name": "dummy.csv",
+            "file.parents.acquisition": "dummy-acquisition",
+        })
+        assert not processor.is_existing_visit(input_record=input_record)
+
+        # add input record to form store so they match exactly
+        forms_store.set_form_data([input_record])
+        assert processor.is_existing_visit(input_record=input_record)
+
+        # modify it slightly so they don't match exactly
+        form_data = copy.deepcopy(input_record)
+        form_data["dummy"] = "dummy"
+        forms_store.set_form_data([form_data])
+        assert not processor.is_existing_visit(input_record=input_record)
 
     def test_check_clinical_forms(self, np_module_configs, np_pp_context):
         """Tests the _check_clinical_forms check."""
