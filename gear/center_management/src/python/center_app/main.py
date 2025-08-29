@@ -54,6 +54,7 @@ def run(
 
     for center in center_list:
         if center.is_pipeline():
+            admin_group.update_center_map(adcid=center.adcid, info=center)
             continue
 
         if new_only and center.tags and "new-center" not in center.tags:
