@@ -1,7 +1,7 @@
 """Entry script for Manage Participant Transfer."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel_gear_toolkit import GearToolkitContext
@@ -19,9 +19,9 @@ from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
+from notifications.email import EmailClient, create_ses_client
 from utils.utils import parse_string_to_list
 
-from participant_transfer_app.email import send_failure_email
 from participant_transfer_app.main import run
 
 log = logging.getLogger(__name__)
@@ -106,27 +106,100 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
+        job_id = self.get_job_id(context=context)
         try:
-            run(
+            success = run(
                 proxy=self.proxy,
                 admin_group=admin_group,
                 enroll_project=enroll_project,
                 ptid=self.__ptid,
                 identifiers_repo=identifiers_repo,
                 datatypes=datatypes,
-                sender_email=sender_email,
-                target_emails=target_emails,
                 dry_run=self.client.dry_run,
             )
-        except GearExecutionError as error:
-            send_failure_email(
+            self.send_email(
                 sender_email=sender_email,
                 target_emails=target_emails,
-                project_path=self.__enroll_project_path,
+                project=enroll_project,
                 ptid=self.__ptid,
-                error=str(error),
+                status="SUCCESS" if success else "NEEDS REVIEW",
+                job_id=job_id,
+            )
+        except GearExecutionError as error:
+            self.send_email(
+                sender_email=sender_email,
+                target_emails=target_emails,
+                project=enroll_project,
+                ptid=self.__ptid,
+                status="FAILED",
+                job_id=job_id,
             )
             raise GearExecutionError from error
+
+    def send_email(
+        self,
+        *,
+        sender_email: str,
+        target_emails: List[str],
+        project: EnrollmentProject,
+        ptid: str,
+        status: str,
+        job_id: Optional[str],
+    ) -> None:
+        """Send a raw email notifying target emails of the gear failure.
+
+        Args:
+            sender_email: The sender email
+            target_emails: The target email(s)
+            project: enrollment project in Flywheel for receiving center
+            ptid: PTID of transfer request
+            status: Transfer status (FAILED, NEEDS REVIEW, SUCCESS)
+            job_id: participant-transfer gear job id
+        """
+
+        if self.client.dry_run:
+            log.info("Dry run, not sending email")
+            return
+
+        client = EmailClient(client=create_ses_client(), source=sender_email)
+
+        host_url = f"{self.__client.host.split(':')[0]}"
+        job_log_url = f"{host_url}/#/jobs/{job_id}" if job_id else f"{host_url}/#/jobs/"
+        project_url = f"{host_url}/#/projects/{project.id}"
+
+        subject = (
+            f"Participant Transfer Status for {project.group}/{project.label}: {status}"
+        )
+
+        next_steps = ""
+        if status == "FAILED":
+            next_steps = "Correct the errors and retry the transfer."
+        elif status == "SUCCESS":
+            next_steps = (
+                "Review the transferred participant data in Flywheel "
+                "and notify the centers about the transfer completion."
+            )
+        else:
+            next_steps = (
+                "This transfer completed with warnings, "
+                "check the warnings in the gear job log "
+                "and review the transferred participant data in Flywheel.\n"
+                "If everything looks fine, "
+                "notify the centers about the transfer completion."
+            )
+
+        body = (
+            f"\n\nPlease review the participant-transfer gear run details below "
+            f"and take necessary actions."
+            f"\n\tStatus: {status}"
+            f"\n\tPTID: {ptid}"
+            f"\n\tEnrollment Project: {project.group}/{project.label}[{project_url}]"
+            f"\n\tGear job log: {job_log_url}"
+            "\nCheck the job log for more details on any errors or warnings.\n"
+            f"\nNext steps: {next_steps}\n\n"
+        )
+
+        client.send_raw(destinations=target_emails, subject=subject, body=body)
 
 
 def main():

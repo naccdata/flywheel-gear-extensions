@@ -23,11 +23,13 @@ class CopyHelper:
         proxy: FlywheelProxy,
         new_center: CenterGroup,
         prev_center: CenterGroup,
+        warnings: List[str],
     ) -> None:
         self.__subject_label = subject_label
         self.__proxy = proxy
         self.__new_center = new_center
         self.__prev_center = prev_center
+        self.__warnings = warnings
         self.__jobs_list: List[str] = []
 
     def __copy_project_data(
@@ -50,10 +52,12 @@ class CopyHelper:
 
         # Skip if participant has no data in source project
         if not source_project.find_subject(label=self.__subject_label):
-            log.warning(
+            message = (
                 f"Participant {self.__subject_label} not found in "
                 f"{self.__prev_center.label}/{source_project.label}"
             )
+            log.warning(message)
+            self.__warnings.append(message)
             return True
 
         target_project = self.__new_center.get_project_by_id(target_project_id)
@@ -113,10 +117,12 @@ class CopyHelper:
         for study_id, study_info in prev_center_metadata.studies.items():
             new_center_info = new_center_metadata.find(study_id=study_id)
             if not new_center_info:
-                log.warning(
+                message = (
                     f"Study {study_id} not found in center "
                     f"{self.__new_center.label} metadata"
                 )
+                log.warning(message)
+                self.__warnings.append(message)
                 continue
 
             ingest_projects = study_info.ingest_projects
@@ -131,10 +137,12 @@ class CopyHelper:
                         source_project.project_label
                     )
                     if not dest_project:
-                        log.warning(
+                        message = (
                             f"Ingest project {source_project.project_label} "
                             f"not found in center {self.__new_center.label} metadata"
                         )
+                        log.warning(message)
+                        self.__warnings.append(message)
                         continue
 
                     if not self.__copy_project_data(

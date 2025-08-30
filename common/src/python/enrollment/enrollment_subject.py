@@ -112,10 +112,8 @@ class EnrollmentSubject(SubjectAdaptor):
 
             enroll_session: Session = enroll_sessions[0]
             session_label = enroll_session.label
-            date_str = enroll_session.label[len(
-                DefaultValues.ENRL_SESSION_LBL_PRFX):]
-            record.start_date = datetime.strptime(
-                date_str, DEFAULT_DATE_FORMAT)
+            date_str = enroll_session.label[len(DefaultValues.ENRL_SESSION_LBL_PRFX) :]
+            record.start_date = datetime.strptime(date_str, DEFAULT_DATE_FORMAT)
         else:
             formdate = record.start_date.strftime(DEFAULT_DATE_FORMAT)
             session_label = f"{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}"

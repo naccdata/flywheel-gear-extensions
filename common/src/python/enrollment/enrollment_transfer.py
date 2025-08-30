@@ -96,8 +96,7 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(
-                int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
+            birth_date=datetime(int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
             gender_identity=GenderIdentity(
                 man=row.get("enrlgenman"),
                 woman=row.get("enrlgenwoman"),
@@ -127,8 +126,7 @@ class TransferRecord(BaseModel):
     submitter: str  # FW user who uploaded the transfer form
     initials: Optional[str] = None
     previous_adcid: int = Field(ge=0)
-    previous_ptid: Optional[str] = Field(
-        None, max_length=10, pattern=PTID_PATTERN)
+    previous_ptid: Optional[str] = Field(None, max_length=10, pattern=PTID_PATTERN)
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
     guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
     demographics: Optional[Demographics] = None

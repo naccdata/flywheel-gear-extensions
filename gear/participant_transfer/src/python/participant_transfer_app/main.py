@@ -84,10 +84,8 @@ def run(
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
-    sender_email: str,
-    target_emails: List[str],
     dry_run: bool,
-):
+) -> bool:
     """Runs the Manage Participant Transfer process.
 
     Args:
@@ -97,9 +95,13 @@ def run(
         ptid: PTID to be transferred
         identifiers_repo: Identifiers lambda repository
         datatypes: List of datatypes to be transferred
-        sender_email: sender email address to send the transfer complete notification
-        target_emails: The target email(s) that the notification to be delivered
         dry_run: Whether to do a dry run
+
+    Returns:
+        True if the transfer completed without any warnings, else False
+
+    Raises:
+        GearExecutionError: if any errors occur during transfer
     """
 
     transfer_record = review_transfer_info(
@@ -129,12 +131,14 @@ def run(
 
     if dry_run:
         log.info("Dry run only, exit")
-        return
+        return True
 
+    warnings: List[str] = []
     transfer_processor = TransferProcessor(
         enroll_project=enroll_project,
         transfer_record=transfer_record,
         identifiers_repo=identifiers_repo,
+        warnings=warnings,
     )
 
     existing_identifier = transfer_processor.find_identifier_record()
@@ -162,6 +166,7 @@ def run(
         proxy=proxy,
         new_center=new_center,
         prev_center=prev_center,
+        warnings=warnings,
     )
 
     if not copy_helper.copy_participant(datatypes=datatypes):
@@ -178,4 +183,4 @@ def run(
 
     transfer_processor.update_transfer_info()
 
-    # TODO: send email
+    return not warnings

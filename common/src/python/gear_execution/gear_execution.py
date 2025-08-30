@@ -378,6 +378,21 @@ class GearExecutionEnvironment(ABC):
         """
         raise GearExecutionError("Not implemented")
 
+    def get_job_id(self, context: GearToolkitContext) -> Optional[str]:
+        """Return the ID of the gear job.
+
+        Args:
+            context: GearToolkitContext to look up the Job ID
+
+        Returns:
+            str (optional): Job ID if found, else None
+        """
+        context.metadata.pull_job_info()  # type: ignore
+        if not context.metadata.job_info:  # type: ignore
+            return None
+        job_info = context.metadata.job_info.get(self.name, {})  # type: ignore
+        return job_info.get("job_id", None)
+
 
 # TODO: remove type ignore when using python 3.12 or above
 E = TypeVar("E", bound=GearExecutionEnvironment)  # type: ignore
