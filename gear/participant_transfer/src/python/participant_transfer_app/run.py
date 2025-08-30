@@ -20,9 +20,8 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from notifications.email import EmailClient, create_ses_client
-from utils.utils import parse_string_to_list
-
 from participant_transfer_app.main import run
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
