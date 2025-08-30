@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-from centers.center_group import CenterGroup
+from centers.center_group import CenterGroup, StudyMetadata
 from flywheel import Project
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import trigger_gear
@@ -23,12 +23,14 @@ class CopyHelper:
         proxy: FlywheelProxy,
         new_center: CenterGroup,
         prev_center: CenterGroup,
+        datatypes: List[str],
         warnings: List[str],
     ) -> None:
         self.__subject_label = subject_label
         self.__proxy = proxy
         self.__new_center = new_center
         self.__prev_center = prev_center
+        self.__datatypes = datatypes
         self.__warnings = warnings
         self.__jobs_list: List[str] = []
 
@@ -110,7 +112,90 @@ class CopyHelper:
 
         return True
 
-    def copy_participant(self, datatypes: List[str]) -> bool:
+    def __copy_ingest_projects(
+        self, prev_center_info: StudyMetadata, new_center_info: StudyMetadata
+    ) -> bool:
+        """Copy participant data in ingest projects
+        Args:
+            prev_center_info: StudyMetadata for previous center
+            new_center_info: StudyMetadata for new center
+
+        Returns:
+            bool: True if data copied successfully
+        """
+        ingest_projects = prev_center_info.ingest_projects
+        if not ingest_projects:
+            log.info(
+                "No ingest projects metadata found for "
+                f"center {self.__prev_center.label} study {prev_center_info.study_id}"
+            )
+            return True
+
+        for source_project in ingest_projects.values():
+            if (
+                source_project.datatype in self.__datatypes
+                and source_project.project_label.startswith(
+                    "ingest-"
+                )  # skip sandbox projects
+            ):
+                dest_project = new_center_info.get_ingest(source_project.project_label)
+                if not dest_project:
+                    message = (
+                        f"Ingest project {source_project.project_label} "
+                        f"not found in center {self.__new_center.label} metadata"
+                    )
+                    log.warning(message)
+                    self.__warnings.append(message)
+                    continue
+
+                if not self.__copy_project_data(
+                    source_project.project_id, dest_project.project_id
+                ):
+                    return False
+
+        return True
+
+    def __copy_distribution_projects(
+        self, prev_center_info: StudyMetadata, new_center_info: StudyMetadata
+    ) -> bool:
+        """Copy participant data in distribution projects
+        Args:
+            prev_center_info: StudyMetadata for previous center
+            new_center_info: StudyMetadata for new center
+
+        Returns:
+            bool: True if data copied successfully
+        """
+        dist_projects = prev_center_info.distribution_projects
+        if not dist_projects:
+            log.info(
+                "No distribution projects metadata found for "
+                f"center {self.__prev_center.label} study {prev_center_info.study_id}"
+            )
+            return True
+
+        for source_project in dist_projects.values():
+            if source_project.datatype in self.__datatypes:
+                dest_project = new_center_info.get_distribution(
+                    source_project.project_label
+                )
+                if not dest_project:
+                    message = (
+                        f"Distribution project {source_project.project_label} "
+                        f"not found in center {self.__new_center.label} metadata"
+                    )
+                    log.warning(message)
+                    self.__warnings.append(message)
+                    continue
+
+                if not self.__copy_project_data(
+                    source_project.project_id, dest_project.project_id
+                ):
+                    return False
+
+        return True
+
+    def copy_participant(self) -> bool:
         new_center_metadata = self.__new_center.get_project_info()
         prev_center_metadata = self.__prev_center.get_project_info()
 
@@ -125,30 +210,15 @@ class CopyHelper:
                 self.__warnings.append(message)
                 continue
 
-            ingest_projects = study_info.ingest_projects
-            for source_project in ingest_projects.values():
-                if (
-                    source_project.datatype in datatypes
-                    and source_project.project_label.startswith(
-                        "ingest-"
-                    )  # skip sandbox projects
-                ):
-                    dest_project = new_center_info.get_ingest(
-                        source_project.project_label
-                    )
-                    if not dest_project:
-                        message = (
-                            f"Ingest project {source_project.project_label} "
-                            f"not found in center {self.__new_center.label} metadata"
-                        )
-                        log.warning(message)
-                        self.__warnings.append(message)
-                        continue
+            if not self.__copy_ingest_projects(
+                prev_center_info=study_info, new_center_info=new_center_info
+            ):
+                return False
 
-                    if not self.__copy_project_data(
-                        source_project.project_id, dest_project.project_id
-                    ):
-                        return False
+            if not self.__copy_distribution_projects(
+                prev_center_info=study_info, new_center_info=new_center_info
+            ):
+                return False
 
         return True
 

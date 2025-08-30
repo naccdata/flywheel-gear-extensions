@@ -166,10 +166,11 @@ def run(
         proxy=proxy,
         new_center=new_center,
         prev_center=prev_center,
+        datatypes=datatypes,
         warnings=warnings,
     )
 
-    if not copy_helper.copy_participant(datatypes=datatypes):
+    if not copy_helper.copy_participant():
         raise GearExecutionError(
             "Error(s) occurred while copying data for "
             f"participant {existing_identifier.naccid}"
