@@ -125,3 +125,11 @@ class ListErrorWriter(UserErrorWriter):
     def clear(self):
         """Clear the errors list."""
         self.__errors.clear()
+
+    def has_errors(self) -> bool:
+        """Check whether there are errors to report.
+
+        Returns:
+          True if there are errors to report, else False
+        """
+        return len(self.__errors) > 0

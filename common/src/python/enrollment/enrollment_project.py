@@ -2,7 +2,7 @@
 center."""
 
 import logging
-from typing import List
+from typing import Dict
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import MetadataKeys
@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 class TransferInfo(BaseModel):
     """Wrapper class for a list of transfer records."""
 
-    transfers: List[TransferRecord]
+    transfers: Dict[str, TransferRecord]
 
     def add(self, record: TransferRecord) -> None:
         """Adds the record to the list of transfers.
@@ -26,14 +26,18 @@ class TransferInfo(BaseModel):
         Args:
           record: the transfer record
         """
-        self.transfers = self.transfers if self.transfers else []
-        self.transfers.append(record)
+        self.transfers = self.transfers if self.transfers else {}
+        ptid = record.center_identifiers.ptid
+        self.transfers[ptid] = record
 
     def merge(self, transfer_info: "TransferInfo") -> None:
-        """Merges the records into this object."""
-        # TODO: decide if OK to have duplicates
-        for record in transfer_info.transfers:
-            self.transfers.append(record)
+        """Merges the passed transfer records to this object. Duplicates will
+        be overwritten from the input values.
+
+        Args:
+            transfer_info: records to be merged
+        """
+        self.transfers.update(transfer_info.transfers)
 
 
 class EnrollmentProject(ProjectAdaptor):
@@ -61,9 +65,9 @@ class EnrollmentProject(ProjectAdaptor):
         """
         info = self.get_info()
         if not info:
-            return TransferInfo(transfers=[])
+            return TransferInfo(transfers={})
         if MetadataKeys.TRANSFERS not in info:
-            return TransferInfo(transfers=[])
+            return TransferInfo(transfers={})
 
         try:
             return TransferInfo.model_validate(info)
@@ -81,8 +85,8 @@ class EnrollmentProject(ProjectAdaptor):
         """
         self.update_info(transfer_info.model_dump(by_alias=True, exclude_none=True))
 
-    def add_transfers(self, transfers: TransferInfo) -> None:
-        """Adds the transfers in the info object to this project.
+    def add_or_update_transfers(self, transfers: TransferInfo) -> None:
+        """Adds/updates the transfers in the info object to this project.
 
         Args:
           transfers: the transfer info object

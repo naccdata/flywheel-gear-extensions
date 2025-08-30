@@ -14,6 +14,8 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    NACCIDField,
+    OptionalNACCADCField,
 )
 
 log = logging.getLogger(__name__)
@@ -21,6 +23,30 @@ log = logging.getLogger(__name__)
 
 class IdentifierQueryObject(CenterIdentifiers, GUIDField):
     """Query model creating objects."""
+
+
+class IdentifierUpdateObject(
+    CenterIdentifiers, GUIDField, OptionalNACCADCField, NACCIDField
+):
+    """Request model for identifier updates.
+
+    Has NACCID as string. NACCADC is optional
+    """
+
+    active: bool
+
+    @classmethod
+    def create_from_identifier(
+        cls, identifier: IdentifierObject, active: bool
+    ) -> "IdentifierUpdateObject":
+        return IdentifierUpdateObject(
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            naccadc=identifier.naccadc,
+            active=active,
+        )
 
 
 class IdentifierRepository(abc.ABC):
@@ -109,6 +135,17 @@ class IdentifierRepository(abc.ABC):
 
         Returns:
           List of all identifiers in the repository or ones matching with filters
+        """
+
+    @abstractmethod
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
+        """Adds/updates the Identifier record in the repository.
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else False
         """
 
 

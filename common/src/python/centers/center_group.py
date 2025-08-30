@@ -61,7 +61,8 @@ class CenterGroup(CenterAdaptor):
         """
         project = proxy.get_project(group=group, project_label="metadata")
         if not project:
-            raise CenterError(f"Unable to create center from group {group.label}")
+            raise CenterError(
+                f"Unable to create center from group {group.label}")
 
         metadata_project = ProjectAdaptor(project=project, proxy=proxy)
         metadata_info = metadata_project.get_info()
@@ -73,7 +74,8 @@ class CenterGroup(CenterAdaptor):
         adcid = metadata_info["adcid"]
         active = metadata_info.get("active", False)
 
-        center_group = CenterGroup(adcid=adcid, active=active, group=group, proxy=proxy)
+        center_group = CenterGroup(
+            adcid=adcid, active=active, group=group, proxy=proxy)
         metadata_project.add_admin_users(center_group.get_user_access())
         center_group.add_center_portal()
 
@@ -134,7 +136,8 @@ class CenterGroup(CenterAdaptor):
         metadata_project = center_group.get_metadata()
         assert metadata_project, "expecting metadata project"
         metadata_project.add_admin_users(center_group.get_user_access())
-        metadata_project.update_info({"adcid": center.adcid, "active": center.active})
+        metadata_project.update_info(
+            {"adcid": center.adcid, "active": center.active})
 
         center_group.add_center_portal()
         return center_group
@@ -170,7 +173,8 @@ class CenterGroup(CenterAdaptor):
         adcid = metadata_info["adcid"]
         active = metadata_info.get("active", False)
 
-        center_group = CenterGroup(adcid=adcid, active=active, group=group, proxy=proxy)
+        center_group = CenterGroup(
+            adcid=adcid, active=active, group=group, proxy=proxy)
         center_group.add_center_portal()
 
         return center_group
@@ -273,7 +277,8 @@ class CenterGroup(CenterAdaptor):
         for stage in self.__ingest_stages:
             projects = self.get_matching_projects(prefix=f"{stage}-")
             for project in projects:
-                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
+                datatype = CenterGroup.get_datatype(
+                    stage=stage, label=project.label)
                 if datatype:
                     datatypes.append(datatype)
         self.__datatypes = list(set(datatypes))
@@ -295,11 +300,13 @@ class CenterGroup(CenterAdaptor):
         for stage in self.__ingest_stages:
             ingest_projects = self.get_matching_projects(prefix=f"{stage}-")
             if not ingest_projects:
-                log.warning("no ingest stage projects for group %s", self.label)
+                log.warning(
+                    "no ingest stage projects for group %s", self.label)
                 return
 
             for project in ingest_projects:
-                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
+                datatype = CenterGroup.get_datatype(
+                    stage=stage, label=project.label)
                 if not datatype:
                     log.info("ingest project %s has no datatype", project.label)
                     continue
@@ -324,7 +331,8 @@ class CenterGroup(CenterAdaptor):
         """
         accepted_projects = self.get_matching_projects(prefix="accepted")
         if not accepted_projects:
-            log.warning("no accepted stage project in center group %s", self.label)
+            log.warning(
+                "no accepted stage project in center group %s", self.label)
             return
 
         self.__apply_to(
@@ -497,7 +505,8 @@ class CenterGroup(CenterAdaptor):
         """
         metadata_project = self.get_metadata()
         if not metadata_project:
-            log.error("no metadata project for %s, cannot update info", self.label)
+            log.error(
+                "no metadata project for %s, cannot update info", self.label)
             return
 
         metadata_project.update_info(
@@ -675,7 +684,8 @@ class CenterGroup(CenterAdaptor):
         """
 
         if not self.__redcap_param_repo:
-            log.warning("REDCap project repository not found in center %s", self.label)
+            log.warning(
+                "REDCap project repository not found in center %s", self.label)
             return False
 
         if not form_ingest_project.redcap_projects:
@@ -704,7 +714,8 @@ class CenterGroup(CenterAdaptor):
             )
 
             if not redcap_project:
-                log.error("No REDCap project %s found", redcap_metadata.redcap_pid)
+                log.error("No REDCap project %s found",
+                          redcap_metadata.redcap_pid)
                 success = False
                 continue
 
@@ -857,7 +868,8 @@ class CenterStudyMetadata(BaseModel):
     study_id: str
     study_name: str
     pipeline_adcid: int
-    ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
+    ingest_projects: Dict[str, (IngestProjectMetadata |
+                                FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
 
@@ -932,14 +944,15 @@ class CenterProjectMetadata(BaseModel):
     def get(
         self, study: StudyModel, pipeline_adcid: Optional[int] = None
     ) -> CenterStudyMetadata:
-        """Gets the study metadata for the study id.
+        """Gets the study metadata for the study.
 
         Creates a new StudyMetadata object if it does not exist.
 
         Args:
-            study_id: the study id
+            study: the study model
+
         Returns:
-            the study metadata for the study id
+            the study metadata for the study
         """
         study_info = self.studies.get(study.study_id, None)
         if study_info:
@@ -951,6 +964,17 @@ class CenterProjectMetadata(BaseModel):
         )
         self.add(study_info)
         return study_info
+
+    def find(self, study_id: str) -> Optional[CenterStudyMetadata]:
+        """Gets the study metadata for the study id.
+
+        Args:
+            study_id: the study id
+
+        Returns:
+            the study metadata for the study id if found or None
+        """
+        return self.studies.get(study_id, None)
 
 
 class REDCapProjectInput(BaseModel):

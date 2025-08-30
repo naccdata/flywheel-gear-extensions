@@ -9,6 +9,7 @@ from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
     IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
     ADCIDField,
@@ -16,6 +17,7 @@ from identifiers.model import (
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    IdentifiersMode,
     NACCIDField,
 )
 
@@ -70,15 +72,33 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
     """Request model to search all matching identifiers for a NACCID."""
 
 
+class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
+    """Request model for adding/updating Identifier with known NACCID."""
+
+    active: bool
+    naccadc: Optional[int]
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, identifier: IdentifierUpdateObject
+    ) -> "KnownIdentifierRequest":
+        return KnownIdentifierRequest(
+            mode=mode,
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            active=identifier.active,
+            naccadc=identifier.naccadc,
+        )
+
+
 class ListResponseObject(BaseModel):
     """Model for return object with partial list of Identifiers."""
 
     offset: int
     limit: int
     data: List[IdentifierObject]
-
-
-IdentifiersMode = Literal["dev", "prod"]
 
 
 class IdentifiersLambdaRepository(IdentifierRepository):
@@ -311,6 +331,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise IdentifierRepositoryError(response.body)
 
     def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+        """Get the identifier records for the provided ADCID.
+
+        Args:
+            adcid: ADCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the adcid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -341,6 +372,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return identifier_list
 
     def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+        """Get the identifier records for the provided NACCID.
+
+        Args:
+            naccid: NACCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the naccid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -369,3 +411,31 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             index += limit
 
         return identifier_list
+
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
+        """Adds/updates an identifier record with known NACCID to the database.
+        Update the active status of the identifier record if found or add a new
+        identifier record for provided (ADCID, PTID, NACCID).
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else false
+        """
+        try:
+            response = self.__client.invoke(
+                name="add-update-identifier-lambda-function",
+                request=KnownIdentifierRequest.create_from(
+                    mode=self.__mode, identifier=identifier
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode != 200:
+            raise IdentifierRepositoryError(
+                f"No identifier created or updated: {response.body}"
+            )
+
+        return True
