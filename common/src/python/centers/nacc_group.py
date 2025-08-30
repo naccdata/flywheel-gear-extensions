@@ -66,30 +66,27 @@ class NACCGroup(CenterAdaptor):
         Args:
           center_group: the CenterGroup object for the center
         """
-        self.add_adcid(
+        self.update_center_map(
             adcid=center_group.adcid,
-            group_label=center_group.label,
-            group_id=center_group.id,
-            active=center_group.is_active(),
+            info=CenterInfo(
+                adcid=center_group.adcid,
+                name=center_group.label,
+                group=center_group.id,
+                active=center_group.is_active(),
+            ),
         )
 
-    def add_adcid(
-        self, adcid: int, group_label: str, group_id: str, active: bool
-    ) -> None:
-        """Adds the adcid-group correspondence.
+    def update_center_map(self, adcid: int, info: CenterInfo) -> None:
+        """Updates the center map in the metadata project to map the adcid to
+        the center info.
 
         Args:
-          adcid: the ADC ID
-          group_label: the label for the center group
-          group_id: the ID for the center group
-          active: active or inactive status for the center.
+          adcid: the center ID
+          info: the center info object
         """
         metadata = self.get_metadata()
         center_map = self.get_center_map()
-        center_map.add(
-            adcid,
-            CenterInfo(adcid=adcid, name=group_label, group=group_id, active=active),
-        )
+        center_map.add(adcid, info)
         metadata.update_info(center_map.model_dump())
 
     def get_center_map(
@@ -182,8 +179,12 @@ class NACCGroup(CenterAdaptor):
         centers = []
         center_map = self.get_center_map()
         for center_info in center_map.centers.values():
+            if center_info.is_pipeline():
+                continue
+
             group_id = center_info.group
-            group = self._fw.find_group(group_id=(group_id))
+            assert group_id is not None
+            group = self._fw.find_group(group_id=group_id)
             if group:
                 center = CenterGroup.create_from_group_adaptor(adaptor=group)
                 centers.append(center)

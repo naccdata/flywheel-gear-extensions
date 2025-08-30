@@ -119,7 +119,7 @@ class FileError(BaseModel):
     @classmethod
     def fieldnames(cls) -> List[str]:
         """Gathers the serialized field names for the class."""
-        result = []
+        result: list[str] = []
         for fieldname, field_info in cls.model_fields.items():
             if field_info.serialization_alias:
                 result.append(field_info.serialization_alias)
