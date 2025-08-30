@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-from centers.center_group import CenterGroup, StudyMetadata
+from centers.center_group import CenterGroup, CenterStudyMetadata
 from flywheel import Project
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import trigger_gear
@@ -113,12 +113,14 @@ class CopyHelper:
         return True
 
     def __copy_ingest_projects(
-        self, prev_center_info: StudyMetadata, new_center_info: StudyMetadata
+        self,
+        prev_center_info: CenterStudyMetadata,
+        new_center_info: CenterStudyMetadata,
     ) -> bool:
         """Copy participant data in ingest projects
         Args:
-            prev_center_info: StudyMetadata for previous center
-            new_center_info: StudyMetadata for new center
+            prev_center_info: Study metadata for previous center
+            new_center_info: Study metadata for new center
 
         Returns:
             bool: True if data copied successfully
@@ -156,7 +158,9 @@ class CopyHelper:
         return True
 
     def __copy_distribution_projects(
-        self, prev_center_info: StudyMetadata, new_center_info: StudyMetadata
+        self,
+        prev_center_info: CenterStudyMetadata,
+        new_center_info: CenterStudyMetadata,
     ) -> bool:
         """Copy participant data in distribution projects
         Args:
