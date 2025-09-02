@@ -62,15 +62,12 @@ class CSVSplitVisitor(CSVVisitor):
         Returns:
           True if the row was processed without error, False otherwise
         """
-
-        found_all = True
         empty_fields = set()
         for field in self.__req_fields:
             if field not in row or row[field] is None:
                 empty_fields.add(field)
-                found_all = False
 
-        if not found_all:
+        if empty_fields:
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
