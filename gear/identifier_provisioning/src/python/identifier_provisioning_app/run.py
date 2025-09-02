@@ -50,14 +50,11 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
     ) -> "IdentifierProvisioningVisitor":
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(
-            context=context, parameter_store=parameter_store)
-        file_input = InputFileWrapper.create(
-            input_name="input_file", context=context)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        admin_id = context.config.get(
-            "admin_group", DefaultValues.NACC_GROUP_ID)
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("database_mode", "prod")
 
         return IdentifierProvisioningVisitor(
@@ -87,8 +84,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             )
 
         if self.__file_input.has_qc_errors(gear_name=DefaultValues.QC_GEAR):
-            log.error("input file %s has QC errors",
-                      self.__file_input.filename)
+            log.error("input file %s has QC errors", self.__file_input.filename)
             return
 
         file_id = self.__file_input.file_id
@@ -104,8 +100,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         admin_group = self.admin_group(admin_id=self.__admin_id)
         adcid = admin_group.get_adcid(group_id)
         if adcid is None:
-            raise GearExecutionError(
-                f"Group {group_id} does not have an ADCID")
+            raise GearExecutionError(f"Group {group_id} does not have an ADCID")
 
         project = file_group.get_project_by_id(file.parents.project)
         if not project:
@@ -166,8 +161,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 data=error_writer.errors().model_dump(by_alias=True),
             )
 
-            context.metadata.add_file_tags(
-                self.__file_input.file_input, tags=gear_name)
+            context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
 
 def main():

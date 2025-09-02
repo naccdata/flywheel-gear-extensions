@@ -121,11 +121,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         """
         assert parameter_store, "Parameter store expected"
 
-        client = GearBotClient.create(
-            context=context, parameter_store=parameter_store)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        admin_id = context.config.get(
-            "admin_group", DefaultValues.NACC_GROUP_ID)
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("identifiers_mode", "prod")
         legacy_ingest_label = context.config.get(
             "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL
@@ -179,14 +177,12 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             raise GearExecutionError("No destination container found")
 
         # Get Group and Project IDs, ADCID for group
-        group_id, project_id = get_destination_group_and_project(
-            dest_container)
+        group_id, project_id = get_destination_group_and_project(dest_container)
         log.info(f"group_id: {group_id}")
 
         adcid = self.__get_adcid(group_id)
         if adcid is None:
-            raise GearExecutionError(
-                f"Unable to determine ADCID for group {group_id}")
+            raise GearExecutionError(f"Unable to determine ADCID for group {group_id}")
 
         log.info(f"ADCID: {adcid}")
 
@@ -215,8 +211,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         project = group.get_project_by_id(project_id)
         if not project:
-            raise GearExecutionError(
-                f"Unable to get parent project: {project_id}")
+            raise GearExecutionError(f"Unable to get parent project: {project_id}")
         log.info(f"Project: {project.label}")
         enrollment_project = EnrollmentProject.create_from(project)
         log.info(f"Enrollment project: {enrollment_project.label}")
@@ -232,8 +227,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
                 f"Could not find {group_id}/{self.__legacy_ingest_label}: {error}"
             ) from error
 
-        forms_store = FormsStore(
-            ingest_project=project, legacy_project=legacy_project)
+        forms_store = FormsStore(ingest_project=project, legacy_project=legacy_project)
 
         sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
         target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
