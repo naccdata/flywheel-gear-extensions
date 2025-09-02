@@ -111,7 +111,7 @@ class TestTransferRecord:
             "naccid": "NACC000000",
             "oldadcid": 0,
             "oldptid": "22222",
-            "enrlgenman": 1
+            "enrlgenman": 1,
         }
         try:
             enroll_date = parse_date(
@@ -154,7 +154,7 @@ class TestTransferRecord:
             "oldadcid": 0,
             "oldptid": "",
             "enrlgenman": 1,
-            "enrlgenwoman": ""
+            "enrlgenwoman": "",
         }
 
         try:
