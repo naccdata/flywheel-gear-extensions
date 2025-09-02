@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.3.1
 * Make `form_configs_file` only required for `nacc` direction
+* Adds `sql_connection_retry` decorator to handle the `(pymysql.err.OperationalError) (1040, 'Too many connections')` error
 
 ## 1.3.0
 * Updates to use new identifier lambda functions with restructured identifiers database

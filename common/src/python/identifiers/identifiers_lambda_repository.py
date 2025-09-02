@@ -4,6 +4,7 @@ from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
+from utils.decorators import sql_connection_retry
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -88,6 +89,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         self.__client = client
         self.__mode: Literal["dev", "prod"] = mode
 
+    @sql_connection_retry
     def create(self, adcid: int, ptid: str, guid: Optional[str]) -> IdentifierObject:
         """Creates an Identifier in the repository.
 
@@ -115,6 +117,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return IdentifierObject.model_validate_json(response.body)
 
+    @sql_connection_retry
     def create_list(self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
         """Creates several Identifiers in the repository.
 
@@ -228,6 +231,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         # TODO: this is not implemented by lambda
         return []
 
+    @sql_connection_retry
     def __get_by_naccid(self, naccid: str) -> Optional[IdentifierObject]:
         """Returns the IdentifierObject for the NACCID.
 
@@ -254,6 +258,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
+    @sql_connection_retry
     def __get_by_ptid(
         self, *, adcid: int, ptid: str, guid: Optional[str]
     ) -> Optional[IdentifierObject]:
@@ -285,6 +290,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
+    @sql_connection_retry
     def __get_by_guid(self, guid: str) -> Optional[IdentifierObject]:
         """Returns the IdentifierObject for the GUID.
 
@@ -310,6 +316,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
+    @sql_connection_retry
     def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
         identifier_list: List[IdentifierObject] = []
         index = 0
@@ -340,6 +347,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return identifier_list
 
+    @sql_connection_retry
     def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
         identifier_list: List[IdentifierObject] = []
         index = 0
