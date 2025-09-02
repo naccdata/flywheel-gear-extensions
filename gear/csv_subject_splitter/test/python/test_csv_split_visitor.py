@@ -174,7 +174,7 @@ class TestCSVSplitVisitor:
 
         visitor = CSVSplitVisitor(
             provenance=provenance,
-            req_fields=["naccid"],
+            req_fields={"naccid"},
             uploader=MockUploader() if uploader is None else uploader,
             project=MockProject(),
             error_writer=error_writer,

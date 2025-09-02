@@ -1,7 +1,7 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from typing import Any, Dict, List, TextIO
+from typing import Any, Dict, List, Set, TextIO
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -24,7 +24,7 @@ class CSVSplitVisitor(CSVVisitor):
         self,
         *,
         provenance: FileProvenance,
-        req_fields: List[str],
+        req_fields: Set[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
@@ -46,8 +46,8 @@ class CSVSplitVisitor(CSVVisitor):
           True if the header has all required fields, False otherwise
         """
 
-        if not set(self.__req_fields).issubset(set(header)):
-            self.__error_writer.write(missing_field_error(set(self.__req_fields)))
+        if not self.__req_fields.issubset(set(header)):
+            self.__error_writer.write(missing_field_error(self.__req_fields))
             return False
 
         return True
@@ -108,6 +108,7 @@ def run(
     destination: ProjectAdaptor,
     error_writer: ErrorWriter,
     preserve_case: bool,
+    req_fields: Set[str],
 ) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.
@@ -119,15 +120,19 @@ def run(
         destination: Flywheel project container
         error_writer: the writer for error output
         preserve_case: Whether or not to preserve header case
+        req_fields: Required fields (e.g. an error is reported if empty)
+            NACCID is always required/added to this set
     Returns:
         bool: True if upload successful
     """
+    req_fields.add(FieldNames.NACCID)
+
     result = read_csv(
         input_file=input_file,
         error_writer=error_writer,
         visitor=CSVSplitVisitor(
             provenance=provenance,
-            req_fields=[FieldNames.NACCID],
+            req_fields=req_fields,
             project=destination,
             uploader=uploader,
             error_writer=error_writer,
