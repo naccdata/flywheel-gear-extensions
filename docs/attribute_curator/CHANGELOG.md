@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.4.3
+
+* Update to also catch `MissingRequiredError`
+
 ## 0.4.2
 
 * Updates `nacc-attribute-deriver` to `1.4.2`, which exposes curation rules by scope
