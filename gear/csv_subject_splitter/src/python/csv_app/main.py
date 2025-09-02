@@ -66,7 +66,7 @@ class CSVSplitVisitor(CSVVisitor):
         found_all = True
         empty_fields = set()
         for field in self.__req_fields:
-            if field not in row or not row[field]:
+            if field not in row or row[field] is None:
                 empty_fields.add(field)
                 found_all = False
 
