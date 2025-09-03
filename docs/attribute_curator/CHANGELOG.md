@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.4.4
+
+* Updates `nacc-attribute-deriver` to `1.4.3`, which fixes mutability bug causing some files (namely isolated NP with no corresponding UDS/BDS/MDS visit) to not get curated
+
 ## 0.4.3
 
 * Update to also catch `MissingRequiredError`

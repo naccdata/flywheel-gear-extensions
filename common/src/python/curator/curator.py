@@ -78,6 +78,10 @@ class Curator(ABC):
         """
         # add the metadata
         table = SymbolTable({})
+
+        # SymbolTable.to_dict() returns the internal dict object; this same object
+        # is passed to each file's iteration of this table, so in practice is
+        # mutated globally
         table["subject.info"] = subject_table.to_dict()
         table["file.info"] = file_entry.reload().info
         return table
@@ -110,7 +114,7 @@ class Curator(ABC):
             return
 
         table = self.get_table(subject, subject_table, file_entry)
-        log.debug("curating file %s", file_entry.name)
+        log.debug("curating file %s with scope %s", file_entry.name, scope)
         self.execute(subject, file_entry, table, scope)
 
     def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:

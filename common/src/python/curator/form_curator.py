@@ -185,6 +185,9 @@ class FormCurator(Curator):
             subject.add_tag("affiliated")
 
         if not cs_derived:
+            log.debug(
+                f"No cross-sectional derived variables to back-propogate for {subject.label}"
+            )
             return
 
         # filter out to the scopes
