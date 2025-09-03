@@ -115,7 +115,10 @@ def check_batch_run_status(
 
 
 def schedule_batch_copy(
-    proxy: FlywheelProxy, centers: List[Element], batch_configs: BatchRunInfo
+    proxy: FlywheelProxy,
+    centers: List[Element],
+    batch_configs: BatchRunInfo,
+    retry_jobs: bool = True,
 ) -> Optional[List[str]]:
     """Schedule the centers in batches depending on the batch mode and batch
     size.
@@ -124,6 +127,7 @@ def schedule_batch_copy(
         proxy: Flywheel proxy
         centers: list of centers to copy data
         batch_configs: batch run configurations
+        retry_jobs: whether or not to retry failed jobs
 
     Returns:
         Optional[List[str]]: list of failed job IDs if any
@@ -167,18 +171,20 @@ def schedule_batch_copy(
         batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
 
     if len(failed_list) > 0:
-        log.error(
-            "Retrying %s failed gear jobs: %s", len(failed_list), str(failed_list)
-        )
-        new_jobs, failed_jobs = retry_failed_jobs(
-            proxy=proxy, failed_ids=failed_list, batch_size=batch_configs.batch_size
-        )
-        if new_jobs:
-            check_batch_run_status(
-                proxy=proxy, jobs_list=new_jobs, failed_list=failed_jobs
+        if retry_jobs:
+            log.error(
+                "Retrying %s failed gear jobs: %s", len(failed_list), str(failed_list)
             )
+            new_jobs, failed_jobs = retry_failed_jobs(
+                proxy=proxy, failed_ids=failed_list, batch_size=batch_configs.batch_size
+            )
+            if new_jobs:
+                check_batch_run_status(
+                    proxy=proxy, jobs_list=new_jobs, failed_list=failed_jobs
+                )
 
-        return failed_jobs
+            return failed_jobs
+        return failed_list
 
     return None
 
@@ -276,6 +282,7 @@ def run(
     batch_configs: BatchRunInfo,
     sender_email: str,
     target_emails: List[str],
+    retry_jobs: bool,
     dry_run: bool,
 ):
     """Runs the batch scheduling process.
@@ -287,6 +294,7 @@ def run(
         batch_configs: configurations for batch run
         sender_email: The sender email for error notification
         target_emails: The target email(s) to be notified
+        retry_jobs: Whether or not to retry jobs
         dry_run: whether to do a dry run
     """
 
@@ -339,7 +347,7 @@ def run(
         return
 
     failed_jobs = schedule_batch_copy(
-        proxy=proxy, centers=minheap, batch_configs=batch_configs
+        proxy=proxy, centers=minheap, batch_configs=batch_configs, retry_jobs=retry_jobs
     )
 
     if failed_jobs and len(failed_jobs) > 0:

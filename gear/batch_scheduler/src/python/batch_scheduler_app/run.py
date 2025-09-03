@@ -35,6 +35,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
         exclude_centers: List[str],
         exclude_studies: List[str],
         time_interval: int,
+        retry_jobs: bool,
     ):
         """
         Args:
@@ -45,6 +46,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             exclude_centers: list of centers to exclude from batch run
             exclude_studies: list of study suffixes to exclude from batch run
             time_interval: time interval in days between the runs (input -1 to ignore)
+            retry_jobs: whether or not to retry jobs
         """
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -53,6 +55,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
         self.__exclude_centers = exclude_centers
         self.__exclude_studies = exclude_studies
         self.__time_interval = time_interval
+        self.__retry_jobs = retry_jobs
 
     @classmethod
     def create(
@@ -112,6 +115,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             exclude_centers=exclude_centers_list,
             exclude_studies=exclude_studies_list,
             time_interval=context.config.get("time_interval", 7),
+            retry_jobs=context.config.get("retry_jobs", True),
         )
 
     def __get_center_ids(self) -> Optional[List[str]]:
@@ -175,6 +179,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             batch_configs=batch_configs,
             sender_email=sender_email,
             target_emails=target_emails,
+            retry_jobs=self.__retry_jobs,
             dry_run=context.config.get("dry_run", False),
         )
 
