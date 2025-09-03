@@ -446,7 +446,7 @@ class TestFormPreprocessor:
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
-        # pass DOD when day/month is 99, so it compares years
+        # fail DOD when day/month is 99
         test_record.update(
             {
                 f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 99,  # type: ignore
@@ -454,7 +454,8 @@ class TestFormPreprocessor:
             }
         )
 
-        assert processor._check_np_mlst_restrictions(np_pp_context)
+        assert not processor._check_np_mlst_restrictions(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
         # fail DOD when MLST is None
         test_record.update(
@@ -463,7 +464,7 @@ class TestFormPreprocessor:
                 f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": None,  # type: ignore
                 f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": None,  # type: ignore
             }
-        )  # type: ignore
+        )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 

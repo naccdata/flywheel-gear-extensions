@@ -997,16 +997,11 @@ class FormPreprocessor:
             day=input_record.get("npdoddy"),
         )
 
-        result_dod = True
-        # MLST may have not had month/day defined (unknown 99s)
-        # if so, compare year directly
-        # otherwise check both exist and are equal to each other
-        if not mlst_dod and mlst_year is not None:
-            result_dod = mlst_year == np_year
-        else:
-            result_dod = (mlst_dod is not None and np_dod is not None) and (
-                mlst_dod == np_dod
-            )
+        # mlst_dod and np_dod will be None if any parts are 99/invalid
+        # they must both be valid for this preprocessing check to pass
+        result_dod = (mlst_dod is not None and np_dod is not None) and (
+            mlst_dod == np_dod
+        )
 
         if not result_dod:
             self.__error_handler.write_date_error(
