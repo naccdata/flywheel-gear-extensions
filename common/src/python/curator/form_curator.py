@@ -186,7 +186,8 @@ class FormCurator(Curator):
 
         if not cs_derived:
             log.debug(
-                f"No cross-sectional derived variables to back-propogate for {subject.label}"
+                "No cross-sectional derived variables to "
+                f"back-propogate for {subject.label}"
             )
             return
 
