@@ -910,8 +910,14 @@ class FormPreprocessor:
                 return True
 
         # no clinical visits found; fail preprocessing check
+        error_code = SysErrorCodes.CLINICAL_FORM_REQUIRED
+        if self.__module == DefaultValues.MLST_MODULE:
+            error_code = SysErrorCodes.CLINICAL_FORM_REQUIRED_MLST
+        elif self.__module == DefaultValues.NP_MODULE:
+            error_code = SysErrorCodes.CLINICAL_FORM_REQUIRED_NP
+
         self.__error_handler.write_module_error(
-            pp_context=pp_context, error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED
+            pp_context=pp_context, error_code=error_code
         )
 
         return False
@@ -934,23 +940,49 @@ class FormPreprocessor:
         assert pp_context.subject_lbl, "pp_context.subject_lbl required"
 
         # get most recent MLST form
+        mlst_fields = ["deathyr", "deathmo", "deathdy", "deceased", "autopsy"]
         all_mlst_forms = self.__forms_store.query_form_data(
             subject_lbl=pp_context.subject_lbl,
             module=DefaultValues.MLST_MODULE,
             legacy=False,
             search_col=FieldNames.DATE_COLUMN,
             find_all=True,
-            extra_columns=["deathyr", "deathmo", "deathdy", "autopsy"],
+            extra_columns=mlst_fields,
         )
 
-        # if no MLST forms, passes by default
+        # try legacy if not found
         if not all_mlst_forms:
-            return True
+            all_mlst_forms = self.__forms_store.query_form_data(
+                subject_lbl=pp_context.subject_lbl,
+                module=DefaultValues.MLST_MODULE,
+                legacy=True,
+                search_col=FieldNames.DATE_COLUMN,
+                find_all=True,
+                extra_columns=mlst_fields,
+            )
+
+        # if no MLST forms, fails
+        if not all_mlst_forms:
+            return False
 
         mlst_form = all_mlst_forms[0]
         input_record = pp_context.input_record
 
-        # preprocess-026: death dates in MLST/NP must match
+        # preprocess-026: deceased and autopsy must be 1 in MLST form for
+        # NP to be accepted
+        result_death_denoted = True
+        for field in ["autopsy", "deceased"]:
+            value = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.{field}", "")
+            if value is None or str(value) != "1":
+                result_death_denoted = False
+                self.__error_handler.write_preprocessing_error(
+                    field=field,
+                    value=str(value) if value is not None else "",
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.DEATH_DENOTED_ON_MLST,
+                )
+
+        # preprocess-027: death dates in MLST/NP must match
         mlst_year = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathyr")
         np_year = input_record.get("npdodyr")
 
@@ -983,21 +1015,7 @@ class FormPreprocessor:
                 date_field="npdodyr",
             )
 
-        # preprocess-027: autopsy must be 1 in MLST form for NP to be accepted
-        autopsy = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.autopsy", "")
-        if autopsy is None:
-            autopsy = ""
-
-        result_autopsy = str(autopsy) == "1"
-        if not result_autopsy:
-            self.__error_handler.write_preprocessing_error(
-                field="autopsy",
-                value=str(autopsy),
-                pp_context=pp_context,
-                error_code=SysErrorCodes.AUTOPSY_NP_INVALID,
-            )
-
-        return result_dod and result_autopsy
+        return result_death_denoted and result_dod
 
     def preprocess(
         self,

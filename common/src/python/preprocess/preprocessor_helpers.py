@@ -57,7 +57,6 @@ class FormPreprocessorErrorHandler:
             value: Value of the failed field
             pp_context: PreprocessingContext
             error_code: The specific error code to report
-            record: The record to report; defaults to current input record
             suppress_logs: Whether or not to suppress stderr logs (set to
                 True if providing own error logs to stderr)
             message: Alternative error message
@@ -68,8 +67,11 @@ class FormPreprocessorErrorHandler:
             error_msg = preprocess_errors.get(error_code, "Preprocessing error")
             stderr_msg = (
                 f"{error_msg} - {self.__module}/{input_record[FieldNames.FORMVER]}"
-                f"/{input_record[FieldNames.PACKET]}"
             )
+
+            packet = input_record.get(FieldNames.PACKET)
+            if packet:
+                stderr_msg = f"{stderr_msg}/{packet}"
 
             if extra_args:
                 stderr_msg = f"{stderr_msg} - {extra_args}"

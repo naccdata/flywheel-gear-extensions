@@ -105,7 +105,7 @@ class SysErrorCodes:
     IVP_EXISTS = "preprocess-002"
     UDS_NOT_MATCH = "preprocess-003"
     INVALID_MODULE_PACKET = "preprocess-004"
-    UDS_NOT_EXIST = "preprocess-005"
+    CLINICAL_FORM_REQUIRED_MLST = "preprocess-005"
     DIFF_VISITDATE = "preprocess-006"
     DIFF_VISITNUM = "preprocess-007"
     LOWER_FVP_VISITNUM = "preprocess-008"
@@ -125,9 +125,15 @@ class SysErrorCodes:
     DUPLICATE_VISIT = "preprocess-022"
     LOWER_VISITNUM = "preprocess-023"
     MISSING_SUBMISSION_STATUS = "preprocess-024"
-    CLINICAL_FORM_REQUIRED = "preprocess-025"
-    DEATH_DATE_MISMATCH = "preprocess-026"
-    AUTOPSY_NP_INVALID = "preprocess-027"
+    CLINICAL_FORM_REQUIRED_NP = "preprocess-025"
+    DEATH_DENOTED_ON_MLST = "preprocess-026"
+    DEATH_DATE_MISMATCH = "preprocess-027"
+
+    # other errors for preprocessing issues that don't fall
+    # in above categories
+    PREPROCESSING_ERROR = "preprocess-error"
+    UDS_NOT_EXIST = "preprocess-error"
+    CLINICAL_FORM_REQUIRED = "preprocess-error"
 
 
 class PreprocessingChecks:

@@ -364,7 +364,9 @@ class TestFormPreprocessor:
 
         # should fail at first because there are no supplement visits in our form store
         assert not processor._check_clinical_forms(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.CLINICAL_FORM_REQUIRED)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.CLINICAL_FORM_REQUIRED_NP
+        )
 
         # test for each allowed module
         # for each module, add a proper supplement visit to the forms store; should not
@@ -389,14 +391,15 @@ class TestFormPreprocessor:
             DefaultValues.NP_MODULE, np_module_configs
         )
 
-        # passes by default if there is no MLST form
-        assert processor._check_np_mlst_restrictions(np_pp_context)
+        # fails if there is no MLST form
+        assert not processor._check_np_mlst_restrictions(np_pp_context)
 
         # add MLST forms; make sure it actually tests the most recent
         test_record = {
             f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": "2025",
             f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": "8",
             f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "27",
+            f"{MetadataKeys.FORM_METADATA_PATH}.deceased": "1",
             f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": "1",
         }
         forms_store.set_form_data(
@@ -415,22 +418,31 @@ class TestFormPreprocessor:
             {"npdodyr": "2025", "npdodmo": "8", "npdoddy": "27"}
         )
 
-        # pass on DODs match and autopsy == 1
+        # pass on DODs match and autopsy and deceased == 1
         assert processor._check_np_mlst_restrictions(np_pp_context)
 
-        # fail on autopsy != 1
+        # fail on autopsy != 1 or deceased != 1
         for value in [0, 2, None]:
             test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = value  # type: ignore
             assert not processor._check_np_mlst_restrictions(np_pp_context)
-            self.__assert_error_raised(error_writer, SysErrorCodes.AUTOPSY_NP_INVALID)
+            self.__assert_error_raised(
+                error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST
+            )
+
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = 1  # type: ignore
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = value  # type: ignore
+            assert not processor._check_np_mlst_restrictions(np_pp_context)
+            self.__assert_error_raised(
+                error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST
+            )
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = 1  # type: ignore
 
         # fail when the DODs don't match
         test_record.update(
             {
                 f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": 12,  # type: ignore
-                f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1,  # type: ignore
             }
-        )  # type: ignore
+        )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
@@ -462,13 +474,16 @@ class TestFormPreprocessor:
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
-        # fail when both fail
+        # fail when all fail
         test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None  # type: ignore
+        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = None  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
 
-        assert len(error_writer.errors()) == 2
-        file_error_dod = error_writer.errors()[0]
+        assert len(error_writer.errors()) == 3
+        file_error_dec = error_writer.errors()[0]
         file_error_aut = error_writer.errors()[1]
+        file_error_dod = error_writer.errors()[2]
 
+        assert file_error_dec.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
+        assert file_error_aut.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
         assert file_error_dod.error_code == SysErrorCodes.DEATH_DATE_MISMATCH
-        assert file_error_aut.error_code == SysErrorCodes.AUTOPSY_NP_INVALID
