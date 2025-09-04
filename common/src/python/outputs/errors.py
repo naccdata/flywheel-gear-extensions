@@ -24,8 +24,9 @@ preprocess_errors = {
     SysErrorCodes.INVALID_MODULE_PACKET: (
         "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)"
     ),
-    SysErrorCodes.UDS_NOT_EXIST: (
-        "A UDS packet must be submitted before submitting this module/form"
+    SysErrorCodes.CLINICAL_FORM_REQUIRED_MLST: (
+        "Participant must have a UDS, BDS, or MDS packet submitted before "
+        "the a Milestone form can be submitted"
     ),
     SysErrorCodes.DIFF_VISITDATE: (
         "Two packets cannot have the same visit number (VISITNUM) "
@@ -92,8 +93,27 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name>) variables {0}"
+        "Missing submission status (MODE<form name>) variables {0} "
         "for one or more optional forms"
+    ),
+    SysErrorCodes.CLINICAL_FORM_REQUIRED_NP: (
+        "Participant must have a UDS, BDS, or MDS packet submitted before "
+        "the NP form can be submitted"
+    ),
+    SysErrorCodes.DEATH_DENOTED_ON_MLST: (
+        "DECEASED and AUTOPSY should equal 1 in the most recent Milestone form "
+        "in order for the NP form to be accepted"
+    ),
+    SysErrorCodes.DEATH_DATE_MISMATCH: (
+        "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
+        "must match the date of death on the on NP form (NPDODMO, NPDODDY, NPDODYR)"
+    ),
+    SysErrorCodes.UDS_NOT_EXIST: (
+        "A UDS packet must be submitted before submitting this module/form"
+    ),
+    SysErrorCodes.CLINICAL_FORM_REQUIRED: (
+        "Participant must have a UDS, BDS, or MDS packet submitted before "
+        "this module/form can be submitted"
     ),
 }
 
@@ -337,7 +357,7 @@ def preprocessing_error(
     return FileError(
         error_type="error",  # pyright: ignore[reportCallIssue]
         error_code=(  # pyright: ignore[reportCallIssue]
-            error_code if error_code else "preprocess-error"
+            error_code if error_code else SysErrorCodes.PREPROCESSING_ERROR
         ),
         value=value,
         location=CSVLocation(line=line, column_name=field)
