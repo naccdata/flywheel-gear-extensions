@@ -7,11 +7,13 @@ https://github.com/cosmicpython/code/tree/chapter_02_repository_exercise
 import abc
 import logging
 from abc import abstractmethod
+from datetime import date
 from typing import List, Optional, overload
 
 from identifiers.model import (
     CenterIdentifiers,
     GUIDField,
+    IdentifierDurationResponse,
     IdentifierList,
     IdentifierObject,
     NACCIDField,
@@ -47,6 +49,13 @@ class IdentifierUpdateObject(
             naccadc=identifier.naccadc,
             active=active,
         )
+
+
+class DateQueryObject(NACCIDField, CenterIdentifiers):
+    """Request model for checking whether a visitdate is within the valid
+    duration for the specified center."""
+
+    visitdate: date
 
 
 class IdentifierRepository(abc.ABC):
@@ -146,6 +155,20 @@ class IdentifierRepository(abc.ABC):
 
         Returns:
           True if add/update successful, else False
+        """
+
+    @abstractmethod
+    def check_duration(
+        self, date_query: DateQueryObject
+    ) -> Optional[IdentifierDurationResponse]:
+        """Checks whether there is a valid identifier duration record in the
+        repository matching with the visit date in query object.
+
+        Args:
+          date_query: visitdate query to validate
+
+        Returns:
+          IdentifierDurationResponse (optional) if match found, else None
         """
 
 

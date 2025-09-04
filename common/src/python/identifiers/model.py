@@ -1,5 +1,6 @@
 """Defines the Identifier data class."""
 
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, RootModel, field_validator
@@ -68,6 +69,7 @@ class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
     """
 
     active: bool = True
+    created_on: Optional[datetime] = None
 
 
 class IdentifierList(RootModel):
@@ -104,3 +106,10 @@ class ParticipantIdentifiers(NACCIDField, GUIDField):
 
     center_identifiers: CenterIdentifiers
     aliases: Optional[List[str]]
+
+
+class IdentifierDurationResponse(NACCIDField, CenterFields):
+    """Response model for identifier duration request."""
+
+    start_date: date
+    end_date: Optional[date] = None
