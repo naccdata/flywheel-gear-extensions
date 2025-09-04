@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/batch_scheduler/src/python/batch_scheduler_app:bin",
     ],
-    image_tags=["1.1.2", "latest"],
+    image_tags=["1.1.3", "latest"],
 )
