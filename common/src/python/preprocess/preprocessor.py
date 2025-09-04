@@ -982,6 +982,9 @@ class FormPreprocessor:
                     error_code=SysErrorCodes.DEATH_DENOTED_ON_MLST,
                 )
 
+        if not result_death_denoted:
+            return False
+
         # preprocess-027: death dates in MLST/NP must match
         mlst_year = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.deathyr")
         np_year = input_record.get("npdodyr")
@@ -1010,7 +1013,7 @@ class FormPreprocessor:
                 date_field="npdodyr",
             )
 
-        return result_death_denoted and result_dod
+        return result_dod
 
     def preprocess(
         self,

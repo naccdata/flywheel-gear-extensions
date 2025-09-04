@@ -475,16 +475,14 @@ class TestFormPreprocessor:
         assert not processor._check_np_mlst_restrictions(np_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
-        # fail when all fail
+        # fail when all fail; fails early so should only report autopsy/deceased
         test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None  # type: ignore
         test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = None  # type: ignore
         assert not processor._check_np_mlst_restrictions(np_pp_context)
 
-        assert len(error_writer.errors()) == 3
+        assert len(error_writer.errors()) == 2
         file_error_dec = error_writer.errors()[0]
         file_error_aut = error_writer.errors()[1]
-        file_error_dod = error_writer.errors()[2]
 
         assert file_error_dec.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
         assert file_error_aut.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
-        assert file_error_dod.error_code == SysErrorCodes.DEATH_DATE_MISMATCH
