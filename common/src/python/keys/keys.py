@@ -132,8 +132,8 @@ class SysErrorCodes:
     # other errors for preprocessing issues that don't fall
     # in above categories
     PREPROCESSING_ERROR = "preprocess-error"
-    UDS_NOT_EXIST = "preprocess-error"
-    CLINICAL_FORM_REQUIRED = "preprocess-error"
+    UDS_NOT_EXIST = "preprocess-100"
+    CLINICAL_FORM_REQUIRED = "preprocess-101"
 
 
 class PreprocessingChecks:
