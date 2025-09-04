@@ -102,7 +102,7 @@ preprocess_errors = {
     ),
     SysErrorCodes.DEATH_DENOTED_ON_MLST: (
         "DECEASED and AUTOPSY should equal 1 in the most recent Milestone form "
-        "in order for the NP form to be accepted "
+        "in order for the NP form to be accepted"
     ),
     SysErrorCodes.DEATH_DATE_MISMATCH: (
         "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
