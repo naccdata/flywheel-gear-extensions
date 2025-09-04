@@ -141,6 +141,14 @@ class AggregationMapper(StudyMapper):
           center: the center group
           study_info: the study metadata
         """
+        if study_info.study_id != "adrc" and study_info.pipeline_adcid == center.adcid:
+            log.warning(
+                "Center %s has no ADCID for study %s. Skipping pipelines",
+                center.id,
+                study_info.study_id
+            )
+            return None
+
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
@@ -205,6 +213,7 @@ class AggregationMapper(StudyMapper):
           pipeline: the name of the pipeline
           datatype: the name of the datatype
         """
+        pipeline_label = self.pipeline_label(pipeline, datatype)
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
@@ -220,7 +229,7 @@ class AggregationMapper(StudyMapper):
 
         self.add_pipeline(
             center=center,
-            pipeline_label=self.pipeline_label(pipeline, datatype),
+            pipeline_label=pipeline_label,
             update_study=update_ingest,
         )
 
@@ -285,6 +294,10 @@ class AggregationMapper(StudyMapper):
         if project is not None:
             project.add_admin_users(self.__admin_access)
         return project
+
+
+class StudyMappingError(Exception):
+    """Exception class for errors during study mapping."""
 
 
 class DistributionMapper(StudyMapper):
