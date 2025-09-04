@@ -393,6 +393,7 @@ class TestFormPreprocessor:
 
         # fails if there is no MLST form
         assert not processor._check_np_mlst_restrictions(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST)
 
         # add MLST forms; make sure it actually tests the most recent
         test_record = {

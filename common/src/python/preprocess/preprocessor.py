@@ -963,6 +963,13 @@ class FormPreprocessor:
 
         # if no MLST forms, fails
         if not all_mlst_forms:
+            self.__error_handler.write_preprocessing_error(
+                field="missing_mlst_form",
+                value="",
+                pp_context=pp_context,
+                error_code=SysErrorCodes.DEATH_DENOTED_ON_MLST,
+            )
+
             return False
 
         mlst_form = all_mlst_forms[0]
