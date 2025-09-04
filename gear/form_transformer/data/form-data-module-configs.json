@@ -268,13 +268,8 @@
                 "duplicate-record",
                 "version",
                 "packet",
-                "supplement-module"
-            ],
-            "supplement_module": {
-                "label": "UDS",
-                "date_field": "visitdate",
-                "exact_match": false
-            }
+                "clinical-forms"
+            ]
         },
         "NP": {
             "hierarchy_labels": {
@@ -315,7 +310,9 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
-                "packet"
+                "packet",
+                "clinical-forms",
+                "np-mlst-restrictions"
             ]
         },
         "BDS": {
