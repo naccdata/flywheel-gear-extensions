@@ -1,9 +1,7 @@
 """Utility decorators."""
 
 import logging
-import time
 
-import pymysql  # type: ignore
 from flywheel.rest import ApiException
 
 log = logging.getLogger(__name__)

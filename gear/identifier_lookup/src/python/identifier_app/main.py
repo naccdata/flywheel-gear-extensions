@@ -313,7 +313,7 @@ class CenterLookupVisitor(CSVVisitor):
             raise GearExecutionError(f"NACCID not found in row {line_num}")
 
         # sleep for 1 seconds per batch size to reduce concurrent connections
-        if self.__batch_size > 0 and line % self.__batch_size == 0:
+        if self.__batch_size > 0 and line_num % self.__batch_size == 0:
             time.sleep(1)
 
         try:
