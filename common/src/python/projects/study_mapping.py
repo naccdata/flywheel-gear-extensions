@@ -145,7 +145,7 @@ class AggregationMapper(StudyMapper):
             log.warning(
                 "Center %s has no ADCID for study %s. Skipping pipelines",
                 center.id,
-                study_info.study_id
+                study_info.study_id,
             )
             return None
 
