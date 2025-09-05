@@ -43,7 +43,8 @@ published: <whether the data is published>
 
 "Center details" may either be a center identifier or a center-study object.
 Center identifiers are Flywheel group IDs created by the [center management](../center_management/index.md) gear.
-A center-study object has a center identifier labeled as `center-id` and an `enrollment-pattern` that may be `co-enrollment`, or `separate`.
+A center-study object has a center identifier labeled as `center-id`, an `enrollment-pattern` that may be `co-enrollment` or `separate`, and a `pipeline_adcid` that is an optional `int`.
+The `pipeline_adcid` is an ADCID assigned for the study data pipeline and is required when the enrollment pattern is `separate` and otherwise should not be given.
 In the `centers` list, a center identifier is assumed to represent a center-study object with the co-enrollment pattern.
 
 The mode is a string that is either `aggregation` or `distribution`.
@@ -58,7 +59,7 @@ Additional projects will be added if the study is either primary or it is affili
 
 1. pipeline projects for each datatype.
    For aggregating studies, a project will have a name of the form `<pipeline>-<datatype>-<study-id>` where `<pipeline>` is `ingest`, `sandbox` or `retrospective`.
-   For distributing studies, the pipline will be named `distribution`.
+   For distributing studies, the pipeline will be named `distribution`.
    For instance, `ingest-form-leads`.
    For the primary study, the study-id is dropped like `ingest-form`.
 2. An `accepted` pipeline project for an aggregating study, where data that has passed QC is accessible.
@@ -71,7 +72,7 @@ Notes:
    However, it is more pragmatic to have one file per study for large studies.
 
 3. The `tags` are strings that will be permissible as tags within the group for the center. 
-   Each tag will also be added to ingest studys within the center's pipeline(s).
+   Each tag will also be added to ingest projects within the center's pipeline(s).
 
 4. Datatypes are strings used for creating ingest containers, and matching to sets of gear rules needed for handling ingest.
 

@@ -12,6 +12,7 @@ name: <center name>
 center-id: <string identifier>
 adcid: <int>
 is-active: <whether the center is active>
+type: <whether info represents a center or pipeline>
 tags: <list of strings for tagging study>
 ```
 
@@ -26,26 +27,38 @@ Notes:
 2. The `adcid` is an assigned code used to identify the center within submitted data.
    Each center has a unique ADC ID.
 
+3. The `type` indicates whether the "center" is a pipeline or a center.
+   This is an artifact of the legacy NACC system where ADCIDs were needed for 
+   having pipelines of separately enrolled participants.
+   The only reason to include a "pipeline ADCID" is to include it in the center map.
+   Otherwise, the ADCID is used in the input to the project management gear.
+
 ### Example
 
 ```yaml
 ---
-- name: "Alpha Center"
+- name: Alpha Center
   center-id: alpha
   adcid: 1
   is-active: True
+  type: center
   tags:
-    - 'center-code-1006'
-- name: "Beta Center"
+    - center-code-1006
+- name: Beta Center
   center-id: beta-inactive
   adcid: 2
   is-active: False
+  type: center
   tags:
-    - 'center-code-2006'
-- name: "Gamma ADRC"
+    - center-code-2006
+- name: Gamma ADRC
   center-id: gamma-adrc
   adcid: 3
   is-active: True
+  type: center
   tags:
-    - 'center-code-5006'
+    - center-code-5006
+- name: Gamma LEADS
+  adcid: 99
+  type: pipeline
 ```

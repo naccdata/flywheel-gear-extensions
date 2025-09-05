@@ -205,6 +205,7 @@ class AggregationMapper(StudyMapper):
           pipeline: the name of the pipeline
           datatype: the name of the datatype
         """
+        pipeline_label = self.pipeline_label(pipeline, datatype)
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
@@ -220,7 +221,7 @@ class AggregationMapper(StudyMapper):
 
         self.add_pipeline(
             center=center,
-            pipeline_label=self.pipeline_label(pipeline, datatype),
+            pipeline_label=pipeline_label,
             update_study=update_ingest,
         )
 
@@ -285,6 +286,10 @@ class AggregationMapper(StudyMapper):
         if project is not None:
             project.add_admin_users(self.__admin_access)
         return project
+
+
+class StudyMappingError(Exception):
+    """Exception class for errors during study mapping."""
 
 
 class DistributionMapper(StudyMapper):
@@ -360,9 +365,9 @@ class DistributionMapper(StudyMapper):
 
 class StudyMappingVisitor(StudyVisitor):
     def __init__(
-        self, flywheel_proxy: FlywheelProxy, admin_access: List[AccessPermission]
+        self, flywheel_proxy: FlywheelProxy, admin_permissions: List[AccessPermission]
     ) -> None:
-        self.__admin_access = admin_access
+        self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
         self.__study: Optional[StudyModel] = None
         self.__mapper: Optional[StudyMapper] = None
@@ -384,7 +389,7 @@ class StudyMappingVisitor(StudyVisitor):
         if study.mode == "aggregation":
             self.__mapper = AggregationMapper(
                 proxy=self.__fw,
-                admin_access=self.__admin_access,
+                admin_access=self.__admin_permissions,
                 study=study,
                 pipelines=["ingest", "sandbox"],
             )
@@ -406,6 +411,13 @@ class StudyMappingVisitor(StudyVisitor):
         assert self.__study, "study must be set"
         assert self.__mapper, "mapper must be set"
 
+        if (
+            self.__study.mode == "aggregation"
+            and self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
+            return
+
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
             log.warning("No group found with center ID %s", center_model.center_id)
@@ -417,17 +429,30 @@ class StudyMappingVisitor(StudyVisitor):
             log.warning("Unable to create center group: %s", str(error))
             return
 
+        pipeline_adcid = (
+            center_model.pipeline_adcid if center_model.pipeline_adcid else center.adcid
+        )
         if (
             self.__study.mode == "aggregation"
             and self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
+            and pipeline_adcid == center.adcid
         ):
+            log.warning(
+                "Center %s has no ADCID for study %s. Skipping pipelines",
+                center.id,
+                self.__study.study_id,
+            )
             return
 
         portal_info = center.get_project_info()
-        study_info = portal_info.get(
-            study=self.__study, pipeline_adcid=center_model.pipeline_adcid
-        )
+        study_info = portal_info.get(self.__study.study_id)
+        if study_info is None:
+            study_info = CenterStudyMetadata(
+                study_id=self.__study.study_id,
+                study_name=self.__study.name,
+                pipeline_adcid=pipeline_adcid,
+            )
+            portal_info.add(study_info)
 
         self.__mapper.map_center_pipelines(center=center, study_info=study_info)
 
