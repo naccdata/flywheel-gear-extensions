@@ -4,7 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 0.4.4
 
-* Updates `nacc-attribute-deriver` to `1.4.3`, which fixes mutability bug causing files with no subject metadata to not have its curation updated (usually result of isolated form without UDS/BDS/MDS visit and thus no enrollment data)
+* Updates `nacc-attribute-deriver` to `1.4.3`, which fixes mutability bug causing subjects with no pre-existing metadata to not have its curation updated (usually result of isolated form without UDS/BDS/MDS visit and thus no enrollment data)
 
 ## 0.4.3
 
