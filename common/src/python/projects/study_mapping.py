@@ -141,14 +141,6 @@ class AggregationMapper(StudyMapper):
           center: the center group
           study_info: the study metadata
         """
-        if study_info.study_id != "adrc" and study_info.pipeline_adcid == center.adcid:
-            log.warning(
-                "Center %s has no ADCID for study %s. Skipping pipelines",
-                center.id,
-                study_info.study_id,
-            )
-            return None
-
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
@@ -419,6 +411,13 @@ class StudyMappingVisitor(StudyVisitor):
         assert self.__study, "study must be set"
         assert self.__mapper, "mapper must be set"
 
+        if (
+            self.__study.mode == "aggregation"
+            and self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
+            return
+
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
             log.warning("No group found with center ID %s", center_model.center_id)
@@ -430,17 +429,30 @@ class StudyMappingVisitor(StudyVisitor):
             log.warning("Unable to create center group: %s", str(error))
             return
 
+        pipeline_adcid = (
+            center_model.pipeline_adcid if center_model.pipeline_adcid else center.adcid
+        )
         if (
             self.__study.mode == "aggregation"
             and self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
+            and pipeline_adcid == center.adcid
         ):
+            log.warning(
+                "Center %s has no ADCID for study %s. Skipping pipelines",
+                center.id,
+                self.__study.study_id,
+            )
             return
 
         portal_info = center.get_project_info()
-        study_info = portal_info.get(
-            study=self.__study, pipeline_adcid=center_model.pipeline_adcid
-        )
+        study_info = portal_info.get(self.__study.study_id)
+        if study_info is None:
+            study_info = CenterStudyMetadata(
+                study_id=self.__study.study_id,
+                study_name=self.__study.name,
+                pipeline_adcid=pipeline_adcid,
+            )
+            portal_info.add(study_info)
 
         self.__mapper.map_center_pipelines(center=center, study_info=study_info)
 
