@@ -373,9 +373,9 @@ class DistributionMapper(StudyMapper):
 
 class StudyMappingVisitor(StudyVisitor):
     def __init__(
-        self, flywheel_proxy: FlywheelProxy, admin_access: List[AccessPermission]
+        self, flywheel_proxy: FlywheelProxy, admin_permissions: List[AccessPermission]
     ) -> None:
-        self.__admin_access = admin_access
+        self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
         self.__study: Optional[StudyModel] = None
         self.__mapper: Optional[StudyMapper] = None
@@ -397,7 +397,7 @@ class StudyMappingVisitor(StudyVisitor):
         if study.mode == "aggregation":
             self.__mapper = AggregationMapper(
                 proxy=self.__fw,
-                admin_access=self.__admin_access,
+                admin_access=self.__admin_permissions,
                 study=study,
                 pipelines=["ingest", "sandbox"],
             )
