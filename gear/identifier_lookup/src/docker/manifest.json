@@ -36,8 +36,9 @@
             }
         },
         "form_configs_file": {
-            "description": "A JSON file with forms module configurations",
+            "description": "A JSON file with forms module configurations; required for the nacc direction",
             "base": "file",
+            "optional": true,
             "type": {
                 "enum": [
                     "source code"
