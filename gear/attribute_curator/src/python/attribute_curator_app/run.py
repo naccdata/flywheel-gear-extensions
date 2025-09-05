@@ -1,5 +1,6 @@
 """Entry script for UDS Curator."""
 
+import importlib.metadata
 import logging
 from typing import Optional
 
@@ -89,6 +90,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         deriver = AttributeDeriver()
+        version = importlib.metadata.version("nacc_attribute_deriver")
+        log.info(f"Running nacc-attribute-deriver version {version}")
 
         blacklist = None
         if self.__blacklist_file:
