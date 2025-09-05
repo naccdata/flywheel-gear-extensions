@@ -932,14 +932,15 @@ class CenterProjectMetadata(BaseModel):
     def get(
         self, study: StudyModel, pipeline_adcid: Optional[int] = None
     ) -> CenterStudyMetadata:
-        """Gets the study metadata for the study id.
+        """Gets the study metadata for the study.
 
         Creates a new StudyMetadata object if it does not exist.
 
         Args:
-            study_id: the study id
+            study: the study model
+
         Returns:
-            the study metadata for the study id
+            the study metadata for the study
         """
         study_info = self.studies.get(study.study_id, None)
         if study_info:
@@ -951,6 +952,17 @@ class CenterProjectMetadata(BaseModel):
         )
         self.add(study_info)
         return study_info
+
+    def find(self, study_id: str) -> Optional[CenterStudyMetadata]:
+        """Gets the study metadata for the study id.
+
+        Args:
+            study_id: the study id
+
+        Returns:
+            the study metadata for the study id if found or None
+        """
+        return self.studies.get(study_id, None)
 
 
 class REDCapProjectInput(BaseModel):
