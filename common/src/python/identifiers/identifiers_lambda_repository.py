@@ -1,21 +1,26 @@
 """Identifiers repository using AWS Lambdas."""
 
+from datetime import date
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
+    DateQueryObject,
     IdentifierQueryObject,
     IdentifierRepository,
     IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
     ADCIDField,
     CenterIdentifiers,
     GUIDField,
+    IdentifierDurationResponse,
     IdentifierList,
     IdentifierObject,
+    IdentifiersMode,
     NACCIDField,
 )
 
@@ -70,6 +75,27 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
     """Request model to search all matching identifiers for a NACCID."""
 
 
+class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
+    """Request model for adding/updating Identifier with known NACCID."""
+
+    active: bool
+    naccadc: Optional[int]
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, identifier: IdentifierUpdateObject
+    ) -> "KnownIdentifierRequest":
+        return KnownIdentifierRequest(
+            mode=mode,
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            active=identifier.active,
+            naccadc=identifier.naccadc,
+        )
+
+
 class ListResponseObject(BaseModel):
     """Model for return object with partial list of Identifiers."""
 
@@ -78,7 +104,23 @@ class ListResponseObject(BaseModel):
     data: List[IdentifierObject]
 
 
-IdentifiersMode = Literal["dev", "prod"]
+class IdentifierDurationRequest(NACCIDRequest, CenterIdentifiers):
+    """Request model for checking whether a visitdate is within the valid
+    duration for the specified center."""
+
+    visitdate: date
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, date_query: DateQueryObject
+    ) -> "IdentifierDurationRequest":
+        return IdentifierDurationRequest(
+            mode=mode,
+            naccid=date_query.naccid,
+            adcid=date_query.adcid,
+            ptid=date_query.ptid,
+            visitdate=date_query.visitdate,
+        )
 
 
 class IdentifiersLambdaRepository(IdentifierRepository):
@@ -311,6 +353,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise IdentifierRepositoryError(response.body)
 
     def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+        """Get the identifier records for the provided ADCID.
+
+        Args:
+            adcid: ADCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the adcid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -341,6 +394,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return identifier_list
 
     def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+        """Get the identifier records for the provided NACCID.
+
+        Args:
+            naccid: NACCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the naccid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -369,3 +433,62 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             index += limit
 
         return identifier_list
+
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
+        """Adds/updates an identifier record with known NACCID to the database.
+        Update the active status of the identifier record if found or add a new
+        identifier record for provided (ADCID, PTID, NACCID).
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else false
+        """
+        try:
+            response = self.__client.invoke(
+                name="add-update-identifier-lambda-function",
+                request=KnownIdentifierRequest.create_from(
+                    mode=self.__mode, identifier=identifier
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode != 200:
+            raise IdentifierRepositoryError(
+                f"No identifier created or updated: {response.body}"
+            )
+
+        return True
+
+    def check_duration(
+        self, date_query: DateQueryObject
+    ) -> Optional[IdentifierDurationResponse]:
+        """Checks whether there is a valid identifier duration record in the
+        repository matching with the visit date in query object.
+
+        Args:
+          date_query: visitdate query to validate
+
+        Returns:
+          IdentifierDurationResponse (optional) if match found, else None
+        """
+        try:
+            response = self.__client.invoke(
+                name="check-identifier-duration-lambda-function",
+                request=IdentifierDurationRequest.create_from(
+                    mode=self.__mode, date_query=date_query
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode == 200:
+            return IdentifierDurationResponse.model_validate_json(response.body)
+
+        raise IdentifierRepositoryError(
+            f"Validation failed for visitdate {date_query.visitdate} "
+            f"for participant NACCID: {date_query.naccid}, "
+            f"ADCID: {date_query.adcid}, PTID: {date_query.ptid}: {response.body}"
+        )

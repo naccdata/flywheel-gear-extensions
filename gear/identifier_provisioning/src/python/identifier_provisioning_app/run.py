@@ -16,8 +16,8 @@ from gear_execution.gear_execution import (
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
-    IdentifiersMode,
 )
+from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
@@ -83,41 +83,62 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 f"expected to have {enroll_module} suffix."
             )
 
-        if self.__file_input.has_qc_errors():
+        if self.__file_input.has_qc_errors(gear_name=DefaultValues.QC_GEAR):
             log.error("input file %s has QC errors", self.__file_input.filename)
             return
 
         file_id = self.__file_input.file_id
-        group_id = self.proxy.get_file_group(file_id)
-        admin_group = self.admin_group(admin_id=self.__admin_id)
-        adcid = admin_group.get_adcid(group_id)
-        if adcid is None:
-            raise GearExecutionError(f"Group {group_id} does not have an ADCID")
-
         file = self.proxy.get_file(file_id)
+        file = file.reload()
+        group_id = file.parents.group
         file_group = self.proxy.find_group(group_id=group_id)
         if not file_group:
             raise GearExecutionError(
                 f"Unable to get center group: {file.parents.group}"
             )
 
+        admin_group = self.admin_group(admin_id=self.__admin_id)
+        adcid = admin_group.get_adcid(group_id)
+        if adcid is None:
+            raise GearExecutionError(f"Group {group_id} does not have an ADCID")
+
         project = file_group.get_project_by_id(file.parents.project)
         if not project:
             raise GearExecutionError(
                 f"Unable to get parent project: {file.parents.project}"
             )
+
         enrollment_project = EnrollmentProject.create_from(project)
         if not enrollment_project:
             raise GearExecutionError(
                 f"Unable to get project containing file: {file.parents.project}"
             )
 
+        user_id = file.info.get("uploader")
+        if not user_id:
+            user_id = file.origin.id
+        user = self.proxy.find_user(user_id)
+        if user:
+            # lookup the user's email; if not set to the file origin id
+            submitter = user.email if user.email else user_id
+        else:
+            submitter = user_id
+            log.warning(
+                f"Owner of the file {user_id} does not match a user on Flywheel"
+            )
+
         input_path = Path(self.__file_input.filepath)
         gear_name = context.manifest.get("name", "identifier-provisioning")
+
+        error_writer = ListErrorWriter(
+            container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
+        )
+
+        sender_email = context.config.get("sender_email", "nacc_dev@uw.edu")
+        target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
+        target_emails = [x.strip() for x in target_emails.split(",")]
+
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
-            error_writer = ListErrorWriter(
-                container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
-            )
             success = run(
                 input_file=csv_file,
                 center_id=adcid,
@@ -128,6 +149,9 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                     client=LambdaClient(client=create_lambda_client()),
                     mode=self.__identifiers_mode,
                 ),
+                submitter=submitter,
+                sender_email=sender_email,
+                target_emails=target_emails,
             )
 
             context.metadata.add_qc_result(

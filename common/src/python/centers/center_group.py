@@ -936,11 +936,32 @@ class CenterProjectMetadata(BaseModel):
 
         Args:
             study_id: the study id
-            pipeline_adcid: the pipeline adcid for the study
         Returns:
-            the study metadata for the study id
+            the study metadata for the study
         """
         return self.studies.get(study_id)
+
+    def find(self, study_id: str) -> Optional[CenterStudyMetadata]:
+        """Gets the study metadata for the study id.
+
+        Args:
+            study_id: the study id
+
+        Returns:
+            the study metadata for the study id if found or None
+        """
+        return self.studies.get(study_id, None)
+
+    def find(self, study_id: str) -> Optional[CenterStudyMetadata]:
+        """Gets the study metadata for the study id.
+
+        Args:
+            study_id: the study id
+
+        Returns:
+            the study metadata for the study id if found or None
+        """
+        return self.studies.get(study_id, None)
 
 
 class REDCapProjectInput(BaseModel):

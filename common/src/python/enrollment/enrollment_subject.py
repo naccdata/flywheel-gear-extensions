@@ -1,9 +1,11 @@
 """Defines wrapper for subject with methods for tracking enrollment."""
 
+import logging
 from datetime import datetime
 from typing import Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT
+from flywheel.models.session import Session
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import CenterFields, GUIDField, NACCIDField
 from keys.keys import DefaultValues
@@ -13,13 +15,17 @@ from enrollment.enrollment_transfer import (
     Demographics,
     EnrollmentError,
     EnrollmentRecord,
+    EnrollmentStatus,
 )
+
+log = logging.getLogger(__name__)
 
 
 class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
     """Info object for enrollment identifiers object."""
 
     update_date: datetime
+    status: EnrollmentStatus = "active"
     legacy: Optional[bool] = False
 
 
@@ -81,11 +87,58 @@ class EnrollmentSubject(SubjectAdaptor):
         self.upload_enrollment(record)
         self.update_enrollment_info(record)
 
-    def update_enrollment_info(self, record: EnrollmentRecord) -> None:
+    def update_enrollment(self, record: EnrollmentRecord) -> None:
+        """Updates the latest enrollment session and enrollment metadata for
+        this subject.
+
+        Args:
+          record: the enrollment info to be updated
+
+        Raises:
+            EnrollmentError: if error occurs while updating info
+        """
+
+        # find the latest enrollment session for the subject
+        enroll_sessions = self.sessions.find(
+            f"label=~{DefaultValues.ENRL_SESSION_LBL_PRFX}",
+            sort="created:desc",  # type: ignore
+        )
+
+        if enroll_sessions:
+            if len(enroll_sessions) > 1:
+                log.warning(
+                    f"Multiple enrollment sessions found for subject {self.label}"
+                )
+
+            enroll_session: Session = enroll_sessions[0]
+            session_label = enroll_session.label
+            date_str = enroll_session.label[len(DefaultValues.ENRL_SESSION_LBL_PRFX) :]
+            record.start_date = datetime.strptime(date_str, DEFAULT_DATE_FORMAT)
+        else:
+            formdate = record.start_date.strftime(DEFAULT_DATE_FORMAT)
+            session_label = f"{DefaultValues.ENRL_SESSION_LBL_PRFX}{formdate}"
+
+        self.upload_acquisition_file(
+            session_label=session_label,
+            acquisition_label=DefaultValues.ENROLLMENT_MODULE,
+            filename=self.get_acquisition_file_name(
+                session=session_label, acquisition=DefaultValues.ENROLLMENT_MODULE
+            ),
+            contents=record.model_dump_json(exclude_none=True),
+            content_type="application/json",
+            skip_duplicates=False,
+        )
+
+        self.update_enrollment_info(record, update_timestamp=datetime.now())
+
+    def update_enrollment_info(
+        self, record: EnrollmentRecord, update_timestamp: Optional[datetime] = None
+    ) -> None:
         """Update the enrollment info of this subject.
 
         Args:
           enrollment_info: the enrollment info
+          update_timestamp (optional): update timestamp
         """
         assert record.naccid, "record must have NACCID"
         identifiers = IdentifierInfoRecord(
@@ -93,7 +146,8 @@ class EnrollmentSubject(SubjectAdaptor):
             ptid=record.center_identifier.ptid,
             naccid=record.naccid,
             guid=record.guid,
-            update_date=record.start_date,
+            update_date=update_timestamp if update_timestamp else record.start_date,
+            status=record.status,
             legacy=record.legacy,
         )
         self.update(EnrollmentInfo(enrollment=identifiers).model_dump())
