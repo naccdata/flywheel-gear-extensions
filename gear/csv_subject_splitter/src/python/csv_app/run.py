@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 from json.decoder import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
@@ -24,6 +24,7 @@ from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader
+from utils.utils import parse_string_to_list
 
 from csv_app.main import run
 
@@ -41,12 +42,14 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         hierarchy_labels: Dict[str, str],
         preserve_case: bool,
+        req_fields: Set[str],
     ) -> None:
         self.__client = client
         self.__device_key = device_key
         self.__file_input = file_input
         self.__hierarchy_labels = hierarchy_labels
         self.__preserve_case = preserve_case
+        self.__req_fields = req_fields
 
     @classmethod
     def create(
@@ -89,6 +92,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             raise GearExecutionError(f"Failed to load JSON string: {error}") from error
 
         preserve_case = context.config.get("preserve_case", False)
+        req_fields = set(
+            parse_string_to_list(context.config.get("required_fields", ""))
+        )
 
         return CsvToJsonVisitor(
             client=client,
@@ -96,6 +102,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             file_input=file_input,
             hierarchy_labels=hierarchy_labels,
             preserve_case=preserve_case,
+            req_fields=req_fields,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -134,6 +141,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             error_writer = ListErrorWriter(
                 container_id=file_id, fw_path=proxy.get_lookup_path(file)
             )
+
             success = run(
                 provenance=provenance,
                 uploader=uploader,
@@ -141,6 +149,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 destination=destination,
                 error_writer=error_writer,
                 preserve_case=self.__preserve_case,
+                req_fields=self.__req_fields,
             )
 
             context.metadata.add_qc_result(
