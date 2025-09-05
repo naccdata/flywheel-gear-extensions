@@ -15,7 +15,6 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import PipelineStage
-from projects.study import StudyModel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
@@ -912,7 +911,7 @@ class CenterStudyMetadata(BaseModel):
 
 
 class CenterProjectMetadata(BaseModel):
-    """Metadata to be stored in center portal project."""
+    """Metadata to be stored in center metadata project."""
 
     adcid: int
     active: bool
@@ -929,28 +928,19 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(
-        self, study: StudyModel, pipeline_adcid: Optional[int] = None
-    ) -> CenterStudyMetadata:
+    def get(self, study_id: str) -> Optional[CenterStudyMetadata]:
         """Gets the study metadata for the study id.
 
         Creates a new StudyMetadata object if it does not exist.
+        Resets the pipeline adcid if provided.
 
         Args:
             study_id: the study id
+            pipeline_adcid: the pipeline adcid for the study
         Returns:
             the study metadata for the study id
         """
-        study_info = self.studies.get(study.study_id, None)
-        if study_info:
-            return study_info
-
-        adcid = pipeline_adcid if pipeline_adcid is not None else self.adcid
-        study_info = CenterStudyMetadata(
-            study_id=study.study_id, study_name=study.name, pipeline_adcid=adcid
-        )
-        self.add(study_info)
-        return study_info
+        return self.studies.get(study_id)
 
 
 class REDCapProjectInput(BaseModel):
