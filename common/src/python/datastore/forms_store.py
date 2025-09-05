@@ -264,7 +264,7 @@ class FormsStore:
 
         return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
-    def get_visit_data(self, *, file_name: str, acq_id: str) -> dict[str, str] | None:
+    def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, str] | None:
         """Read the previous visit file and convert to python dictionary.
 
         Args:
