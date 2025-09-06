@@ -26,7 +26,7 @@ preprocess_errors = {
     ),
     SysErrorCodes.CLINICAL_FORM_REQUIRED_MLST: (
         "Participant must have a UDS, BDS, or MDS packet submitted before "
-        "the a Milestone form can be submitted"
+        "a Milestone form can be submitted"
     ),
     SysErrorCodes.DIFF_VISITDATE: (
         "Two packets cannot have the same visit number (VISITNUM) "
@@ -101,8 +101,8 @@ preprocess_errors = {
         "the NP form can be submitted"
     ),
     SysErrorCodes.DEATH_DENOTED_ON_MLST: (
-        "DECEASED and AUTOPSY should equal 1 in the most recent Milestone form "
-        "in order for the NP form to be accepted"
+        "DECEASED and AUTOPSY should both equal 1 in the most recent Milestone "
+        "form in order for the NP form to be accepted"
     ),
     SysErrorCodes.DEATH_DATE_MISMATCH: (
         "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
