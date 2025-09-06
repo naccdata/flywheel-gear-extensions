@@ -108,8 +108,8 @@ class ParticipantIdentifiers(NACCIDField, GUIDField):
     aliases: Optional[List[str]]
 
 
-class IdentifierDurationResponse(NACCIDField, CenterFields):
-    """Response model for identifier duration request."""
+class EnrollmentDurationResponse(CenterFields):
+    """Response model for enrollment duration request."""
 
     start_date: date
     end_date: Optional[date] = None

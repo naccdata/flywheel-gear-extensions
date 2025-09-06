@@ -12,8 +12,8 @@ from typing import List, Optional, overload
 
 from identifiers.model import (
     CenterIdentifiers,
+    EnrollmentDurationResponse,
     GUIDField,
-    IdentifierDurationResponse,
     IdentifierList,
     IdentifierObject,
     NACCIDField,
@@ -51,7 +51,7 @@ class IdentifierUpdateObject(
         )
 
 
-class DateQueryObject(NACCIDField, CenterIdentifiers):
+class DateQueryObject(CenterIdentifiers):
     """Request model for checking whether a visitdate is within the valid
     duration for the specified center."""
 
@@ -158,9 +158,9 @@ class IdentifierRepository(abc.ABC):
         """
 
     @abstractmethod
-    def check_duration(
+    def check_enrollment_period(
         self, date_query: DateQueryObject
-    ) -> Optional[IdentifierDurationResponse]:
+    ) -> Optional[EnrollmentDurationResponse]:
         """Checks whether there is a valid identifier duration record in the
         repository matching with the visit date in query object.
 
@@ -168,7 +168,7 @@ class IdentifierRepository(abc.ABC):
           date_query: visitdate query to validate
 
         Returns:
-          IdentifierDurationResponse (optional) if match found, else None
+          EnrollmentDurationResponse (optional) if match found, else None
         """
 
 
