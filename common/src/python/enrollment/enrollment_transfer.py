@@ -312,16 +312,21 @@ class NewGUIDRowValidator(RowValidator):
             )
             return False
 
-        if not identifier:
+        if not identifier or not identifier.active:
             return True
 
-        log.info("Found participant for GUID %s", guid)
+        log.info(
+            f"Found active participant for GUID {guid} with NACCID {identifier.naccid}"
+        )
         self.__error_writer.write(
             existing_participant_error(
                 field=FieldNames.GUID,
                 line=line_number,
                 value=guid,
-                message=f"Participant exists for GUID {guid}",
+                message=(
+                    f"Active participant exists for GUID {guid} "
+                    f"with NACCID {identifier.naccid}"
+                ),
             )
         )
         return False

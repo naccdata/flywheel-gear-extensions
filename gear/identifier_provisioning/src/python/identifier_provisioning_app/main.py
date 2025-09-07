@@ -302,20 +302,12 @@ class TransferVisitor(CSVVisitor):
             return False
 
         if not guid_identifier:
-            self.__error_writer.write(
-                identifier_error(
-                    field=FieldNames.GUID,
-                    value=guid,
-                    line=line_num,
-                    message=f"No active Identifier found for GUID {guid}",
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
-                )
-            )
-            return False
+            # It's possible for centers to generate different GUIDs for same participant
+            log.warning(f"No active Identifier found for GUID {guid}")
+            return True
 
         if not self.__match_naccid(guid_identifier, FieldNames.GUID, line_num):
+            # Active participant exists with same GUID and a different NACCID
             return False
 
         self.__naccid_identifier = guid_identifier
