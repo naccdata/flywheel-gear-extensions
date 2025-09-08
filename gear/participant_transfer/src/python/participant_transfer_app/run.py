@@ -105,7 +105,8 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
-        job_id = self.get_job_id(context=context)
+        gear_name = context.manifest.get("name", "participant-transfer")
+        job_id = self.get_job_id(context=context, gear_name=gear_name)
         try:
             success = run(
                 proxy=self.proxy,

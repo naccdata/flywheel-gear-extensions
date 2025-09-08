@@ -378,11 +378,12 @@ class GearExecutionEnvironment(ABC):
         """
         raise GearExecutionError("Not implemented")
 
-    def get_job_id(self, context: GearToolkitContext) -> Optional[str]:
+    def get_job_id(self, context: GearToolkitContext, gear_name: str) -> Optional[str]:
         """Return the ID of the gear job.
 
         Args:
             context: GearToolkitContext to look up the Job ID
+            gear_name: Gear name
 
         Returns:
             str (optional): Job ID if found, else None
@@ -390,7 +391,7 @@ class GearExecutionEnvironment(ABC):
         context.metadata.pull_job_info()  # type: ignore
         if not context.metadata.job_info:  # type: ignore
             return None
-        job_info = context.metadata.job_info.get(self.name, {})  # type: ignore
+        job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_id", None)
 
 
