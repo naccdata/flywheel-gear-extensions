@@ -202,8 +202,10 @@ def process_legacy_identifiers(  # noqa: C901
                 skipped_count += 1
                 continue
 
-            enrollment_date = get_enrollment_date(
-                subject_id=naccid, forms_store=forms_store
+            enrollment_date = (
+                identifier.created_on
+                if identifier.created_on
+                else get_enrollment_date(subject_id=naccid, forms_store=forms_store)
             )
             if not enrollment_date:
                 log.error(
