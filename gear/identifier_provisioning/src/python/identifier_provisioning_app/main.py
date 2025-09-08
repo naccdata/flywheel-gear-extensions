@@ -487,6 +487,10 @@ class TransferVisitor(CSVVisitor):
             adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
         )
 
+        oldptid = row.get(FieldNames.OLDPTID)
+        if oldptid is None or not str(oldptid).strip():
+            oldptid = "unknown"
+
         self.__transfer_info.add(
             TransferRecord(
                 status="pending",
@@ -496,7 +500,7 @@ class TransferVisitor(CSVVisitor):
                 center_identifiers=new_identifiers,
                 initials=row.get(FieldNames.ENRLFRM_INITL),
                 previous_adcid=row[FieldNames.OLDADCID],
-                previous_ptid=row.get(FieldNames.OLDPTID, "unknown"),
+                previous_ptid=oldptid,
                 naccid=self.__naccid_identifier.naccid
                 if self.__naccid_identifier
                 else None,

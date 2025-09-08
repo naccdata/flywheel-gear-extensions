@@ -163,7 +163,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         client = EmailClient(client=create_ses_client(), source=sender_email)
 
-        host_url = f"{self.__client.host.split(':')[0]}"
+        host_url = f"{self.client.host.split(':')[0]}"
         job_log_url = f"{host_url}/#/jobs/{job_id}" if job_id else f"{host_url}/#/jobs/"
         project_url = f"{host_url}/#/projects/{project.id}"
 
