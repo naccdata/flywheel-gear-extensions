@@ -68,8 +68,7 @@ class TransferProcessor:
                 return None
 
             try:
-                identifiers = self.__repo.list(
-                    naccid=self.__transfer_record.naccid)
+                identifiers = self.__repo.list(naccid=self.__transfer_record.naccid)
             except (IdentifierRepositoryError, TypeError) as error:
                 message = (
                     f"Error in looking up identifier for "
@@ -171,8 +170,7 @@ class TransferProcessor:
 
         if identifier:
             if identifier.active:
-                log.error(
-                    f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
+                log.error(f"Active NACCID already exist for ADCID {adcid}, PTID {ptid}")
                 return None
 
             if identifier.naccid != curr_identifier.naccid:
@@ -292,14 +290,12 @@ class TransferProcessor:
             return False
 
         # update the record in previous center's enrollment project
-        prev_enroll_project = prev_center.find_project(
-            self.__enroll_project.label)
+        prev_enroll_project = prev_center.find_project(self.__enroll_project.label)
         if (
             not prev_enroll_project
             and self.__enroll_project.label != DefaultValues.ENRL_PRJ_LABEL
         ):
-            prev_enroll_project = prev_center.find_project(
-                DefaultValues.ENRL_PRJ_LABEL)
+            prev_enroll_project = prev_center.find_project(DefaultValues.ENRL_PRJ_LABEL)
         # TODO: Fix looking up prev enrollment project (check pipeline ADCID)
         if not prev_enroll_project:
             message = (
