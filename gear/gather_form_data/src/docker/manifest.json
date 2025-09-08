@@ -27,11 +27,11 @@
             "base": "api-key"
         },
         "input_file": {
-            "description": "The input file",
+            "description": "A participant list CSV file",
             "base": "file",
             "type": {
                 "enum": [
-                    "source code"
+                    "tabular data"
                 ]
             }
         }
@@ -42,10 +42,35 @@
             "type": "boolean",
             "default": false
         },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "project_names": {
+            "description": "Comma-separated list of projects to search",
+            "type": "string",
+            "default": "ingest-form"
+        },
+        "modules": {
+            "description": "Comma-separated list of form modules to include",
+            "type": "string",
+            "default": "UDS,FTLD,LBD"
+        },
+        "study_id": {
+            "description": "The study ID",
+            "type": "string",
+            "default": "adrc"
+        },
+        "output_file": {
+            "description": "Name of the output file",
+            "type": "string",
+            "default": "submission-status.csv"
         }
     },
     "command": "/bin/run"
