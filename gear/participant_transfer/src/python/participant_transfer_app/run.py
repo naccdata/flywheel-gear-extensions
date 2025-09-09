@@ -163,9 +163,10 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         client = EmailClient(client=create_ses_client(), source=sender_email)
 
-        host_url = f"{self.client.host.split(':')[0]}"
+        # client.host is like https://naccdata.flywheel.io:443/api
+        host_url = f"{self.client.host.rsplit(':', 1)[0]}"
         job_log_url = f"{host_url}/#/jobs/{job_id}" if job_id else f"{host_url}/#/jobs/"
-        project_url = f"{host_url}/#/projects/{project.id}"
+        project_url = f"{host_url}/#/projects/{project.id}/info"
 
         subject = (
             f"Participant Transfer Status for {project.group}/{project.label}: {status}"
@@ -193,10 +194,12 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             f"and take necessary actions."
             f"\n\tStatus: {status}"
             f"\n\tPTID: {ptid}"
-            f"\n\tEnrollment Project: {project.group}/{project.label}[{project_url}]"
+            f"\n\tEnrollment project: {project.group}/{project.label}"
+            f"\n\tEnrollment project URL: {project_url}"
             f"\n\tGear job log: {job_log_url}"
-            "\nCheck the job log for more details on any errors or warnings.\n"
-            f"\nNext steps: {next_steps}\n\n"
+            "\n\nCheck the job log for more details on any errors or warnings."
+            "\n\n**Next steps:"
+            f"\n{next_steps}\n\n"
         )
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)
