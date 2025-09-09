@@ -37,9 +37,6 @@ def build_project_map(
     project_map = {}
     try:
         for adcid, center_info in center_map.centers.items():
-            if center_info.is_pipeline():
-                continue
-
             group = CenterGroup.create_from_center(center=center_info, proxy=proxy)
             project = group.find_project(destination_label)
             if not project:

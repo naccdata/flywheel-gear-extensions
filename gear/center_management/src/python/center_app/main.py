@@ -42,10 +42,6 @@ def run(
     center_roles = proxy.get_user_roles(role_names)
 
     for center in center_list:
-        if center.is_pipeline():
-            log.info("skipping pipeline ADCID %s", center.adcid)
-            continue
-
         if new_only and center.tags and "new-center" not in center.tags:
             log.info(
                 f"new_only set to True and {center.name} does not "
