@@ -14,6 +14,15 @@ from keys.keys import DefaultValues
 from pydantic import ValidationError
 
 
+@pytest.fixture
+def project_without_pipeline_adcid():
+    yield IngestProjectMetadata(
+        study_id="test",
+        project_id="9999999999",
+        project_label="ingest-blah-test",
+        datatype="blah",
+    )
+
 # pylint: disable=(redefined-outer-name)
 @pytest.fixture
 def project_with_datatype():
@@ -65,6 +74,7 @@ def project_without_datatype():
     yield ProjectMetadata(
         study_id="test", project_id="77777777", project_label="accepted-test"
     )
+
 
 
 # pylint: disable=(no-self-use,too-few-public-methods)
@@ -134,6 +144,19 @@ class TestProjectMetadataSerialization:
         except ValidationError as error:
             assert False, error  # noqa: B011
 
+    def test_project_without_pipeline_adcid(self, project_without_pipeline_adcid):
+        """Tests serialization of project metadata if pipeline adcid is missing"""
+        project_dump = project_without_pipeline_adcid.model_dump(
+            by_alias=True, exclude_none=True
+        )
+        assert "pipeline-adcid" not in project_dump
+        assert project_dump["project-label"] == "ingest-blah-test"
+
+        try:
+            model_object = IngestProjectMetadata.model_validate(project_dump)
+            assert model_object == project_without_pipeline_adcid
+        except ValidationError as error:
+            assert False, error  # noqa: B011
 
 # pylint: disable=(redefined-outer-name)
 @pytest.fixture
