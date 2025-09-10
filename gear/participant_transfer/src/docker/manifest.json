@@ -56,10 +56,15 @@
             "description": "The PTID of the participant to be transferred",
             "type": "string"
         },
+        "copy_only": {
+            "description": "No database update, only copy participant data. Used when handling copy failure",
+            "type": "boolean",
+            "default": false
+        },
         "datatypes": {
             "description": "Comma-delimited list of datatypes to be transferred",
             "type": "string",
-            "default": "form,scan,dicom"
+            "default": "form,scan,dicom,apoe,biomarker,gwas,imputation,genetic-availability"
         },
         "sender_email": {
             "description": "The source email to send the transfer completion notification or error report",

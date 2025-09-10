@@ -36,12 +36,14 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         enroll_project_path: str,
         ptid: str,
         identifiers_mode: IdentifiersMode,
+        copy_only: bool,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__enroll_project_path = enroll_project_path
         self.__ptid = ptid
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
+        self.__copy_only = copy_only
 
     @classmethod
     def create(
@@ -74,6 +76,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         mode = context.config.get("database_mode", "prod")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        copy_only = context.config.get("copy_only", False)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -81,6 +84,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             enroll_project_path=enroll_project_path,
             ptid=ptid,
             identifiers_mode=mode,
+            copy_only=copy_only,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -115,8 +119,10 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 ptid=self.__ptid,
                 identifiers_repo=identifiers_repo,
                 datatypes=datatypes,
+                copy_only=self.__copy_only,
                 dry_run=self.client.dry_run,
             )
+
             self.send_email(
                 sender_email=sender_email,
                 target_emails=target_emails,
@@ -134,7 +140,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 status="FAILED",
                 job_id=job_id,
             )
-            raise GearExecutionError from error
+            raise GearExecutionError(error) from error
 
     def send_email(
         self,

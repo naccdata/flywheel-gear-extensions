@@ -11,6 +11,7 @@ from enrollment.enrollment_transfer import (
     EnrollmentError,
     EnrollmentRecord,
     TransferRecord,
+    TransferStatus,
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifierRepositoryError,
@@ -198,6 +199,65 @@ class TransferProcessor:
 
         return curr_identifier
 
+    def find_identifier_for_partial_transfer(self) -> Optional[IdentifierObject]:
+        """Find the active identifier object for a partially processed
+        transfer. i.e. database updated but errors occurred while copying data.
+
+        Returns:
+            IdentifierObject (optional): Identifier object if active record found
+        """
+        adcid = self.__transfer_record.center_identifiers.adcid
+        ptid = self.__transfer_record.center_identifiers.ptid
+        old_adcid = self.__transfer_record.previous_adcid
+
+        try:
+            identifier = self.__repo.get(adcid=adcid, ptid=ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            log.error(
+                f"Error in looking up NACCID for ADCID {adcid}, PTID {ptid}: {error}"
+            )
+            return None
+
+        if not identifier or not identifier.active:
+            log.error(f"No active NACCID found for ADCID {adcid}, PTID {ptid}")
+            return None
+
+        try:
+            identifiers = self.__repo.list(naccid=identifier.naccid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            message = (
+                f"Error in looking up identifier for "
+                f"NACCID {identifier.naccid}: {error}"
+            )
+            log.error(message)
+            return None
+
+        if not identifiers:
+            log.error(
+                "No identifier records found in the database for  "
+                f"NACCID {identifier.naccid}"
+            )
+            return None
+
+        prev_identifier = None
+        for id_obj in identifiers:
+            if id_obj.adcid == old_adcid:
+                prev_identifier = id_obj
+                break
+
+        if not prev_identifier:
+            log.error(
+                "No identifier records found in the database for  "
+                f"NACCID {identifier.naccid} and ADCID {old_adcid}"
+            )
+            return None
+
+        # update the transfer record
+        self.__transfer_record.naccid = identifier.naccid
+        self.__transfer_record.previous_ptid = prev_identifier.ptid
+
+        return identifier
+
     def update_database(self, existing_identifier: IdentifierObject) -> bool:
         """Update the identifiers database.
 
@@ -353,9 +413,9 @@ class TransferProcessor:
 
         return True
 
-    def update_transfer_info(self) -> None:
+    def update_transfer_info(self, status: TransferStatus) -> None:
         """Updates the transfer record status in enrollment project."""
-        self.__transfer_record.status = "completed"
+        self.__transfer_record.status = status
         self.__transfer_record.updated_date = datetime.now()
         transfer_info = TransferInfo(transfers={})
         transfer_info.add(self.__transfer_record)

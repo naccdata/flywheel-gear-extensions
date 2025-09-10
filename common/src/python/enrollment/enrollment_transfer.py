@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
 
-TransferStatus = Literal["pending", "approved", "rejected", "completed"]
+TransferStatus = Literal["pending", "approved", "rejected", "completed", "partial"]
 EnrollmentStatus = Literal["active", "transferred"]
 
 
