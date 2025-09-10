@@ -50,7 +50,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     subject = subject.reload()
     subject_table = SymbolTable(subject.info)
 
-    curator.pre_process(subject, subject_table)
+    curator.pre_curate(subject, subject_table)
     processed_files: List[FileModel] = []
 
     while len(heap) > 0:
@@ -61,7 +61,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
         curator.curate_file(subject, subject_table, file_info.file_id)
         processed_files.append(file_info)
 
-    curator.post_process(subject, subject_table, processed_files)
+    curator.post_curate(subject, subject_table, processed_files)
 
 
 class ProjectCurationScheduler:

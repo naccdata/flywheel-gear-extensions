@@ -122,9 +122,8 @@ class FormCurator(Curator):
         self.apply_file_curation(file_entry, table)
 
     @api_retry
-    def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:
-        """Run pre-processing on the entire subject. Clean up metadata as
-        needed.
+    def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
+        """Run pre-curating on the entire subject. Clean up metadata as needed.
 
         Args:
             subject: Subject to pre-process
@@ -149,13 +148,13 @@ class FormCurator(Curator):
                 subject_table.pop(field)
 
     @api_retry
-    def post_process(  # noqa: C901
+    def post_curate(  # noqa: C901
         self,
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
     ) -> None:
-        """Run post-processing on the entire subject.
+        """Run post-curating on the entire subject.
 
         1. Pushes final subject_table back to FW
         2. Adds `affiliated` tag to affiliate subjects if

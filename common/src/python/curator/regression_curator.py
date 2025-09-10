@@ -217,8 +217,8 @@ class RegressionCurator(Curator):
         self.compare_baseline(derived_vars, record, prefix="file.info.derived")
 
     @api_retry
-    def pre_process(self, subject: Subject, subject_info: SymbolTable) -> None:
-        """Run pre-processing on the entire subject. Compares subject.info.
+    def pre_curate(self, subject: Subject, subject_info: SymbolTable) -> None:
+        """Run pre-curating on the entire subject. Compares subject.info.
 
         Args:
             subject: Subject to pre-process

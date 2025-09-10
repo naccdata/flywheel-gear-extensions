@@ -117,8 +117,8 @@ class Curator(ABC):
         log.debug("curating file %s with scope %s", file_entry.name, scope)
         self.execute(subject, file_entry, table, scope)
 
-    def pre_process(self, subject: Subject, subject_table: SymbolTable) -> None:
-        """Run pre-processing on the entire subject. Not required.
+    def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
+        """Run pre-curation on the entire subject. Not required.
 
         Args:
             subject: Subject to pre-process
@@ -126,13 +126,13 @@ class Curator(ABC):
         """
         return
 
-    def post_process(
+    def post_curate(
         self,
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
     ) -> None:
-        """Run post-processing on the entire subject. Not required.
+        """Run post-curation on the entire subject. Not required.
 
         Args:
             subject: Subject to post-process
