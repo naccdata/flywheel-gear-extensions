@@ -23,6 +23,7 @@ def project_without_pipeline_adcid():
         datatype="blah",
     )
 
+
 # pylint: disable=(redefined-outer-name)
 @pytest.fixture
 def project_with_datatype():
@@ -74,7 +75,6 @@ def project_without_datatype():
     yield ProjectMetadata(
         study_id="test", project_id="77777777", project_label="accepted-test"
     )
-
 
 
 # pylint: disable=(no-self-use,too-few-public-methods)
@@ -145,7 +145,8 @@ class TestProjectMetadataSerialization:
             assert False, error  # noqa: B011
 
     def test_project_without_pipeline_adcid(self, project_without_pipeline_adcid):
-        """Tests serialization of project metadata if pipeline adcid is missing"""
+        """Tests serialization of project metadata if pipeline adcid is
+        missing."""
         project_dump = project_without_pipeline_adcid.model_dump(
             by_alias=True, exclude_none=True
         )
@@ -157,6 +158,7 @@ class TestProjectMetadataSerialization:
             assert model_object == project_without_pipeline_adcid
         except ValidationError as error:
             assert False, error  # noqa: B011
+
 
 # pylint: disable=(redefined-outer-name)
 @pytest.fixture
