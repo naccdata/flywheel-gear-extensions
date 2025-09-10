@@ -774,7 +774,7 @@ class DistributionProjectMetadata(ProjectMetadata):
 class IngestProjectMetadata(ProjectMetadata):
     """Metadata for an ingest project of a center."""
 
-    pipeline_adcid: int
+    pipeline_adcid: Optional[int] = None
     datatype: str
 
 
@@ -855,7 +855,7 @@ class CenterStudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
-    pipeline_adcid: Optional[int]
+    pipeline_adcid: Optional[int] = False
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
