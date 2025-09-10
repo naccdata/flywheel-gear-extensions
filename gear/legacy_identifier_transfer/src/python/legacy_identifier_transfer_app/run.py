@@ -17,13 +17,12 @@ from gear_execution.gear_execution import (
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
-    IdentifiersMode,
 )
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject
+from identifiers.model import IdentifierObject, IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client

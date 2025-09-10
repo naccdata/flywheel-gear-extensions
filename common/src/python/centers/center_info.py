@@ -1,6 +1,6 @@
 """Models representing center information and center mappings."""
 
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, List, Literal, Optional, Set, Tuple, Union
 
 from projects.study import CenterStudyModel, StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field, RootModel, field_validator
@@ -16,11 +16,13 @@ class CenterInfo(BaseModel):
 
         active (bool): Optional, active or inactive status. Defaults to True.
         tags (Tuple[str]): Optional, list of tags for the center
+        type: "center" or "pipeline"
     """
 
     adcid: int
     name: str
-    group: str = Field(
+    group: Optional[str] = Field(
+        None,
         validation_alias=AliasChoices("center_id", "center-id", "group"),
         serialization_alias="center-id",
     )
@@ -30,6 +32,11 @@ class CenterInfo(BaseModel):
         default=True,
     )
     tags: Optional[Tuple[str, ...]] = None
+    type: Literal["center", "pipeline"] = "center"
+
+    def is_pipeline(self) -> bool:
+        """Indicates whether this center info represents a pipeline."""
+        return self.type == "pipeline"
 
     def __repr__(self) -> str:
         return (
@@ -37,7 +44,9 @@ class CenterInfo(BaseModel):
             f"name={self.name}, "
             f"adcid={self.adcid}, "
             f"active={self.active}, "
-            f"tags={self.tags}"
+            f"tags={self.tags}, "
+            f"type={self.type}"
+            ")"
         )
 
     def __eq__(self, other: object) -> bool:
@@ -49,10 +58,15 @@ class CenterInfo(BaseModel):
             and self.group == other.group
             and self.name == other.name
             and self.active == other.active
+            and self.type == other.type
         )
 
     def apply(self, visitor: StudyVisitor):
         """Applies visitor to this Center."""
+        if self.is_pipeline():
+            return
+
+        assert self.group is not None
         visitor.visit_center(CenterStudyModel(center_id=self.group))
 
     @field_validator("tags", mode="before")

@@ -1,0 +1,76 @@
+{
+    "name": "participant-transfer",
+    "label": "Manage Participant Transfer",
+    "description": "Gear to manage participant transfers between centers",
+    "version": "0.0.9",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/participant-transfer:0.0.9"
+        },
+        "flywheel": {
+            "suite": "NACC Admin Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
+        "database_mode": {
+            "description": "Whether to lookup identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
+        "enrollment_project": {
+            "description": "The enrollment project flywheel path (group/project) which contain pending transfer information",
+            "type": "string"
+        },
+        "participant_id": {
+            "description": "The PTID of the participant to be transferred",
+            "type": "string"
+        },
+        "datatypes": {
+            "description": "Comma-delimited list of datatypes to be transferred",
+            "type": "string",
+            "default": "form,scan,dicom"
+        },
+        "sender_email": {
+            "description": "The source email to send the transfer completion notification or error report",
+            "type": "string",
+            "default": "nacc_dev@uw.edu"
+        },
+        "target_emails": {
+            "description": "Comma-delimited list of destination emails to send the notification to",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
+        }
+    },
+    "command": "/bin/run"
+}

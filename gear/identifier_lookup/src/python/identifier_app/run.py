@@ -18,15 +18,12 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
-from identifiers.identifiers_lambda_repository import (
-    IdentifiersLambdaRepository,
-    IdentifiersMode,
-)
+from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject
+from identifiers.model import IdentifierObject, IdentifiersMode
 from inputs.csv_reader import CSVVisitor
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
@@ -70,20 +67,20 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         admin_id: str,
         file_input: InputFileWrapper,
-        config_input: InputFileWrapper,
         identifiers_mode: IdentifiersMode,
         direction: Literal["nacc", "center"],
         gear_name: str,
         preserve_case: bool,
+        config_input: Optional[InputFileWrapper] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
-        self.__config_input = config_input
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
         self.__direction: Literal["nacc", "center"] = direction
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
+        self.__config_input = config_input
 
     @classmethod
     def create(
@@ -106,7 +103,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         config_input = InputFileWrapper.create(
             input_name="form_configs_file", context=context
         )
-        assert config_input, "create raises exception if missing configuration file"
 
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = context.config.get("database_mode", "prod")
@@ -114,15 +110,18 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         preserve_case = context.config.get("preserve_case", False)
         gear_name = context.manifest.get("name", "identifier-lookup")
 
+        if config_input is None and direction == "nacc":
+            raise GearExecutionError("form_configs_file required for 'nacc' direction")
+
         return IdentifierLookupVisitor(
             client=client,
             gear_name=gear_name,
             admin_id=admin_id,
             file_input=file_input,
-            config_input=config_input,
             identifiers_mode=mode,
             direction=direction,
             preserve_case=preserve_case,
+            config_input=config_input,
         )
 
     def __build_naccid_lookup(
@@ -134,6 +133,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
     ) -> CSVVisitor:
+        assert self.__config_input, "form_configs_file required for NACCID lookup"
+
         module = self.__file_input.get_module_name_from_file_suffix()
         if not module:
             raise GearExecutionError(
