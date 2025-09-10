@@ -1,16 +1,16 @@
 # Identifier Provisioning
 
-This gear provisions NACCIDs for data entered with Participant Enrollment and Transfer (PTENRL) forms.
+This gear provisions NACCIDs for data entered with Participant Enrollment and Transfer (ENROLL) forms.
 
 ## Processing
 
-The following diagrams describe the processing of the PTRENRL form data.
+The following diagrams describe the processing of the ENROLL form data.
 
 First, check that the module for the form is the right one, and then determine whether this is a new enrollment or transfer.
 
 ```mermaid
 graph TB
-    start((*)) -->module{module is\nPTENRL} -- no --> moduleerror((error))
+    start((*)) -->module{module is\nENROLL} -- no --> moduleerror((error))
     module -- yes --> enrltype{Is new\nenrollment?}
     enrltype -- yes --> newenrollment(New Enrollment)    
     enrltype -- no --> transfer(Transfer)
@@ -67,8 +67,6 @@ sequenceDiagram
 ### Transfer
 
 A transfer is reported by the receiving center.
-The form has a slight ambiguity about whether it is a transfer out of a center or into a center.
-
 When a form represents a transfer into a center, the goal is to
 
 * identify the participant by NACCID
