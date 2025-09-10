@@ -206,18 +206,21 @@ class AggregationMapper(StudyMapper):
           datatype: the name of the datatype
         """
         pipeline_label = self.pipeline_label(pipeline, datatype)
+        pipeline_adcid = (
+            study_info.pipeline_adcid if study_info.pipeline_adcid else center.adcid
+        )
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
                 IngestProjectMetadata(
                     study_id=self.study.study_id,
-                    pipeline_adcid=study_info.pipeline_adcid,
+                    pipeline_adcid=pipeline_adcid,
                     project_id=project.id,
                     project_label=project.label,
                     datatype=datatype,
                 )
             )
-            project.update_info({"pipeline_adcid": study_info.pipeline_adcid})
+            project.update_info({"pipeline_adcid": pipeline_adcid})
 
         self.add_pipeline(
             center=center,
