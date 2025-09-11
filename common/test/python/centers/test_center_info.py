@@ -5,7 +5,7 @@ from typing import Optional
 import pytest
 import yaml
 from centers.center_info import CenterInfo, CenterMapInfo
-from projects.study import CenterStudyModel, StudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from pydantic import ValidationError
 
 
@@ -17,7 +17,7 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center: CenterStudyModel) -> None:
+    def visit_center(self, center: StudyCenterModel) -> None:
         self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
@@ -88,8 +88,7 @@ class TestCenterInfo:
     def test_repr(self, dummy_center):
         """Test representation."""
         assert repr(dummy_center) == (
-            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True, "
-            "tags=None, type=center)"
+            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True, tags=None)"
         )
 
 
@@ -122,11 +121,3 @@ class TestCenterInfoSerialization:
         center_dump = center.model_dump(by_alias=True)
         center_load = CenterInfo.model_validate(center_dump, by_alias=True)
         assert center == center_load
-
-    def test_pipeline(self):
-        pipeline = CenterInfo(
-            adcid=0, name="dummy", group=None, type="pipeline", active=True
-        )
-        pipeline_dump = pipeline.model_dump(by_alias=True, exclude_none=True)
-        pipeline_load = CenterInfo.model_validate(pipeline_dump, by_alias=True)
-        assert pipeline_load == pipeline
