@@ -855,7 +855,6 @@ class CenterStudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
-    pipeline_adcid: int
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
