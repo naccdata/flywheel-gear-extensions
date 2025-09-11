@@ -931,9 +931,6 @@ class CenterProjectMetadata(BaseModel):
     def get(self, study_id: str) -> Optional[CenterStudyMetadata]:
         """Gets the study metadata for the study id.
 
-        Creates a new StudyMetadata object if it does not exist.
-        Resets the pipeline adcid if provided.
-
         Args:
             study_id: the study id
         Returns:

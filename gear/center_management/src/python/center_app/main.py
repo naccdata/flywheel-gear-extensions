@@ -22,11 +22,7 @@ def run(
 ):
     """Runs center creation/management.
 
-    The "center" list may include CenterInfo objects that represent a data
-    pipeline. These are added to the center map in the admin group for
-    book-keeping purposes.
-
-    For a (non-pipeline) CenterInfo object:
+    For each CenterInfo object
     - a CenterGroup is created (creates a FW group)
     - user roles in the role names are added to the underlying group
     - the center is added to the admin group center map
