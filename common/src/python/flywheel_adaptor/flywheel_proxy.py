@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence
 
 import flywheel
 from flywheel import (

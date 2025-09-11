@@ -13,8 +13,7 @@ from flywheel.models.group import Group
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
-from keys.types import DatatypeNameType
-from keys.types import PipelineStage
+from keys.types import DatatypeNameType, PipelineStageType
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
@@ -37,7 +36,7 @@ class CenterGroup(CenterAdaptor):
     ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages: List[PipelineStage] = [
+        self.__ingest_stages: List[PipelineStageType] = [
             "ingest",
             "retrospective",
             "sandbox",
