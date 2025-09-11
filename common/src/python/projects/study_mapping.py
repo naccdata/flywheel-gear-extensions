@@ -44,7 +44,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 
-from projects.study import CenterStudyModel, StudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
 
 log = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class StudyMapper(ABC):
 
     @abstractmethod
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: CenterStudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Maps the study to pipelines within a center.
 
@@ -132,7 +132,7 @@ class AggregationMapper(StudyMapper):
         self.__release_group: Optional[GroupAdaptor] = None
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: CenterStudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Creates accepted, ingest and retrospective projects in the group.
         Updates the study metadata.
@@ -140,7 +140,9 @@ class AggregationMapper(StudyMapper):
         Args:
           center: the center group
           study_info: the study metadata
+          pipeline_adcid: the ADCID for ingest pipelines
         """
+
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
@@ -150,6 +152,7 @@ class AggregationMapper(StudyMapper):
                         study_info=study_info,
                         pipeline=pipeline,
                         datatype=datatype,
+                        pipeline_adcid=pipeline_adcid,
                     )
 
         self.__add_retrospective(center)
@@ -196,6 +199,7 @@ class AggregationMapper(StudyMapper):
         pipeline: str,
         datatype: str,
         study_info: CenterStudyMetadata,
+        pipeline_adcid: int,
     ) -> None:
         """Adds an ingest projects for the study datatype to the center.
 
@@ -206,9 +210,6 @@ class AggregationMapper(StudyMapper):
           datatype: the name of the datatype
         """
         pipeline_label = self.pipeline_label(pipeline, datatype)
-        pipeline_adcid = (
-            study_info.pipeline_adcid if study_info.pipeline_adcid else center.adcid
-        )
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
@@ -302,7 +303,7 @@ class DistributionMapper(StudyMapper):
         super().__init__(study=study, proxy=proxy)
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: CenterStudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Adds distribution projects for the study to the group.
 
@@ -405,7 +406,7 @@ class StudyMappingVisitor(StudyVisitor):
         assert self.__mapper
         self.__mapper.map_study_pipelines()
 
-    def visit_center(self, center_model: CenterStudyModel) -> None:
+    def visit_center(self, center_model: StudyCenterModel) -> None:
         """Creates projects within the center for the study.
 
         Args:
@@ -433,7 +434,9 @@ class StudyMappingVisitor(StudyVisitor):
             return
 
         pipeline_adcid = (
-            center_model.pipeline_adcid if center_model.pipeline_adcid else center.adcid
+            center_model.pipeline_adcid
+            if center_model.pipeline_adcid is not None
+            else center.adcid
         )
         if (
             self.__study.mode == "aggregation"
@@ -451,13 +454,13 @@ class StudyMappingVisitor(StudyVisitor):
         study_info = portal_info.get(self.__study.study_id)
         if study_info is None:
             study_info = CenterStudyMetadata(
-                study_id=self.__study.study_id,
-                study_name=self.__study.name,
-                pipeline_adcid=pipeline_adcid,
+                study_id=self.__study.study_id, study_name=self.__study.name
             )
             portal_info.add(study_info)
 
-        self.__mapper.map_center_pipelines(center=center, study_info=study_info)
+        self.__mapper.map_center_pipelines(
+            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
+        )
 
         center.update_project_info(portal_info)
 
