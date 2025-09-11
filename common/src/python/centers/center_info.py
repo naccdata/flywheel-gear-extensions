@@ -2,7 +2,7 @@
 
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from projects.study import CenterStudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field, RootModel, field_validator
 
 
@@ -38,6 +38,7 @@ class CenterInfo(BaseModel):
             f"adcid={self.adcid}, "
             f"active={self.active}, "
             f"tags={self.tags}"
+            ")"
         )
 
     def __eq__(self, other: object) -> bool:
@@ -53,7 +54,8 @@ class CenterInfo(BaseModel):
 
     def apply(self, visitor: StudyVisitor):
         """Applies visitor to this Center."""
-        visitor.visit_center(CenterStudyModel(center_id=self.group))
+        assert self.group is not None
+        visitor.visit_center(StudyCenterModel(center_id=self.group))
 
     @field_validator("tags", mode="before")
     @classmethod

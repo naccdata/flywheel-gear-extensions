@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.6
+* Rebuilt for new preprocessing checks in config
+
 ## 1.2.5
 * Updates error metadata to include date and naccid
   

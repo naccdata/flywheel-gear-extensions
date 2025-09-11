@@ -1,12 +1,15 @@
 """Defines the Identifier data class."""
 
-from typing import List, Optional
+from datetime import date, datetime
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
 GUID_PATTERN = r"^[a-zA-Z0-9_]+$"
 NACCID_PATTERN = r"^(NACC|TEST)\d{6}$"
 PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
+
+IdentifiersMode = Literal["dev", "prod"]
 
 
 class GUIDField(BaseModel):
@@ -41,6 +44,12 @@ class NACCADCField(BaseModel):
     naccadc: int = Field(ge=0)
 
 
+class OptionalNACCADCField(BaseModel):
+    """Base model for models with optional naccadc."""
+
+    naccadc: Optional[int] = Field(None, ge=0)
+
+
 class NACCIDField(BaseModel):
     """Base model for models with naccid."""
 
@@ -50,7 +59,7 @@ class NACCIDField(BaseModel):
 class OptionalNACCIDField(BaseModel):
     """Base model for models with optional naccid."""
 
-    naccid: Optional[str] = Field(max_length=10, pattern=NACCID_PATTERN)
+    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
 class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
@@ -60,6 +69,7 @@ class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
     """
 
     active: bool = True
+    created_on: Optional[datetime] = None
 
 
 class IdentifierList(RootModel):
@@ -96,3 +106,10 @@ class ParticipantIdentifiers(NACCIDField, GUIDField):
 
     center_identifiers: CenterIdentifiers
     aliases: Optional[List[str]]
+
+
+class IdentifierDurationResponse(NACCIDField, CenterFields):
+    """Response model for identifier duration request."""
+
+    start_date: date
+    end_date: Optional[date] = None

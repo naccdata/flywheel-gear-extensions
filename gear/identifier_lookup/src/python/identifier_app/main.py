@@ -1,6 +1,7 @@
 """Defines the NACCID lookup computation."""
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, TextIO
 
 from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
@@ -248,12 +249,14 @@ class CenterLookupVisitor(CSVVisitor):
         identifiers_repo: IdentifierRepository,
         output_file: TextIO,
         error_writer: ListErrorWriter,
+        batch_size: int = 1000,
     ) -> None:
         self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__writer: Optional[CSVWriter] = None
         self.__header: Optional[List[str]] = None
+        self.__batch_size = batch_size  # set to -1 to disable
 
     def __get_writer(self):
         """Returns the writer for the CSV output.
@@ -308,6 +311,10 @@ class CenterLookupVisitor(CSVVisitor):
 
         if naccid is None:
             raise GearExecutionError(f"NACCID not found in row {line_num}")
+
+        # sleep for 1 seconds per batch size to reduce concurrent connections
+        if self.__batch_size > 0 and line_num % self.__batch_size == 0:
+            time.sleep(1)
 
         try:
             identifier = self.__identifiers_repo.get(naccid=naccid)

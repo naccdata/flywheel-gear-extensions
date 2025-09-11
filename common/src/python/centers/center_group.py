@@ -14,7 +14,7 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import DatatypeNameType
-from projects.study import StudyModel
+from keys.types import PipelineStage
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
@@ -37,7 +37,12 @@ class CenterGroup(CenterAdaptor):
     ) -> None:
         super().__init__(group=group, proxy=proxy)
         self.__datatypes: List[str] = []
-        self.__ingest_stages = ["ingest", "retrospective", "sandbox", "distribution"]
+        self.__ingest_stages: List[PipelineStage] = [
+            "ingest",
+            "retrospective",
+            "sandbox",
+            "distribution",
+        ]
         self.__adcid = adcid
         self.__is_active = active
         self.__center_portal: Optional[ProjectAdaptor] = None
@@ -103,6 +108,9 @@ class CenterGroup(CenterAdaptor):
         Returns:
           the CenterGroup for the center
         """
+        if center.group is None:
+            raise CenterError(f"Center info is not a group: {center.name}")
+
         group = proxy.get_group(group_label=center.name, group_id=center.group)
         assert group, "No group for center"
 
@@ -463,10 +471,14 @@ class CenterGroup(CenterAdaptor):
 
         info = metadata_project.get_info()
         if not info:
-            return CenterProjectMetadata(studies={})
+            return CenterProjectMetadata(
+                adcid=self.adcid, active=self.__is_active, studies={}
+            )
 
         if "studies" not in info:
-            return CenterProjectMetadata(studies={})
+            return CenterProjectMetadata(
+                adcid=self.adcid, active=self.__is_active, studies={}
+            )
 
         try:
             return CenterProjectMetadata.model_validate(info)
@@ -775,6 +787,7 @@ class DistributionProjectMetadata(ProjectMetadata):
 class IngestProjectMetadata(ProjectMetadata):
     """Metadata for an ingest project of a center."""
 
+    pipeline_adcid: int
     datatype: str
 
 
@@ -821,6 +834,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         """
         return FormIngestProjectMetadata(
             study_id=ingest.study_id,
+            pipeline_adcid=ingest.pipeline_adcid,
             project_id=ingest.project_id,
             project_label=ingest.project_label,
             datatype=ingest.datatype,
@@ -845,7 +859,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         return self.redcap_projects.get(module_name, None)
 
 
-class StudyMetadata(BaseModel):
+class CenterStudyMetadata(BaseModel):
     """Metadata for study details within a participating center."""
 
     model_config = ConfigDict(
@@ -909,11 +923,13 @@ class StudyMetadata(BaseModel):
 
 
 class CenterProjectMetadata(BaseModel):
-    """Metadata to be stored in center portal project."""
+    """Metadata to be stored in center metadata project."""
 
-    studies: Dict[str, StudyMetadata]
+    adcid: int
+    active: bool
+    studies: Dict[str, CenterStudyMetadata]
 
-    def add(self, study: StudyMetadata) -> None:
+    def add(self, study: CenterStudyMetadata) -> None:
         """Adds study metadata to the studies.
 
         Args:
@@ -924,23 +940,15 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(self, study: StudyModel) -> StudyMetadata:
+    def get(self, study_id: str) -> Optional[CenterStudyMetadata]:
         """Gets the study metadata for the study id.
-
-        Creates a new StudyMetadata object if it does not exist.
 
         Args:
             study_id: the study id
         Returns:
-            the study metadata for the study id
+            the study metadata for the study
         """
-        study_info = self.studies.get(study.study_id, None)
-        if study_info:
-            return study_info
-
-        study_info = StudyMetadata(study_id=study.study_id, study_name=study.name)
-        self.add(study_info)
-        return study_info
+        return self.studies.get(study_id)
 
 
 class REDCapProjectInput(BaseModel):

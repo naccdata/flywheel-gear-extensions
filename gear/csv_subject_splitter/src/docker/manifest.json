@@ -51,6 +51,11 @@
             "description": "Whether or not to preserve the case of the header keys in the input file",
             "type": "boolean",
             "default": false
+        },
+        "required_fields": {
+            "description": "Comma-deliminated list of required fields",
+            "type": "string",
+            "default": ""
         }
     },
     "command": "/bin/run"

@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Optional
+from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
 
 import flywheel
 from flywheel import (
@@ -315,6 +315,26 @@ class FlywheelProxy:
         """
         role_map = self.get_roles()
         return role_map.get(label)
+
+    def get_user_roles(self, role_names: Sequence[str]) -> List[RoleOutput]:
+        """Get the named roles .
+
+        Returns all roles matching a name in the list.
+        Logs a warning if a name is not matched.
+
+        Args:
+          role_names: the role names
+        Returns:
+          the list of roles with the names
+        """
+        role_list = []
+        for name in role_names:
+            role = self.get_role(name)
+            if role:
+                role_list.append(role)
+            else:
+                log.warning("no such role %s", name)
+        return role_list
 
     def get_admin_role(self) -> Optional[RoleOutput]:
         """Gets admin role."""
@@ -904,8 +924,10 @@ class GroupAdaptor:
 
         self._fw.add_group_role(group=self._group, role=new_role)
 
-    def add_roles(self, roles: List[GroupRole]) -> None:
+    def add_roles(self, roles: Sequence[GroupRole]) -> None:
         """Adds the roles in the list to the group.
+
+        Allows roles to be assigned to users for projects w/in the group.
 
         Args:
           roles: the list of roles

@@ -152,6 +152,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
             if not center.active:
                 continue
 
+            assert center.group is not None
             group_adaptor = self.proxy.find_group(center.group)
             if not group_adaptor:
                 log.warning("Cannot find Flywheel group for Center ID %s", center.group)

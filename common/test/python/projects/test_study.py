@@ -3,7 +3,7 @@
 from typing import Optional
 
 import pytest
-from projects.study import CenterStudyModel, StudyError, StudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyError, StudyModel, StudyVisitor
 
 
 class DummyVisitor(StudyVisitor):
@@ -14,7 +14,7 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center: CenterStudyModel) -> None:
+    def visit_center(self, center: StudyCenterModel) -> None:
         self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
@@ -33,8 +33,8 @@ class TestStudy:
             name="Project Alpha",  # pyright: ignore[reportCallIssue]
             study_id="project-alpha",
             centers=[
-                CenterStudyModel(center_id="ac"),
-                CenterStudyModel(center_id="bc"),
+                StudyCenterModel(center_id="ac"),
+                StudyCenterModel(center_id="bc"),
             ],
             datatypes=["dicom"],
             mode="aggregation",
@@ -44,8 +44,8 @@ class TestStudy:
         )
         assert project.study_id == "project-alpha"
         assert project.centers == [
-            CenterStudyModel(center_id="ac"),
-            CenterStudyModel(center_id="bc"),
+            StudyCenterModel(center_id="ac"),
+            StudyCenterModel(center_id="bc"),
         ]
         assert project.datatypes == ["dicom"]
         assert project.mode == "aggregation"
@@ -86,3 +86,22 @@ class TestStudy:
         )
         project.apply(visitor)
         assert visitor.project_name == "Project Beta"
+
+
+class TestStudyCenterModel:
+    def test_validation(self):
+        # valid
+        StudyCenterModel(
+            center_id="one", pipeline_adcid=0, enrollment_pattern="separate"
+        )
+
+        # valid
+        StudyCenterModel(
+            center_id="two", pipeline_adcid=None, enrollment_pattern="co-enrollment"
+        )
+
+        # invalid
+        with pytest.raises(ValueError):
+            StudyCenterModel(
+                center_id="three", pipeline_adcid=None, enrollment_pattern="separate"
+            )
