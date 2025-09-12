@@ -14,6 +14,7 @@ from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import DatatypeNameType, PipelineStageType
+from pipeline.pipeline_label import PipelineLabel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository, REDCapProject
@@ -262,18 +263,13 @@ class CenterGroup(CenterAdaptor):
         Returns:
           list of datatype names
         """
-        # TODO: change to use center metadata
         if self.__datatypes:
             return self.__datatypes
 
-        datatypes = []
-        for stage in self.__ingest_stages:
-            projects = self.get_matching_projects(prefix=f"{stage}-")
-            for project in projects:
-                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
-                if datatype:
-                    datatypes.append(datatype)
-        self.__datatypes = list(set(datatypes))
+        project_info = self.get_project_info()
+        visitor = GatherIngestDatatypesVisitor()
+        project_info.apply(visitor)
+        self.__datatypes = visitor.datatypes
 
         return self.__datatypes
 
@@ -854,3 +850,44 @@ class StudyREDCapMetadata(BaseModel):
     study_id: str
     centers: List[str]
     projects: List[REDCapProjectMapping]
+
+
+class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
+    """Scrapes the ingest projects of the center metadata for datatypes."""
+
+    def __init__(self) -> None:
+        self.__datatypes = []
+
+    @property
+    def datatypes(self):
+        return self.__datatypes
+
+    def visit_center(self, center: CenterMetadata) -> None:
+        for study in center.studies.values():
+            study.apply(self)
+
+    def visit_study(self, study: CenterStudyMetadata) -> None:
+        for project in study.ingest_projects.values():
+            project.apply(self)
+
+    def visit_project(self, project: ProjectMetadata) -> None:
+        try:
+            label = PipelineLabel.model_validate(project.project_label)
+        except TypeError:
+            return
+        except ValidationError:
+            return
+
+        self.__datatypes.append(label.datatype)
+
+    def visit_ingest_project(self, project: IngestProjectMetadata) -> None:
+        self.visit_project(project)
+
+    def visit_form_ingest_project(self, project: FormIngestProjectMetadata) -> None:
+        self.visit_project(project)
+
+    def visit_redcap_form_project(self, project: REDCapFormProjectMetadata) -> None:
+        pass
+
+    def visit_distribution_project(self, project: DistributionProjectMetadata) -> None:
+        pass
