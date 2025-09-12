@@ -148,7 +148,6 @@ def study_object(
     yield CenterStudyMetadata(
         study_id="test",
         study_name="Test",
-        pipeline_adcid=0,
         ingest_projects=projects,
         accepted_project=project_without_datatype,
     )
@@ -166,7 +165,7 @@ class TestStudyMetadataSerialization:
         assert "study-name" in study_dump
         assert "ingest-projects" in study_dump
         assert "accepted-project" in study_dump
-        assert len(study_dump.keys()) == 6
+        assert len(study_dump.keys()) == 5
 
         try:
             model_object = CenterStudyMetadata.model_validate(study_dump)

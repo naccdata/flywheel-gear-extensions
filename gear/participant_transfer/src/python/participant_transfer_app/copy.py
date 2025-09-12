@@ -214,7 +214,7 @@ class CopyHelper:
             return False
 
         for study_id, study_info in prev_center_metadata.studies.items():
-            new_center_info = new_center_metadata.find(study_id=study_id)
+            new_center_info = new_center_metadata.get(study_id=study_id)
             if not new_center_info:
                 message = (
                     f"Study {study_id} not found in center "
