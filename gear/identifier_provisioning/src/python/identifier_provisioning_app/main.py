@@ -60,6 +60,7 @@ def update_record_level_error_log(
     gear_name: str,
     errors: FileErrorList,
     errorlog_template: Optional[ErrorLogTemplate] = None,
+    transfer: Optional[bool] = False,
 ):
     """Update error log file for the visit and store error metadata in
     file.info.qc.
@@ -71,6 +72,7 @@ def update_record_level_error_log(
         gear_name: gear that generated errors
         errors: list of error objects, expected to be JSON dicts
         errorlog_template (optional): error log naming template for module
+        transfer (optional): is this a transfer request, default False
 
     Returns:
         bool: True if error log updated successfully, else False
@@ -85,11 +87,15 @@ def update_record_level_error_log(
         module=DefaultValues.ENROLLMENT_MODULE, record=input_record
     )
 
+    status = "PASS" if qc_passed else "FAIL"
+    if transfer and qc_passed:
+        status = "IN REVIEW"
+
     if not error_log_name or not update_error_log_and_qc_metadata(
         error_log_name=error_log_name,
         destination_prj=project,
         gear_name=gear_name,
-        state="PASS" if qc_passed else "FAIL",
+        state=status,
         errors=errors,
     ):
         raise GearExecutionError(
@@ -302,20 +308,12 @@ class TransferVisitor(CSVVisitor):
             return False
 
         if not guid_identifier:
-            self.__error_writer.write(
-                identifier_error(
-                    field=FieldNames.GUID,
-                    value=guid,
-                    line=line_num,
-                    message=f"No active Identifier found for GUID {guid}",
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
-                )
-            )
-            return False
+            # It's possible for centers to generate different GUIDs for same participant
+            log.warning(f"No active Identifier found for GUID {guid}")
+            return True
 
         if not self.__match_naccid(guid_identifier, FieldNames.GUID, line_num):
+            # Active participant exists with same GUID and a different NACCID
             return False
 
         self.__naccid_identifier = guid_identifier
@@ -495,6 +493,10 @@ class TransferVisitor(CSVVisitor):
             adcid=row[FieldNames.ADCID], ptid=row[FieldNames.PTID]
         )
 
+        oldptid = row.get(FieldNames.OLDPTID)
+        if oldptid is None or not str(oldptid).strip():
+            oldptid = "unknown"
+
         self.__transfer_info.add(
             TransferRecord(
                 status="pending",
@@ -504,7 +506,7 @@ class TransferVisitor(CSVVisitor):
                 center_identifiers=new_identifiers,
                 initials=row.get(FieldNames.ENRLFRM_INITL),
                 previous_adcid=row[FieldNames.OLDADCID],
-                previous_ptid=row.get(FieldNames.OLDPTID, "unknown"),
+                previous_ptid=oldptid,
                 naccid=self.__naccid_identifier.naccid
                 if self.__naccid_identifier
                 else None,
@@ -747,6 +749,7 @@ class ProvisioningVisitor(CSVVisitor):
             project=self.__project,
             gear_name=self.__gear_name,
             errors=self.__error_writer.errors(),
+            transfer=True,
         )
 
         return success

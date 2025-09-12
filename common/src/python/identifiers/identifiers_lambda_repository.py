@@ -16,8 +16,8 @@ from identifiers.identifiers_repository import (
 from identifiers.model import (
     ADCIDField,
     CenterIdentifiers,
+    EnrollmentDurationResponse,
     GUIDField,
-    IdentifierDurationResponse,
     IdentifierList,
     IdentifierObject,
     IdentifiersMode,
@@ -104,19 +104,18 @@ class ListResponseObject(BaseModel):
     data: List[IdentifierObject]
 
 
-class IdentifierDurationRequest(NACCIDRequest, CenterIdentifiers):
+class EnrollmentDurationRequest(BaseRequest, CenterIdentifiers):
     """Request model for checking whether a visitdate is within the valid
-    duration for the specified center."""
+    enrollment period for the specified participant in specified center."""
 
     visitdate: date
 
     @classmethod
     def create_from(
         cls, mode: IdentifiersMode, date_query: DateQueryObject
-    ) -> "IdentifierDurationRequest":
-        return IdentifierDurationRequest(
+    ) -> "EnrollmentDurationRequest":
+        return EnrollmentDurationRequest(
             mode=mode,
-            naccid=date_query.naccid,
             adcid=date_query.adcid,
             ptid=date_query.ptid,
             visitdate=date_query.visitdate,
@@ -462,22 +461,22 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return True
 
-    def check_duration(
+    def check_enrollment_period(
         self, date_query: DateQueryObject
-    ) -> Optional[IdentifierDurationResponse]:
-        """Checks whether there is a valid identifier duration record in the
-        repository matching with the visit date in query object.
+    ) -> Optional[EnrollmentDurationResponse]:
+        """Checks whether there is a valid enrollment period in the repository
+        matching with the visit date in query object.
 
         Args:
           date_query: visitdate query to validate
 
         Returns:
-          IdentifierDurationResponse (optional) if match found, else None
+          EnrollmentDurationResponse (optional) if match found, else None
         """
         try:
             response = self.__client.invoke(
                 name="check-identifier-duration-lambda-function",
-                request=IdentifierDurationRequest.create_from(
+                request=EnrollmentDurationRequest.create_from(
                     mode=self.__mode, date_query=date_query
                 ),
             )
@@ -485,10 +484,9 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             raise IdentifierRepositoryError(error) from error
 
         if response.statusCode == 200:
-            return IdentifierDurationResponse.model_validate_json(response.body)
+            return EnrollmentDurationResponse.model_validate_json(response.body)
 
         raise IdentifierRepositoryError(
-            f"Validation failed for visitdate {date_query.visitdate} "
-            f"for participant NACCID: {date_query.naccid}, "
+            f"Validation failed for visitdate {date_query.visitdate} for participant "
             f"ADCID: {date_query.adcid}, PTID: {date_query.ptid}: {response.body}"
         )
