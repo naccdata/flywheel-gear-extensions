@@ -10,8 +10,9 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from notifications.email import DestinationModel, EmailClient, TemplateDataModel
 
-from users.authorizations import AuthMap, Authorizations
-from users.nacc_directory import ActiveUserEntry, RegisteredUserEntry, UserEntry
+from users.authorization_visitor import CenterAuthorizationVisitor
+from users.authorizations import AuthMap, StudyAuthorizations
+from users.user_entry import ActiveUserEntry, RegisteredUserEntry, UserEntry
 from users.user_registry import RegistryPerson, UserRegistry
 
 log = logging.getLogger(__name__)
@@ -330,11 +331,15 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             )
             return
 
+        authorizations = {
+            authorization.study_id: authorization
+            for authorization in entry.authorizations
+        }
         self.__authorize_user(
             user=fw_user,
             auth_email=registry_address.mail,
             center_id=entry.adcid,
-            authorizations=entry.authorizations,
+            authorizations=authorizations,
         )
 
     def __update_email(self, *, user: User, email: str) -> None:
@@ -362,7 +367,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         user: User,
         auth_email: str,
         center_id: int,
-        authorizations: Authorizations,
+        authorizations: dict[str, StudyAuthorizations],
     ) -> None:
         """Adds authorizations to the user.
 
@@ -383,12 +388,18 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self.__env.admin_group.add_center_user(user=user)
 
         # give users access to center projects
-        center_group.add_user_roles(
+
+        assert user.id, "requires user has ID"
+        log.info("Adding roles for user %s", user.id)
+        visitor = CenterAuthorizationVisitor(
             user=user,
             auth_email=auth_email,
-            authorizations=authorizations,
+            user_authorizations=authorizations,
             auth_map=self.__env.authorization_map,
+            center_group=center_group,
         )
+        portal_info = center_group.get_project_info()
+        portal_info.apply(visitor)
 
     def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
         """Applies this process to the queue.
@@ -688,16 +699,16 @@ class UserProcess(BaseUserProcess[UserEntry]):
         Args:
           entry: the user entry
         """
-        if entry.active:
-            if not entry.auth_email:
-                log.info("Ignoring active user with no auth email: %s", entry.email)
-                return
+        if not entry.active:
+            self.__inactive_queue.enqueue(entry)
+            return
 
-            if isinstance(entry, ActiveUserEntry):
-                self.__active_queue.enqueue(entry)
-                return
+        if not entry.auth_email:
+            log.info("Ignoring active user with no auth email: %s", entry.email)
+            return
 
-        self.__inactive_queue.enqueue(entry)
+        if isinstance(entry, ActiveUserEntry):
+            self.__active_queue.enqueue(entry)
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Splits the queue into active and inactive queues of entries, and
