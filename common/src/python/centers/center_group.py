@@ -273,125 +273,26 @@ class CenterGroup(CenterAdaptor):
 
         return self.__datatypes
 
-    def apply_to_ingest(
-        self, *, template_map: Dict[str, Dict[str, TemplateProject]]
-    ) -> None:
-        """Applies the templates to the ingest stage projects in group.
-
-        Expects that project labels match pattern
-        `<stage-name>-<datatype-name>`.
-        For instance, `ingest-form` or `retrospective-dicom`.
-
-        Args:
-          template_map: map from datatype to stage to template project
-        """
-        # TODO: change to use center metadata visitor
-        for stage in self.__ingest_stages:
-            ingest_projects = self.get_matching_projects(prefix=f"{stage}-")
-            if not ingest_projects:
-                log.warning("no ingest stage projects for group %s", self.label)
-                return
-
-            for project in ingest_projects:
-                datatype = CenterGroup.get_datatype(stage=stage, label=project.label)
-                if not datatype:
-                    log.info("ingest project %s has no datatype", project.label)
-                    continue
-
-                self.__apply_to(
-                    stage=stage,
-                    template_map=template_map,
-                    project=project,
-                    datatype=datatype,
-                )
-
-    def apply_to_accepted(
-        self, template_map: Dict[str, Dict[str, TemplateProject]]
-    ) -> None:
-        """Applies the templates in the map to the accepted project in the
-        group.
-
-        Expects the accepted project to be named `accepted`.
-
-        Args:
-          template_map: map from datatype to stage to template project
-        """
-        # TODO: change to use center metadata visitor
-        accepted_projects = self.get_matching_projects(prefix="accepted")
-        if not accepted_projects:
-            log.warning("no accepted stage project in center group %s", self.label)
-            return
-
-        self.__apply_to(
-            template_map=template_map,
-            project=accepted_projects[0],
-            stage="accepted",
-            datatype="all",
-        )
-
-    def __apply_to(
-        self,
-        *,
-        template_map: Dict[str, Dict[str, TemplateProject]],
-        project: ProjectAdaptor,
-        stage: str,
-        datatype: str,
-    ):
-        """Applies the template map to the project for stage and datatype.
-
-        Args:
-          template_map: map from datatype to stage to template project
-          project: the destination project
-          stage: the stage for the destination
-          datatype: the datatype for the destination
-        """
-        # TODO: change to use center metadata visitor
-        stage_map = template_map.get(datatype)
-        if stage_map:
-            template_project = stage_map.get(stage)
-            if template_project:
-                template_project.copy_to(
-                    project,
-                    value_map={
-                        "adrc": self.label,
-                        "adcid": str(self.adcid),
-                        "project_id": project.id,
-                        "site": self.proxy().get_site(),
-                    },
-                )
-
-    def apply_template_map(
-        self, template_map: Dict[str, Dict[str, TemplateProject]]
-    ) -> None:
-        """Applies the template map to the pipeline projects within the center
-        group.
-
-        Args:
-          template_map: map from datatype to stage to template project
-        """
-        # TODO: change to use center metadata visitor
-        self.apply_to_ingest(template_map=template_map)
-
-        self.apply_to_accepted(template_map)
-
     def apply_template(self, template: TemplateProject) -> None:
         """Applies the template to projects of this center group that match.
 
         Args:
           template: the template project
         """
-        # TODO: change to use center metadata
         prefix_pattern = template.get_pattern()
         if not prefix_pattern:
             return
 
         projects = self.get_matching_projects(prefix=prefix_pattern)
         for project in projects:
+            pipeline_adcid = project.get_info().get("pipeline_adcid")
+            adcid = pipeline_adcid if pipeline_adcid is not None else self.adcid
+
             template.copy_to(
                 project,
                 value_map={
                     "adrc": self.label,
-                    "adcid": str(self.adcid),
+                    "adcid": str(adcid),
                     "project_id": project.id,
                     "site": self.proxy().get_site(),
                 },
@@ -856,7 +757,7 @@ class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
     """Scrapes the ingest projects of the center metadata for datatypes."""
 
     def __init__(self) -> None:
-        self.__datatypes = []
+        self.__datatypes: List[DatatypeNameType] = []
 
     @property
     def datatypes(self):
@@ -876,6 +777,9 @@ class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
         except TypeError:
             return
         except ValidationError:
+            return
+
+        if label.datatype is None:
             return
 
         self.__datatypes.append(label.datatype)
