@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from centers.center_group import CenterGroup
+from configs.ingest_configs import ErrorLogTemplate
+from dates.form_dates import DEFAULT_DATE_FORMAT
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_subject import EnrollmentSubject
 from enrollment.enrollment_transfer import (
@@ -19,7 +21,8 @@ from identifiers.identifiers_lambda_repository import (
 )
 from identifiers.identifiers_repository import IdentifierUpdateObject
 from identifiers.model import CenterIdentifiers, IdentifierObject
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, FieldNames
+from outputs.error_logger import update_gear_qc_status
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError
 
@@ -420,3 +423,29 @@ class TransferProcessor:
         transfer_info = TransferInfo(transfers={})
         transfer_info.add(self.__transfer_record)
         self.__enroll_project.add_or_update_transfers(transfers=transfer_info)
+
+    def update_transfer_request_qc_status(self) -> None:
+        """Set the identifier-provisioning gear QC status to PASS in the error
+        log for this transfer request."""
+        errorlog_template = ErrorLogTemplate(
+            id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
+        )
+        transfer_record = {
+            FieldNames.PTID: self.__transfer_record.center_identifiers.ptid,
+            FieldNames.ENRLFRM_DATE: self.__transfer_record.request_date.strftime(
+                DEFAULT_DATE_FORMAT
+            ),
+        }
+        error_log_name = errorlog_template.instantiate(
+            module=DefaultValues.ENROLLMENT_MODULE, record=transfer_record
+        )
+        if not error_log_name:
+            log.warning("Failed to retrieve error log for transfer request")
+            return
+
+        update_gear_qc_status(
+            error_log_name=error_log_name,
+            destination_prj=self.__enroll_project,
+            gear_name=DefaultValues.PROVISIONING_GEAR,
+            status="PASS",
+        )

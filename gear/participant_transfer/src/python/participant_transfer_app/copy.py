@@ -58,8 +58,7 @@ class CopyHelper:
                 f"Participant {self.__subject_label} not found in "
                 f"{self.__prev_center.label}/{source_project.label}"
             )
-            log.warning(message)
-            self.__warnings.append(message)
+            log.info(message)
             return True
 
         target_project = self.__new_center.get_project_by_id(target_project_id)

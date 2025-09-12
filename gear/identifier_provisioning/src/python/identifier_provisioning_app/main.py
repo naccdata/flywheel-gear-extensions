@@ -60,6 +60,7 @@ def update_record_level_error_log(
     gear_name: str,
     errors: FileErrorList,
     errorlog_template: Optional[ErrorLogTemplate] = None,
+    transfer: Optional[bool] = False,
 ):
     """Update error log file for the visit and store error metadata in
     file.info.qc.
@@ -71,6 +72,7 @@ def update_record_level_error_log(
         gear_name: gear that generated errors
         errors: list of error objects, expected to be JSON dicts
         errorlog_template (optional): error log naming template for module
+        transfer (optional): is this a transfer request, default False
 
     Returns:
         bool: True if error log updated successfully, else False
@@ -85,11 +87,15 @@ def update_record_level_error_log(
         module=DefaultValues.ENROLLMENT_MODULE, record=input_record
     )
 
+    status = "PASS" if qc_passed else "FAIL"
+    if transfer and qc_passed:
+        status = "IN REVIEW"
+
     if not error_log_name or not update_error_log_and_qc_metadata(
         error_log_name=error_log_name,
         destination_prj=project,
         gear_name=gear_name,
-        state="PASS" if qc_passed else "FAIL",
+        state=status,
         errors=errors,
     ):
         raise GearExecutionError(
@@ -743,6 +749,7 @@ class ProvisioningVisitor(CSVVisitor):
             project=self.__project,
             gear_name=self.__gear_name,
             errors=self.__error_writer.errors(),
+            transfer=True,
         )
 
         return success

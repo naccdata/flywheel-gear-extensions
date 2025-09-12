@@ -202,5 +202,6 @@ def run(  # noqa: C901
         )
 
     transfer_processor.update_transfer_info(status="completed")
+    transfer_processor.update_transfer_request_qc_status()
 
     return not warnings
