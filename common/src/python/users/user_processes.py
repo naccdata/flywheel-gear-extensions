@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, Generic, List, Literal, Optional, Sequence, TypeVar
+from typing import Dict, Generic, List, Literal, Optional, TypeVar
 
 from centers.nacc_group import NACCGroup
 from coreapi_client.models.identifier import Identifier
@@ -10,6 +10,7 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from notifications.email import DestinationModel, EmailClient, TemplateDataModel
 
+from users.authorization_visitor import CenterAuthorizationVisitor
 from users.authorizations import AuthMap, StudyAuthorizations
 from users.user_entry import ActiveUserEntry, RegisteredUserEntry, UserEntry
 from users.user_registry import RegistryPerson, UserRegistry
@@ -330,11 +331,15 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             )
             return
 
+        authorizations = {
+            authorization.study_id: authorization
+            for authorization in entry.authorizations
+        }
         self.__authorize_user(
             user=fw_user,
             auth_email=registry_address.mail,
             center_id=entry.adcid,
-            authorizations=entry.authorizations,
+            authorizations=authorizations,
         )
 
     def __update_email(self, *, user: User, email: str) -> None:
@@ -362,7 +367,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         user: User,
         auth_email: str,
         center_id: int,
-        authorizations: Sequence[StudyAuthorizations],
+        authorizations: dict[str, StudyAuthorizations],
     ) -> None:
         """Adds authorizations to the user.
 
@@ -383,12 +388,18 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self.__env.admin_group.add_center_user(user=user)
 
         # give users access to center projects
-        center_group.add_user_roles(
+
+        assert user.id, "requires user has ID"
+        log.info("Adding roles for user %s", user.id)
+        visitor = CenterAuthorizationVisitor(
             user=user,
             auth_email=auth_email,
-            authorization_list=authorizations,
+            user_authorizations=authorizations,
             auth_map=self.__env.authorization_map,
+            center_group=center_group,
         )
+        portal_info = center_group.get_project_info()
+        portal_info.apply(visitor)
 
     def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
         """Applies this process to the queue.
