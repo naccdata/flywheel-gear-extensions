@@ -6,21 +6,19 @@ Should be used when starting from centers already created using
 
 import logging
 import re
-from typing import Dict, List, Optional, Sequence, overload
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, overload
 
 import flywheel
 from flywheel.models.group import Group
-from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import DatatypeNameType, PipelineStageType
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
-from redcap_api.redcap_project import REDCapRoles
-from redcap_api.redcap_repository import REDCapParametersRepository
+from redcap_api.redcap_repository import REDCapParametersRepository, REDCapProject
 from serialization.case import kebab_case
-from users.authorizations import Activity, AuthMap
-from users.nacc_directory import StudyAuthorizations
+from users.authorizations import Activity
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_info import CenterInfo
@@ -264,6 +262,7 @@ class CenterGroup(CenterAdaptor):
         Returns:
           list of datatype names
         """
+        # TODO: change to use center metadata
         if self.__datatypes:
             return self.__datatypes
 
@@ -290,6 +289,7 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
+        # TODO: change to use center metadata visitor
         for stage in self.__ingest_stages:
             ingest_projects = self.get_matching_projects(prefix=f"{stage}-")
             if not ingest_projects:
@@ -320,6 +320,7 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
+        # TODO: change to use center metadata visitor
         accepted_projects = self.get_matching_projects(prefix="accepted")
         if not accepted_projects:
             log.warning("no accepted stage project in center group %s", self.label)
@@ -348,6 +349,7 @@ class CenterGroup(CenterAdaptor):
           stage: the stage for the destination
           datatype: the datatype for the destination
         """
+        # TODO: change to use center metadata visitor
         stage_map = template_map.get(datatype)
         if stage_map:
             template_project = stage_map.get(stage)
@@ -371,7 +373,7 @@ class CenterGroup(CenterAdaptor):
         Args:
           template_map: map from datatype to stage to template project
         """
-
+        # TODO: change to use center metadata visitor
         self.apply_to_ingest(template_map=template_map)
 
         self.apply_to_accepted(template_map)
@@ -382,6 +384,7 @@ class CenterGroup(CenterAdaptor):
         Args:
           template: the template project
         """
+        # TODO: change to use center metadata
         prefix_pattern = template.get_pattern()
         if not prefix_pattern:
             return
@@ -455,7 +458,7 @@ class CenterGroup(CenterAdaptor):
         project_info.add(study_info)
         self.update_project_info(project_info)
 
-    def get_project_info(self) -> "CenterProjectMetadata":
+    def get_project_info(self) -> "CenterMetadata":
         """Gets the portal info for this center.
 
         Returns:
@@ -470,24 +473,20 @@ class CenterGroup(CenterAdaptor):
 
         info = metadata_project.get_info()
         if not info:
-            return CenterProjectMetadata(
-                adcid=self.adcid, active=self.__is_active, studies={}
-            )
+            return CenterMetadata(adcid=self.adcid, active=self.__is_active, studies={})
 
         if "studies" not in info:
-            return CenterProjectMetadata(
-                adcid=self.adcid, active=self.__is_active, studies={}
-            )
+            return CenterMetadata(adcid=self.adcid, active=self.__is_active, studies={})
 
         try:
-            return CenterProjectMetadata.model_validate(info)
+            return CenterMetadata.model_validate(info)
         except ValidationError as error:
             raise CenterError(
                 f"Info in {self.label}/{metadata_project.label}"
                 " does not match expected format"
             ) from error
 
-    def update_project_info(self, project_info: "CenterProjectMetadata") -> None:
+    def update_project_info(self, project_info: "CenterMetadata") -> None:
         """Updates the portal info for this center.
 
         Args:
@@ -513,227 +512,12 @@ class CenterGroup(CenterAdaptor):
         """
         return self.get_project(label=label, info_update={"adcid": self.adcid})
 
-    def add_user_roles(
-        self,
-        user: User,
-        auth_email: str,
-        authorization_list: Sequence[StudyAuthorizations],
-        auth_map: AuthMap,
-    ) -> None:
-        """Adds user to authorized projects in the center group and to any
-        associated NACC REDCap projects for data entry.
+    def get_redcap_project(self, pid: int) -> Optional[REDCapProject]:
+        """Returns the REDCap project for the PID."""
+        if self.__redcap_param_repo is None:
+            return None
 
-        Args:
-          user: the user to add
-          auth_email: the email used in the registry
-          authorization_list: the study authorizations for the user
-          auth_map: authorizations to roles mapping
-        """
-        for authorizations in authorization_list:
-            self.add_study_roles(
-                user=user,
-                auth_email=auth_email,
-                authorizations=authorizations,
-                auth_map=auth_map,
-            )
-
-    def add_study_roles(
-        self,
-        user: User,
-        auth_email: str,
-        authorizations: StudyAuthorizations,
-        auth_map: AuthMap,
-    ) -> None:
-        """Adds user to authorized projects in the center group and to any
-        associated NACC REDCap projects for data entry.
-
-        Args:
-          user: the user to add
-          auth_email: the email used in the registry
-          authorizations: the authorizations for the user
-          auth_map: authorizations to roles mapping
-        """
-        assert user.id, "requires user has ID"
-        log.info("Adding roles for user %s", user.id)
-
-        portal_info = self.get_project_info()
-        study_info = portal_info.studies.get(authorizations.study_id, None)
-        if not study_info:
-            log.warning(
-                "No study info for study %s in center %s",
-                authorizations.study_id,
-                self.label,
-            )
-            return
-
-        accepted_project = study_info.accepted_project
-        if accepted_project:
-            self.__add_user_roles_to_project(
-                user=user,
-                project_id=accepted_project.project_id,
-                auth_map=auth_map,
-                authorizations=authorizations,
-            )
-
-        ingest_projects = study_info.ingest_projects
-        log.info("Adding user to %s ingest projects", len(ingest_projects))
-        for project in ingest_projects.values():
-            if not self.__add_user_roles_to_project(
-                user=user,
-                project_id=project.project_id,
-                auth_map=auth_map,
-                authorizations=authorizations,
-            ):
-                # roles not set, skip REDCap project
-                continue
-
-            if not isinstance(project, FormIngestProjectMetadata):
-                log.info(
-                    "Skipping ingest project %s/%s/%s, no linked REDCap project.",
-                    authorizations.study_id,
-                    self.label,
-                    project.project_label,
-                )
-                continue
-
-            # If user added successfully, add the user to REDCap project (if any)
-            log.info(
-                "Setting REDCap permissions for ingest project %s/%s/%s",
-                authorizations.study_id,
-                self.label,
-                project.project_label,
-            )
-            self.__add_user_to_redcap_project(
-                user=user,
-                auth_email=auth_email,
-                form_ingest_project=project,
-                authorizations=authorizations,
-            )
-
-        metadata_project = self.get_metadata()
-        if metadata_project:
-            self.__add_user_roles_to_project(
-                user=user,
-                project_id=metadata_project.id,
-                auth_map=auth_map,
-                authorizations=authorizations,
-            )
-
-        center_portal = self.get_portal()
-        if center_portal:
-            self.__add_user_roles_to_project(
-                user=user,
-                project_id=center_portal.id,
-                auth_map=auth_map,
-                authorizations=authorizations,
-            )
-
-    def __add_user_roles_to_project(
-        self,
-        *,
-        user: User,
-        project_id: str,
-        authorizations: StudyAuthorizations,
-        auth_map: AuthMap,
-    ) -> bool:
-        """Adds user to the project with the role.
-
-        Args:
-          user: the user to add
-          project_id: the project ID
-          authorizations: the authorizations for the user
-          auth_map: authorizations to roles mapping
-
-        Returns:
-          True if user was added, False otherwise
-        """
-        assert user.id, "requires user has ID"
-
-        project = self.get_project_by_id(project_id)
-        if not project:
-            return False
-
-        role_set = auth_map.get(
-            project_label=project.label, authorizations=authorizations
-        )
-        if not role_set:
-            log.warning(
-                "No roles found for user %s in project %s/%s",
-                user.id,
-                self.id,
-                project.label,
-            )
-            return False
-
-        return project.add_user_roles(user=user, roles=role_set)
-
-    def __add_user_to_redcap_project(
-        self,
-        *,
-        user: User,
-        auth_email: str,
-        form_ingest_project: "FormIngestProjectMetadata",
-        authorizations: StudyAuthorizations,
-    ) -> bool:
-        """Adds user to the respective REDCap project for direct data entry.
-
-        Args:
-          user: the user to add
-          auth_email: the email used in the registry
-          form_ingest_project: metadata about form ingest project
-          authorizations: the authorizations for the user
-
-        Returns:
-          True if user was added, False if errors occurred
-        """
-
-        if not self.__redcap_param_repo:
-            log.warning("REDCap project repository not found in center %s", self.label)
-            return False
-
-        if not form_ingest_project.redcap_projects:
-            log.warning(
-                "REDCap project metadata not available for %s",
-                form_ingest_project.project_label,
-            )
-            return False
-
-        success = True
-        for redcap_metadata in form_ingest_project.redcap_projects.values():
-            submission_activity = redcap_metadata.get_submission_activity()
-            # User doesn't have submission privileges for this module
-            if submission_activity not in authorizations.activities:
-                log.info(
-                    "Skipping %s: activity is not in user authorizations %s",
-                    submission_activity,
-                    authorizations.activities,
-                )
-                continue
-
-            redcap_project = self.__redcap_param_repo.get_redcap_project(
-                redcap_metadata.redcap_pid
-            )
-
-            if not redcap_project:
-                log.error("No REDCap project %s found", redcap_metadata.redcap_pid)
-                success = False
-                continue
-
-            if not redcap_project.assign_update_user_role_by_label(
-                auth_email, REDCapRoles.CENTER_USER_ROLE
-            ):
-                success = False
-                continue
-
-            log.info(
-                "User %s (%s) is assigned %s permissions in REDCap project %s",
-                user.email,
-                auth_email,
-                REDCapRoles.CENTER_USER_ROLE,
-                redcap_project.title,
-            )
-
-        return success
+        return self.__redcap_param_repo.get_redcap_project(pid)
 
     def set_redcap_param_repo(self, redcap_param_repo: REDCapParametersRepository):
         self.__redcap_param_repo = redcap_param_repo
@@ -760,6 +544,38 @@ class CenterError(Exception):
         return self.__message
 
 
+class AbstractCenterMetadataVisitor(ABC):
+    @abstractmethod
+    def visit_center(self, center: "CenterMetadata") -> None:
+        pass
+
+    @abstractmethod
+    def visit_study(self, study: "CenterStudyMetadata") -> None:
+        pass
+
+    @abstractmethod
+    def visit_project(self, project: "ProjectMetadata") -> None:
+        pass
+
+    @abstractmethod
+    def visit_distribution_project(
+        self, project: "DistributionProjectMetadata"
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def visit_ingest_project(self, project: "IngestProjectMetadata") -> None:
+        pass
+
+    @abstractmethod
+    def visit_redcap_form_project(self, project: "REDCapFormProjectMetadata") -> None:
+        pass
+
+    @abstractmethod
+    def visit_form_ingest_project(self, project: "FormIngestProjectMetadata") -> None:
+        pass
+
+
 class ProjectMetadata(BaseModel):
     """Metadata for a center project. Set datatype for ingest projects.
 
@@ -776,11 +592,17 @@ class ProjectMetadata(BaseModel):
     project_id: str
     project_label: str
 
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_project(self)
+
 
 class DistributionProjectMetadata(ProjectMetadata):
     """Metadata for a distribution project of a center."""
 
     datatype: str
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_distribution_project(self)
 
 
 class IngestProjectMetadata(ProjectMetadata):
@@ -788,6 +610,9 @@ class IngestProjectMetadata(ProjectMetadata):
 
     pipeline_adcid: int
     datatype: str
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_ingest_project(self)
 
 
 class REDCapFormProjectMetadata(BaseModel):
@@ -808,6 +633,9 @@ class REDCapFormProjectMetadata(BaseModel):
         datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
         return Activity(datatype=datatype, action="submit-audit")
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_redcap_form_project(self)
 
 
 class FormIngestProjectMetadata(IngestProjectMetadata):
@@ -856,6 +684,9 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
             the REDCap project metadata for the module name
         """
         return self.redcap_projects.get(module_name, None)
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_form_ingest_project(self)
 
 
 class CenterStudyMetadata(BaseModel):
@@ -920,8 +751,11 @@ class CenterStudyMetadata(BaseModel):
         """
         return self.distribution_projects.get(project_label, None)
 
+    def apply(self, visitor: "AbstractCenterMetadataVisitor") -> None:
+        visitor.visit_study(self)
 
-class CenterProjectMetadata(BaseModel):
+
+class CenterMetadata(BaseModel):
     """Metadata to be stored in center metadata project."""
 
     adcid: int
@@ -948,6 +782,9 @@ class CenterProjectMetadata(BaseModel):
             the study metadata for the study
         """
         return self.studies.get(study_id)
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_center(self)
 
 
 class REDCapProjectInput(BaseModel):

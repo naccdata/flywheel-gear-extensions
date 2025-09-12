@@ -93,7 +93,9 @@ class TestAuthMap:
 
     def test_empty_map(self, empty_auth: StudyAuthorizations):
         """Test empty map."""
-        auth_map = AuthMap.model_validate({}, context={"role_map": {}})
+        auth_map = AuthMap.model_validate(
+            {}, context={"role_map": {"read-only": RoleOutput("read-only")}}
+        )
         assert auth_map.get(project_label="dummy", authorizations=empty_auth) == []
 
     def test_authmap(
@@ -204,6 +206,3 @@ class TestAuthorization:
 
         assert "submit-audit-form" in authorization
         assert "view-form" not in authorization
-
-
-

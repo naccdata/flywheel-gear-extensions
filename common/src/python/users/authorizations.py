@@ -1,5 +1,6 @@
 """Defines components related to user authorizations."""
 
+import logging
 from typing import Any, Dict, Literal, Self
 
 from flywheel.models.role_output import RoleOutput
@@ -13,6 +14,8 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+
+log = logging.getLogger(__name__)
 
 ActionType = Literal["submit-audit", "view"]
 
@@ -93,6 +96,7 @@ class AuthMap(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     project_authorizations: Dict[str, Dict[Activity, RoleOutput]]
+    read_only_role: RoleOutput
 
     def __get_roles(
         self, label: str, authorizations: StudyAuthorizations
@@ -192,4 +196,9 @@ class AuthMap(BaseModel):
 
             auth_dict[project_label] = project_dict
 
-        return handler({"project_authorizations": auth_dict})
+        read_only_role = role_map.get("read-only")
+        assert read_only_role
+
+        return handler(
+            {"project_authorizations": auth_dict, "read_only_role": read_only_role}
+        )
