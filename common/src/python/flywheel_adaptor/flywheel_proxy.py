@@ -1200,8 +1200,9 @@ class ProjectAdaptor:
             try:
                 self._project.add_permission(user_role)
             except ApiException as error:
-                log.error("Failed to add user role to project: %s", error)
-                return False
+                raise ProjectError(
+                    f"Failed to add user role to project: {error}"
+                ) from error
             self.__pull_project()
             return True
 
@@ -1222,8 +1223,9 @@ class ProjectAdaptor:
                 role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
             )
         except ApiException as error:
-            log.error("Failed to add user role to project: %s", error)
-            return False
+            raise ProjectError(
+                f"Failed to add user role to project: {error}"
+            ) from error
 
         self.__pull_project()
         return True
