@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-from centers.center_group import CenterGroup, CenterStudyMetadata
+from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel import Project
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import trigger_gear
@@ -58,8 +58,7 @@ class CopyHelper:
                 f"Participant {self.__subject_label} not found in "
                 f"{self.__prev_center.label}/{source_project.label}"
             )
-            log.warning(message)
-            self.__warnings.append(message)
+            log.info(message)
             return True
 
         target_project = self.__new_center.get_project_by_id(target_project_id)
@@ -200,8 +199,19 @@ class CopyHelper:
         return True
 
     def copy_participant(self) -> bool:
-        new_center_metadata = self.__new_center.get_project_info()
-        prev_center_metadata = self.__prev_center.get_project_info()
+        """Trigger copying participant data from previous center to current
+        center. Traverse the center metadata for previous center and copy data
+        from ingest and distribution projects.
+
+        Returns:
+            bool: True if success
+        """
+        try:
+            new_center_metadata = self.__new_center.get_project_info()
+            prev_center_metadata = self.__prev_center.get_project_info()
+        except CenterError as error:
+            log.error(error)
+            return False
 
         for study_id, study_info in prev_center_metadata.studies.items():
             new_center_info = new_center_metadata.get(study_id=study_id)

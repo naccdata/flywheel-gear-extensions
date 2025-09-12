@@ -2,9 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.3.0
+## Unreleased
 * Updates to use new identifier lambda functions with restructured identifiers database
 * Updates error metadata to include date and naccid
+* Updates processing participant transfer requests
   
 ## 1.2.7
 * Rebuilding to call identifier lambda function alias depending on request mode
