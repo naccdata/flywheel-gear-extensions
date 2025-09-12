@@ -578,14 +578,14 @@ class CenterGroup(CenterAdaptor):
         ingest_projects = study_info.ingest_projects
         log.info("Adding user to %s ingest projects", len(ingest_projects))
         for project in ingest_projects.values():
-            self.__add_user_roles_to_project(
+            if not self.__add_user_roles_to_project(
                 user=user,
                 project_id=project.project_id,
                 auth_map=auth_map,
                 authorizations=authorizations,
-            )
-            # Above method returns False when no change in permissions
-            # TODO - fix that and add to REDCap if only above successful
+            ):
+                # roles not set, skip REDCap project
+                continue
 
             if not isinstance(project, FormIngestProjectMetadata):
                 log.info(

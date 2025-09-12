@@ -1179,7 +1179,7 @@ class ProjectAdaptor:
         Args:
           role_assignment: the role assignment
         Returns:
-          True if role is new, False otherwise
+          True if role is set, False otherwise
         """
         user_roles = self.get_user_roles(role_assignment.id)
         if not user_roles:
@@ -1211,7 +1211,7 @@ class ProjectAdaptor:
                 different = True
                 user_roles.append(role_id)
         if not different:
-            return False
+            return True
 
         log_message = f"Adding roles to user {role_assignment.id}"
         if self._fw.dry_run:
