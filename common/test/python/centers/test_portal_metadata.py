@@ -2,7 +2,7 @@
 
 import pytest
 from centers.center_group import (
-    CenterProjectMetadata,
+    CenterMetadata,
     CenterStudyMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
@@ -180,7 +180,7 @@ def portal_metadata(study_object):
     """Creates portal info object."""
     studies = {}
     studies[study_object.study_id] = study_object
-    yield CenterProjectMetadata(adcid=0, active=True, studies=studies)
+    yield CenterMetadata(adcid=0, active=True, studies=studies)
 
 
 class TestCenterPortalMetadataSerialization:
@@ -194,7 +194,7 @@ class TestCenterPortalMetadataSerialization:
         assert "studies" in portal_dump
 
         try:
-            model_object = CenterProjectMetadata.model_validate(portal_dump)
+            model_object = CenterMetadata.model_validate(portal_dump)
             assert model_object == portal_metadata
         except ValidationError as error:
             assert False, error  # noqa: B011

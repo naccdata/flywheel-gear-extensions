@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 import yaml
 from centers.center_group import (
-    CenterProjectMetadata,
+    CenterMetadata,
     FormIngestProjectMetadata,
     REDCapProjectInput,
     StudyREDCapMetadata,
@@ -171,7 +171,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 continue
 
             try:
-                center_metadata = CenterProjectMetadata.model_validate(info)
+                center_metadata = CenterMetadata.model_validate(info)
             except ValidationError as error:
                 log.error(
                     "Studies info in %s/metadata does not match expected format: %s",
