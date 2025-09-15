@@ -65,7 +65,7 @@ class RegressionCurator(Curator):
             return set(value_as_list) == set(expected_as_list)
         except TypeError as e:
             # means dicts - we assume lists of dicts are ordered, so
-            # if it failed the earlier == then it doesn't match
+            # if it failed the earlier equality test then it doesn't match
             if str(e) == "unhashable type: 'dict'":
                 return False
 
