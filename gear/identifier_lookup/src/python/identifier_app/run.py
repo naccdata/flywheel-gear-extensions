@@ -52,7 +52,6 @@ def get_identifiers(
     identifiers = {}
     center_identifiers = identifiers_repo.list(adcid=adcid)
     if center_identifiers:
-        # pylint: disable=(not-an-iterable)
         identifiers = {identifier.ptid: identifier for identifier in center_identifiers}
 
     return identifiers
