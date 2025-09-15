@@ -193,11 +193,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             raise GearExecutionError(f"Unable to get center group: {group_id}")
         log.info(f"Group: {group.label}")
 
-        project = group.get_project_by_id(project_id)
-        if not project:
-            raise GearExecutionError(f"Unable to get parent project: {project_id}")
         log.info(f"Project: {project.label}")
-        enrollment_project = EnrollmentProject.create_from(project)
+        enrollment_project = EnrollmentProject.create_from(destination_project)
         log.info(f"Enrollment project: {enrollment_project.label}")
 
         try:
@@ -211,7 +208,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
                 f"Could not find {group_id}/{self.__legacy_ingest_label}: {error}"
             ) from error
 
-        forms_store = FormsStore(ingest_project=project, legacy_project=legacy_project)
+        forms_store = FormsStore(
+            ingest_project=destination_project, legacy_project=legacy_project
+        )
 
         sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
         target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
