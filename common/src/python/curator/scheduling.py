@@ -10,6 +10,7 @@ from curator.curator import Curator
 from dataview.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
+from nacc_attribute_deriver.symbol_table import SymbolTable
 from pydantic import ValidationError
 from scheduling.min_heap import MinHeap
 
@@ -46,8 +47,10 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     global curator
     assert curator, "curator object expected"
     subject = curator.get_subject(subject_id)
+    subject = subject.reload()
+    subject_table = SymbolTable(subject.info)
 
-    curator.pre_process(subject)
+    curator.pre_curate(subject, subject_table)
     processed_files: List[FileModel] = []
 
     while len(heap) > 0:
@@ -55,10 +58,10 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
         if not file_info:
             continue
 
-        curator.curate_file(subject, file_info.file_id)
+        curator.curate_file(subject, subject_table, file_info.file_id)
         processed_files.append(file_info)
 
-    curator.post_process(subject, processed_files)
+    curator.post_curate(subject, subject_table, processed_files)
 
 
 class ProjectCurationScheduler:

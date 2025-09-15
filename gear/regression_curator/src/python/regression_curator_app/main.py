@@ -3,7 +3,7 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.regression_curator import RegressionCurator
@@ -133,6 +133,41 @@ class BaselineLocalizer(ABC):
 class QAFBaselineLocalizer(BaselineLocalizer):
     """Class to handle localizing the QAF."""
 
+    # these are derived variables that have NOT been defined yet
+    # eventually should all be defined, but hardcode to ignore for now
+    # mainly MP
+    BLACKLIST: ClassVar = [
+        "naccacsf",
+        "naccapsa",
+        "naccmrsa",
+        "naccnapa",
+        "naccnmri",
+        "naccpcsf",
+        "nacctcsf",
+        "naccncrd",
+        "naccdico",
+        "naccnift",
+        "naccmria",
+        "naccmrfi",
+        "naccmnum",
+        "naccmrdy",
+        "naccmvol",
+        "naccicv",
+        "naccwmvl",
+        "naccbrnv",
+        "naccapta",
+        "naccaptf",
+        "naccapnm",
+        "naccaptd",
+        "naccabbp",
+        "nacccore",
+        "naccdadd",
+        "naccfamh",
+        "naccmomd",
+        "naccdod",
+        "naccadc",
+    ]
+
     def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
         """Process each row from the QAF. Only retains NACC* and NGDS* derived
         variables, visitdate, and fields specified by the keep_fields
@@ -156,7 +191,15 @@ class QAFBaselineLocalizer(BaselineLocalizer):
             {
                 k: v
                 for k, v in row.items()
-                if k in self.keep_fields or k.startswith("nacc") or k.startswith("ngds")
+                if (k in self.keep_fields)
+                or (
+                    (
+                        k.startswith("nacc")
+                        or k.startswith("ngds")
+                        or k.startswith("ncds")
+                    )
+                    and k not in self.BLACKLIST
+                )
             }
         )
 

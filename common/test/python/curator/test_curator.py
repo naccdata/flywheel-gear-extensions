@@ -9,10 +9,13 @@ class TestDetermineScope:
 
     def test_forms(self):
         """Test form files."""
+        assert determine_scope("NACCXXX_CLS-RECORD-2012-02-10_CLS.json") == "cls"
         assert determine_scope("NACCXXX_NP-RECORD-2012-02-10_NP.json") == "np"
         assert determine_scope("NACCXXX_MDS-RECORD-2006-03-23_MDS.json") == "mds"
         assert determine_scope("NACCXXX_MILESTONE-2011-10-26_MLST.json") == "milestone"
         assert determine_scope("NACCXXX_FORMS-VISIT-2_MEDS.json") == "meds"
+        assert determine_scope("NACCXXX_FORMS-VISIT-3_FTLD.json") == "ftld"
+        assert determine_scope("NACCXXX_FORMS-VISIT-4_LBD.json") == "lbd"
         assert determine_scope("NACCXXX_FORMS-VISIT-5_UDS.json") == "uds"
 
     def test_genetics(self):

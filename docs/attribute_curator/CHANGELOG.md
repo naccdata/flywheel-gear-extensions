@@ -2,10 +2,32 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates function names from `pre/post_process` to `pre/post_curate`
+
+## 0.4.4
+
+* Updates `nacc-attribute-deriver` to `1.4.3`, which fixes mutability bug causing subjects with no pre-existing metadata to not have its curation updated (usually result of isolated form without UDS/BDS/MDS visit and thus no enrollment data)
+
+## 0.4.3
+
+* Update to also catch `MissingRequiredError`
+
+## 0.4.2
+
+* Updates `nacc-attribute-deriver` to `1.4.2`, which exposes curation rules by scope
+* Updates backpropagation logic to handle NP and UDS-specific derived variables
+* Adds CLS, FTLD, and LBD scopes (scope not yet used in `1.4.2` of `nacc-attribute-deriver` and ignored)
+* Reports version of the attribute deriver for better tracking
+* Updates to pass `subject_table` (FW subject.info) around heap evaluation instead of reloading on every file, reducing API calls
+    * Also ensures/enforces subject metadata is not updated until ALL files have been curated
+* Compiles regex for faster execution
+
 ## 0.4.1
 
 * Updates `nacc-attribute-deriver` to `1.4.1`
-* Updates to handle MEDS (scope not yet used in 1.4.1 and ignored)
+* Updates to handle MEDS (scope not yet used in `1.4.1` of `nacc-attribute-deriver` and ignored)
 * Adds `debug` argument to reduce verbosity of logging statements
 * Splits out scheduler models - updates curation `post_process` to take in `FileModel` instead of string `file_id` so it can access the filename without making an API call
 
