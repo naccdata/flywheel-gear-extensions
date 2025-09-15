@@ -1,6 +1,7 @@
 """Tests for the legacy-identifier-transfer gear."""
 
 import logging
+from datetime import datetime
 from typing import Mapping
 from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 
@@ -157,7 +158,13 @@ def test_process_dry_run(mock_enrollment_project, mock_form_store):
 
     mock_identifier = create_autospec(IdentifierObject)
     mock_identifier.configure_mock(
-        **{"naccid": "NACC100003", "adcid": 123, "ptid": "PTID3", "guid": "GUID3"}
+        **{
+            "naccid": "NACC100003",
+            "adcid": 123,
+            "ptid": "PTID3",
+            "guid": "GUID3",
+            "created_on": datetime.now(),
+        }
     )
 
     identifiers: Mapping[str, IdentifierObject] = {"NACC100003": mock_identifier}

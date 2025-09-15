@@ -8,7 +8,9 @@ from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentError, TransferRecord
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
-from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
+from identifiers.identifiers_lambda_repository import (
+    IdentifiersLambdaRepository,
+)
 from participant_transfer_app.copy import CopyHelper
 from participant_transfer_app.transfer import TransferProcessor
 
@@ -16,7 +18,9 @@ log = logging.getLogger(__name__)
 
 
 def review_transfer_info(
-    enroll_project: EnrollmentProject, ptid: str, admin_group: NACCGroup
+    enroll_project: EnrollmentProject,
+    ptid: str,
+    admin_group: NACCGroup,
 ) -> Optional[TransferRecord]:
     """Reviews whether the requested transfer is in approved status.
 
@@ -44,14 +48,14 @@ def review_transfer_info(
         log.error(f"Transfer request for PTID {ptid} is already completed")
         return None
 
-    if transfer_record.status != "approved":
+    if transfer_record.status not in ["approved", "partial"]:
         log.error(
             f"Transfer request for PTID {ptid} is not approved yet, "
             f"review this request and approve before initiating the transfer"
         )
         return None
 
-    if not transfer_record.previous_adcid:
+    if transfer_record.previous_adcid is None:
         log.error(f"Missing previous ADCID in transfer request for PTID {ptid}")
         return None
 
@@ -76,7 +80,7 @@ def review_transfer_info(
     return transfer_record if valid else None
 
 
-def run(
+def run(  # noqa: C901
     *,
     proxy: FlywheelProxy,
     admin_group: NACCGroup,
@@ -84,6 +88,7 @@ def run(
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
+    copy_only: bool,
     dry_run: bool,
 ) -> bool:
     """Runs the Manage Participant Transfer process.
@@ -95,6 +100,8 @@ def run(
         ptid: PTID to be transferred
         identifiers_repo: Identifiers lambda repository
         datatypes: List of datatypes to be transferred
+        copy_only: No database update, only copy participant data.
+                   Used when handling copy failure
         dry_run: Whether to do a dry run
 
     Returns:
@@ -105,7 +112,9 @@ def run(
     """
 
     transfer_record = review_transfer_info(
-        enroll_project=enroll_project, ptid=ptid, admin_group=admin_group
+        enroll_project=enroll_project,
+        ptid=ptid,
+        admin_group=admin_group,
     )
 
     if not transfer_record:
@@ -141,25 +150,33 @@ def run(
         warnings=warnings,
     )
 
-    existing_identifier = transfer_processor.find_identifier_record()
+    if copy_only:
+        existing_identifier = transfer_processor.find_identifier_for_partial_transfer()
+    else:
+        existing_identifier = transfer_processor.find_identifier_record()
+
     if not existing_identifier:
         raise GearExecutionError(
             f"Failed to find valid identifier record for transfer request PTID {ptid} "
             f"in enrollment project {enroll_project.group}/{enroll_project.label}"
         )
 
-    if not transfer_processor.update_database(existing_identifier=existing_identifier):
-        raise GearExecutionError(
-            f"Failed to update identifiers database for transfer request PTID {ptid} "
-            f"in enrollment project {enroll_project.group}/{enroll_project.label}"
-        )
+    if not copy_only:
+        if not transfer_processor.update_database(
+            existing_identifier=existing_identifier
+        ):
+            raise GearExecutionError(
+                "Failed to update identifiers database for the transfer request "
+                f"PTID {ptid} in enrollment project "
+                f"{enroll_project.group}/{enroll_project.label}"
+            )
 
-    if not transfer_processor.add_or_update_enrollment_records(
-        prev_center=prev_center, prev_identifier=existing_identifier
-    ):
-        raise GearExecutionError(
-            f"Failed to update enrollment records for transfer request PTID {ptid}"
-        )
+        if not transfer_processor.add_or_update_enrollment_records(
+            prev_center=prev_center, prev_identifier=existing_identifier
+        ):
+            raise GearExecutionError(
+                f"Failed to update enrollment records for transfer request PTID {ptid}"
+            )
 
     copy_helper = CopyHelper(
         subject_label=existing_identifier.naccid,
@@ -171,17 +188,20 @@ def run(
     )
 
     if not copy_helper.copy_participant():
+        transfer_processor.update_transfer_info(status="partial")
         raise GearExecutionError(
             "Error(s) occurred while copying data for "
             f"participant {existing_identifier.naccid}"
         )
 
     if not copy_helper.monitor_job_status():
+        transfer_processor.update_transfer_info(status="partial")
         raise GearExecutionError(
             "One or more soft-copy jobs failed for "
             f"participant {existing_identifier.naccid}"
         )
 
-    transfer_processor.update_transfer_info()
+    transfer_processor.update_transfer_info(status="completed")
+    transfer_processor.update_transfer_request_qc_status()
 
     return not warnings

@@ -54,38 +54,38 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "a9f52c0351c21fe24c21d8c0eb1f62967b262d6729393397b6f443c3b773c3b9",
-              "url": "https://files.pythonhosted.org/packages/1d/f3/8fcd2af0f5b806f6cf463efaffd3c9548a28f84220493ecd38d127b6b66d/mypy-1.17.1-py3-none-any.whl"
+              "hash": "b76a4de66a0ac01da1be14ecc8ae88ddea33b8380284a9e3eae39d57ebcbe26e",
+              "url": "https://files.pythonhosted.org/packages/e0/1d/4b97d3089b48ef3d904c9ca69fab044475bd03245d878f5f0b3ea1daf7ce/mypy-1.18.1-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "ad37544be07c5d7fba814eb370e006df58fed8ad1ef33ed1649cb1889ba6ff58",
-              "url": "https://files.pythonhosted.org/packages/46/cf/eadc80c4e0a70db1c08921dcc220357ba8ab2faecb4392e3cebeb10edbfa/mypy-1.17.1-cp311-cp311-macosx_10_9_x86_64.whl"
+              "hash": "9e988c64ad3ac5987f43f5154f884747faf62141b7f842e87465b45299eea5a9",
+              "url": "https://files.pythonhosted.org/packages/14/a3/931e09fc02d7ba96da65266884da4e4a8806adcdb8a57faaacc6edf1d538/mypy-1.18.1.tar.gz"
             },
             {
               "algorithm": "sha256",
-              "hash": "064e2ff508e5464b4bd807a7c1625bc5047c5022b85c70f030680e18f37273a5",
-              "url": "https://files.pythonhosted.org/packages/5d/c1/c869d8c067829ad30d9bdae051046561552516cfb3a14f7f0347b7d973ee/mypy-1.17.1-cp311-cp311-macosx_11_0_arm64.whl"
+              "hash": "6c903857b3e28fc5489e54042684a9509039ea0aedb2a619469438b544ae1961",
+              "url": "https://files.pythonhosted.org/packages/32/28/47709d5d9e7068b26c0d5189c8137c8783e81065ad1102b505214a08b548/mypy-1.18.1-cp311-cp311-macosx_10_9_x86_64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "c1fdf4abb29ed1cb091cf432979e162c208a5ac676ce35010373ff29247bcad5",
-              "url": "https://files.pythonhosted.org/packages/7f/37/a932da3d3dace99ee8eb2043b6ab03b6768c36eb29a02f98f46c18c0da0e/mypy-1.17.1-cp311-cp311-musllinux_1_2_x86_64.whl"
+              "hash": "f85eb7efa2ec73ef63fc23b8af89c2fe5bf2a4ad985ed2d3ff28c1bb3c317c92",
+              "url": "https://files.pythonhosted.org/packages/48/bd/2aeb950151005fe708ab59725afed7c4aeeb96daf844f86a05d4b8ac34f8/mypy-1.18.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "e92bdc656b7757c438660f775f872a669b8ff374edc4d18277d86b63edba6b8b",
-              "url": "https://files.pythonhosted.org/packages/88/fb/fcdac695beca66800918c18697b48833a9a6701de288452b6715a98cfee1/mypy-1.17.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+              "hash": "82ace21edf7ba8af31c3308a61dc72df30500f4dbb26f99ac36b4b80809d7e94",
+              "url": "https://files.pythonhosted.org/packages/71/e8/7a20407aafb488acb5734ad7fb5e8c2ef78d292ca2674335350fa8ebef67/mypy-1.18.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "25e01ec741ab5bb3eec8ba9cdb0f769230368a22c959c4937360efb89b7e9f01",
-              "url": "https://files.pythonhosted.org/packages/8e/22/ea637422dedf0bf36f3ef238eab4e455e2a0dcc3082b5cc067615347ab8e/mypy-1.17.1.tar.gz"
+              "hash": "2a0c8392c19934c2b6c65566d3a6abdc6b51d5da7f5d04e43f0eb627d6eeee65",
+              "url": "https://files.pythonhosted.org/packages/7c/12/ee5c243e52497d0e59316854041cf3b3130131b92266d0764aca4dec3c00/mypy-1.18.1-cp311-cp311-macosx_11_0_arm64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "70401bbabd2fa1aa7c43bb358f54037baf0586f41e83b0ae67dd0534fc64edfd",
-              "url": "https://files.pythonhosted.org/packages/98/b9/803672bab3fe03cee2e14786ca056efda4bb511ea02dadcedde6176d06d0/mypy-1.17.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl"
+              "hash": "a2dfd53dfe632f1ef5d161150a4b1f2d0786746ae02950eb3ac108964ee2975a",
+              "url": "https://files.pythonhosted.org/packages/e8/c9/5f39065252e033b60f397096f538fb57c1d9fd70a7a490f314df20dd9d64/mypy-1.18.1-cp311-cp311-musllinux_1_2_x86_64.whl"
             }
           ],
           "project_name": "mypy",
@@ -101,7 +101,7 @@
             "typing_extensions>=4.6.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.17.1"
+          "version": "1.18.1"
         },
         {
           "artifacts": [
@@ -143,13 +143,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "dde5df002701f6de26248661f6835bbe296a47bf73990135c7d07ce741b9623b",
-              "url": "https://files.pythonhosted.org/packages/6a/c0/ec2b1c8712ca690e5d61979dee872603e92b8a32f94cc1b72d53beab008a/pydantic-2.11.7-py3-none-any.whl"
+              "hash": "c42dd626f5cfc1c6950ce6205ea58c93efa406da65f479dcb4029d5934857da2",
+              "url": "https://files.pythonhosted.org/packages/3e/d3/108f2006987c58e76691d5ae5d200dd3e0f532cb4e5fa3560751c3a1feba/pydantic-2.11.9-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "d989c3c6cb79469287b1569f7447a17848c998458d49ebe294e975b9baf0f0db",
-              "url": "https://files.pythonhosted.org/packages/00/dd/4325abf92c39ba8623b5af936ddb36ffcfe0beae70405d456ab1fb2f5b8c/pydantic-2.11.7.tar.gz"
+              "hash": "6b8ffda597a14812a7975c90b82a8a2e777d9257aba3453f973acd3c032a18e2",
+              "url": "https://files.pythonhosted.org/packages/ff/5d/09a551ba512d7ca404d785072700d3f6727a02f6f3c24ecfd081c7cf0aa8/pydantic-2.11.9.tar.gz"
             }
           ],
           "project_name": "pydantic",
@@ -162,7 +162,7 @@
             "tzdata; (python_version >= \"3.9\" and platform_system == \"Windows\") and extra == \"timezone\""
           ],
           "requires_python": ">=3.9",
-          "version": "2.11.7"
+          "version": "2.11.9"
         },
         {
           "artifacts": [

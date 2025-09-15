@@ -34,7 +34,7 @@ def convert_to_slug(name: str) -> str:
     return name.lower()
 
 
-class CenterStudyModel(BaseModel):
+class StudyCenterModel(BaseModel):
     """Data model to represent study enrollment pattern."""
 
     model_config = ConfigDict(
@@ -46,6 +46,17 @@ class CenterStudyModel(BaseModel):
     center_id: str
     pipeline_adcid: Optional[int] = None
     enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
+
+    @model_validator(mode="after")
+    def validate_enrollment(self) -> Self:
+        """Ensures that the enrollment pattern and."""
+        if self.enrollment_pattern == "separate" and self.pipeline_adcid is None:
+            raise ValueError(
+                f"Center {self.center_id} has separate enrollment without a "
+                "pipeline ADCID"
+            )
+
+        return self
 
 
 class StudyVisitor(ABC):
@@ -60,7 +71,7 @@ class StudyVisitor(ABC):
         """
 
     @abstractmethod
-    def visit_center(self, center: CenterStudyModel) -> None:
+    def visit_center(self, center: StudyCenterModel) -> None:
         """Method to visit the given center within a study.
 
         Args:
@@ -112,7 +123,7 @@ class StudyModel(BaseModel):
 
     name: str = Field(alias="study")
     study_id: str
-    centers: List[CenterStudyModel]
+    centers: List[StudyCenterModel]
     datatypes: List[str]
     mode: Literal["aggregation", "distribution"]
     study_type: Literal["primary", "affiliated"]
@@ -152,7 +163,7 @@ class StudyModel(BaseModel):
 
     @field_validator("centers", mode="before")
     @classmethod
-    def center_list(cls, centers: List[str | Dict[str, str]]) -> List[CenterStudyModel]:
+    def center_list(cls, centers: List[str | Dict[str, str]]) -> List[StudyCenterModel]:
         """Allows validation of an object where centers are given as strings.
 
         Converts center-ids to CenterStudyModel with co-enrollment enrollment pattern.
@@ -164,8 +175,8 @@ class StudyModel(BaseModel):
         """
 
         def center_model(
-            value: str | Dict[str, str] | CenterStudyModel,
-        ) -> CenterStudyModel:
+            value: str | Dict[str, str] | StudyCenterModel,
+        ) -> StudyCenterModel:
             """Converts value to a CenterStudyModel if required.
 
             Creates a CenterStudyModel from a center-id by adding the
@@ -176,11 +187,11 @@ class StudyModel(BaseModel):
             Returns:
               the CenterStudyModel for the value
             """
-            if isinstance(value, CenterStudyModel):
+            if isinstance(value, StudyCenterModel):
                 return value
             if isinstance(value, Dict):
-                return CenterStudyModel.model_validate(value)
-            return CenterStudyModel(center_id=value, enrollment_pattern="co-enrollment")
+                return StudyCenterModel.model_validate(value)
+            return StudyCenterModel(center_id=value, enrollment_pattern="co-enrollment")
 
         return [center_model(value) for value in centers]
 

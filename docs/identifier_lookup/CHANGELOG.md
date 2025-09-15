@@ -2,14 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.3.1
+## Unreleased
+* Updates to use new identifier lambda functions with restructured identifiers database
+* Updates error metadata to include date and naccid
 * Make `form_configs_file` only required for `nacc` direction
 * For the `center` direction (reverse lookup), adds sleep of 1 second every 1000 records to reduce connectivity issues
 * Rebuilt for new preprocessing checks in config
-
-## 1.3.0
-* Updates to use new identifier lambda functions with restructured identifiers database
-* Updates error metadata to include date and naccid
   
 ## 1.2.3
 * Rebuilding to call identifier lambda function alias depending on request mode
