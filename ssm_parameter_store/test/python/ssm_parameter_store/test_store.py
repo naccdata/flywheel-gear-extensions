@@ -41,7 +41,11 @@ def parameter_store(fake_ssm):
         ssm.put_parameter(
             Name="/test/path/{}".format(n), Value="{}".format(n), Type="SecureString"
         )
-    return EC2ParameterStore()
+    return EC2ParameterStore(
+        aws_access_key_id="testing",
+        aws_secret_access_key="testing",
+        region_name="us-east-1",
+    )
 
 
 def test_extract_parameter_returns_key_pair_tuple(parameter_store):
