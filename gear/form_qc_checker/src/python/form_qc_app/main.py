@@ -14,7 +14,7 @@ from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -267,9 +267,10 @@ def run(  # noqa: C901
         raise GearExecutionError(error) from error
 
     gid = file.parents.group
-    adcid = admin_group.get_adcid(gid)
-    if adcid is None:
-        raise GearExecutionError(f"Failed to find ADCID for group: {gid}")
+    try:
+        adcid = project_adaptor.get_pipeline_adcid()
+    except ProjectError as error:
+        raise GearExecutionError(error) from error
 
     datastore = DatastoreHelper(
         pk_field=pk_field,

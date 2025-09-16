@@ -43,12 +43,11 @@ def get_identifiers(
       adcid: the ADCID for the center
 
     Returns:
-      the dictionary mapping from PTID to Identifier object
+      the dictionary mapping from NACCID to Identifier object
     """
     identifiers = {}
     center_identifiers = identifiers_repo.list(adcid=adcid)
     if center_identifiers:
-        # pylint: disable=(not-an-iterable)
         identifiers = {
             identifier.naccid: identifier for identifier in center_identifiers
         }
@@ -136,27 +135,6 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             legacy_ingest_label=legacy_ingest_label,
         )
 
-    def __get_adcid(self, group_id: str) -> Optional[int]:
-        """Get ADCID for the specified center.
-
-        Args:
-            group_id: Flywheel Group ID
-
-        Raises:
-            GearExecutionError: if admin group not found
-
-        Returns:
-            Optional[int]: ADCID for the center or None
-        """
-        try:
-            admin_group = self.admin_group(admin_id=self.__admin_id)
-            if not admin_group:
-                raise GearExecutionError("No admin group found")
-            return admin_group.get_adcid(group_id)
-        except ApiException as error:
-            log.error(f"Error getting ADCID: {error}")
-            return None
-
     def run(self, context: GearToolkitContext) -> None:
         """Runs the legacy NACCID transfer gear.
 
@@ -180,9 +158,15 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         group_id, project_id = get_destination_group_and_project(dest_container)
         log.info(f"group_id: {group_id}")
 
-        adcid = self.__get_adcid(group_id)
-        if adcid is None:
-            raise GearExecutionError(f"Unable to determine ADCID for group {group_id}")
+        project = self.proxy.get_project_by_id(project_id=project_id)
+        if project is None:
+            raise GearExecutionError(f"Unable to find project {project_id}")
+
+        destination_project = ProjectAdaptor(project=project, proxy=self.proxy)
+        try:
+            adcid = destination_project.get_pipeline_adcid()
+        except ProjectError as error:
+            raise GearExecutionError(error) from error
 
         log.info(f"ADCID: {adcid}")
 
@@ -209,11 +193,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             raise GearExecutionError(f"Unable to get center group: {group_id}")
         log.info(f"Group: {group.label}")
 
-        project = group.get_project_by_id(project_id)
-        if not project:
-            raise GearExecutionError(f"Unable to get parent project: {project_id}")
         log.info(f"Project: {project.label}")
-        enrollment_project = EnrollmentProject.create_from(project)
+        enrollment_project = EnrollmentProject.create_from(destination_project)
         log.info(f"Enrollment project: {enrollment_project.label}")
 
         try:
@@ -227,7 +208,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
                 f"Could not find {group_id}/{self.__legacy_ingest_label}: {error}"
             ) from error
 
-        forms_store = FormsStore(ingest_project=project, legacy_project=legacy_project)
+        forms_store = FormsStore(
+            ingest_project=destination_project, legacy_project=legacy_project
+        )
 
         sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
         target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")

@@ -3,6 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.5.6
+* Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
 * Rebuilt for new preprocessing checks in config
 
 ## 1.5.5

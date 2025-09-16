@@ -749,6 +749,9 @@ class FlywheelProxy:
         """
         return self.__fw.get(container_id)
 
+    def find_projects_with_pattern(self, pattern: str) -> List[flywheel.Project]:
+        return self.__fw.projects.find(f"label=~{pattern}")
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
@@ -1052,6 +1055,29 @@ class ProjectAdaptor:
     def group(self) -> str:
         """Returns the group label of the enclosed project."""
         return self._project.group
+
+    def get_pipeline_adcid(self) -> int:
+        """Returns the pipeline ADCID for this project.
+
+        If not in the project metadata, the ADCID from the metadata is returned.
+        If neither is present raises an exception.
+
+        Returns:
+          the pipeline ADCID
+        Raises:
+          ProjectError if neither "pipeline_adcid" or "adcid" are set in
+          project metadata.
+        """
+
+        pipeline_adcid = self._project.info.get("pipeline_adcid")
+        if pipeline_adcid is not None:
+            return pipeline_adcid
+
+        adcid = self._project.info.get("adcid")
+        if adcid is not None:
+            return adcid
+
+        raise ProjectError(f"Project {self.group}/{self.label} has no ADCID")
 
     def add_tag(self, tag: str) -> None:
         """Add tag to the enclosed project.
