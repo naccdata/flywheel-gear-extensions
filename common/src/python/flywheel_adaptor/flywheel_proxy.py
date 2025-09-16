@@ -749,6 +749,9 @@ class FlywheelProxy:
         """
         return self.__fw.get(container_id)
 
+    def find_projects_with_pattern(self, pattern: str) -> List[flywheel.Project]:
+        return self.__fw.projects.find(f"label=~{pattern}")
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
@@ -1074,7 +1077,7 @@ class ProjectAdaptor:
         if adcid is not None:
             return adcid
 
-        raise ProjectError(f"Project {self._project.label} has no ADCID")
+        raise ProjectError(f"Project {self.group}/{self.label} has no ADCID")
 
     def add_tag(self, tag: str) -> None:
         """Add tag to the enclosed project.
