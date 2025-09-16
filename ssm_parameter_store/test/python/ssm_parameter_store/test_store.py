@@ -63,7 +63,7 @@ def test_get_paginated_parameters(parameter_store):
     NextToken in subsequent requests.
     """
     client_kwargs = dict(Path="/test/path/")
-    parameter_keys = parameter_store._get_paginated_parameters(
+    parameter_keys = parameter_store._get_paginated_parameters(  # noqa: SLF001
         client_method=boto3.client("ssm").get_parameters_by_path, **client_kwargs
     )
     assert len(parameter_keys) == 20
@@ -72,16 +72,16 @@ def test_get_paginated_parameters(parameter_store):
 def test_get_parameter(parameter_store):
     parameter_keys = parameter_store.get_parameter("key")
     assert len(parameter_keys) == 1
-    assert "key" in parameter_keys.keys()
+    assert "key" in parameter_keys
     assert parameter_keys.get("key") == "hello"
 
 
 def test_get_parameters(parameter_store):
     parameter_keys = parameter_store.get_parameters(["key", "second-key", "list-key"])
     assert len(parameter_keys) == 3
-    assert "key" in parameter_keys.keys()
-    assert "second-key" in parameter_keys.keys()
-    assert "list-key" in parameter_keys.keys()
+    assert "key" in parameter_keys
+    assert "second-key" in parameter_keys
+    assert "list-key" in parameter_keys
     assert parameter_keys.get("key") == "hello"
     assert parameter_keys.get("second-key") == "world"
     assert parameter_keys.get("list-key") == ["hello", "world"]
