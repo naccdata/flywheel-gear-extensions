@@ -1,3 +1,5 @@
+import os
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -5,8 +7,16 @@ from moto import mock_aws
 from ssm_parameter_store import EC2ParameterStore
 
 
+@pytest.fixture(scope="function")
+def aws_credentials():
+    """Mock AWS credentials for moto."""
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
+
 @pytest.fixture
-def fake_ssm():
+def fake_ssm(aws_credentials):
     """Provide a consistent faked SSM context for running an entire test
     case."""
     with mock_aws():
