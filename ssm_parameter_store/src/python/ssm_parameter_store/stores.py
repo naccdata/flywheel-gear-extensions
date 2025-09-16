@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any, Sequence, Tuple
 
 import boto3
 
@@ -7,8 +8,15 @@ logger = logging.getLogger(__name__)
 
 
 class EC2ParameterStore:
-    def __init__(self, **client_kwargs):
-        self.client = boto3.client("ssm", **client_kwargs)
+    def __init__(
+        self, aws_access_key_id: str, aws_secret_access_key: str, region_name: str
+    ):
+        self.client = boto3.client(
+            "ssm",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=region_name,
+        )
         self.path_delimiter = "/"
 
     @staticmethod
@@ -30,22 +38,30 @@ class EC2ParameterStore:
             self.extract_parameter(p, strip_path=strip_path) for p in parameters
         )
 
-    def extract_parameter(self, parameter, strip_path=True):
+    def extract_parameter(
+        self, parameter: dict[str, str], strip_path: bool = True
+    ) -> Tuple[str, Any]:
         key = parameter["Name"]
         if strip_path:
             key_parts = key.split(self.path_delimiter)
             key = key_parts[-1]
+
         value = parameter["Value"]
         if parameter["Type"] == "StringList":
-            value = value.split(",")
+            return (key, value.split(","))
+
         return (key, value)
 
-    def get_parameter(self, name, decrypt=True, strip_path=True):
+    def get_parameter(
+        self, name: str, decrypt: bool = True, strip_path: bool = True
+    ) -> dict[str, str]:
         result = self.client.get_parameter(Name=name, WithDecryption=decrypt)
         p = result["Parameter"]
         return dict([self.extract_parameter(p, strip_path=strip_path)])
 
-    def get_parameters(self, names, decrypt=True, strip_path=True):
+    def get_parameters(
+        self, names: Sequence[str], decrypt: bool = True, strip_path: bool = True
+    ):
         get_kwargs = dict(Names=names, WithDecryption=decrypt)
         return self._get_paginated_parameters(
             client_method=self.client.get_parameters,
@@ -54,8 +70,12 @@ class EC2ParameterStore:
         )
 
     def get_parameters_by_path(
-        self, path, decrypt=True, recursive=True, strip_path=True
-    ):
+        self,
+        path: str,
+        decrypt: bool = True,
+        recursive: bool = True,
+        strip_path: bool = True,
+    ) -> dict[str, str]:
         get_kwargs = dict(Path=path, WithDecryption=decrypt, Recursive=recursive)
         return self._get_paginated_parameters(
             client_method=self.client.get_parameters_by_path,
@@ -63,7 +83,9 @@ class EC2ParameterStore:
             **get_kwargs,
         )
 
-    def get_parameters_with_hierarchy(self, path, decrypt=True, strip_path=True):
+    def get_parameters_with_hierarchy(
+        self, path: str, decrypt: bool = True, strip_path: bool = True
+    ) -> dict[str, Any]:
         """Recursively get all parameters under path, keeping the hierarchy as
         a structure of nested dictionaries."""
         # Get a flat dictionary
@@ -75,7 +97,7 @@ class EC2ParameterStore:
         )
 
         # Convert to a nested dictionary and strip leading path component
-        result = {}
+        result: dict[str, Any] = {}
 
         for key, value in flat.items():
             if strip_path:
@@ -83,10 +105,10 @@ class EC2ParameterStore:
             if key and key[0] == "/":
                 key = key[1:]
 
-            leafdict = result
+            leaf_dict = result
             key_segments = key.split("/")
             for key_segment in key_segments[:-1]:
-                leafdict = leafdict.setdefault(key_segment, {})
-            leafdict[key_segments[-1]] = value
+                leaf_dict = leaf_dict.setdefault(key_segment, {})
+            leaf_dict[key_segments[-1]] = value
 
         return result
