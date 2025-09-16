@@ -6,7 +6,7 @@ from typing import List, Optional
 from centers.nacc_group import NACCGroup
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentError, TransferRecord
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectError
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
@@ -60,16 +60,21 @@ def review_transfer_info(
         return None
 
     valid = True
-    center_adcid = admin_group.get_adcid(enroll_project.group)
-    if transfer_record.center_identifiers.adcid != center_adcid:
+    try:
+        receiving_adcid = enroll_project.get_pipeline_adcid()
+    except ProjectError as error:
+        raise GearExecutionError(error) from error
+
+    if transfer_record.center_identifiers.adcid != receiving_adcid:
         log.error(
             f"Mismatched ADCID {transfer_record.center_identifiers.adcid} in "
             f"transfer request for PTID {ptid}, "
-            f"ADCID for center {enroll_project.group} is {center_adcid}"
+            f"ADCID for project {enroll_project.group}/{enroll_project.label} "
+            f"is {receiving_adcid}"
         )
         valid = False
 
-    adcids_list = admin_group.get_adcids()
+    adcids_list = admin_group.get_form_ingest_adcids()
     if transfer_record.previous_adcid not in adcids_list:
         log.error(
             f"Invalid previous ADCID {transfer_record.previous_adcid} in "
