@@ -38,7 +38,6 @@ store = EC2ParameterStore()
 
 #### AWS Credentials
 
-
 `ssm-parameter-store` uses `boto3` under the hood and therefore inherits
 the same mechanism for looking up AWS credentials. See [configuring
 credentials](https://boto3.readthedocs.io/en/latest/guide/configuration.html#configuring-credentials)
