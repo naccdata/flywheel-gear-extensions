@@ -3,6 +3,8 @@
 This is a reorganized/modified copy of http://github.com/christippett/ssm-parameter-store.
 That repo hasn't been updated since 2019 and the setuptools configuration had become out-of-date.
 
+> This version of the package is not configured to be built for distribution.
+
 See the license file.
 
 
