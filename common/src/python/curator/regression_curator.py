@@ -61,7 +61,18 @@ class RegressionCurator(Curator):
             return False
 
         # compare as sets
-        return set(value_as_list) == set(expected_as_list)
+        try:
+            return set(value_as_list) == set(expected_as_list)
+        except TypeError as e:
+            # means dicts - we assume lists of dicts are ordered, so
+            # if it failed the earlier equality test then it doesn't match
+            if str(e) == "unhashable type: 'dict'":
+                return False
+
+            # otherwise some other issue, so raise error
+            raise e
+
+        return False
 
     def compare_baseline(
         self, found_vars: Dict[str, Any], record: Dict[str, Any], prefix: str
@@ -82,6 +93,10 @@ class RegressionCurator(Curator):
         found_vars = {k.lower(): v for k, v in found_vars.items()}
         record = {k.lower(): v for k, v in record.items()}
 
+        identifier = record["naccid"]
+        if prefix.startswith("file"):
+            identifier = f"{identifier} {record['visitdate']}"
+
         # compare
         for field, value in found_vars.items():
             if field not in record:
@@ -94,13 +109,11 @@ class RegressionCurator(Curator):
 
             value = str(value)
             expected = str(record[field])
-            result = (value == expected) or self.compare_as_lists(value, expected)
+            result = value == expected
+            if not result:
+                result = self.compare_as_lists(value, expected)
 
             if not result:
-                identifier = record["naccid"]
-                if prefix.startswith("file"):
-                    identifier = f"{identifier} {record['visitdate']}"
-
                 msg = (
                     f"{identifier} field {field}: found value {value} "
                     + f"does not match baseline value {expected}"
@@ -114,6 +127,34 @@ class RegressionCurator(Curator):
                         message=msg,
                     )
                 )
+
+        # report on any derived variables in record but not in found_vars
+        missing = set(record.keys()) - set(found_vars.keys())
+        for field in missing:
+            if field in ["visitdate"]:
+                continue
+
+            expected = str(record[field]).strip()
+
+            # at least for now we are equating -4 to None, so ignore -4s
+            # also ignore weird text nulls like "."
+            if not expected or expected in ["-4", "-4.0", "."]:
+                continue
+
+            msg = (
+                f"{identifier} field {field}: baseline {field} with value "
+                + f"{expected} not found in curated variables (likely "
+                + "returned None)"
+            )
+            log.info(msg)
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=f"{prefix}.{field}",
+                    value="",
+                    expected=expected,
+                    message=msg,
+                )
+            )
 
     def execute(
         self,
@@ -137,7 +178,10 @@ class RegressionCurator(Curator):
 
         derived_vars = table.get("file.info.derived", None)
         if not derived_vars or not any(
-            x.lower().startswith("nacc") for x in derived_vars
+            x.lower().startswith("nacc")
+            or x.lower().startswith("ngds")
+            or x.lower().starstwith("ncds")
+            for x in derived_vars
         ):
             log.debug(f"No derived variables found for {file_entry.name}, skipping")
             return
@@ -173,8 +217,8 @@ class RegressionCurator(Curator):
         self.compare_baseline(derived_vars, record, prefix="file.info.derived")
 
     @api_retry
-    def pre_process(self, subject: Subject) -> None:
-        """Run pre-processing on the entire subject. Compares subject.info.
+    def pre_curate(self, subject: Subject, subject_info: SymbolTable) -> None:
+        """Run pre-curating on the entire subject. Compares subject.info.
 
         Args:
             subject: Subject to pre-process
@@ -182,8 +226,7 @@ class RegressionCurator(Curator):
         if not self.__mqt_baseline:
             return
 
-        subject = subject.reload()
-        if not subject.info:
+        if not subject_info:
             log.debug("No subject derived variables, skipping")
             return
 
@@ -205,6 +248,6 @@ class RegressionCurator(Curator):
             return
 
         record = self.__mqt_baseline[subject.label]
-        found_vars = flatten_dict(subject.info)
+        found_vars = flatten_dict(subject_info.to_dict())
 
         self.compare_baseline(found_vars, record, prefix="subject.info")
