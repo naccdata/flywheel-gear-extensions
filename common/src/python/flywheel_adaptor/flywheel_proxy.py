@@ -999,7 +999,7 @@ class ProjectAdaptor:
     """Defines an adaptor for a flywheel project."""
 
     def __init__(self, *, project: flywheel.Project, proxy: FlywheelProxy) -> None:
-        self._project = project
+        self._project = project.reload()
         self._fw = proxy
 
     @classmethod
