@@ -7,7 +7,7 @@ All notable changes to this gear are documented in this file.
 * tbd
 
 ## 1.1.4
-
+* Rebuilt for ssm-parameter-store update
 * Refactors role assignment for groups.
 * "Pipeline ADCIDs" are no longer "centers".
 

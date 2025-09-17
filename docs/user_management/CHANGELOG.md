@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Rebuilt for ssm-parameter-store update
+  
 ## 2.1.0
 
 * Changes authorization mapping lookup so that authorization rules will match a study qualified project if only general pipeline rules are defined.
