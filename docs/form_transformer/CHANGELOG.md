@@ -3,11 +3,10 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.5.0
+* Rebuilt for ssm-parameter-store update
 * Adds new NP/MLST-related preprocessing checks (025, 026, and 027)
 * Adds `preprocess.preprocessor_helpers.py` which includes helper preprocesser classes
     * Refactors how error codes are written to reduce redundancy
-
-## 1.4.6
 * Updates error metadata to include date and naccid
   
 ## 1.4.5

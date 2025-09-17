@@ -3,7 +3,8 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.2.3
-* Rebuild for error metadata updates
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for error metadata updates
   
 ## 1.2.2
 * Remove gear failure on missing tag
