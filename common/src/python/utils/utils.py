@@ -1,11 +1,8 @@
 """Utility functions."""
 
-import logging
 from typing import Any, Dict, List, MutableMapping, Optional, Tuple
 
 from configs.ingest_configs import FormProjectConfigs
-
-log = logging.getLogger(__name__)
 
 
 def parse_string_to_list(
@@ -67,3 +64,30 @@ def flatten_dict(
         else:
             items.append((new_key, value))
     return dict(items)
+
+
+def filter_include_exclude(
+    in_list: List[str], include: Optional[str] = None, exclude: Optional[str] = None
+) -> List[str]:
+    """Filters the given list with the provided include/exclude strings.
+
+    Args:
+        in_list: List/set to filter
+        include: Comma-deliminated string of fields to include
+        exclude: Comma-deliminated string of fields to exclue
+
+    Returns:
+        filtered set
+    """
+    s_include = set(parse_string_to_list(include))
+    s_exclude = set(parse_string_to_list(exclude))
+
+    if (s_include and s_exclude) and s_include.intersection(s_exclude):
+        raise ValueError("Include and exclude lists cannot overlap")
+
+    if s_include:
+        return [adcid for adcid in in_list if adcid in s_include]
+    if s_exclude:
+        return [adcid for adcid in in_list if adcid not in s_exclude]
+
+    return in_list

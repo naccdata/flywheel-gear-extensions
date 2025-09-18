@@ -161,3 +161,27 @@ class JobPoll:
             return True
 
         return current_job != matched_jobs[0].id
+
+    @classmethod
+    def wait_for_batched_group(
+        cls,
+        proxy: FlywheelProxy,
+        project_ids_list: List[str],
+        downstream_gears: List[str],
+    ) -> None:
+        """Given a batch of project IDs and downstream gears, wait for the
+        batch to finish running before continuing.
+
+        Args:
+            project_ids_list: List of project IDs to wait on
+            downstream_gears: names of downstream gears to search for
+                in those projects to wait on; a project's pipeline is
+                done when it has no more gears in the list running
+        """
+        search_str = cls.generate_search_string(
+            project_ids_list=project_ids_list,
+            gears_list=downstream_gears,
+            states_list=["running", "pending"],
+        )
+
+        cls.wait_for_pipeline(proxy, search_str)

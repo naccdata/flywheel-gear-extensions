@@ -10,6 +10,7 @@ from gear_execution.gear_execution import (
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
 )
 from {{cookiecutter.app_name}}.main import run
 from inputs.parameter_store import ParameterStore
