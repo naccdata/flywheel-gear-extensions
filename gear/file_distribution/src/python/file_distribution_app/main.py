@@ -44,8 +44,10 @@ def run(
     if not project_map:
         raise GearExecutionError(f"No {target_project} projects found")
 
+    found_centers = list(project_map.keys())
     batched_centers = [
-        centers[i : i + batch_size] for i in range(0, len(centers), batch_size)
+        found_centers[i : i + batch_size]
+        for i in range(0, len(found_centers), batch_size)
     ]
 
     # write results to each center's project
@@ -54,10 +56,7 @@ def run(
         project_ids_list = []
 
         for adcid in batch:
-            project = project_map.get(f"adcid-{adcid}")
-            if not project:
-                log.warning(f"No corresponding project for ADCID {adcid}")
-                continue
+            project = project_map[f"adcid-{adcid}"]
 
             if proxy.dry_run:
                 log.info(
