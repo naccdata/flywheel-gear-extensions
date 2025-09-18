@@ -8,7 +8,7 @@ Along with the input CSV to split, the gear takes in the following configuration
 
 ```yaml
 adcid_key: column name from the input CSV with the ADCID
-target_project: name of the target Flywheel project to write results to per center
+target_project: label of target Flywheel project to write results to per center
 staging_project_id: ID of the staging Flywheel project to stage results to; will override target_project if specified
 include: comma-delimited list of ADCIDs to include in the split; will ignore all others
 exclude: comma-delimited list of ADCIDs to exclude in the split; will evaluate all others

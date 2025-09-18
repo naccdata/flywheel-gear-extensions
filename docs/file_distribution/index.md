@@ -7,7 +7,7 @@ Gear that distributes files to target projects.
 Along with the file to distribute, the gear takes in the following configuration values:
 
 ```yaml
-target_project: name of the target Flywheel project to write results to per center
+target_project: label of target Flywheel project to write results to per center
 include: comma-delimited list of ADCIDs to include
 exclude: comma-delimited list of ADCIDs to exclude
 batch_size: number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others

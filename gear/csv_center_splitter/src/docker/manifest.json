@@ -57,7 +57,7 @@
             "type": "string"
         },
         "target_project": {
-            "description": "Target project name to write the split results to; each ADCID in the split results is expected to have a project",
+            "description": "Label of target project to write the split results to; each ADCID in the split results is expected to have a project",
             "type": "string",
             "default": ""
         },
@@ -67,17 +67,17 @@
             "default": ""
         },
         "include": {
-            "description": "Comma-delimited list of ADCIDs to include in the split. Will ignore all others.",
+            "description": "Comma-delimited list of ADCIDs to include in the split. Will ignore all others",
             "type": "string",
             "default": ""
         },
         "exclude": {
-            "description": "Comma-delimited list of ADCIDs to exclude in the split. Will evaluate all others.",
+            "description": "Comma-delimited list of ADCIDs to exclude in the split. Will evaluate all others",
             "type": "string",
             "default": ""
         },
         "batch_size": {
-            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others.",
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others",
             "type": "integer",
             "default": 1
         },
