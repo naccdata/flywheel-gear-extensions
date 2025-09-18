@@ -56,7 +56,7 @@ def run(
         project_ids_list = []
 
         for adcid in batch:
-            project = project_map[f"adcid-{adcid}"]
+            project = project_map[adcid]
 
             if proxy.dry_run:
                 log.info(
