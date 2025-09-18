@@ -46,6 +46,30 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "target_project": {
+            "description": "Target project name to distribute file to; all target ADCIDs expected to have a project",
+            "type": "string"
+        },
+        "include": {
+            "description": "Comma-delimited list of ADCIDs to include.",
+            "type": "string",
+            "default": ""
+        },
+        "exclude": {
+            "description": "Comma-delimited list of ADCIDs to exclude.",
+            "type": "string",
+            "default": ""
+        },
+        "batch_size": {
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others.",
+            "type": "integer",
+            "default": 1
+        },
+        "downstream_gears": {
+            "description": "If scheduling, comma-delimited string of downstream gears to wait for",
+            "type": "string",
+            "default": ""
         }
     },
     "command": "/bin/run"
