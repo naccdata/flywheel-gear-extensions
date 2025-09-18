@@ -54,7 +54,10 @@ def run(
         project_ids_list = []
 
         for adcid in batch:
-            project = project_map[f"adcid-{adcid}"]
+            project = project_map.get(f"adcid-{adcid}")
+            if not project:
+                log.warning(f"No corresponding project for ADCID {adcid}")
+                continue
 
             if proxy.dry_run:
                 log.info(
