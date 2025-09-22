@@ -2,9 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.1.2
 
 * Rebuilt for ssm-parameter-store update
+* Updates to use new center metadata structure for studies
   
 ## 2.1.0
 
