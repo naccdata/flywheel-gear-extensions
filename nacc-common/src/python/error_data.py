@@ -182,7 +182,7 @@ def get_status_data(project: Project) -> List[Dict[str, Any]]:
     """
 
     def build_status_info_list(file_object: FileEntry) -> List[Dict[str, Any]]:
-        """Returns a list of dictionaries containg QC status data for the file.
+        """Returns a list of dictionaries containing QC status data for the file.
 
         Args:
           file_object: the FW file
