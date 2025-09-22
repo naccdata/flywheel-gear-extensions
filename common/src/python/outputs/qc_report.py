@@ -2,8 +2,9 @@
 
 import logging
 import re
+from abc import ABC, abstractmethod
 from csv import DictWriter
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -243,6 +244,28 @@ class ErrorReportVisitor(FileQCReportVisitor):
         self.add(self.__transformer(self.gear_name, self.visit_details, file_error))
 
 
+class ReportWriter(ABC):
+    @abstractmethod
+    def writerow(self, row: dict[str, Any]) -> None:
+        pass
+
+
+class ListReportWriter(ReportWriter):
+    def __init__(self, result: list[dict[str, Any]]):
+        self.__result = result
+
+    def writerow(self, row: dict[str, Any]) -> None:
+        self.__result.append(row)
+
+
+class DictReportWriter(ReportWriter):
+    def __init__(self, writer: DictWriter):
+        self.__writer = writer
+
+    def writerow(self, row: dict[str, Any]) -> None:
+        self.__writer.writerow(row)
+
+
 class ProjectReportVisitor:
     """Defines a partial hierarchy visitor for gathering submission status data
     from a project.
@@ -253,11 +276,12 @@ class ProjectReportVisitor:
 
     def __init__(
         self,
+        *,
         adcid: int,
-        modules: set[ModuleName],
-        ptid_set: set[str],
+        modules: Optional[set[ModuleName]],
+        ptid_set: Optional[set[str]] = None,
         file_visitor: FileQCReportVisitor,
-        writer: DictWriter,
+        writer: ReportWriter,
     ) -> None:
         self.__adcid = adcid
         self.__writer = writer
@@ -286,11 +310,11 @@ class ProjectReportVisitor:
             return None
 
         ptid = match.group(1)
-        if ptid not in self.__ptid_set:
+        if self.__ptid_set is not None and ptid not in self.__ptid_set:
             return None
 
         module = match.group(3).upper()
-        if module.upper() not in self.__modules:
+        if self.__modules is not None and module.upper() not in self.__modules:
             return None
 
         visitdate = match.group(2)
