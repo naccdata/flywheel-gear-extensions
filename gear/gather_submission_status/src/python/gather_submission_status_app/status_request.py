@@ -134,6 +134,7 @@ class RequestClusteringVisitor(CSVVisitor):
             )
             return True  # ignore row
 
+        # TODO: ADCID should map to pipeline in this case, which may be a list of projects
         center = self.__get_center(status_query.adcid)
         if not center:
             self.__error_writer.write(
