@@ -1,4 +1,16 @@
 from typing import Literal
 
+DatatypeNameType = Literal[
+    "apoe",
+    "biomarker",
+    "dicom",
+    "enrollment",
+    "form",
+    "genetic-availability",
+    "gwas",
+    "imputation",
+]
 ModuleName = Literal["UDS", "FTLD", "LBD", "MDS"]
-PipelineStage = Literal["ingest", "retrospective", "sandbox", "distribution"]
+PipelineStageType = Literal[
+    "ingest", "retrospective", "sandbox", "distribution", "accepted"
+]

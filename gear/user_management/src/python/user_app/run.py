@@ -20,7 +20,7 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
-from users.nacc_directory import UserEntry, UserFormatError
+from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_processes import (
     NotificationClient,
     NotificationModeType,
@@ -189,9 +189,16 @@ class UserManagementVisitor(GearExecutionEnvironment):
         user_list: UserQueue[UserEntry] = UserQueue()
         for user_doc in object_list:
             try:
-                user_entry = UserEntry.create(user_doc)
-            except UserFormatError as error:
+                if not user_doc.get("active"):
+                    user_entry = UserEntry.model_validate(user_doc)
+                else:
+                    user_entry = ActiveUserEntry.model_validate(user_doc)
+            except ValidationError as error:
                 log.error("Error creating user entry: %s", error)
+                continue
+
+            if not user_entry.approved:
+                log.warning("Skipping unapproved user with email %s", user_entry.email)
                 continue
 
             user_list.enqueue(user_entry)
@@ -209,12 +216,19 @@ class UserManagementVisitor(GearExecutionEnvironment):
         try:
             with open(auth_file_path, "r", encoding="utf-8-sig") as auth_file:
                 auth_object = load_from_stream(auth_file)
-                auth_map = AuthMap(project_authorizations=auth_object)
+                auth_map = AuthMap.model_validate(
+                    auth_object,
+                    context={"role_map": self.proxy.get_roles()},
+                )
         except YAMLReadError as error:
             raise GearExecutionError(
                 f"No authorizations read from auth file{auth_file_path}: {error}"
             ) from error
         except ValidationError as error:
+            raise GearExecutionError(
+                f"Unexpected format in auth file {auth_file_path}: {error}"
+            ) from error
+        except TypeError as error:
             raise GearExecutionError(
                 f"Unexpected format in auth file {auth_file_path}: {error}"
             ) from error

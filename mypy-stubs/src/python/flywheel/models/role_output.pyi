@@ -1,13 +1,18 @@
+from typing import Optional
+
 class RoleOutput:
+    def __init__(
+        self,
+        id: Optional[str] = None,
+        label: Optional[str] = None,
+        in_use: Optional[bool] = None,
+    ) -> None: ...
 
     @property
-    def id(self) -> str:
-        ...
+    def id(self) -> str: ...
 
     @property
-    def label(self) -> str:
-        ...
+    def label(self) -> str: ...
 
     @property
-    def in_use(self) -> bool:
-        ...
+    def in_use(self) -> bool: ...
