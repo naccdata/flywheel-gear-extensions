@@ -66,6 +66,6 @@ def run(
                 file_visitor=file_visitor,
                 writer=DictReportWriter(writer),
             )
-            project_visitor.visit_project(project)
+            project_visitor.visit_project(project.project)
 
     return True
