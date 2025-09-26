@@ -12,6 +12,7 @@ from outputs.error_models import (
     VisitKeys,
 )
 from outputs.qc_report import (
+    DictReportWriter,
     ProjectReportVisitor,
     QCReportBaseModel,
     StatusReportVisitor,
@@ -101,9 +102,9 @@ class TestProjectReportVisitor:
             modules={visit_details.module},
             ptid_set={visit_details.ptid},
             file_visitor=file_visitor,
-            writer=writer,
+            writer=DictReportWriter(writer),
         )
-        visitor.visit_project(file_project)
+        visitor.visit_project(file_project.project)
         stream.seek(0)
         assert bool(stream.readline())
         stream.seek(0)
