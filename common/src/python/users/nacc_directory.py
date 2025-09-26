@@ -91,15 +91,14 @@ class DirectoryAuthorizations(BaseModel):
     org_name: str = Field(alias="contact_company_name")
     adcid: int = Field(alias="adresearchctr")
     portal_access: bool = Field(alias="flywheel_access")
-    adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
-        alias="naccid_enroll_access"
-    )
     web_report_access_web: bool = Field(alias="web_report_access___web")
     web_report_access_repdash: bool = Field(alias="web_report_access___repdash")
-    web_report_access_scandash: bool = Field(alias="web_report_access___scandash")
     study_selections_adrc: bool = Field(alias="study_selections___p30")
     study_selections_affiliatedstudy: bool = Field(
         alias="study_selections___affiliatedstudy"
+    )
+    adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="p30_naccid_enroll_access_level"
     )
     adrc_form_access_level: AuthorizationAccessLevel = Field(
         alias="p30_clin_forms_access_level"
@@ -118,14 +117,26 @@ class DirectoryAuthorizations(BaseModel):
     affiliated_study_allftd: bool = Field(alias="affiliated_study___allftd")
     affiliated_study_dlbc: bool = Field(alias="affiliated_study___dlbc")
     affiliated_study_clariti: bool = Field(alias="affiliated_study___clariti")
+    leads_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="leads_naccid_enroll_access_level"
+    )
     leads_form_access_level: AuthorizationAccessLevel = Field(
         alias="leads_clin_forms_access_level"
+    )
+    dvcid_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="dvcid_naccid_enroll_access_level"
     )
     dvcid_form_access_level: AuthorizationAccessLevel = Field(
         alias="dvcid_clin_forms_access_level"
     )
+    allftd_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="allftd_naccid_enroll_access_level"
+    )
     allftd_form_access_level: AuthorizationAccessLevel = Field(
         alias="allftd_clin_forms_access_level"
+    )
+    dlbc_enrollment_access_level: AuthorizationAccessLevel = Field(
+        alias="dlbc_naccid_enroll_access_level"
     )
     dlbc_form_access_level: AuthorizationAccessLevel = Field(
         alias="dlbc_clin_forms_access_level"
@@ -147,6 +158,7 @@ class DirectoryAuthorizations(BaseModel):
     )
     permissions_approval: bool
     permissions_approval_date: date
+    permissions_approval_name: str
 
     @field_validator(
         "adrc_enrollment_access_level",
@@ -154,9 +166,13 @@ class DirectoryAuthorizations(BaseModel):
         "adrc_dicom_access_level",
         "adrc_biomarker_access_level",
         "adrc_genetic_access_level",
+        "leads_enrollment_access_level",
         "leads_form_access_level",
+        "dvcid_enrollment_access_level",
         "dvcid_form_access_level",
+        "allftd_enrollment_access_level",
         "allftd_form_access_level",
+        "dlbc_enrollment_access_level",
         "dlbc_form_access_level",
         "clariti_form_access_level",
         "clariti_dicom_access_level",
