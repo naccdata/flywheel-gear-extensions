@@ -170,6 +170,17 @@ class NACCGroup(CenterAdaptor):
 
         return center_group
 
+    def get_pipeline(self, adcid: int) -> list[ProjectAdaptor]:
+        """Returns the projects associated with the pipeline with ADCID.
+
+        Args:
+          adcid: the ADCID
+        Returns:
+          the list of projects with the pipeline ADCID
+        """
+        return self._fw.get_pipeline(adcid)
+
+
     def get_centers(self) -> List[CenterGroup]:
         """Returns the center groups for all centers.
 

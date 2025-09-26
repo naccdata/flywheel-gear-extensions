@@ -295,6 +295,18 @@ class FlywheelProxy:
         """
         return self.__fw.projects.find_first(f"_id={project_id}")
 
+    def get_pipeline(self, adcid: int) -> list['ProjectAdaptor']:
+        """Returns the project adaptors for projects with pipeline ADCID set to the ADCID.
+
+        Args:
+          adcid: the ADCID
+        Returns:
+          the list of projects identified with ADCID as pipeline ADCID
+        """
+        projects = self.__fw.projects.find(f"info.pipeline_adcid={adcid}")
+
+        return [ProjectAdaptor(project=project, proxy=self) for project in projects]
+
     def get_roles(self) -> Mapping[str, RoleOutput]:
         """Gets all user roles for the FW instance.
 
