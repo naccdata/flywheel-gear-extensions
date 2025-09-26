@@ -1,1 +1,0 @@
-from .ec2_parameter_store import EC2ParameterStore as EC2ParameterStore

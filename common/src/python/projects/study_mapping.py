@@ -438,17 +438,6 @@ class StudyMappingVisitor(StudyVisitor):
             if center_model.pipeline_adcid is not None
             else center.adcid
         )
-        if (
-            self.__study.mode == "aggregation"
-            and self.__study.study_type == "affiliated"
-            and pipeline_adcid == center.adcid
-        ):
-            log.warning(
-                "Center %s has no ADCID for study %s. Skipping pipelines",
-                center.id,
-                self.__study.study_id,
-            )
-            return
 
         portal_info = center.get_project_info()
         study_info = portal_info.get(self.__study.study_id)

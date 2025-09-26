@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from enrollment.enrollment_project import EnrollmentProject
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -13,6 +14,7 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
     InputFileWrapper,
+    get_submitter,
 )
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
@@ -87,51 +89,28 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             log.error("input file %s has QC errors", self.__file_input.filename)
             return
 
-        file_id = self.__file_input.file_id
-        file = self.proxy.get_file(file_id)
-        file = file.reload()
-        group_id = file.parents.group
-        file_group = self.proxy.find_group(group_id=group_id)
-        if not file_group:
-            raise GearExecutionError(
-                f"Unable to get center group: {file.parents.group}"
-            )
-
-        admin_group = self.admin_group(admin_id=self.__admin_id)
-        adcid = admin_group.get_adcid(group_id)
-        if adcid is None:
-            raise GearExecutionError(f"Group {group_id} does not have an ADCID")
-
-        project = file_group.get_project_by_id(file.parents.project)
-        if not project:
-            raise GearExecutionError(
-                f"Unable to get parent project: {file.parents.project}"
-            )
+        parent_project = self.__file_input.get_parent_project(self.proxy)
+        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+        try:
+            adcid = project.get_pipeline_adcid()
+        except ProjectError as error:
+            raise GearExecutionError(error) from error
 
         enrollment_project = EnrollmentProject.create_from(project)
         if not enrollment_project:
             raise GearExecutionError(
-                f"Unable to get project containing file: {file.parents.project}"
+                f"Unable to get project containing file: {project.label}"
             )
 
-        user_id = file.info.get("uploader")
-        if not user_id:
-            user_id = file.origin.id
-        user = self.proxy.find_user(user_id)
-        if user:
-            # lookup the user's email; if not set to the file origin id
-            submitter = user.email if user.email else user_id
-        else:
-            submitter = user_id
-            log.warning(
-                f"Owner of the file {user_id} does not match a user on Flywheel"
-            )
+        file = self.__file_input.file_entry(context)
+        submitter = get_submitter(file=file, proxy=self.proxy)
 
         input_path = Path(self.__file_input.filepath)
         gear_name = context.manifest.get("name", "identifier-provisioning")
 
         error_writer = ListErrorWriter(
-            container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
+            container_id=self.__file_input.file_id,
+            fw_path=self.proxy.get_lookup_path(file),
         )
 
         sender_email = context.config.get("sender_email", "nacc_dev@uw.edu")

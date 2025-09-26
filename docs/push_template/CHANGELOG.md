@@ -4,6 +4,9 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
+## 2.0.1
+* Rebuilt for ssm-parameter-store update
+  
 ## 2.0.0
 
 * Changes template project label matching projects to use label w/o the `-template` suffix and no reorganization.
