@@ -70,7 +70,7 @@ class DatastoreHelper(Datastore):
         Returns:
             Optional[List[int]]: List of ADCIDs
         """
-        adcid_list = self.__admin_group.get_adcids()
+        adcid_list = self.__admin_group.get_form_ingest_adcids()
         if adcid_list:
             return adcid_list
 

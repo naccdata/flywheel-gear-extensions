@@ -15,7 +15,6 @@ from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import PipelineStage
-from projects.study import StudyModel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_project import REDCapRoles
@@ -856,7 +855,6 @@ class CenterStudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
-    pipeline_adcid: int
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
@@ -912,7 +910,7 @@ class CenterStudyMetadata(BaseModel):
 
 
 class CenterProjectMetadata(BaseModel):
-    """Metadata to be stored in center portal project."""
+    """Metadata to be stored in center metadata project."""
 
     adcid: int
     active: bool
@@ -929,40 +927,15 @@ class CenterProjectMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(
-        self, study: StudyModel, pipeline_adcid: Optional[int] = None
-    ) -> CenterStudyMetadata:
-        """Gets the study metadata for the study.
-
-        Creates a new StudyMetadata object if it does not exist.
-
-        Args:
-            study: the study model
-
-        Returns:
-            the study metadata for the study
-        """
-        study_info = self.studies.get(study.study_id, None)
-        if study_info:
-            return study_info
-
-        adcid = pipeline_adcid if pipeline_adcid is not None else self.adcid
-        study_info = CenterStudyMetadata(
-            study_id=study.study_id, study_name=study.name, pipeline_adcid=adcid
-        )
-        self.add(study_info)
-        return study_info
-
-    def find(self, study_id: str) -> Optional[CenterStudyMetadata]:
+    def get(self, study_id: str) -> Optional[CenterStudyMetadata]:
         """Gets the study metadata for the study id.
 
         Args:
             study_id: the study id
-
         Returns:
-            the study metadata for the study id if found or None
+            the study metadata for the study
         """
-        return self.studies.get(study_id, None)
+        return self.studies.get(study_id)
 
 
 class REDCapProjectInput(BaseModel):

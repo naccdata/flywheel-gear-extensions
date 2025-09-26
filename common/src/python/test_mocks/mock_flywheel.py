@@ -51,7 +51,8 @@ class MockProject(ProjectAdaptor):
     """Mocked class of the ProjectAdaptor."""
 
     def __init__(self, label: str):
-        super().__init__(project=None, proxy=None)  # type: ignore
+        self._project = None  # type: ignore
+        self._fw = None  # type: ignore
         self.__files: Dict[str, MockFile] = {}
         self.__label = label
 

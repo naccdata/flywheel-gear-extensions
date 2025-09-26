@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from flywheel.models.group import Group
 from flywheel.models.user import User
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
 from pydantic import BaseModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 
@@ -142,6 +142,28 @@ class NACCGroup(CenterAdaptor):
         """
         return self.get_center_map().get_adcids()
 
+    def get_form_ingest_adcids(self) -> List[int]:
+        """Returns the list of ADCIDs for all form ingest projects.
+
+        Returns:
+          the list of ADCIDs
+        """
+        adcid_list = []
+        pattern = "(ingest-form|ingest-enrollment|sandbox-form|sandbox-enrollment)"
+        ingest_projects = self._fw.find_projects_with_pattern(pattern=pattern)
+        for project in ingest_projects:
+            try:
+                adcid = ProjectAdaptor(
+                    project=project, proxy=self.proxy()
+                ).get_pipeline_adcid()
+                if adcid not in adcid_list:
+                    adcid_list.append(adcid)
+            except ProjectError as error:
+                log.error(error)
+                continue
+
+        return adcid_list
+
     def get_center(self, adcid: int) -> Optional[CenterGroup]:
         """Returns the center group for the given ADCID.
 
@@ -190,9 +212,6 @@ class NACCGroup(CenterAdaptor):
         centers = []
         center_map = self.get_center_map()
         for center_info in center_map.centers.values():
-            if center_info.is_pipeline():
-                continue
-
             group_id = center_info.group
             assert group_id is not None
             group = self._fw.find_group(group_id=group_id)

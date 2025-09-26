@@ -36,12 +36,14 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         enroll_project_path: str,
         ptid: str,
         identifiers_mode: IdentifiersMode,
+        copy_only: bool,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__enroll_project_path = enroll_project_path
         self.__ptid = ptid
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
+        self.__copy_only = copy_only
 
     @classmethod
     def create(
@@ -74,6 +76,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         mode = context.config.get("database_mode", "prod")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        copy_only = context.config.get("copy_only", False)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -81,6 +84,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             enroll_project_path=enroll_project_path,
             ptid=ptid,
             identifiers_mode=mode,
+            copy_only=copy_only,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -105,7 +109,8 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
-        job_id = self.get_job_id(context=context)
+        gear_name = context.manifest.get("name", "participant-transfer")
+        job_id = self.get_job_id(context=context, gear_name=gear_name)
         try:
             success = run(
                 proxy=self.proxy,
@@ -114,8 +119,10 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 ptid=self.__ptid,
                 identifiers_repo=identifiers_repo,
                 datatypes=datatypes,
+                copy_only=self.__copy_only,
                 dry_run=self.client.dry_run,
             )
+
             self.send_email(
                 sender_email=sender_email,
                 target_emails=target_emails,
@@ -133,7 +140,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 status="FAILED",
                 job_id=job_id,
             )
-            raise GearExecutionError from error
+            raise GearExecutionError(error) from error
 
     def send_email(
         self,
@@ -162,9 +169,10 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         client = EmailClient(client=create_ses_client(), source=sender_email)
 
-        host_url = f"{self.__client.host.split(':')[0]}"
+        # client.host is like https://naccdata.flywheel.io:443/api
+        host_url = f"{self.client.host.rsplit(':', 1)[0]}"
         job_log_url = f"{host_url}/#/jobs/{job_id}" if job_id else f"{host_url}/#/jobs/"
-        project_url = f"{host_url}/#/projects/{project.id}"
+        project_url = f"{host_url}/#/projects/{project.id}/info"
 
         subject = (
             f"Participant Transfer Status for {project.group}/{project.label}: {status}"
@@ -192,10 +200,12 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             f"and take necessary actions."
             f"\n\tStatus: {status}"
             f"\n\tPTID: {ptid}"
-            f"\n\tEnrollment Project: {project.group}/{project.label}[{project_url}]"
+            f"\n\tEnrollment project: {project.group}/{project.label}"
+            f"\n\tEnrollment project URL: {project_url}"
             f"\n\tGear job log: {job_log_url}"
-            "\nCheck the job log for more details on any errors or warnings.\n"
-            f"\nNext steps: {next_steps}\n\n"
+            "\n\nCheck the job log for more details on any errors or warnings."
+            "\n\n**Next steps:"
+            f"\n{next_steps}\n\n"
         )
 
         client.send_raw(destinations=target_emails, subject=subject, body=body)

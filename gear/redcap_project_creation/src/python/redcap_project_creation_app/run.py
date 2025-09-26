@@ -149,8 +149,6 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         study_redcap_metadata = StudyREDCapProjectsList([])
         # collect updated REDCap project mapping metadata for the study
         for center in centers.values():
-            if center.is_pipeline():
-                continue
             if not center.active:
                 continue
 

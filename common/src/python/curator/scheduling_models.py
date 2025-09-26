@@ -6,6 +6,19 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
+VISIT_PATTERN = re.compile(
+    r"^"
+    r"(?P<pass1>.+("
+    r"_CLS|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|"
+    r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
+    r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
+    r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
+    r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
+    r")\.json)|"
+    r"(?P<pass0>.+(_UDS)\.json)"
+    r"$"
+)
+
 
 class FileModel(BaseModel):
     """Defines data model for columns returned from the project form curator
@@ -46,19 +59,7 @@ class FileModel(BaseModel):
         if "historic_apoe_genotype" in self.filename:
             return "pass2"
 
-        pattern = (
-            r"^"
-            r"(?P<pass1>.+("
-            r"_NP|_MDS|_MLST|_MEDS|"
-            r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
-            r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
-            r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
-            r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
-            r")\.json)|"
-            r"(?P<pass0>.+(_UDS|_MEDS)\.json)"
-            r"$"
-        )
-        match = re.match(pattern, self.filename)
+        match = VISIT_PATTERN.match(self.filename)
         if not match:
             return None
 

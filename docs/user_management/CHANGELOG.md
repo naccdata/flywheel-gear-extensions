@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.2
+
+* Rebuilt for ssm-parameter-store update
+* Updates to use new center metadata structure for studies
+  
 ## 2.1.0
 
 * Changes authorization mapping lookup so that authorization rules will match a study qualified project if only general pipeline rules are defined.

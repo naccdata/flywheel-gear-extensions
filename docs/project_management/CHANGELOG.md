@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.7
+* Rebuilt for ssm-parameter-store update
+* Changes study model so that must assign a "pipeline ADCID" for separate enrollment.
+
 ## 2.1.1
 
 * Fixes bug in logging message in study mapping.

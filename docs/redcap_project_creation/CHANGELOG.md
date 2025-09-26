@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.0
+* Rebuilt for ssm-parameter-store update
+* Updates to use new center metadata structure for studies
+  
 ## 1.0.0
 * Updates to pull REDCap API code from library instead
 

@@ -64,6 +64,7 @@ class DefaultValues:
     QC_JSON_DIR = "JSON"
     QC_GEAR = "form-qc-checker"
     LEGACY_QC_GEAR = "file-validator"
+    PROVISIONING_GEAR = "identifier-provisioning"
     MAX_POOL_CONNECTIONS = 50
     PROV_SUFFIX = "provisioning"
     IDENTIFIER_SUFFIX = "identifiers"

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -52,7 +52,6 @@ def get_identifiers(
     identifiers = {}
     center_identifiers = identifiers_repo.list(adcid=adcid)
     if center_identifiers:
-        # pylint: disable=(not-an-iterable)
         identifiers = {identifier.ptid: identifier for identifier in center_identifiers}
 
     return identifiers
@@ -162,18 +161,15 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
         module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
 
-        admin_group = self.admin_group(admin_id=self.__admin_id)
-        adcid = admin_group.get_adcid(self.proxy.get_file_group(file_input.file_id))
-        if adcid is None:
-            raise GearExecutionError("Unable to determine center ID for file")
-
-        project = file_input.get_parent_project(self.proxy)
+        parent_project = file_input.get_parent_project(self.proxy)
+        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
 
         try:
+            adcid = project.get_pipeline_adcid()
             identifiers = get_identifiers(
                 identifiers_repo=identifiers_repo, adcid=adcid
             )
-        except (IdentifierRepositoryError, TypeError) as error:
+        except (IdentifierRepositoryError, ProjectError, TypeError) as error:
             raise GearExecutionError(error) from error
 
         if not identifiers:
@@ -187,7 +183,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             module_configs=module_configs,
             error_writer=error_writer,
             gear_name=self.__gear_name,
-            project=ProjectAdaptor(project=project, proxy=self.proxy),
+            project=project,
             misc_errors=misc_errors,
         )
 

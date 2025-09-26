@@ -159,7 +159,7 @@ class FileErrorList(RootModel):
         return self.root
 
 
-QCStatus = Literal["PASS", "FAIL"]
+QCStatus = Literal["PASS", "FAIL", "IN REVIEW"]
 
 
 class ClearedAlertProvenance(BaseModel):
