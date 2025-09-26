@@ -30,18 +30,18 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         admin_id: str,
         file_input: InputFileWrapper,
-        output_filename: str,
         gear_name: str,
         project_names: list[str],
+        include_derived: bool,
         modules: set[ModuleName],
         study_id: str,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
-        self.__output_filename = output_filename
         self.__gear_name = gear_name
         self.__project_names: list[str] = project_names
+        self.__include_derived = include_derived
         self.__modules = modules
         self.__study_id = study_id
 
@@ -66,9 +66,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        output_filename = context.config.get("output_file", "submission-status.csv")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
+        include_derived = context.config.get("include_derived", False)
         modules = context.config.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
@@ -82,13 +82,18 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
-            output_filename=output_filename,
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
+            include_derived=include_derived,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
         )
+    
+    def write_data(self, context: GearToolkitContext, filename: str, fieldnames: list[str]) -> None:
+        with context.open_output(filename, mode="w", encoding="utf-8") as output_file:
+            writer = DictWriter(output_file, fieldnames=fieldnames)
+            writer.writeheader()
 
     def run(self, context: GearToolkitContext) -> None:
         input_path = Path(self.__file_input.filepath)
