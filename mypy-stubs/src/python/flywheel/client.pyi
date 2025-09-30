@@ -52,6 +52,10 @@ class Client:
     def jobs(self) -> Finder[Job]:
         ...
 
+    @property
+    def subjects(self) -> Finder[Subject]:
+        ...
+
     # the code says returns FileOutput but has no definition
     # documentation says returns FileEntry, so going with it
     def get_file(self, file_id: str) -> FileEntry:
