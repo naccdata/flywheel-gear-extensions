@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional, get_args
 
 from flywheel_gear_toolkit.context.context import GearToolkitContext
-from gather_submission_status_app.status_request import RequestClusteringVisitor
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -18,6 +17,11 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from keys.types import ModuleName
 from outputs.error_writer import ListErrorWriter
+
+from gather_form_data_app.main import run
+from gear.gather_form_data.src.python.gather_form_data_app.data_request import (
+    DataRequestLookupVisitor,
+)
 
 log = logging.getLogger(__name__)
 
@@ -89,11 +93,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
         )
-    
-    def write_data(self, context: GearToolkitContext, filename: str, fieldnames: list[str]) -> None:
-        with context.open_output(filename, mode="w", encoding="utf-8") as output_file:
-            writer = DictWriter(output_file, fieldnames=fieldnames)
-            writer.writeheader()
 
     def run(self, context: GearToolkitContext) -> None:
         input_path = Path(self.__file_input.filepath)
@@ -104,23 +103,24 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            admin_group = self.admin_group(admin_id=self.__admin_id)
-            clustering = RequestClusteringVisitor(
-                admin_group=admin_group,
+            lookup_visitor = DataRequestLookupVisitor(
+                proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
                 error_writer=error_writer,
             )
+
+        for module_name in self.__modules:
+            output_filename = f"{self.__study_id}-{module_name}.csv"
             with context.open_output(
-                self.__output_filename, mode="w", encoding="utf-8"
+                output_filename, mode="w", encoding="utf-8"
             ) as output_file:
                 writer = DictWriter(output_file, fieldnames=self.__report_fieldnames)
                 writer.writeheader()
                 success = run(
-                    input_file=request_file,
-                    modules=self.__modules,
-                    clustering_visitor=clustering,
-                    file_visitor=self.__file_visitor,
+                    proxy=self.proxy,
+                    module_name=module_name,
+                    data_requests=lookup_visitor.subjects,
                     writer=writer,
                     error_writer=error_writer,
                 )

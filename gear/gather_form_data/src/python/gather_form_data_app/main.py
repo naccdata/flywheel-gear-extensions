@@ -1,16 +1,35 @@
 """Defines Gather Form Data."""
 
 import logging
+from csv import DictWriter
+from typing import Sequence
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from keys.types import ModuleName
+from outputs.error_writer import ErrorWriter
+
+from gear.gather_form_data.src.python.gather_form_data_app.data_request import (
+    DataRequestMatch,
+)
 
 log = logging.getLogger(__name__)
 
 
-def run(*, proxy: FlywheelProxy):
+def run(
+    *,
+    proxy: FlywheelProxy,
+    module_name: ModuleName,
+    data_requests: Sequence[DataRequestMatch],
+    writer: DictWriter,
+    error_writer: ErrorWriter,
+):
     """Runs the Gather Form Data process.
 
     Args:
         proxy: the proxy for the Flywheel instance
     """
-    pass
+    for request in data_requests:
+        files = proxy.get_files(
+            f"parent_ref.type=acquisition,parents.subject={request.subject_id},"
+            f"acquisition.label={module_name}"
+        )
