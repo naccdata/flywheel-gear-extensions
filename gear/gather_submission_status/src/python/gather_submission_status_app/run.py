@@ -24,7 +24,7 @@ from outputs.qc_report import (
 )
 
 from gather_submission_status_app.main import ModuleName, run
-from gather_submission_status_app.status_request import RequestClusteringVisitor
+from gather_submission_status_app.status_request import StatusRequestClusteringVisitor
 from gather_submission_status_app.visit_submission_error import (
     ErrorReportModel,
     error_transformer,
@@ -139,9 +139,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            admin_group = self.admin_group(admin_id=self.__admin_id)
-            clustering = RequestClusteringVisitor(
-                admin_group=admin_group,
+            clustering = StatusRequestClusteringVisitor(
+                proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
                 error_writer=error_writer,

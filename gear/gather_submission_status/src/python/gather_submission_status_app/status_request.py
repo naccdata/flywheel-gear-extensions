@@ -1,10 +1,9 @@
 """Defines status request type and request clustering visitor."""
 
+import re
 from typing import Any, Dict, List, Optional
 
-from centers.center_group import CenterGroup
-from centers.nacc_group import NACCGroup
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
 from outputs.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
@@ -17,26 +16,26 @@ class StatusRequest(BaseModel):
 
     adcid: int
     ptid: str
-    study: str
+    study: Optional[str] = None
 
 
-class RequestClusteringVisitor(CSVVisitor):
-    """CSV visitor to load and cluster submission status requests by center."""
+class StatusRequestClusteringVisitor(CSVVisitor):
+    """CSV visitor to load and cluster submission status requests by ADCID."""
 
     def __init__(
         self,
-        admin_group: NACCGroup,
+        proxy: FlywheelProxy,
         study_id: str,
         project_names: List[str],
         error_writer: ErrorWriter,
     ) -> None:
-        self.__admin_group = admin_group
+        self.__proxy = proxy
         self.__error_writer = error_writer
-        self.__expected_studies = {study_id, "adrc"}
-        self.__center_map: Dict[int, CenterGroup] = {}
-        self.__project_names = project_names
-        self.project_map: Dict[str, List[ProjectAdaptor]] = {}
-        self.request_map: Dict[str, List[StatusRequest]] = {}
+        self.__project_names = list(project_names)
+        self.__project_names.extend({f"{name}-{study_id}" for name in project_names})
+        self.__project_matcher = re.compile(f"^{'|'.join(self.__project_names)}$")
+        self.pipeline_map: dict[int, list[ProjectAdaptor]] = {}
+        self.request_map: Dict[int, List[StatusRequest]] = {}
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
@@ -53,59 +52,40 @@ class RequestClusteringVisitor(CSVVisitor):
 
         return True
 
-    def __get_center(self, adcid: int) -> Optional[CenterGroup]:
-        """Gets the center group for the adcid if it exists.
-
-        memoizes center groups
-
-        Args:
-          adcid: the ADCID
-        Returns:
-          the CenterGroup for the ADCID if one exists. None, otherwise
-        """
-        center = self.__center_map.get(adcid)
-        if not center:
-            center = self.__admin_group.get_center(adcid)
-            if center:
-                self.__center_map[adcid] = center
-        return center
-
-    def __get_projects(
-        self, center: CenterGroup, study_id: str
-    ) -> List[ProjectAdaptor]:
-        """Gets the projects matching the prefix in the center group.
+    def __get_projects(self, adcid: int) -> list[ProjectAdaptor]:
+        """Returns the projects with pipeline ADCID and matching project names
+        in this visitor.
 
         Args:
-          center: the group
-          prefix: the project name prefix
+          adcid: the pipeline ADCID
         Returns:
-          the list of projects in the group matching the prefix
+          the projects with the pipeline ADCID and matching project names
         """
-        projects: List[ProjectAdaptor] = self.project_map.get(center.id, [])
-        if not projects:
-            for project_name in self.__project_names:
-                pattern = (
-                    rf"^{project_name}$"
-                    if study_id == "adrc"
-                    else rf"^{project_name}-{study_id}$"
-                )
-                projects.extend(center.get_matching_projects(pattern=pattern))
-            self.project_map[center.id] = projects
+        result = self.pipeline_map.get(adcid)
+        if result is not None:
+            return result
+
+        pipeline_projects = self.__proxy.get_pipeline(adcid)
+        projects = [
+            project
+            for project in pipeline_projects
+            if self.__project_matcher.match(project.label)
+        ]
+        self.pipeline_map[adcid] = projects
 
         return projects
 
-    def __add_request(self, center: CenterGroup, status_query: StatusRequest) -> None:
+    def __add_request(self, status_query: StatusRequest) -> None:
         """Add a status request to the request map of this visitor.
 
-        Maps center ID to request.
+        Maps pipeline ADCID to request.
 
         Args:
-          center: the center group
           status_query: the request
         """
-        request_list = self.request_map.get(center.id, [])
+        request_list = self.request_map.get(status_query.adcid, [])
         request_list.append(status_query)
-        self.request_map[center.id] = request_list
+        self.request_map[status_query.adcid] = request_list
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Processes a row of the status request file.
@@ -115,39 +95,12 @@ class RequestClusteringVisitor(CSVVisitor):
           line_num: the line number of the row
         """
         try:
-            status_query = StatusRequest.model_validate(row)
+            query = StatusRequest.model_validate(row)
         except ValidationError as error:
             self.__error_writer.write(malformed_file_error(str(error)))
             return False
 
-        if status_query.study not in self.__expected_studies:
-            self.__error_writer.write(
-                FileError(
-                    error_code="unexpected-study",  # pyright: ignore[reportCallIssue]
-                    error_type="error",  # pyright: ignore[reportCallIssue]
-                    location=CSVLocation(line=line_num, column_name="study"),
-                    message=(
-                        f"expected one of {', '.join(self.__expected_studies)},"
-                        f" got {status_query.study}"
-                    ),
-                )
-            )
-            return True  # ignore row
-
-        # TODO: ADCID should map to pipeline in this case, which may be a list of projects
-        center = self.__get_center(status_query.adcid)
-        if not center:
-            self.__error_writer.write(
-                FileError(
-                    error_code="no-center",  # pyright: ignore[reportCallIssue]
-                    error_type="error",  # pyright: ignore[reportCallIssue]
-                    location=CSVLocation(line=line_num, column_name="adcid"),
-                    message=f"value {status_query.adcid} is not a valid ADCID",
-                )
-            )
-            return False
-
-        projects = self.__get_projects(center=center, study_id=status_query.study)
+        projects = self.__get_projects(query.adcid)
         if not projects:
             self.__error_writer.write(
                 FileError(
@@ -155,13 +108,13 @@ class RequestClusteringVisitor(CSVVisitor):
                     error_type="error",  # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=(
-                        f"center {status_query.adcid} has no matching projects "
-                        f"for {status_query.study} and names {self.__project_names}"
+                        f"center {query.adcid} has no matching projects "
+                        f"for {query.study} and names {self.__project_names}"
                     ),
                 )
             )
-            return False
+            return True
 
-        self.__add_request(center=center, status_query=status_query)
+        self.__add_request(status_query=query)
 
         return True
