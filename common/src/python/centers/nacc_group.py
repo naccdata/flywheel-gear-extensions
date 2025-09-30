@@ -202,7 +202,6 @@ class NACCGroup(CenterAdaptor):
         """
         return self._fw.get_pipeline(adcid)
 
-
     def get_centers(self) -> List[CenterGroup]:
         """Returns the center groups for all centers.
 
