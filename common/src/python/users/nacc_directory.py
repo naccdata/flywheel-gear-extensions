@@ -156,6 +156,9 @@ class DirectoryAuthorizations(BaseModel):
     clariti_ror_access_level: AuthorizationAccessLevel = Field(
         alias="cl_ror_access_level"
     )
+    adrc_scan_access_level: AuthorizationAccessLevel = Field(
+        alias="scan_dashboard_access_level"
+    )
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
@@ -179,6 +182,7 @@ class DirectoryAuthorizations(BaseModel):
         "clariti_biomarker_access_level",
         "clariti_pay_access_level",
         "clariti_ror_access_level",
+        "adrc_scan_access_level",
         mode="before",
     )
     def convert_access_level(cls, access_level: str) -> AuthorizationAccessLevel:
@@ -210,7 +214,8 @@ class DirectoryAuthorizations(BaseModel):
             if len(temp_list) != 4:
                 continue
             study, datatype, *tail = temp_list
-            if datatype not in get_args(DatatypeNameType):
+            datatype = "scan-analysis" if datatype == "scan" else datatype
+            if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
                 log.warning(
                     "the data type %s is ignored for %s %s",
                     datatype,
@@ -219,7 +224,16 @@ class DirectoryAuthorizations(BaseModel):
                 )
                 continue
 
-            study_map.add(study_id=study, access_level=access_level, datatype=datatype)  # type: ignore
+            datatypes = [datatype]
+            if datatype == "genetic":
+                datatypes = ["apoe", "gwas", "genetic-availability", "imputation"]
+            for datatype in datatypes:
+                study_map.add(
+                    study_id=study,
+                    access_level=access_level,
+                    datatype=datatype,  # type: ignore
+                )
+
         return study_map
 
     def to_user_entry(self) -> Optional[UserEntry]:

@@ -9,6 +9,7 @@ DatatypeNameType = Literal[
     "genetic-availability",
     "gwas",
     "imputation",
+    "scan-analysis",
 ]
 ModuleName = Literal["UDS", "FTLD", "LBD", "MDS"]
 PipelineStageType = Literal[

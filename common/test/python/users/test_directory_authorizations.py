@@ -14,7 +14,7 @@ class TestDirectoryAuthorizations:
                 "web_report_access___repdash": "1",
                 "study_selections___p30": "1",
                 "study_selections___affiliatedstudy": "1",
-                "scan_dashboard_access_level": "",
+                "scan_dashboard_access_level": "ViewAccess",
                 "p30_naccid_enroll_access_level": "",
                 "p30_clin_forms_access_level": "SubmitAudit",
                 "p30_imaging_access_level": "ViewAccess",
@@ -117,6 +117,12 @@ class TestDirectoryAuthorizations:
                 "form": Activity(datatype="form", action="submit-audit"),
                 "dicom": Activity(datatype="dicom", action="submit-audit"),
                 "biomarker": Activity(datatype="biomarker", action="submit-audit"),
+                "apoe": Activity(datatype="apoe", action="view"),
+                "gwas": Activity(datatype="gwas", action="view"),
+                "genetic-availability": Activity(
+                    datatype="genetic-availability", action="view"
+                ),
+                "imputation": Activity(datatype="imputation", action="view"),
             },
         ),
         StudyAuthorizations(

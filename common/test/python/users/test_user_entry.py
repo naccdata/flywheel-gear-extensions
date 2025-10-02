@@ -60,6 +60,7 @@ class TestUserEntry:
                     "web_report_access___scandash": "1",
                     "study_selections___p30": "1",
                     "study_selections___affiliatedstudy": "1",
+                    "scan_dashboard_access_level": "ViewAccess",
                     "p30_clin_forms_access_level": "SubmitAudit",
                     "p30_imaging_access_level": "SubmitAudit",
                     "p30_flbm_access_level": "SubmitAudit",
@@ -114,6 +115,9 @@ class TestUserEntry:
                             datatype="enrollment", action="submit-audit"
                         ),
                         "form": Activity(datatype="form", action="submit-audit"),
+                        "scan-analysis": Activity(
+                            datatype="scan-analysis", action="view"
+                        ),
                     },
                 )
             ],
@@ -141,6 +145,7 @@ class TestUserEntry:
                     "web_report_access___repdash": "1",
                     "study_selections___p30": "1",
                     "study_selections___affiliatedstudy": "1",
+                    "scan_dashboard_access_level": "ViewAccess",
                     "p30_naccid_enroll_access_level": "SubmitAudit",
                     "p30_clin_forms_access_level": "SubmitAudit",
                     "p30_imaging_access_level": "NoAccess",

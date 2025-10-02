@@ -1,7 +1,7 @@
 """Defines components related to user authorizations."""
 
 import logging
-from typing import Any, Dict, Literal, Self
+from typing import Any, Dict, Literal, Self, get_args
 
 from flywheel.models.role_output import RoleOutput
 from keys.types import DatatypeNameType
@@ -52,9 +52,15 @@ class Activity(BaseModel):
         if not isinstance(activity, str):
             raise TypeError(f"Unexpected type for activity: {type(activity)}")
 
+        datatype = ""
+        action_string = ""
         tokens = activity.split("-")
-        datatype = tokens[-1:].pop()
-        action_string = "-".join(tokens[:-1])
+        for index, token in enumerate(tokens):
+            action_string = f"{action_string}-{token}" if action_string else token
+            if action_string in get_args(ActionType):
+                datatype = "-".join(tokens[index + 1 :])
+                break
+
         return handler({"datatype": datatype, "action": action_string})
 
 

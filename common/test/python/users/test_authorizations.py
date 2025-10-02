@@ -198,6 +198,14 @@ class TestActivity:
         error = info.value.errors()[0]
         assert error["loc"][0] == "action"
 
+    def test_hyphenated(self):
+        try:
+            activity = Activity.model_validate("view-scan-analysis")
+        except ValidationError as error:
+            raise AssertionError(error) from error
+        assert activity.action == "view"
+        assert activity.datatype == "scan-analysis"
+
 
 class TestAuthorization:
     def test_contains(self):
@@ -206,3 +214,19 @@ class TestAuthorization:
 
         assert "submit-audit-form" in authorization
         assert "view-form" not in authorization
+
+    def test_validation(self):
+        auth = {
+            "activities": {
+                "enrollment": "submit-audit-enrollment",
+                "form": "submit-audit-form",
+                "scan-analysis": "view-scan-analysis",
+            },
+            "study_id": "adrc",
+        }
+        try:
+            study_auth = StudyAuthorizations.model_validate(auth)
+        except ValidationError as error:
+            raise AssertionError(error) from error
+
+        assert study_auth is not None
