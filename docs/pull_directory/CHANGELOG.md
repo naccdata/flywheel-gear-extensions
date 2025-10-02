@@ -2,9 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.0.1
+## 2.0.2
 
 * Update directory authorization model to match directory record.
+* Use email if auth email is not given.
+* Only export non-None fields.
   
 ## 2.0.0
 
