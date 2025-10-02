@@ -5,6 +5,7 @@ from csv import DictWriter
 from pathlib import Path
 from typing import List, Optional, get_args
 
+from data_requests.status_request import StatusRequestClusteringVisitor
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -24,12 +25,11 @@ from outputs.qc_report import (
 )
 
 from gather_submission_status_app.main import ModuleName, run
-from gather_submission_status_app.status_request import StatusRequestClusteringVisitor
-from gather_submission_status_app.visit_submission_error import (
+from reports.visit_submission_error import (
     ErrorReportModel,
     error_transformer,
 )
-from gather_submission_status_app.visit_submission_status import (
+from reports.visit_submission_status import (
     StatusReportModel,
     status_transformer,
 )
