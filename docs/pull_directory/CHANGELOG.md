@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.0.1
+
+* Update directory authorization model to match directory record.
+  
 ## 2.0.0
 
 * Adds this CHANGELOG
