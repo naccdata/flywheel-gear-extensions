@@ -262,7 +262,7 @@ class DirectoryAuthorizations(BaseModel):
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
-        auth_email = self.auth_email
+        auth_email = self.auth_email if self.auth_email else self.email
         if self.inactive:
             return UserEntry(
                 name=name,
