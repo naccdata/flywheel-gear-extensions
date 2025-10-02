@@ -4,13 +4,12 @@ import logging
 from csv import DictWriter
 from typing import Sequence
 
+from data_requests.data_request import (
+    DataRequestMatch,
+)
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from keys.types import ModuleName
 from outputs.error_writer import ErrorWriter
-
-from gear.gather_form_data.src.python.gather_form_data_app.data_request import (
-    DataRequestMatch,
-)
 
 log = logging.getLogger(__name__)
 
