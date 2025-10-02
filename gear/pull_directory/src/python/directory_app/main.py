@@ -42,7 +42,7 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
 
     log.info("Creating directory file with %s entries", len(user_list))
     return yaml.safe_dump(
-        data=user_list.model_dump(serialize_as_any=True),
+        data=user_list.model_dump(serialize_as_any=True, exclude_none=True),
         allow_unicode=True,
         default_flow_style=False,
     )
