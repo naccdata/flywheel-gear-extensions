@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional
 
-from flywheel.models.container_output import ContainerOutput
 import pandas
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.job import Job
@@ -17,23 +16,23 @@ from .models.deleted_result import DeletedResult
 from .models.gear_rule import GearRule
 from .models.gear_rule_input import GearRuleInput
 from .models.group import Group
-from .models.group_input import GroupInput
-from .models.group_role import GroupRole
 from .models.project import Project
 from .models.project_settings_output import ProjectSettingsOutput
-from .models.project_sharing_settings_project_settings_input import \
-    ProjectSharingSettingsProjectSettingsInput
-from .models.project_sharing_settings_project_settings_output import \
-    ProjectSharingSettingsProjectSettingsOutput
+from .models.project_sharing_settings_project_settings_output import (
+    ProjectSharingSettingsProjectSettingsOutput,
+)
 from .models.role_output import RoleOutput
 from .models.user import User
 from .models.view_id_output import ViewIdOutput
 from .typing.role_type import RoleType
 
-
 class Client:
 
     def __init__(self, api_key: Optional[str]) -> None:
+        ...
+
+    @property
+    def files(self) -> Finder[FileEntry]:
         ...
 
     @property
