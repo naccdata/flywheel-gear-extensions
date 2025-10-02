@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence
 
 import flywheel
 from flywheel import (
@@ -59,7 +59,7 @@ class FlywheelProxy:
         self.__fw = client
         self.__fw_client = fw_client
         self.__dry_run = dry_run
-        self.__project_roles: Optional[Mapping[str, RoleOutput]] = None
+        self.__project_roles: Optional[dict[str, RoleOutput]] = None
         self.__project_admin_role: Optional[RoleOutput] = None
 
     @property
@@ -295,7 +295,7 @@ class FlywheelProxy:
         """
         return self.__fw.projects.find_first(f"_id={project_id}")
 
-    def get_roles(self) -> Mapping[str, RoleOutput]:
+    def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
 
         Does not include access roles for Groups.
@@ -1178,7 +1178,7 @@ class ProjectAdaptor:
         """
         return self.add_user_roles(user=user, roles=[role])
 
-    def add_user_roles(self, user: User, roles: List[RoleOutput]) -> bool:
+    def add_user_roles(self, user: User, roles: Iterable[RoleOutput]) -> bool:
         """Adds the roles to the user in the project.
 
         Args:
@@ -1205,7 +1205,7 @@ class ProjectAdaptor:
         Args:
           role_assignment: the role assignment
         Returns:
-          True if role is new, False otherwise
+          True if role is set, False otherwise
         """
         user_roles = self.get_user_roles(role_assignment.id)
         if not user_roles:
@@ -1226,8 +1226,9 @@ class ProjectAdaptor:
             try:
                 self._project.add_permission(user_role)
             except ApiException as error:
-                log.error("Failed to add user role to project: %s", error)
-                return False
+                raise ProjectError(
+                    f"Failed to add user role to project: {error}"
+                ) from error
             self.__pull_project()
             return True
 
@@ -1237,7 +1238,7 @@ class ProjectAdaptor:
                 different = True
                 user_roles.append(role_id)
         if not different:
-            return False
+            return True
 
         log_message = f"Adding roles to user {role_assignment.id}"
         if self._fw.dry_run:
@@ -1248,8 +1249,9 @@ class ProjectAdaptor:
                 role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
             )
         except ApiException as error:
-            log.error("Failed to add user role to project: %s", error)
-            return False
+            raise ProjectError(
+                f"Failed to add user role to project: {error}"
+            ) from error
 
         self.__pull_project()
         return True
