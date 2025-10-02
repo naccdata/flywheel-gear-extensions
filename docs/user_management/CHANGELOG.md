@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 2.1.2
 
+* Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed datatypes.
 * Rebuilt for ssm-parameter-store update
 * Updates to use new center metadata structure for studies
   
