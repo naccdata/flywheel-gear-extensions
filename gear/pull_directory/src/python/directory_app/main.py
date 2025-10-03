@@ -34,7 +34,7 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
             log.warning("Ignoring %s: Permissions not approved", dir_record.email)
             continue
         if not dir_record.complete:
-            log.warning("Ignoring %s: Data platform survey is incomplete")
+            log.warning("Ignoring %s: Data platform survey is incomplete", dir_record.email)
             continue
 
         entry = dir_record.to_user_entry()
