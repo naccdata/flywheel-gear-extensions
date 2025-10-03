@@ -2,7 +2,7 @@
 
 import logging
 from datetime import date
-from typing import Literal, Optional, get_args
+from typing import Any, Literal, Optional, get_args
 
 from pydantic import (
     BaseModel,
@@ -82,7 +82,6 @@ class DirectoryAuthorizations(BaseModel):
     """Data model for deserializing a json object from a directory permission
     report."""
 
-    record_id: int
     firstname: str
     lastname: str
     email: str
@@ -90,13 +89,8 @@ class DirectoryAuthorizations(BaseModel):
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
     adcid: int = Field(alias="adresearchctr")
-    portal_access: bool = Field(alias="flywheel_access")
-    web_report_access_web: bool = Field(alias="web_report_access___web")
-    web_report_access_repdash: bool = Field(alias="web_report_access___repdash")
-    study_selections_adrc: bool = Field(alias="study_selections___p30")
-    study_selections_affiliatedstudy: bool = Field(
-        alias="study_selections___affiliatedstudy"
-    )
+    web_report_access: bool
+    study_selections: list[str]
     adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="p30_naccid_enroll_access_level"
     )
@@ -112,11 +106,7 @@ class DirectoryAuthorizations(BaseModel):
     adrc_genetic_access_level: AuthorizationAccessLevel = Field(
         alias="p30_genetic_access_level"
     )
-    affiliated_study_leads: bool = Field(alias="affiliated_study___leads")
-    affiliated_study_dvcid: bool = Field(alias="affiliated_study___dvcid")
-    affiliated_study_allftd: bool = Field(alias="affiliated_study___allftd")
-    affiliated_study_dlbc: bool = Field(alias="affiliated_study___dlbc")
-    affiliated_study_clariti: bool = Field(alias="affiliated_study___clariti")
+    affiliated_study: list[str]
     leads_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="leads_naccid_enroll_access_level"
     )
@@ -159,6 +149,7 @@ class DirectoryAuthorizations(BaseModel):
     adrc_scan_access_level: AuthorizationAccessLevel = Field(
         alias="scan_dashboard_access_level"
     )
+    complete: bool = Field(alias="nacc_data_platform_access_information_complete")
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
@@ -193,6 +184,33 @@ class DirectoryAuthorizations(BaseModel):
 
         return "NoAccess"
 
+    @field_validator("study_selections", "affiliated_study", mode="before")
+    def convert_string_list(cls, value_list: Any) -> list[str]:
+        if isinstance(value_list, list):
+            return value_list
+        if not isinstance(value_list, str):
+            raise TypeError("expecting string with list of values")
+
+        return value_list.split(",")
+
+    @field_validator("web_report_access", mode="before")
+    def convert_flag_string(cls, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if not isinstance(value, str):
+            raise TypeError("expecting bool or string value")
+
+        return value == "1"
+
+    @field_validator("complete", mode="before")
+    def convert_complete(cls, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if not isinstance(value, str):
+            raise TypeError("expecting form completion value")
+
+        return value == "2"
+
     def __parse_fields(self) -> StudyAccessMap:
         """Parses the fields of this object for access level permissions and
         constructs a mapping study -> access-level -> datatypes.
@@ -216,12 +234,7 @@ class DirectoryAuthorizations(BaseModel):
             study, datatype, *tail = temp_list
             datatype = "scan-analysis" if datatype == "scan" else datatype
             if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
-                log.warning(
-                    "the data type %s is ignored for %s %s",
-                    datatype,
-                    self.firstname,
-                    self.lastname,
-                )
+                log.warning("the data type %s is ignored for %s", datatype, self.email)
                 continue
 
             datatypes = [datatype]
@@ -238,14 +251,15 @@ class DirectoryAuthorizations(BaseModel):
 
     def to_user_entry(self) -> Optional[UserEntry]:
         """Converts this DirectoryAuthorizations object to a UserEntry."""
-        if not self.portal_access:
-            return None
+
         if not self.permissions_approval:
+            return None
+        if not self.complete:
             return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
-        auth_email = self.auth_email
+        auth_email = self.auth_email if self.auth_email else self.email
         if self.inactive:
             return UserEntry(
                 name=name,

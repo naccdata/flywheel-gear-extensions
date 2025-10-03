@@ -94,7 +94,11 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
                 log.warning("Skipping authorization: %s", error)
 
         ingest_projects = study.ingest_projects
-        log.info("Adding user to %s ingest projects", len(ingest_projects))
+        log.info(
+            "checking authorizations for user %s in %s ingest projects",
+            self.__user.id,
+            len(ingest_projects),
+        )
         for project in ingest_projects.values():
             try:
                 project.apply(self)
@@ -136,6 +140,7 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
 
         try:
             project.add_user_roles(user=self.__user, roles=role_set)
+            log.info("Added roles %s for user %s", role_set, self.__user.id)
         except ProjectError as error:
             raise AuthorizationError(error) from error
 

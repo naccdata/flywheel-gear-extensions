@@ -6,25 +6,17 @@ class TestDirectoryAuthorizations:
     def test_validation(self):
         auths = DirectoryAuthorizations.model_validate(
             {
-                "record_id": "1",
                 "firstname": "Test",
                 "lastname": "User",
-                "flywheel_access": "1",
-                "web_report_access___web": "1",
-                "web_report_access___repdash": "1",
-                "study_selections___p30": "1",
-                "study_selections___affiliatedstudy": "1",
+                "web_report_access": "",
+                "study_selections": "P30,AffiliatedStudy",
                 "scan_dashboard_access_level": "ViewAccess",
                 "p30_naccid_enroll_access_level": "",
                 "p30_clin_forms_access_level": "SubmitAudit",
                 "p30_imaging_access_level": "ViewAccess",
                 "p30_flbm_access_level": "ViewAccess",
                 "p30_genetic_access_level": "ViewAccess",
-                "affiliated_study___leads": "1",
-                "affiliated_study___dvcid": "1",
-                "affiliated_study___allftd": "1",
-                "affiliated_study___dlbc": "1",
-                "affiliated_study___clariti": "1",
+                "affiliated_study": "CLARiTI,LEADS,DVCID,ALLFTD,DLBC",
                 "leads_naccid_enroll_access_level": "",
                 "leads_clin_forms_access_level": "SubmitAudit",
                 "dvcid_naccid_enroll_access_level": "",
@@ -46,6 +38,7 @@ class TestDirectoryAuthorizations:
                 "contact_company_name": "an institution",
                 "adresearchctr": "999",
                 "archive_contact": "1",
+                "nacc_data_platform_access_information_complete": "2",
             },
             by_alias=True,
         )
@@ -57,25 +50,17 @@ class TestDirectoryAuthorizations:
 
     auths = DirectoryAuthorizations.model_validate(
         {
-            "record_id": "2",
             "firstname": "Test",
             "lastname": "User",
-            "flywheel_access": "1",
-            "web_report_access___web": "1",
-            "web_report_access___repdash": "1",
-            "study_selections___p30": "1",
-            "study_selections___affiliatedstudy": "1",
+            "web_report_access": "1",
+            "study_selections": "P30,AffiliatedStudy",
             "scan_dashboard_access_level": "",
             "p30_naccid_enroll_access_level": "ViewAccess",
             "p30_clin_forms_access_level": "SubmitAudit",
             "p30_imaging_access_level": "SubmitAudit",
             "p30_flbm_access_level": "SubmitAudit",
             "p30_genetic_access_level": "ViewAccess",
-            "affiliated_study___leads": "0",
-            "affiliated_study___dvcid": "0",
-            "affiliated_study___allftd": "0",
-            "affiliated_study___dlbc": "0",
-            "affiliated_study___clariti": "1",
+            "affiliated_study": "CLARiTI",
             "leads_naccid_enroll_access_level": "",
             "leads_clin_forms_access_level": "",
             "dvcid_naccid_enroll_access_level": "",
@@ -91,18 +76,20 @@ class TestDirectoryAuthorizations:
             "cl_ror_access_level": "NoAccess",
             "permissions_approval": "1",
             "permissions_approval_date": "2025-08-13",
+            "permissions_approval_name": "",
             "fw_email": "user@institution.edu",
             "email": "user@institution.edu",
             "contact_company_name": "an institution",
             "adresearchctr": "999",
             "archive_contact": "0",
-            "permissions_approval_name": "",
+            "nacc_data_platform_access_information_complete": "2",
         },
         by_alias=True,
     )
     assert auths
     assert not auths.inactive
-    assert not auths.affiliated_study_leads
+    assert auths.complete
+    assert "LEADS" not in auths.affiliated_study
     assert auths.dlbc_form_access_level == "NoAccess"
 
     user_entry = auths.to_user_entry()

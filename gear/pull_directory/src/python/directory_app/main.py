@@ -30,6 +30,15 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
             log.error("Error loading user record: %s", error)
             continue
 
+        if not dir_record.permissions_approval:
+            log.warning("Ignoring %s: Permissions not approved", dir_record.email)
+            continue
+        if not dir_record.complete:
+            log.warning(
+                "Ignoring %s: Data platform survey is incomplete", dir_record.email
+            )
+            continue
+
         entry = dir_record.to_user_entry()
         if not entry:
             continue
@@ -42,7 +51,7 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
 
     log.info("Creating directory file with %s entries", len(user_list))
     return yaml.safe_dump(
-        data=user_list.model_dump(serialize_as_any=True),
+        data=user_list.model_dump(serialize_as_any=True, exclude_none=True),
         allow_unicode=True,
         default_flow_style=False,
     )
