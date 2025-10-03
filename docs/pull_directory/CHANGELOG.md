@@ -2,9 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.0.3
+## 2.0.4
 
 * Add logging when directory records are ignored.
+* Change logging of ignored data types
 
 ## 2.0.2
 
