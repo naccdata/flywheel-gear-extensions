@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.0.3
+
+* Add logging when directory records are ignored.
+
 ## 2.0.2
 
 * Update directory authorization model to match directory record.
