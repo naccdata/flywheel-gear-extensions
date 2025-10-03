@@ -88,6 +88,7 @@ class TestDirectoryAuthorizations:
     )
     assert auths
     assert not auths.inactive
+    assert auths.complete
     assert "LEADS" not in auths.affiliated_study
     assert auths.dlbc_form_access_level == "NoAccess"
 

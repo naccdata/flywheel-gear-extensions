@@ -234,12 +234,7 @@ class DirectoryAuthorizations(BaseModel):
             study, datatype, *tail = temp_list
             datatype = "scan-analysis" if datatype == "scan" else datatype
             if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
-                log.warning(
-                    "the data type %s is ignored for %s %s",
-                    datatype,
-                    self.firstname,
-                    self.lastname,
-                )
+                log.warning("the data type %s is ignored for %s", datatype, self.email)
                 continue
 
             datatypes = [datatype]
@@ -258,6 +253,8 @@ class DirectoryAuthorizations(BaseModel):
         """Converts this DirectoryAuthorizations object to a UserEntry."""
 
         if not self.permissions_approval:
+            return None
+        if not self.complete:
             return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
