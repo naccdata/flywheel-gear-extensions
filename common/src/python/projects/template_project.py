@@ -12,6 +12,7 @@ import flywheel
 from flywheel import DataView, FileEntry, FixedInput, GearRule, GearRuleInput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from fw_utils import AttrDict
+from utils.files import copy_file
 
 log = logging.getLogger()
 
@@ -232,7 +233,7 @@ class TemplateProject:
             file_object = self.__source_project.get_file(fixed_input.name)
 
             if not self.__same_file_exists(file_object, destination):
-                self.__copy_file(file_object, destination)
+                copy_file(file_object, destination)
 
             destination_file = destination.get_file(fixed_input.name)
             if not destination_file:
@@ -250,23 +251,6 @@ class TemplateProject:
             )
 
         return dest_inputs
-
-    @staticmethod
-    def __copy_file(file: FileEntry, destination: ProjectAdaptor) -> None:
-        """Copies the file to the destination project.
-
-        Args:
-          file: the file entry for the file
-          destination: the destination project
-        """
-        log.info(
-            "copying file %s to %s/%s", file.name, destination.group, destination.label
-        )
-        file_spec = flywheel.FileSpec(
-            file.name, file.read().decode("utf-8"), file.mimetype
-        )
-        destination.upload_file(file_spec)
-        destination.reload()
 
     @staticmethod
     def __same_file_exists(file: FileEntry, project: ProjectAdaptor) -> bool:

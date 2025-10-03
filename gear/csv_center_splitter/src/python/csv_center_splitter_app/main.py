@@ -172,6 +172,8 @@ def run(
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
         include: Centers to include
+        downstream_gears: Gears to wait on before processing the
+            next batch when scheduling
         delimiter: The CSV's delimiter; defaults to ','
     """
     # split CSV by ADCID key
@@ -206,14 +208,14 @@ def run(
     )
 
     if not project_map:
-        raise ValueError(f"No {target_project} projects found")
+        raise GearExecutionError(f"No {target_project} projects found")
 
     # make sure all expected projects are there before upload
     missing_projects = [
         adcid for adcid in centers if not project_map.get(f"adcid-{adcid}", None)
     ]
     if missing_projects:
-        raise ValueError(
+        raise GearExecutionError(
             f"Missing {target_project} projects for the following "
             + f"ADCIDs: {missing_projects}"
         )
@@ -260,11 +262,9 @@ def run(
             project_ids_list.append(project.id)
             log.info(f"Successfully uploaded {filename}")
 
-        if project_ids_list:
-            search_str = JobPoll.generate_search_string(
+        if project_ids_list and downstream_gears:
+            JobPoll.wait_for_batched_group(
+                proxy=proxy,
                 project_ids_list=project_ids_list,
-                gears_list=downstream_gears,
-                states_list=["running", "pending"],
+                downstream_gears=downstream_gears,
             )
-
-            JobPoll.wait_for_pipeline(proxy, search_str)
