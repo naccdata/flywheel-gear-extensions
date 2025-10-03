@@ -13,9 +13,3 @@ class VisitEvent(BaseModel):
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
     timestamp: datetime
 
-"""
-create:
-    visit_date
-    visit_num
-    
-    """
