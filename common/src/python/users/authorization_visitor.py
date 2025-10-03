@@ -140,7 +140,12 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
 
         try:
             project.add_user_roles(user=self.__user, roles=role_set)
-            log.info("Added roles %s for user %s", role_set, self.__user.id)
+            log.info(
+                "Added roles for user %s to project %s/%s",
+                self.__user.id,
+                self.__center.id,
+                project.label,
+            )
         except ProjectError as error:
             raise AuthorizationError(error) from error
 

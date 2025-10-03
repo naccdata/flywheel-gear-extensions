@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 3.0.1
+## 3.0.2
 
 * Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed datatypes.
   
