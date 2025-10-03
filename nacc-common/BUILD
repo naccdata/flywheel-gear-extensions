@@ -15,4 +15,6 @@ python_distribution(
         author_email="nacchelp@uw.edu",
         url="https://github.com/naccdata/flywheel-gear-extensions/nacc-common",
     ),
+    wheel_config_settings={"--global-option": ["--python-tag", ""]},
+    sdist_config_settings={}
 )
