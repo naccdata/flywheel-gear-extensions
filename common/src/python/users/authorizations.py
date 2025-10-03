@@ -31,6 +31,9 @@ class Activity(BaseModel):
     datatype: DatatypeNameType
     action: ActionType
 
+    def __str__(self) -> str:
+        return f"{self.action}-{self.datatype}"
+
     @model_serializer
     def string_activity(self) -> str:
         """Serializes this activity as a string of the form action-datatype.
