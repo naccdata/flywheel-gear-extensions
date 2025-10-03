@@ -1,5 +1,6 @@
-from event_logging.visit_events import VisitEvent
 from s3.s3_client import S3BucketInterface
+
+from event_logging.visit_events import VisitEvent
 
 
 class VisitEventLogger:
