@@ -9,5 +9,13 @@ VisitEventType = Literal["create", "delete", "fail-qc", "pass-qc"]
 class VisitEvent(BaseModel):
     action: VisitEventType
     pipeline_adcid: int
+    project_label: str
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
     timestamp: datetime
+
+"""
+create:
+    visit_date
+    visit_num
+    
+    """
