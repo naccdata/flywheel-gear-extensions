@@ -12,7 +12,7 @@ from keys.keys import DefaultValues, FieldNames
 from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
-from s3.s3_client import S3BucketReader
+from s3.s3_client import S3BucketInterface
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class DefinitionsLoader:
     def __init__(
         self,
         *,
-        s3_client: S3BucketReader,
+        s3_client: S3BucketInterface,
         error_writer: ErrorWriter,
         module_configs: ModuleConfigs,
         strict: bool = True,
