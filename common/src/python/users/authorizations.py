@@ -1,7 +1,7 @@
 """Defines components related to user authorizations."""
 
 import logging
-from typing import Any, Dict, Literal, Self, get_args
+from typing import Any, Literal, Self, get_args
 
 from flywheel.models.role_output import RoleOutput
 from keys.types import DatatypeNameType
@@ -101,7 +101,7 @@ class AuthMap(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    project_authorizations: Dict[str, Dict[Activity, RoleOutput]]
+    project_authorizations: dict[str, dict[Activity, list[RoleOutput]]]
     read_only_role: RoleOutput
 
     def __get_roles(
@@ -110,8 +110,8 @@ class AuthMap(BaseModel):
         role_map: dict[str, RoleOutput] = {}
         activity_map = self.project_authorizations.get(label, {})
         for activity in authorizations.activities.values():
-            role = activity_map.get(activity)
-            if role:
+            role_list = activity_map.get(activity, [])
+            for role in role_list:
                 role_map[role.label] = role
         return list(role_map.values())
 
@@ -190,15 +190,18 @@ class AuthMap(BaseModel):
                 )
 
             project_dict = {}
-            for activity_name, role_name in role_assignment.items():
+            for activity_name, role_name_list in role_assignment.items():
                 activity = Activity.model_validate(activity_name)
-                role = role_map.get(role_name)
-                if not role:
-                    raise TypeError(
-                        "No matching role for "
-                        f"{project_label}:{activity_name}:{role_name}"
-                    )
-                project_dict[activity] = role
+                role_list = []
+                for role_name in role_name_list:
+                    role = role_map.get(role_name)
+                    if not role:
+                        raise TypeError(
+                            "No matching role for "
+                            f"{project_label}:{activity_name}:{role_name}"
+                        )
+                    role_list.append(role)
+                project_dict[activity] = role_list
 
             auth_dict[project_label] = project_dict
 

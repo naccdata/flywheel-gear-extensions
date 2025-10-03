@@ -22,6 +22,7 @@ def role_map():
     yield {
         "read-only": RoleOutput(label="read-only"),
         "upload": RoleOutput(label="upload"),
+        "audit": RoleOutput(label="audit"),
     }
 
 
@@ -31,19 +32,19 @@ def auth_map_alpha(role_map):
     auth_map = AuthMap.model_validate(
         {
             "accepted": {
-                "submit-audit-form": "read-only",
-                "view-form": "read-only",
-                "submit-audit-dicom": "read-only",
+                "submit-audit-form": ["read-only"],
+                "view-form": ["read-only"],
+                "submit-audit-dicom": ["read-only"],
             },
             "ingest-form": {
-                "view-form": "read-only",
-                "submit-audit-form": "upload",
+                "view-form": ["read-only"],
+                "submit-audit-form": ["upload", "audit"],
             },
             "ingest-enrollment": {
-                "view-enrollment": "read-only",
-                "submit-audit-enrollment": "upload",
+                "view-enrollment": ["read-only"],
+                "submit-audit-enrollment": ["upload"],
             },
-            "sandbox-form": {"submit-audit-form": "upload"},
+            "sandbox-form": {"submit-audit-form": ["upload"]},
         },
         context={"role_map": role_map},
     )
@@ -56,17 +57,19 @@ def auth_map_alpha_yaml():
     yield (
         "---\n"
         "accepted:\n"
-        "  submit-audit-form: read-only\n"
-        "  view-form: read-only\n"
-        "  submit-audit-dicom: read-only\n"
+        "  submit-audit-form: [read-only]\n"
+        "  view-form: [read-only]\n"
+        "  submit-audit-dicom: [read-only]\n"
         "ingest-form:\n"
-        "  view-form: read-only\n"
-        "  submit-audit-form: upload\n"
+        "  view-form: [read-only]\n"
+        "  submit-audit-form:\n"
+        "    - upload\n"
+        "    - audit\n"
         "ingest-enrollment:\n"
-        "  view-enrollment: read-only\n"
-        "  submit-audit-enrollment: upload\n"
+        "  view-enrollment: [read-only]\n"
+        "  submit-audit-enrollment: [upload]\n"
         "sandbox-form:\n"
-        "  submit-audit-form: upload\n"
+        "  submit-audit-form: [upload]\n"
     )
 
 
@@ -112,7 +115,7 @@ class TestAuthMap:
         role_list = auth_map_alpha.get(
             project_label="ingest-form", authorizations=alpha_authorizations
         )
-        assert [role.label for role in role_list] == ["upload"]
+        assert [role.label for role in role_list] == ["upload", "audit"]
         assert (
             auth_map_alpha.get(
                 project_label="ingest-dicom", authorizations=alpha_authorizations
