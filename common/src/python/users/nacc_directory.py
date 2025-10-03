@@ -234,11 +234,7 @@ class DirectoryAuthorizations(BaseModel):
             study, datatype, *tail = temp_list
             datatype = "scan-analysis" if datatype == "scan" else datatype
             if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
-                log.warning(
-                    "the data type %s is ignored for %s",
-                    datatype,
-                    self.email
-                )
+                log.warning("the data type %s is ignored for %s", datatype, self.email)
                 continue
 
             datatypes = [datatype]
