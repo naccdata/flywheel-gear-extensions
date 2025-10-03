@@ -259,6 +259,8 @@ class DirectoryAuthorizations(BaseModel):
 
         if not self.permissions_approval:
             return None
+        if not self.complete:
+            return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
