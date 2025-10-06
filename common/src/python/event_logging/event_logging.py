@@ -4,7 +4,7 @@ from event_logging.visit_events import VisitEvent
 
 
 class VisitEventLogger:
-    """Writes VisitEvent objects to transaction log
+    """Writes VisitEvent objects to transaction log.
 
     Manages transaction log as S3 bucket with this structure
 
@@ -17,10 +17,16 @@ class VisitEventLogger:
             └── log
                 └── log000001.json
     """
+
     def __init__(self, s3_bucket: S3BucketInterface) -> None:
         self.__bucket = s3_bucket
 
     def log_event(self, event: VisitEvent) -> None:
+        """Logs the event.
+
+        Args:
+          event: the visit event
+        """
         event_json = event.model_dump_json(exclude_none=True)
         filename = (
             f"adcid-{event.pipeline_adcid}/"

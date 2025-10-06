@@ -12,6 +12,7 @@ from keys.keys import DefaultValues
 
 log = logging.getLogger(__name__)
 
+
 class S3BucketInterface:
     """Read/Write files from/to an S3 bucket."""
 
@@ -105,7 +106,7 @@ class S3BucketInterface:
         """
 
         client = boto3.client(
-            "s3", # type: ignore
+            "s3",  # type: ignore
             aws_access_key_id=parameters["accesskey"],
             aws_secret_access_key=parameters["secretkey"],
             region_name=parameters["region"],
@@ -139,4 +140,3 @@ class S3BucketInterface:
         )
 
         return S3BucketInterface(boto_client=client, bucket_name=s3bucket)
-
