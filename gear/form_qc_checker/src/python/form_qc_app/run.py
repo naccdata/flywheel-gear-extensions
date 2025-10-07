@@ -21,7 +21,7 @@ from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
 )
-from s3.s3_client import S3BucketInterface
+from s3.s3_bucket import S3BucketInterface
 from utils.utils import load_form_ingest_configurations
 
 from form_qc_app.main import run

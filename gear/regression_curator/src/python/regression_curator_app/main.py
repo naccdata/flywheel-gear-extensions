@@ -12,7 +12,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import unexpected_value_error
-from s3.s3_client import S3BucketInterface
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 

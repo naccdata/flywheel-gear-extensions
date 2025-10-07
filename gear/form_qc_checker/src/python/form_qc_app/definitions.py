@@ -12,7 +12,7 @@ from keys.keys import DefaultValues, FieldNames
 from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
-from s3.s3_client import S3BucketInterface
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 
