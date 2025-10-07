@@ -1,7 +1,10 @@
 # Changelog
 
 All notable changes to this gear are documented in this file.
-
+  
+## 1.5.7
+* Supports having study suffix in retrospective-form project label
+  
 ## 1.5.6
 * Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
 * Rebuilt for ssm-parameter-store update
