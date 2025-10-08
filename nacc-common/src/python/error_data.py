@@ -8,8 +8,11 @@ from outputs.qc_report import (
     ProjectReportVisitor,
     StatusReportVisitor,
 )
-from outputs.visit_submission_error import error_transformer
-from outputs.visit_submission_status import status_transformer
+from outputs.visit_submission_error import ErrorReportModel, error_transformer
+from outputs.visit_submission_status import StatusReportModel, status_transformer
+
+ERROR_HEADER_NAMES: list[str] = ErrorReportModel.serialized_fieldnames()
+STATUS_HEADER_NAMES: list[str] = list(StatusReportModel.model_fields.keys())
 
 
 class ReportError(Exception):
