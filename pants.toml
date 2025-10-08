@@ -26,7 +26,7 @@ repo_id = "A8B966D2-72FA-451B-965B-CACF8CF2FDC5"
 
 [source]
 root_patterns = [
-    "src/*", "test/*"
+    "src/*", "test/*", "/"
 ]
 
 [docker]

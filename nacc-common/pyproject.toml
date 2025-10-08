@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nacc-common"
+version = "1.2.5"
+description = "NACC Data Platform utilities"
+license-files = ["LICENSE"]
+authors = [{ name = "NACC", email = "nacchelp@uw.edu" }]
+readme = "README.md"
+dependencies = ["flywheel-sdk>=20.0.0"]
+requires-python = ">=3.10"

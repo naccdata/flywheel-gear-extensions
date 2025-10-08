@@ -45,7 +45,15 @@ def get_log_contents(log_file: FileEntry) -> str:
     Return:
        the contents of the log_file
     """
-    return log_file.read().decode("utf-8")
+    try:
+        return log_file.read().decode("utf-8")
+    except ApiException as error:
+        log.error(
+            f"Error in reading log file {log_file.name}: {error}",
+        )
+        ts = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
+        reset_str = f"{ts} RESET due to read errors\n"
+        return reset_str
 
 
 def get_log_qc_info(log_file: FileEntry) -> Optional[FileQCModel]:

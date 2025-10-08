@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.0.1
+* Resets error log content if failed to read existing content
+
 ## 2.0.0
 * Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
 * Updates to use new identifier lambda functions with restructured identifiers database
