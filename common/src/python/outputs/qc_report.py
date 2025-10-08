@@ -4,10 +4,11 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from csv import DictWriter
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Union
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.types import ModuleName
 from pydantic import BaseModel, ValidationError
 
@@ -363,11 +364,11 @@ class ProjectReportVisitor:
         for item in self.__file_visitor.table:
             self.__writer.writerow(item.model_dump())
 
-    def visit_project(self, project: Project) -> None:
+    def visit_project(self, project: Union[Project, ProjectAdaptor]) -> None:
         """Applies the file_visitor to qc-status log files in the project.
 
-        Note: this takes a flywheel.Project object rather than a ProjectAdaptor
-        so that can be used in nacc-common without exposing proxy object
+        Note: this takes a flywheel.Project object so that can be used in
+        nacc-common without exposing proxy object
 
         Args:
           project: the project
