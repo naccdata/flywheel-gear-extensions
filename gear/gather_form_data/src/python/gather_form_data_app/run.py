@@ -5,6 +5,7 @@ from csv import DictWriter
 from pathlib import Path
 from typing import Optional, get_args
 
+from data_requests.data_request import DataRequestLookupVisitor
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -19,9 +20,6 @@ from keys.types import ModuleName
 from outputs.error_writer import ListErrorWriter
 
 from gather_form_data_app.main import run
-from gear.gather_form_data.src.python.gather_form_data_app.data_request import (
-    DataRequestLookupVisitor,
-)
 
 log = logging.getLogger(__name__)
 
@@ -115,8 +113,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             with context.open_output(
                 output_filename, mode="w", encoding="utf-8"
             ) as output_file:
-                writer = DictWriter(output_file, fieldnames=self.__report_fieldnames)
-                writer.writeheader()
+                writer = DictWriter(output_file, fieldnames=None) # type: ignore
                 success = run(
                     proxy=self.proxy,
                     module_name=module_name,
