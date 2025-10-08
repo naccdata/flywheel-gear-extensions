@@ -155,7 +155,7 @@ class AggregationMapper(StudyMapper):
                         pipeline_adcid=pipeline_adcid,
                     )
 
-        self.__add_retrospective(center)
+        self.__add_retrospective(center=center, pipeline_adcid=pipeline_adcid)
 
     def map_study_pipelines(self) -> None:
         """Creates study group with release project."""
@@ -229,7 +229,7 @@ class AggregationMapper(StudyMapper):
             update_study=update_ingest,
         )
 
-    def __add_retrospective(self, center: CenterGroup) -> None:
+    def __add_retrospective(self, center: CenterGroup, pipeline_adcid: int) -> None:
         """Adds retrospective projects for the study to the center.
 
         Args:
@@ -241,8 +241,8 @@ class AggregationMapper(StudyMapper):
             )
             return
 
-        def no_update(p):
-            return None
+        def update_retrospective(project: ProjectAdaptor):
+            project.update_info({"pipeline_adcid": pipeline_adcid})
 
         for datatype in self.study.datatypes:
             self.add_pipeline(
@@ -250,7 +250,7 @@ class AggregationMapper(StudyMapper):
                 pipeline_label=self.pipeline_label(
                     pipeline="retrospective", datatype=datatype
                 ),
-                update_study=no_update,
+                update_study=update_retrospective,
             )
 
     def __get_release_group(self) -> Optional[GroupAdaptor]:
