@@ -312,7 +312,7 @@ class FlywheelProxy:
 
         return [ProjectAdaptor(project=project, proxy=self) for project in projects]
 
-    def get_roles(self) -> Mapping[str, RoleOutput]:
+    def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
 
         Does not include access roles for Groups.
