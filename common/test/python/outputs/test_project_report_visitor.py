@@ -1,6 +1,7 @@
 from csv import DictReader, DictWriter
 from datetime import date
 from io import StringIO
+from typing import Any, Generator
 
 import pytest
 from configs.ingest_configs import ErrorLogTemplate
@@ -67,7 +68,7 @@ def visit_details():
 
 
 @pytest.fixture(scope="session")
-def file_project(status_file_model, visit_details):
+def file_project(status_file_model, visit_details) -> Generator[MockProject, Any, Any]:
     project = MockProject("dummy_project")
     qc_model = status_file_model
     log_filename = ErrorLogTemplate().instantiate(
@@ -104,7 +105,7 @@ class TestProjectReportVisitor:
             file_visitor=file_visitor,
             writer=DictReportWriter(writer),
         )
-        visitor.visit_project(file_project.project)
+        visitor.visit_project(file_project)
         stream.seek(0)
         assert bool(stream.readline())
         stream.seek(0)
