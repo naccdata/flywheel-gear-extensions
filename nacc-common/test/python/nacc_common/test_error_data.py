@@ -1,4 +1,4 @@
-from error_data import ERROR_HEADER_NAMES, STATUS_HEADER_NAMES
+from nacc_common.error_data import ERROR_HEADER_NAMES, STATUS_HEADER_NAMES
 from outputs.visit_submission_error import ErrorReportModel
 from outputs.visit_submission_status import StatusReportModel
 
