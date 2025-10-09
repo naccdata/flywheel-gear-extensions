@@ -7,6 +7,7 @@ from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
+from data.dataview import ColumnModel, make_builder
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -19,7 +20,6 @@ from inputs.parameter_store import URLParameter
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient
 from pydantic import BaseModel, ConfigDict
-from data.dataview import ColumnModel, make_builder
 
 from form_scheduler_app.email_user import send_email
 
