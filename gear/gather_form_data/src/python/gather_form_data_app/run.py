@@ -1,11 +1,11 @@
 """Entry script for Gather Form Data."""
 
+from collections import defaultdict
 import logging
-from csv import DictWriter
 from pathlib import Path
 from typing import Optional, get_args
 
-from data_requests.data_request import DataRequestLookupVisitor
+from data_requests.data_request import DataRequestVisitor, ModuleDataGatherer
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -14,12 +14,12 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     InputFileWrapper,
 )
+from inputs.csv_reader import read_csv
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from keys.types import ModuleName
 from outputs.error_writer import ListErrorWriter
-
-from gather_form_data_app.main import run
+from outputs.outputs import StringCSVWriter
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +93,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearToolkitContext) -> None:
+        # 1. gather requests
+        data_gatherers: dict[str, ModuleDataGatherer] = {}
+        for module_name in self.__modules:
+            data_gatherers[module_name] = ModuleDataGatherer(proxy=self.proxy, module_name=module_name)
+
         input_path = Path(self.__file_input.filepath)
         with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
             file_id = self.__file_input.file_id
@@ -101,37 +106,53 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            lookup_visitor = DataRequestLookupVisitor(
+            lookup_visitor = DataRequestVisitor(
                 proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
                 error_writer=error_writer,
             )
-
-        for module_name in self.__modules:
-            output_filename = f"{self.__study_id}-{module_name}.csv"
-            with context.open_output(
-                output_filename, mode="w", encoding="utf-8"
-            ) as output_file:
-                writer = DictWriter(output_file, fieldnames=None) # type: ignore
-                success = run(
-                    proxy=self.proxy,
-                    module_name=module_name,
-                    data_requests=lookup_visitor.subjects,
-                    writer=writer,
-                    error_writer=error_writer,
+            success = read_csv(
+                input_file=request_file,
+                error_writer=error_writer,
+                visitor=lookup_visitor,
+            )
+            if not success:
+                context.metadata.add_qc_result(
+                    self.__file_input.file_input,
+                    name="validation",
+                    state="FAIL",
+                    data=error_writer.errors().model_dump(by_alias=True),
                 )
 
-            context.metadata.add_qc_result(
-                self.__file_input.file_input,
-                name="validation",
-                state="PASS" if success else "FAIL",
-                data=error_writer.errors().model_dump(by_alias=True),
-            )
+        # 2. gather data
+        # lookup_visitor.data_requests
+        # 3. write files
 
-            context.metadata.add_file_tags(
-                self.__file_input.file_input, tags=self.__gear_name
-            )
+        # for module_name in self.__modules:
+        #     output_filename = f"{self.__study_id}-{module_name}.csv"
+        #     with context.open_output(
+        #         output_filename, mode="w", encoding="utf-8"
+        #     ) as output_file:
+        #         writer = DictWriter(output_file, fieldnames=None)  # type: ignore
+        #         success = run(
+        #             proxy=self.proxy,
+        #             module_name=module_name,
+        #             data_requests=None, #lookup_visitor.subjects,
+        #             writer=writer,
+        #             error_writer=error_writer,
+        #         )
+
+        context.metadata.add_qc_result(
+            self.__file_input.file_input,
+            name="validation",
+            state="PASS" if success else "FAIL",
+            data=error_writer.errors().model_dump(by_alias=True),
+        )
+
+        context.metadata.add_file_tags(
+            self.__file_input.file_input, tags=self.__gear_name
+        )
 
 
 def main():
