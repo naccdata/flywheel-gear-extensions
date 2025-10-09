@@ -1,10 +1,7 @@
 from datetime import date
 
-from gather_submission_status_app.visit_submission_error import (
-    ErrorReportModel,
-    error_transformer,
-)
 from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from outputs.visit_submission_error import ErrorReportModel, error_transformer
 
 
 class TestErrorTransformer:

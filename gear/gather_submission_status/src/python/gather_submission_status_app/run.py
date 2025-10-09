@@ -22,17 +22,11 @@ from outputs.qc_report import (
     FileQCReportVisitor,
     StatusReportVisitor,
 )
+from outputs.visit_submission_error import ErrorReportModel, error_transformer
+from outputs.visit_submission_status import StatusReportModel, status_transformer
 
 from gather_submission_status_app.main import ModuleName, run
 from gather_submission_status_app.status_request import RequestClusteringVisitor
-from gather_submission_status_app.visit_submission_error import (
-    ErrorReportModel,
-    error_transformer,
-)
-from gather_submission_status_app.visit_submission_status import (
-    StatusReportModel,
-    status_transformer,
-)
 
 log = logging.getLogger(__name__)
 
