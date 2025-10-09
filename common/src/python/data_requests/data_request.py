@@ -1,5 +1,6 @@
+import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -9,9 +10,10 @@ from keys.types import ModuleName
 from outputs.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
+from outputs.outputs import StringCSVWriter
 from pydantic import BaseModel, Field, ValidationError
 
-from outputs.outputs import StringCSVWriter
+log = logging.getLogger(__name__)
 
 
 class DataRequest(BaseModel):
@@ -39,10 +41,12 @@ class DataRequestVisitor(CSVVisitor):
         error_writer: ErrorWriter,
         project_names: list[str],
         study_id: str,
+        gatherers: list["ModuleDataGatherer"],
     ) -> None:
         self.__proxy = proxy
         self.__error_writer = error_writer
         self.__expected_studies = {study_id, "adrc"}
+        self.__gatherers = gatherers
         temp_project_names = set(project_names)
         temp_project_names.update({f"{name}-{study_id}" for name in project_names})
         self.__project_matcher = re.compile(f"^{'|'.join(temp_project_names)}$")
@@ -108,24 +112,41 @@ class DataRequestVisitor(CSVVisitor):
             return True  # ignore row
 
         for request in matching_requests:
-            files = __gather_files
+            for gatherer in self.__gatherers:
+                try:
+                    gatherer.gather_request_data(request)
+                except ModuleDataError as error:
+                    log.warning(
+                        "Request error for subject %s, module %s: %s",
+                        request.subject_id,
+                        gatherer.module_name,
+                        str(error),
+                    )
+
         return True
 
-class ModuleDataGatherer:
 
-    def __init__(self, proxy: FlywheelProxy, module_name: ModuleName) -> None:
+class ModuleDataGatherer:
+    """Defines process to gather file.info.form custom info for data requests"""
+
+    def __init__(self, proxy: FlywheelProxy, module_name: ModuleName, info_paths: Optional[list[str]]=None) -> None:
         self.__proxy = proxy
         self.__module_name = module_name
         self.__writer = StringCSVWriter()
+        self.__info_paths = info_paths if info_paths is not None else ["forms.json"]
+
+    @property
+    def module_name(self):
+        return self.__module_name
 
     def visit_file(self, file: FileEntry) -> None:
         file = file.reload()
         form_data = file.info.get("forms")
         if not form_data:
-            raise ModuleDataError(f"Expected file.info.forms for {file.file_id}")
+            raise ModuleDataError(f"file.info.forms not found for {file.file_id}")
         json_data = form_data.get("json")
         if not json_data:
-            raise ModuleDataError(f"Expecting file.info.forms.json for {file.file_id}")
+            raise ModuleDataError(f"file.info.forms.json not found for {file.file_id}")
 
         self.__writer.write(json_data)
 
@@ -137,5 +158,6 @@ class ModuleDataGatherer:
         for file in files:
             self.visit_file(file)
 
+
 class ModuleDataError(Exception):
-    """Error when accessing form module data"""
+    """Error when accessing form module data."""
