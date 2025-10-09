@@ -279,10 +279,10 @@ class ProjectReportVisitor:
         self,
         *,
         adcid: int,
-        modules: Optional[set[ModuleName]],
-        ptid_set: Optional[set[str]] = None,
         file_visitor: FileQCReportVisitor,
         writer: ReportWriter,
+        ptid_set: Optional[set[str]] = None,
+        modules: Optional[set[ModuleName]] = None,
     ) -> None:
         self.__adcid = adcid
         self.__writer = writer
