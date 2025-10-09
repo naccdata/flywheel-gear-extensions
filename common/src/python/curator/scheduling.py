@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Optional
 
 from curator.curator import Curator
-from view.dataview import ColumnModel, make_builder
+from data.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
