@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.0.0, Unreleased
 
+* Updates `nacc-attribute-deriver` to `2.0.0`, which introduces major refactoring and most of the remaining derived variables 
+* Adds CSF and MRI Summary scopes
 * Updates function names from `pre/post_process` to `pre/post_curate`
 
 ## 0.4.4

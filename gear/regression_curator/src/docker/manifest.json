@@ -2,7 +2,7 @@
     "name": "regression-curator",
     "label": "Regression Curator",
     "description": "Runs a regression test between curated projects and the QAF",
-    "version": "0.1.3",
+    "version": "0.2.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/regression-curator:0.1.3"
+            "image": "naccdata/regression-curator:0.2.0"
         },
         "flywheel": {
             "suite": "Curation",

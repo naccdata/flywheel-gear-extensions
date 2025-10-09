@@ -144,17 +144,13 @@ class QAFBaselineLocalizer(BaselineLocalizer):
         "naccnmri",
         "naccpcsf",
         "nacctcsf",
-        "naccncrd",
         "naccdico",
         "naccnift",
         "naccmria",
         "naccmrfi",
         "naccmnum",
         "naccmrdy",
-        "naccmvol",
-        "naccicv",
-        "naccwmvl",
-        "naccbrnv",
+        "naccvnum",
         "naccapta",
         "naccaptf",
         "naccapnm",
@@ -180,11 +176,19 @@ class QAFBaselineLocalizer(BaselineLocalizer):
         """
         # create visitdate to make unique keys
         naccid = row["naccid"]
-        visitdate = (
-            f"{int(row['visityr']):04d}-"
-            + f"{int(row['visitmo']):02d}-"
-            + f"{int(row['visitday']):02d}"
-        )
+
+        if 'visityr' in row:
+            visitdate = (
+                f"{int(row['visityr']):04d}-"
+                + f"{int(row['visitmo']):02d}-"
+                + f"{int(row['visitday']):02d}"
+            )
+        elif 'mriyr' in row:
+            visitdate = (
+                f"{int(row['mriyr']):04d}-"
+                + f"{int(row['mrimo']):02d}-"
+                + f"{int(row['mridy']):02d}"
+            )
 
         row_data = {"visitdate": visitdate}
         row_data.update(

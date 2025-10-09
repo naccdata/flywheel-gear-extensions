@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.0
+
+* Add support for MRI QAFs
+
 ## 0.1.3
 
 * Updates to consider when a field is in the baseline but not derived vars

@@ -8,6 +8,7 @@ with NACC or key values such as as visit date.)
 """
 
 import ast  # type: ignore
+import math
 import logging
 from typing import Any, Dict, MutableMapping, Optional
 
@@ -74,6 +75,24 @@ class RegressionCurator(Curator):
 
         return False
 
+    def compare_as_floats(self, value: str, expected: str) -> bool:
+        """Checks if the values look like floats and may just have
+        different formatting, and also check precision.
+
+        Args:
+            value: Value to compare
+            expected: Expected value to compare
+        Returns:
+            False if they are not both floats or still do not match
+        """
+        try:
+            # allow within 0.001 precision
+            return math.isclose(float(value), float(expected), abs_tol=0.001)
+        except (ValueError, TypeError):
+            return False
+
+        return False
+
     def compare_baseline(
         self, found_vars: Dict[str, Any], record: Dict[str, Any], prefix: str
     ) -> None:
@@ -112,6 +131,8 @@ class RegressionCurator(Curator):
             result = value == expected
             if not result:
                 result = self.compare_as_lists(value, expected)
+                if not result:
+                    result = self.compare_as_floats(value, expected)
 
             if not result:
                 msg = (
@@ -131,7 +152,7 @@ class RegressionCurator(Curator):
         # report on any derived variables in record but not in found_vars
         missing = set(record.keys()) - set(found_vars.keys())
         for field in missing:
-            if field in ["visitdate"]:
+            if field in ["visitdate", "naccid"]:
                 continue
 
             expected = str(record[field]).strip()
@@ -171,9 +192,9 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        # skip if not UDS, no derived variables, or no visitdate found
-        if scope != "uds":
-            log.debug(f"{file_entry.name} is a not an UDS form, skipping")
+        # skip if not in supported scope, no derived variables, or no visitdate found
+        if scope not in ['uds', 'mri_summary']:
+            log.debug(f"{file_entry.name} is not in supported scope, skipping")
             return
 
         derived_vars = table.get("file.info.derived", None)
@@ -187,6 +208,15 @@ class RegressionCurator(Curator):
             return
 
         visitdate = table.get("file.info.forms.json.visitdate")
+        if not visitdate:
+            # try MRI
+            if 'file.info.raw.mriyr' in table:
+                visitdate = (
+                    f"{int(table['file.info.raw.mriyr']):04d}-"
+                    + f"{int(table['file.info.raw.mrimo']):02d}-"
+                    + f"{int(table['file.info.raw.mridy']):02d}"
+                )
+
         if not visitdate:
             log.debug(f"No visitdate found for {file_entry.name}, skipping")
             return
