@@ -39,10 +39,10 @@ class DataRequestLookupVisitor(CSVVisitor):
         self.__proxy = proxy
         self.__error_writer = error_writer
         self.__expected_studies = {study_id, "adrc"}
-        self.__project_names = list(project_names)
-        self.__project_names.extend({f"{name}-{study_id}" for name in project_names})
-        self.__project_matcher = re.compile(f"^{'|'.join(self.__project_names)}$")
-        self.subjects: list[DataRequestMatch] = []
+        temp_project_names = set(project_names)
+        temp_project_names.update({f"{name}-{study_id}" for name in project_names})
+        self.__project_matcher = re.compile(f"^{'|'.join(temp_project_names)}$")
+        self.data_requests: list[DataRequestMatch] = []
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
@@ -89,8 +89,8 @@ class DataRequestLookupVisitor(CSVVisitor):
         except ValidationError as error:
             self.__error_writer.write(malformed_file_error(str(error)))
 
-        matching_subjects = self.__get_matches(request=query)
-        if not matching_subjects:
+        matching_requests = self.__get_matches(request=query)
+        if not matching_requests:
             self.__error_writer.write(
                 FileError(
                     error_code="no-participant",  # pyright: ignore[reportCallIssue]
@@ -104,5 +104,5 @@ class DataRequestLookupVisitor(CSVVisitor):
             )
             return True  # ignore row
 
-        self.subjects.extend(matching_subjects)
+        self.data_requests.extend(matching_requests)
         return True
