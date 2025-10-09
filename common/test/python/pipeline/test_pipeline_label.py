@@ -1,5 +1,5 @@
 import pytest
-from pipelines.pipeline_label import PipelineLabel
+from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
 
 

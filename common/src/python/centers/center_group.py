@@ -14,7 +14,7 @@ from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from keys.keys import DefaultValues
 from keys.types import DatatypeNameType, PipelineStageType
-from pipelines.pipeline_label import PipelineLabel
+from pipeline.pipeline_label import PipelineLabel
 from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository, REDCapProject
