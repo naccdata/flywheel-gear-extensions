@@ -1,6 +1,5 @@
 """Entry script for Gather Form Data."""
 
-from collections import defaultdict
 import logging
 from pathlib import Path
 from typing import Optional, get_args
@@ -19,7 +18,6 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from keys.types import ModuleName
 from outputs.error_writer import ListErrorWriter
-from outputs.outputs import StringCSVWriter
 
 log = logging.getLogger(__name__)
 
@@ -94,9 +92,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearToolkitContext) -> None:
         # 1. gather requests
-        data_gatherers: dict[str, ModuleDataGatherer] = {}
+        data_gatherers: list[ModuleDataGatherer] = []
         for module_name in self.__modules:
-            data_gatherers[module_name] = ModuleDataGatherer(proxy=self.proxy, module_name=module_name)
+            data_gatherers.append(
+                ModuleDataGatherer(proxy=self.proxy, module_name=module_name)
+            )
 
         input_path = Path(self.__file_input.filepath)
         with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
