@@ -8,38 +8,76 @@ from typing import Any, Dict, List, Optional, TextIO
 SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
 
 
-# pylint: disable=(too-few-public-methods)
 class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
-    def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
+    def __init__(self, stream: TextIO, fieldnames: Optional[list[str]] = None) -> None:
         self.__writer = DictWriter(
-            stream, fieldnames=fieldnames, dialect="unix", quoting=QUOTE_MINIMAL
+            stream,
+            fieldnames=fieldnames,  # type: ignore
+            dialect="unix",
+            quoting=QUOTE_MINIMAL,
         )
         self.__header_written = False
 
-    def __write_header(self):
-        """Writes the header to the output stream."""
+    def __write_header(self, fieldnames) -> None:
+        """Writes the header to the output stream.
+
+        Uses the fieldnames if the writer fieldnames are not set.
+
+        Args:
+            fieldnames: list of field names
+        """
         if self.__header_written:
             return
+        self.__writer.fieldnames = (
+            fieldnames if not self.__writer.fieldnames else self.__writer.fieldnames
+        )
 
         self.__writer.writeheader()
         self.__header_written = True
 
-    def write(self, json_object: SimpleJSONObject) -> None:
-        """Writes the dictionary to the stream.
+    def write(self, row: SimpleJSONObject) -> None:
+        """Writes the dictionary to the stream. Writes the header before the
+        first row.
 
-        Dictionary is assumed to correspond to a row from a CSV file, and so
-        the values all must have primitive types.
+        If this writer object was created without fieldnames, the keys of the
+        first dictionary are used as fieldnames for the header.
+
+        Row values all must have primitive types to ensure they can be written to a CSV file.
 
         Args:
-          json_object: dictionary with only primitive values
+          row: dictionary with only primitive values
         """
-        self.__write_header()
-        self.__writer.writerow(json_object)
+        self.__write_header(list(row.keys()))
+        self.__writer.writerow(row)
 
 
-# pylint: disable=(too-few-public-methods)
+class StringCSVWriter:
+    """Writes CSV to a string.
+
+    Uses keys of the first row as the fieldnames for the file header.
+    """
+
+    def __init__(self) -> None:
+        self.__stream = StringIO()
+        self.__writer = CSVWriter(self.__stream)
+
+    def write(self, row: SimpleJSONObject) -> None:
+        """Writes the dictionary as a row to the CSV string.
+
+        Uses the keys of the first row as the header.
+
+        Args:
+          row: dictionary to write as CSV
+        """
+        self.__writer.write(row)
+
+    def get_content(self) -> str:
+        """Returns the CSV content written as a string."""
+        return self.__stream.getvalue()
+
+
 class JSONWriter(ABC):
     """Abstract base class for writing JSON objects."""
 
