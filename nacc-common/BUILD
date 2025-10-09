@@ -8,7 +8,7 @@ python_distribution(
         ":pyproject",
         ":readme",
         ":license",
-        "nacc-common/src/python/nacc_common:nacc-common-lib",
+        "nacc-common/src/python:nacc-common-lib",
         "nacc-common/src/python:py_typed",
         "mypy-stubs/src/python/flywheel:lib",
     ],
