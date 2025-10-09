@@ -1,13 +1,17 @@
 import re
 from typing import Any, Dict, List
 
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from identifiers.model import NACCID_PATTERN
 from inputs.csv_reader import CSVVisitor
+from keys.types import ModuleName
 from outputs.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from pydantic import BaseModel, Field, ValidationError
+
+from outputs.outputs import StringCSVWriter
 
 
 class DataRequest(BaseModel):
@@ -25,7 +29,7 @@ class DataRequestMatch(BaseModel):
     project_label: str
 
 
-class DataRequestLookupVisitor(CSVVisitor):
+class DataRequestVisitor(CSVVisitor):
     """Gathers subject matches for a data request file given as a CSV file
     where each row loads as a DataRequest object."""
 
@@ -42,7 +46,6 @@ class DataRequestLookupVisitor(CSVVisitor):
         temp_project_names = set(project_names)
         temp_project_names.update({f"{name}-{study_id}" for name in project_names})
         self.__project_matcher = re.compile(f"^{'|'.join(temp_project_names)}$")
-        self.data_requests: list[DataRequestMatch] = []
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
@@ -104,5 +107,35 @@ class DataRequestLookupVisitor(CSVVisitor):
             )
             return True  # ignore row
 
-        self.data_requests.extend(matching_requests)
+        for request in matching_requests:
+            files = __gather_files
         return True
+
+class ModuleDataGatherer:
+
+    def __init__(self, proxy: FlywheelProxy, module_name: ModuleName) -> None:
+        self.__proxy = proxy
+        self.__module_name = module_name
+        self.__writer = StringCSVWriter()
+
+    def visit_file(self, file: FileEntry) -> None:
+        file = file.reload()
+        form_data = file.info.get("forms")
+        if not form_data:
+            raise ModuleDataError(f"Expected file.info.forms for {file.file_id}")
+        json_data = form_data.get("json")
+        if not json_data:
+            raise ModuleDataError(f"Expecting file.info.forms.json for {file.file_id}")
+
+        self.__writer.write(json_data)
+
+    def gather_request_data(self, request: DataRequestMatch) -> None:
+        files = self.__proxy.get_files(
+            f"parent_ref.type=acquisition,parents.subject={request.subject_id},"
+            f"acquisition.label={self.__module_name}"
+        )
+        for file in files:
+            self.visit_file(file)
+
+class ModuleDataError(Exception):
+    """Error when accessing form module data"""
