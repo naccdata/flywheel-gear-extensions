@@ -91,7 +91,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearToolkitContext) -> None:
-        # 1. gather requests
         data_gatherers: list[ModuleDataGatherer] = []
         for module_name in self.__modules:
             data_gatherers.append(
@@ -106,42 +105,32 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            lookup_visitor = DataRequestVisitor(
+            request_visitor = DataRequestVisitor(
                 proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
+                gatherers=data_gatherers,
                 error_writer=error_writer,
             )
             success = read_csv(
                 input_file=request_file,
                 error_writer=error_writer,
-                visitor=lookup_visitor,
+                visitor=request_visitor,
             )
-            if not success:
-                context.metadata.add_qc_result(
-                    self.__file_input.file_input,
-                    name="validation",
-                    state="FAIL",
-                    data=error_writer.errors().model_dump(by_alias=True),
+
+        for gatherer in request_visitor.gatherers:
+            if not gatherer.content:
+                log.warning(
+                    "skipping output for module %s: no data found", gatherer.module_name
                 )
+                continue
 
-        # 2. gather data
-        # lookup_visitor.data_requests
-        # 3. write files
-
-        # for module_name in self.__modules:
-        #     output_filename = f"{self.__study_id}-{module_name}.csv"
-        #     with context.open_output(
-        #         output_filename, mode="w", encoding="utf-8"
-        #     ) as output_file:
-        #         writer = DictWriter(output_file, fieldnames=None)  # type: ignore
-        #         success = run(
-        #             proxy=self.proxy,
-        #             module_name=module_name,
-        #             data_requests=None, #lookup_visitor.subjects,
-        #             writer=writer,
-        #             error_writer=error_writer,
-        #         )
+            output_filename = f"{self.__study_id}-{module_name}.csv"
+            with context.open_output(
+                output_filename, mode="w", encoding="utf-8"
+            ) as output_file:
+                # TODO: manage write errors
+                output_file.write(gatherer.content)
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
