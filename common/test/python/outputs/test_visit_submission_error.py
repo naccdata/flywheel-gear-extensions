@@ -1,7 +1,7 @@
 from datetime import date
 
 from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
-from outputs.visit_submission_error import ErrorReportModel, error_transformer
+from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 
 
 class TestErrorTransformer:

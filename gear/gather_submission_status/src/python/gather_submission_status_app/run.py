@@ -21,9 +21,9 @@ from nacc_common.qc_report import (
     FileQCReportVisitor,
     StatusReportVisitor,
 )
+from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 from outputs.error_writer import ListErrorWriter
-from outputs.visit_submission_error import ErrorReportModel, error_transformer
-from outputs.visit_submission_status import StatusReportModel, status_transformer
+from nacc_common.visit_submission_status import StatusReportModel, status_transformer
 
 from gather_submission_status_app.main import ModuleName, run
 from gather_submission_status_app.status_request import RequestClusteringVisitor
