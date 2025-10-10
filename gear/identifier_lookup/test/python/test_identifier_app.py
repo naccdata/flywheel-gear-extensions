@@ -7,7 +7,7 @@ from typing import Any, List
 import pytest
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
-from outputs.error_models import FileError
+from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_flywheel import MockProject

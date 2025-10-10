@@ -12,7 +12,8 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
-from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
+from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import preprocess_errors
 from preprocess.preprocessor import FormPreprocessor

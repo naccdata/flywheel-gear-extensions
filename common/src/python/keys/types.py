@@ -11,7 +11,7 @@ DatatypeNameType = Literal[
     "imputation",
     "scan-analysis",
 ]
-ModuleName = Literal["UDS", "FTLD", "LBD", "MDS"]
+
 PipelineStageType = Literal[
     "ingest", "retrospective", "sandbox", "distribution", "accepted"
 ]

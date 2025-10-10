@@ -8,8 +8,9 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 from configs.ingest_configs import ModuleConfigs
-from keys.keys import DefaultValues, FieldNames
-from outputs.error_models import VisitKeys
+from keys.keys import DefaultValues
+from nacc_common.error_models import VisitKeys
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
 from s3.s3_client import S3BucketReader

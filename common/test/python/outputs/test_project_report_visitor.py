@@ -5,14 +5,14 @@ from typing import Any, Generator
 
 import pytest
 from configs.ingest_configs import ErrorLogTemplate
-from outputs.error_models import (
+from nacc_common.error_models import (
     FileQCModel,
     GearQCModel,
     QCStatus,
     ValidationModel,
     VisitKeys,
 )
-from outputs.qc_report import (
+from nacc_common.qc_report import (
     DictReportWriter,
     ProjectReportVisitor,
     QCReportBaseModel,

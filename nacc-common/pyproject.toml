@@ -9,5 +9,8 @@ description = "NACC Data Platform utilities"
 license-files = ["LICENSE"]
 authors = [{ name = "NACC", email = "nacchelp@uw.edu" }]
 readme = "README.md"
-dependencies = ["flywheel-sdk>=20.0.0"]
+dependencies = ["flywheel-sdk>=20.0.0", "pydantic>=2.5.2"]
 requires-python = ">=3.10"
+
+[tool.setuptools.package-dir]
+nacc_common = "src/python/nacc_common"

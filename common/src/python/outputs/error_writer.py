@@ -5,8 +5,8 @@ from logging import Logger
 from typing import Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from nacc_common.error_models import FileError, FileErrorList
 
-from outputs.error_models import FileError, FileErrorList
 from outputs.outputs import CSVWriter
 
 log = logging.getLogger(__name__)

@@ -32,10 +32,11 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
+from nacc_common.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
+from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
     empty_field_error,

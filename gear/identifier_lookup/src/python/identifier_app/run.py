@@ -28,7 +28,7 @@ from inputs.csv_reader import CSVVisitor
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.error_models import FileError
+from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
