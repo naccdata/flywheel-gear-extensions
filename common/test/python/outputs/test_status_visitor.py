@@ -1,6 +1,7 @@
 from typing import Callable
 
 import pytest
+from nacc_common.qc_report import QCReportBaseModel, StatusReportVisitor
 from outputs.error_models import (
     FileQCModel,
     GearQCModel,
@@ -8,7 +9,6 @@ from outputs.error_models import (
     ValidationModel,
     VisitKeys,
 )
-from outputs.qc_report import QCReportBaseModel, StatusReportVisitor
 
 
 class StatusReportTestModel(QCReportBaseModel):

@@ -1,16 +1,16 @@
 from typing import Any, Optional
 
 from flywheel.models.project import Project
-from outputs.qc_report import (
+from outputs.visit_submission_error import ErrorReportModel, error_transformer
+from outputs.visit_submission_status import StatusReportModel, status_transformer
+
+from nacc_common.module_types import ModuleName
+from nacc_common.qc_report import (
     ErrorReportVisitor,
     ListReportWriter,
     ProjectReportVisitor,
     StatusReportVisitor,
 )
-from outputs.visit_submission_error import ErrorReportModel, error_transformer
-from outputs.visit_submission_status import StatusReportModel, status_transformer
-
-from nacc_common.module_types import ModuleName
 
 ERROR_HEADER_NAMES: list[str] = ErrorReportModel.serialized_fieldnames()
 STATUS_HEADER_NAMES: list[str] = list(StatusReportModel.model_fields.keys())

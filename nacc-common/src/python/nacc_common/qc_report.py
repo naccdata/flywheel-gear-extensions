@@ -9,9 +9,6 @@ from typing import Any, Callable, List, Optional, Union
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.module_types import ModuleName
-from pydantic import BaseModel, ValidationError
-
 from outputs.error_models import (
     ClearedAlertModel,
     ClearedAlertProvenance,
@@ -22,6 +19,9 @@ from outputs.error_models import (
     ValidationModel,
     VisitKeys,
 )
+from pydantic import BaseModel, ValidationError
+
+from nacc_common.module_types import ModuleName
 
 log = logging.getLogger(__name__)
 

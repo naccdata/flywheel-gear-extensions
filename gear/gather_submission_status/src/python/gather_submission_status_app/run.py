@@ -16,12 +16,12 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.error_writer import ListErrorWriter
-from outputs.qc_report import (
+from nacc_common.qc_report import (
     ErrorReportVisitor,
     FileQCReportVisitor,
     StatusReportVisitor,
 )
+from outputs.error_writer import ListErrorWriter
 from outputs.visit_submission_error import ErrorReportModel, error_transformer
 from outputs.visit_submission_status import StatusReportModel, status_transformer
 

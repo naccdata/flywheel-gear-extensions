@@ -3,10 +3,10 @@
 from typing import Any, get_args
 
 from nacc_common.module_types import ModuleName
+from nacc_common.qc_report import QCReportBaseModel, QCTransformerError
 from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
-from outputs.qc_report import QCReportBaseModel, QCTransformerError
 
 
 class ErrorReportModel(QCReportBaseModel, FileError):
