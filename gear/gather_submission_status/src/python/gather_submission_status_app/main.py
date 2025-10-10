@@ -5,7 +5,7 @@ from csv import DictWriter
 from typing import TextIO
 
 from inputs.csv_reader import read_csv
-from keys.types import ModuleName
+from keys.module_types import ModuleName
 from outputs.error_writer import ErrorWriter
 from outputs.qc_report import (
     DictReportWriter,

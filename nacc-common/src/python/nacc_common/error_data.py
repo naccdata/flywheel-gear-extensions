@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from flywheel.models.project import Project
-from keys.types import ModuleName
+from keys.module_types import ModuleName
 from outputs.qc_report import (
     ErrorReportVisitor,
     ListReportWriter,
