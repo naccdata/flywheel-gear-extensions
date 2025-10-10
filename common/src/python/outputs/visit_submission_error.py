@@ -2,7 +2,7 @@
 
 from typing import Any, get_args
 
-from keys.module_types import ModuleName
+from nacc_common.module_types import ModuleName
 from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
