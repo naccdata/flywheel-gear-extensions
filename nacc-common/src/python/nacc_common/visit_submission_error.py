@@ -2,7 +2,15 @@
 
 from typing import Any, get_args
 
+<<<<<<<< HEAD:nacc-common/src/python/nacc_common/visit_submission_error.py
 from pydantic import SerializerFunctionWrapHandler, model_serializer
+========
+from keys.types import ModuleName
+from pydantic import SerializerFunctionWrapHandler, model_serializer
+
+from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from outputs.qc_report import QCReportBaseModel, QCTransformerError
+>>>>>>>> main:common/src/python/outputs/visit_submission_error.py
 
 from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from nacc_common.module_types import ModuleName

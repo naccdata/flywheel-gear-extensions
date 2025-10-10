@@ -2,9 +2,16 @@
 
 from typing import Optional, get_args
 
+<<<<<<<< HEAD:nacc-common/src/python/nacc_common/visit_submission_status.py
 from nacc_common.error_models import QCStatus, ValidationModel, VisitKeys
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
+========
+from keys.types import ModuleName
+
+from outputs.error_models import QCStatus, ValidationModel, VisitKeys
+from outputs.qc_report import (
+>>>>>>>> main:common/src/python/outputs/visit_submission_status.py
     QCReportBaseModel,
     QCTransformerError,
 )
