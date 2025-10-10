@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
-from keys.keys import FieldNames
+from keys.field_names import FieldNames
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 

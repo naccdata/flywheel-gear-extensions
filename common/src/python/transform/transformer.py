@@ -5,7 +5,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
-from keys.keys import FieldNames, SysErrorCodes
+from keys.field_names import FieldNames
+from keys.keys import SysErrorCodes
 from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error

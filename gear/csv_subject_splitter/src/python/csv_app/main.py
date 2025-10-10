@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Set, TextIO
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
-from keys.keys import FieldNames
+from keys.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     empty_field_error,

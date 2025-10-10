@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 import pytest
 from enrollment.enrollment_project import EnrollmentProject
 from identifiers.model import IdentifierObject
-from keys.keys import FieldNames
+from keys.field_names import FieldNames
 from legacy_identifier_transfer_app.main import (
     LegacyEnrollmentCollection,
     process_legacy_identifiers,

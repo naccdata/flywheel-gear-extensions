@@ -6,7 +6,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from configs.ingest_configs import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
-from keys.keys import DefaultValues, FieldNames, SysErrorCodes
+from keys.field_names import FieldNames
+from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.error_models import ValidationModel
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (

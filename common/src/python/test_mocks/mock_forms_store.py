@@ -3,7 +3,8 @@
 from typing import Dict, List, Optional
 
 from datastore.forms_store import FormsStore
-from keys.keys import FieldNames, MetadataKeys
+from keys.field_names import FieldNames
+from keys.keys import MetadataKeys
 
 from test_mocks.mock_flywheel import MockProject
 

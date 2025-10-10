@@ -6,9 +6,9 @@ from typing import List
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormQueryArgs, FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from keys.field_names import FieldNames
 from keys.keys import (
     DefaultValues,
-    FieldNames,
     MetadataKeys,
     SysErrorCodes,
 )

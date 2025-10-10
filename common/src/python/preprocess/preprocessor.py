@@ -10,9 +10,9 @@ from configs.ingest_configs import (
 )
 from datastore.forms_store import FormFilter, FormsStore
 from dates.form_dates import build_date
+from keys.field_names import FieldNames
 from keys.keys import (
     DefaultValues,
-    FieldNames,
     MetadataKeys,
     PreprocessingChecks,
     SysErrorCodes,

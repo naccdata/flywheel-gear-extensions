@@ -18,7 +18,8 @@ from gear_execution.gear_trigger import (
 )
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
-from keys.keys import FieldNames, SysErrorCodes
+from keys.field_names import FieldNames
+from keys.keys import SysErrorCodes
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_file_error,

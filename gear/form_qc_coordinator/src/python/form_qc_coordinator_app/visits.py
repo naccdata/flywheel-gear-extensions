@@ -5,7 +5,8 @@ from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, VisitInfo
 from gear_execution.gear_execution import GearExecutionError
-from keys.keys import FieldNames, MetadataKeys
+from keys.field_names import FieldNames
+from keys.keys import MetadataKeys
 
 log = logging.getLogger(__name__)
 
