@@ -8,7 +8,7 @@ from configs.ingest_configs import ModuleConfigs
 from keys.keys import (
     FieldNames,
 )
-from outputs.error_models import VisitKeys
+from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     preprocess_errors,

@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, FieldNames, SysErrorCodes
-from outputs.error_models import CSVLocation
+from nacc_common.error_models import CSVLocation
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import preprocess_errors
 from preprocess.preprocessor_helpers import (

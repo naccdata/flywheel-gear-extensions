@@ -2,11 +2,10 @@
 
 from typing import Any, get_args
 
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import QCReportBaseModel, QCTransformerError
 from pydantic import SerializerFunctionWrapHandler, model_serializer
-
-from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 
 
 class ErrorReportModel(QCReportBaseModel, FileError):

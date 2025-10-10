@@ -5,18 +5,18 @@ from typing import Any, Generator
 
 import pytest
 from configs.ingest_configs import ErrorLogTemplate
-from nacc_common.qc_report import (
-    DictReportWriter,
-    ProjectReportVisitor,
-    QCReportBaseModel,
-    StatusReportVisitor,
-)
-from outputs.error_models import (
+from nacc_common.error_models import (
     FileQCModel,
     GearQCModel,
     QCStatus,
     ValidationModel,
     VisitKeys,
+)
+from nacc_common.qc_report import (
+    DictReportWriter,
+    ProjectReportVisitor,
+    QCReportBaseModel,
+    StatusReportVisitor,
 )
 from pydantic import ValidationError
 from test_mocks.mock_flywheel import MockProject

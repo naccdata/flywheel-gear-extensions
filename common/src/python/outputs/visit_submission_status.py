@@ -2,13 +2,12 @@
 
 from typing import Optional, get_args
 
+from nacc_common.error_models import QCStatus, ValidationModel, VisitKeys
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     QCReportBaseModel,
     QCTransformerError,
 )
-
-from outputs.error_models import QCStatus, ValidationModel, VisitKeys
 
 
 class StatusReportModel(QCReportBaseModel):

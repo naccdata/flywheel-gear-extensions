@@ -12,8 +12,8 @@ from keys.keys import (
     MetadataKeys,
     SysErrorCodes,
 )
+from nacc_common.error_models import FileError
 from notifications.email import EmailClient, create_ses_client
-from outputs.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import FieldNames, SysErrorCodes
-from outputs.error_models import VisitKeys
+from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
 from pydantic import BaseModel, RootModel

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import FieldNames, RuleLabels
-from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     system_error,

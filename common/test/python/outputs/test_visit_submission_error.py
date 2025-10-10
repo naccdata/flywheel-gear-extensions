@@ -1,6 +1,6 @@
 from datetime import date
 
-from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from outputs.visit_submission_error import ErrorReportModel, error_transformer
 
 

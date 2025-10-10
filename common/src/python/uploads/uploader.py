@@ -18,8 +18,8 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectError,
 )
 from keys.keys import FieldNames
+from nacc_common.error_models import FileError, VisitKeys
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 
