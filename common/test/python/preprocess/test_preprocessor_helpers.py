@@ -3,9 +3,9 @@
 from typing import Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.error_models import CSVLocation
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import preprocess_errors
 from preprocess.preprocessor_helpers import (

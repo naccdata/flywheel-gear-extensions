@@ -23,8 +23,8 @@ from gear_execution.gear_execution import (
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues, MetadataKeys
+from nacc_common.field_names import FieldNames
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
 

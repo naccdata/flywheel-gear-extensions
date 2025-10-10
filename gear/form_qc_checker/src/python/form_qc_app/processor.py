@@ -17,9 +17,9 @@ from flywheel_adaptor.subject_adaptor import (
     VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.error_models import JSONLocation, VisitKeys
+from nacc_common.field_names import FieldNames
 from outputs.error_logger import (
     MetadataCleanupFlag,
     update_error_log_and_qc_metadata,

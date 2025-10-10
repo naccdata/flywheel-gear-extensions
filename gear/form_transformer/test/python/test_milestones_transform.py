@@ -4,8 +4,8 @@ import json
 from typing import Any, Dict, Optional, Tuple
 
 from form_csv_app.main import CSVTransformVisitor
-from keys.field_names import FieldNames
 from keys.keys import SysErrorCodes
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,

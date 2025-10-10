@@ -7,8 +7,8 @@ from centers.nacc_group import NACCGroup
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues
+from nacc_common.field_names import FieldNames
 from nacc_form_validator.datastore import Datastore
 from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
 

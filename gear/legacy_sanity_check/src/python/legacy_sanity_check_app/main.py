@@ -6,13 +6,13 @@ from typing import List
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormQueryArgs, FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from keys.field_names import FieldNames
 from keys.keys import (
     DefaultValues,
     MetadataKeys,
     SysErrorCodes,
 )
 from nacc_common.error_models import FileError
+from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (

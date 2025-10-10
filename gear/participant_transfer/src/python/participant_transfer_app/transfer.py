@@ -21,8 +21,8 @@ from identifiers.identifiers_lambda_repository import (
 )
 from identifiers.identifiers_repository import IdentifierUpdateObject
 from identifiers.model import CenterIdentifiers, IdentifierObject
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues
+from nacc_common.field_names import FieldNames
 from outputs.error_logger import update_gear_qc_status
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError

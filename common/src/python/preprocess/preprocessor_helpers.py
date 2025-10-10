@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
-from keys.field_names import (
+from nacc_common.error_models import VisitKeys
+from nacc_common.field_names import (
     FieldNames,
 )
-from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     preprocess_errors,

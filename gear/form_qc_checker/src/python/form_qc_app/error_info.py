@@ -4,9 +4,9 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
-from keys.field_names import FieldNames
 from keys.keys import RuleLabels
 from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     system_error,

@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from gear_execution.gear_trigger import GearInfo
-from keys.field_names import FieldNames
 from keys.keys import DefaultValues, PreprocessingChecks
+from nacc_common.field_names import FieldNames
 from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
 
 PipelineType = Literal["submission", "finalization"]
