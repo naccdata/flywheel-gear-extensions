@@ -7,6 +7,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from identifiers.model import NACCID_PATTERN
 from inputs.csv_reader import CSVVisitor
 from keys.types import ModuleName
+from nacc_attribute_deriver.symbol_table import SymbolTable
 from outputs.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
@@ -31,25 +32,109 @@ class DataRequestMatch(BaseModel):
     project_label: str
 
 
+class ModuleDataGatherer:
+    """Defines process to gather file.info.form custom info for data
+    requests."""
+
+    def __init__(
+        self,
+        proxy: FlywheelProxy,
+        module_name: ModuleName,
+        info_paths: Optional[list[str]] = None,
+    ) -> None:
+        self.__proxy = proxy
+        self.__module_name = module_name
+        self.__writer = StringCSVWriter()
+        self.__info_paths = info_paths if info_paths is not None else ["forms.json"]
+
+    @property
+    def module_name(self):
+        return self.__module_name
+
+    @property
+    def content(self):
+        return self.__writer.get_content()
+
+    def gather_file_info(self, file: FileEntry) -> None:
+        """Writes file info to the writer. Uses the info paths of this object
+        to pull the dictionary at file.info.<path> and merges the dictionaries.
+
+        Args:
+          file: the file object
+        Raises:
+          ModuleDataError if path doesn't exist or the value is not a dictionary.
+        """
+        merged_data = {}
+        file = file.reload()
+        symbol_table = SymbolTable(file.info)
+
+        for path in self.__info_paths:
+            try:
+                form_data = symbol_table[f"file.info.{path}"]
+            except KeyError as error:
+                raise ModuleDataError(f"{path} not found for {file.file_id}") from error
+            if not isinstance(form_data, dict):
+                raise ModuleDataError(
+                    f"expected a dictionary at {path}, got {type(form_data)}"
+                )
+
+            merged_data.update(form_data)
+
+        self.__writer.write(merged_data)
+
+    def gather_request_data(self, request: DataRequestMatch) -> None:
+        """Writes the file custom info to the writer of this object for each
+        acquisition of the request subject that is labeled byt the module name.
+
+        Args:
+          request: the data request
+        """
+        files = self.__proxy.get_files(
+            f"parent_ref.type=acquisition,parents.subject={request.subject_id},"
+            f"acquisition.label={self.__module_name}"
+        )
+        for file in files:
+            try:
+                self.gather_file_info(file)
+            except ModuleDataError as error:
+                log.warning("Failed to load data: %s", str(error))
+                continue
+
+
+class ModuleDataError(Exception):
+    """Error when accessing form module data."""
+
+
+def create_project_matcher(study_id: str, project_names: list[str]) -> re.Pattern[str]:
+    temp_project_names = set(project_names)
+    temp_project_names.update({f"{name}-{study_id}" for name in project_names})
+    return re.compile(f"^{'|'.join(temp_project_names)}$")
+
+
 class DataRequestVisitor(CSVVisitor):
     """Gathers subject matches for a data request file given as a CSV file
     where each row loads as a DataRequest object."""
 
     def __init__(
         self,
+        *,
         proxy: FlywheelProxy,
         error_writer: ErrorWriter,
         project_names: list[str],
         study_id: str,
-        gatherers: list["ModuleDataGatherer"],
+        gatherers: list[ModuleDataGatherer],
     ) -> None:
         self.__proxy = proxy
         self.__error_writer = error_writer
         self.__expected_studies = {study_id, "adrc"}
         self.__gatherers = gatherers
-        temp_project_names = set(project_names)
-        temp_project_names.update({f"{name}-{study_id}" for name in project_names})
-        self.__project_matcher = re.compile(f"^{'|'.join(temp_project_names)}$")
+        self.__project_matcher = create_project_matcher(
+            study_id=study_id, project_names=project_names
+        )
+
+    @property
+    def gatherers(self) -> list[ModuleDataGatherer]:
+        return self.__gatherers
 
     def visit_header(self, header: List[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
@@ -124,40 +209,3 @@ class DataRequestVisitor(CSVVisitor):
                     )
 
         return True
-
-
-class ModuleDataGatherer:
-    """Defines process to gather file.info.form custom info for data requests"""
-
-    def __init__(self, proxy: FlywheelProxy, module_name: ModuleName, info_paths: Optional[list[str]]=None) -> None:
-        self.__proxy = proxy
-        self.__module_name = module_name
-        self.__writer = StringCSVWriter()
-        self.__info_paths = info_paths if info_paths is not None else ["forms.json"]
-
-    @property
-    def module_name(self):
-        return self.__module_name
-
-    def visit_file(self, file: FileEntry) -> None:
-        file = file.reload()
-        form_data = file.info.get("forms")
-        if not form_data:
-            raise ModuleDataError(f"file.info.forms not found for {file.file_id}")
-        json_data = form_data.get("json")
-        if not json_data:
-            raise ModuleDataError(f"file.info.forms.json not found for {file.file_id}")
-
-        self.__writer.write(json_data)
-
-    def gather_request_data(self, request: DataRequestMatch) -> None:
-        files = self.__proxy.get_files(
-            f"parent_ref.type=acquisition,parents.subject={request.subject_id},"
-            f"acquisition.label={self.__module_name}"
-        )
-        for file in files:
-            self.visit_file(file)
-
-
-class ModuleDataError(Exception):
-    """Error when accessing form module data."""
