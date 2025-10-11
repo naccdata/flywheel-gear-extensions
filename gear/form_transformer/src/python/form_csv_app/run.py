@@ -229,16 +229,31 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             if form_configs.legacy_project_label
             else DefaultValues.LEGACY_PRJ_LABEL
         )
-        try:
-            legacy_project = ProjectAdaptor.create(
-                proxy=ingest_project.proxy,
-                group_id=ingest_project.group,
-                project_label=legacy_label,
-            )
-        except ProjectError as error:
-            raise GearExecutionError(
-                f"Failed to retrieve legacy project: {error}"
-            ) from error
+
+        if legacy_label == "NA":
+            log.info("Retrospective project not applicable, skipping lookup")
+            legacy_project = None
+        else:
+            retrospective_prj_label = legacy_label
+            # assumes project label is in <pipeline>-<datatype>-[<study]] format
+            tokens = ingest_project.label.split("-")
+            if len(tokens) > 2:
+                retrospective_prj_label = legacy_label + "-" + "-".join(tokens[2:])
+            try:
+                legacy_project = ProjectAdaptor.create(
+                    proxy=ingest_project.proxy,
+                    group_id=ingest_project.group,
+                    project_label=retrospective_prj_label,
+                )
+                log.info(
+                    "Retrospective project: "
+                    f"{ingest_project.group}/{legacy_project.label}"
+                )
+            except ProjectError as error:
+                raise GearExecutionError(
+                    "Failed to retrieve retrospective project"
+                    f"{ingest_project.group}/{retrospective_prj_label}: {error}"
+                ) from error
 
         forms_store = FormsStore(
             ingest_project=ingest_project, legacy_project=legacy_project

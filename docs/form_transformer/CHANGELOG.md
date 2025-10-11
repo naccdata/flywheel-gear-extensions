@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.1
+* Supports having study suffix in retrospective-form project label
+  
 ## 1.5.0
 * Rebuilt for ssm-parameter-store update
 * Adds new NP/MLST-related preprocessing checks (025, 026, and 027)
