@@ -1,8 +1,8 @@
 import os
-import boto3
-from moto import mock_aws
-import pytest
 
+import boto3
+import pytest
+from moto import mock_aws
 from s3.s3_bucket import S3BucketInterface
 
 
@@ -12,10 +12,12 @@ def aws_credentials():
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
+
 @pytest.fixture
 def fake_s3(aws_credentials):
     with mock_aws():
         yield None
+
 
 @pytest.fixture
 def testing_bucket(fake_s3) -> S3BucketInterface:
@@ -26,7 +28,7 @@ def testing_bucket(fake_s3) -> S3BucketInterface:
 
     return S3BucketInterface(boto_client=s3_client, bucket_name=bucket_name)
 
-class TestS3BucketInterface:
 
+class TestS3BucketInterface:
     def test_empty(self, testing_bucket):
         assert False
