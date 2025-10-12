@@ -21,13 +21,7 @@ class VisitEventLogger:
     def __init__(self, s3_bucket: S3BucketInterface) -> None:
         self.__bucket = s3_bucket
 
-    def log_event(self, event: VisitEvent) -> None:
-        """Logs the event.
-
-        Args:
-          event: the visit event
-        """
-        event_json = event.model_dump_json(exclude_none=True)
+    def create_event_filename(self, event: VisitEvent) -> str:
         timestamp = event.timestamp.strftime("%Y%m%d-%H%M%S")
         filename = (
             f"adcid-{event.pipeline_adcid}/"
@@ -35,4 +29,14 @@ class VisitEventLogger:
             f"log/"
             f"log-{event.action}-{timestamp}.json"
         )
+        return filename
+
+    def log_event(self, event: VisitEvent) -> None:
+        """Logs the event.
+
+        Args:
+          event: the visit event
+        """
+        event_json = event.model_dump_json(exclude_none=True)
+        filename = self.create_event_filename(event)
         self.__bucket.put_file_object(filename=filename, contents=event_json)
