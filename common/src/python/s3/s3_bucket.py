@@ -47,7 +47,7 @@ class S3BucketInterface:
         """
         return self.__client.get_object(Bucket=self.__bucket, Key=filename)
 
-    def put_file_object(self, filename: str, contents: str) -> None:
+    def put_file_object(self, *, filename: str, contents: str) -> None:
         """Write the contents to the bucket with the filename.
 
         Args:
