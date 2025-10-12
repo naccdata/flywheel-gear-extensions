@@ -1,0 +1,76 @@
+{
+    "name": "file-distribution",
+    "label": "File Distribution",
+    "description": "Gear that distributes files to target projects",
+    "version": "1.0.0",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/file-distribution:1.0.0"
+        },
+        "flywheel": {
+            "suite": "Utility",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The input file",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
+        "target_project": {
+            "description": "Label of target project to distribute file to; all target ADCIDs expected to have a project",
+            "type": "string"
+        },
+        "include": {
+            "description": "Comma-delimited list of ADCIDs to include",
+            "type": "string",
+            "default": ""
+        },
+        "exclude": {
+            "description": "Comma-delimited list of ADCIDs to exclude",
+            "type": "string",
+            "default": ""
+        },
+        "batch_size": {
+            "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others",
+            "type": "integer",
+            "default": 10
+        },
+        "downstream_gears": {
+            "description": "If scheduling, comma-delimited string of downstream gears to wait for",
+            "type": "string",
+            "default": ""
+        }
+    },
+    "command": "/bin/run"
+}

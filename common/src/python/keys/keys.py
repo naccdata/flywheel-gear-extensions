@@ -46,6 +46,7 @@ class DefaultValues:
     NOTFILLED = 0
     LEGACY_PRJ_LABEL = "retrospective-form"
     ENRL_PRJ_LABEL = "ingest-enrollment"
+    FORM_PRJ_LABEL = "ingest-form"
     ENROLLMENT_MODULE = "ENROLL"
     UDS_MODULE = "UDS"
     MDS_MODULE = "MDS"

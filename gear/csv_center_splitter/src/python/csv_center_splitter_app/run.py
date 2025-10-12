@@ -1,7 +1,7 @@
 """Entry script for csv_center_splitter."""
 
 import logging
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
@@ -20,7 +20,10 @@ from notifications.email_list import (
     get_redcap_email_list_client,
 )
 from outputs.error_writer import ListErrorWriter
-from utils.utils import parse_string_to_list
+from utils.utils import (
+    filter_include_exclude,
+    parse_string_to_list,
+)
 
 from csv_center_splitter_app.main import run
 
@@ -37,11 +40,11 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         adcid_key: str,
         target_project: str,
-        include: Set[str],
-        exclude: Set[str],
         batch_size: int,
         staging_project_id: Optional[str] = None,
         downstream_gears: Optional[List[str]] = None,
+        include: Optional[str] = None,
+        exclude: Optional[str] = None,
         delimiter: str = ",",
         local_run: bool = False,
         email_client: Optional[EmailListClient] = None,
@@ -52,13 +55,15 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__adcid_key = adcid_key
         self.__target_project = target_project
         self.__staging_project_id = staging_project_id
-        self.__include = include
-        self.__exclude = exclude
         self.__batch_size = batch_size
         self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
         self.__local_run = local_run
         self.__email_client = email_client
+
+        self.__centers = filter_include_exclude(
+            [str(x) for x in self.admin_group("nacc").get_adcids()], include, exclude
+        )
 
     @classmethod
     def create(
@@ -92,12 +97,6 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
-        # for including/excluding
-        include = set(parse_string_to_list(context.config.get("include", "")))
-        exclude = set(parse_string_to_list(context.config.get("exclude", "")))
-        if include and exclude and include.intersection(exclude):
-            raise GearExecutionError("Include and exclude lists cannot overlap")
-
         # for scheduling
         batch_size = context.config.get("batch_size", 1)
         downstream_gears = parse_string_to_list(
@@ -113,9 +112,6 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f"Batch size must be a non-negative integer: {batch_size}"
             ) from e
-
-        delimiter = context.config.get("delimiter", ",")
-        local_run = context.config.get("local_run", False)
 
         # for emails
         redcap_email_configs_file = InputFileWrapper.create(
@@ -136,12 +132,12 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             adcid_key=adcid_key,
             target_project=target_project,
             staging_project_id=staging_project_id,
-            include=include,
-            exclude=exclude,
             batch_size=batch_size,
             downstream_gears=downstream_gears,
-            delimiter=delimiter,
-            local_run=local_run,
+            include=context.config.get("include", None),
+            exclude=context.config.get("exclude", None),
+            delimiter=context.config.get("delimiter", ","),
+            local_run=context.config.get("local_run", False),
             email_client=email_client,
         )
 
@@ -162,12 +158,6 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                     f"Failed to find the input file: {error}"
                 ) from error
 
-        centers = {str(adcid) for adcid in self.admin_group("nacc").get_adcids()}
-        if self.__include:
-            centers = {adcid for adcid in centers if adcid in self.__include}
-        if self.__exclude:
-            centers = {adcid for adcid in centers if adcid not in self.__exclude}
-
         with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
             error_writer = ListErrorWriter(container_id=file_id, fw_path=fw_path)
 
@@ -181,7 +171,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 batch_size=self.__batch_size,
                 staging_project_id=self.__staging_project_id,
                 downstream_gears=self.__downstream_gears,
-                include=centers,
+                include=set(self.__centers),
                 delimiter=self.__delimiter,
             )
 

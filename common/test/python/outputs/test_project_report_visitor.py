@@ -1,6 +1,7 @@
 from csv import DictReader, DictWriter
 from datetime import date
 from io import StringIO
+from typing import Any, Generator
 
 import pytest
 from configs.ingest_configs import ErrorLogTemplate
@@ -12,6 +13,7 @@ from outputs.error_models import (
     VisitKeys,
 )
 from outputs.qc_report import (
+    DictReportWriter,
     ProjectReportVisitor,
     QCReportBaseModel,
     StatusReportVisitor,
@@ -66,7 +68,7 @@ def visit_details():
 
 
 @pytest.fixture(scope="session")
-def file_project(status_file_model, visit_details):
+def file_project(status_file_model, visit_details) -> Generator[MockProject, Any, Any]:
     project = MockProject("dummy_project")
     qc_model = status_file_model
     log_filename = ErrorLogTemplate().instantiate(
@@ -101,7 +103,7 @@ class TestProjectReportVisitor:
             modules={visit_details.module},
             ptid_set={visit_details.ptid},
             file_visitor=file_visitor,
-            writer=writer,
+            writer=DictReportWriter(writer),
         )
         visitor.visit_project(file_project)
         stream.seek(0)

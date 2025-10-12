@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues, FieldNames, PreprocessingChecks
+from keys.keys import FieldNames, PreprocessingChecks
 from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
 
 PipelineType = Literal["submission", "finalization"]
@@ -226,7 +226,7 @@ class ModuleConfigs(BaseModel):
 class FormProjectConfigs(BaseModel):
     primary_key: str
     accepted_modules: List[str]
-    legacy_project_label: Optional[str] = DefaultValues.LEGACY_PRJ_LABEL
+    legacy_project_label: Optional[str] = None
     module_configs: Dict[str, ModuleConfigs]
 
     def get_module_dependencies(self, module: str) -> Optional[List[str]]:
