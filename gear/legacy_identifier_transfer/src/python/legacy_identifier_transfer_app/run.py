@@ -162,12 +162,11 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         if project is None:
             raise GearExecutionError(f"Unable to find project {project_id}")
 
-        destination_project = ProjectAdaptor(project=project, proxy=self.proxy)
+        project_adaptor = ProjectAdaptor(project=project, proxy=self.proxy)
         try:
-            adcid = destination_project.get_pipeline_adcid()
+            adcid = project_adaptor.get_pipeline_adcid()
         except ProjectError as error:
             raise GearExecutionError(error) from error
-
         log.info(f"ADCID: {adcid}")
 
         # Get all identifiers for given adcid
@@ -191,25 +190,30 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         group = self.proxy.find_group(group_id=group_id)
         if not group:
             raise GearExecutionError(f"Unable to get center group: {group_id}")
-        log.info(f"Group: {group.label}")
 
-        log.info(f"Project: {project.label}")
-        enrollment_project = EnrollmentProject.create_from(destination_project)
+        enrollment_project = EnrollmentProject.create_from(project_adaptor)
         log.info(f"Enrollment project: {enrollment_project.label}")
+
+        legacy_ingest_label = self.__legacy_ingest_label
+        if len(project_adaptor.label) > len(DefaultValues.ENRL_PRJ_LABEL):
+            legacy_ingest_label = (
+                self.__legacy_ingest_label
+                + project_adaptor.label[len(DefaultValues.ENRL_PRJ_LABEL) :]
+            )
 
         try:
             legacy_project = ProjectAdaptor.create(
                 proxy=self.proxy,
                 group_id=group_id,
-                project_label=self.__legacy_ingest_label,
+                project_label=legacy_ingest_label,
             )
+            log.info(f"Legacy ingest project: {legacy_project.label}")
         except ProjectError as error:
-            raise GearExecutionError(
-                f"Could not find {group_id}/{self.__legacy_ingest_label}: {error}"
-            ) from error
+            log.error(f"Could not find {group_id}/{legacy_ingest_label}: {error}")
+            legacy_project = None
 
         forms_store = FormsStore(
-            ingest_project=destination_project, legacy_project=legacy_project
+            ingest_project=project_adaptor, legacy_project=legacy_project
         )
 
         sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
