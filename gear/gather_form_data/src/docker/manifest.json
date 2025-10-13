@@ -42,11 +42,6 @@
             "type": "boolean",
             "default": false
         },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
