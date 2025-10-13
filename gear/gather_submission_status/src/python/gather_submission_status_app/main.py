@@ -48,14 +48,16 @@ def run(
         if not request_list:
             log.warning("No participants found for center %s", pipeline_adcid)
             continue
+        request_adcid = request_list[0].adcid  # all requests have same adcid
+        if request_adcid != pipeline_adcid:
+            log.error("Expect ADCID: %s got %s", pipeline_adcid, request_adcid)
+            continue
 
         ptid_set = {request.ptid for request in request_list}
-        request_adcid = request_list[0].adcid  # all requests have same adcid
-
         for project in project_list:
             log.info("visiting project %s/%s", pipeline_adcid, project.label)
             project_visitor = ProjectReportVisitor(
-                adcid=request_adcid,
+                adcid=pipeline_adcid,
                 modules=set(modules),
                 ptid_set=ptid_set,
                 file_visitor=file_visitor,
