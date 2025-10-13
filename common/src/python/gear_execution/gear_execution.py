@@ -145,14 +145,21 @@ class InputFileWrapper:
 
     def __init__(self, file_input: Dict[str, Any]) -> None:
         self.file_input = file_input
+        self.__file_entry: Optional[FileEntry] = None
 
     def file_entry(self, context: GearToolkitContext) -> FileEntry:
+        if self.__file_entry is not None:
+            return self.__file_entry
+
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
         container = context.get_container_from_ref(file_hierarchy)
         assert isinstance(container, (Acquisition, Subject, Project))
         container = container.reload()
-        return container.get_file(self.filename)
+        file = container.get_file(self.filename)
+        self.__file_entry = file.reload()
+
+        return self.__file_entry
 
     def validate_file_extension(self, accepted_extensions: List[str]) -> Optional[str]:
         """Check whether the input file type is accepted.
@@ -190,6 +197,10 @@ class InputFileWrapper:
     def file_qc_info(self) -> Dict[str, Any]:
         """Returns the QC object in the file info."""
         return self.file_info.get("qc", {})
+
+    @property
+    def uploader(self) -> Optional[str]:
+        return self.file_info.get("uploader")
 
     @property
     def filename(self) -> str:
@@ -245,18 +256,26 @@ class InputFileWrapper:
 
         return InputFileWrapper(file_input=file_input)
 
-    def get_validation_objects(self) -> List[Dict[str, Any]]:
+    def get_validation_objects(
+        self, gear_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Gets the QC validation objects from the file QC info."""
         result = []
-        for gear_object in self.file_qc_info.values():
+
+        gear_objects = list(self.file_qc_info.values())
+        if gear_name:
+            gear_objects = [self.file_qc_info.get(gear_name, {})]
+
+        for gear_object in gear_objects:
             validation_object = gear_object.get("validation", {})
             if validation_object:
                 result.append(validation_object)
+
         return result
 
-    def has_qc_errors(self) -> bool:
+    def has_qc_errors(self, gear_name: Optional[str] = None) -> bool:
         """Check the QC validation objects in the file QC info for failures."""
-        validation_objects = self.get_validation_objects()
+        validation_objects = self.get_validation_objects(gear_name=gear_name)
         for validation_object in validation_objects:
             if validation_object["state"] == "FAIL":
                 return True
@@ -317,6 +336,32 @@ class InputFileWrapper:
         return project
 
 
+def get_submitter(file: FileEntry, proxy: FlywheelProxy) -> str:
+    """Attempts to determine the user that submitted the file.
+
+    First looks for user id as file.info.uploader, and then file.origin.id.
+    Then looks for user with ID, and returns the email.
+
+    Args:
+      file: file entry for the file
+      proxy: the proxy object
+    Returns:
+      either the user email or ID for the submitter of the file
+    """
+    user_id = file.info.get("uploader")
+    if user_id is None:
+        user_id = file.origin.id
+    user = proxy.find_user(user_id)
+    if user:
+        # lookup the user's email; if not set to the file origin id
+        submitter = user.email if user.email else user_id
+    else:
+        submitter = user_id
+        log.warning(f"Owner of the file {user_id} does not match a user on Flywheel")
+
+    return submitter
+
+
 # pylint: disable=too-few-public-methods
 class GearExecutionEnvironment(ABC):
     """Base class for gear execution environments."""
@@ -369,6 +414,24 @@ class GearExecutionEnvironment(ABC):
           the GearExecutionEnvironment initialized with the input
         """
         raise GearExecutionError("Not implemented")
+
+    def get_job_id(self, context: GearToolkitContext, gear_name: str) -> Optional[str]:
+        """Return the ID of the gear job.
+
+        Args:
+            context: GearToolkitContext to look up the Job ID
+            gear_name: Gear name
+
+        Returns:
+            str (optional): Job ID if found, else None
+        """
+        context.metadata.pull_job_info()  # type: ignore
+        if not context.metadata.job_info:  # type: ignore
+            log.warning(f"Failed to pull job info for gear {gear_name}")
+            return None
+
+        job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
+        return job_info.get("job_info", {}).get("job_id", None)
 
 
 # TODO: remove type ignore when using python 3.12 or above

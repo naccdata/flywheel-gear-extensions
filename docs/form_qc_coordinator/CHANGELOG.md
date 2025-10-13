@@ -2,7 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.2.7
+* Rebuilt for reset error log content in read failure
+  
+## 1.2.6
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for new preprocessing checks in config
+
+## 1.2.5
 * Updates error metadata to include date and naccid
   
 ## 1.2.4

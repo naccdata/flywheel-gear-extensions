@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.4
+* Rebuilt for reset error log content in read failure
+
+## 1.2.3
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for error metadata updates
+  
 ## 1.2.2
 * Remove gear failure on missing tag
 * Rebuilding for API call retries

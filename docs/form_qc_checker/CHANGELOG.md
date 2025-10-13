@@ -3,8 +3,18 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.6.0
-
 * Updates `nacc-form-validator` to `1.6.0` and defines the new `get_initial_record` Datastore method
+  
+## 1.5.7
+* Supports having study suffix in retrospective-form project label
+* Rebuilt for reset error log content in read failure
+  
+## 1.5.6
+* Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for new preprocessing checks in config
+  
+## 1.5.5
 * Updates error metadata to include date and naccid
 
 ## 1.5.4

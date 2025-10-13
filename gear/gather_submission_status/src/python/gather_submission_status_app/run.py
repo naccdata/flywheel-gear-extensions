@@ -1,8 +1,9 @@
 """Entry script for Gather Submission Status."""
 
 import logging
+from csv import DictWriter
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, get_args
 
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -10,13 +11,22 @@ from gear_execution.gear_execution import (
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from outputs.error_writer import ListErrorWriter
+from outputs.qc_report import (
+    ErrorReportVisitor,
+    FileQCReportVisitor,
+    StatusReportVisitor,
+)
+from outputs.visit_submission_error import ErrorReportModel, error_transformer
+from outputs.visit_submission_status import StatusReportModel, status_transformer
 
-from gather_submission_status_app.main import run
+from gather_submission_status_app.main import ModuleName, run
+from gather_submission_status_app.status_request import RequestClusteringVisitor
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +42,10 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename: str,
         gear_name: str,
         project_names: List[str],
+        modules: set[ModuleName],
+        study_id: str,
+        file_visitor: FileQCReportVisitor,
+        fieldnames: List[str],
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -39,6 +53,10 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__output_filename = output_filename
         self.__gear_name = gear_name
         self.__project_names = project_names
+        self.__modules = modules
+        self.__study_id = study_id
+        self.__file_visitor = file_visitor
+        self.__report_fieldnames = fieldnames
 
     @classmethod
     def create(
@@ -64,7 +82,29 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename = context.config.get("output_file", "submission-status.csv")
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
+        modules = context.config.get("modules", "").split(",")
+        unexpected_modules = [
+            module for module in modules if module not in get_args(ModuleName)
+        ]
+        if unexpected_modules:
+            log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
+
+        study_id = context.config.get("study_id", "adrc")
         gear_name = context.manifest.get("name", "gather-submission-status")
+
+        query_type_arg = context.config.get("query_type", "status")
+        if query_type_arg not in ["error", "status"]:
+            raise GearExecutionError(f"Invalid query_type: {query_type_arg}")
+
+        query_type = query_type_arg if query_type_arg == "error" else "status"
+
+        file_visitor: FileQCReportVisitor = StatusReportVisitor(status_transformer)
+        fieldnames = list(StatusReportModel.model_fields.keys())
+
+        if query_type == "error":
+            file_visitor = ErrorReportVisitor(error_transformer)
+            fieldnames = ErrorReportModel.serialized_fieldnames()
+
         return GatherSubmissionStatusVisitor(
             client=client,
             file_input=file_input,
@@ -72,6 +112,10 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
+            modules={module for module in get_args(ModuleName) if module in modules},
+            study_id=study_id,
+            file_visitor=file_visitor,
+            fieldnames=fieldnames,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -90,16 +134,24 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             )
 
             admin_group = self.admin_group(admin_id=self.__admin_id)
+            clustering = RequestClusteringVisitor(
+                admin_group=admin_group,
+                study_id=self.__study_id,
+                project_names=self.__project_names,
+                error_writer=error_writer,
+            )
             with context.open_output(
                 self.__output_filename, mode="w", encoding="utf-8"
             ) as status_file:
+                writer = DictWriter(status_file, fieldnames=self.__report_fieldnames)
+                writer.writeheader()
                 success = run(
-                    proxy=self.proxy,
                     input_file=csv_file,
-                    admin_group=admin_group,
-                    project_names=self.__project_names,
+                    modules=self.__modules,
+                    clustering_visitor=clustering,
+                    file_visitor=self.__file_visitor,
+                    writer=writer,
                     error_writer=error_writer,
-                    output_file=status_file,
                 )
 
             context.metadata.add_qc_result(

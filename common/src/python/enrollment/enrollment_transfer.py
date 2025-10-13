@@ -9,8 +9,11 @@ from typing import Any, Dict, Literal, Optional
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
+    IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
+    GUID_PATTERN,
     NACCID_PATTERN,
     PTID_PATTERN,
     CenterIdentifiers,
@@ -23,26 +26,53 @@ from outputs.error_models import VisitKeys
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     existing_participant_error,
+    identifier_error,
     preprocessing_error,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
+
+TransferStatus = Literal["pending", "approved", "rejected", "completed", "partial"]
+EnrollmentStatus = Literal["active", "transferred"]
+
+
+def empty_str_to_none(value: Any) -> Optional[Any]:
+    if isinstance(value, str) and value.strip() == "":
+        return None
+
+    return value
 
 
 class GenderIdentity(BaseModel):
     """Model for Gender Identity demographic data."""
 
-    man: Optional[Literal[1]]
-    woman: Optional[Literal[1]]
-    transgender_man: Optional[Literal[1]]
-    transgender_woman: Optional[Literal[1]]
-    nonbinary: Optional[Literal[1]]
-    two_spirit: Optional[Literal[1]]
-    other: Optional[Literal[1]]
-    other_term: Optional[Literal[1]]
-    dont_know: Optional[Literal[1]]
-    no_answer: Optional[Literal[1]]
+    @field_validator(
+        "man",
+        "woman",
+        "transgender_man",
+        "transgender_woman",
+        "nonbinary",
+        "two_spirit",
+        "other",
+        "other_term",
+        "dont_know",
+        "no_answer",
+        mode="before",
+    )
+    def convert_to_none(cls, value: Any) -> Optional[int]:
+        return empty_str_to_none(value)
+
+    man: Optional[int] = None
+    woman: Optional[int] = None
+    transgender_man: Optional[int] = None
+    transgender_woman: Optional[int] = None
+    nonbinary: Optional[int] = None
+    two_spirit: Optional[int] = None
+    other: Optional[int] = None
+    other_term: Optional[int] = None
+    dont_know: Optional[int] = None
+    no_answer: Optional[int] = None
 
 
 class Demographics(BaseModel):
@@ -66,20 +96,18 @@ class Demographics(BaseModel):
         """
         return Demographics(
             years_education=row["enrleduc"],
-            birth_date=datetime(int(row["enrlbirthmo"]), int(row["enrlbirthyr"]), 1),
+            birth_date=datetime(int(row["enrlbirthyr"]), int(row["enrlbirthmo"]), 1),
             gender_identity=GenderIdentity(
-                man=row["enrlgenman"] if row["enrlgenman"] else None,
-                woman=row["enrlgenwoman"] if row["enrlgenwoman"] else None,
-                transgender_man=row["enrlgentrman"] if row["enrlgentrman"] else None,
-                transgender_woman=row["enrlgentrwoman"]
-                if row["enrlgentrwoman"]
-                else None,
-                nonbinary=row["enrlgennonbi"] if row["enrlgennonbi"] else None,
-                two_spirit=row["enrlgentwospir"] if row["enrlgentwospir"] else None,
-                other=row["enrlgenoth"] if row["enrlgenoth"] else None,
-                other_term=row["enrlgenothx"] if row["enrlgenothx"] else None,
-                dont_know=row["enrlgendkn"] if row["enrlgendkn"] else None,
-                no_answer=row["enrlgennoans"] if row["enrlgennoans"] else None,
+                man=row.get("enrlgenman"),
+                woman=row.get("enrlgenwoman"),
+                transgender_man=row.get("enrlgentrman"),
+                transgender_woman=row.get("enrlgentrwoman"),
+                nonbinary=row.get("enrlgennonbi"),
+                two_spirit=row.get("enrlgentwospir"),
+                other=row.get("enrlgenoth"),
+                other_term=row.get("enrlgenothx"),
+                dont_know=row.get("enrlgendkn"),
+                no_answer=row.get("enrlgennoans"),
             ),
         )
 
@@ -87,11 +115,38 @@ class Demographics(BaseModel):
 class TransferRecord(BaseModel):
     """Model representing transfer between centers."""
 
-    date: datetime
-    initials: str
+    @field_validator("naccid", "guid", "initials", "previous_ptid", mode="before")
+    def convert_to_none(cls, value: Any) -> Optional[str]:
+        return empty_str_to_none(value)
+
+    status: TransferStatus
+    request_date: datetime
     center_identifiers: CenterIdentifiers
-    previous_identifiers: Optional[CenterIdentifiers] = None
+    updated_date: datetime
+    submitter: str  # FW user who uploaded the transfer form
+    initials: Optional[str] = None
+    previous_adcid: int = Field(ge=0)
+    previous_ptid: Optional[str] = Field(None, max_length=10, pattern=PTID_PATTERN)
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
+    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
+    demographics: Optional[Demographics] = None
+
+    def get_identifier_update_object(self, active: bool) -> IdentifierUpdateObject:
+        """Creates an object for adding/modifying a record in the repository.
+
+        Returns:
+          the identifier update object to add/modify record with known NACCID
+        """
+        assert self.naccid, "NACCID is required for identifier update"
+
+        return IdentifierUpdateObject(
+            naccid=self.naccid,
+            adcid=self.center_identifiers.adcid,
+            ptid=self.center_identifiers.ptid,
+            guid=self.guid,
+            active=active,
+            naccadc=None,
+        )
 
 
 class EnrollmentRecord(GUIDField, OptionalNACCIDField):
@@ -100,8 +155,7 @@ class EnrollmentRecord(GUIDField, OptionalNACCIDField):
     center_identifier: CenterIdentifiers
     start_date: datetime
     end_date: Optional[datetime] = None
-    transfer_from: Optional[TransferRecord] = None
-    transfer_to: Optional[TransferRecord] = None
+    status: EnrollmentStatus = "active"
     legacy: Optional[bool] = False
 
     def query_object(self) -> IdentifierQueryObject:
@@ -184,22 +238,41 @@ class NewPTIDRowValidator(RowValidator):
         self.__error_writer = error_writer
 
     def check(self, row: Dict[str, Any], line_number: int) -> bool:
-        """Checks that PTID does not already correspond to a NACCID.
+        """Checks that ADCID, PTID does not already correspond to a NACCID.
 
         Args:
           row: the dictionary for the row
 
         Returns:
-          True if no existing NACCID is found for the PTID, False otherwise
+          True if no existing NACCID is found for the ADCID, PTID, False otherwise
         """
         ptid = row["ptid"]
-        identifier = self.__identifiers.get(adcid=row["adcid"], ptid=ptid)
+        adcid = row["adcid"]
+
+        try:
+            identifier = self.__identifiers.get(adcid=adcid, ptid=ptid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.PTID,
+                    value=ptid,
+                    line=line_number,
+                    message=(
+                        "Error in looking up Identifier for "
+                        f"ADCID {adcid}, PTID {ptid}: {error}"
+                    ),
+                )
+            )
+            return False
+
         if not identifier:
             return True
 
-        log.info("Found participant for (%s,%s)", row["adcid"], row["ptid"])
+        log.info("Found participant for (%s,%s)", adcid, ptid)
         self.__error_writer.write(
-            existing_participant_error(field="ptid", line=line_number, value=ptid)
+            existing_participant_error(
+                field=FieldNames.PTID, line=line_number, value=ptid
+            )
         )
         return False
 
@@ -225,17 +298,35 @@ class NewGUIDRowValidator(RowValidator):
             return True
 
         guid = row["guid"]
-        identifier = self.__identifiers.get(guid=guid)
-        if not identifier:
+
+        try:
+            identifier = self.__identifiers.get(guid=guid)
+        except (IdentifierRepositoryError, TypeError) as error:
+            self.__error_writer.write(
+                identifier_error(
+                    field=FieldNames.GUID,
+                    value=guid,
+                    line=line_number,
+                    message=f"Error in looking up Identifier for GUID {guid}: {error}",
+                )
+            )
+            return False
+
+        if not identifier or not identifier.active:
             return True
 
-        log.info("Found participant for GUID %s", row["guid"])
+        log.info(
+            f"Found active participant for GUID {guid} with NACCID {identifier.naccid}"
+        )
         self.__error_writer.write(
             existing_participant_error(
-                field="guid",
+                field=FieldNames.GUID,
                 line=line_number,
                 value=guid,
-                message=f"Participant exists for GUID {guid}",
+                message=(
+                    f"Active participant exists for GUID {guid} "
+                    f"with NACCID {identifier.naccid}"
+                ),
             )
         )
         return False

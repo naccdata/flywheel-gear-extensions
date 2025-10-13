@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 import yaml
 from centers.center_group import (
-    CenterProjectMetadata,
+    CenterMetadata,
     FormIngestProjectMetadata,
     REDCapProjectInput,
     StudyREDCapMetadata,
@@ -152,6 +152,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
             if not center.active:
                 continue
 
+            assert center.group is not None
             group_adaptor = self.proxy.find_group(center.group)
             if not group_adaptor:
                 log.warning("Cannot find Flywheel group for Center ID %s", center.group)
@@ -170,7 +171,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 continue
 
             try:
-                center_metadata = CenterProjectMetadata.model_validate(info)
+                center_metadata = CenterMetadata.model_validate(info)
             except ValidationError as error:
                 log.error(
                     "Studies info in %s/metadata does not match expected format: %s",

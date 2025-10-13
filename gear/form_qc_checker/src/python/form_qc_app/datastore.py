@@ -71,7 +71,7 @@ class DatastoreHelper(Datastore):
         Returns:
             Optional[List[int]]: List of ADCIDs
         """
-        adcid_list = self.__admin_group.get_adcids()
+        adcid_list = self.__admin_group.get_form_ingest_adcids()
         if adcid_list:
             return adcid_list
 
@@ -88,15 +88,31 @@ class DatastoreHelper(Datastore):
             Optional[ProjectAdaptor]: Flywheel project adaptor or None
         """
 
+        if legacy_label == "NA":
+            log.info("Retrospective project not applicable, skipping lookup")
+            return None
+
+        retrospective_prj_label = legacy_label
+        # assumes project label is in <pipeline>-<datatype>-[<study]] format
+        tokens = self.__project.label.split("-")
+        if len(tokens) > 2:
+            retrospective_prj_label = legacy_label + "-" + "-".join(tokens[2:])
+
+        log.info(
+            f"Looking up retrospective project: {self.__gid}/{retrospective_prj_label}"
+        )
+
         try:
             return ProjectAdaptor.create(
-                proxy=self.__proxy, group_id=self.__gid, project_label=legacy_label
+                proxy=self.__proxy,
+                group_id=self.__gid,
+                project_label=retrospective_prj_label,
             )
         except ProjectError as error:
             log.warning(
-                "Failed to retrieve legacy project %s/%s: %s",
+                "Failed to retrieve retrospective project %s/%s: %s",
                 self.__gid,
-                legacy_label,
+                retrospective_prj_label,
                 error,
             )
             return None

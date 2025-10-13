@@ -2,6 +2,17 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.0.1
+* Supports having study suffix in retrospective-form project label
+  
+## 2.0.0
+* Rebuilt for ssm-parameter-store update
+* Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
+* Updates to use new identifier lambda functions with restructured identifiers database
+  
+## 1.1.6
+* Rebuilding to call identifier lambda function alias depending on request mode
+  
 ## 1.1.5
 * Updates the code to include IT packets when checking for enrollment date
   

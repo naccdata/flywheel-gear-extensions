@@ -2,9 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.0.6
 
+* Adds `source_file` to file metadata to track provenance
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
+* Parameterizes required fields
 
 ## 1.0.5
 

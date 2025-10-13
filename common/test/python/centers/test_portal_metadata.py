@@ -2,13 +2,13 @@
 
 import pytest
 from centers.center_group import (
-    CenterProjectMetadata,
+    CenterMetadata,
+    CenterStudyMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
     ProjectMetadata,
     REDCapFormProjectMetadata,
     REDCapProjectInput,
-    StudyMetadata,
 )
 from keys.keys import DefaultValues
 from pydantic import ValidationError
@@ -20,6 +20,7 @@ def project_with_datatype():
     """Returns a ProjectMetadata object with datatype."""
     yield IngestProjectMetadata(
         study_id="test",
+        pipeline_adcid=0,
         project_id="9999999999",
         project_label="ingest-blah-test",
         datatype="blah",
@@ -32,6 +33,7 @@ def form_ingest_without_redcap():
     """Returns a form ingest project without redcap info."""
     yield IngestProjectMetadata(
         study_id="alpha",
+        pipeline_adcid=0,
         project_id="11111111",
         project_label="ingest-form-alpha",
         datatype="form",
@@ -44,6 +46,7 @@ def ingest_project_with_redcap():
     """Returns a form ingest project."""
     yield FormIngestProjectMetadata(
         study_id="test",
+        pipeline_adcid=0,
         project_id="88888888",
         project_label="ingest-form-test",
         datatype="form",
@@ -75,7 +78,7 @@ class TestProjectMetadataSerialization:
             by_alias=True, exclude_none=True
         )
         assert project_dump
-        assert len(project_dump.keys()) == 4
+        assert len(project_dump.keys()) == 5
         assert "project-label" in project_dump
         assert "study-id" in project_dump
 
@@ -142,7 +145,7 @@ def study_object(
     projects = {}
     projects[project_with_datatype.project_label] = project_with_datatype
     projects[ingest_project_with_redcap.project_label] = ingest_project_with_redcap
-    yield StudyMetadata(
+    yield CenterStudyMetadata(
         study_id="test",
         study_name="Test",
         ingest_projects=projects,
@@ -165,7 +168,7 @@ class TestStudyMetadataSerialization:
         assert len(study_dump.keys()) == 5
 
         try:
-            model_object = StudyMetadata.model_validate(study_dump)
+            model_object = CenterStudyMetadata.model_validate(study_dump)
             assert model_object == study_object
         except ValidationError as error:
             assert False, error  # noqa: B011
@@ -177,7 +180,7 @@ def portal_metadata(study_object):
     """Creates portal info object."""
     studies = {}
     studies[study_object.study_id] = study_object
-    yield CenterProjectMetadata(studies=studies)
+    yield CenterMetadata(adcid=0, active=True, studies=studies)
 
 
 class TestCenterPortalMetadataSerialization:
@@ -187,11 +190,11 @@ class TestCenterPortalMetadataSerialization:
         """Test serialization of portal info."""
         portal_dump = portal_metadata.model_dump(by_alias=True, exclude_none=True)
         assert portal_dump
-        assert len(portal_dump.keys()) == 1
+        assert len(portal_dump.keys()) == 3
         assert "studies" in portal_dump
 
         try:
-            model_object = CenterProjectMetadata.model_validate(portal_dump)
+            model_object = CenterMetadata.model_validate(portal_dump)
             assert model_object == portal_metadata
         except ValidationError as error:
             assert False, error  # noqa: B011

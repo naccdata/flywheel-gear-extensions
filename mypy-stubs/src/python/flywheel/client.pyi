@@ -87,7 +87,7 @@ class Client:
     def modify_user(self, user_id: str, body: Dict[str, str]) -> None:
         ...
 
-    def get_views(self, view_id: str) -> List[DataView]:
+    def get_views(self, view_id: str, filter: Optional[str]=None) -> List[DataView]:  # noqa: A002
         ...
 
     def add_view(self, container_id: str,

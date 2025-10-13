@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel.file_spec import FileSpec
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -70,13 +71,17 @@ class JSONUploader:
 
         return success
 
-    def upload_record(self, subject_label: str, record: Dict[str, Any]) -> None:
+    def upload_record(
+        self, subject_label: str, record: Dict[str, Any]
+    ) -> Optional[FileEntry]:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
         Args:
           subject: the subject
           record: the record data
+        Returns:
+          The uploaded FileEntry, if uploaded successfully, None otherwise
         Raises:
           UploaderError if a failure occurs during the upload
         """
@@ -100,7 +105,7 @@ class JSONUploader:
             record, environment=self.__environment
         )
 
-        upload_to_acquisition(
+        return upload_to_acquisition(
             acquisition=acquisition,
             filename=filename,
             contents=json.dumps(record),

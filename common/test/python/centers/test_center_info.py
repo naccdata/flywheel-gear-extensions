@@ -5,7 +5,7 @@ from typing import Optional
 import pytest
 import yaml
 from centers.center_info import CenterInfo, CenterMapInfo
-from projects.study import CenterStudyModel, StudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from pydantic import ValidationError
 
 
@@ -17,7 +17,7 @@ class DummyVisitor(StudyVisitor):
         self.project_name: Optional[str] = None
         self.datatype_name: Optional[str] = None
 
-    def visit_center(self, center: CenterStudyModel) -> None:
+    def visit_center(self, center: StudyCenterModel) -> None:
         self.center_id = center.center_id
 
     def visit_datatype(self, datatype: str):
@@ -68,7 +68,7 @@ class TestCenterInfo:
             CenterInfo()  # type: ignore
 
         with pytest.raises(ValidationError):
-            CenterInfo(name="Alpha ADRC", adcid=7)  # type: ignore
+            CenterInfo(name="Alpha ADRC")  # type: ignore
 
     def test_apply(self, dummy_center):
         """Test that visitor applied."""
@@ -88,7 +88,7 @@ class TestCenterInfo:
     def test_repr(self, dummy_center):
         """Test representation."""
         assert repr(dummy_center) == (
-            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True"
+            "Center(group=alpha-adrc, name=Alpha ADRC, adcid=7, active=True, tags=None)"
         )
 
 
@@ -111,3 +111,13 @@ class TestCenterMapInfo:
         """Test getting."""
         assert dummy_center_map.get(7) == dummy_center
         assert not dummy_center_map.get(1)
+
+
+class TestCenterInfoSerialization:
+    def test_center(self):
+        center = CenterInfo(
+            adcid=0, name="dummy", group="dummy", active=True, tags=("one", "two")
+        )
+        center_dump = center.model_dump(by_alias=True)
+        center_load = CenterInfo.model_validate(center_dump, by_alias=True)
+        assert center == center_load

@@ -32,10 +32,10 @@ from typing import Callable, List, Optional
 from centers.center_group import (
     CenterError,
     CenterGroup,
+    CenterStudyMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
     ProjectMetadata,
-    StudyMetadata,
 )
 from flywheel.models.access_permission import AccessPermission
 from flywheel_adaptor.flywheel_proxy import (
@@ -44,7 +44,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 
-from projects.study import CenterStudyModel, StudyModel, StudyVisitor
+from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
 
 log = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class StudyMapper(ABC):
 
     @abstractmethod
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Maps the study to pipelines within a center.
 
@@ -132,7 +132,7 @@ class AggregationMapper(StudyMapper):
         self.__release_group: Optional[GroupAdaptor] = None
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Creates accepted, ingest and retrospective projects in the group.
         Updates the study metadata.
@@ -140,7 +140,9 @@ class AggregationMapper(StudyMapper):
         Args:
           center: the center group
           study_info: the study metadata
+          pipeline_adcid: the ADCID for ingest pipelines
         """
+
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
@@ -150,9 +152,10 @@ class AggregationMapper(StudyMapper):
                         study_info=study_info,
                         pipeline=pipeline,
                         datatype=datatype,
+                        pipeline_adcid=pipeline_adcid,
                     )
 
-        self.__add_retrospective(center)
+        self.__add_retrospective(center=center, pipeline_adcid=pipeline_adcid)
 
     def map_study_pipelines(self) -> None:
         """Creates study group with release project."""
@@ -163,7 +166,9 @@ class AggregationMapper(StudyMapper):
         self.__get_release_group()
         self.__get_master_project()
 
-    def __add_accepted(self, *, center: CenterGroup, study_info: StudyMetadata) -> None:
+    def __add_accepted(
+        self, *, center: CenterGroup, study_info: CenterStudyMetadata
+    ) -> None:
         """Creates an accepted project in the center group, and updates the
         study metadata.
 
@@ -193,7 +198,8 @@ class AggregationMapper(StudyMapper):
         center: CenterGroup,
         pipeline: str,
         datatype: str,
-        study_info: StudyMetadata,
+        study_info: CenterStudyMetadata,
+        pipeline_adcid: int,
     ) -> None:
         """Adds an ingest projects for the study datatype to the center.
 
@@ -203,24 +209,27 @@ class AggregationMapper(StudyMapper):
           pipeline: the name of the pipeline
           datatype: the name of the datatype
         """
+        pipeline_label = self.pipeline_label(pipeline, datatype)
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
                 IngestProjectMetadata(
                     study_id=self.study.study_id,
+                    pipeline_adcid=pipeline_adcid,
                     project_id=project.id,
                     project_label=project.label,
                     datatype=datatype,
                 )
             )
+            project.update_info({"pipeline_adcid": pipeline_adcid})
 
         self.add_pipeline(
             center=center,
-            pipeline_label=self.pipeline_label(pipeline, datatype),
+            pipeline_label=pipeline_label,
             update_study=update_ingest,
         )
 
-    def __add_retrospective(self, center: CenterGroup) -> None:
+    def __add_retrospective(self, center: CenterGroup, pipeline_adcid: int) -> None:
         """Adds retrospective projects for the study to the center.
 
         Args:
@@ -232,8 +241,8 @@ class AggregationMapper(StudyMapper):
             )
             return
 
-        def no_update(p):
-            return None
+        def update_retrospective(project: ProjectAdaptor):
+            project.update_info({"pipeline_adcid": pipeline_adcid})
 
         for datatype in self.study.datatypes:
             self.add_pipeline(
@@ -241,7 +250,7 @@ class AggregationMapper(StudyMapper):
                 pipeline_label=self.pipeline_label(
                     pipeline="retrospective", datatype=datatype
                 ),
-                update_study=no_update,
+                update_study=update_retrospective,
             )
 
     def __get_release_group(self) -> Optional[GroupAdaptor]:
@@ -283,6 +292,10 @@ class AggregationMapper(StudyMapper):
         return project
 
 
+class StudyMappingError(Exception):
+    """Exception class for errors during study mapping."""
+
+
 class DistributionMapper(StudyMapper):
     """Defines a mapping from a distribution study to FW containers."""
 
@@ -290,7 +303,7 @@ class DistributionMapper(StudyMapper):
         super().__init__(study=study, proxy=proxy)
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: StudyMetadata
+        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Adds distribution projects for the study to the group.
 
@@ -313,7 +326,7 @@ class DistributionMapper(StudyMapper):
             self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
-        self, *, center: CenterGroup, study_info: "StudyMetadata", datatype: str
+        self, *, center: CenterGroup, study_info: "CenterStudyMetadata", datatype: str
     ) -> None:
         """Adds a distribution project to this center for the study.
 
@@ -356,9 +369,9 @@ class DistributionMapper(StudyMapper):
 
 class StudyMappingVisitor(StudyVisitor):
     def __init__(
-        self, flywheel_proxy: FlywheelProxy, admin_access: List[AccessPermission]
+        self, flywheel_proxy: FlywheelProxy, admin_permissions: List[AccessPermission]
     ) -> None:
-        self.__admin_access = admin_access
+        self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
         self.__study: Optional[StudyModel] = None
         self.__mapper: Optional[StudyMapper] = None
@@ -380,7 +393,7 @@ class StudyMappingVisitor(StudyVisitor):
         if study.mode == "aggregation":
             self.__mapper = AggregationMapper(
                 proxy=self.__fw,
-                admin_access=self.__admin_access,
+                admin_access=self.__admin_permissions,
                 study=study,
                 pipelines=["ingest", "sandbox"],
             )
@@ -393,7 +406,7 @@ class StudyMappingVisitor(StudyVisitor):
         assert self.__mapper
         self.__mapper.map_study_pipelines()
 
-    def visit_center(self, center_model: CenterStudyModel) -> None:
+    def visit_center(self, center_model: StudyCenterModel) -> None:
         """Creates projects within the center for the study.
 
         Args:
@@ -401,6 +414,13 @@ class StudyMappingVisitor(StudyVisitor):
         """
         assert self.__study, "study must be set"
         assert self.__mapper, "mapper must be set"
+
+        if (
+            self.__study.mode == "aggregation"
+            and self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
+            return
 
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
@@ -413,17 +433,23 @@ class StudyMappingVisitor(StudyVisitor):
             log.warning("Unable to create center group: %s", str(error))
             return
 
-        if (
-            self.__study.mode == "aggregation"
-            and self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
-        ):
-            return
+        pipeline_adcid = (
+            center_model.pipeline_adcid
+            if center_model.pipeline_adcid is not None
+            else center.adcid
+        )
 
         portal_info = center.get_project_info()
-        study_info = portal_info.get(self.__study)
+        study_info = portal_info.get(self.__study.study_id)
+        if study_info is None:
+            study_info = CenterStudyMetadata(
+                study_id=self.__study.study_id, study_name=self.__study.name
+            )
+            portal_info.add(study_info)
 
-        self.__mapper.map_center_pipelines(center=center, study_info=study_info)
+        self.__mapper.map_center_pipelines(
+            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
+        )
 
         center.update_project_info(portal_info)
 

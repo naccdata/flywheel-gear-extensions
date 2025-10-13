@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence
 
 import flywheel
 from flywheel import (
@@ -59,7 +59,7 @@ class FlywheelProxy:
         self.__fw = client
         self.__fw_client = fw_client
         self.__dry_run = dry_run
-        self.__project_roles: Optional[Mapping[str, RoleOutput]] = None
+        self.__project_roles: Optional[dict[str, RoleOutput]] = None
         self.__project_admin_role: Optional[RoleOutput] = None
 
     @property
@@ -295,7 +295,7 @@ class FlywheelProxy:
         """
         return self.__fw.projects.find_first(f"_id={project_id}")
 
-    def get_roles(self) -> Mapping[str, RoleOutput]:
+    def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
 
         Does not include access roles for Groups.
@@ -315,6 +315,26 @@ class FlywheelProxy:
         """
         role_map = self.get_roles()
         return role_map.get(label)
+
+    def get_user_roles(self, role_names: Sequence[str]) -> List[RoleOutput]:
+        """Get the named roles .
+
+        Returns all roles matching a name in the list.
+        Logs a warning if a name is not matched.
+
+        Args:
+          role_names: the role names
+        Returns:
+          the list of roles with the names
+        """
+        role_list = []
+        for name in role_names:
+            role = self.get_role(name)
+            if role:
+                role_list.append(role)
+            else:
+                log.warning("no such role %s", name)
+        return role_list
 
     def get_admin_role(self) -> Optional[RoleOutput]:
         """Gets admin role."""
@@ -729,6 +749,9 @@ class FlywheelProxy:
         """
         return self.__fw.get(container_id)
 
+    def find_projects_with_pattern(self, pattern: str) -> List[flywheel.Project]:
+        return self.__fw.projects.find(f"label=~{pattern}")
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
@@ -904,8 +927,10 @@ class GroupAdaptor:
 
         self._fw.add_group_role(group=self._group, role=new_role)
 
-    def add_roles(self, roles: List[GroupRole]) -> None:
+    def add_roles(self, roles: Sequence[GroupRole]) -> None:
         """Adds the roles in the list to the group.
+
+        Allows roles to be assigned to users for projects w/in the group.
 
         Args:
           roles: the list of roles
@@ -974,7 +999,7 @@ class ProjectAdaptor:
     """Defines an adaptor for a flywheel project."""
 
     def __init__(self, *, project: flywheel.Project, proxy: FlywheelProxy) -> None:
-        self._project = project
+        self._project = project.reload()
         self._fw = proxy
 
     @classmethod
@@ -1031,6 +1056,29 @@ class ProjectAdaptor:
         """Returns the group label of the enclosed project."""
         return self._project.group
 
+    def get_pipeline_adcid(self) -> int:
+        """Returns the pipeline ADCID for this project.
+
+        If not in the project metadata, the ADCID from the metadata is returned.
+        If neither is present raises an exception.
+
+        Returns:
+          the pipeline ADCID
+        Raises:
+          ProjectError if neither "pipeline_adcid" or "adcid" are set in
+          project metadata.
+        """
+
+        pipeline_adcid = self._project.info.get("pipeline_adcid")
+        if pipeline_adcid is not None:
+            return pipeline_adcid
+
+        adcid = self._project.info.get("adcid")
+        if adcid is not None:
+            return adcid
+
+        raise ProjectError(f"Project {self.group}/{self.label} has no ADCID")
+
     def add_tag(self, tag: str) -> None:
         """Add tag to the enclosed project.
 
@@ -1065,7 +1113,12 @@ class ProjectAdaptor:
         """
         self._project.update(description=description)
 
-    def get_file(self, name: str):
+    @property
+    def files(self) -> List[FileEntry]:
+        """The list of files associated with this project."""
+        return self._project.files
+
+    def get_file(self, name: str) -> Optional[FileEntry]:
         """Gets the file from the enclosed project.
 
         Args:
@@ -1125,7 +1178,7 @@ class ProjectAdaptor:
         """
         return self.add_user_roles(user=user, roles=[role])
 
-    def add_user_roles(self, user: User, roles: List[RoleOutput]) -> bool:
+    def add_user_roles(self, user: User, roles: Iterable[RoleOutput]) -> bool:
         """Adds the roles to the user in the project.
 
         Args:
@@ -1152,7 +1205,7 @@ class ProjectAdaptor:
         Args:
           role_assignment: the role assignment
         Returns:
-          True if role is new, False otherwise
+          True if role is set, False otherwise
         """
         user_roles = self.get_user_roles(role_assignment.id)
         if not user_roles:
@@ -1173,8 +1226,9 @@ class ProjectAdaptor:
             try:
                 self._project.add_permission(user_role)
             except ApiException as error:
-                log.error("Failed to add user role to project: %s", error)
-                return False
+                raise ProjectError(
+                    f"Failed to add user role to project: {error}"
+                ) from error
             self.__pull_project()
             return True
 
@@ -1184,16 +1238,21 @@ class ProjectAdaptor:
                 different = True
                 user_roles.append(role_id)
         if not different:
-            return False
+            return True
 
         log_message = f"Adding roles to user {role_assignment.id}"
         if self._fw.dry_run:
             log.info("Dry Run: %s", log_message)
             return True
+        try:
+            self._project.update_permission(
+                role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
+            )
+        except ApiException as error:
+            raise ProjectError(
+                f"Failed to add user role to project: {error}"
+            ) from error
 
-        self._project.update_permission(
-            role_assignment.id, RolesRoleAssignment(id=None, role_ids=user_roles)
-        )
         self.__pull_project()
         return True
 

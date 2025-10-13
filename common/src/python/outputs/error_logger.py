@@ -10,7 +10,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from pydantic import ValidationError
 from utils.decorators import api_retry
 
-from outputs.error_models import FileErrorList, FileQCModel
+from outputs.error_models import FileErrorList, FileQCModel, QCStatus
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +45,15 @@ def get_log_contents(log_file: FileEntry) -> str:
     Return:
        the contents of the log_file
     """
-    return log_file.read().decode("utf-8")
+    try:
+        return log_file.read().decode("utf-8")
+    except ApiException as error:
+        log.error(
+            f"Error in reading log file {log_file.name}: {error}",
+        )
+        ts = (dt.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
+        reset_str = f"{ts} RESET due to read errors\n"
+        return reset_str
 
 
 def get_log_qc_info(log_file: FileEntry) -> Optional[FileQCModel]:
@@ -133,7 +141,7 @@ def update_error_log_and_qc_metadata(
         error_log_name: error log file name
         destination_prj: Flywheel project adaptor
         gear_name: gear that generated errors
-        state: gear execution status [PASS|FAIL|NA]
+        state: gear execution status [PASS|FAIL|IN REVIEW|NA]
         errors: list of error objects, expected to be JSON dicts
         reset_qc_metadata: flag to reset metadata from previous runs:
             ALL - clean all, set this for the first gear in submission pipeline.
@@ -174,8 +182,11 @@ def update_error_log_and_qc_metadata(
         file_errors.extend(error_list)
         error_list = file_errors
 
-    qc_info.set_errors(gear_name=gear_name, status=state.upper(), errors=error_list)  # type: ignore
-
+    qc_info.set_errors(
+        gear_name=gear_name,
+        status=state.upper(),  # type: ignore
+        errors=error_list,
+    )
     try:
         update_file_info(file=new_file, custom_info=qc_info.model_dump(by_alias=True))
     except ApiException as error:
@@ -187,6 +198,47 @@ def update_error_log_and_qc_metadata(
         return False
 
     return True
+
+
+def update_gear_qc_status(
+    *,
+    error_log_name: str,
+    destination_prj: ProjectAdaptor,
+    gear_name: str,
+    status: QCStatus,
+) -> None:
+    """Updates the QC status in error log file (file.info.qc.<gear_name>) for
+    the specified gear.
+
+    Args:
+        error_log_name: error log file name
+        destination_prj: Flywheel project adaptor
+        gear_name: gear to update the QC status
+        status: new status
+    """
+    current_log = destination_prj.get_file(error_log_name)
+    if not current_log:
+        log.warning(
+            f"Cannot find error log file {error_log_name} in "
+            f"project {destination_prj.group}/{destination_prj.label}"
+        )
+        return
+
+    qc_info = get_log_qc_info(current_log)
+    if not qc_info:
+        log.warning(f"QC info not found in error log file {error_log_name}")
+        return
+
+    gear_info = qc_info.get(gear_name=gear_name)
+    if not gear_info:
+        log.warning(
+            f"QC info not found for gear {gear_name} in error log file {error_log_name}"
+        )
+        return
+
+    gear_info.set_status(status)
+    qc_info.set(gear_name=gear_name, gear_model=gear_info)
+    update_file_info(file=current_log, custom_info=qc_info.model_dump(by_alias=True))
 
 
 def reset_error_log_metadata_for_gears(
