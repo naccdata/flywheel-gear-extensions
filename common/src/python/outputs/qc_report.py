@@ -337,7 +337,7 @@ class ProjectReportVisitor:
             return
 
         for item in self.__file_visitor.table:
-            self.__writer.writerow(item.model_dump())
+            self.__writer.writerow(item.model_dump(by_alias=True))
 
     def visit_project(self, project: ProjectAdaptor) -> None:
         """Applies the file_visitor to qc-status log files in the project.
