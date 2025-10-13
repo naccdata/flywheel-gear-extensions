@@ -9,9 +9,7 @@ class TestSubmissionStatus:
         query = StatusRequest(adcid=0, ptid="NACC000000")
         output_stream = StringIO()
         fieldnames = set(StatusRequest.model_fields.keys()).difference({"study"})
-        writer = DictWriter(
-            output_stream, fieldnames=fieldnames, dialect="unix"
-        )
+        writer = DictWriter(output_stream, fieldnames=fieldnames, dialect="unix")
         writer.writeheader()
         writer.writerow(query.model_dump(exclude_none=True))
 
@@ -28,13 +26,13 @@ class TestSubmissionStatus:
         query = StatusRequest(adcid=0, ptid="NACC000000", study="adrc")
         output_stream = StringIO()
         fieldnames = list(StatusRequest.model_fields.keys())
-        writer = DictWriter(
-            output_stream, fieldnames=fieldnames, dialect="unix"
-        )
+        writer = DictWriter(output_stream, fieldnames=fieldnames, dialect="unix")
         writer.writeheader()
         writer.writerow(query.model_dump(exclude_none=True))
 
-        assert output_stream.getvalue() == ('"adcid","ptid","study"\n"0","NACC000000","adrc"\n')
+        assert output_stream.getvalue() == (
+            '"adcid","ptid","study"\n"0","NACC000000","adrc"\n'
+        )
 
         output_stream.seek(0)
         reader = DictReader(output_stream)
