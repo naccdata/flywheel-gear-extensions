@@ -14,7 +14,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from keys.keys import DefaultValues
 from keys.types import ModuleName
 from outputs.error_writer import ListErrorWriter
 
@@ -29,7 +28,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         client: ClientWrapper,
-        admin_id: str,
         file_input: InputFileWrapper,
         gear_name: str,
         project_names: list[str],
@@ -38,7 +36,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         study_id: str,
     ):
         super().__init__(client=client)
-        self.__admin_id = admin_id
         self.__file_input = file_input
         self.__gear_name = gear_name
         self.__project_names: list[str] = project_names
@@ -67,7 +64,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
         include_derived = context.config.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
@@ -84,7 +80,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
-            admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
             info_paths=info_paths,
