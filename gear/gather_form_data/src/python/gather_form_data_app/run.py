@@ -33,7 +33,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         gear_name: str,
         project_names: list[str],
-        include_derived: bool,
+        info_paths: list[str],
         modules: set[ModuleName],
         study_id: str,
     ):
@@ -42,7 +42,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__file_input = file_input
         self.__gear_name = gear_name
         self.__project_names: list[str] = project_names
-        self.__include_derived = include_derived
+        self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
 
@@ -70,6 +70,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.get("project_names", "").split(",")
         include_derived = context.config.get("include_derived", False)
+        info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         modules = context.config.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
@@ -86,7 +87,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             admin_id=admin_id,
             gear_name=gear_name,
             project_names=project_names,
-            include_derived=include_derived,
+            info_paths=info_paths,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
         )
@@ -95,7 +96,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         data_gatherers: list[ModuleDataGatherer] = []
         for module_name in self.__modules:
             data_gatherers.append(
-                ModuleDataGatherer(proxy=self.proxy, module_name=module_name)
+                ModuleDataGatherer(
+                    proxy=self.proxy,
+                    module_name=module_name,
+                    info_paths=self.__info_paths,
+                )
             )
 
         input_path = Path(self.__file_input.filepath)
