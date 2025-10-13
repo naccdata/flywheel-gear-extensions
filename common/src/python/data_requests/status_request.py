@@ -1,7 +1,7 @@
 """Defines status request type and request clustering visitor."""
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
@@ -16,7 +16,6 @@ class StatusRequest(BaseModel):
 
     adcid: int
     ptid: str
-    study: Optional[str] = None
 
 
 class StatusRequestClusteringVisitor(CSVVisitor):
@@ -108,8 +107,8 @@ class StatusRequestClusteringVisitor(CSVVisitor):
                     error_type="error",  # pyright: ignore[reportCallIssue]
                     location=CSVLocation(line=line_num, column_name="adcid"),
                     message=(
-                        f"center {query.adcid} has no matching projects "
-                        f"for {query.study} and names {self.__project_names}"
+                        f"ADCID {query.adcid} has no matching projects "
+                        f"with names {self.__project_names}"
                     ),
                 )
             )
