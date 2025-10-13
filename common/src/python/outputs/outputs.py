@@ -44,7 +44,8 @@ class CSVWriter:
         If this writer object was created without fieldnames, the keys of the
         first dictionary are used as fieldnames for the header.
 
-        Row values all must have primitive types to ensure they can be written to a CSV file.
+        Row values all must have primitive types to ensure they can be written
+        to a CSV file.
 
         Args:
           row: dictionary with only primitive values

@@ -22,7 +22,8 @@ def run(
     request from the request file, applies the visitor to each to gather data
     for each form module.
 
-    The error writer collects errors/warnings encountered while reading the request file.
+    The error writer collects errors/warnings encountered while reading the
+    request file.
 
     Args:
         request_file: the data request file
