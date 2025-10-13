@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.0
+
+* Change request to only require the ADCID and PTID, dropping the study.
+* Refactor error/status reporting so can be used by other code
+
 ## 0.4.0
 
 * Adds generation of an error report from the qc-status logs.
