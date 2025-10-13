@@ -2,7 +2,7 @@
     "name": "gather-form-data",
     "label": "Gather Form Data",
     "description": "Gathers form data across centers",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/gather-form-data:0.0.1"
+            "image": "naccdata/gather-form-data:0.0.2"
         },
         "flywheel": {
             "suite": "Utility",
