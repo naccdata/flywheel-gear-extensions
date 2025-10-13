@@ -13,10 +13,10 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     InputFileWrapper,
 )
-from inputs.csv_reader import read_csv
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from keys.types import ModuleName
+from main import run
 from outputs.error_writer import ListErrorWriter
 
 log = logging.getLogger(__name__)
@@ -104,7 +104,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 container_id=file_id,
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
-
             request_visitor = DataRequestVisitor(
                 proxy=self.proxy,
                 study_id=self.__study_id,
@@ -112,25 +111,14 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 gatherers=data_gatherers,
                 error_writer=error_writer,
             )
-            success = read_csv(
-                input_file=request_file,
-                error_writer=error_writer,
-                visitor=request_visitor,
-            )
 
-        for gatherer in request_visitor.gatherers:
-            if not gatherer.content:
-                log.warning(
-                    "skipping output for module %s: no data found", gatherer.module_name
-                )
-                continue
-
-            output_filename = f"{self.__study_id}-{module_name}.csv"
-            with context.open_output(
-                output_filename, mode="w", encoding="utf-8"
-            ) as output_file:
-                # TODO: manage write errors
-                output_file.write(gatherer.content)
+        success = run(
+            request_file=request_file,
+            request_visitor=request_visitor,
+            error_writer=error_writer,
+        )
+        if success:
+            self.__write_output(context, request_visitor.gatherers)
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
@@ -142,6 +130,23 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         context.metadata.add_file_tags(
             self.__file_input.file_input, tags=self.__gear_name
         )
+
+    def __write_output(
+        self, context: GearToolkitContext, gatherers: list[ModuleDataGatherer]
+    ):
+        for gatherer in gatherers:
+            if not gatherer.content:
+                log.warning(
+                    "skipping output for module %s: no data found", gatherer.module_name
+                )
+                continue
+
+            output_filename = f"{self.__study_id}-{gatherer.module_name}.csv"
+            with context.open_output(
+                output_filename, mode="w", encoding="utf-8"
+            ) as output_file:
+                # TODO: manage write errors
+                output_file.write(gatherer.content)
 
 
 def main():
