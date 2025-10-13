@@ -16,8 +16,9 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from keys.types import ModuleName
-from main import run
 from outputs.error_writer import ListErrorWriter
+
+from gather_form_data_app.main import run
 
 log = logging.getLogger(__name__)
 
