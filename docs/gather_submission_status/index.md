@@ -8,37 +8,27 @@ The input file should have the following columns:
 
 - `adcid`: the ADCID for the center where the participant data is collected. An integer.
 - `ptid`: the center assigned participant ID for the participant. A string.
-- `study`: the name of the study in lowercase. A string.
 
 An input file would look like
 
 ```csv
-"adcid","ptid","study"
-0,"123456","adrc"
-0,"654321","dvcid"
+"adcid","ptid"
+0,"123456"
+0,"654321"
 ```
-
-The *study* should be the study for which the data was collected.
-For instance, if a participant is enrolled solely in DVCID, the study should be given as `dvcid`.
-If the participant is co-enrolled in an ADRC clinical core, the value of study should be `adrc`.
-Since, these data streams are kept separate, the qualification is required to find the submissions.
-
 
 
 ## Gear configuration
 
 The gear manifest config includes the following parameters:
 
-- `study_id` - Defaults to `adrc`. Should be set to a different value if any participants have data from an affiliated study.
+- `study_id` - Defaults to `adrc`.
+  Should be set to a different value if any participants have data from an affiliated study.
   For instance, for participants in DVCID that are not co-enrolled in the clinical core, set this to `dvcid`.
 
 - `project_names` - a string containing a comma-separated list of project prefixes.
   These prefixes are used with the study to create the pattern used to match the label of the projects from which data is gathered.
   By default, this string is set to `"ingest-form"`.
-
-  If `study` from the input file is `"adrc"`, the project `ingest-form` will be used.
-  Otherwise, the study is used as a suffix to the label.
-  For instance, if study is `"dvcid"`, the project `ingest-form-dvcid` will be used.
 
 - `module` - a string that is a comma-separated list of form modules.
   The default includes UDS, FTLD and LBD.
