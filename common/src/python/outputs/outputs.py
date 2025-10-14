@@ -11,47 +11,31 @@ SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
 class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
-    def __init__(self, stream: TextIO, fieldnames: Optional[list[str]] = None) -> None:
+    def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
         self.__writer = DictWriter(
-            stream,
-            fieldnames=fieldnames,  # type: ignore
-            dialect="unix",
-            quoting=QUOTE_MINIMAL,
+            stream, fieldnames=fieldnames, dialect="unix", quoting=QUOTE_MINIMAL
         )
         self.__header_written = False
 
-    def __write_header(self, fieldnames) -> None:
-        """Writes the header to the output stream.
-
-        Uses the fieldnames if the writer fieldnames are not set.
-
-        Args:
-            fieldnames: list of field names
-        """
+    def __write_header(self):
+        """Writes the header to the output stream."""
         if self.__header_written:
             return
-        self.__writer.fieldnames = (
-            fieldnames if not self.__writer.fieldnames else self.__writer.fieldnames
-        )
 
         self.__writer.writeheader()
         self.__header_written = True
 
-    def write(self, row: SimpleJSONObject) -> None:
-        """Writes the dictionary to the stream. Writes the header before the
-        first row.
+    def write(self, json_object: SimpleJSONObject) -> None:
+        """Writes the dictionary to the stream.
 
-        If this writer object was created without fieldnames, the keys of the
-        first dictionary are used as fieldnames for the header.
-
-        Row values all must have primitive types to ensure they can be written
-        to a CSV file.
+        Dictionary is assumed to correspond to a row from a CSV file, and so
+        the values all must have primitive types.
 
         Args:
-          row: dictionary with only primitive values
+          json_object: dictionary with only primitive values
         """
-        self.__write_header(list(row.keys()))
-        self.__writer.writerow(row)
+        self.__write_header()
+        self.__writer.writerow(json_object)
 
 
 class JSONWriter(ABC):
