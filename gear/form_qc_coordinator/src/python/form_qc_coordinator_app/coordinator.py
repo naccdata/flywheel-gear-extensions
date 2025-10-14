@@ -24,9 +24,10 @@ from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
-from keys.keys import DefaultValues, FieldNames, MetadataKeys, SysErrorCodes
+from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
+from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.field_names import FieldNames
 from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,

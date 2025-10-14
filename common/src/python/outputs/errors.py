@@ -4,8 +4,7 @@ import logging
 from typing import Any, List, Literal, Optional
 
 from keys.keys import SysErrorCodes
-
-from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 
 log = logging.getLogger(__name__)
 

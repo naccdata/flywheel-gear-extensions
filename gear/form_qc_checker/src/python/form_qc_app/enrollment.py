@@ -21,7 +21,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import DefaultValues
-from outputs.error_models import VisitKeys
+from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
