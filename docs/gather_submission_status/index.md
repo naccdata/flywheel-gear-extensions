@@ -17,6 +17,7 @@ An input file would look like
 0,"654321"
 ```
 
+Note: use the [identifier-lookup](../identifier_lookup/) gear to perform a "reverse" lookup if your source data only has NACCIDs.
 
 ## Gear configuration
 
