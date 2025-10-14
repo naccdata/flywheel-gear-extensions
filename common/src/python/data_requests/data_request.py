@@ -72,7 +72,9 @@ class ModuleDataGatherer:
             try:
                 form_data = symbol_table[path]
             except KeyError as error:
-                raise ModuleDataError(f"file.info.{path} not found for {file.file_id}") from error
+                raise ModuleDataError(
+                    f"file.info.{path} not found for {file.file_id}"
+                ) from error
             if not isinstance(form_data, dict):
                 raise ModuleDataError(
                     f"expected a dictionary at {path}, got {type(form_data)}"

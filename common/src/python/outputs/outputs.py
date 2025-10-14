@@ -54,31 +54,6 @@ class CSVWriter:
         self.__writer.writerow(row)
 
 
-class StringCSVWriter:
-    """Writes CSV to a string.
-
-    Uses keys of the first row as the fieldnames for the file header.
-    """
-
-    def __init__(self) -> None:
-        self.__stream = StringIO()
-        self.__writer = CSVWriter(self.__stream)
-
-    def write(self, row: SimpleJSONObject) -> None:
-        """Writes the dictionary as a row to the CSV string.
-
-        Uses the keys of the first row as the header.
-
-        Args:
-          row: dictionary to write as CSV
-        """
-        self.__writer.write(row)
-
-    def get_content(self) -> str:
-        """Returns the CSV content written as a string."""
-        return self.__stream.getvalue()
-
-
 class JSONWriter(ABC):
     """Abstract base class for writing JSON objects."""
 
@@ -112,6 +87,35 @@ class ListJSONWriter(JSONWriter):
           List of dictionary objects
         """
         return self.__objects
+
+
+class StringCSVWriter:
+    """Accumulates list of row objects to determine fieldnames, and then writes
+    to a string on request."""
+
+    def __init__(self) -> None:
+        self.__fieldnames: set[str] = set()
+        self.__writer = ListJSONWriter()
+
+    def write(self, row: SimpleJSONObject) -> None:
+        """Writes the dictionary as a row to the CSV string.
+
+        Uses the keys of the first row as the header.
+
+        Args:
+          row: dictionary to write as CSV
+        """
+        self.__fieldnames.update(row.keys())
+        self.__writer.write(row)
+
+    def get_content(self) -> str:
+        """Returns the CSV content written as a string."""
+        stream = StringIO()
+        row_list = self.__writer.object_list()
+        writer = CSVWriter(stream=stream, fieldnames=list(self.__fieldnames))
+        for row in row_list:
+            writer.write(row)
+        return stream.getvalue()
 
 
 def write_csv_to_stream(headers: List[str], data: List[Dict[str, Any]]) -> StringIO:
