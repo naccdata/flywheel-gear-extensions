@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.0
+
+* Merges in changes for nacc-common. Should not affect behavior of the gear
+
 ## 1.0.2
 
 * Fixes an error in the submission status/error reporting
