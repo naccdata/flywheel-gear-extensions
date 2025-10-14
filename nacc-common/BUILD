@@ -8,15 +8,15 @@ python_distribution(
         ":pyproject",
         ":readme",
         ":license",
-        "nacc-common/src/python:nacc-common-lib",
-        "nacc-common/src/python:py_typed",
+        "nacc-common/src/python/nacc_common:nacc-common-lib",
+        "nacc-common/src/python/nacc_common:py_typed",
         "mypy-stubs/src/python/flywheel:lib",
     ],
     wheel=True,
     sdist=True,
     provides=python_artifact(
         name="nacc-common",
-        version="1.2.5",
+        version="2.0.0",
     ),
     # Don't generate setup.py
     generate_setup=False,

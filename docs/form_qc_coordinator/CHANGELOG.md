@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.7
+* Rebuilt for reset error log content in read failure
+  
 ## 1.2.6
 * Rebuilt for ssm-parameter-store update
 * Rebuilt for new preprocessing checks in config

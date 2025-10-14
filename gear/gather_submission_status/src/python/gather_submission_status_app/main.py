@@ -6,9 +6,13 @@ from typing import TextIO
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from inputs.csv_reader import read_csv
-from keys.types import ModuleName
+from nacc_common.module_types import ModuleName
+from nacc_common.qc_report import (
+    DictReportWriter,
+    FileQCReportVisitor,
+    ProjectReportVisitor,
+)
 from outputs.error_writer import ErrorWriter
-from outputs.qc_report import FileQCReportVisitor, ProjectReportVisitor
 
 log = logging.getLogger(__name__)
 
@@ -61,8 +65,8 @@ def run(
                 modules=set(modules),
                 ptid_set=ptid_set,
                 file_visitor=file_visitor,
-                writer=writer,
+                writer=DictReportWriter(writer),
             )
-            project_visitor.visit_project(project)
+            project_visitor.visit_project(project.project)
 
     return True

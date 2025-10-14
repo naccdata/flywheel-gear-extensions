@@ -12,11 +12,11 @@ from datastore.forms_store import FormFilter, FormsStore
 from dates.form_dates import build_date
 from keys.keys import (
     DefaultValues,
-    FieldNames,
     MetadataKeys,
     PreprocessingChecks,
     SysErrorCodes,
 )
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocess_errors
 from uploads.acquisition import is_duplicate_dict

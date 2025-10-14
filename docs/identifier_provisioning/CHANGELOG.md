@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.0.1
+* Rebuilt for reset error log content in read failure
+
 ## 2.0.0
 * Rebuilt for ssm-parameter-store update
 * Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
