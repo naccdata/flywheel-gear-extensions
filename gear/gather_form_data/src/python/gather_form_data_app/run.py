@@ -1,6 +1,7 @@
 """Entry script for Gather Form Data."""
 
 import logging
+from datetime import date
 from pathlib import Path
 from typing import Optional, get_args
 
@@ -135,6 +136,14 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     def __write_output(
         self, context: GearToolkitContext, gatherers: list[ModuleDataGatherer]
     ):
+        """Using the gear context, writes the data content in each gatherer to
+        a file named with the study-id and the module of the gatherer.
+
+        Args:
+          context: the gear context
+          gatherers: a list of ModuleDataGatherer objects
+        """
+        today = date.today().isoformat()
         for gatherer in gatherers:
             if not gatherer.content:
                 log.warning(
@@ -142,7 +151,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 )
                 continue
 
-            output_filename = f"{self.__study_id}-{gatherer.module_name}.csv"
+            output_filename = f"{self.__study_id}-{gatherer.module_name}-{today}.csv"
             with context.open_output(
                 output_filename, mode="w", encoding="utf-8"
             ) as output_file:
