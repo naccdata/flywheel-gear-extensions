@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from outputs.error_models import CSVLocation, FileError
+from nacc_common.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from pydantic import BaseModel, ValidationError

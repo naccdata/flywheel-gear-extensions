@@ -15,7 +15,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from keys.types import ModuleName
+from nacc_common.module_types import ModuleName
 from outputs.error_writer import ListErrorWriter
 
 from gather_form_data_app.main import run

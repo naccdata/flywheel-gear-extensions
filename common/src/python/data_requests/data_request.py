@@ -6,9 +6,9 @@ from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from identifiers.model import NACCID_PATTERN
 from inputs.csv_reader import CSVVisitor
-from keys.types import ModuleName
 from nacc_attribute_deriver.symbol_table import SymbolTable
-from outputs.error_models import CSVLocation, FileError
+from nacc_common.error_models import CSVLocation, FileError
+from nacc_common.module_types import ModuleName
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from outputs.outputs import StringCSVWriter

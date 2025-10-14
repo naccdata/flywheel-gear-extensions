@@ -27,14 +27,6 @@ from nacc_common.visit_submission_status import StatusReportModel, status_transf
 from outputs.error_writer import ListErrorWriter
 
 from gather_submission_status_app.main import ModuleName, run
-from reports.visit_submission_error import (
-    ErrorReportModel,
-    error_transformer,
-)
-from reports.visit_submission_status import (
-    StatusReportModel,
-    status_transformer,
-)
 
 log = logging.getLogger(__name__)
 
