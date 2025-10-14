@@ -162,7 +162,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Gather Form Data."""
 
-    GearEngine().run(gear_type=GatherFormDataVisitor)
+    GearEngine().create_with_parameter_store().run(gear_type=GatherFormDataVisitor)
 
 
 if __name__ == "__main__":
