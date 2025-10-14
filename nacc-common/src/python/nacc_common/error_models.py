@@ -114,7 +114,7 @@ class FileError(BaseModel):
     message: str
     ptid: Optional[str] = None
     visitnum: Optional[str] = None
-    date: Optional[str] = None
+    date: Optional[str] = Field(None, alias="error_date")
     naccid: Optional[str] = None
 
     @classmethod
