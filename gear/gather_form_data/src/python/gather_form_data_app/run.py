@@ -114,13 +114,13 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
             )
 
-        success = run(
-            request_file=request_file,
-            request_visitor=request_visitor,
-            error_writer=error_writer,
-        )
-        if success:
-            self.__write_output(context, request_visitor.gatherers)
+            success = run(
+                request_file=request_file,
+                request_visitor=request_visitor,
+                error_writer=error_writer,
+            )
+            if success:
+                self.__write_output(context, request_visitor.gatherers)
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
