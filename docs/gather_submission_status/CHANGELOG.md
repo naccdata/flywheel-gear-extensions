@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.2
+
+* Fixes an error in the submission status/error reporting
+
 ## 1.0.0
 
 * Change request to only require the ADCID and PTID, dropping the study.
