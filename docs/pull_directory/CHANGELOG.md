@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.2
+
+* Fixes how authorization for genetic data maps to apoe, so study is set to ncrad.
+
 ## 2.1.1
 
 * Changes handling of p30 biomarker and genetic authorizations so that they map to ncrad and niagads studies instead of adrc.
