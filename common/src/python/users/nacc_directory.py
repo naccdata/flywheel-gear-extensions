@@ -100,10 +100,10 @@ class DirectoryAuthorizations(BaseModel):
     adrc_dicom_access_level: AuthorizationAccessLevel = Field(
         alias="p30_imaging_access_level"
     )
-    adrc_biomarker_access_level: AuthorizationAccessLevel = Field(
+    ncrad_biomarker_access_level: AuthorizationAccessLevel = Field(
         alias="p30_flbm_access_level"
     )
-    adrc_genetic_access_level: AuthorizationAccessLevel = Field(
+    niagads_genetic_access_level: AuthorizationAccessLevel = Field(
         alias="p30_genetic_access_level"
     )
     affiliated_study: list[str]
@@ -158,8 +158,8 @@ class DirectoryAuthorizations(BaseModel):
         "adrc_enrollment_access_level",
         "adrc_form_access_level",
         "adrc_dicom_access_level",
-        "adrc_biomarker_access_level",
-        "adrc_genetic_access_level",
+        "ncrad_biomarker_access_level",
+        "niagads_genetic_access_level",
         "leads_enrollment_access_level",
         "leads_form_access_level",
         "dvcid_enrollment_access_level",
