@@ -96,7 +96,7 @@ class StringCSVWriter:
         """Returns the CSV content written as a string."""
         stream = StringIO()
         row_list = self.__writer.object_list()
-        writer = CSVWriter(stream=stream, fieldnames=list(self.__fieldnames))
+        writer = CSVWriter(stream=stream, fieldnames=list(sorted(self.__fieldnames)))
         for row in row_list:
             writer.write(row)
         return stream.getvalue()
