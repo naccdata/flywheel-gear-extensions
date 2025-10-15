@@ -4,6 +4,7 @@ import logging
 from typing import Any, Optional
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
+from event_logging.event_logging import VisitEventLogger
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -21,6 +22,7 @@ from inputs.parameter_store import (
 )
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
+from s3.s3_bucket import S3BucketInterface
 
 from form_scheduler_app.main import run
 
@@ -34,6 +36,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         pipeline_configs_input: InputFileWrapper,
+        event_bucket: S3BucketInterface,
         source_email: Optional[str] = None,
         portal_url: Optional[URLParameter] = None,
     ):
@@ -42,6 +45,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self.__configs_input = pipeline_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
+        self.__event_log_bucket = event_bucket
 
     @classmethod
     def create(
@@ -80,9 +84,15 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             except ParameterError as error:
                 raise GearExecutionError(f"Parameter error: {error}") from error
 
+        event_bucket_name = context.config.get("event_bucket", None)
+        if event_bucket_name is None:
+            raise GearExecutionError("event bucket name is required")
+        event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
+
         return FormSchedulerVisitor(
             client=client,
             pipeline_configs_input=pipeline_configs_input,
+            event_bucket=event_bucket,
             source_email=source_email,
             portal_url=portal_url,
         )
@@ -128,6 +138,8 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
+        event_logger = VisitEventLogger(self.__event_log_bucket)
+
         # if source email specified, set up client to send emails
         email_client = (
             EmailClient(client=create_ses_client(), source=self.__source_email)
@@ -139,6 +151,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             proxy=self.proxy,
             project_id=project_id,
             pipeline_configs=pipeline_configs,
+            event_logger=event_logger,
             email_client=email_client,
             portal_url=self.__portal_url,
         )

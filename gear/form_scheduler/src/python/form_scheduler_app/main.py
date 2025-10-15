@@ -21,6 +21,7 @@ import logging
 from typing import Optional
 
 from configs.ingest_configs import PipelineConfigs
+from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import URLParameter
@@ -36,6 +37,7 @@ def run(
     proxy: FlywheelProxy,
     project_id: str,
     pipeline_configs: PipelineConfigs,
+    event_logger: VisitEventLogger,
     email_client: Optional[EmailClient] = None,
     portal_url: Optional[URLParameter] = None,
 ):
@@ -58,6 +60,7 @@ def run(
         proxy=proxy,
         project=project,
         pipeline_configs=pipeline_configs,
+        event_logger=event_logger,
         email_client=email_client,
         portal_url=portal_url,
     )

@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from dataview.dataview import ColumnModel, make_builder
+from event_logging.event_logging import VisitEventLogger
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -115,6 +116,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: Project,
         pipeline_configs: PipelineConfigs,
+        event_logger: VisitEventLogger,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -133,6 +135,7 @@ class FormSchedulerQueue:
         self.__email_client = email_client
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
+        self.__event_logger: VisitEventLogger = event_logger
 
     def queue_files_for_pipeline(self, *, project: Project, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
