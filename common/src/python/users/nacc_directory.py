@@ -239,14 +239,19 @@ class DirectoryAuthorizations(BaseModel):
                 log.warning("the data type %s is ignored for %s", datatype, self.email)
                 continue
 
-            datatypes = [datatype]
+            datatypes = [(study, datatype)]
             if datatype == "genetic":
-                datatypes = ["apoe", "gwas", "genetic-availability", "imputation"]
-            for datatype in datatypes:
+                datatypes = [
+                    ("ncrad", "apoe"),
+                    (study, "gwas"),
+                    (study, "genetic-availability"),
+                    (study, "imputation"),
+                ]
+            for datatype_t in datatypes:
                 study_map.add(
-                    study_id=study,
+                    study_id=datatype_t[0],
                     access_level=access_level,
-                    datatype=datatype,  # type: ignore
+                    datatype=datatype_t[1],  # type: ignore
                 )
 
         return study_map
