@@ -116,7 +116,7 @@ class S3BucketInterface:
         return S3BucketInterface(boto_client=client, bucket_name=parameters["bucket"])
 
     @classmethod
-    def create_from_environment(cls, s3bucket: str) -> Optional["S3BucketInterface"]:
+    def create_from_environment(cls, s3bucket: str) -> "S3BucketInterface":
         """Returns the bucket reader using the gearbot access credentials
         stored in the environment variables. Use this method only if nacc-
         flywheel-gear user has access to the specified S3 bucket.
@@ -124,7 +124,7 @@ class S3BucketInterface:
         Args:
           s3bucket: S3 bucket name
         Returns:
-          the S3BucketReader
+          the S3BucketInterface
         """
 
         secret_key = get_environment_variable("AWS_SECRET_ACCESS_KEY")
