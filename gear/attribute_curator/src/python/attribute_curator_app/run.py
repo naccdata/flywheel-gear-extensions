@@ -2,7 +2,7 @@
 
 import importlib.metadata
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -19,6 +19,8 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 
+from utils.utils import parse_string_to_list
+
 from attribute_curator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -31,17 +33,19 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         project: ProjectAdaptor,
-        filename_pattern: str,
+        filename_patterns: List[str],
         curation_tag: str,
         force_curate: bool = False,
         blacklist_file: Optional[InputFileWrapper] = None,
+        max_num_workers: int = 4,
     ):
         super().__init__(client=client)
         self.__project = project
-        self.__filename_pattern = filename_pattern
+        self.__filename_patterns = filename_patterns
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
         self.__blacklist_file = blacklist_file
+        self.__max_num_workers = max_num_workers
 
     @classmethod
     def create(
@@ -67,9 +71,14 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             input_name="blacklist_file", context=context
         )
 
-        filename_pattern = context.config.get("filename_pattern", "*.json")
+        filename_patterns = parse_string_to_list(
+            context.config.get("filename_patterns",
+                               ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"),
+            to_lower=False
+        )
         curation_tag = context.config.get("curation_tag", "attribute-curator")
         force_curate = context.config.get("force_curate", False)
+        max_num_workers = context.config.get("max_num_workers", 4)
 
         #fw_project = get_project_from_destination(context=context, proxy=proxy)
         fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
@@ -81,10 +90,11 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         return AttributeCuratorVisitor(
             client=client,
             project=project,
-            filename_pattern=filename_pattern,
+            filename_patterns=filename_patterns,
             curation_tag=curation_tag,
             force_curate=force_curate,
             blacklist_file=blacklist_file,
+            max_num_workers=max_num_workers,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -102,7 +112,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern,
+                filename_patterns=self.__filename_patterns,
                 blacklist=blacklist,
             )
         except ProjectCurationError as error:
@@ -114,6 +124,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             scheduler=scheduler,
             curation_tag=self.__curation_tag,
             force_curate=self.__force_curate,
+            max_num_workers=self.__max_num_workers,
         )
 
 

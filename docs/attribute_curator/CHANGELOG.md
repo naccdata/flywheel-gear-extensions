@@ -5,8 +5,11 @@ All notable changes to this gear are documented in this file.
 ## 1.0.0, Unreleased
 
 * Updates `nacc-attribute-deriver` to `2.0.0`, which introduces major refactoring and most of the remaining derived variables 
-* Adds CSF and MRI Summary scopes
+* Adds CSF and Mixed Protocol scopes. MP required a few additional refactors:
+    * Updates to support curating over dicom and nifti files, and expands the `filename_pattern` to `filename_patterns` to support multiple patterns
+    * Adds `img_study_date` to use the `file.info.header.dicom.StudyDate` field for image file ordering
 * Updates function names from `pre/post_process` to `pre/post_curate`
+* Parameterizes number of workers
 
 ## 0.4.4
 

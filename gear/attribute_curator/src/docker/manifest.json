@@ -44,10 +44,10 @@
             "type": "boolean",
             "default": false
         },
-        "filename_pattern": {
-            "description": "Filename pattern to match on",
+        "filename_patterns": {
+            "description": "Filename patterns to match on; comma-deliminated for multiple patterns",
             "type": "string",
-            "default": "*.json"
+            "default": ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"
         },
         "curation_tag": {
             "description": "Tag to apply to curated files",
@@ -58,6 +58,11 @@
             "description": "Curate file even if it's already been curated",
             "type": "boolean",
             "default": false
+        },
+        "max_num_workers": {
+            "description": "Max number of workers to use",
+            "type": "integer",
+            "default": 4
         },
         "debug": {
             "description": "Whether or not to use debug-level logging (level set to DEBUG)",

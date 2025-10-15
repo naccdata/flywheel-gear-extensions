@@ -8,15 +8,16 @@ from pydantic import BaseModel, field_validator
 
 VISIT_PATTERN = re.compile(
     r"^"
-    r"(?P<pass1>.+("
+    r"(?P<pass2>.+("
     r"_CLS|_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
-    r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+|"
-    r"MRI-SUMMARY-DATA.+"
+    r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
     r")\.json)|"
-    r"(?P<pass0>.+(_UDS)\.json)"
+    r"(?P<pass1>.+(_UDS)\.json)|"
+    r"(?P<pass0>.+(MRI-SUMMARY-DATA.+\.json|"
+    r"\.dicom\.zip|\.nii\.gz))"
     r"$"
 )
 
@@ -38,9 +39,10 @@ class FileModel(BaseModel):
     scan_date: Optional[date]
     scandate: Optional[date]
     scandt: Optional[date]
+    img_study_date: Optional[date]
 
     @property
-    def visit_pass(self) -> Optional[Literal["pass0", "pass1", "pass2"]]:
+    def visit_pass(self) -> Optional[Literal["pass0", "pass1", "pass2", "pass3"]]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -52,13 +54,14 @@ class FileModel(BaseModel):
         This is done to avoid having to maintain the total ordering without
         having to rename the pass if more constraints are added.
 
-        As it is, UDS must be curated last; after every other file.
+        As it is, imaging data must be curated last (as it relies on all UDS visits
+        being known/curated), then UDS, then every other file.
         Historical APOE must be curated before the NCRAD APOE.
-        As such, there are currently 3 pass categories.
+        As such, there are currently 4 pass categories.
         """
         # need to handle historic apoe separately as it does not work well with regex
         if "historic_apoe_genotype" in self.filename:
-            return "pass2"
+            return "pass3"
 
         match = VISIT_PATTERN.match(self.filename)
         if not match:
@@ -90,6 +93,8 @@ class FileModel(BaseModel):
             return self.scandate
         if self.scandt:
             return self.scandt
+        if self.img_study_date:
+            return self.img_study_date
         if self.modified_date:
             return self.modified_date
 
@@ -129,6 +134,7 @@ class FileModel(BaseModel):
         "scan_date",
         "scandate",
         "scandt",
+        "img_study_date",
         mode="before",
     )
     def datetime_to_date(cls, value: Optional[date | str]) -> Optional[date | str]:

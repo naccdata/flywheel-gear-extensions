@@ -52,8 +52,8 @@
             "type": "string",
             "default": ""
         },
-        "filename_pattern": {
-            "description": "Filename pattern to match on",
+        "filename_patterns": {
+            "description": "Filename patterns to match on; comma-deliminated for multiple patterns",
             "type": "string",
             "default": "*UDS.json"
         },

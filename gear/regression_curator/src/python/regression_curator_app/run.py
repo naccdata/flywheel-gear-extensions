@@ -74,7 +74,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         project: ProjectAdaptor,
         s3_qaf_file: str,
         keep_fields: List[str],
-        filename_pattern: str,
+        filename_patterns: List[str],
         error_outfile: str,
         s3_mqt_file: Optional[str] = None,
         blacklist_file: Optional[InputFileWrapper] = None,
@@ -84,7 +84,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         self.__s3_qaf_file = s3_qaf_file
         self.__s3_mqt_file = s3_mqt_file
         self.__keep_fields = keep_fields
-        self.__filename_pattern = filename_pattern
+        self.__filename_patterns = filename_patterns
         self.__error_outfile = error_outfile
         self.__blacklist_file = blacklist_file
 
@@ -114,7 +114,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             raise GearExecutionError("QAF file missing")
 
         keep_fields = parse_string_to_list(context.config.get("keep_fields", ""))
-        filename_pattern = context.config.get("filename_pattern", "*UDS.json")
+        filename_patterns = parse_string_to_list(
+            context.config.get("filename_patterns", "*UDS.json"))
 
         proxy = client.get_proxy()
         #fw_project = get_project_from_destination(context=context, proxy=proxy)
@@ -136,7 +137,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             s3_qaf_file=s3_qaf_file,
             s3_mqt_file=s3_mqt_file,
             keep_fields=keep_fields,
-            filename_pattern=filename_pattern,
+            filename_patterns=filename_patterns,
             error_outfile=error_outfile,
             blacklist_file=blacklist_file,
         )
@@ -161,7 +162,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern,
+                filename_patterns=self.__filename_patterns,
                 blacklist=blacklist,
             )
         except ProjectCurationError as error:

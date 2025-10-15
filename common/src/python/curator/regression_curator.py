@@ -76,8 +76,8 @@ class RegressionCurator(Curator):
         return False
 
     def compare_as_floats(self, value: str, expected: str) -> bool:
-        """Checks if the values look like floats and may just have
-        different formatting, and also check precision.
+        """Checks if the values look like floats and may just have different
+        formatting, and also check precision.
 
         Args:
             value: Value to compare
@@ -193,7 +193,7 @@ class RegressionCurator(Curator):
             scope: The scope of the file being curated
         """
         # skip if not in supported scope, no derived variables, or no visitdate found
-        if scope not in ['uds', 'mri_summary']:
+        if scope not in ["uds", "mri_summary"]:
             log.debug(f"{file_entry.name} is not in supported scope, skipping")
             return
 
@@ -210,7 +210,7 @@ class RegressionCurator(Curator):
         visitdate = table.get("file.info.forms.json.visitdate")
         if not visitdate:
             # try MRI
-            if 'file.info.raw.mriyr' in table:
+            if "file.info.raw.mriyr" in table:
                 visitdate = (
                     f"{int(table['file.info.raw.mriyr']):04d}-"
                     + f"{int(table['file.info.raw.mrimo']):02d}-"

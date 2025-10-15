@@ -5,6 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 0.2.0
 
 * Add support for MRI QAFs
+* Adds support for multiple filename patterns
 
 ## 0.1.3
 

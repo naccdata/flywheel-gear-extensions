@@ -18,6 +18,7 @@ def run(
     scheduler: ProjectCurationScheduler,
     curation_tag: str,
     force_curate: bool = False,
+    max_num_workers: int = 4,
 ) -> None:
     """Runs the Attribute Curator process.
 
@@ -28,12 +29,15 @@ def run(
         scheduler: Schedules the files to be curated
         curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
+        max_num_workers: Max number of workers to use
     """
     curator = FormCurator(
         deriver=deriver, curation_tag=curation_tag, force_curate=force_curate
     )
 
-    scheduler.apply(curator=curator, context=context)
+    scheduler.apply(curator=curator,
+                    context=context,
+                    max_num_workers=max_num_workers)
 
     if curator.failed_files:
         failed_files = curator.failed_files.copy()

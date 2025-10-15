@@ -75,7 +75,7 @@ class ProjectCurationScheduler:
     def create(
         cls,
         project: ProjectAdaptor,
-        filename_pattern: str,
+        filename_patterns: List[str],
         blacklist: Optional[List[str]] = None,
     ) -> "ProjectCurationScheduler":
         """Creates a ProjectCurationScheduler for the projects.
@@ -86,7 +86,7 @@ class ProjectCurationScheduler:
 
         Args:
           project: the project
-          filename_pattern: Filename pattern to match on
+          filename_pattern: List of filename patterns to match on
           blacklist: List of subjects to ignore
         Returns:
           the ProjectCurationScheduler for the form files in the project
@@ -111,11 +111,17 @@ class ProjectCurationScheduler:
                 ColumnModel(data_key="file.info.raw.scan_date", label="scan_date"),
                 ColumnModel(data_key="file.info.raw.scandate", label="scandate"),
                 ColumnModel(data_key="file.info.raw.scandt", label="scandt"),
+                ColumnModel(
+                    data_key="file.info.header.dicom.StudyDate", label="img_study_date"
+                ),
             ],
             container="acquisition",
-            filename=filename_pattern,
             missing_data_strategy="none",
         )
+        if filename_patterns:
+            builder.file_filter(value="|".join(filename_patterns), regex=True)
+            builder.file_container("acquisition")
+
         view = builder.build()
 
         with project.read_dataview(view) as response:
@@ -163,16 +169,20 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self, curator: Curator, context: GearToolkitContext) -> None:
+    def apply(self,
+              curator: Curator,
+              context: GearToolkitContext,
+              max_num_workers: int = 4) -> None:
         """Applies a Curator to the form files in this curator.
 
         Args:
           curator: an instantiated curator class
           context: context to set SDK client from
+          max_num_workers: max number of workers to use
         """
         log.info("Start curator for %s subjects", len(self.__heap_map))
 
-        process_count = max(4, self.__compute_cores())
+        process_count = max(max_num_workers, self.__compute_cores())
         results = []
 
         with Pool(
