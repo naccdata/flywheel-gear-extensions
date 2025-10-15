@@ -19,13 +19,14 @@ log = logging.getLogger(__name__)
 
 class DataRequest(BaseModel):
     """Data model for a row of a data request file."""
+
     naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
 
     @model_validator(mode="before")
     @classmethod
     def fix_case(cls, value: Any) -> Any:
         if isinstance(value, dict):
-            return {k.lower(): v for k,v in value.items()}
+            return {k.lower(): v for k, v in value.items()}
 
         return value
 

@@ -21,9 +21,10 @@ class StatusRequest(BaseModel):
     @classmethod
     def fix_case(cls, value: Any) -> Any:
         if isinstance(value, dict):
-            return {k.lower(): v for k,v in value.items()}
+            return {k.lower(): v for k, v in value.items()}
 
         return value
+
 
 class StatusRequestClusteringVisitor(CSVVisitor):
     """CSV visitor to load and cluster submission status requests by ADCID."""
