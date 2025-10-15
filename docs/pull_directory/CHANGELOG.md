@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.1
+
+* Changes handling of p30 biomarker and genetic authorizations so that they map to ncrad and niagads studies instead of adrc.
+  This matches project structure in the system.
+* Adds field validation to all authorization flags in the directory authorizations.
+  
 ## 2.0.4
 
 * Add logging when directory records are ignored.
