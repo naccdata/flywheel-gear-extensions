@@ -191,7 +191,7 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         )
         for redcap_metadata in project.redcap_projects.values():
             submission_activity = redcap_metadata.get_submission_activity()
-            if submission_activity not in self.__current_authorization.activities:
+            if submission_activity not in self.__current_authorization:
                 log.warning(
                     "Skipping %s: activity is not in user authorizations %s",
                     submission_activity,
