@@ -193,7 +193,9 @@ class DirectoryAuthorizations(BaseModel):
 
         return value_list.split(",")
 
-    @field_validator("web_report_access", mode="before")
+    @field_validator(
+        "web_report_access", "inactive", "permissions_approval", mode="before"
+    )
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
