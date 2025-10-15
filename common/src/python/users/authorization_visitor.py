@@ -180,7 +180,7 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
                 log.warning(
                     "Skipping %s: activity is not in user authorizations %s",
                     submission_activity,
-                    self.__current_authorization.activities,
+                    str(self.__current_authorization),
                 )
                 return
 
