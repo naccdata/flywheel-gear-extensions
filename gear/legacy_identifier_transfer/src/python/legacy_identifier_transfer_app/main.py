@@ -9,7 +9,8 @@ from dates.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_dat
 from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentRecord
 from identifiers.model import CenterIdentifiers, IdentifierObject
-from keys.keys import DefaultValues, FieldNames, MetadataKeys
+from keys.keys import DefaultValues, MetadataKeys
+from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError

@@ -21,8 +21,9 @@ from identifiers.model import (
     OptionalNACCIDField,
 )
 from inputs.csv_reader import RowValidator
-from keys.keys import FieldNames, SysErrorCodes
-from outputs.error_models import VisitKeys
+from keys.keys import SysErrorCodes
+from nacc_common.error_models import VisitKeys
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     existing_participant_error,

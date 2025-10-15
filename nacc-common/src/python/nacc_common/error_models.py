@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
-from keys.keys import FieldNames
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+from nacc_common.field_names import FieldNames
 
 
 class QCVisitor(ABC):
