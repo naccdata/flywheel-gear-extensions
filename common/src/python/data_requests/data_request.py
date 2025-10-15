@@ -116,6 +116,17 @@ class ModuleDataError(Exception):
 
 
 def create_project_matcher(study_id: str, project_names: list[str]) -> re.Pattern[str]:
+    """Creates a regex pattern for matching project names.
+
+    Includes the unqualified project names and the names with the study_id as 
+    a suffix.
+
+    Args:
+      study_id: the study-id
+      project_names: the list of project names
+    Returns:
+      the regex pattern to match any of the project names
+    """
     temp_project_names = set(project_names)
     temp_project_names.update({f"{name}-{study_id}" for name in project_names})
     return re.compile(f"^{'|'.join(temp_project_names)}$")
@@ -186,6 +197,19 @@ class DataRequestVisitor(CSVVisitor):
         return result
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Applies this visitor to the data request row at the line number.
+        
+        If the data request validates, matches the subjects with the request
+        and project names for this visitor.
+        If there are any matches, applies the gatherers of this visitor to 
+        collect data for the subject.
+
+        Args:
+          row: the data request object
+          line_num: the line number
+        Returns:
+          True if the visit had no failure
+        """
         try:
             query = DataRequest.model_validate(row)
         except ValidationError as error:
