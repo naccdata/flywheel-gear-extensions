@@ -74,10 +74,10 @@ class StudyAuthorizations(BaseModel):
     activities: dict[DatatypeNameType, Activity] = {}
 
     def __str__(self) -> str:
-        return (
-            f"study_id='{self.study_id}' "
-            f"activities=[{','.join([str(activity) for activity in self.activities.values()])}]"
+        activity_str = ",".join(
+            [str(activity) for activity in self.activities.values()]
         )
+        return f"study_id='{self.study_id}' activities=[{activity_str}]"
 
     def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
         """Adds an activity with the datatype and action to the authorizations.
