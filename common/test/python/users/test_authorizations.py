@@ -218,6 +218,13 @@ class TestAuthorization:
         assert "submit-audit-form" in authorization
         assert "view-form" not in authorization
 
+        activity = Activity(datatype="form", action="submit-audit")
+        assert activity in authorization
+        activity = Activity(datatype="form", action="view")
+        assert activity not in authorization
+        activity = Activity(datatype="apoe", action="view")
+        assert activity not in authorization
+
     def test_validation(self):
         auth = {
             "activities": {
@@ -233,3 +240,9 @@ class TestAuthorization:
             raise AssertionError(error) from error
 
         assert study_auth is not None
+
+    def test_str(self):
+        authorization = StudyAuthorizations(study_id="dummy")
+        authorization.add(datatype="form", action="submit-audit")
+
+        assert str(authorization) == "study_id='dummy' activities=[submit-audit-form]"
