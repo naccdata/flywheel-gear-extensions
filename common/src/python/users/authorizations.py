@@ -1,7 +1,7 @@
 """Defines components related to user authorizations."""
 
 import logging
-from typing import Any, Literal, Self, get_args
+from typing import Any, Literal, Self, Union, get_args
 
 from flywheel.models.role_output import RoleOutput
 from keys.types import DatatypeNameType
@@ -73,6 +73,12 @@ class StudyAuthorizations(BaseModel):
     study_id: str
     activities: dict[DatatypeNameType, Activity] = {}
 
+    def __str__(self) -> str:
+        return (
+            f"study_id='{self.study_id}' "
+            f"activities=[{','.join([str(activity) for activity in self.activities.values()])}]"
+        )
+
     def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
         """Adds an activity with the datatype and action to the authorizations.
 
@@ -82,18 +88,22 @@ class StudyAuthorizations(BaseModel):
         """
         self.activities[datatype] = Activity(datatype=datatype, action=action)
 
-    def __contains__(self, activity_name: str) -> bool:
+    def __contains__(self, activity: Union[str, Activity]) -> bool:
         try:
-            input_activity = Activity.model_validate(activity_name)
+            input_activity = (
+                Activity.model_validate(activity)
+                if isinstance(activity, str)
+                else activity
+            )
         except ValidationError:
             # TODO: needs to raise error
             return False
 
-        activity = self.activities.get(input_activity.datatype)
-        if activity is None:
+        datatype_activity = self.activities.get(input_activity.datatype)
+        if datatype_activity is None:
             return False
 
-        return input_activity.action == activity.action
+        return input_activity.action == datatype_activity.action
 
 
 class AuthMap(BaseModel):
