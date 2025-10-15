@@ -8,7 +8,7 @@ from inputs.csv_reader import CSVVisitor
 from nacc_common.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, model_validator
 
 
 class StatusRequest(BaseModel):
@@ -17,6 +17,13 @@ class StatusRequest(BaseModel):
     adcid: int
     ptid: str
 
+    @model_validator(mode="before")
+    @classmethod
+    def fix_case(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k.lower(): v for k,v in value.items()}
+
+        return value
 
 class StatusRequestClusteringVisitor(CSVVisitor):
     """CSV visitor to load and cluster submission status requests by ADCID."""

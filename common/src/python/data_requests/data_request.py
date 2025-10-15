@@ -12,15 +12,22 @@ from nacc_common.module_types import ModuleName
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from outputs.outputs import StringCSVWriter
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 log = logging.getLogger(__name__)
 
 
 class DataRequest(BaseModel):
     """Data model for a row of a data request file."""
-
     naccid: str = Field(max_length=10, pattern=NACCID_PATTERN)
+
+    @model_validator(mode="before")
+    @classmethod
+    def fix_case(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k.lower(): v for k,v in value.items()}
+
+        return value
 
 
 class DataRequestMatch(BaseModel):
