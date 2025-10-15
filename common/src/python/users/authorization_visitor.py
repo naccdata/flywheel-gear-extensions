@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Mapping, Optional
 
 from centers.center_group import (
     AbstractCenterMetadataVisitor,
@@ -64,6 +64,21 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         center_portal = self.__center.get_portal()
         center_portal.add_user_role(user=self.__user, role=read_only_role)
 
+    def __apply_authorizations(
+        self, projects: Mapping[str, ProjectMetadata], pipeline_name: str
+    ) -> None:
+        log.info(
+            "checking authorizations for user %s in %s %s projects",
+            self.__user.id,
+            len(projects),
+            pipeline_name,
+        )
+        for project in projects.values():
+            try:
+                project.apply(self)
+            except AuthorizationError as error:
+                log.warning("Skipping authorization: %s", error)
+
     def visit_study(self, study: CenterStudyMetadata) -> None:
         """Sets roles for the user within the center projects for the study.
 
@@ -87,16 +102,16 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         self.__current_authorization = authorizations
 
         ingest_projects = study.ingest_projects
-        log.info(
-            "checking authorizations for user %s in %s ingest projects",
-            self.__user.id,
-            len(ingest_projects),
-        )
-        for project in ingest_projects.values():
-            try:
-                project.apply(self)
-            except AuthorizationError as error:
-                log.warning("Skipping authorization: %s", error)
+        if ingest_projects:
+            self.__apply_authorizations(
+                projects=ingest_projects, pipeline_name="ingest"
+            )
+
+        distribution_projects = study.distribution_projects
+        if distribution_projects:
+            self.__apply_authorizations(
+                projects=distribution_projects, pipeline_name="distribution"
+            )
 
         self.__current_authorization = None
 
