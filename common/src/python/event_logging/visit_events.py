@@ -13,7 +13,8 @@ from datetime import date, datetime
 from typing import Literal, Optional, Self
 
 from identifiers.model import PTID_PATTERN
-from keys.types import DatatypeNameType, ModuleName
+from keys.types import DatatypeNameType
+from nacc_common.module_types import ModuleName
 from pydantic import BaseModel, Field, model_validator
 
 VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
