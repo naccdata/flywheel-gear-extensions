@@ -86,13 +86,6 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
 
         self.__current_authorization = authorizations
 
-        accepted_project = study.accepted_project
-        if accepted_project:
-            try:
-                accepted_project.apply(self)
-            except AuthorizationError as error:
-                log.warning("Skipping authorization: %s", error)
-
         ingest_projects = study.ingest_projects
         log.info(
             "checking authorizations for user %s in %s ingest projects",
