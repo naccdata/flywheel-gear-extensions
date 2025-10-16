@@ -184,22 +184,25 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
             return
 
         log.info(
-            "Setting REDCap permissions for ingest project %s/%s/%s",
+            "Checking REDCap permissions for ingest project %s/%s/%s",
             self.__current_authorization.study_id,
             self.__center.label,
             project.project_label,
         )
+        redcap_authorized = False
         for redcap_metadata in project.redcap_projects.values():
             submission_activity = redcap_metadata.get_submission_activity()
             if submission_activity not in self.__current_authorization:
-                log.warning(
-                    "Skipping %s: activity is not in user authorizations %s",
-                    submission_activity,
-                    str(self.__current_authorization),
-                )
-                return
+                continue
 
+            redcap_authorized = True
             self.visit_redcap_form_project(redcap_metadata)
+
+        if not redcap_authorized:
+            log.info(
+                "No REDCap access: no authorizations matched for user %s",
+                self.__user.id,
+            )
 
     def visit_redcap_form_project(self, project: REDCapFormProjectMetadata) -> None:
         """Assigns REDCap roles for the user to the project.
