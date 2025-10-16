@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Mapping, Optional
 
 from centers.center_group import (
     AbstractCenterMetadataVisitor,
@@ -64,6 +64,21 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         center_portal = self.__center.get_portal()
         center_portal.add_user_role(user=self.__user, role=read_only_role)
 
+    def __apply_authorizations(
+        self, projects: Mapping[str, ProjectMetadata], pipeline_name: str
+    ) -> None:
+        log.info(
+            "checking authorizations for user %s in %s %s projects",
+            self.__user.id,
+            len(projects),
+            pipeline_name,
+        )
+        for project in projects.values():
+            try:
+                project.apply(self)
+            except AuthorizationError as error:
+                log.warning("Skipping authorization: %s", error)
+
     def visit_study(self, study: CenterStudyMetadata) -> None:
         """Sets roles for the user within the center projects for the study.
 
@@ -86,24 +101,17 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
 
         self.__current_authorization = authorizations
 
-        accepted_project = study.accepted_project
-        if accepted_project:
-            try:
-                accepted_project.apply(self)
-            except AuthorizationError as error:
-                log.warning("Skipping authorization: %s", error)
-
         ingest_projects = study.ingest_projects
-        log.info(
-            "checking authorizations for user %s in %s ingest projects",
-            self.__user.id,
-            len(ingest_projects),
-        )
-        for project in ingest_projects.values():
-            try:
-                project.apply(self)
-            except AuthorizationError as error:
-                log.warning("Skipping authorization: %s", error)
+        if ingest_projects:
+            self.__apply_authorizations(
+                projects=ingest_projects, pipeline_name="ingest"
+            )
+
+        distribution_projects = study.distribution_projects
+        if distribution_projects:
+            self.__apply_authorizations(
+                projects=distribution_projects, pipeline_name="distribution"
+            )
 
         self.__current_authorization = None
 
@@ -176,22 +184,25 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
             return
 
         log.info(
-            "Setting REDCap permissions for ingest project %s/%s/%s",
+            "Checking REDCap permissions for ingest project %s/%s/%s",
             self.__current_authorization.study_id,
             self.__center.label,
             project.project_label,
         )
+        redcap_authorized = False
         for redcap_metadata in project.redcap_projects.values():
             submission_activity = redcap_metadata.get_submission_activity()
-            if submission_activity not in self.__current_authorization.activities:
-                log.warning(
-                    "Skipping %s: activity is not in user authorizations %s",
-                    submission_activity,
-                    self.__current_authorization.activities,
-                )
-                return
+            if submission_activity not in self.__current_authorization:
+                continue
 
+            redcap_authorized = True
             self.visit_redcap_form_project(redcap_metadata)
+
+        if not redcap_authorized:
+            log.info(
+                "No REDCap access: no authorizations matched for user %s",
+                self.__user.id,
+            )
 
     def visit_redcap_form_project(self, project: REDCapFormProjectMetadata) -> None:
         """Assigns REDCap roles for the user to the project.
