@@ -5,6 +5,7 @@ import sys
 import time
 from typing import List, Optional
 
+from event_logging.event_logging import VisitEventLogger
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -16,7 +17,9 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
-from utils.utils import parse_string_to_list
+from pydantic import ValidationError
+from s3.s3_bucket import S3BucketInterface
+from utils.utils import load_form_ingest_configurations, parse_string_to_list
 
 from form_screening_app.main import FormSchedulerGearConfigs, run
 
@@ -34,6 +37,8 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         queue_tags: List[str],
         scheduler_gear: GearInfo,
         format_and_tag: bool,
+        event_bucket: S3BucketInterface,
+        config_input: InputFileWrapper,
     ):
         super().__init__(client=client)
 
@@ -42,6 +47,8 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         self.__queue_tags = queue_tags
         self.__scheduler_gear = scheduler_gear
         self.__format_and_tag = format_and_tag
+        self.__event_bucket = event_bucket
+        self.__config_input = config_input
 
     @classmethod
     def create(
@@ -67,6 +74,12 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 "Gear config input_file not specified or not found"
             )
+
+        form_configs_input = InputFileWrapper.create(
+            input_name="form_configs_file", context=context
+        )
+        if not form_configs_input:
+            raise GearExecutionError("missing expected input, form_configs_file")
 
         gear_name = context.manifest.get("name", "form-screening")
 
@@ -115,6 +128,11 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 f"Error(s) in reading scheduler gear configs file - {config_file_path}"
             )
 
+        event_bucket_name = context.config.get("event_bucket", None)
+        if event_bucket_name is None:
+            raise GearExecutionError("event bucket name is required")
+        event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
+
         return FormScreeningVisitor(
             client=client,
             file_input=file_input,  # type: ignore
@@ -122,10 +140,37 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=file_tags,
             scheduler_gear=scheduler_gear,
             format_and_tag=format_and_tag,
+            event_bucket=event_bucket,
+            config_input=form_configs_input,
         )
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the Form Screening app."""
+
+        module = self.__file_input.get_module_name_from_file_suffix()
+        if not module:
+            raise GearExecutionError(
+                f"Expect module suffix in input file name: {self.__file_input.filename}"
+            )
+        module = module.upper()
+
+        try:
+            form_configs = load_form_ingest_configurations(self.__config_input.filepath)
+        except ValidationError as error:
+            raise GearExecutionError(
+                "Error reading form configurations file"
+                f"{self.__config_input.filename}: {error}"
+            ) from error
+
+        if (
+            module not in form_configs.accepted_modules
+            or not form_configs.module_configs.get(module)
+        ):
+            raise GearExecutionError(
+                f"Unsupported module {module} : {self.__file_input.filename}"
+            )
+
+        event_logger = VisitEventLogger(self.__event_bucket)
 
         error_writer = run(
             proxy=self.proxy,
@@ -135,6 +180,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=self.__queue_tags,
             scheduler_gear=self.__scheduler_gear,
             format_and_tag=self.__format_and_tag,
+            event_logger=event_logger,
         )
 
         if error_writer:
