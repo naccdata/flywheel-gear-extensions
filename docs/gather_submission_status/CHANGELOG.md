@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.0
+
+* Merges in changes for nacc-common. Should not affect behavior of the gear
+
+## 1.0.2
+
+* Fixes an error in the submission status/error reporting
+
+## 1.0.0
+
+* Change request to only require the ADCID and PTID, dropping the study.
+* Refactor error/status reporting so can be used by other code
+
 ## 0.4.0
 
 * Adds generation of an error report from the qc-status logs.
