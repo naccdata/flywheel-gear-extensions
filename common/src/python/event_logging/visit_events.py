@@ -31,8 +31,10 @@ class VisitEvent(BaseModel):
     visit_number: str
     datatype: DatatypeNameType
     module: Optional[ModuleName] = None
+    packet: Optional[str] = None
     timestamp: datetime
 
+    # TODO: do we need validation for packet?
     @model_validator(mode="after")
     def validate_module(self) -> Self:
         if self.datatype != "form" and self.module is not None:
