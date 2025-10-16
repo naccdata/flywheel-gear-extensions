@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.1.0
+
+* Change how redcap project authorizations are checked so that each project is checked.
+* Change logging so that only logs when user authorizations match no redcap project submission activity.
+
 ## 3.0.4
 
 * Fixes check for REDCap authorizations
