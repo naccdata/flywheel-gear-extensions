@@ -235,7 +235,9 @@ class DatastoreHelper(Datastore):
         return legacy_visits
 
     def __get_initial_visit(self, current_record: Dict[str, Any]) -> Dict[str, Any]:
-        """Retrieve the initial visit for the specified participant.
+        """Retrieve the initial visit for the specified participant. This
+        method only checks against the ingest project, as each participant must
+        have either an UDSv4 I or I4 packet.
 
         Args:
             current_record: record currently being validated
@@ -273,8 +275,8 @@ class DatastoreHelper(Datastore):
         return initial_visit[0]
 
     def get_previous_record(
-            self, current_record: Dict[str, Any]
-        ) -> Optional[Dict[str, Any]]:
+        self, current_record: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the previous visit record for
         the specified participant.
 
@@ -347,7 +349,7 @@ class DatastoreHelper(Datastore):
     def get_initial_record(
         self,
         current_record: Dict[str, Any],
-        ignore_empty_fields: Optional[List[str]] = None
+        ignore_empty_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the initial visit record for the
         specified participant if non-empty.
@@ -376,7 +378,9 @@ class DatastoreHelper(Datastore):
         if self.__check_nonempty(ignore_empty_fields, visit_data):
             return visit_data
 
-        log.warning("Initial visit has non-empty values for %s", ignore_empty_fields)
+        log.warning(
+            "No initial visit found with non-empty values for %s", ignore_empty_fields
+        )
         return None
 
     def is_valid_rxcui(self, drugid: int) -> bool:

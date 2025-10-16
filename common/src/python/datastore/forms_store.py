@@ -3,7 +3,7 @@
 import json
 import logging
 from json import JSONDecodeError
-from typing import Any, Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues, MetadataKeys
