@@ -45,7 +45,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self.__configs_input = pipeline_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
-        self.__event_log_bucket = event_bucket
+        self.__event_bucket = event_bucket
 
     @classmethod
     def create(
@@ -138,7 +138,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
-        event_logger = VisitEventLogger(self.__event_log_bucket)
+        event_logger = VisitEventLogger(self.__event_bucket)
 
         # if source email specified, set up client to send emails
         email_client = (
