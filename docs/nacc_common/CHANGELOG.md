@@ -2,6 +2,10 @@
 
 Documentation of release versions of the `nacc-common` package.
 
+# v2.0.1
+
+* Fixes serialization of report objects so uses field name aliases.
+
 # v2.0.0
 
 * Moves the nacc-common code into the flywheel-gear-extensions repo to allow use of same code used for reporting gears used for affiliated studies.

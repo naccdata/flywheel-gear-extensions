@@ -16,7 +16,7 @@ python_distribution(
     sdist=True,
     provides=python_artifact(
         name="nacc-common",
-        version="2.0.0",
+        version="2.0.1",
     ),
     # Don't generate setup.py
     generate_setup=False,
