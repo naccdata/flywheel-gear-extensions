@@ -4,8 +4,8 @@ import pytest
 import yaml
 from centers.center_group import REDCapFormProjectMetadata
 from flywheel.models.role_output import RoleOutput
-from pydantic import ValidationError
 from keys.keys import DefaultValues
+from pydantic import ValidationError
 from users.authorizations import (
     Activity,
     AuthMap,
@@ -273,20 +273,26 @@ class TestUserAuthorizations:
         assert user_object
         user_entry = ActiveUserEntry.model_validate(user_object)
         authorizations = {auth.study_id: auth for auth in user_entry.authorizations}
-        enrollment_authorizations = authorizations.get("adrc")
-        assert enrollment_authorizations
-        assert "submit-audit-enrollment" in enrollment_authorizations
-        assert "submit-audit-form" in enrollment_authorizations
-        assert Activity(datatype="enrollment", action="submit-audit") in enrollment_authorizations
-        assert Activity(datatype="form", action="submit-audit") in enrollment_authorizations
+        adrc_authorization = authorizations.get("adrc")
+        assert adrc_authorization
+        assert "submit-audit-enrollment" in adrc_authorization
+        assert "submit-audit-form" in adrc_authorization
+        assert (
+            Activity(datatype="enrollment", action="submit-audit") in adrc_authorization
+        )
+        assert Activity(datatype="form", action="submit-audit") in adrc_authorization
 
-        redcap_metadata = REDCapFormProjectMetadata(redcap_pid=0, label=DefaultValues.ENROLLMENT_MODULE)
+        redcap_metadata = REDCapFormProjectMetadata(
+            redcap_pid=0, label=DefaultValues.ENROLLMENT_MODULE
+        )
         submission_activity = redcap_metadata.get_submission_activity()
-        assert Activity(datatype="enrollment", action="submit-audit") == submission_activity
-        assert submission_activity in enrollment_authorizations
+        assert (
+            Activity(datatype="enrollment", action="submit-audit")
+            == submission_activity
+        )
+        assert submission_activity in adrc_authorization
 
         redcap_metadata = REDCapFormProjectMetadata(redcap_pid=0, label="blah")
         submission_activity = redcap_metadata.get_submission_activity()
         assert Activity(datatype="form", action="submit-audit") == submission_activity
-        assert submission_activity in enrollment_authorizations
-
+        assert submission_activity in adrc_authorization
