@@ -2,13 +2,16 @@
 
 import pytest
 import yaml
+from centers.center_group import REDCapFormProjectMetadata
 from flywheel.models.role_output import RoleOutput
+from keys.keys import DefaultValues
 from pydantic import ValidationError
 from users.authorizations import (
     Activity,
     AuthMap,
     StudyAuthorizations,
 )
+from users.user_entry import ActiveUserEntry
 
 
 @pytest.fixture
@@ -218,6 +221,13 @@ class TestAuthorization:
         assert "submit-audit-form" in authorization
         assert "view-form" not in authorization
 
+        activity = Activity(datatype="form", action="submit-audit")
+        assert activity in authorization
+        activity = Activity(datatype="form", action="view")
+        assert activity not in authorization
+        activity = Activity(datatype="apoe", action="view")
+        assert activity not in authorization
+
     def test_validation(self):
         auth = {
             "activities": {
@@ -233,3 +243,56 @@ class TestAuthorization:
             raise AssertionError(error) from error
 
         assert study_auth is not None
+
+    def test_str(self):
+        authorization = StudyAuthorizations(study_id="dummy")
+        authorization.add(datatype="form", action="submit-audit")
+
+        assert str(authorization) == "study_id='dummy' activities=[submit-audit-form]"
+
+
+class TestUserAuthorizations:
+    def test_user_case(self):
+        user_yaml = (
+            "active: true\n"
+            "adcid: 0\n"
+            "approved: true\n"
+            "auth_email: blah@blah.org\n"
+            "authorizations:\n"
+            "- activities:\n"
+            "    enrollment: submit-audit-enrollment\n"
+            "    form: submit-audit-form\n"
+            "  study_id: adrc\n"
+            "email: blah@blah.org\n"
+            "name:\n"
+            "  first_name: Blah\n"
+            "  last_name: Blah\n"
+            "org_name: Blah"
+        )
+        user_object = yaml.safe_load(user_yaml)
+        assert user_object
+        user_entry = ActiveUserEntry.model_validate(user_object)
+        authorizations = {auth.study_id: auth for auth in user_entry.authorizations}
+        adrc_authorization = authorizations.get("adrc")
+        assert adrc_authorization
+        assert "submit-audit-enrollment" in adrc_authorization
+        assert "submit-audit-form" in adrc_authorization
+        assert (
+            Activity(datatype="enrollment", action="submit-audit") in adrc_authorization
+        )
+        assert Activity(datatype="form", action="submit-audit") in adrc_authorization
+
+        redcap_metadata = REDCapFormProjectMetadata(
+            redcap_pid=0, label=DefaultValues.ENROLLMENT_MODULE
+        )
+        submission_activity = redcap_metadata.get_submission_activity()
+        assert (
+            Activity(datatype="enrollment", action="submit-audit")
+            == submission_activity
+        )
+        assert submission_activity in adrc_authorization
+
+        redcap_metadata = REDCapFormProjectMetadata(redcap_pid=0, label="blah")
+        submission_activity = redcap_metadata.get_submission_activity()
+        assert Activity(datatype="form", action="submit-audit") == submission_activity
+        assert submission_activity in adrc_authorization

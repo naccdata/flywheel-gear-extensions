@@ -96,24 +96,37 @@ class TestDirectoryAuthorizations:
     assert user_entry and isinstance(user_entry, ActiveUserEntry)
     assert user_entry.active
     assert user_entry.adcid == 999
-    assert user_entry.authorizations == [
-        StudyAuthorizations(
-            study_id="adrc",
-            activities={
-                "enrollment": Activity(datatype="enrollment", action="view"),
-                "form": Activity(datatype="form", action="submit-audit"),
-                "dicom": Activity(datatype="dicom", action="submit-audit"),
-                "biomarker": Activity(datatype="biomarker", action="submit-audit"),
-                "apoe": Activity(datatype="apoe", action="view"),
-                "gwas": Activity(datatype="gwas", action="view"),
-                "genetic-availability": Activity(
-                    datatype="genetic-availability", action="view"
-                ),
-                "imputation": Activity(datatype="imputation", action="view"),
-            },
-        ),
-        StudyAuthorizations(
-            study_id="clariti",
-            activities={"biomarker": Activity(datatype="biomarker", action="view")},
-        ),
-    ]
+    assert len(user_entry.authorizations) == 4
+
+    # using dict to manage authorizations to avoid ordering issues in comparing lists
+    user_authorizations = {auth.study_id: auth for auth in user_entry.authorizations}  # noqa: RUF012
+
+    assert user_authorizations.get("adrc") == StudyAuthorizations(
+        study_id="adrc",
+        activities={
+            "enrollment": Activity(datatype="enrollment", action="view"),
+            "form": Activity(datatype="form", action="submit-audit"),
+            "dicom": Activity(datatype="dicom", action="submit-audit"),
+        },
+    )
+    assert user_authorizations.get("clariti") == StudyAuthorizations(
+        study_id="clariti",
+        activities={"biomarker": Activity(datatype="biomarker", action="view")},
+    )
+    assert user_authorizations.get("ncrad") == StudyAuthorizations(
+        study_id="ncrad",
+        activities={
+            "biomarker": Activity(datatype="biomarker", action="submit-audit"),
+            "apoe": Activity(datatype="apoe", action="view"),
+        },
+    )
+    assert user_authorizations.get("niagads") == StudyAuthorizations(
+        study_id="niagads",
+        activities={
+            "gwas": Activity(datatype="gwas", action="view"),
+            "genetic-availability": Activity(
+                datatype="genetic-availability", action="view"
+            ),
+            "imputation": Activity(datatype="imputation", action="view"),
+        },
+    )
