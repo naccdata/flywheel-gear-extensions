@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.0.4
+
+* Fixes check for REDCap authorizations
+* Adds authorization application for distribution projects
+
 ## 3.0.3
 
 * Fixes contains check for authorizations
