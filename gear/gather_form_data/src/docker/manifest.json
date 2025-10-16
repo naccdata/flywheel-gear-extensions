@@ -1,8 +1,8 @@
 {
-    "name": "gather-submission-status",
-    "label": "Gather Submission Status",
-    "description": "A gear for gathering form submission status",
-    "version": "1.3.0",
+    "name": "gather-form-data",
+    "label": "Gather Form Data",
+    "description": "Gathers form data across centers",
+    "version": "0.1.4",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/gather-submission-status:1.3.0"
+            "image": "naccdata/gather-form-data:0.1.4"
         },
         "flywheel": {
             "suite": "Utility",
@@ -42,11 +42,6 @@
             "type": "boolean",
             "default": false
         },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
@@ -57,25 +52,20 @@
             "type": "string",
             "default": "ingest-form"
         },
+        "include_derived": {
+            "description": "Whether to include derived variables",
+            "type": "boolean",
+            "default": false
+        },
         "modules": {
             "description": "Comma-separated list of form modules to include",
             "type": "string",
             "default": "UDS,FTLD,LBD"
         },
-        "query_type": {
-            "description": "The type of report, either \"status\" or \"error\"",
-            "type": "string",
-            "enum": ["status", "error"]
-        },
         "study_id": {
             "description": "The study ID",
             "type": "string",
             "default": "adrc"
-        },
-        "output_file": {
-            "description": "Name of the output file",
-            "type": "string",
-            "default": "submission-status.csv"
         }
     },
     "command": "/bin/run"

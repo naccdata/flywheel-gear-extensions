@@ -5,6 +5,7 @@ from csv import DictWriter
 from pathlib import Path
 from typing import List, Optional, get_args
 
+from data_requests.status_request import StatusRequestClusteringVisitor
 from flywheel_gear_toolkit.context.context import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -26,7 +27,6 @@ from nacc_common.visit_submission_status import StatusReportModel, status_transf
 from outputs.error_writer import ListErrorWriter
 
 from gather_submission_status_app.main import ModuleName, run
-from gather_submission_status_app.status_request import RequestClusteringVisitor
 
 log = logging.getLogger(__name__)
 
@@ -133,9 +133,8 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            admin_group = self.admin_group(admin_id=self.__admin_id)
-            clustering = RequestClusteringVisitor(
-                admin_group=admin_group,
+            clustering = StatusRequestClusteringVisitor(
+                proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
                 error_writer=error_writer,

@@ -25,6 +25,7 @@ from flywheel.models.job import Job
 from flywheel.models.project_parents import ProjectParents
 from flywheel.models.role_output import RoleOutput
 from flywheel.models.roles_role_assignment import RolesRoleAssignment
+from flywheel.models.subject import Subject
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
@@ -183,6 +184,9 @@ class FlywheelProxy:
         """
         return self.__fw.get_file(file_id)
 
+    def get_files(self, query: str) -> list[FileEntry]:
+        return self.__fw.files.find(query)
+
     def get_file_group(self, file_id: str) -> str:
         """Returns the group ID for the file.
 
@@ -294,6 +298,19 @@ class FlywheelProxy:
           the project with the ID if exists, None otherwise
         """
         return self.__fw.projects.find_first(f"_id={project_id}")
+
+    def get_pipeline(self, adcid: int) -> list["ProjectAdaptor"]:
+        """Returns the project adaptors for projects with pipeline ADCID set to
+        the ADCID.
+
+        Args:
+          adcid: the ADCID
+        Returns:
+          the list of projects identified with ADCID as pipeline ADCID
+        """
+        projects = self.__fw.projects.find(f"info.pipeline_adcid={adcid}")
+
+        return [ProjectAdaptor(project=project, proxy=self) for project in projects]
 
     def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
@@ -751,6 +768,9 @@ class FlywheelProxy:
 
     def find_projects_with_pattern(self, pattern: str) -> List[flywheel.Project]:
         return self.__fw.projects.find(f"label=~{pattern}")
+
+    def get_subject_by_label(self, label: str) -> list[Subject]:
+        return self.__fw.subjects.find(f"label={label}")
 
 
 def get_name(container) -> str:

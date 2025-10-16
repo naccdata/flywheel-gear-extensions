@@ -7,7 +7,7 @@ from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
-from dataview.dataview import ColumnModel, make_builder
+from data.dataview import ColumnModel, make_builder
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
