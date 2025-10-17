@@ -17,7 +17,6 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
 
 from utils.utils import parse_string_to_list
 
@@ -100,10 +99,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
-        deriver = AttributeDeriver()
-        version = importlib.metadata.version("nacc_attribute_deriver")
-        log.info(f"Running nacc-attribute-deriver version {version}")
-
         blacklist = None
         if self.__blacklist_file:
             with open(self.__blacklist_file.filepath, mode="r") as fh:
@@ -120,7 +115,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         run(
             context=context,
-            deriver=deriver,
             scheduler=scheduler,
             curation_tag=self.__curation_tag,
             force_curate=self.__force_curate,

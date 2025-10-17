@@ -14,7 +14,6 @@ log = logging.getLogger(__name__)
 
 def run(
     context: GearToolkitContext,
-    deriver: AttributeDeriver,
     scheduler: ProjectCurationScheduler,
     curation_tag: str,
     force_curate: bool = False,
@@ -24,15 +23,20 @@ def run(
 
     Args:
         context: gear context
-        deriver: attribute deriver
         curation_type: which type of file and derive rules to curate with
         scheduler: Schedules the files to be curated
         curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
         max_num_workers: Max number of workers to use
     """
+    version = importlib.metadata.version("nacc_attribute_deriver")
+    log.info(f"Running nacc-attribute-deriver version {version}")
+
     curator = FormCurator(
-        deriver=deriver, curation_tag=curation_tag, force_curate=force_curate
+        attribute_deriver=AttributeDeriver(),
+        missingness_deriver=MissingnessDeriver(),
+        curation_tag=curation_tag,
+        force_curate=force_curate
     )
 
     scheduler.apply(curator=curator,

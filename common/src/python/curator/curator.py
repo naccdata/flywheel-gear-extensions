@@ -84,6 +84,14 @@ class Curator(ABC):
         # mutated globally
         table["subject.info"] = subject_table.to_dict()
         table["file.info"] = file_entry.reload().info
+
+        # for derived work, also provide filename. this metadata is not pushed
+        # to FW since we usually only apply select curations back
+        # also make sure we don't have a name clash
+        if table.get('file.info._filename') is not None:
+            raise ValueError("file.info._filename metadata already set, cannot override")
+        table['file.info._filename'] = file_entry.name
+
         return table
 
     @api_retry

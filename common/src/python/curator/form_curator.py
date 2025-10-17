@@ -5,7 +5,10 @@ from typing import Any, Dict, List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+from nacc_attribute_deriver.attribute_deriver import (
+    AttributeDeriver,
+    MissingnessDeriver,
+)
 from nacc_attribute_deriver.schema.errors import (
     AttributeDeriverError,
     MissingRequiredError,
@@ -23,11 +26,19 @@ log = logging.getLogger(__name__)
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(
-        self, deriver: AttributeDeriver, curation_tag: str, force_curate: bool = False
-    ) -> None:
+    def __init__(self,
+                 attribute_deriver: AttributeDeriver,
+                 missingness_deriver: MissingnessDeriver,
+                 curation_tag: str,
+                 force_curate: bool = False) -> None:
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
-        self.__deriver = deriver
+        self.__attribute_deriver = attribute_deriver
+
+        # prev record needed to pull across values for missingness checks
+        self.__missingness_deriver = missingness_deriver
+        self.__prev_record = None
+        self.__prev_scope = None
+
         self.__failed_files = Manager().dict()
 
         # get expected cross-sectional derived variables by scope
@@ -44,7 +55,7 @@ class FormCurator(Curator):
         Returns:
             List of attributes (locations)
         """
-        curation_rules = self.__deriver.get_curation_rules(scope)
+        curation_rules = self.__attribute_deriver.get_curation_rules(scope)
         if not curation_rules:
             raise AttributeDeriverError(
                 f"Cannot find any curation rules for scope: {scope}"
@@ -87,9 +98,10 @@ class FormCurator(Curator):
 
         Grabs file.info.derived and copies it back up to the file.
         """
-        derived_file_info = table.get("file.info.derived")
-        if derived_file_info:
-            file_entry.update_info({"derived": derived_file_info})
+        for curation_type in ['derived', 'missingness']:
+            curated_file_info = table.get(f'file.info.{curation_type}')
+            if curated_file_info:
+                file_entry.update_info({curation_type: curated_file_info})
 
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
@@ -110,12 +122,31 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
+        # for derived work, also provide filename. this metadata is not pushed
+        # to FW since we usually only apply select curations back
+        # also make sure we don't have a name clash
+        if table.get('file.info._filename') is not None:
+            raise ValueError("file.info._filename metadata already set, cannot override")
+        table['file.info._filename'] = file_entry.name
+
+        # for missingness work (and some derived work), also provided information about
+        # the previous record if it was in the same scope. again not pushed to FW
+        if self.__prev_scope == scope and self.__prev_record:
+            if table.get('_prev_record.info') is not None:
+                raise ValueError("_prev_record.info metadata already set, cannot override")
+            table['_prev_record.info'] = self.__prev_record   
+
         try:
-            self.__deriver.curate(table, scope)
+            self.__attribute_deriver.curate(table, scope)
+            self.__missingness_deriver.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError) as e:
             self.__failed_files[file_entry.name] = str(e)
-            log.error(f"Failed to derive {file_entry.name}: {e}")
+            log.error(f"Failed to curate {file_entry.name}: {e}")
             return
+
+        # keep track of the last succesful curation
+        self.__prev_scope = scope
+        self.__prev_record = table['file.info']
 
         # subject data will be applied after all files processed
         # (post-processing step)

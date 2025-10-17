@@ -4,10 +4,13 @@ All notable changes to this gear are documented in this file.
 
 ## 1.0.0, Unreleased
 
-* Updates `nacc-attribute-deriver` to `2.0.0`, which introduces major refactoring and most of the remaining derived variables 
+* Updates `nacc-attribute-deriver` to `2.0.0`, which introduces major refactoring and the remaining derived variables + missingness support
 * Adds CSF and Mixed Protocol scopes. MP required a few additional refactors:
     * Updates to support curating over dicom and nifti files, and expands the `filename_pattern` to `filename_patterns` to support multiple patterns
     * Adds `img_study_date` to use the `file.info.header.dicom.StudyDate` field for image file ordering
+    * Adds `file.info._filename` as temporary metadata added to the table for deriver use (needed for curation of images file locators)
+* Adds loop for missingness logic
+    * Passes the previous record to the deriver to support missingness needs under `file.info._prev_recors`
 * Updates function names from `pre/post_process` to `pre/post_curate`
 * Parameterizes number of workers
 
