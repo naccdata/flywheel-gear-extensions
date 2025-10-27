@@ -15,6 +15,8 @@ from nacc_attribute_deriver.schema.errors import (
 )
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
+from rxnav.rxclass import ALL_RXCLASSES
+from rxnav.rxnav_connection import RxNavConnection
 from utils.decorators import api_retry
 
 from .curator import Curator
@@ -46,6 +48,8 @@ class FormCurator(Curator):
             FormScope.NP: self.__extract_attributes(FormScope.NP),
             FormScope.UDS: self.__extract_attributes(FormScope.UDS),
         }
+
+        self.__rxclass = RxNavConnection.get_all_rxclass_members(ALL_RXCLASSES)
 
     def __extract_attributes(self, scope: str) -> List[str]:
         """Extracts the attributes for the given scope.
@@ -106,6 +110,19 @@ class FormCurator(Curator):
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
 
+    def __set_working_metadata(self, table: SymbolTable, location: str, data: Any) -> None:
+        """Set working metadata at the specified location in the table.
+
+        Args:
+            table: SymbolTable to write metadata to
+            location: Location in the table to write metadata; throws an error if data
+                already exists here
+            data: The metadata to write
+        """
+        if table.get(location) is not None:
+            raise ValueError(f"{location} is already set, cannot override")
+        table[location] = data
+
     def execute(
         self,
         subject: Subject,
@@ -125,16 +142,16 @@ class FormCurator(Curator):
         # for derived work, also provide filename. this metadata is not pushed
         # to FW since we usually only apply select curations back
         # also make sure we don't have a name clash
-        if table.get('file.info._filename') is not None:
-            raise ValueError("file.info._filename metadata already set, cannot override")
-        table['file.info._filename'] = file_entry.name
+        self.__set_working_metadata(table, 'file.info._filename', file_entry.name)
 
         # for missingness work (and some derived work), also provided information about
         # the previous record if it was in the same scope. again not pushed to FW
         if self.__prev_scope == scope and self.__prev_record:
-            if table.get('_prev_record.info') is not None:
-                raise ValueError("_prev_record.info metadata already set, cannot override")
-            table['_prev_record.info'] = self.__prev_record   
+            self.__set_working_metadata(table, '_prev_record.info', self.__prev_record)
+
+        # For UDS A4 derived work, store the RxClass information under _rxclass
+        if scope == FormScope.UDS and self.__rxclass:
+            self.__set_working_metadata(table, '_rxclass', self.__rxclass)
 
         try:
             self.__attribute_deriver.curate(table, scope)

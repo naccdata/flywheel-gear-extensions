@@ -9,7 +9,7 @@ from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
 from keys.keys import DefaultValues, FieldNames
 from nacc_form_validator.datastore import Datastore
-from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
+from rxnav.rxnav_connection import RxcuiStatus, RxNavConnection
 
 log = logging.getLogger(__name__)
 
@@ -278,7 +278,7 @@ class DatastoreHelper(Datastore):
         Returns:
             bool: True if provided drug ID is valid, else False
         """
-        return RxNormConnection.get_rxcui_status(drugid) == RxcuiStatus.ACTIVE
+        return RxNavConnection.get_rxcui_status(drugid) == RxcuiStatus.ACTIVE
 
     def is_valid_adcid(self, adcid: int, own: bool) -> bool:
         """Overriding the abstract method to check whether a given ADCID is
