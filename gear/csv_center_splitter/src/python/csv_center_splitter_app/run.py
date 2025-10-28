@@ -39,8 +39,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         file_input: InputFileWrapper,
         adcid_key: str,
-        target_project: str,
         batch_size: int,
+        target_project: Optional[str] = None,
         staging_project_id: Optional[str] = None,
         downstream_gears: Optional[List[str]] = None,
         include: Optional[str] = None,
@@ -88,10 +88,10 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         target_project = context.config.get("target_project", None)
         staging_project_id = context.config.get("staging_project_id", None)
 
-        if not target_project:
-            raise GearExecutionError("No target project provided")
-        if not staging_project_id:
-            raise GearExecutionError("No staging project provided")
+        if not target_project and not staging_project_id:
+            raise GearExecutionError(
+                "One of target_project or staging_project_id must be provided"
+            )
 
         adcid_key = context.config.get("adcid_key", None)
         if not adcid_key:
@@ -130,9 +130,9 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             client=client,
             file_input=file_input,  # type: ignore
             adcid_key=adcid_key,
+            batch_size=batch_size,
             target_project=target_project,
             staging_project_id=staging_project_id,
-            batch_size=batch_size,
             downstream_gears=downstream_gears,
             include=context.config.get("include", None),
             exclude=context.config.get("exclude", None),
@@ -167,8 +167,8 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 input_filename=self.__file_input.filename,
                 error_writer=error_writer,
                 adcid_key=self.__adcid_key,
-                target_project=self.__target_project,
                 batch_size=self.__batch_size,
+                target_project=self.__target_project,
                 staging_project_id=self.__staging_project_id,
                 downstream_gears=self.__downstream_gears,
                 include=set(self.__centers),
