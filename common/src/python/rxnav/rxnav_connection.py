@@ -6,6 +6,7 @@ https://lhncbc.nlm.nih.gov/RxNav/APIs
 import json
 from dataclasses import dataclass
 from json import JSONDecodeError
+from typing import Any, Dict, Optional, Set
 
 import requests
 from ratelimit import limits, sleep_and_retry
@@ -96,6 +97,22 @@ class RxNavConnection:
         return response
 
     @classmethod
+    def handle_response(cls, path: str, message: str) -> Dict[str, Any]:
+        """Handle the response.""" 
+        response = RxNavConnection.get_request(path)
+
+        if not response.ok:
+            raise RxNavConnectionError(
+                message=error_message(message=message, response=response)
+            )
+
+        try:
+            return json.loads(response.text)
+        except (JSONDecodeError, ValueError) as error:
+            message = f"Error decoding RxNav API response to JSON: {error}"
+            raise RxNavConnectionError(message=message) from error
+
+    @classmethod
     def get_rxcui_status(cls, rxcui: int) -> str:
         """Get the RxCUI status - uses the getRxcuiHistoryStatus endpoint:
 
@@ -107,26 +124,15 @@ class RxNavConnection:
         Returns:
             RxcuiStatus: The RxcuiStatus
         """
-        message = "Getting the RXCUI history status"
-        response = RxNavConnection.get_request(
-            f"REST/rxcui/{rxcui}/historystatus.json"
+        record = cls.handle_response(
+            message=f"Getting the RXCUI history status for {rxcui}",
+            path=f"REST/rxcui/{rxcui}/historystatus.json"
         )
 
-        if not response.ok:
-            raise RxNavConnectionError(
-                message=error_message(message=message, response=response)
-            )
-
-        try:
-            history_record = json.loads(response.text)
-        except (JSONDecodeError, ValueError) as error:
-            message = f"Error decoding RXCUI history status response to JSON: {error}"
-            raise RxNavConnectionError(message=message) from error
-
-        return history_record["rxcuiStatusHistory"]["metaData"]["status"]
+        return record["rxcuiStatusHistory"]["metaData"]["status"]
 
     @classmethod
-    def get_rxclass_members(cls, rxclass: str, rela_source: str = 'ATCPROD') -> Optional[List[str]]:
+    def get_rxclass_members(cls, rxclass: str, rela_source: str = 'ATCPROD') -> Set[str]:
         """Get list of RxClass members as RxCUI codes.
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxClass.getClassMembers.html
@@ -136,54 +142,87 @@ class RxNavConnection:
             rela_source: str, the class to drug member relation (e.g. ATC or ATCPROD)
 
         Returns:
-            List of RxCUIs associated with the RxClass
+            Set of RxCUIs associated with the RxClass
         """
-        message = f"Getting RxClass members for {rxclass}"
-        response = RxConnection.get_request(
-            f"REST/rxclass/classMembers.json?classid={rxclass}&relaSource={rela_source}"
+        record = cls.handle_response(
+            message=f"Getting RxClass members for {rxclass}",
+            path=f"REST/rxclass/classMembers.json?classid={rxclass}&relaSource={rela_source}"
         )
-
-        if not response.ok:
-            raise RxConnectionError(
-                message=error_message(message=message, response=response)
-            )
-
-        try:
-            record = json.loads(response.text)
-        except (JSONDecodeError, ValueError) as error:
-            message = f"Error decoding RxClass response to JSON: {error}"
-            raise RxConnectionError(message=message) from error
+        rxcuis = set()
 
         # some may not have members depending on the class/relation source
-        if not record:
-            return None
+        if record:
+            for member in record["drugMemberGroup"]["drugMember"]:
+                rxcuis.add(member['minConcept']['rxcui'].strip())
 
-        rxcuis = []
-        for member in record["drugMemberGroup"]["drugMember"]:
-            rxcuis.append(member['minConcept']['rxcui'].strip())
+        return rxcuis
+
+    @classmethod
+    def get_related_rxcuis(cls, rxcui: str) -> Set[str]:
+        """Get all related concepts as a list of RxCUIs. Filter out DF and DFG.
+
+        https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getAllRelatedInfo.html
+
+        Args:
+            rxcui: The RxCUI to get related info for
+        Returns:
+            Set of related RxCUIs
+        """
+        record = cls.handle_response(
+            message=f"Getting RxClass members for {rxclass}",
+            path=f"REST/rxcui/{rxcui}/allrelated.json"
+        )
+        rxcuis = set()
+
+        if record:
+            for group in record['allRelatedGroup']['conceptGroup']:
+                if group['tty'] in ['DN', 'DFG']:
+                    continue
+
+                for concept in group['conceptProperties']:
+                    rxcuis.add(group['rxcui'].strip())
 
         return rxcuis
 
     @classmethod
     def get_all_rxclass_members(cls,
                                 rxclasses: List[str],
-                                rela_source: str = 'ATCPROD') -> Optional[Dict[str, List[str]]]:
-        """Get members for all specified RxClasses. Assumes all have the same
-        relation source.
+                                rela_source: str = 'ATCPROD') -> Dict[str, List[str]]:
+        """Get all related members for the specified RxClasses. Assumes
+        all have the same relation source.
 
-        Returns mapping in the format:
-        {
-            "C02L": [
-                    197959,
-                    237192,
-                    ...
-                ],
-                ...
-            }
-        }
+        Has two steps:
+            1. Query the immediate members (getClassMembers endpoint)
+                - ATCPROD notably returns products, not ingredients, which is why
+                  we need step 2
+            2. For each RxCUI returned, query the related concepts and keep track
+               of all unique RxCUIs overall (getAllRelatedInfo endpoint)
+                - This will include the ingredients
+                - Filter out DF and DFG
+
+        Args:
+            rxclasses: List of the RxClasses to query and aggregate for
+            rela_source: str, the class to drug member relation (e.g. ATC or ATCPROD)
+
+        Returns:
+            Mapping in the format:
+                {
+                    "C02L": [
+                            197959,
+                            237192,
+                            ...
+                        ],
+                        ...
+                    }
+                }
         """
         results = {}
         for rxclass in rxclasses:
-            results[rxclass] = cls.get_rxclass_members(rxclass, rela_source=rela_source)
+            results[rxclass] = set()
+            members = cls.get_rxclass_members(rxclass, rela_source=rela_source)
+
+            for rxcui in members:
+                results[rxclass].add(rxcui)
+                results[rxclass].union(cls.get_related_rxcuis(rxcui))
 
         return results
