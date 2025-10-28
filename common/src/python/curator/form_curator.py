@@ -13,9 +13,9 @@ from nacc_attribute_deriver.schema.errors import (
     AttributeDeriverError,
     MissingRequiredError,
 )
+from nacc_attribute_deriver.schema.constants import ALL_RXCLASSES
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
-from rxnav.rxclass import ALL_RXCLASSES
 from rxnav.rxnav_connection import RxNavConnection
 from utils.decorators import api_retry
 
