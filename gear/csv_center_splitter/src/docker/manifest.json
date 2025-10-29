@@ -34,6 +34,16 @@
                     "tabular data"
                 ]
             }
+        },
+        "redcap_email_configs": {
+            "description": "JSON file containing REDCap email configs",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            },
+            "optional": true
         }
     },
     "config": {
