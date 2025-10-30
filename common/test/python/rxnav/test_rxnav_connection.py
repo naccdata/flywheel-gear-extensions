@@ -1,6 +1,6 @@
 """Tests the RxNav API, which is public so doesn't need any authorization."""
 
-from RxNav.RxNav_connection import RxcuiStatus, RxNavConnection
+from rxnav.rxnav_connection import RxcuiStatus, RxNavConnection
 
 
 class TestRxNavConnection:
@@ -24,3 +24,15 @@ class TestRxNavConnection:
         assert RxNavConnection.get_rxcui_status(1360201) == RxcuiStatus.QUANTIFIED
         assert RxNavConnection.get_rxcui_status(3686) == RxcuiStatus.NOT_CURRENT
         assert RxNavConnection.get_rxcui_status(0) == RxcuiStatus.UNKNOWN
+
+    def test_get_rxclass_members(self):
+        """Test the chained result of calling the following APIs:
+
+        https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxClass.getClassMembers.html
+        https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getAllRelatedInfo.html
+        """
+        assert RxNavConnection.get_all_rxclass_members("C02L") == {
+            "C02L": [
+
+            ]
+        }

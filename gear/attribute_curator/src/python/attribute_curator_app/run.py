@@ -1,6 +1,5 @@
 """Entry script for UDS Curator."""
 
-import importlib.metadata
 import logging
 from typing import List, Optional
 

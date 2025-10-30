@@ -6,13 +6,11 @@ https://lhncbc.nlm.nih.gov/RxNav/APIs
 import json
 from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import requests
 from ratelimit import limits, sleep_and_retry
 from requests import Response
-
-from .rxclass import ALL_RXCLASSES
 
 
 def error_message(message: str, response: Response) -> str:
@@ -145,8 +143,8 @@ class RxNavConnection:
             Set of RxCUIs associated with the RxClass
         """
         record = cls.handle_response(
-            message=f"Getting RxClass members for {rxclass}",
-            path=f"REST/rxclass/classMembers.json?classid={rxclass}&relaSource={rela_source}"
+            message=f"Getting members for RxClass {rxclass}",
+            path=f"REST/rxclass/classMembers.json?classId={rxclass}&relaSource={rela_source}"
         )
         rxcuis = set()
 
@@ -169,7 +167,7 @@ class RxNavConnection:
             Set of related RxCUIs
         """
         record = cls.handle_response(
-            message=f"Getting RxClass members for {rxclass}",
+            message=f"Getting related concepts for RxCUI {rxcui}",
             path=f"REST/rxcui/{rxcui}/allrelated.json"
         )
         rxcuis = set()

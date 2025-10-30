@@ -50,6 +50,7 @@ class FormCurator(Curator):
         }
 
         self.__rxclass = RxNavConnection.get_all_rxclass_members(ALL_RXCLASSES)
+        log.debug(f"RxClass concepts: {self.__rxclass}")
 
     def __extract_attributes(self, scope: str) -> List[str]:
         """Extracts the attributes for the given scope.
