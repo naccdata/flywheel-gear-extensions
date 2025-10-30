@@ -1,20 +1,23 @@
+resource(name="pyproject", source="pyproject.toml")
+resource(name="readme", source="README.md")
+resource(name="license", source="LICENSE")
+
 python_distribution(
     name="dist",
     dependencies=[
-        "nacc-common/src/python:nacc-common-lib",
-        "nacc-common/src/python:py_typed",
+        ":pyproject",
+        ":readme",
+        ":license",
+        "nacc-common/src/python/nacc_common:nacc-common-lib",
+        "nacc-common/src/python/nacc_common:py_typed",
         "mypy-stubs/src/python/flywheel:lib",
     ],
     wheel=True,
     sdist=True,
     provides=python_artifact(
         name="nacc-common",
-        version="1.2.5",
-        description="NACC Data Platform utilities",
-        author="NACC",
-        author_email="nacchelp@uw.edu",
-        url="https://github.com/naccdata/flywheel-gear-extensions/nacc-common",
+        version="2.0.1",
     ),
-    wheel_config_settings={"--global-option": ["--python-tag", ""]},
-    sdist_config_settings={}
+    # Don't generate setup.py
+    generate_setup=False,
 )

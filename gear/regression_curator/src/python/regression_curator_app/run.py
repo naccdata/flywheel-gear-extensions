@@ -19,7 +19,7 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from outputs.error_models import FileError
+from nacc_common.error_models import FileError
 from outputs.error_writer import UserErrorWriter
 from outputs.outputs import write_csv_to_stream
 from utils.utils import parse_string_to_list

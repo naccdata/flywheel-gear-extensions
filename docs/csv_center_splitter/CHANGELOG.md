@@ -4,11 +4,11 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
-* Updates to use generalized `utils.files.get_centers_with_filters` and `JobPoll.wait_for_batched_group` methods
-
-## 1.3.0
-
 * Adds notification to REDCap email list on pipeline completion
+
+## 0.2.2
+
+* Updates to use generalized `utils.files.get_centers_with_filters` and `JobPoll.wait_for_batched_group` methods
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
 
 ## 0.2.1

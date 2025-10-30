@@ -100,10 +100,10 @@ class DirectoryAuthorizations(BaseModel):
     adrc_dicom_access_level: AuthorizationAccessLevel = Field(
         alias="p30_imaging_access_level"
     )
-    adrc_biomarker_access_level: AuthorizationAccessLevel = Field(
+    ncrad_biomarker_access_level: AuthorizationAccessLevel = Field(
         alias="p30_flbm_access_level"
     )
-    adrc_genetic_access_level: AuthorizationAccessLevel = Field(
+    niagads_genetic_access_level: AuthorizationAccessLevel = Field(
         alias="p30_genetic_access_level"
     )
     affiliated_study: list[str]
@@ -158,8 +158,8 @@ class DirectoryAuthorizations(BaseModel):
         "adrc_enrollment_access_level",
         "adrc_form_access_level",
         "adrc_dicom_access_level",
-        "adrc_biomarker_access_level",
-        "adrc_genetic_access_level",
+        "ncrad_biomarker_access_level",
+        "niagads_genetic_access_level",
         "leads_enrollment_access_level",
         "leads_form_access_level",
         "dvcid_enrollment_access_level",
@@ -193,7 +193,9 @@ class DirectoryAuthorizations(BaseModel):
 
         return value_list.split(",")
 
-    @field_validator("web_report_access", mode="before")
+    @field_validator(
+        "web_report_access", "inactive", "permissions_approval", mode="before"
+    )
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
@@ -237,14 +239,19 @@ class DirectoryAuthorizations(BaseModel):
                 log.warning("the data type %s is ignored for %s", datatype, self.email)
                 continue
 
-            datatypes = [datatype]
+            datatypes = [(study, datatype)]
             if datatype == "genetic":
-                datatypes = ["apoe", "gwas", "genetic-availability", "imputation"]
-            for datatype in datatypes:
+                datatypes = [
+                    ("ncrad", "apoe"),
+                    (study, "gwas"),
+                    (study, "genetic-availability"),
+                    (study, "imputation"),
+                ]
+            for datatype_t in datatypes:
                 study_map.add(
-                    study_id=study,
+                    study_id=datatype_t[0],
                     access_level=access_level,
-                    datatype=datatype,  # type: ignore
+                    datatype=datatype_t[1],  # type: ignore
                 )
 
         return study_map

@@ -121,9 +121,10 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         project = ProjectAdaptor(project=p_project, proxy=self.proxy)
 
         try:
-            project_label = DefaultValues.METADATA_PRJ_LBL
             metadata_project = ProjectAdaptor.create(
-                proxy=self.proxy, group_id=project.group, project_label=project_label
+                proxy=self.proxy,
+                group_id=project.group,
+                project_label=DefaultValues.METADATA_PRJ_LBL,
             )
 
             prj_metadata = metadata_project.get_info()
@@ -134,7 +135,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 )
                 return
 
-            adrc = metadata_project.get_custom_project_info(
+            """ adrc = metadata_project.get_custom_project_info(
                 f"studies:{DefaultValues.PRIMARY_STUDY}"
             )
 
@@ -149,17 +150,25 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 context.metadata.add_file_tags(
                     self.__file_input.file_input, tags=gear_name
                 )
-                return
+                return """
 
             # all active centers should have a corresponding ingest project
             # raise error if group/project not found
-            project_label = self.__ingest_project_label
+            ingest_prj_label = self.__ingest_project_label
+            if len(project.label) > len(DefaultValues.LEGACY_PRJ_LABEL):
+                ingest_prj_label = (
+                    self.__ingest_project_label
+                    + project.label[len(DefaultValues.LEGACY_PRJ_LABEL) :]
+                )
+
             ingest_project = ProjectAdaptor.create(
-                proxy=self.proxy, group_id=project.group, project_label=project_label
+                proxy=self.proxy, group_id=project.group, project_label=ingest_prj_label
             )
+            log.info("Ingest project %s/%s", project.group, ingest_project.label)
         except ProjectError as error:
             raise GearExecutionError(
-                f"Could not find {project.group}/{project_label}: {error}"
+                "Error in retrieving ingest project "
+                f"{project.group}/{ingest_prj_label}: {error}"
             ) from error
 
         form_store = FormsStore(ingest_project=ingest_project, legacy_project=project)

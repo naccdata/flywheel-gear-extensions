@@ -3,30 +3,6 @@
 REDCapKeys = ["redcap_event_name", "redcap_repeat_instance", "redcap_repeat_instrument"]
 
 
-class FieldNames:
-    """Class to store frequently accessed field names."""
-
-    NACCID = "naccid"
-    MODULE = "module"
-    PACKET = "packet"
-    PTID = "ptid"
-    ADCID = "adcid"
-    MODE = "mode"
-    VISITNUM = "visitnum"
-    DATE_COLUMN = "visitdate"
-    FORMVER = "formver"
-    GUID = "guid"
-    OLDADCID = "oldadcid"
-    OLDPTID = "oldptid"
-    ENRLFRM_DATE = "frmdate_enrl"
-    ENRLFRM_INITL = "initials_enrl"
-    NACCIDKWN = "naccidknwn"
-    PREVENRL = "prevenrl"
-    C2C2T = "rmmodec2c2t"
-    ENRLTYPE = "enrltype"
-    GUIDAVAIL = "guidavail"
-
-
 class RuleLabels:
     """Class to store rule definition labels."""
 
@@ -46,6 +22,7 @@ class DefaultValues:
     NOTFILLED = 0
     LEGACY_PRJ_LABEL = "retrospective-form"
     ENRL_PRJ_LABEL = "ingest-enrollment"
+    FORM_PRJ_LABEL = "ingest-form"
     ENROLLMENT_MODULE = "ENROLL"
     UDS_MODULE = "UDS"
     MDS_MODULE = "MDS"
