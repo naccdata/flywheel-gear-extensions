@@ -258,6 +258,7 @@ def load_rxclass_concepts_from_file(stream) -> Dict[str, Dict[str, RxcuiData]]:
     raw_concepts = json.load(stream)
 
     for rxclass, members in raw_concepts.items():
+        results[rxclass] = {}
         for rxcui, data in members.items():
             results[rxclass][rxcui] = RxcuiData(**data)
 

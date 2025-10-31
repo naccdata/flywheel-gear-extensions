@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 from multiprocessing import Manager
@@ -11,12 +12,12 @@ from nacc_attribute_deriver.attribute_deriver import (
     AttributeDeriver,
     MissingnessDeriver,
 )
-from nacc_attribute_deriver.schema.errors import (
+from nacc_attribute_deriver.symbol_table import SymbolTable
+from nacc_attribute_deriver.utils.constants import ALL_RXCLASSES
+from nacc_attribute_deriver.utils.errors import (
     AttributeDeriverError,
     MissingRequiredError,
 )
-from nacc_attribute_deriver.schema.constants import ALL_RXCLASSES
-from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
 from rxnav.rxnav_connection import RxNavConnection, RxcuiData
 from utils.decorators import api_retry
@@ -108,9 +109,11 @@ class FormCurator(Curator):
     def apply_file_curation(self, file_entry: FileEntry, table: SymbolTable) -> None:
         """Applies the file-specific curated information back to FW.
 
-        Grabs file.info.derived and copies it back up to the file.
+        Grabs file.info.derived (derived variables) and
+        file.info.resolved (resolved raw + missingnes data)
+        and pushes back to flywheel.
         """
-        for curation_type in ['derived', 'missingness']:
+        for curation_type in ['derived', 'resolved']:
             curated_file_info = table.get(f'file.info.{curation_type}')
             if curated_file_info:
                 file_entry.update_info({curation_type: curated_file_info})
@@ -131,6 +134,42 @@ class FormCurator(Curator):
             raise ValueError(f"{location} is already set, cannot override")
         table[location] = data
 
+    def prepare_table(
+        self,
+        file_entry: FileEntry,
+        table: SymbolTable,
+        scope: ScopeLiterals
+    ) -> None:
+        """Prepare the table with working metadata for curation work.
+
+        Anything at the root level starting with a _ generally indicates
+        something that is NOT pushed back to flywheel, and is just a means
+        to store intermediate information necessary for curation work.
+        """
+        # for derived work, also provide filename (namely needed for MP).
+        self.__set_working_metadata(table, '_filename', file_entry.name)
+
+        # For UDS A4 derived work, store the RxClass information under _rxclass
+        if scope == FormScope.UDS and self.__rxclass:
+            self.__set_working_metadata(table, '_rxclass', self.__rxclass)
+
+        # for missingness work (and some derived work), also provided information about
+        # the previous record if it was in the same scope. again not pushed to FW
+        if self.__prev_scope == scope and self.__prev_record:
+            self.__set_working_metadata(table, '_prev_record.info', self.__prev_record)
+
+        # to resolve raw and missingness values, we create a copy of file.info.forms.json
+        # at file.info.resolved. this information IS pushed back to flywheel
+        # depending on the missing values in file.info.forms.json, the missingness logic
+        # may write/overwrite results in file.info.resolved
+        # as such, file.info.resolved represents the overlay of raw <- missingness,
+        # ensuring we have a resolved location for data model querying without touching
+        # the raw data
+        # currently only done for UDS and NP
+        if scope in [FormScope.UDS, FormScope.NP]:
+            self.__set_working_metadata(
+                table, 'file.info.resolved', copy.deepcopy(table['file.info.forms.json']))
+
     def execute(
         self,
         subject: Subject,
@@ -147,19 +186,7 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        # for derived work, also provide filename. this metadata is not pushed
-        # to FW since we usually only apply select curations back
-        # also make sure we don't have a name clash
-        self.__set_working_metadata(table, '_filename', file_entry.name)
-
-        # for missingness work (and some derived work), also provided information about
-        # the previous record if it was in the same scope. again not pushed to FW
-        if self.__prev_scope == scope and self.__prev_record:
-            self.__set_working_metadata(table, '_prev_record.info', self.__prev_record)
-
-        # For UDS A4 derived work, store the RxClass information under _rxclass
-        if scope == FormScope.UDS and self.__rxclass:
-            self.__set_working_metadata(table, '_rxclass', self.__rxclass)
+        self.prepare_table(file_entry, table, scope)
 
         try:
             self.__attribute_deriver.curate(table, scope)

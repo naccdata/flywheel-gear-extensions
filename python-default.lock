@@ -17,7 +17,7 @@
 //     "fw-client>=0.7.0",
 //     "fw-utils>=3",
 //     "moto[s3,ses,ssm]>=5.0.15",
-//     "nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev3-py3-none-any.whl",
+//     "nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev6-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -1994,8 +1994,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "f9e4bedfea9e6470faf428385fe5312344478221d0e0d839a71cef4cb3ce1738",
-              "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev3-py3-none-any.whl"
+              "hash": "4e5157871c5622901db7dfb6e247eab899a8245a68f734d02d6732235536c35d",
+              "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev6-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2003,7 +2003,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.11.*",
-          "version": "2.0.0.dev3"
+          "version": "2.0.0.dev6"
         },
         {
           "artifacts": [
@@ -3430,7 +3430,7 @@
     "fw-client>=0.7.0",
     "fw-utils>=3",
     "moto[s3,ses,ssm]>=5.0.15",
-    "nacc-attribute-deriver==2.0.0.dev3",
+    "nacc-attribute-deriver==2.0.0.dev6",
     "nacc_form_validator",
     "natsort",
     "pandas-stubs>=2.0.3",

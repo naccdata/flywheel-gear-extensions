@@ -30,11 +30,12 @@ def run(
 
     Args:
         context: gear context
-        curation_type: which type of file and derive rules to curate with
         scheduler: Schedules the files to be curated
         curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
         max_num_workers: Max number of workers to use
+        rxclass_concepts: RxClass concepts - uses this instead of querying
+            RxNav if provided
     """
     version = importlib.metadata.version("nacc_attribute_deriver")
     log.info(f"Running nacc-attribute-deriver version {version}")
