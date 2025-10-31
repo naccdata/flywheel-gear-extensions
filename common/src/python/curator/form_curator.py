@@ -1,10 +1,12 @@
+import json
 import logging
 from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional, List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
+from gear_execution.gear_execution import InputFileWrapper
 from nacc_attribute_deriver.attribute_deriver import (
     AttributeDeriver,
     MissingnessDeriver,
@@ -16,7 +18,7 @@ from nacc_attribute_deriver.schema.errors import (
 from nacc_attribute_deriver.schema.constants import ALL_RXCLASSES
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
-from rxnav.rxnav_connection import RxNavConnection
+from rxnav.rxnav_connection import RxNavConnection, RxcuiData
 from utils.decorators import api_retry
 
 from .curator import Curator
@@ -32,7 +34,8 @@ class FormCurator(Curator):
                  attribute_deriver: AttributeDeriver,
                  missingness_deriver: MissingnessDeriver,
                  curation_tag: str,
-                 force_curate: bool = False) -> None:
+                 force_curate: bool = False,
+                 rxclass_concepts: Optional[Dict[str, Dict[str, RxcuiData]]] = None,) -> None:
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__attribute_deriver = attribute_deriver
 
@@ -49,8 +52,12 @@ class FormCurator(Curator):
             FormScope.UDS: self.__extract_attributes(FormScope.UDS),
         }
 
-        self.__rxclass = RxNavConnection.get_all_rxclass_members(ALL_RXCLASSES)
-        log.debug(f"RxClass concepts: {self.__rxclass}")
+        if rxclass_concepts is not None:
+            log.info("RxClass concepts provided, will not query RxNav")
+            self.__rxclass = rxclass_concepts
+        else:
+            log.info("Querying RxClass concepts...")
+            self.__rxclass = RxNavConnection.get_all_rxclass_members(ALL_RXCLASSES)
 
     def __extract_attributes(self, scope: str) -> List[str]:
         """Extracts the attributes for the given scope.
@@ -143,7 +150,7 @@ class FormCurator(Curator):
         # for derived work, also provide filename. this metadata is not pushed
         # to FW since we usually only apply select curations back
         # also make sure we don't have a name clash
-        self.__set_working_metadata(table, 'file.info._filename', file_entry.name)
+        self.__set_working_metadata(table, '_filename', file_entry.name)
 
         # for missingness work (and some derived work), also provided information about
         # the previous record if it was in the same scope. again not pushed to FW

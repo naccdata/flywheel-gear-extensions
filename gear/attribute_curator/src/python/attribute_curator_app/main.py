@@ -3,6 +3,7 @@
 import importlib.metadata
 import json
 import logging
+from typing import Dict, Optional
 
 from curator.form_curator import FormCurator
 from curator.scheduling import ProjectCurationScheduler
@@ -12,6 +13,7 @@ from nacc_attribute_deriver.attribute_deriver import (
     AttributeDeriver,
     MissingnessDeriver,
 )
+from rxnav.rxnav_connection import RxcuiData
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ def run(
     curation_tag: str,
     force_curate: bool = False,
     max_num_workers: int = 4,
+    rxclass_concepts: Optional[Dict[str, Dict[str, RxcuiData]]] = None,
 ) -> None:
     """Runs the Attribute Curator process.
 
@@ -40,7 +43,8 @@ def run(
         attribute_deriver=AttributeDeriver(),
         missingness_deriver=MissingnessDeriver(),
         curation_tag=curation_tag,
-        force_curate=force_curate
+        force_curate=force_curate,
+        rxclass_concepts=rxclass_concepts
     )
 
     scheduler.apply(curator=curator,

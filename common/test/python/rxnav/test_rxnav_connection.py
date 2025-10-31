@@ -31,8 +31,6 @@ class TestRxNavConnection:
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxClass.getClassMembers.html
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getAllRelatedInfo.html
         """
-        assert RxNavConnection.get_all_rxclass_members("C02L") == {
-            "C02L": [
-
-            ]
-        }
+        result = RxNavConnection.get_all_rxclass_members(["C02L"])
+        assert "C02L" in result
+        assert len(result["C02L"]) == 117

@@ -16,7 +16,7 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-
+from rxnav.rxnav_connection import load_rxclass_concepts_from_file
 from utils.utils import parse_string_to_list
 
 from attribute_curator_app.main import run
@@ -35,6 +35,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         curation_tag: str,
         force_curate: bool = False,
         blacklist_file: Optional[InputFileWrapper] = None,
+        rxclass_concepts_file: Optional[InputFileWrapper] = None,
         max_num_workers: int = 4,
     ):
         super().__init__(client=client)
@@ -43,6 +44,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
         self.__blacklist_file = blacklist_file
+        self.__rxclass_concepts_file = rxclass_concepts_file
         self.__max_num_workers = max_num_workers
 
     @classmethod
@@ -68,6 +70,9 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         blacklist_file = InputFileWrapper.create(
             input_name="blacklist_file", context=context
         )
+        rxclass_concepts_file = blacklist_file = InputFileWrapper.create(
+            input_name="rxclass_concepts_file", context=context
+        )
 
         filename_patterns = parse_string_to_list(
             context.config.get("filename_patterns",
@@ -92,6 +97,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             curation_tag=curation_tag,
             force_curate=force_curate,
             blacklist_file=blacklist_file,
+            rxclass_concepts_file=rxclass_concepts_file,
             max_num_workers=max_num_workers,
         )
 
@@ -102,6 +108,15 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         if self.__blacklist_file:
             with open(self.__blacklist_file.filepath, mode="r") as fh:
                 blacklist = [x.strip() for x in fh.readlines()]
+
+        rxclass_concepts = None
+        if self.__rxclass_concepts_file:
+            rxclass_concepts = {}
+
+            with open(self.__rxclass_concepts_file.filepath,
+                      mode="r",
+                      encoding="utf-8-sig") as fh:
+                rxclass_concepts = load_rxclass_concepts_from_file(fh)
 
         try:
             scheduler = ProjectCurationScheduler.create(
@@ -118,6 +133,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             curation_tag=self.__curation_tag,
             force_curate=self.__force_curate,
             max_num_workers=self.__max_num_workers,
+            rxclass_concepts=rxclass_concepts,
         )
 
 

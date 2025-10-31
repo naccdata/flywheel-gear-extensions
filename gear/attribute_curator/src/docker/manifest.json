@@ -36,6 +36,16 @@
                     "text"
                 ]
             }
+        },
+        "rxclass_concepts_file": {
+            "description": "JSON file containing cached RxClass concepts. If provided, skips the RxClass querying at the beginning of curation and uses the data provided here",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {

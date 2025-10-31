@@ -4,13 +4,17 @@ https://lhncbc.nlm.nih.gov/RxNav/APIs
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set
+from pydantic import BaseModel
 
 import requests
 from ratelimit import limits, sleep_and_retry
 from requests import Response
+
+log = logging.getLogger(__name__)
 
 
 def error_message(message: str, response: Response) -> str:
@@ -36,6 +40,11 @@ class RxcuiStatus:
     QUANTIFIED = "Quantified"
     NOT_CURRENT = "NotCurrent"
     UNKNOWN = "UNKNOWN"
+
+
+class RxcuiData(BaseModel):
+    name: str
+    tty: str
 
 
 class RxNavConnectionError(Exception):
@@ -96,7 +105,7 @@ class RxNavConnection:
 
     @classmethod
     def handle_response(cls, path: str, message: str) -> Dict[str, Any]:
-        """Handle the response.""" 
+        """Handle the response."""
         response = RxNavConnection.get_request(path)
 
         if not response.ok:
@@ -124,14 +133,16 @@ class RxNavConnection:
         """
         record = cls.handle_response(
             message=f"Getting the RXCUI history status for {rxcui}",
-            path=f"REST/rxcui/{rxcui}/historystatus.json"
+            path=f"REST/rxcui/{rxcui}/historystatus.json",
         )
 
         return record["rxcuiStatusHistory"]["metaData"]["status"]
 
     @classmethod
-    def get_rxclass_members(cls, rxclass: str, rela_source: str = 'ATCPROD') -> Set[str]:
-        """Get list of RxClass members as RxCUI codes.
+    def get_rxclass_members(
+        cls, rxclass: str, rela_source: str = "ATCPROD"
+    ) -> Dict[str, RxcuiData]:
+        """Get mapping of of RxClass members as RxCUI codes to its data.
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxClass.getClassMembers.html
 
@@ -140,54 +151,68 @@ class RxNavConnection:
             rela_source: str, the class to drug member relation (e.g. ATC or ATCPROD)
 
         Returns:
-            Set of RxCUIs associated with the RxClass
+            Mapping of RxCUIs to their data associated with the RxClass
         """
         record = cls.handle_response(
             message=f"Getting members for RxClass {rxclass}",
-            path=f"REST/rxclass/classMembers.json?classId={rxclass}&relaSource={rela_source}"
+            path=f"REST/rxclass/classMembers.json?classId={rxclass}&relaSource={rela_source}",
         )
-        rxcuis = set()
+        results = {}
 
         # some may not have members depending on the class/relation source
         if record:
             for member in record["drugMemberGroup"]["drugMember"]:
-                rxcuis.add(member['minConcept']['rxcui'].strip())
+                minconcept = member["minConcept"]
+                rxcui = minconcept["rxcui"].strip()
+                if rxcui in results:
+                    continue
 
-        return rxcuis
+                results[rxcui] = RxcuiData(
+                    name=minconcept["name"].strip(), tty=minconcept["tty"].strip()
+                )
+
+        return results
 
     @classmethod
-    def get_related_rxcuis(cls, rxcui: str) -> Set[str]:
-        """Get all related concepts as a list of RxCUIs. Filter out DF and DFG.
+    def get_related_rxcuis(cls, rxcui: str) -> Dict[str, RxcuiData]:
+        """Get all related concepts as a mapping from RxCUI to data.
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getAllRelatedInfo.html
 
         Args:
             rxcui: The RxCUI to get related info for
         Returns:
-            Set of related RxCUIs
+            Mapping of related RxCUIs to their data
         """
         record = cls.handle_response(
             message=f"Getting related concepts for RxCUI {rxcui}",
-            path=f"REST/rxcui/{rxcui}/allrelated.json"
+            path=f"REST/rxcui/{rxcui}/allrelated.json",
         )
-        rxcuis = set()
+        results = {}
 
         if record:
-            for group in record['allRelatedGroup']['conceptGroup']:
-                if group['tty'] in ['DN', 'DFG']:
+            for group in record["allRelatedGroup"]["conceptGroup"]:
+                # filter/ignore out these ttys
+                if group.get("tty") in ["IN", "DN", "DFG", None]:
                     continue
 
-                for concept in group['conceptProperties']:
-                    rxcuis.add(group['rxcui'].strip())
+                for concept in group.get("conceptProperties", {}):
+                    rxcui = concept["rxcui"].strip()
+                    if rxcui in results:
+                        continue
 
-        return rxcuis
+                    results[rxcui] = RxcuiData(
+                        name=concept["name"].strip(), tty=concept["tty"].strip()
+                    )
+
+        return results
 
     @classmethod
-    def get_all_rxclass_members(cls,
-                                rxclasses: List[str],
-                                rela_source: str = 'ATCPROD') -> Dict[str, List[str]]:
-        """Get all related members for the specified RxClasses. Assumes
-        all have the same relation source.
+    def get_all_rxclass_members(
+        cls, rxclasses: List[str], rela_source: str = "ATCPROD"
+    ) -> Dict[str, Dict[str, RxcuiData]]:
+        """Get all related members for the specified RxClasses. Assumes all
+        have the same relation source.
 
         Has two steps:
             1. Query the immediate members (getClassMembers endpoint)
@@ -203,24 +228,37 @@ class RxNavConnection:
             rela_source: str, the class to drug member relation (e.g. ATC or ATCPROD)
 
         Returns:
-            Mapping in the format:
-                {
-                    "C02L": [
-                            197959,
-                            237192,
-                            ...
-                        ],
-                        ...
-                    }
-                }
+            Mapping of RxClass to the RxCUI members and their data
         """
-        results = {}
+        results: Dict[str, Dict[str, RxcuiData]] = {}
         for rxclass in rxclasses:
-            results[rxclass] = set()
+            log.debug(f"Querying concepts for {rxclass}...")
+            results[rxclass] = {}
             members = cls.get_rxclass_members(rxclass, rela_source=rela_source)
 
-            for rxcui in members:
-                results[rxclass].add(rxcui)
-                results[rxclass].union(cls.get_related_rxcuis(rxcui))
+            for rxcui, data in members.items():
+                if rxcui in results[rxclass]:
+                    continue
+
+                results[rxclass][rxcui] = data
+                results[rxclass].update(cls.get_related_rxcuis(rxcui))
 
         return results
+
+
+def load_rxclass_concepts_from_file(stream) -> Dict[str, Dict[str, RxcuiData]]:
+    """Loads RxClass concepts from file, to avoid querying.
+
+    Args:
+        stream: input IO stream
+    Returns:
+        Mapping of RxClass to the RxCUI members and their data
+    """
+    results: Dict[str, Dict[str, RxcuiData]] = {}
+    raw_concepts = json.load(stream)
+
+    for rxclass, members in raw_concepts.items():
+        for rxcui, data in members.items():
+            results[rxclass][rxcui] = RxcuiData(**data)
+
+    return results
