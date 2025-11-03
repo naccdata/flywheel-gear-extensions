@@ -169,10 +169,9 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def apply(self,
-              curator: Curator,
-              context: GearToolkitContext,
-              max_num_workers: int = 4) -> None:
+    def apply(
+        self, curator: Curator, context: GearToolkitContext, max_num_workers: int = 4
+    ) -> None:
         """Applies a Curator to the form files in this curator.
 
         Args:

@@ -75,15 +75,16 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         )
 
         filename_patterns = parse_string_to_list(
-            context.config.get("filename_patterns",
-                               ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"),
-            to_lower=False
+            context.config.get(
+                "filename_patterns", ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"
+            ),
+            to_lower=False,
         )
         curation_tag = context.config.get("curation_tag", "attribute-curator")
         force_curate = context.config.get("force_curate", False)
         max_num_workers = context.config.get("max_num_workers", 4)
 
-        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        # fw_project = get_project_from_destination(context=context, proxy=proxy)
         fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
@@ -113,9 +114,9 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         if self.__rxclass_concepts_file:
             rxclass_concepts = {}
 
-            with open(self.__rxclass_concepts_file.filepath,
-                      mode="r",
-                      encoding="utf-8-sig") as fh:
+            with open(
+                self.__rxclass_concepts_file.filepath, mode="r", encoding="utf-8-sig"
+            ) as fh:
                 rxclass_concepts = load_rxclass_concepts_from_file(fh)
 
         try:

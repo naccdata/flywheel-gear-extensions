@@ -13,13 +13,16 @@ from nacc_attribute_deriver.attribute_deriver import (
     MissingnessDeriver,
 )
 from nacc_attribute_deriver.symbol_table import SymbolTable
-from nacc_attribute_deriver.utils.constants import ALL_RXCLASSES
+from nacc_attribute_deriver.utils.constants import (
+    ALL_RXCLASSES,
+    COMBINATION_RX_CLASSES,
+)
 from nacc_attribute_deriver.utils.errors import (
     AttributeDeriverError,
     MissingRequiredError,
 )
 from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
-from rxnav.rxnav_connection import RxNavConnection, RxcuiData
+from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
 
 from .curator import Curator
@@ -31,12 +34,14 @@ log = logging.getLogger(__name__)
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
-    def __init__(self,
-                 attribute_deriver: AttributeDeriver,
-                 missingness_deriver: MissingnessDeriver,
-                 curation_tag: str,
-                 force_curate: bool = False,
-                 rxclass_concepts: Optional[Dict[str, Dict[str, RxcuiData]]] = None,) -> None:
+    def __init__(
+        self,
+        attribute_deriver: AttributeDeriver,
+        missingness_deriver: MissingnessDeriver,
+        curation_tag: str,
+        force_curate: bool = False,
+        rxclass_concepts: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None,
+    ) -> None:
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
         self.__attribute_deriver = attribute_deriver
 
@@ -58,7 +63,9 @@ class FormCurator(Curator):
             self.__rxclass = rxclass_concepts
         else:
             log.info("Querying RxClass concepts...")
-            self.__rxclass = RxNavConnection.get_all_rxclass_members(ALL_RXCLASSES)
+            self.__rxclass = RxClassConnection.get_all_rxclass_members(
+                ALL_RXCLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
+            )
 
     def __extract_attributes(self, scope: str) -> List[str]:
         """Extracts the attributes for the given scope.
@@ -110,18 +117,20 @@ class FormCurator(Curator):
         """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived (derived variables) and
-        file.info.resolved (resolved raw + missingnes data)
-        and pushes back to flywheel.
+        file.info.resolved (resolved raw + missingnes data) and pushes
+        back to flywheel.
         """
-        for curation_type in ['derived', 'resolved']:
-            curated_file_info = table.get(f'file.info.{curation_type}')
+        for curation_type in ["derived", "resolved"]:
+            curated_file_info = table.get(f"file.info.{curation_type}")
             if curated_file_info:
                 file_entry.update_info({curation_type: curated_file_info})
 
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
 
-    def __set_working_metadata(self, table: SymbolTable, location: str, data: Any) -> None:
+    def __set_working_metadata(
+        self, table: SymbolTable, location: str, data: Any
+    ) -> None:
         """Set working metadata at the specified location in the table.
 
         Args:
@@ -135,28 +144,26 @@ class FormCurator(Curator):
         table[location] = data
 
     def prepare_table(
-        self,
-        file_entry: FileEntry,
-        table: SymbolTable,
-        scope: ScopeLiterals
+        self, file_entry: FileEntry, table: SymbolTable, scope: ScopeLiterals
     ) -> None:
         """Prepare the table with working metadata for curation work.
 
         Anything at the root level starting with a _ generally indicates
-        something that is NOT pushed back to flywheel, and is just a means
-        to store intermediate information necessary for curation work.
+        something that is NOT pushed back to flywheel, and is just a
+        means to store intermediate information necessary for curation
+        work.
         """
         # for derived work, also provide filename (namely needed for MP).
-        self.__set_working_metadata(table, '_filename', file_entry.name)
+        self.__set_working_metadata(table, "_filename", file_entry.name)
 
         # For UDS A4 derived work, store the RxClass information under _rxclass
         if scope == FormScope.UDS and self.__rxclass:
-            self.__set_working_metadata(table, '_rxclass', self.__rxclass)
+            self.__set_working_metadata(table, "_rxclass", self.__rxclass)
 
         # for missingness work (and some derived work), also provided information about
         # the previous record if it was in the same scope. again not pushed to FW
         if self.__prev_scope == scope and self.__prev_record:
-            self.__set_working_metadata(table, '_prev_record.info', self.__prev_record)
+            self.__set_working_metadata(table, "_prev_record.info", self.__prev_record)
 
         # to resolve raw and missingness values, we create a copy of file.info.forms.json
         # at file.info.resolved. this information IS pushed back to flywheel
@@ -168,7 +175,10 @@ class FormCurator(Curator):
         # currently only done for UDS and NP
         if scope in [FormScope.UDS, FormScope.NP]:
             self.__set_working_metadata(
-                table, 'file.info.resolved', copy.deepcopy(table['file.info.forms.json']))
+                table,
+                "file.info.resolved",
+                copy.deepcopy(table["file.info.forms.json"]),
+            )
 
     def execute(
         self,
@@ -198,7 +208,7 @@ class FormCurator(Curator):
 
         # keep track of the last succesful curation
         self.__prev_scope = scope
-        self.__prev_record = table['file.info']
+        self.__prev_record = table["file.info"]
 
         # subject data will be applied after all files processed
         # (post-processing step)

@@ -80,9 +80,14 @@ class TestFileModel:
         assert fm("NACCXXX_MR-20250101_2-MPRAGE.dicom.zip").visit_pass == "pass0"
         assert fm("NACCXXX_MR-20250101112428_2-MPRAGE.nii.gz").visit_pass == "pass0"
         assert fm("NACCXXX_MR-20250101_6-AxialPD-T2TSE.dicom.zip").visit_pass == "pass0"
-        assert fm("NACCXXX_MR-20250101112428_6-Axial_PD-T2_TSE.nii.gz").visit_pass == "pass0"
+        assert (
+            fm("NACCXXX_MR-20250101112428_6-Axial_PD-T2_TSE.nii.gz").visit_pass
+            == "pass0"
+        )
         assert fm("NACCXXX_MR-20250101_3-MPRAGERepeat.dicom.zip").visit_pass == "pass0"
-        assert fm("NACCXXX_MR-20250101112428_3-MPRAGE_Repeat.nii.gz").visit_pass == "pass0"
+        assert (
+            fm("NACCXXX_MR-20250101112428_3-MPRAGE_Repeat.nii.gz").visit_pass == "pass0"
+        )
         assert fm("NACCXXX-MRI-SUMMARY-DATA-2025-1-2.json").visit_pass == "pass0"
         assert fm("NACCXXX-MRI-SUMMARY-DATA-2025-01-12.json").visit_pass == "pass0"
 

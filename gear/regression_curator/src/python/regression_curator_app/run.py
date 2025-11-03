@@ -115,10 +115,11 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         keep_fields = parse_string_to_list(context.config.get("keep_fields", ""))
         filename_patterns = parse_string_to_list(
-            context.config.get("filename_patterns", "*UDS.json"))
+            context.config.get("filename_patterns", "*UDS.json")
+        )
 
         proxy = client.get_proxy()
-        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        # fw_project = get_project_from_destination(context=context, proxy=proxy)
         fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
