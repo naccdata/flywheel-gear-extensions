@@ -19,7 +19,10 @@ from nacc_attribute_deriver.attribute_deriver import (
     MissingnessDeriver,
 )
 from nacc_attribute_deriver.symbol_table import SymbolTable
-from nacc_attribute_deriver.utils.scope import ScopeLiterals
+from nacc_attribute_deriver.utils.scope import (
+    FormScope,
+    ScopeLiterals,
+)
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
 from utils.decorators import api_retry
@@ -164,7 +167,7 @@ class RegressionCurator(Curator):
         record = {k.lower(): v for k, v in record.items()}
 
         identifier = record["naccid"]
-        if prefix.startswith("file"):
+        if prefix.startswith("file") and 'visitdate' in record:
             identifier = f"{identifier} {record['visitdate']}"
 
         # compare
@@ -176,9 +179,6 @@ class RegressionCurator(Curator):
             value = self.resolve_value(value)
             expected = self.resolve_value(record[field])
             result = value == expected
-
-            if field == "adgcexr":
-                raise ValueError(f"JDAKLFAKJSLFJDFKLASDLFKJL {result}: {value} vs {expected}")
 
             if not result:
                 result = self.compare_as_lists(value, expected)
@@ -193,7 +193,7 @@ class RegressionCurator(Curator):
                 log.info(msg)
                 self.__error_writer.write(
                     unexpected_value_error(
-                        field=f"{prefix}.{field}",
+                        field=f"{scope}.{prefix}.{field}",
                         value=value,
                         expected=expected,
                         message=msg,
@@ -223,7 +223,7 @@ class RegressionCurator(Curator):
             log.info(msg)
             self.__error_writer.write(
                 unexpected_value_error(
-                    field=f"{prefix}.{field}",
+                    field=f"{scope}.{prefix}.{field}",
                     value="",
                     expected=expected,
                     message=msg,
@@ -245,8 +245,8 @@ class RegressionCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        derived_record = table.get("file.info.derived", None)
-        resolved_record = table.get("file.info.resolved", None)
+        derived_record = table.get("file.info.derived", {})
+        resolved_record = table.get("file.info.resolved", {})
 
         if not derived_record and not resolved_record:
             log.debug(
@@ -254,19 +254,23 @@ class RegressionCurator(Curator):
             )
             return
 
-        visitdate = table.get("file.info.forms.json.visitdate")
-        if not visitdate:
-            # try MRI version
-            if "file.info.raw.mriyr" in table:
-                visitdate = (
-                    f"{int(table['file.info.raw.mriyr']):04d}-"
-                    + f"{int(table['file.info.raw.mrimo']):02d}-"
-                    + f"{int(table['file.info.raw.mridy']):02d}"
-                )
-
-        if not visitdate and scope == FormScope.UDS:
-            log.debug(f"No visitdate found for UDS file {file_entry.name}, skipping")
-            return
+        # UDS visit needs to key to a specific visit; other scopes are
+        # considered cross-sectional and will use the latest visit
+        # under the NACCID-only key
+        visitdate = None
+        if scope == FormScope.UDS:
+            visitdate = table.get("file.info.forms.json.visitdate")
+            if not visitdate:
+                # try MRI version
+                if "file.info.raw.mriyr" in table:
+                    visitdate = (
+                        f"{int(table['file.info.raw.mriyr']):04d}-"
+                        + f"{int(table['file.info.raw.mrimo']):02d}-"
+                        + f"{int(table['file.info.raw.mridy']):02d}"
+                    )
+            if not visitdate:
+                log.debug(f"No visitdate found for UDS file {file_entry.name}, skipping")
+                return
 
         # ensure in QAF baseline - if not affiliate, report error
         key = f"{subject.label}_{visitdate}" if visitdate else subject.label
