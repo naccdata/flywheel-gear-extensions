@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.0
+
+* Updates to support full QAF, including missingness values, not just derived variables
+
 ## 0.2.0
 
 * Add support for MRI QAFs

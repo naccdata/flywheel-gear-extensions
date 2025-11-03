@@ -127,6 +127,10 @@ class Curator(ABC):
         log.debug("curating file %s with scope %s", file_entry.name, scope)
         self.execute(subject, file_entry, table, scope)
 
+    def break_curation(self) -> bool:
+        """Used to globally signal to scheduler that curatio should stop."""
+        return False
+
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-curation on the entire subject. Not required.
 

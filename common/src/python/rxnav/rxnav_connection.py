@@ -7,7 +7,7 @@ import json
 import logging
 from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, MutableMapping, Optional, Set
 
 import requests
 from ratelimit import limits, sleep_and_retry
@@ -142,7 +142,7 @@ class RxClassConnection(RxNavConnection):
         rxclass: str,
         rela_source: str = "ATCPROD",
         filter_single_ingredients: bool = False,
-    ) -> Dict[str, Dict[str, str]]:
+    ) -> MutableMapping:
         """Get mapping of of RxClass members as RxCUI codes to its data.
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxClass.getClassMembers.html
@@ -188,7 +188,7 @@ class RxClassConnection(RxNavConnection):
         cls,
         rxcui: str,
         filter_single_ingredients: bool = False,
-    ) -> Dict[str, Dict[str, str]]:
+    ) -> MutableMapping:
         """Get all related concepts as a mapping from RxCUI to data.
 
         https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getAllRelatedInfo.html
@@ -234,7 +234,7 @@ class RxClassConnection(RxNavConnection):
         rx_classes: List[str],
         rela_source: str = "ATCPROD",
         combination_rx_classes: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> MutableMapping:
         """Get all related members for the specified RxClasses (combo and non-
         combo classes have separate filters, so use separate lists). Assumes
         all have the same relation source.
@@ -258,7 +258,7 @@ class RxClassConnection(RxNavConnection):
         Returns:
             Mapping of RxClass to the RxCUI members and their data
         """
-        results: Dict[str, Any] = {}
+        results: MutableMapping = {}
         for rxclass in rx_classes:
             log.debug(f"Querying concepts for {rxclass}...")
             results[rxclass] = {}
@@ -287,7 +287,7 @@ class RxClassConnection(RxNavConnection):
         return results
 
 
-def load_rxclass_concepts_from_file(stream) -> Dict[str, Any]:
+def load_rxclass_concepts_from_file(stream) -> MutableMapping:
     """Loads RxClass concepts from file, to avoid querying.
 
     Args:
@@ -295,7 +295,7 @@ def load_rxclass_concepts_from_file(stream) -> Dict[str, Any]:
     Returns:
         Mapping of RxClass to the RxCUI members and their data
     """
-    results: Dict[str, Any] = {}
+    results: MutableMapping = {}
     raw_concepts = json.load(stream)
 
     for rxclass, members in raw_concepts.items():

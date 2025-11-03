@@ -112,8 +112,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         rxclass_concepts = None
         if self.__rxclass_concepts_file:
-            rxclass_concepts = {}
-
             with open(
                 self.__rxclass_concepts_file.filepath, mode="r", encoding="utf-8-sig"
             ) as fh:

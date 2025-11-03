@@ -1,9 +1,10 @@
 import copy
+import importlib.metadata
 import json
 import logging
 from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, MutableMapping, Optional, List
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -14,21 +15,28 @@ from nacc_attribute_deriver.attribute_deriver import (
 )
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.constants import (
-    ALL_RXCLASSES,
+    ALL_RX_CLASSES,
     COMBINATION_RX_CLASSES,
 )
 from nacc_attribute_deriver.utils.errors import (
     AttributeDeriverError,
     MissingRequiredError,
 )
-from nacc_attribute_deriver.utils.scope import FormScope, ScopeLiterals
+from nacc_attribute_deriver.utils.scope import (
+    FormScope,
+    ScopeLiterals,
+)
 from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
 
-from .curator import Curator
+from .curator import Curator, determine_scope
 from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
+
+# scopes that cover multiple visits and need cross-sectional derived variables
+# back-propagated to each file
+BACKPROP_SCOPES = [FormScope.UDS, FormScope.MILESTONE]
 
 
 class FormCurator(Curator):
@@ -36,17 +44,18 @@ class FormCurator(Curator):
 
     def __init__(
         self,
-        attribute_deriver: AttributeDeriver,
-        missingness_deriver: MissingnessDeriver,
         curation_tag: str,
         force_curate: bool = False,
-        rxclass_concepts: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None,
+        rxclass_concepts: Optional[MutableMapping] = None,
     ) -> None:
         super().__init__(curation_tag=curation_tag, force_curate=force_curate)
-        self.__attribute_deriver = attribute_deriver
+        version = importlib.metadata.version("nacc_attribute_deriver")
+        log.info(f"Running nacc-attribute-deriver version {version}")
+
+        self.__attribute_deriver = AttributeDeriver()
+        self.__missingness_deriver = MissingnessDeriver()
 
         # prev record needed to pull across values for missingness checks
-        self.__missingness_deriver = missingness_deriver
         self.__prev_record = None
         self.__prev_scope = None
 
@@ -54,8 +63,7 @@ class FormCurator(Curator):
 
         # get expected cross-sectional derived variables by scope
         self.__scoped_variables = {
-            FormScope.NP: self.__extract_attributes(FormScope.NP),
-            FormScope.UDS: self.__extract_attributes(FormScope.UDS),
+            scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
         }
 
         if rxclass_concepts is not None:
@@ -64,7 +72,7 @@ class FormCurator(Curator):
         else:
             log.info("Querying RxClass concepts...")
             self.__rxclass = RxClassConnection.get_all_rxclass_members(
-                ALL_RXCLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
+                ALL_RX_CLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
             )
 
     def __extract_attributes(self, scope: str) -> List[str]:
@@ -105,9 +113,9 @@ class FormCurator(Curator):
     ) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for
         curation."""
-        # clear out file.info.derived if forcing curation
+        # clear out file.info.derived and file.info.resolved if forcing curation
         if self.force_curate:
-            for field in ["derived"]:
+            for field in ["derived", "resolved"]:
                 file_entry.delete_info(field)
 
         return super().get_table(subject, subject_table, file_entry)
@@ -172,7 +180,6 @@ class FormCurator(Curator):
         # as such, file.info.resolved represents the overlay of raw <- missingness,
         # ensuring we have a resolved location for data model querying without touching
         # the raw data
-        # currently only done for UDS and NP
         if scope in [FormScope.UDS, FormScope.NP]:
             self.__set_working_metadata(
                 table,
@@ -283,24 +290,21 @@ class FormCurator(Curator):
             )
             return
 
-        # filter out to the scopes
-        scope_derived: Dict[str, Dict[str, Any]] = {FormScope.UDS: {}, FormScope.NP: {}}
+        # filter out to scopes that need to be back-propagated
+        scope_derived: Dict[str, Dict[str, Any]] = {
+            scope: {} for scope in BACKPROP_SCOPES
+        }
 
         for k, v in cs_derived.items():
-            for scope in [FormScope.UDS, FormScope.NP]:
+            for scope in BACKPROP_SCOPES:
                 if k in self.__scoped_variables[scope]:
                     scope_derived[scope][k] = v
 
         log.debug(f"Back-propagating cross-sectional variables for {subject.label}")
         for file in processed_files:
-            scope = None
-            if file.filename.endswith("_UDS.json"):
-                scope = FormScope.UDS
-            elif file.filename.endswith("_NP.json"):
-                scope = FormScope.NP
-
-            # ignore non-NP/UDS files
-            if not scope:
+            scope = determine_scope(file.filename)
+            # ignore non-scopes of interest
+            if not scope or scope not in BACKPROP_SCOPES:
                 continue
 
             file_entry = self.sdk_client.get_file(file.file_id)

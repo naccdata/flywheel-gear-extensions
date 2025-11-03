@@ -10,7 +10,7 @@ from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
-from outputs.error_writer import ErrorWriter
+from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
 from s3.s3_client import S3BucketReader
 
@@ -23,12 +23,12 @@ class BaselineLocalizer(ABC):
     def __init__(
         self,
         s3_file: str,
-        error_writer: ErrorWriter,
-        keep_fields: Optional[List[str]] = None,
+        error_writer: ManagerListErrorWriter,
+        subjects: List[str],
     ) -> None:
         self.s3_file = s3_file
         self.error_writer = error_writer
-        self.keep_fields = keep_fields if keep_fields else []
+        self.subjects = subjects
 
     def localize_s3_file(self) -> StreamingBody:
         """Localizess the S3 file and returns the StreamingBody."""
@@ -59,18 +59,7 @@ class BaselineLocalizer(ABC):
         Returns:
             Processed header
         """
-        header = [x.strip().lower() for x in header]
-        missing = []
-        for required in self.keep_fields:
-            if required not in header:
-                missing.append(required)
-
-        if missing:
-            raise GearExecutionError(
-                f"Required field(s) not found in {self.s3_file} header: {missing}"
-            )
-
-        return header
+        return [x.strip().lower() for x in header]
 
     def localize(self) -> Dict[str, str]:
         """Localize the file and generate the baseline.
@@ -81,7 +70,6 @@ class BaselineLocalizer(ABC):
         body = self.localize_s3_file()
         header = None
         baseline: Dict[str, Any] = {}
-        duplicates: Set[str] = set()
 
         # the baselines are extremely large, so stream and process by line
         for line in body.iter_lines():
@@ -93,10 +81,15 @@ class BaselineLocalizer(ABC):
                 continue
 
             row = next(csv.DictReader([raw_row], fieldnames=header, strict=True))  # type: ignore
+
+            # we always assume NACCID is in the row. skip NACCIDs irrelevant
+            # to this regression test
+            if row.get("naccid", None) not in self.subjects:  # type: ignore
+                continue
+
             key, data = self.process_row(row)  # type: ignore
 
             if key in baseline:
-                duplicates.add(key)
                 msg = f"Duplicate key found in {self.s3_file}, dropping: {key}"
                 log.warning(msg)
                 self.error_writer.write(
@@ -104,13 +97,15 @@ class BaselineLocalizer(ABC):
                         field="naccid", value=key, expected="unique key", message=msg
                     )
                 )
+                baseline.pop(key)
                 continue
 
             baseline[key] = data
 
-        # remove duplicates from baseline
-        for dup in duplicates:
-            baseline.pop(dup)
+            # this is kind of a hack to handle cross-sectional data like NP and genetics;
+            # just key on the most recent visit, which should also have the most recent
+            # cross-sectional information
+            baseline[row['naccid']] = data
 
         if not baseline:
             raise GearExecutionError(f"No usable records found in {self.s3_file}")
@@ -133,41 +128,20 @@ class BaselineLocalizer(ABC):
 class QAFBaselineLocalizer(BaselineLocalizer):
     """Class to handle localizing the QAF."""
 
-    # these are derived variables that have NOT been defined yet
-    # eventually should all be defined, but hardcode to ignore for now
-    # mainly MP
-    BLACKLIST: ClassVar = [
-        "naccacsf",
-        "naccapsa",
-        "naccmrsa",
-        "naccnapa",
-        "naccnmri",
-        "naccpcsf",
-        "nacctcsf",
-        "naccdico",
-        "naccnift",
-        "naccmria",
-        "naccmrfi",
-        "naccmnum",
-        "naccmrdy",
-        "naccvnum",
-        "naccapta",
-        "naccaptf",
-        "naccapnm",
-        "naccaptd",
-        "naccabbp",
-        "nacccore",
-        "naccdadd",
-        "naccfamh",
-        "naccmomd",
-        "naccdod",
-        "naccadc",
-    ]
+    def __init__(
+        self,
+        s3_file: str,
+        error_writer: ManagerListErrorWriter,
+        subjects: List[str],
+        variable_blacklist: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(s3_file, error_writer, subjects)
+        self.__variable_blacklist = (
+            variable_blacklist if variable_blacklist is not None else []
+        )
 
     def process_row(self, row: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
-        """Process each row from the QAF. Only retains NACC* and NGDS* derived
-        variables, visitdate, and fields specified by the keep_fields
-        parameter.
+        """Process each row from the QAF.
 
         Args:
             row: Row to process
@@ -175,8 +149,6 @@ class QAFBaselineLocalizer(BaselineLocalizer):
             Tuple containing processed key and row data
         """
         # create visitdate to make unique keys
-        naccid = row["naccid"]
-
         if "visityr" in row:
             visitdate = (
                 f"{int(row['visityr']):04d}-"
@@ -190,25 +162,11 @@ class QAFBaselineLocalizer(BaselineLocalizer):
                 + f"{int(row['mridy']):02d}"
             )
 
-        row_data = {"visitdate": visitdate}
-        row_data.update(
-            {
-                k: v
-                for k, v in row.items()
-                if (k in self.keep_fields)
-                or (
-                    (
-                        k.startswith("nacc")
-                        or k.startswith("ngds")
-                        or k.startswith("ncds")
-                    )
-                    and k not in self.BLACKLIST
-                )
-            }
-        )
+        record = {k: v for k, v in row.items() if k not in self.__variable_blacklist}
+        record["visitdate"] = visitdate
+        key = f"{row['naccid']}_{visitdate}"
 
-        key = f"{naccid}_{visitdate}"
-        return key, row_data
+        return key, record
 
 
 class MQTBaselineLocalizer(BaselineLocalizer):
@@ -234,34 +192,47 @@ class MQTBaselineLocalizer(BaselineLocalizer):
 
 def run(
     context: GearToolkitContext,
+    subjects: List[str],
     s3_qaf_file: str,
-    keep_fields: List[str],
     scheduler: ProjectCurationScheduler,
-    error_writer: ErrorWriter,
+    error_writer: ManagerListErrorWriter,
+    max_errors: int,
     s3_mqt_file: Optional[str] = None,
+    variable_blacklist: Optional[List[str]] = None,
 ) -> None:
     """Runs the Attribute Curator process.
 
     Args:
         context: gear context
+        subjects: List of subjects to run regression test over
         s3_qaf_file: S3 QAF file to pull baseline from
-        keep_fields: Additional fields to retain from the QAF
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
+        max_errors: Maximum errors to report; stops regression testing once
+            maximum is hit
         s3_mqt_file: S3 MQT file to pull baseline from (optional)
+        variable_blacklist: List of variables to blacklist/ignore from QAF
     """
     qaf_baseline = QAFBaselineLocalizer(
-        s3_file=s3_qaf_file, error_writer=error_writer, keep_fields=keep_fields
+        s3_file=s3_qaf_file,
+        error_writer=error_writer,
+        subjects=subjects,
+        variable_blacklist=variable_blacklist,
     ).localize()
 
     mqt_baseline = None
     if s3_mqt_file:
         mqt_baseline = MQTBaselineLocalizer(
-            s3_file=s3_mqt_file, error_writer=error_writer
+            s3_file=s3_mqt_file,
+            error_writer=error_writer,
+            subjects=subjects,
         ).localize()
 
     curator = RegressionCurator(
-        qaf_baseline=qaf_baseline, mqt_baseline=mqt_baseline, error_writer=error_writer
+        qaf_baseline=qaf_baseline,
+        error_writer=error_writer,
+        max_errors=max_errors,
+        mqt_baseline=mqt_baseline,
     )
 
     scheduler.apply(curator=curator, context=context)

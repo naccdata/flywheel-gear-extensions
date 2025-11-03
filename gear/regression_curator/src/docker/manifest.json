@@ -2,7 +2,7 @@
     "name": "regression-curator",
     "label": "Regression Curator",
     "description": "Runs a regression test between curated projects and the QAF",
-    "version": "0.2.0",
+    "version": "1.0.0a",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/regression-curator:0.2.0"
+            "image": "naccdata/regression-curator:1.0.0a"
         },
         "flywheel": {
             "suite": "Curation",
@@ -26,8 +26,18 @@
         "api-key": {
             "base": "api-key"
         },
-        "blacklist_file": {
+        "naccid_blacklist_file": {
             "description": "Plain-text file containing the NACCIDs to blacklist from regression testing, one per line",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "text"
+                ]
+            }
+        },
+        "variable_blacklist_file": {
+            "description": "Plain-text file containing the variables to blacklist from regression testing, one per line",
             "base": "file",
             "optional": true,
             "type": {
@@ -47,15 +57,15 @@
             "type": "string",
             "default": ""
         },
-        "keep_fields": {
-            "description": "Comma-deliminated list of additional fields to retain from the QAF aside from NACC* and visit date information",
-            "type": "string",
-            "default": ""
-        },
         "filename_patterns": {
             "description": "Filename patterns to match on; comma-deliminated for multiple patterns",
             "type": "string",
-            "default": "*UDS.json"
+            "default": "*UDS\\.json"
+        },
+        "max_errors": {
+            "description": "Maximum errors to report; stops regression testing early once max is hit. If set to -1, no maximum. Note more errors than the maximum may be reported due to race conditions, but it will stop once all threads have globally detected >= max_errors have been written.",
+            "type": "integer",
+            "default": 1000
         },
         "error_outfile": {
             "description": "Output file to write regression errors to",

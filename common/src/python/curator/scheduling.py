@@ -60,6 +60,8 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
 
         curator.curate_file(subject, subject_table, file_info.file_id)
         processed_files.append(file_info)
+        if curator.break_curation():
+            break
 
     curator.post_curate(subject, subject_table, processed_files)
 
@@ -168,6 +170,10 @@ class ProjectCurationScheduler:
         os_cpu_count = os.cpu_count()
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
+
+    def get_subject_ids(self) -> List[str]:
+        """Return list of all subject IDs (FW IDs) to curate."""
+        return list(self.__heap_map.keys())
 
     def apply(
         self, curator: Curator, context: GearToolkitContext, max_num_workers: int = 4
