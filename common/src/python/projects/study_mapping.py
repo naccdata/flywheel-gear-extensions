@@ -43,6 +43,7 @@ from flywheel_adaptor.flywheel_proxy import (
     GroupAdaptor,
     ProjectAdaptor,
 )
+from keys.types import DatatypeNameType
 
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
@@ -84,7 +85,7 @@ class StudyMapper(ABC):
     def accepted_label(self) -> str:
         return f"accepted{self.study.project_suffix()}"
 
-    def pipeline_label(self, pipeline: str, datatype: str) -> str:
+    def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
         return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
 
     def add_pipeline(
@@ -209,7 +210,7 @@ class AggregationMapper(StudyMapper):
         *,
         center: CenterGroup,
         pipeline: str,
-        datatype: str,
+        datatype: DatatypeNameType,
         study_info: CenterStudyMetadata,
         pipeline_adcid: int,
     ) -> None:
@@ -245,7 +246,7 @@ class AggregationMapper(StudyMapper):
     def __add_retrospective(
         self,
         center: CenterGroup,
-        datatype: str,
+        datatype: DatatypeNameType,
         study_info: CenterStudyMetadata,
         pipeline_adcid: int,
     ) -> None:
@@ -352,7 +353,11 @@ class DistributionMapper(StudyMapper):
             self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
-        self, *, center: CenterGroup, study_info: "CenterStudyMetadata", datatype: str
+        self,
+        *,
+        center: CenterGroup,
+        study_info: "CenterStudyMetadata",
+        datatype: DatatypeNameType,
     ) -> None:
         """Adds a distribution project to this center for the study.
 
