@@ -158,7 +158,9 @@ class LegacySanityChecker:
 
         visitdate = module_configs.date_field
         legacy_visitdate = (
-            module_configs.legacy_date if module_configs.legacy_date else visitdate
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else visitdate
         )
 
         duplicates_query = FormQueryArgs(
@@ -174,7 +176,8 @@ class LegacySanityChecker:
             **duplicates_query.model_dump()
         )
 
-        duplicates_query.extra_columns = [FieldNames.VISITNUM, legacy_visitdate]
+        duplicates_query.extra_columns = [
+            FieldNames.VISITNUM, legacy_visitdate]
         duplicates_query.legacy = True
         retro_results = self.__form_store.query_form_data(
             **duplicates_query.model_dump()
@@ -200,7 +203,8 @@ class LegacySanityChecker:
             for record in ingest_results
         ]
         retro_records = [
-            (record[packet_lbl], record[visitnum_lbl], record[legacy_visitdate_lbl])
+            (record[packet_lbl], record[visitnum_lbl],
+             record[legacy_visitdate_lbl])
             for record in retro_results
         ]
 

@@ -294,9 +294,8 @@ class FormPreprocessor:
 
         if not initial_packets:
             if module_configs.legacy_module:
-                module = module_configs.legacy_module
-            if module_configs.legacy_date:
-                date_field = module_configs.legacy_date
+                module = module_configs.legacy_module.label
+                date_field = module_configs.legacy_module.date_field
 
             initial_packets = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
@@ -434,9 +433,8 @@ class FormPreprocessor:
             return False
 
         if self.__module_configs.legacy_module:
-            module = self.__module_configs.legacy_module
-        if self.__module_configs.legacy_date:
-            date_field = self.__module_configs.legacy_date
+            module = self.__module_configs.legacy_module.label
+            date_field = self.__module_configs.legacy_module.date_field
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -495,9 +493,8 @@ class FormPreprocessor:
             return False
 
         if self.__module_configs.legacy_module:
-            module = self.__module_configs.legacy_module
-        if self.__module_configs.legacy_date:
-            date_field = self.__module_configs.legacy_date
+            module = self.__module_configs.legacy_module.label
+            date_field = self.__module_configs.legacy_module.date_field
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -545,13 +542,15 @@ class FormPreprocessor:
             return True
 
         legacy_module = (
-            module_configs.legacy_module
+            module_configs.legacy_module.label
             if module_configs.legacy_module
             else self.__module
         )
-        date_field = module_configs.date_field
-        if module_configs.legacy_date:
-            date_field = module_configs.legacy_date
+        date_field = (
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else module_configs.date_field
+        )
 
         # retrieve all legacy visits for this module (find_all=True)
         # sorted in descending of visit date

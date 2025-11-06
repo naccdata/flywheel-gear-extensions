@@ -26,8 +26,18 @@ def uds_module_configs():
         "followup_packets": ["F"],
         "versions": ["4.0"],
         "date_field": "visitdate",
-        "legacy_module": "UDS",
-        "legacy_date": "visitdate",
+        "legacy_module": {
+            "label": "UDS",
+            "date_field": "visitdate",
+            "initial_packets": [
+                "I",
+                "IT"
+            ],
+            "followup_packets": [
+                "F",
+                "T"
+            ]
+        },
         "optional_forms": {
             "4.0": {
                 "I": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
