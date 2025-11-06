@@ -50,6 +50,7 @@ class DefaultValues:
     UDS_IT_PACKET = "IT"
     UDS_I4_PACKET = "I4"
     UDS_F_PACKET = "F"
+    UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
     FINALIZED_TAG = "submission-completed"

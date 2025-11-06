@@ -61,14 +61,8 @@ def uds_ingest_configs() -> ModuleConfigs:
         "legacy_module": {
             "label": "UDS",
             "date_field": "visitdate",
-            "initial_packets": [
-                "I",
-                "IT"
-            ],
-            "followup_packets": [
-                "F",
-                "T"
-            ]
+            "initial_packets": ["I", "IT"],
+            "followup_packets": ["F", "T"],
         },
         "optional_forms": {
             "4.0": {
