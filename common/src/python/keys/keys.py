@@ -126,6 +126,7 @@ class PreprocessingChecks:
     VISIT_CONFLICT = "visit-conflict"
     CLINICAL_FORMS = "clinical-forms"
     NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
+    NP_DEMOGRAPHIC_CONFLICT = "np-demographic-conflict"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

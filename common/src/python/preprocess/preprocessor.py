@@ -63,11 +63,13 @@ class FormPreprocessor:
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
             PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
+            PreprocessingChecks.NP_DEMOGRAPHIC_CONFLICT: self._check_np_demographics,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
         }
 
         # order the preprocessing checks defined for the module
-        self.__preprocess_checks: List[Callable[[PreprocessingContext], bool]] = []
+        self.__preprocess_checks: List[Callable[[
+            PreprocessingContext], bool]] = []
         if self.__module_configs.preprocess_checks:
             for check, check_function in self.__dispatcher.items():
                 if check in self.__module_configs.preprocess_checks:
@@ -114,7 +116,8 @@ class FormPreprocessor:
         input_record = pp_context.input_record
 
         version = float(input_record[FieldNames.FORMVER])
-        accepted_versions = [float(version) for version in module_configs.versions]
+        accepted_versions = [float(version)
+                             for version in module_configs.versions]
         if version not in accepted_versions:
             self.__error_handler.write_formver_error(
                 pp_context=pp_context, error_code=SysErrorCodes.INVALID_VERSION
@@ -662,7 +665,8 @@ class FormPreprocessor:
             return True
 
         supplement_module = module_configs.supplement_module
-        supplement_visits = self.__get_supplement_visits(supplement_module, pp_context)
+        supplement_visits = self.__get_supplement_visits(
+            supplement_module, pp_context)
 
         if not supplement_visits:
             self.__error_handler.write_module_error(
@@ -833,7 +837,8 @@ class FormPreprocessor:
 
         filters = []
         filters.append(
-            FormFilter(field=date_field, value=input_record[date_field], operator="=")
+            FormFilter(field=date_field,
+                       value=input_record[date_field], operator="=")
         )
         if FieldNames.VISITNUM in self.__module_configs.required_fields:
             filters.append(
@@ -922,6 +927,150 @@ class FormPreprocessor:
 
         return False
 
+    def __check_np_bds_mds_demographics_conflicts(
+        self,
+        pp_context: PreprocessingContext,
+        matching_visits: List[Dict[str, str]],
+    ) -> bool:
+        return True
+
+    def __check_np_uds_demographics_conflicts(
+        self,
+        pp_context: PreprocessingContext
+    ) -> int:
+        """_summary_
+
+        Args:
+            pp_context (PreprocessingContext): _description_
+
+        Returns:
+            int: -1: No UDS, 0: Fail, 1: Pass
+        """
+
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        uds_visits = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=DefaultValues.UDS_MODULE,
+            legacy=False,
+            search_col=FieldNames.DATE_COLUMN,
+            search_val=pp_context.input_record[self.__module_configs.date_field],
+            search_op="<=",
+            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
+        )
+
+        if not uds_visits:
+            uds_visits = self.__forms_store.query_form_data(
+                subject_lbl=pp_context.subject_lbl,
+                module=DefaultValues.UDS_MODULE,
+                legacy=True,
+                search_col=FieldNames.DATE_COLUMN,
+                search_val=pp_context.input_record[self.__module_configs.date_field],
+                search_op="<=",
+                extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
+            )
+
+        if not uds_visits:
+            return -1
+
+        num_matches = len(uds_visits)
+        ivp_packets = [
+            DefaultValues.UDS_I4_PACKET,
+            DefaultValues.UDS_I_PACKET,
+            DefaultValues.UDS_IT_PACKET,
+        ]
+        ivp_visit = None
+        packet_key = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}"
+        if num_matches > 1 and uds_visits[num_matches - 1][packet_key] in ivp_packets:
+            ivp_visit = self.__forms_store.get_visit_data(
+                file_name=uds_visits[num_matches - 1]["file.name"],
+                acq_id=uds_visits[num_matches -
+                                  1]["file.parents.acquisition"],
+            )
+
+        last_uds_visit = self.__forms_store.get_visit_data(
+            file_name=uds_visits[0]["file.name"],
+            acq_id=uds_visits[0]["file.parents.acquisition"],
+        )
+
+        if not last_uds_visit:
+            raise PreprocessingException(
+                "Failed to retrieve last UDS visit for participant "
+                f"{pp_context.subject_lbl}"
+            )
+
+        if last_uds_visit[FieldNames.PACKET] in ivp_packets:
+            ivp_visit = last_uds_visit
+
+        if not ivp_visit:
+            ivp_matches = self.__forms_store.query_form_data(
+                subject_lbl=pp_context.subject_lbl,
+                module=DefaultValues.UDS_MODULE,
+                legacy=True,
+                search_col=FieldNames.PACKET,
+                search_val=ivp_packets,
+                search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
+                extra_columns=[FieldNames.VISITNUM, FieldNames.DATE_COLUMN],
+            )
+
+            if not ivp_matches or len(ivp_matches) > 1:
+                raise PreprocessingException(
+                    "Failed to retrieve UDS IVP visit for participant "
+                    f"{pp_context.subject_lbl}"
+                )
+
+            ivp_visit = self.__forms_store.get_visit_data(
+                file_name=ivp_matches[0]["file.name"],
+                acq_id=ivp_matches[0]["file.parents.acquisition"],
+            )
+
+        if not ivp_visit:
+            raise PreprocessingException(
+                "Failed to retrieve UDS IVP visit for participant "
+                f"{pp_context.subject_lbl}"
+            )
+
+        return True
+
+    def _check_np_demographics(self, pp_context: PreprocessingContext) -> bool:
+        """Check whether the demographics entered in NP form matches with the
+        details in the clinical form (UDS, BDS, MDS).
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            True if the preprocessing checks pass, false otherwise
+        """
+
+        result = self.__check_np_uds_demographics_conflicts(
+            pp_context=pp_context)
+
+        if result != -1:
+            return bool(result)
+
+        # treat each form like a fake supplement module and see if any visits exist
+        for module in [
+            DefaultValues.BDS_MODULE,
+            DefaultValues.MDS_MODULE,
+        ]:
+            supplement_module = SupplementModuleConfigs(
+                label=module, date_field=FieldNames.DATE_COLUMN, exact_match=False
+            )
+            matches = self.__get_supplement_visits(
+                supplement_module, pp_context)
+            if matches:
+                return self.__check_np_bds_mds_demographics_conflicts(
+                    pp_context=pp_context, matching_visits=matches
+                )
+
+        # no clinical visits found; fail preprocessing check
+        self.__error_handler.write_module_error(
+            pp_context=pp_context, error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED_NP
+        )
+
+        return False
+
     def _check_np_mlst_restrictions(self, pp_context: PreprocessingContext) -> bool:
         """Check NP/MLST restrictions; compares NP form against most recent
         MLST form.
@@ -979,7 +1128,8 @@ class FormPreprocessor:
         # NP to be accepted
         result_death_denoted = True
         for field in ["autopsy", "deceased"]:
-            value = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.{field}", "")
+            value = mlst_form.get(
+                f"{MetadataKeys.FORM_METADATA_PATH}.{field}", "")
             if value is None or str(value) != "1":
                 result_death_denoted = False
                 self.__error_handler.write_preprocessing_error(
@@ -1044,7 +1194,8 @@ class FormPreprocessor:
         """
 
         if not self.__preprocess_checks:
-            log.warning(f"No preprocessing checks defined for module {self.__module}")
+            log.warning(
+                f"No preprocessing checks defined for module {self.__module}")
             return True
 
         subject_lbl = input_record[self.__primary_key]
