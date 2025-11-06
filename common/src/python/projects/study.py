@@ -4,6 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Mapping, Optional, Self
 
+from keys.types import DatatypeNameType
 from pydantic import (
     AliasGenerator,
     BaseModel,
@@ -124,7 +125,7 @@ class StudyModel(BaseModel):
     name: str = Field(alias="study")
     study_id: str
     centers: List[StudyCenterModel]
-    datatypes: List[str]
+    datatypes: List[DatatypeNameType]
     mode: Literal["aggregation", "distribution"]
     study_type: Literal["primary", "affiliated"]
     legacy: bool = Field(True)

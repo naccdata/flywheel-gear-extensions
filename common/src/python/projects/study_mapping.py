@@ -43,6 +43,7 @@ from flywheel_adaptor.flywheel_proxy import (
     GroupAdaptor,
     ProjectAdaptor,
 )
+from keys.types import DatatypeNameType
 
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
@@ -84,7 +85,7 @@ class StudyMapper(ABC):
     def accepted_label(self) -> str:
         return f"accepted{self.study.project_suffix()}"
 
-    def pipeline_label(self, pipeline: str, datatype: str) -> str:
+    def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
         return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
 
     def add_pipeline(
@@ -155,7 +156,19 @@ class AggregationMapper(StudyMapper):
                         pipeline_adcid=pipeline_adcid,
                     )
 
-        self.__add_retrospective(center=center, pipeline_adcid=pipeline_adcid)
+        if not self.study.has_legacy():
+            log.warning(
+                "Will not create retrospective projects for study %s", self.study.name
+            )
+            return
+
+        for datatype in self.study.datatypes:
+            self.__add_retrospective(
+                center=center,
+                datatype=datatype,
+                study_info=study_info,
+                pipeline_adcid=pipeline_adcid,
+            )
 
     def map_study_pipelines(self) -> None:
         """Creates study group with release project."""
@@ -197,7 +210,7 @@ class AggregationMapper(StudyMapper):
         *,
         center: CenterGroup,
         pipeline: str,
-        datatype: str,
+        datatype: DatatypeNameType,
         study_info: CenterStudyMetadata,
         pipeline_adcid: int,
     ) -> None:
@@ -208,6 +221,7 @@ class AggregationMapper(StudyMapper):
           study_info: the center study metadata
           pipeline: the name of the pipeline
           datatype: the name of the datatype
+          pipeline_adcid: ADCID for the pipeline
         """
         pipeline_label = self.pipeline_label(pipeline, datatype)
 
@@ -229,29 +243,42 @@ class AggregationMapper(StudyMapper):
             update_study=update_ingest,
         )
 
-    def __add_retrospective(self, center: CenterGroup, pipeline_adcid: int) -> None:
+    def __add_retrospective(
+        self,
+        center: CenterGroup,
+        datatype: DatatypeNameType,
+        study_info: CenterStudyMetadata,
+        pipeline_adcid: int,
+    ) -> None:
         """Adds retrospective projects for the study to the center.
 
         Args:
           center: the center group
+          datatype: the name of the datatype
+          study_info: the center study metadata
+          pipeline_adcid: ADCID for the pipeline
         """
-        if not self.study.has_legacy():
-            log.warning(
-                "Will not create retrospective projects for study %s", self.study.name
-            )
-            return
 
         def update_retrospective(project: ProjectAdaptor):
+            if datatype == "form":
+                study_info.add_ingest(
+                    IngestProjectMetadata(
+                        study_id=self.study.study_id,
+                        pipeline_adcid=pipeline_adcid,
+                        project_id=project.id,
+                        project_label=project.label,
+                        datatype=datatype,
+                    )
+                )
             project.update_info({"pipeline_adcid": pipeline_adcid})
 
-        for datatype in self.study.datatypes:
-            self.add_pipeline(
-                center=center,
-                pipeline_label=self.pipeline_label(
-                    pipeline="retrospective", datatype=datatype
-                ),
-                update_study=update_retrospective,
-            )
+        self.add_pipeline(
+            center=center,
+            pipeline_label=self.pipeline_label(
+                pipeline="retrospective", datatype=datatype
+            ),
+            update_study=update_retrospective,
+        )
 
     def __get_release_group(self) -> Optional[GroupAdaptor]:
         """Returns the release group for this study if it is published.
@@ -326,7 +353,11 @@ class DistributionMapper(StudyMapper):
             self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
-        self, *, center: CenterGroup, study_info: "CenterStudyMetadata", datatype: str
+        self,
+        *,
+        center: CenterGroup,
+        study_info: "CenterStudyMetadata",
+        datatype: DatatypeNameType,
     ) -> None:
         """Adds a distribution project to this center for the study.
 
