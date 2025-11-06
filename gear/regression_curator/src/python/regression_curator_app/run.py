@@ -171,7 +171,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         if errors:
             log.error(
-                f"Errors detected, writing errors to output file {self.__error_outfile}"
+                f"{len(errors)} errors detected, writing errors to " +
+                f"output file {self.__error_outfile}"
             )
             contents = write_csv_to_stream(
                 headers=FileError.fieldnames(), data=errors

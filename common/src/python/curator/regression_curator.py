@@ -59,17 +59,31 @@ class RegressionCurator(Curator):
 
         curation_rules = AttributeDeriver().get_curation_rules(scope)
         missingness_rules = MissingnessDeriver().get_curation_rules(scope)
-
         self.__scoped_variables[scope] = set()
-        for rule in curation_rules + missingness_rules:
-            for assignment in rule.assignments:
-                # for now, only care about derived and resolved variables
-                if (".derived." not in assignment.attribute and
-                    ".resolved." not in assignment.attribute):
-                    continue
 
-                attribute = assignment.attribute.split(".")[-1]
-                self.__scoped_variables[scope].add(attribute)
+        # only care about derived variables from curation
+        if curation_rules:
+            for rule in curation_rules:
+                for assignment in rule.assignments:
+                    if ".derived." not in assignment.attribute:
+                        continue
+
+                    attribute = assignment.attribute.split(".")[-1]
+                    self.__scoped_variables[scope].add(attribute)
+
+        # for missingness, only care about FILE-level resolved variables
+        # UDS has some subject-level resolved variables to handle when
+        # other scopes are missing; however, for regression testing we don't
+        # include them in the current scope context
+        if missingness_rules:
+            for rule in missingness_rules:
+                for assignment in rule.assignments:
+                    if (not assignment.attribute.startswith("file") and
+                        ".resolved." not in assignment.attribute):
+                        continue
+
+                    attribute = assignment.attribute.split(".")[-1]
+                    self.__scoped_variables[scope].add(attribute)
 
     def break_curation(self) -> bool:
         """Used to globally signal to scheduler that curation should stop."""
