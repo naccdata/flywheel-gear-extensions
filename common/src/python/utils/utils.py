@@ -73,8 +73,8 @@ def filter_include_exclude(
 
     Args:
         in_list: List/set to filter
-        include: Comma-deliminated string of fields to include
-        exclude: Comma-deliminated string of fields to exclue
+        include: Comma-delimited string of fields to include
+        exclude: Comma-delimited string of fields to exclude
 
     Returns:
         filtered set

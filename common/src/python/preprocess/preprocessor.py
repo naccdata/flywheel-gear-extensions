@@ -269,6 +269,7 @@ class FormPreprocessor:
 
         date_field = module_configs.date_field
         packet = input_record[FieldNames.PACKET]
+        legacy_ivp = False
 
         if (
             packet in module_configs.initial_packets
@@ -296,17 +297,20 @@ class FormPreprocessor:
         )
 
         if not initial_packets:
+            ivp_codes = module_configs.initial_packets
             if module_configs.legacy_module:
-                module = module_configs.legacy_module
-            if module_configs.legacy_date:
-                date_field = module_configs.legacy_date
+                module = module_configs.legacy_module.label
+                date_field = module_configs.legacy_module.date_field
+                if module_configs.legacy_module.initial_packets:
+                    ivp_codes = module_configs.legacy_module.initial_packets
 
+            legacy_ivp = True
             initial_packets = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
                 module=module,
                 legacy=True,
                 search_col=FieldNames.PACKET,
-                search_val=module_configs.initial_packets,
+                search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,  # type: ignore
                 extra_columns=[FieldNames.VISITNUM, date_field],
             )
@@ -349,7 +353,7 @@ class FormPreprocessor:
 
             # allow if this is a new I4 submission
             if (
-                initial_packet[packet_lbl] == DefaultValues.UDS_I_PACKET
+                legacy_ivp
                 and input_record[FieldNames.PACKET] == DefaultValues.UDS_I4_PACKET
             ):
                 return True
@@ -437,9 +441,8 @@ class FormPreprocessor:
             return False
 
         if self.__module_configs.legacy_module:
-            module = self.__module_configs.legacy_module
-        if self.__module_configs.legacy_date:
-            date_field = self.__module_configs.legacy_date
+            module = self.__module_configs.legacy_module.label
+            date_field = self.__module_configs.legacy_module.date_field
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -498,9 +501,8 @@ class FormPreprocessor:
             return False
 
         if self.__module_configs.legacy_module:
-            module = self.__module_configs.legacy_module
-        if self.__module_configs.legacy_date:
-            date_field = self.__module_configs.legacy_date
+            module = self.__module_configs.legacy_module.label
+            date_field = self.__module_configs.legacy_module.date_field
 
         legacy_matches = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
@@ -548,13 +550,15 @@ class FormPreprocessor:
             return True
 
         legacy_module = (
-            module_configs.legacy_module
+            module_configs.legacy_module.label
             if module_configs.legacy_module
             else self.__module
         )
-        date_field = module_configs.date_field
-        if module_configs.legacy_date:
-            date_field = module_configs.legacy_date
+        date_field = (
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else module_configs.date_field
+        )
 
         # retrieve all legacy visits for this module (find_all=True)
         # sorted in descending of visit date

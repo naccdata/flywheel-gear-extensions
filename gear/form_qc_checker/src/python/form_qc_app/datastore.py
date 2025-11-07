@@ -188,13 +188,13 @@ class DatastoreHelper(Datastore):
 
         # if no previous visits found in the current project, check the legacy project
         legacy_module = (
-            self.__module_configs.legacy_module
+            self.__module_configs.legacy_module.label
             if self.__module_configs.legacy_module
             else module
         )
         legacy_date = (
-            self.__module_configs.legacy_date
-            if self.__module_configs.legacy_date
+            self.__module_configs.legacy_module.date_field
+            if self.__module_configs.legacy_module
             else self.orderby
         )
 

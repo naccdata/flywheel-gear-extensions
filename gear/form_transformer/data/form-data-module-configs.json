@@ -50,8 +50,18 @@
                 "4.0"
             ],
             "date_field": "visitdate",
-            "legacy_module": "UDS",
-            "legacy_date": "visitdate",
+            "legacy_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "initial_packets": [
+                    "I",
+                    "IT"
+                ],
+                "followup_packets": [
+                    "F",
+                    "T"
+                ]
+            },
             "optional_forms": {
                 "4.0": {
                     "I": [
@@ -132,8 +142,6 @@
                 "3.1"
             ],
             "date_field": "visitdate",
-            "legacy_module": "LBD",
-            "legacy_date": "visitdate",
             "optional_forms": {
                 "3.1": {
                     "IL": [
@@ -200,8 +208,6 @@
                 "3.0"
             ],
             "date_field": "visitdate",
-            "legacy_module": "FTLD",
-            "legacy_date": "visitdate",
             "optional_forms": {
                 "3.0": {
                     "IF": [
