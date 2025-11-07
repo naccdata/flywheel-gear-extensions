@@ -24,6 +24,7 @@ class MockFormsStore(FormsStore):
 
     def __init__(self):
         self.__form_data = None
+        self.__legacy_data = None
 
     def is_new_subject(self, subject_lbl: str) -> bool:
         return subject_lbl == "new-subject"
@@ -32,7 +33,16 @@ class MockFormsStore(FormsStore):
         """Set the form data to control what query_form_data returns."""
         self.__form_data = form_data
 
+    def set_legacy_form_data(self, legacy_data: List[Dict[str, str]]) -> None:
+        """Reset form data and set legacy data to control what query_form_data
+        returns for legacy=True."""
+        self.__form_data = None
+        self.__legacy_data = legacy_data
+
     def query_form_data(self, **kwargs) -> Optional[List[Dict[str, str]]]:
+        if kwargs.get("legacy"):
+            return self.__legacy_data
+
         return self.__form_data
 
     def query_form_data_with_custom_filters(
@@ -238,6 +248,9 @@ class TestFormPreprocessor:
         self.__assert_error_raised(error_writer, SysErrorCodes.IVP_EXISTS)
 
         # allow if I4
+        forms_store.set_legacy_form_data([copy.deepcopy(input_record)])
+        input_record[FieldNames.DATE_COLUMN] = "2025-08-01"
+        input_record[FieldNames.VISITNUM] = "1"
         input_record[FieldNames.PACKET] = "I4"
         assert processor._check_initial_visit(uds_pp_context)
 
@@ -261,7 +274,7 @@ class TestFormPreprocessor:
 
         # fail when legacy visit exists but is same as current I4 record
         legacy_record = copy.deepcopy(input_record)
-        forms_store.set_form_data([legacy_record])
+        forms_store.set_legacy_form_data([legacy_record])
         assert not processor._check_udsv4_initial_visit(uds_pp_context)
         self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_I4_VISITDATE)
 
@@ -271,7 +284,7 @@ class TestFormPreprocessor:
         self.__assert_error_raised(error_writer, SysErrorCodes.MISSING_UDS_I4)
 
         # pass when just FVP (ensured valid by other preprocessing checks)
-        forms_store.set_form_data([])
+        forms_store.set_legacy_form_data([])
         assert processor._check_udsv4_initial_visit(uds_pp_context)
 
     def test_check_supplement_module_exact_match(
@@ -401,8 +414,8 @@ class TestFormPreprocessor:
             f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": "2025",
             f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": "8",
             f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "27",
-            f"{MetadataKeys.FORM_METADATA_PATH}.deceased": "1",
-            f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": "1",
+            f"{MetadataKeys.FORM_METADATA_PATH}.deceased": 1,
+            f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1,
         }
         forms_store.set_form_data(
             [
@@ -425,19 +438,18 @@ class TestFormPreprocessor:
 
         # fail on autopsy != 1 or deceased != 1
         for value in [0, 2, None]:
-            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = value  # type: ignore
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = value
             assert not processor._check_np_mlst_restrictions(np_pp_context)
             self.__assert_error_raised(
                 error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST
             )
-
-            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = 1  # type: ignore
-            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = value  # type: ignore
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = 1
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = value
             assert not processor._check_np_mlst_restrictions(np_pp_context)
             self.__assert_error_raised(
                 error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST
             )
-            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = 1  # type: ignore
+            test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = 1
 
         # fail when the DODs don't match
         test_record.update(
@@ -478,8 +490,10 @@ class TestFormPreprocessor:
         self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
 
         # fail when all fail; fails early so should only report autopsy/deceased
-        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None  # type: ignore
-        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = None  # type: ignore
+        # type: ignore
+        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.autopsy"] = None
+        # type: ignore
+        test_record[f"{MetadataKeys.FORM_METADATA_PATH}.deceased"] = None
         assert not processor._check_np_mlst_restrictions(np_pp_context)
 
         assert len(error_writer.errors()) == 2
