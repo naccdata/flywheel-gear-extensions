@@ -194,6 +194,13 @@ class SupplementModuleConfigs(BaseModel):
     exact_match: Optional[bool] = True
 
 
+class LegacyModuleConfigs(BaseModel):
+    label: str
+    date_field: str
+    initial_packets: Optional[List[str]] = None
+    followup_packets: Optional[List[str]] = None
+
+
 class ModuleConfigs(BaseModel):
     initial_packets: List[str]
     followup_packets: List[str]
@@ -201,8 +208,7 @@ class ModuleConfigs(BaseModel):
     date_field: str
     hierarchy_labels: UploadTemplateInfo
     required_fields: List[str]
-    legacy_module: Optional[str] = None
-    legacy_date: Optional[str] = None
+    legacy_module: Optional[LegacyModuleConfigs] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None

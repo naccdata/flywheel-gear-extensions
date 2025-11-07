@@ -158,7 +158,9 @@ class LegacySanityChecker:
 
         visitdate = module_configs.date_field
         legacy_visitdate = (
-            module_configs.legacy_date if module_configs.legacy_date else visitdate
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else visitdate
         )
 
         duplicates_query = FormQueryArgs(
