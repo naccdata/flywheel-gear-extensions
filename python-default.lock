@@ -17,7 +17,7 @@
 //     "fw-client>=0.7.0",
 //     "fw-utils>=3",
 //     "moto[s3,ses,ssm]>=5.0.15",
-//     "nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev30-py3-none-any.whl",
+//     "nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev47-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -1009,13 +1009,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "e49e61f6718e8bc8b34e9bb8a97f16c8dc560485faef4981b55d76f825c9d78a",
-              "url": "https://files.pythonhosted.org/packages/9e/65/2b50bb0112d6e2c171c8e07cc7f2a0581d39b850921d4defdf5421098fc9/botocore-1.40.67-py3-none-any.whl"
+              "hash": "5d810efeb9e18f91f32690642fa81ae60e482eefeea0d35ec72da2e3d924c1a5",
+              "url": "https://files.pythonhosted.org/packages/61/d6/bf2b91d4a92af6ee70e0689913414463a48cf51c0fc855c98b94bde8e7f3/botocore-1.40.69-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "cc086f39c877aee0ea8dc88ef69062c9f395b9d30d49bfcfac7b8b7e61864b3a",
-              "url": "https://files.pythonhosted.org/packages/2d/aa/4d3d04e3fb2f497fbe574051d50180a6326ffef481caea80837605a0016d/botocore-1.40.67.tar.gz"
+              "hash": "df310ddc4d2de5543ba3df4e4b5f9907a2951896d63a9fbae115c26ca0976951",
+              "url": "https://files.pythonhosted.org/packages/e2/73/42499b183ca5cef25c35338ad2636368b0ae2193654642756492e96ee906/botocore-1.40.69.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1027,19 +1027,19 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.40.67"
+          "version": "1.40.69"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "c2ddcbfc33422e4bb9a02c05b6b71bde778c78953ae8ee39fc251d7fa720d7b7",
-              "url": "https://files.pythonhosted.org/packages/ef/c6/713d3d28f4b1e1f7655e466251f811d4de9b0d930d51fd92a4928e069530/botocore_stubs-1.40.67-py3-none-any.whl"
+              "hash": "4eb9bc8127e65b5a84df280eaa80e8626e98f296c46dc9b8579d6c5efbf008b2",
+              "url": "https://files.pythonhosted.org/packages/f8/e3/d94acada07e82af6a26baf03d0db8daeaae969c09635417281193810c1b1/botocore_stubs-1.40.68-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "864f9fed4272d7e62b4a51da3b145edf427402c1f9978612a444ed1e8fdf9dc7",
-              "url": "https://files.pythonhosted.org/packages/e4/7c/7f14a334a5decfad2f1f64ae480601a694a98a54d776769247274e1558c1/botocore_stubs-1.40.67.tar.gz"
+              "hash": "47c8e99e30b1d65ca78be51e6dea994c06c3da9b35521891f8910e641da2b95b",
+              "url": "https://files.pythonhosted.org/packages/7f/30/588ab9ca87ba6a7ef307cd9941fb7c95abb5820d02bb3f2b818fe5eab4fd/botocore_stubs-1.40.68.tar.gz"
             }
           ],
           "project_name": "botocore-stubs",
@@ -1048,19 +1048,19 @@
             "types-awscrt"
           ],
           "requires_python": ">=3.9",
-          "version": "1.40.67"
+          "version": "1.40.68"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "180e7d1fa1a5765cbff7b5c716e52fddddfab859dc8f625b0d563ace4b7a7ab3",
-              "url": "https://files.pythonhosted.org/packages/15/ce/e3abf3fd04da28978eefb06ea906549f20f23f2ec6df8873ede6b62c8a8c/Cerberus-1.3.7-py3-none-any.whl"
+              "hash": "46c029e3e2a4735408ed36bec14ef2cbf3e50d8ebe47fb34ee1e54b2da814df2",
+              "url": "https://files.pythonhosted.org/packages/a1/00/ff53f3a4d51e64e9137ce2408a43edf18fec96eebb61f87a6598578fa563/cerberus-1.3.8-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "ecf249665400a0b7a9d5e4ee1ffc234fd5d003186d3e1904f70bc14038642c13",
-              "url": "https://files.pythonhosted.org/packages/08/92/6d861524d97a2c4913816309ca12afe313b32c8efc3ec641de98b890834b/cerberus-1.3.7.tar.gz"
+              "hash": "579554887ffd189226774b87570f4a76db75cf0efcbaffcacd5e98b8ee877f61",
+              "url": "https://files.pythonhosted.org/packages/7a/cf/845d32e330e49e34f1a22dc44868750e75485d7c08c07d37795bcf0a780e/cerberus-1.3.8.tar.gz"
             }
           ],
           "project_name": "cerberus",
@@ -1068,7 +1068,7 @@
             "importlib-metadata; python_version < \"3.8\""
           ],
           "requires_python": ">=3.7",
-          "version": "1.3.7"
+          "version": "1.3.8"
         },
         {
           "artifacts": [
@@ -1538,20 +1538,20 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "89e91eb7f8504bb130af0895a6353839c4d67ff066cf2e04b6c83f4bbb8b5f30",
-              "url": "https://files.pythonhosted.org/packages/62/60/64cb33ffad69c905af911b2725a62e0bc46010d36be9e55ea8dd89ebfdff/fw_utils-5.1.0-py3-none-any.whl"
+              "hash": "9c0a9df01bd438deaa4c0f8c977c50410293771b5223e4464ebf3f780e93afca",
+              "url": "https://files.pythonhosted.org/packages/5b/94/07fb3e55b057a33ba9670c5e18339b3d453b1b8f57a3e9954eb5d7bb171f/fw_utils-5.1.1-py3-none-any.whl"
             }
           ],
           "project_name": "fw-utils",
           "requires_dists": [
-            "pymongo<5.0.0,>=4.8.0; extra == \"all\"",
-            "python-dateutil<3.0.0,>=2.8.2",
+            "pymongo<5,>=4.8.0; extra == \"all\"",
+            "python-dateutil<3,>=2.8.2",
             "starlette>=0.41.3; extra == \"all\"",
             "tzdata>=2022",
             "tzlocal>=4.1"
           ],
-          "requires_python": "<4.0,>=3.9",
-          "version": "5.1.0"
+          "requires_python": "<4,>=3.9",
+          "version": "5.1.1"
         },
         {
           "artifacts": [
@@ -1994,8 +1994,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "493b17130360bbda57e8c097b2ae97254867c2d50c4181ecb04adf6b90621877",
-              "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev30-py3-none-any.whl"
+              "hash": "c342a5b10fdd658bdae83cc8483121872c60663c58be661840ec6aaae9aaee65",
+              "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0.dev47-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2003,7 +2003,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.11.*",
-          "version": "2.0.0.dev30"
+          "version": "2.0.0.dev47"
         },
         {
           "artifacts": [
@@ -3430,7 +3430,7 @@
     "fw-client>=0.7.0",
     "fw-utils>=3",
     "moto[s3,ses,ssm]>=5.0.15",
-    "nacc-attribute-deriver==2.0.0.dev30",
+    "nacc-attribute-deriver==2.0.0.dev47",
     "nacc_form_validator",
     "natsort",
     "pandas-stubs>=2.0.3",

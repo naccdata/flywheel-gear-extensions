@@ -76,7 +76,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         filename_patterns = parse_string_to_list(
             context.config.get(
-                "filename_patterns", ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"
+                "filename_patterns", ".*\\.json,.*\\.dicom\\,.*\\.zip,.*\\.nii\\.gz"
             ),
             to_lower=False,
         )

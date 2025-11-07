@@ -6,7 +6,7 @@ from multiprocessing.pool import Pool
 import os
 from typing import Dict, List, Optional
 
-from curator.curator import Curator
+from curator.curator import Curator, ProjectCurationError
 from data.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -215,7 +215,3 @@ class ProjectCurationScheduler:
                 r.get()
 
             pool.join()
-
-
-class ProjectCurationError(Exception):
-    """Exception for errors curating project files."""

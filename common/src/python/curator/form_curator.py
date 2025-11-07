@@ -2,6 +2,7 @@ import copy
 import importlib.metadata
 import json
 import logging
+import typing as typing
 from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
 from typing import Any, Dict, MutableMapping, Optional, List
@@ -24,19 +25,26 @@ from nacc_attribute_deriver.utils.errors import (
 )
 from nacc_attribute_deriver.utils.scope import (
     FormScope,
+    MixedProtocolScope,
     ScopeLiterals,
 )
 from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
 
-from .curator import Curator, determine_scope
+from .curator import Curator, ProjectCurationError, determine_scope
 from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
 
 # scopes that cover multiple visits and need cross-sectional derived variables
-# back-propagated to each file
-BACKPROP_SCOPES = [FormScope.UDS, FormScope.MILESTONE]
+# back-propagated to each file. required for scopes that can have multiple
+# visits/data and cross-sectional derived values
+BACKPROP_SCOPES = [
+    FormScope.UDS,
+    FormScope.MILESTONE,
+    MixedProtocolScope.MRI_DICOM,
+    MixedProtocolScope.PET_DICOM,
+]
 
 
 class FormCurator(Curator):
@@ -53,7 +61,8 @@ class FormCurator(Curator):
         log.info(f"Running nacc-attribute-deriver version {version}")
 
         self.__attribute_deriver = AttributeDeriver()
-        self.__missingness_deriver = MissingnessDeriver()
+        self.__file_missingness = MissingnessDeriver("file")
+        self.__subject_missingness = MissingnessDeriver("subject")
 
         # prev record needed to pull across values for missingness checks
         self.__prev_record = None
@@ -85,7 +94,7 @@ class FormCurator(Curator):
         """
         curation_rules = self.__attribute_deriver.get_curation_rules(scope)
         if not curation_rules:
-            raise AttributeDeriverError(
+            raise ProjectCurationError(
                 f"Cannot find any curation rules for scope: {scope}"
             )
 
@@ -148,7 +157,8 @@ class FormCurator(Curator):
             data: The metadata to write
         """
         if table.get(location) is not None:
-            raise ValueError(f"{location} is already set, cannot override")
+            raise ProjectCurationError(f"{location} is already set, cannot override")
+
         table[location] = data
 
     def prepare_table(
@@ -203,12 +213,11 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        self.prepare_table(file_entry, table, scope)
-
         try:
+            self.prepare_table(file_entry, table, scope)
             self.__attribute_deriver.curate(table, scope)
-            self.__missingness_deriver.curate(table, scope)
-        except (AttributeDeriverError, MissingRequiredError) as e:
+            self.__file_missingness.curate(table, scope)
+        except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
             self.__failed_files[file_entry.name] = str(e)
             log.error(f"Failed to curate {file_entry.name}: {e}")
             return
@@ -256,11 +265,12 @@ class FormCurator(Curator):
     ) -> None:
         """Run post-curating on the entire subject.
 
-        1. Pushes final subject_table back to FW
-        2. Adds `affiliated` tag to affiliate subjects if
+        1. Run subject-level missingness curations across all scopes
+        2. Pushes final subject_table back to FW
+        3. Adds `affiliated` tag to affiliate subjects if
             subject.info.derived.affiliate is set
             (via nacc-attribute-deriver)
-        3. Run a second pass over all NP/UDS forms and apply
+        4. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
 
         Args:
@@ -269,20 +279,73 @@ class FormCurator(Curator):
                 and curation results
             processed_files: List of FileModels that were processed
         """
+        # hash the processed files by scope
+        scoped_files: Dict[ScopeLiterals, List[FileModel]] = {}
+        for file in processed_files:
+            scope = determine_scope(file.filename)
+            if not scope:  # sanity check
+                raise ProjectCurationError(f"Unknown scope to post-curate: {scope}")
+            if scope not in scoped_files:
+                scoped_files[scope] = []
+
+            scoped_files[scope].append(file)
+
+        if FormScope.UDS in scoped_files:
+            self.subject_level_missingness(subject, subject_table, scoped_files)
+
         # push subject metadata; need to replace due to potentially
-        # cleaned-up metadata
+        # cleaned-up metadata and subject-level missingness
         if subject_table:
             subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
         affiliate = derived.get("affiliate", None)
-        cs_derived = derived.get("cross-sectional", None)
 
         # add affiliated tag
         if affiliate and "affiliated" not in subject.tags:
             log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag("affiliated")
 
+        self.back_propagate_scopes(subject, scoped_files, derived.get("cross-sectional", None))
+
+    def subject_level_missingness(
+        self,
+        subject: Subject,
+        subject_table: SymbolTable,
+        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        ) -> None:
+        """UDS-subjects requires subject-level missingness curations
+        across all scopes, to handle files and data that did not
+        exist for the subject. Since we couldn't curate missingness
+        on a non-existent file earlier, it needs to be done
+        explicitly here
+        """
+        table = SymbolTable()
+        table["subject.info"] = subject_table.to_dict()
+        for scope in typing.get_args(ScopeLiterals):
+            # means it was curated at some point, so no need to handle
+            if scope in scoped_files:
+                continue
+
+            try:
+                log.debug(f"Applying subject-level missingness to {subject.label} " +
+                    f"for scope {scope.value}")
+                self.__subject_missingness.curate(table, scope.value)
+            except (AttributeDeriverError, MissingRequiredError) as e:
+                self.__failed_files[subject.label] = str(e)
+                log.error("Failed to apply subject-level missingness to " +
+                    f"{subject.label} on scope {scope.value}: {e}")
+
+    def back_propagate_scopes(
+        self,
+        subject: Subject,
+        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        cs_derived: Dict[str, Any] | None
+    ) -> None:
+        """Performs back-propagation on cross-sectional variables. These are
+        "finalized" only after curation over the entire subject has completed
+        and need to be applied back to each corresponding file's file.info.derived.
+        """
         if not cs_derived:
             log.debug(
                 "No cross-sectional derived variables to "
@@ -301,15 +364,15 @@ class FormCurator(Curator):
                     scope_derived[scope][k] = v
 
         log.debug(f"Back-propagating cross-sectional variables for {subject.label}")
-        for file in processed_files:
-            scope = determine_scope(file.filename)
+        for scope, files in scoped_files.items():
             # ignore non-scopes of interest
-            if not scope or scope not in BACKPROP_SCOPES:
+            if scope not in BACKPROP_SCOPES:
                 continue
 
-            file_entry = self.sdk_client.get_file(file.file_id)
-            file_entry = file_entry.reload()
+            for file in files:
+                file_entry = self.sdk_client.get_file(file.file_id)
+                file_entry = file_entry.reload()
 
-            derived = file_entry.info.get("derived", {})
-            derived.update(scope_derived[scope])
-            file_entry.update_info({"derived": derived})
+                derived = file_entry.info.get("derived", {})
+                derived.update(scope_derived[scope])
+                file_entry.update_info({"derived": derived})

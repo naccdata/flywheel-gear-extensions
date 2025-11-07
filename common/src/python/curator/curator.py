@@ -18,6 +18,10 @@ from .scheduling_models import FileModel
 log = logging.getLogger(__name__)
 
 
+class ProjectCurationError(Exception):
+    pass
+
+
 class Curator(ABC):
     """Base curator abstract class."""
 
@@ -31,7 +35,7 @@ class Curator(ABC):
     @property
     def sdk_client(self) -> Client:
         if not self.__sdk_client:
-            raise ValueError("SDK Client not set")
+            raise ProjectCurationError("SDK Client not set")
 
         return self.__sdk_client
 
@@ -84,15 +88,6 @@ class Curator(ABC):
         # mutated globally
         table["subject.info"] = subject_table.to_dict()
         table["file.info"] = file_entry.reload().info
-
-        # for derived work, also provide filename. this metadata is not pushed
-        # to FW since we usually only apply select curations back
-        # also make sure we don't have a name clash
-        if table.get("file.info._filename") is not None:
-            raise ValueError(
-                "file.info._filename metadata already set, cannot override"
-            )
-        table["file.info._filename"] = file_entry.name
 
         return table
 
@@ -223,6 +218,6 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     groups = match.groupdict()
     names = {key for key in groups if groups.get(key) is not None}
     if len(names) != 1:
-        raise ValueError(f"error matching file name {filename}")
+        raise ProjectCurationError(f"error matching file name {filename} to scope")
 
     return names.pop()  # type: ignore

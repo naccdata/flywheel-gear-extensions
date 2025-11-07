@@ -105,7 +105,7 @@ class BaselineLocalizer(ABC):
             # this is kind of a hack to handle cross-sectional data like NP and genetics;
             # just key on the most recent visit, which should also have the most recent
             # cross-sectional information
-            baseline[row['naccid']] = data
+            baseline[row['naccid']] = data  # type: ignore
 
         if not baseline:
             raise GearExecutionError(f"No usable records found in {self.s3_file}")

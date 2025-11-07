@@ -23,12 +23,12 @@ from nacc_attribute_deriver.utils.scope import (
     FormScope,
     ScopeLiterals,
 )
+from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
 from utils.decorators import api_retry
-from utils.utils import flatten_dict
 
-from .curator import Curator
+from .curator import Curator, ProjectCurationError
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class RegressionCurator(Curator):
                 return False
 
             # otherwise some other issue, so raise error
-            raise e
+            raise ProjectCurationError(e) from e
 
         return False
 
@@ -161,6 +161,7 @@ class RegressionCurator(Curator):
         record: Dict[str, Any],
         prefix: str,
         scope: Optional[ScopeLiterals] = None,
+        visit_keys: Optional[VisitKeys] = None,
     ) -> None:
         """Compare derived/curated variables to the baseline. Assumes both
         found_vars and record are flat dicts.
@@ -211,6 +212,7 @@ class RegressionCurator(Curator):
                         value=value,
                         expected=expected,
                         message=msg,
+                        visit_keys=visit_keys
                     )
                 )
 
@@ -241,6 +243,7 @@ class RegressionCurator(Curator):
                     value="",
                     expected=expected,
                     message=msg,
+                    visit_keys=visit_keys
                 )
             )
 
@@ -271,23 +274,16 @@ class RegressionCurator(Curator):
         # UDS visit needs to key to a specific visit; other scopes are
         # considered cross-sectional and will use the latest visit
         # under the NACCID-only key
-        visitdate = None
+        visit_keys = None
         if scope == FormScope.UDS:
-            visitdate = table.get("file.info.forms.json.visitdate")
-            if not visitdate:
-                # try MRI version
-                if "file.info.raw.mriyr" in table:
-                    visitdate = (
-                        f"{int(table['file.info.raw.mriyr']):04d}-"
-                        + f"{int(table['file.info.raw.mrimo']):02d}-"
-                        + f"{int(table['file.info.raw.mridy']):02d}"
-                    )
-            if not visitdate:
+            uds_record = table.get("file.info.forms.json")
+            visit_keys = VisitKeys.create_from(uds_record, date_field="visitdate")
+            if not visit_keys.date:
                 log.debug(f"No visitdate found for UDS file {file_entry.name}, skipping")
                 return
 
         # ensure in QAF baseline - if not affiliate, report error
-        key = f"{subject.label}_{visitdate}" if visitdate else subject.label
+        key = f"{subject.label}_{visit_keys.date}" if visit_keys else subject.label
         baseline_record = self.__qaf_baseline.get(key)
         if not baseline_record:
             if "affiliate" in subject.tags:
@@ -305,6 +301,7 @@ class RegressionCurator(Curator):
                     value=None,  # type: ignore
                     expected=key,
                     message=msg,
+                    visit_keys=visit_keys
                 )
             )
             return
@@ -315,42 +312,5 @@ class RegressionCurator(Curator):
             record=baseline_record,
             prefix="file.info.x",
             scope=scope,
+            visit_keys=visit_keys
         )
-
-    # This is pretty much only for MQT, which is not relevant at this point
-
-    # @api_retry
-    # def pre_curate(self, subject: Subject, subject_info: SymbolTable) -> None:
-    #     """Run pre-curating on the entire subject. Compares subject.info.
-
-    #     Args:
-    #         subject: Subject to pre-process
-    #     """
-    #     if not self.__mqt_baseline:
-    #         return
-
-    #     if not subject_info:
-    #         log.debug("No subject derived variables, skipping")
-    #         return
-
-    #     # means subject hasn't been curated before - might not
-    #     # be worth reporting in the long run but for now over report,
-    #     # can be used as an indicator of new subjects
-    #     if subject.label not in self.__mqt_baseline:
-    #         msg = f"Could not find curated subject {subject.label} in MQT baseline"
-    #         log.warning(msg)
-
-    #         self.__error_writer.write(
-    #             unexpected_value_error(
-    #                 field="subject.label",
-    #                 value=None,  # type: ignore
-    #                 expected=subject.label,
-    #                 message=msg,
-    #             )
-    #         )
-    #         return
-
-    #     record = self.__mqt_baseline[subject.label]
-    #     found_vars = flatten_dict(subject_info.to_dict())
-
-    #     self.compare_baseline(found_vars, record, prefix="subject.info")
