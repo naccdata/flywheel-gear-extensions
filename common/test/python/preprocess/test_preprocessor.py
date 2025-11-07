@@ -8,7 +8,7 @@ of time.
 """
 
 import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
@@ -29,11 +29,11 @@ class MockFormsStore(FormsStore):
     def is_new_subject(self, subject_lbl: str) -> bool:
         return subject_lbl == "new-subject"
 
-    def set_form_data(self, form_data: List[Dict[str, str]]) -> None:
+    def set_form_data(self, form_data: List[Dict[str, Any]]) -> None:
         """Set the form data to control what query_form_data returns."""
         self.__form_data = form_data
 
-    def set_legacy_form_data(self, legacy_data: List[Dict[str, str]]) -> None:
+    def set_legacy_form_data(self, legacy_data: List[Dict[str, Any]]) -> None:
         """Reset form data and set legacy data to control what query_form_data
         returns for legacy=True."""
         self.__form_data = None
@@ -417,6 +417,7 @@ class TestFormPreprocessor:
             f"{MetadataKeys.FORM_METADATA_PATH}.deceased": 1,
             f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 1,
         }
+
         forms_store.set_form_data(
             [
                 test_record,
@@ -424,7 +425,7 @@ class TestFormPreprocessor:
                     f"{MetadataKeys.FORM_METADATA_PATH}.deathyr": "INVALID",
                     f"{MetadataKeys.FORM_METADATA_PATH}.deathmo": "INVALID",
                     f"{MetadataKeys.FORM_METADATA_PATH}.deathdy": "INVALID",
-                    f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": "0",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.autopsy": 0,
                 },
             ]
         )
