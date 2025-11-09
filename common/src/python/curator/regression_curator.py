@@ -57,29 +57,20 @@ class RegressionCurator(Curator):
         if scope in self.__scoped_variables:
             return
 
+        # only care about file-level missingness values
         curation_rules = AttributeDeriver().get_curation_rules(scope)
-        missingness_rules = MissingnessDeriver().get_curation_rules(scope)
+        missingness_rules = MissingnessDeriver("file").get_curation_rules(scope)
         self.__scoped_variables[scope] = set()
 
-        # only care about derived variables from curation
-        if curation_rules:
+        curation_rules = [] if not curation_rules else curation_rules
+        missingness_rules = [] if not missingness_rules else missingness_rules
+
+        # only care about derived and resolved variables from curation
+        if curation_rules + missingness_rules:
             for rule in curation_rules:
                 for assignment in rule.assignments:
-                    if ".derived." not in assignment.attribute:
-                        continue
-
-                    attribute = assignment.attribute.split(".")[-1]
-                    self.__scoped_variables[scope].add(attribute)
-
-        # for missingness, only care about FILE-level resolved variables
-        # UDS has some subject-level resolved variables to handle when
-        # other scopes are missing; however, for regression testing we don't
-        # include them in the current scope context
-        if missingness_rules:
-            for rule in missingness_rules:
-                for assignment in rule.assignments:
-                    if (not assignment.attribute.startswith("file") and
-                        ".resolved." not in assignment.attribute):
+                    if (".derived." not in assignment.attribute and
+                        ".resolved" not in assignment.attribute):
                         continue
 
                     attribute = assignment.attribute.split(".")[-1]
@@ -290,20 +281,13 @@ class RegressionCurator(Curator):
                 log.debug(f"{subject.label} is an affiliate, skipping")
                 return
 
+            # Might be V4 or MDS subject, so now expecting many to be missing
+            # Just return instead of reporting an error in the output
             msg = (
                 f"Could not find matching baseline record for {file_entry.name} "
                 + f"in QAF baseline file with key: {key}"
             )
             log.warning(msg)
-            self.__error_writer.write(
-                unexpected_value_error(
-                    field="naccid",
-                    value=None,  # type: ignore
-                    expected=key,
-                    message=msg,
-                    visit_keys=visit_keys
-                )
-            )
             return
 
         # need to combine derived and resolved to compare against baseline QAF

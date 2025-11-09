@@ -122,12 +122,20 @@ class FormCurator(Curator):
     ) -> SymbolTable:
         """Returns the SymbolTable with all relevant information for
         curation."""
-        # clear out file.info.derived and file.info.resolved if forcing curation
+        table = super().get_table(subject, subject_table, file_entry)
+
+        # before, we were directly updating with file_entry.delete_info
+        # however, this seems like it was somewhat unreliable, as FW could
+        # silently fail to delete these fields, causing issues when we try to
+        # set the resolved metadata below. since we update the table with the
+        # new local derivation anyways, it is actually more efficient to just
+        # clear the local table's information. that way, we avoid the above
+        # issue + remove a lot of delete_info API calls
         if self.force_curate:
             for field in ["derived", "resolved"]:
-                file_entry.delete_info(field)
+                table.pop(f"file.info.{field}")
 
-        return super().get_table(subject, subject_table, file_entry)
+        return table
 
     @api_retry
     def apply_file_curation(self, file_entry: FileEntry, table: SymbolTable) -> None:
@@ -137,10 +145,15 @@ class FormCurator(Curator):
         file.info.resolved (resolved raw + missingnes data) and pushes
         back to flywheel.
         """
+        # collect so we only do one API call, not one per curation type
+        updated_info = {}
         for curation_type in ["derived", "resolved"]:
             curated_file_info = table.get(f"file.info.{curation_type}")
             if curated_file_info:
-                file_entry.update_info({curation_type: curated_file_info})
+                updated_info.update({curation_type: curated_file_info})
+
+        if updated_info:
+            file_entry.update_info(updated_info)
 
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
