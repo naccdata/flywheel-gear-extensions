@@ -103,9 +103,22 @@ preprocess_errors = {
         "DECEASED and AUTOPSY should both equal 1 in the most recent Milestone "
         "form in order for the NP form to be accepted"
     ),
-    SysErrorCodes.DEATH_DATE_MISMATCH: (
+    SysErrorCodes.NP_MLST_DOD_MISMATCH: (
         "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
         "must match the date of death on the on NP form (NPDODMO, NPDODDY, NPDODYR)"
+    ),
+    SysErrorCodes.LOWER_NP_DOD: (
+        "The date of death on the on the NP form (NPDODMO, NPDODDY, NPDODYR) cannot be "
+        "a date before the last UDS visit date (VISITDATE) for the participant"
+    ),
+    SysErrorCodes.NP_UDS_SEX_MISMATCH: (
+        "Sex reported on the NP form (NPSEX) does not match with "
+        "the sex/birthsex reported on the UDS initial visit packet"
+    ),
+    SysErrorCodes.NP_UDS_DAGE_MISMATCH: (
+        "Age at death (NPDAGE) reported on the NP form does not match with the "
+        "value computed from the date of death on the NP form and the "
+        "participant date of birth reported on the UDS initial visit packet"
     ),
     SysErrorCodes.UDS_NOT_EXIST: (
         "A UDS packet must be submitted before submitting this module/form"

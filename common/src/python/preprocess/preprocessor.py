@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import (
@@ -9,7 +10,7 @@ from configs.ingest_configs import (
     SupplementModuleConfigs,
 )
 from datastore.forms_store import FormFilter, FormsStore
-from dates.form_dates import build_date
+from dates.form_dates import DEFAULT_DATE_FORMAT, build_date, parse_date
 from keys.keys import (
     DefaultValues,
     MetadataKeys,
@@ -25,6 +26,8 @@ from preprocess.preprocessor_helpers import (
     FormPreprocessorErrorHandler,
     PreprocessingContext,
     PreprocessingException,
+    validate_age_at_death,
+    validate_sex_reported_on_np,
 )
 
 log = logging.getLogger(__name__)
@@ -63,13 +66,12 @@ class FormPreprocessor:
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
             PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
-            PreprocessingChecks.NP_DEMOGRAPHIC_CONFLICT: self._check_np_demographics,
+            PreprocessingChecks.NP_UDS_RESTRICTIONS: self._check_np_uds_restrictions,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
         }
 
         # order the preprocessing checks defined for the module
-        self.__preprocess_checks: List[Callable[[
-            PreprocessingContext], bool]] = []
+        self.__preprocess_checks: List[Callable[[PreprocessingContext], bool]] = []
         if self.__module_configs.preprocess_checks:
             for check, check_function in self.__dispatcher.items():
                 if check in self.__module_configs.preprocess_checks:
@@ -116,8 +118,7 @@ class FormPreprocessor:
         input_record = pp_context.input_record
 
         version = float(input_record[FieldNames.FORMVER])
-        accepted_versions = [float(version)
-                             for version in module_configs.versions]
+        accepted_versions = [float(version) for version in module_configs.versions]
         if version not in accepted_versions:
             self.__error_handler.write_formver_error(
                 pp_context=pp_context, error_code=SysErrorCodes.INVALID_VERSION
@@ -669,8 +670,7 @@ class FormPreprocessor:
             return True
 
         supplement_module = module_configs.supplement_module
-        supplement_visits = self.__get_supplement_visits(
-            supplement_module, pp_context)
+        supplement_visits = self.__get_supplement_visits(supplement_module, pp_context)
 
         if not supplement_visits:
             self.__error_handler.write_module_error(
@@ -701,12 +701,15 @@ class FormPreprocessor:
         self,
         supplement_module: SupplementModuleConfigs,
         pp_context: PreprocessingContext,
+        qc_passed: Optional[bool] = False,
     ) -> Optional[List[Dict[str, str]]]:
         """Get supplement visits for the given supplement module.
 
         Args:
             supplement_module: The SupplementModuleConfigs
             pp_context: preprocessing context
+            qc_passed (optional): return only QC passed visits, Default: False
+
         Returns:
             List of supplement visits, if found
         """
@@ -725,6 +728,7 @@ class FormPreprocessor:
             extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
             if supplement_module.exact_match
             else None,
+            qc_gear=DefaultValues.QC_GEAR if qc_passed else None,
         )
 
         if not supplement_visits and not supplement_module.exact_match:
@@ -735,6 +739,7 @@ class FormPreprocessor:
                 search_col=supplement_module.date_field,
                 search_val=input_record[module_configs.date_field],
                 search_op="<=",
+                qc_gear=DefaultValues.LEGACY_QC_GEAR if qc_passed else None,
             )
 
         return supplement_visits
@@ -841,8 +846,7 @@ class FormPreprocessor:
 
         filters = []
         filters.append(
-            FormFilter(field=date_field,
-                       value=input_record[date_field], operator="=")
+            FormFilter(field=date_field, value=input_record[date_field], operator="=")
         )
         if FieldNames.VISITNUM in self.__module_configs.required_fields:
             filters.append(
@@ -901,6 +905,7 @@ class FormPreprocessor:
 
         Args:
             pp_context: preprocessing context
+
         Returns:
             True if the preprocessing checks pass, false otherwise
         """
@@ -915,7 +920,10 @@ class FormPreprocessor:
             )
 
             # passes if at least one visit is found
-            if self.__get_supplement_visits(supplement_module, pp_context) is not None:
+            if (
+                self.__get_supplement_visits(supplement_module, pp_context, True)
+                is not None
+            ):
                 return True
 
         # no clinical visits found; fail preprocessing check
@@ -931,84 +939,55 @@ class FormPreprocessor:
 
         return False
 
-    def __check_np_bds_mds_demographics_conflicts(
-        self,
-        pp_context: PreprocessingContext,
-        matching_visits: List[Dict[str, str]],
-    ) -> bool:
-        return True
-
     def __check_np_uds_demographics_conflicts(
         self,
-        pp_context: PreprocessingContext
-    ) -> int:
-        """_summary_
+        pp_context: PreprocessingContext,
+        uds_visits: List[Dict[str, Any]],
+        last_uds_visit: Dict[str, Any],
+        np_dod: Optional[datetime],
+    ) -> bool:
+        """Compare the demographics entered in NP form against UDS IVP.
 
         Args:
-            pp_context (PreprocessingContext): _description_
+            pp_context: preprocessing context
+            uds_visits: list of UDS visits metadata
+            last_uds_visit: latest UDS visit record for participant
+            np_dod (optional): date of death computed from NP form
+
+        Raises:
+            PreprocessingException: If issues occur while comparing NP and UDS packets
 
         Returns:
-            int: -1: No UDS, 0: Fail, 1: Pass
+            bool: True if the demographic checks pass, false otherwise
         """
 
-        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
-
-        uds_visits = self.__forms_store.query_form_data(
-            subject_lbl=pp_context.subject_lbl,
-            module=DefaultValues.UDS_MODULE,
-            legacy=False,
-            search_col=FieldNames.DATE_COLUMN,
-            search_val=pp_context.input_record[self.__module_configs.date_field],
-            search_op="<=",
-            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
-        )
-
-        if not uds_visits:
-            uds_visits = self.__forms_store.query_form_data(
-                subject_lbl=pp_context.subject_lbl,
-                module=DefaultValues.UDS_MODULE,
-                legacy=True,
-                search_col=FieldNames.DATE_COLUMN,
-                search_val=pp_context.input_record[self.__module_configs.date_field],
-                search_op="<=",
-                extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
-            )
-
-        if not uds_visits:
-            return -1
-
-        num_matches = len(uds_visits)
+        # find UDS IVP packet
+        ivp_visit = None
         ivp_packets = [
             DefaultValues.UDS_I4_PACKET,
             DefaultValues.UDS_I_PACKET,
             DefaultValues.UDS_IT_PACKET,
         ]
-        ivp_visit = None
-        packet_key = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}"
-        if num_matches > 1 and uds_visits[num_matches - 1][packet_key] in ivp_packets:
-            ivp_visit = self.__forms_store.get_visit_data(
-                file_name=uds_visits[num_matches - 1]["file.name"],
-                acq_id=uds_visits[num_matches -
-                                  1]["file.parents.acquisition"],
-            )
-
-        last_uds_visit = self.__forms_store.get_visit_data(
-            file_name=uds_visits[0]["file.name"],
-            acq_id=uds_visits[0]["file.parents.acquisition"],
-        )
-
-        if not last_uds_visit:
-            raise PreprocessingException(
-                "Failed to retrieve last UDS visit for participant "
-                f"{pp_context.subject_lbl}"
-            )
 
         if last_uds_visit[FieldNames.PACKET] in ivp_packets:
             ivp_visit = last_uds_visit
 
+        num_matches = len(uds_visits)
+        packet_key = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}"
+        if (
+            num_matches > 1
+            and not ivp_visit
+            and uds_visits[num_matches - 1][packet_key] in ivp_packets
+        ):
+            ivp_visit = self.__forms_store.get_visit_data(
+                file_name=uds_visits[num_matches - 1]["file.name"],
+                acq_id=uds_visits[num_matches - 1]["file.parents.acquisition"],
+            )
+
         if not ivp_visit:
+            # check the retrospective project
             ivp_matches = self.__forms_store.query_form_data(
-                subject_lbl=pp_context.subject_lbl,
+                subject_lbl=pp_context.subject_lbl,  # type: ignore
                 module=DefaultValues.UDS_MODULE,
                 legacy=True,
                 search_col=FieldNames.PACKET,
@@ -1017,6 +996,7 @@ class FormPreprocessor:
                 extra_columns=[FieldNames.VISITNUM, FieldNames.DATE_COLUMN],
             )
 
+            # this should not be possible
             if not ivp_matches or len(ivp_matches) > 1:
                 raise PreprocessingException(
                     "Failed to retrieve UDS IVP visit for participant "
@@ -1034,11 +1014,43 @@ class FormPreprocessor:
                 f"{pp_context.subject_lbl}"
             )
 
-        return True
+        valid = True
+        np_record = pp_context.input_record
+        npsex = np_record.get(FieldNames.NPSEX)
+        if not npsex or not validate_sex_reported_on_np(
+            npsex=npsex, uds_record=ivp_visit
+        ):
+            self.__error_handler.write_preprocessing_error(
+                field=FieldNames.NPSEX,
+                value=npsex,
+                pp_context=pp_context,
+                error_code=SysErrorCodes.NP_UDS_SEX_MISMATCH,
+            )
+            valid = False
 
-    def _check_np_demographics(self, pp_context: PreprocessingContext) -> bool:
-        """Check whether the demographics entered in NP form matches with the
-        details in the clinical form (UDS, BDS, MDS).
+        death_age = np_record.get(FieldNames.NPDAGE)
+        if (
+            not np_dod
+            or not death_age
+            or validate_age_at_death(
+                np_dod=np_dod,
+                uds_record=ivp_visit,
+                np_dage=int(death_age),
+            )
+        ):
+            self.__error_handler.write_preprocessing_error(
+                field=FieldNames.NPDAGE,
+                value=death_age,
+                pp_context=pp_context,
+                error_code=SysErrorCodes.NP_UDS_DAGE_MISMATCH,
+            )
+            valid = False
+
+        return valid
+
+    def _check_np_uds_restrictions(self, pp_context: PreprocessingContext) -> bool:
+        """If participant has UDS visits, compare the details entered in the NP
+        form against the UDS IVP packet and latest UDS visit.
 
         Args:
             pp_context: preprocessing context
@@ -1047,33 +1059,83 @@ class FormPreprocessor:
             True if the preprocessing checks pass, false otherwise
         """
 
-        result = self.__check_np_uds_demographics_conflicts(
-            pp_context=pp_context)
-
-        if result != -1:
-            return bool(result)
-
-        # treat each form like a fake supplement module and see if any visits exist
-        for module in [
-            DefaultValues.BDS_MODULE,
-            DefaultValues.MDS_MODULE,
-        ]:
-            supplement_module = SupplementModuleConfigs(
-                label=module, date_field=FieldNames.DATE_COLUMN, exact_match=False
+        if self.__module != DefaultValues.NP_MODULE:
+            raise PreprocessingException(
+                "Cannot evaluate NP demographic conflict "
+                f"checks for non-NP module: {self.__module}"
             )
-            matches = self.__get_supplement_visits(
-                supplement_module, pp_context)
-            if matches:
-                return self.__check_np_bds_mds_demographics_conflicts(
-                    pp_context=pp_context, matching_visits=matches
-                )
 
-        # no clinical visits found; fail preprocessing check
-        self.__error_handler.write_module_error(
-            pp_context=pp_context, error_code=SysErrorCodes.CLINICAL_FORM_REQUIRED_NP
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        input_record = pp_context.input_record
+        uds_visits = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=DefaultValues.UDS_MODULE,
+            legacy=False,
+            search_col=FieldNames.DATE_COLUMN,
+            extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM],
+            find_all=True,
+            qc_gear=DefaultValues.QC_GEAR,
         )
 
-        return False
+        if not uds_visits:
+            uds_visits = self.__forms_store.query_form_data(
+                subject_lbl=pp_context.subject_lbl,
+                module=DefaultValues.UDS_MODULE,
+                legacy=True,
+                search_col=FieldNames.DATE_COLUMN,
+                extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM],
+                find_all=True,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
+            )
+
+        # checks not applicable if no UDS visits
+        if not uds_visits:
+            return True
+
+        # check NP DOD and last UDS visit date
+        last_uds_visit = self.__forms_store.get_visit_data(
+            file_name=uds_visits[0]["file.name"],
+            acq_id=uds_visits[0]["file.parents.acquisition"],
+        )
+
+        if not last_uds_visit:
+            raise PreprocessingException(
+                "Failed to retrieve last UDS visit for participant "
+                f"{pp_context.subject_lbl}"
+            )
+
+        uds_date = parse_date(
+            date_string=last_uds_visit[FieldNames.DATE_COLUMN],
+            formats=[DEFAULT_DATE_FORMAT],
+        )
+
+        input_record = pp_context.input_record
+        np_dod = build_date(
+            year=input_record.get("npdodyr"),
+            month=input_record.get("npdodmo"),
+            day=input_record.get("npdoddy"),
+        )
+
+        valid = True
+        if np_dod and uds_date > np_dod:
+            self.__error_handler.write_date_error(
+                pp_context=pp_context,
+                error_code=SysErrorCodes.LOWER_NP_DOD,
+                date_field="npdoddy",
+            )
+            valid = False
+
+        return (
+            # check whether NP and UDS IVP demographics matches
+            self.__check_np_uds_demographics_conflicts(
+                pp_context=pp_context,
+                np_dod=np_dod,
+                uds_visits=uds_visits,
+                last_uds_visit=last_uds_visit,
+            )
+            and valid
+        )
 
     def _check_np_mlst_restrictions(self, pp_context: PreprocessingContext) -> bool:
         """Check NP/MLST restrictions; compares NP form against most recent
@@ -1101,6 +1163,7 @@ class FormPreprocessor:
             search_col=FieldNames.DATE_COLUMN,
             find_all=True,
             extra_columns=mlst_fields,
+            qc_gear=DefaultValues.QC_GEAR,
         )
 
         # try legacy if not found
@@ -1112,6 +1175,7 @@ class FormPreprocessor:
                 search_col=FieldNames.DATE_COLUMN,
                 find_all=True,
                 extra_columns=mlst_fields,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
             )
 
         # if no MLST forms, fails
@@ -1132,8 +1196,7 @@ class FormPreprocessor:
         # NP to be accepted
         result_death_denoted = True
         for field in ["autopsy", "deceased"]:
-            value = mlst_form.get(
-                f"{MetadataKeys.FORM_METADATA_PATH}.{field}", "")
+            value = mlst_form.get(f"{MetadataKeys.FORM_METADATA_PATH}.{field}", "")
             if value is None or str(value) != "1":
                 result_death_denoted = False
                 self.__error_handler.write_preprocessing_error(
@@ -1170,8 +1233,8 @@ class FormPreprocessor:
         if not result_dod:
             self.__error_handler.write_date_error(
                 pp_context=pp_context,
-                error_code=SysErrorCodes.DEATH_DATE_MISMATCH,
-                date_field="npdodyr",
+                error_code=SysErrorCodes.NP_MLST_DOD_MISMATCH,
+                date_field="npdoddy",
             )
 
         return result_dod
@@ -1198,8 +1261,7 @@ class FormPreprocessor:
         """
 
         if not self.__preprocess_checks:
-            log.warning(
-                f"No preprocessing checks defined for module {self.__module}")
+            log.warning(f"No preprocessing checks defined for module {self.__module}")
             return True
 
         subject_lbl = input_record[self.__primary_key]

@@ -19,7 +19,7 @@ from outputs.errors import preprocess_errors
 from preprocess.preprocessor import FormPreprocessor
 
 
-class MockFormsStore(FormsStore):
+class TestFormsStore(FormsStore):
     """Mock form store for testing."""
 
     def __init__(self):
@@ -39,7 +39,7 @@ class MockFormsStore(FormsStore):
         self.__form_data = None
         self.__legacy_data = legacy_data
 
-    def query_form_data(self, **kwargs) -> Optional[List[Dict[str, str]]]:
+    def query_form_data(self, **kwargs) -> Optional[List[Dict[str, Any]]]:
         if kwargs.get("legacy"):
             return self.__legacy_data
 
@@ -48,10 +48,10 @@ class MockFormsStore(FormsStore):
     def query_form_data_with_custom_filters(
         self,
         **kwargs,
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         return self.__form_data
 
-    def get_visit_data(self, **kwargs) -> Dict[str, str] | None:
+    def get_visit_data(self, **kwargs) -> Dict[str, Any] | None:
         return self.__form_data[0] if self.__form_data else None
 
 
@@ -62,14 +62,14 @@ class TestFormPreprocessor:
         self,
         module: str,
         module_configs: ModuleConfigs,
-    ) -> Tuple[FormPreprocessor, ListErrorWriter, MockFormsStore]:
+    ) -> Tuple[FormPreprocessor, ListErrorWriter, TestFormsStore]:
         """Create a generic UDS preprocessor for testing.
 
         Returns FormProcessor
                 ListErrorWriter - to ensure the correct error was raised
                 MockFormStore - to be able to control form data per test
         """
-        forms_store = MockFormsStore()
+        forms_store = TestFormsStore()
         error_writer = ListErrorWriter(
             container_id="dummy",
             fw_path="dummy/dummy",
@@ -200,12 +200,14 @@ class TestFormPreprocessor:
         uds_pp_context.ivp_record = copy.deepcopy(uds_pp_context.input_record)
         uds_pp_context.input_record[FieldNames.PACKET] = "F"
         assert not processor._check_initial_visit(uds_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
 
         # make it an earlier date, should still fail
         uds_pp_context.input_record[FieldNames.DATE_COLUMN] = "1900-01-01"
         assert not processor._check_initial_visit(uds_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.LOWER_FVP_VISITDATE)
 
         # make it a later date, should now pass
         uds_pp_context.input_record[FieldNames.DATE_COLUMN] = "3000-01-01"
@@ -276,7 +278,8 @@ class TestFormPreprocessor:
         legacy_record = copy.deepcopy(input_record)
         forms_store.set_legacy_form_data([legacy_record])
         assert not processor._check_udsv4_initial_visit(uds_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_I4_VISITDATE)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.LOWER_I4_VISITDATE)
 
         # fail when there is an I4/FVP conflict
         input_record[FieldNames.PACKET] = "F"
@@ -315,7 +318,8 @@ class TestFormPreprocessor:
         # modify packet to followup visit so that they don't match anymore
         input_record[FieldNames.PACKET] = "F"
         assert not processor._check_supplement_module(uds_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.INVALID_MODULE_PACKET)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.INVALID_MODULE_PACKET)
 
         # I4 should pass
         input_record[FieldNames.PACKET] = "I4"
@@ -392,7 +396,8 @@ class TestFormPreprocessor:
                 DefaultValues.MDS_MODULE,
             ]
         ):
-            forms_store.set_form_data([{"module": module} for _ in range(i + 1)])
+            forms_store.set_form_data([{"module": module}
+                                      for _ in range(i + 1)])
             assert processor._check_clinical_forms(np_pp_context)
 
     def test_check_np_mlst_restrictions(self, np_module_configs, np_pp_context):
@@ -407,7 +412,8 @@ class TestFormPreprocessor:
 
         # fails if there is no MLST form
         assert not processor._check_np_mlst_restrictions(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.DEATH_DENOTED_ON_MLST)
 
         # add MLST forms; make sure it actually tests the most recent
         test_record = {
@@ -459,7 +465,8 @@ class TestFormPreprocessor:
             }
         )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.NP_MLST_DOD_MISMATCH)
 
         # fail DOD when day/month is 99
         test_record.update(
@@ -470,7 +477,8 @@ class TestFormPreprocessor:
         )
 
         assert not processor._check_np_mlst_restrictions(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.NP_MLST_DOD_MISMATCH)
 
         # fail DOD when MLST is None
         test_record.update(
@@ -481,14 +489,16 @@ class TestFormPreprocessor:
             }
         )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.NP_MLST_DOD_MISMATCH)
 
         # fail DOD when both dates are None
         np_pp_context.input_record.update(
             {"npdodyr": None, "npdodmo": None, "npdoddy": None}
         )
         assert not processor._check_np_mlst_restrictions(np_pp_context)
-        self.__assert_error_raised(error_writer, SysErrorCodes.DEATH_DATE_MISMATCH)
+        self.__assert_error_raised(
+            error_writer, SysErrorCodes.NP_MLST_DOD_MISMATCH)
 
         # fail when all fail; fails early so should only report autopsy/deceased
         # type: ignore

@@ -3,7 +3,7 @@
 import json
 import logging
 from json import JSONDecodeError
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues, MetadataKeys
@@ -264,7 +264,7 @@ class FormsStore:
 
         return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
-    def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, str] | None:
+    def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, Any] | None:
         """Read the previous visit file and convert to python dictionary.
 
         Args:
