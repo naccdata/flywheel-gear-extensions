@@ -298,6 +298,7 @@ class FormPreprocessor:
         )
 
         if not initial_packets:
+            module = self.__module
             ivp_codes = module_configs.initial_packets
             if module_configs.legacy_module:
                 module = module_configs.legacy_module.label
@@ -441,6 +442,7 @@ class FormPreprocessor:
             )
             return False
 
+        module = self.__module
         if self.__module_configs.legacy_module:
             module = self.__module_configs.legacy_module.label
             date_field = self.__module_configs.legacy_module.date_field
@@ -501,6 +503,7 @@ class FormPreprocessor:
             )
             return False
 
+        module = self.__module
         if self.__module_configs.legacy_module:
             module = self.__module_configs.legacy_module.label
             date_field = self.__module_configs.legacy_module.date_field
