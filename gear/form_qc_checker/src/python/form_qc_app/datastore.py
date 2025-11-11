@@ -63,8 +63,10 @@ class DatastoreHelper(Datastore):
         self.__current_adcids = self.__pull_adcids_list()
 
         # cache for grabbing previous records
-        self.__prev_visits: Dict[str, Any] = {}
-        self.__initial_visit: Dict[str, Any] | None = None
+        self.__prev_visits: Dict[str, Any] = {}  # by subject, module, date
+
+        # cache for initial visits
+        self.__initial_visits: Dict[str, Any] = {}  # by subject and module
 
     def __pull_adcids_list(self) -> Optional[List[int]]:
         """Pull the list of ADCIDs from the admin group metadata project.
@@ -235,7 +237,9 @@ class DatastoreHelper(Datastore):
 
         return legacy_visits
 
-    def __get_initial_visit(self, current_record: Dict[str, Any]) -> Dict[str, Any]:
+    def __get_initial_visit(
+        self, current_record: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Retrieve the initial visit for the specified participant. Return the
         IVP packet for the modules that has only one initial packet, else
         return the first record sorted by visit date or form date.
@@ -244,10 +248,8 @@ class DatastoreHelper(Datastore):
             current_record: record currently being validated
 
         Returns:
-            List[Dict[str, Any]: initial visit record if found, else empty dict
+            Dict[str, Any]: initial visit record if found, else None
         """
-        if not self.__validate_current_record(current_record):
-            return {}
 
         subject_lbl = current_record[self.pk_field]
         module = current_record[FieldNames.MODULE].upper()
@@ -284,7 +286,7 @@ class DatastoreHelper(Datastore):
 
         if not initial_visits:
             log.warning("No initial visit found for %s, module %s", subject_lbl, module)
-            return {}
+            return None
 
         if len(initial_visits) > 1:
             log.warning(
@@ -368,41 +370,60 @@ class DatastoreHelper(Datastore):
         return None
 
     def get_initial_record(
-        self,
-        current_record: Dict[str, Any],
-        ignore_empty_fields: Optional[List[str]] = None,
+        self, current_record: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Overriding the abstract method, get the initial visit record for the
-        specified participant if non-empty.
+        specified participant.
 
         Args:
             current_record: record currently being validated
-            ignore_empty_fields: Field(s) to check for blanks
 
         Returns:
-            dict[str, str]: initial visit record if found and non-empty,
-                            None otherwise
+            Dict[str, Any]: initial visit record if found, None otherwise
         """
-        # will be None if we've never looked for it, and empty dict if
-        # we tried looking for it but it could not be found
-        if self.__initial_visit is None:
-            self.__initial_visit = self.__get_initial_visit(current_record)
 
-        if not self.__initial_visit:
+        if not self.__validate_current_record(current_record):
             return None
 
-        visit_data = self.__forms_store.get_visit_data(
-            file_name=self.__initial_visit["file.name"],
-            acq_id=self.__initial_visit["file.parents.acquisition"],
+        subject_lbl = current_record[self.pk_field]
+        module = current_record[FieldNames.MODULE].upper()
+
+        # see if we've already cached the initial record
+        cached_initial_record = self.__initial_visits.get(subject_lbl, {}).get(module)
+
+        # will be None if we've never looked for it, and empty dict if
+        # we tried looking for it but it could not be found
+        if cached_initial_record is None:
+            initial_record = self.__get_initial_visit(current_record)
+
+            if not initial_record:
+                initial_record = {}
+
+            self.__initial_visits.update({subject_lbl: {module: initial_record}})
+        else:
+            log.info("Already searched for initial visit, using cached records")
+            initial_record = cached_initial_record
+
+        if not initial_record:
+            return None
+
+        return self.__forms_store.get_visit_data(
+            file_name=initial_record["file.name"],
+            acq_id=initial_record["file.parents.acquisition"],
         )
 
-        if self.__check_nonempty(ignore_empty_fields, visit_data):
-            return visit_data
+    def get_uds_ivp_record(
+        self, current_record: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Overriding the abstract method, get the UDS IVP record for the
+        specified participant.
 
-        log.warning(
-            "No initial visit found with non-empty values for %s", ignore_empty_fields
-        )
-        return None
+        Args:
+            current_record: record currently being validated
+
+        Returns:
+            Dict[str, Any]: UDS IVP record if found, else None
+        """
 
     def is_valid_rxcui(self, drugid: int) -> bool:
         """Overriding the abstract method, check whether a given drug ID is
