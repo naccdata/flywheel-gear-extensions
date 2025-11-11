@@ -21,7 +21,6 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import DefaultValues
 from nacc_common.error_models import FileErrorList
 from nacc_form_validator.quality_check import (
     QualityCheck,
@@ -184,11 +183,6 @@ def run(  # noqa: C901
             f"Failed to find the configurations for module {module}"
         )
 
-    legacy_label = (
-        form_project_configs.legacy_project_label
-        if form_project_configs.legacy_project_label
-        else DefaultValues.LEGACY_PRJ_LABEL
-    )
     pk_field = form_project_configs.primary_key.lower()
     module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
     date_field = module_configs.date_field
@@ -276,11 +270,12 @@ def run(  # noqa: C901
         pk_field=pk_field,
         proxy=proxy,
         adcid=adcid,
+        module=module,
         group_id=gid,
         project=project_adaptor,
         admin_group=admin_group,
         module_configs=module_configs,
-        legacy_label=legacy_label,
+        form_project_configs=form_project_configs,
     )
 
     try:

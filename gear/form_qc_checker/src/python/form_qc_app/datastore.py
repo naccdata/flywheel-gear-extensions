@@ -4,7 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import NACCGroup
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
 from keys.keys import DefaultValues, MetadataKeys
@@ -13,6 +13,10 @@ from nacc_form_validator.datastore import Datastore
 from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
 
 log = logging.getLogger(__name__)
+
+
+class DatastoreException(Exception):
+    pass
 
 
 class DatastoreHelper(Datastore):
@@ -26,35 +30,44 @@ class DatastoreHelper(Datastore):
         *,
         pk_field: str,
         adcid: int,
+        module: str,
         group_id: str,
         project: ProjectAdaptor,
         proxy: FlywheelProxy,
         admin_group: NACCGroup,
         module_configs: ModuleConfigs,
-        legacy_label: str,
+        form_project_configs: FormProjectConfigs,
     ):
         """
 
         Args:
             pk_field: primary key field to uniquely identify a participant
             adcid: Center's ADCID
+            module: module label
             group: Flywheel group id
             project: Flywheel project adaptor
             proxy: Flywheel proxy object
             admin_group: Flywheel admin group
             module_configs: form ingest configs for the module
-            legacy_label: legacy project label
+            form_project_configs: form ingest configs for all modules for the project
         """
 
         super().__init__(pk_field, module_configs.date_field)
 
         self.__proxy = proxy
         self.__adcid = adcid
+        self.__module = module.upper()
         self.__gid = group_id
         self.__project = project
         self.__admin_group = admin_group
         self.__module_configs = module_configs
+        self.__form_configs = form_project_configs
 
+        legacy_label = (
+            self.__form_configs.legacy_project_label
+            if self.__form_configs.legacy_project_label
+            else DefaultValues.LEGACY_PRJ_LABEL
+        )
         self.__forms_store = FormsStore(
             ingest_project=self.__project,
             legacy_project=self.__get_legacy_project(legacy_label),
@@ -67,6 +80,9 @@ class DatastoreHelper(Datastore):
 
         # cache for initial visits
         self.__initial_visits: Dict[str, Any] = {}  # by subject and module
+
+        # cache for UDS IVP visits
+        self.__uds_ivp_visits: Dict[str, Any] = {}  # by subject
 
     def __pull_adcids_list(self) -> Optional[List[int]]:
         """Pull the list of ADCIDs from the admin group metadata project.
@@ -143,6 +159,12 @@ class DatastoreHelper(Datastore):
                     field,
                 )
                 found_all = False
+
+        if found_all and self.__module != current_record[FieldNames.MODULE].upper():
+            raise DatastoreException(
+                f"Datastore module {self.__module} mismatch with the "
+                f"module specified in the record {current_record[FieldNames.MODULE]}"
+            )
 
         return found_all
 
@@ -297,6 +319,63 @@ class DatastoreHelper(Datastore):
 
         return initial_visits[0]
 
+    def __get_uds_ivp_visit(
+        self, current_record: Dict[str, Any], uds_configs: ModuleConfigs
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve the initial visit for the specified participant. Return the
+        IVP packet for the modules that has only one initial packet, else
+        return the first record sorted by visit date or form date.
+
+        Args:
+            current_record: record currently being validated
+            uds_configs: form ingest configs for UDS module
+
+        Returns:
+            Dict[str, Any]: initial visit record if found, else None
+        """
+
+        subject_lbl = current_record[self.pk_field]
+        ivp_codes = uds_configs.initial_packets
+        date_field = uds_configs.date_field
+
+        uds_ivp_visits = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=DefaultValues.UDS_MODULE,
+            legacy=False,
+            search_col=FieldNames.PACKET,
+            search_val=ivp_codes,
+            search_op=DefaultValues.FW_SEARCH_OR,
+            qc_gear=DefaultValues.QC_GEAR,
+            extra_columns=[date_field],
+        )
+
+        if not uds_ivp_visits:
+            if uds_configs.legacy_module:
+                date_field = uds_configs.legacy_module.date_field
+                if uds_configs.legacy_module.initial_packets:
+                    ivp_codes = uds_configs.legacy_module.initial_packets
+
+            uds_ivp_visits = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=DefaultValues.UDS_MODULE,
+                legacy=True,
+                search_col=FieldNames.PACKET,
+                search_val=ivp_codes,
+                search_op=DefaultValues.FW_SEARCH_OR,
+                qc_gear=DefaultValues.QC_GEAR,
+                extra_columns=[date_field],
+            )
+
+        if not uds_ivp_visits:
+            log.warning("No UDS IVP record found for %s", subject_lbl)
+            return None
+
+        if len(uds_ivp_visits) > 1:
+            log.error("Multiple UDS IVP records found for %s", subject_lbl)
+            return None
+
+        return uds_ivp_visits[0]
+
     def get_previous_record(
         self, current_record: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
@@ -424,6 +503,40 @@ class DatastoreHelper(Datastore):
         Returns:
             Dict[str, Any]: UDS IVP record if found, else None
         """
+
+        if not self.__validate_current_record(current_record):
+            return None
+
+        uds_configs = self.__form_configs.module_configs.get(DefaultValues.UDS_MODULE)
+
+        if not uds_configs:
+            raise DatastoreException("Module configurations not found for UDS module")
+
+        subject_lbl = current_record[self.pk_field]
+
+        # see if we've already cached the UDS IVP record
+        cached_uds_ivp = self.__uds_ivp_visits.get(subject_lbl)
+
+        # will be None if we've never looked for it, and empty dict if
+        # we tried looking for it but it could not be found
+        if cached_uds_ivp is None:
+            uds_ivp_record = self.__get_uds_ivp_visit(current_record, uds_configs)
+
+            if not uds_ivp_record:
+                uds_ivp_record = {}
+
+            self.__uds_ivp_visits.update({subject_lbl: uds_ivp_record})
+        else:
+            log.info("Already searched for UDS IVP visit, using cached records")
+            uds_ivp_record = cached_uds_ivp
+
+        if not uds_ivp_record:
+            return None
+
+        return self.__forms_store.get_visit_data(
+            file_name=uds_ivp_record["file.name"],
+            acq_id=uds_ivp_record["file.parents.acquisition"],
+        )
 
     def is_valid_rxcui(self, drugid: int) -> bool:
         """Overriding the abstract method, check whether a given drug ID is
