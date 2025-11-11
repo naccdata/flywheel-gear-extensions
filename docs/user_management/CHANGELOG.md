@@ -2,6 +2,25 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.1.1
+
+* Rebuilt for comanage API changes
+  
+## 3.1.0
+
+* Change how redcap project authorizations are checked so that each project is checked.
+* Change logging so that only logs when user authorizations match no redcap project submission activity.
+
+## 3.0.4
+
+* Fixes check for REDCap authorizations
+* Adds authorization application for distribution projects
+
+## 3.0.3
+
+* Fixes contains check for authorizations
+* Improves log output of user authorizations
+
 ## 3.0.2
 
 * Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed datatypes.

@@ -12,7 +12,8 @@ from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
 from flywheel.rest import ApiException
-from keys.keys import FieldNames, MetadataKeys
+from keys.keys import MetadataKeys
+from nacc_common.field_names import FieldNames
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
 from uploads.acquisition import upload_to_acquisition

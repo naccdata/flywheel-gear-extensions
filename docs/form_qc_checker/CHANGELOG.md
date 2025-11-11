@@ -5,6 +5,9 @@ All notable changes to this gear are documented in this file.
 ## 1.6.0
 * Updates `nacc-form-validator` to `1.6.0` and defines the new `get_initial_record` Datastore method
   
+## 1.5.8
+* Rebuilt for legacy module config update
+  
 ## 1.5.7
 * Supports having study suffix in retrospective-form project label
 * Rebuilt for reset error log content in read failure

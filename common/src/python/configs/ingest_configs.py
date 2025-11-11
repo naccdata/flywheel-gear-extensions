@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import FieldNames, PreprocessingChecks
+from keys.keys import PreprocessingChecks
+from nacc_common.field_names import FieldNames
 from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
 
 PipelineType = Literal["submission", "finalization"]
@@ -193,6 +194,13 @@ class SupplementModuleConfigs(BaseModel):
     exact_match: Optional[bool] = True
 
 
+class LegacyModuleConfigs(BaseModel):
+    label: str
+    date_field: str
+    initial_packets: Optional[List[str]] = None
+    followup_packets: Optional[List[str]] = None
+
+
 class ModuleConfigs(BaseModel):
     initial_packets: List[str]
     followup_packets: List[str]
@@ -200,8 +208,7 @@ class ModuleConfigs(BaseModel):
     date_field: str
     hierarchy_labels: UploadTemplateInfo
     required_fields: List[str]
-    legacy_module: Optional[str] = None
-    legacy_date: Optional[str] = None
+    legacy_module: Optional[LegacyModuleConfigs] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None

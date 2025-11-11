@@ -3,30 +3,6 @@
 REDCapKeys = ["redcap_event_name", "redcap_repeat_instance", "redcap_repeat_instrument"]
 
 
-class FieldNames:
-    """Class to store frequently accessed field names."""
-
-    NACCID = "naccid"
-    MODULE = "module"
-    PACKET = "packet"
-    PTID = "ptid"
-    ADCID = "adcid"
-    MODE = "mode"
-    VISITNUM = "visitnum"
-    DATE_COLUMN = "visitdate"
-    FORMVER = "formver"
-    GUID = "guid"
-    OLDADCID = "oldadcid"
-    OLDPTID = "oldptid"
-    ENRLFRM_DATE = "frmdate_enrl"
-    ENRLFRM_INITL = "initials_enrl"
-    NACCIDKWN = "naccidknwn"
-    PREVENRL = "prevenrl"
-    C2C2T = "rmmodec2c2t"
-    ENRLTYPE = "enrltype"
-    GUIDAVAIL = "guidavail"
-
-
 class RuleLabels:
     """Class to store rule definition labels."""
 
@@ -74,6 +50,7 @@ class DefaultValues:
     UDS_IT_PACKET = "IT"
     UDS_I4_PACKET = "I4"
     UDS_F_PACKET = "F"
+    UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
     FINALIZED_TAG = "submission-completed"

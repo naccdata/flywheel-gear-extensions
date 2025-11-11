@@ -7,7 +7,8 @@ from centers.nacc_group import NACCGroup
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
-from keys.keys import DefaultValues, FieldNames
+from keys.keys import DefaultValues
+from nacc_common.field_names import FieldNames
 from nacc_form_validator.datastore import Datastore
 from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
 
@@ -198,13 +199,13 @@ class DatastoreHelper(Datastore):
 
         # if no previous visits found in the current project, check the legacy project
         legacy_module = (
-            self.__module_configs.legacy_module
+            self.__module_configs.legacy_module.label
             if self.__module_configs.legacy_module
             else module
         )
         legacy_date = (
-            self.__module_configs.legacy_date
-            if self.__module_configs.legacy_date
+            self.__module_configs.legacy_module.date_field
+            if self.__module_configs.legacy_module
             else self.orderby
         )
 

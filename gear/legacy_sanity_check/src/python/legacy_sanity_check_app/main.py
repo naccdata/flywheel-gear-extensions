@@ -8,12 +8,12 @@ from datastore.forms_store import FormQueryArgs, FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import (
     DefaultValues,
-    FieldNames,
     MetadataKeys,
     SysErrorCodes,
 )
+from nacc_common.error_models import FileError
+from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
-from outputs.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,
@@ -158,7 +158,9 @@ class LegacySanityChecker:
 
         visitdate = module_configs.date_field
         legacy_visitdate = (
-            module_configs.legacy_date if module_configs.legacy_date else visitdate
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else visitdate
         )
 
         duplicates_query = FormQueryArgs(

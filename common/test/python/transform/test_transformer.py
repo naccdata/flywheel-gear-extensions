@@ -1,4 +1,4 @@
-from keys.keys import FieldNames
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from transform.transformer import DateTransformer, FieldFilter, VersionMap
 

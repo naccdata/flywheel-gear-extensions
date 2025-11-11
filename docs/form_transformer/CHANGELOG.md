@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.2
+* Rebuilt for legacy module config update
+  
 ## 1.5.1
 * Supports having study suffix in retrospective-form project label
 * Rebuilt for reset error log content in read failure
