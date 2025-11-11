@@ -80,7 +80,7 @@ class FormsStore:
         qc_gear: Optional[str] = None,
         extra_columns: Optional[List[str]] = None,
         find_all: bool = False,
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         """Retrieve previous visit records for the specified subject/module.
 
         Args:
