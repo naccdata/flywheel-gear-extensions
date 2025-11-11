@@ -7,7 +7,7 @@ from centers.nacc_group import NACCGroup
 from configs.ingest_configs import ModuleConfigs
 from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 from nacc_form_validator.datastore import Datastore
 from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
@@ -236,9 +236,9 @@ class DatastoreHelper(Datastore):
         return legacy_visits
 
     def __get_initial_visit(self, current_record: Dict[str, Any]) -> Dict[str, Any]:
-        """Retrieve the initial visit for the specified participant. This
-        method only checks against the ingest project, as each participant must
-        have either an UDSv4 I or I4 packet.
+        """Retrieve the initial visit for the specified participant. Return the
+        IVP packet for the modules that has only one initial packet, else
+        return the first record sorted by visit date or form date.
 
         Args:
             current_record: record currently being validated
@@ -251,8 +251,9 @@ class DatastoreHelper(Datastore):
 
         subject_lbl = current_record[self.pk_field]
         module = current_record[FieldNames.MODULE].upper()
+        date_field = self.__module_configs.date_field
 
-        initial_visit = self.__forms_store.query_form_data(
+        initial_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
             legacy=False,
@@ -260,20 +261,39 @@ class DatastoreHelper(Datastore):
             search_val=self.__module_configs.initial_packets,
             search_op=DefaultValues.FW_SEARCH_OR,
             qc_gear=DefaultValues.QC_GEAR,
+            extra_columns=[date_field],
         )
 
-        if not initial_visit:
+        if not initial_visits:
+            ivp_codes = self.__module_configs.initial_packets
+            if self.__module_configs.legacy_module:
+                date_field = self.__module_configs.legacy_module.date_field
+                if self.__module_configs.legacy_module.initial_packets:
+                    ivp_codes = self.__module_configs.legacy_module.initial_packets
+
+            initial_visits = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=module,
+                legacy=True,
+                search_col=FieldNames.PACKET,
+                search_val=ivp_codes,
+                search_op=DefaultValues.FW_SEARCH_OR,
+                qc_gear=DefaultValues.QC_GEAR,
+                extra_columns=[date_field],
+            )
+
+        if not initial_visits:
             log.warning("No initial visit found for %s, module %s", subject_lbl, module)
             return {}
 
-        # technically can't happen, but sanity check
-        if initial_visit and len(initial_visit) > 1:
+        if len(initial_visits) > 1:
             log.warning(
                 "Multiple initial visits found for %s, module %s", subject_lbl, module
             )
-            return {}
+            date_col_key = f"{MetadataKeys.FORM_METADATA_PATH}.{date_field}"
+            initial_visits = sorted(initial_visits, key=lambda d: d[date_col_key])
 
-        return initial_visit[0]
+        return initial_visits[0]
 
     def get_previous_record(
         self, current_record: Dict[str, Any]
