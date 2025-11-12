@@ -260,19 +260,20 @@ class FormsStore:
         )
 
         if not visits:
+            log.info("No matches found for %s", subject_lbl)
             return None
 
         return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
     def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, Any] | None:
-        """Read the previous visit file and convert to python dictionary.
+        """Read the visit file and convert to python dictionary.
 
         Args:
-            file_name: Previous visit file name
-            acq_id: Previous visit acquisition id
+            file_name: visit file name
+            acq_id: visit acquisition id
 
         Returns:
-            dict[str, str] | None: Previous visit data or None
+            dict[str, str] | None: visit data or None
         """
         visit_data = None
 
@@ -281,10 +282,8 @@ class FormsStore:
 
         try:
             visit_data = json.loads(file_content)
-            log.info("Found previous visit file: %s", file_name)
+            log.info("Found visit file: %s", file_name)
         except (JSONDecodeError, TypeError, ValueError) as error:
-            log.error(
-                "Failed to read the previous visit file - %s : %s", file_name, error
-            )
+            log.error("Failed to read the visit file - %s : %s", file_name, error)
 
         return visit_data

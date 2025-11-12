@@ -1020,8 +1020,8 @@ class FormPreprocessor:
         valid = True
         np_record = pp_context.input_record
         npsex = np_record.get(FieldNames.NPSEX)
-        if not npsex or not validate_sex_reported_on_np(
-            npsex=npsex, uds_record=ivp_visit
+        if npsex is None or not validate_sex_reported_on_np(
+            npsex=int(npsex), uds_record=ivp_visit
         ):
             self.__error_handler.write_preprocessing_error(
                 field=FieldNames.NPSEX,
@@ -1033,8 +1033,8 @@ class FormPreprocessor:
 
         death_age = np_record.get(FieldNames.NPDAGE)
         if (
-            not np_dod
-            or not death_age
+            np_dod is None
+            or death_age is None
             or not validate_age_at_death(
                 np_dod=np_dod,
                 uds_record=ivp_visit,

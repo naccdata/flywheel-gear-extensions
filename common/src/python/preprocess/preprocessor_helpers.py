@@ -1,6 +1,7 @@
 """Helper classes to aid with the FormPreprocessor."""
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -225,6 +226,6 @@ def validate_age_at_death(
         return False
 
     # age calculation is based off of how RT has defined it in A1
-    nacc_dage = round((np_dod - dob).days / 365.25)
+    nacc_dage = math.floor((np_dod - dob).days / 365.25)
 
     return abs(nacc_dage - np_dage) <= 1
