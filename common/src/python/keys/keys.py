@@ -111,11 +111,11 @@ class SysErrorCodes:
     LOWER_NP_DOD = "preprocess-028"
     NP_UDS_SEX_MISMATCH = "preprocess-029"
     NP_UDS_DAGE_MISMATCH = "preprocess-030"
+    UDS_NOT_EXIST = "preprocess-031"
 
     # other errors for preprocessing issues that don't fall
     # in above categories
     PREPROCESSING_ERROR = "preprocess-error"
-    UDS_NOT_EXIST = "preprocess-100"
     CLINICAL_FORM_REQUIRED = "preprocess-101"
 
 
