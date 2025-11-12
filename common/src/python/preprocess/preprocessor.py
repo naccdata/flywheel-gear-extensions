@@ -1035,7 +1035,7 @@ class FormPreprocessor:
         if (
             not np_dod
             or not death_age
-            or validate_age_at_death(
+            or not validate_age_at_death(
                 np_dod=np_dod,
                 uds_record=ivp_visit,
                 np_dage=int(death_age),
