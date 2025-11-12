@@ -2,8 +2,8 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.0.2
-* Rebuilt for legacy module config update
+## 2.1.0
+* Rebuilt for form ingest configs update
   
 ## 2.0.1
 * Resets error log content if failed to read existing content
