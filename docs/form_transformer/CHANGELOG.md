@@ -2,7 +2,8 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.5.2
+## 1.6.0
+* Adds NP vs UDS checks
 * Rebuilt for legacy module config update
   
 ## 1.5.1
