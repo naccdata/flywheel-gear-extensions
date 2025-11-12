@@ -16,7 +16,7 @@
 //     "flywheel-sdk>=20.0.0",
 //     "fw-client>=0.7.0",
 //     "fw-utils>=3",
-//     "moto[s3,ses,ssm]>=5.0.15",
+//     "moto[s3,ses,ssm]==5.1.14",
 //     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v1.4.3/nacc_attribute_deriver-1.4.3-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.0/nacc_form_validator-0.6.0-py3-none-any.whl",
 //     "natsort",
@@ -1881,13 +1881,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "8e6186f20b3aa91755d186e47701fe7e47f74e625c36fdf3bd7747da68468b19",
-              "url": "https://files.pythonhosted.org/packages/a6/a5/403b7adbf9932861ff7f3b19f4f9b9b8ec0dceb1fcea0633046b7f5e9ced/moto-5.1.16-py3-none-any.whl"
+              "hash": "b9767848953beaf6650f1fd91615a3bcef84d93bd00603fa64dae38c656548e8",
+              "url": "https://files.pythonhosted.org/packages/07/a0/4c5955187853536c7d337709074a5f3ef391654a32a3379096b2d16bfd9b/moto-5.1.14-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "792045b345d16a8aa09068ad4a7656894e707c796f0799b438fffb738e8fae7c",
-              "url": "https://files.pythonhosted.org/packages/33/0e/346bdadba09fd86854fa3363892ca12f4232652c9d210b93c673c48807ea/moto-5.1.16.tar.gz"
+              "hash": "450690abb0b152fea7f93e497ac2172f15d8a838b15f22b514db801a6b857ae4",
+              "url": "https://files.pythonhosted.org/packages/c0/d9/ec94955a1b14ef45ccbda81f2256b30bf1f21ae5c5739fca14130bb1f048/moto-5.1.14.tar.gz"
             }
           ],
           "project_name": "moto",
@@ -1961,15 +1961,15 @@
             "openapi-spec-validator>=0.5.0; extra == \"proxy\"",
             "openapi-spec-validator>=0.5.0; extra == \"resourcegroupstaggingapi\"",
             "openapi-spec-validator>=0.5.0; extra == \"server\"",
-            "py-partiql-parser==0.6.3; extra == \"all\"",
-            "py-partiql-parser==0.6.3; extra == \"cloudformation\"",
-            "py-partiql-parser==0.6.3; extra == \"dynamodb\"",
-            "py-partiql-parser==0.6.3; extra == \"dynamodbstreams\"",
-            "py-partiql-parser==0.6.3; extra == \"proxy\"",
-            "py-partiql-parser==0.6.3; extra == \"resourcegroupstaggingapi\"",
-            "py-partiql-parser==0.6.3; extra == \"s3\"",
-            "py-partiql-parser==0.6.3; extra == \"s3crc32c\"",
-            "py-partiql-parser==0.6.3; extra == \"server\"",
+            "py-partiql-parser==0.6.1; extra == \"all\"",
+            "py-partiql-parser==0.6.1; extra == \"cloudformation\"",
+            "py-partiql-parser==0.6.1; extra == \"dynamodb\"",
+            "py-partiql-parser==0.6.1; extra == \"dynamodbstreams\"",
+            "py-partiql-parser==0.6.1; extra == \"proxy\"",
+            "py-partiql-parser==0.6.1; extra == \"resourcegroupstaggingapi\"",
+            "py-partiql-parser==0.6.1; extra == \"s3\"",
+            "py-partiql-parser==0.6.1; extra == \"s3crc32c\"",
+            "py-partiql-parser==0.6.1; extra == \"server\"",
             "pyparsing>=3.0.7; extra == \"all\"",
             "pyparsing>=3.0.7; extra == \"cloudformation\"",
             "pyparsing>=3.0.7; extra == \"glue\"",
@@ -1988,7 +1988,7 @@
             "xmltodict"
           ],
           "requires_python": ">=3.9",
-          "version": "5.1.16"
+          "version": "5.1.14"
         },
         {
           "artifacts": [
@@ -2345,13 +2345,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "deb0769c3346179d2f590dcbde556f708cdb929059fb654bad75f4cf6e07f582",
-              "url": "https://files.pythonhosted.org/packages/c9/33/a7cbfccc39056a5cf8126b7aab4c8bafbedd4f0ca68ae40ecb627a2d2cd3/py_partiql_parser-0.6.3-py2.py3-none-any.whl"
+              "hash": "ff6a48067bff23c37e9044021bf1d949c83e195490c17e020715e927fe5b2456",
+              "url": "https://files.pythonhosted.org/packages/97/84/0e410c20bbe9a504fc56e97908f13261c2b313d16cbb3b738556166f044a/py_partiql_parser-0.6.1-py2.py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "09cecf916ce6e3da2c050f0cb6106166de42c33d34a078ec2eb19377ea70389a",
-              "url": "https://files.pythonhosted.org/packages/56/7a/a0f6bda783eb4df8e3dfd55973a1ac6d368a89178c300e1b5b91cd181e5e/py_partiql_parser-0.6.3.tar.gz"
+              "hash": "8583ff2a0e15560ef3bc3df109a7714d17f87d81d33e8c38b7fed4e58a63215d",
+              "url": "https://files.pythonhosted.org/packages/58/a1/0a2867e48b232b4f82c4929ef7135f2a5d72c3886b957dccf63c70aa2fcb/py_partiql_parser-0.6.1.tar.gz"
             }
           ],
           "project_name": "py-partiql-parser",
@@ -2362,7 +2362,7 @@
             "pytest; extra == \"dev\""
           ],
           "requires_python": null,
-          "version": "0.6.3"
+          "version": "0.6.1"
         },
         {
           "artifacts": [
@@ -3429,7 +3429,7 @@
     "flywheel-sdk>=20.0.0",
     "fw-client>=0.7.0",
     "fw-utils>=3",
-    "moto[s3,ses,ssm]>=5.0.15",
+    "moto[s3,ses,ssm]==5.1.14",
     "nacc_attribute_deriver",
     "nacc_form_validator",
     "natsort",
