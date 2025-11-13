@@ -275,6 +275,7 @@ class DatastoreHelper(Datastore):
 
         subject_lbl = current_record[self.pk_field]
         module = current_record[FieldNames.MODULE].upper()
+        ivp_codes = self.__module_configs.initial_packets
         date_field = self.__module_configs.date_field
 
         initial_visits = self.__forms_store.query_form_data(
@@ -282,14 +283,13 @@ class DatastoreHelper(Datastore):
             module=module,
             legacy=False,
             search_col=FieldNames.PACKET,
-            search_val=self.__module_configs.initial_packets,
+            search_val=ivp_codes,
             search_op=DefaultValues.FW_SEARCH_OR,
             qc_gear=DefaultValues.QC_GEAR,
             extra_columns=[date_field],
         )
 
         if not initial_visits:
-            ivp_codes = self.__module_configs.initial_packets
             if self.__module_configs.legacy_module:
                 date_field = self.__module_configs.legacy_module.date_field
                 if self.__module_configs.legacy_module.initial_packets:
@@ -322,16 +322,14 @@ class DatastoreHelper(Datastore):
     def __get_uds_ivp_visit(
         self, current_record: Dict[str, Any], uds_configs: ModuleConfigs
     ) -> Optional[Dict[str, Any]]:
-        """Retrieve the initial visit for the specified participant. Return the
-        IVP packet for the modules that has only one initial packet, else
-        return the first record sorted by visit date or form date.
+        """Retrieve the UDS IVP for the specified participant if present.
 
         Args:
             current_record: record currently being validated
             uds_configs: form ingest configs for UDS module
 
         Returns:
-            Dict[str, Any]: initial visit record if found, else None
+            Dict[str, Any]: UDS IVP record if found, else None
         """
 
         subject_lbl = current_record[self.pk_field]
