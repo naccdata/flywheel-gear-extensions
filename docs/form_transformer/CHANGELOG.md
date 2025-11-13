@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.5.2
-* Rebuilt for legacy module config update
+## 1.6.0
+* Adds NP vs UDS checks
+* Rebuilt for form ingest configs update
   
 ## 1.5.1
 * Supports having study suffix in retrospective-form project label

@@ -122,9 +122,9 @@ def np_pp_context():
         "naccid": naccid,
         "ptid": "dummy-ptid",
         "adcid": "0",
-        "npformdate": "2025-01-01",
+        "npformdate": "2025-10-10",
         "packet": "NP",
-        "formver": "4.0",
+        "formver": "11.0",
     }
 
     return PreprocessingContext(
