@@ -51,8 +51,27 @@ class TestFormsStore(FormsStore):
     ) -> Optional[List[Dict[str, Any]]]:
         return self.__form_data
 
+    def __reformat(self, data_dict: Dict[str, Any]) -> Dict[str, Any]:
+        new_dict = {}
+        for key, value in data_dict.items():
+            if key.startswith(MetadataKeys.FORM_METADATA_PATH):
+                new_dict[key[len(MetadataKeys.FORM_METADATA_PATH) + 1 :]] = value
+            else:
+                new_dict[key] = value
+
+        # print(f"NEW DICT: {new_dict}")
+        return new_dict
+
     def get_visit_data(self, **kwargs) -> Dict[str, Any] | None:
-        return self.__form_data[0] if self.__form_data else None
+        form_data = self.__form_data if self.__form_data else self.__legacy_data
+        if not form_data:
+            return None
+
+        acq_id = kwargs.get("acq_id")
+        if acq_id and acq_id.isnumeric() and len(form_data) > int(acq_id):
+            return self.__reformat(form_data[int(acq_id)])
+        else:
+            return form_data[0]
 
 
 class TestFormPreprocessor:
@@ -503,3 +522,64 @@ class TestFormPreprocessor:
 
         assert file_error_dec.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
         assert file_error_aut.error_code == SysErrorCodes.DEATH_DENOTED_ON_MLST
+
+    def test_check_np_uds_restrictions(self, np_module_configs, np_pp_context):
+        """Tests the _check_np_uds_restrictions check."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.NP_MODULE, np_module_configs
+        )
+
+        # test skipped if there is no UDS form
+        assert processor._check_np_uds_restrictions(np_pp_context)
+
+        # add UDS packets, arrange in desc order of visitdate
+        test_record_fvp = {
+            "file.name": "dummy_file_0",
+            "file.parents.acquisition": "0",
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2018-10-12",
+            f"{MetadataKeys.FORM_METADATA_PATH}.packet": "F",
+        }
+
+        test_record_ivp = {
+            "file.name": "dummy_file_1",
+            "file.parents.acquisition": "1",
+            f"{MetadataKeys.FORM_METADATA_PATH}.birthyr": "1970",
+            f"{MetadataKeys.FORM_METADATA_PATH}.birthmo": "2",
+            f"{MetadataKeys.FORM_METADATA_PATH}.birthsex": "2",
+            f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2015-10-12",
+            f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I",
+        }
+
+        forms_store.set_form_data([test_record_fvp, test_record_ivp])
+
+        # test NP record with correct demographics
+        np_pp_context.input_record.update(
+            {
+                "npsex": 2,
+                "npdodyr": "2025",
+                "npdodmo": "8",
+                "npdoddy": "27",
+                "npdage": 55,
+            }
+        )
+
+        assert processor._check_np_uds_restrictions(np_pp_context)
+
+        # test NP record with incorrect sex
+        np_pp_context.input_record.update({"npsex": 1})
+        assert not processor._check_np_uds_restrictions(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.NP_UDS_SEX_MISMATCH)
+
+        # test NP record with incorrect dage
+        np_pp_context.input_record.update({"npsex": 2, "npdage": 57})
+        assert not processor._check_np_uds_restrictions(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.NP_UDS_DAGE_MISMATCH)
+
+        np_pp_context.input_record.update({"npdage": 55})
+        # fail when last UDS visitdate > npdod
+        test_record_fvp.update(
+            {f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-09-12"}
+        )
+
+        assert not processor._check_np_uds_restrictions(np_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.LOWER_NP_DOD)

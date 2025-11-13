@@ -84,7 +84,7 @@ class FormPreprocessorErrorHandler:
         self.__error_writer.write(
             preprocessing_error(
                 field=field,
-                value=value,
+                value=str(value),
                 line=pp_context.line_num,
                 error_code=error_code,
                 message=message,
@@ -194,7 +194,8 @@ def validate_sex_reported_on_np(npsex: int, uds_record: Dict[str, Any]) -> bool:
     if not sex:
         return False
 
-    if int(sex) in [1, 2] and npsex in [1, 2]:
+    sex = int(sex)
+    if sex in [1, 2] and npsex in [1, 2]:
         return sex == npsex
 
     return True
