@@ -5,6 +5,9 @@ import os
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+from configs.ingest_configs import ModuleConfigs
+from event_logging.csv_logging_visitor import CSVLoggingVisitor
+from event_logging.event_logging import VisitEventLogger
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -16,7 +19,7 @@ from gear_execution.gear_trigger import (
     set_gear_inputs,
     trigger_gear,
 )
-from inputs.csv_reader import read_csv
+from inputs.csv_reader import AggregateCSVVisitor, read_csv
 from jobs.job_poll import JobPoll
 from keys.keys import SysErrorCodes
 from nacc_common.field_names import FieldNames
@@ -149,6 +152,8 @@ def run(
     queue_tags: List[str],
     scheduler_gear: GearInfo,
     format_and_tag: bool,
+    event_logger: VisitEventLogger,
+    module_configs: ModuleConfigs,
 ) -> Optional[ListErrorWriter]:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules, if the suffix does not match, report an error.
@@ -172,7 +177,7 @@ def run(
         scheduler_gear: GearInfo of the scheduler gear to trigger
         format_and_tag: if True format input file and add queue_tags,
                         else check whether the file is already tagged with queue_tags
-
+        event_logger: the VisitEventLogger for capturing transactional events for visits
     Returns:
         ListErrorWriter(optional): If file didn't pass screening checks
     """
@@ -228,10 +233,26 @@ def run(
         )
         return None
 
+    gear_name = context.manifest.get("name", "form-screening")
+    queue_tags.append(gear_name)
+
     out_stream = StringIO()
     formatter_visitor = CSVFormatterVisitor(
         output_stream=out_stream, error_writer=error_writer
     )
+    timestamp = file_input.file_entry(context).created
+    logging_visitor = CSVLoggingVisitor(
+        center_label=project.group,
+        project_label=project.label,
+        gear_name=gear_name,
+        event_logger=event_logger,
+        module_configs=module_configs,
+        error_writer=error_writer,
+        timestamp=timestamp,
+        action="submit",
+        datatype="form",
+    )
+    aggregate_visitor = AggregateCSVVisitor([formatter_visitor, logging_visitor])
 
     # open file using utf-8-sig to treat the BOM as metadata (if present)
     success = False
@@ -240,7 +261,7 @@ def run(
             success = read_csv(
                 input_file=csv_file,
                 error_writer=error_writer,
-                visitor=formatter_visitor,
+                visitor=aggregate_visitor,
             )
     except UnicodeDecodeError as e:
         log.error(f"Cannot read non UTF-8 compliant file: {e}")
@@ -256,9 +277,6 @@ def run(
         )
         error_writer.write(empty_file_error())
         return error_writer
-
-    gear_name = context.manifest.get("name", "form-screening")
-    queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)
     info: Dict[str, Any] = {"uploader": file.origin.id}

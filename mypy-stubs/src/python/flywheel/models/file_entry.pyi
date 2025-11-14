@@ -74,6 +74,14 @@ class FileEntry:
     def modified(self) -> datetime:
         ...
 
+    @property
+    def created(self) -> datetime:
+        ...
+
+    @property
+    def replaced(self) -> datetime:
+        ...
+
     def add_tag(self, tag, **kwargs):
         ...
 
