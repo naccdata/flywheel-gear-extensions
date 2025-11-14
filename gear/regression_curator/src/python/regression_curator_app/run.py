@@ -125,24 +125,23 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             container_id=self.__project.id, fw_path=fw_path, errors=Manager().list()
         )
 
-        naccid_blacklist = None
+        naccid_blacklist = set([])
         if self.__naccid_blacklist_file:
             with open(self.__naccid_blacklist_file.filepath, mode="r") as fh:
-                naccid_blacklist = [x.strip() for x in fh.readlines()]
+                naccid_blacklist = set([x.strip() for x in fh.readlines()])
 
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
                 filename_patterns=self.__filename_patterns,
-                blacklist=naccid_blacklist,
             )
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
-        variable_blacklist = None
+        variable_blacklist = set([])
         if self.__variable_blacklist_file:
             with open(self.__variable_blacklist_file.filepath, mode="r") as fh:
-                variable_blacklist = [x.strip() for x in fh.readlines()]
+                variable_blacklist = set([x.strip() for x in fh.readlines()])
 
         # to avoid loading the entire baseline files (which explode memory
         # usage), only load NACCIDs relevant to this curation. unfortunately
@@ -154,6 +153,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         for subject_id in scheduler.get_subject_ids():
             subject = self.__project.get_subject_by_id(subject_id)
             if subject:
+                if subject.label in naccid_blacklist:
+                    log.info(f"{subject.label} in blacklist, removing from regression testing")
+                    continue
+
                 subjects.append(subject.label)
 
         run(
@@ -186,6 +189,8 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
             # TODO: is the project the right place to write this file to?
             self.__project.upload_file(file_spec)  # type: ignore
+        else:
+            log.info("No errors detected!")
 
 
 def main():

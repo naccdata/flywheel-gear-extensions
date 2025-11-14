@@ -78,7 +78,6 @@ class ProjectCurationScheduler:
         cls,
         project: ProjectAdaptor,
         filename_patterns: List[str],
-        blacklist: Optional[List[str]] = None,
     ) -> "ProjectCurationScheduler":
         """Creates a ProjectCurationScheduler for the projects.
 
@@ -89,7 +88,6 @@ class ProjectCurationScheduler:
         Args:
           project: the project
           filename_pattern: List of filename patterns to match on
-          blacklist: List of subjects to ignore
         Returns:
           the ProjectCurationScheduler for the form files in the project
         """
@@ -149,10 +147,6 @@ class ProjectCurationScheduler:
                 continue
 
             subject_id = file_info.subject_id
-            if blacklist and subject_id in blacklist:
-                log.debug(f"{subject_id} blacklisted, skipping")
-                continue
-
             heap = subject_heap_map.get(subject_id, MinHeap[FileModel]())
             heap.push(file_info)
             subject_heap_map[subject_id] = heap

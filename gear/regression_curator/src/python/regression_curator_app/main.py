@@ -133,7 +133,7 @@ class QAFBaselineLocalizer(BaselineLocalizer):
         s3_file: str,
         error_writer: ManagerListErrorWriter,
         subjects: List[str],
-        variable_blacklist: Optional[List[str]] = None,
+        variable_blacklist: Optional[Set[str]] = None,
     ) -> None:
         super().__init__(s3_file, error_writer, subjects)
         self.__variable_blacklist = (
@@ -198,7 +198,7 @@ def run(
     error_writer: ManagerListErrorWriter,
     max_errors: int,
     s3_mqt_file: Optional[str] = None,
-    variable_blacklist: Optional[List[str]] = None,
+    variable_blacklist: Optional[Set[str]] = None,
 ) -> None:
     """Runs the Attribute Curator process.
 
@@ -211,7 +211,7 @@ def run(
         max_errors: Maximum errors to report; stops regression testing once
             maximum is hit
         s3_mqt_file: S3 MQT file to pull baseline from (optional)
-        variable_blacklist: List of variables to blacklist/ignore from QAF
+        variable_blacklist: Set of variables to blacklist/ignore from QAF
     """
     qaf_baseline = QAFBaselineLocalizer(
         s3_file=s3_qaf_file,

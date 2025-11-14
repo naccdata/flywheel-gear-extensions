@@ -27,16 +27,6 @@
             "base": "api-key",
             "read-only": false
         },
-        "blacklist_file": {
-            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
-            "base": "file",
-            "optional": true,
-            "type": {
-                "enum": [
-                    "text"
-                ]
-            }
-        },
         "rxclass_concepts_file": {
             "description": "JSON file containing cached RxClass concepts. If provided, skips the RxClass querying at the beginning of curation and uses the data provided here",
             "base": "file",

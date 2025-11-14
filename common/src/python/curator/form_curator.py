@@ -278,12 +278,13 @@ class FormCurator(Curator):
     ) -> None:
         """Run post-curating on the entire subject.
 
-        1. Run subject-level missingness curations across all scopes
-        2. Pushes final subject_table back to FW
-        3. Adds `affiliated` tag to affiliate subjects if
+        1. Run cross-module scope derived curations
+        2. Run subject-level missingness curations across all scopes
+        3. Pushes final subject_table back to FW
+        4. Adds `affiliated` tag to affiliate subjects if
             subject.info.derived.affiliate is set
             (via nacc-attribute-deriver)
-        4. Run a second pass over forms that require back-prop and apply
+        5. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
 
         Args:
@@ -303,10 +304,11 @@ class FormCurator(Curator):
 
             scoped_files[scope].append(file)
 
-        if FormScope.UDS in scoped_files:
-            self.subject_level_missingness(subject, subject_table, scoped_files)
+        # 1/2: subject-level curations
+        if not self.subject_level_curation(subject, subject_table, scoped_files):
+            return
 
-        # push subject metadata; need to replace due to potentially
+        # 3. push subject metadata; need to replace due to potentially
         # cleaned-up metadata and subject-level missingness
         if subject_table:
             subject.replace_info(subject_table.to_dict())  # type: ignore
@@ -314,27 +316,48 @@ class FormCurator(Curator):
         derived = subject_table.get("derived", {})
         affiliate = derived.get("affiliate", None)
 
-        # add affiliated tag
+        # 4. add affiliated tag
         if affiliate and "affiliated" not in subject.tags:
             log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag("affiliated")
 
+        # 5. backprop
         self.back_propagate_scopes(subject, scoped_files, derived.get("cross-sectional", None))
 
-    def subject_level_missingness(
+    def subject_level_curation(
         self,
         subject: Subject,
         subject_table: SymbolTable,
         scoped_files: Dict[ScopeLiterals, List[FileModel]],
-        ) -> None:
-        """UDS-subjects requires subject-level missingness curations
+        ) -> bool:
+        """
+        1. Cross-module derived variables need to be done at the end
+        and at the subject level since it needs complete data from
+        all scopes.
+
+        2. UDS-subjects requires subject-level missingness curations
         across all scopes, to handle files and data that did not
         exist for the subject. Since we couldn't curate missingness
         on a non-existent file earlier, it needs to be done
         explicitly here
+
+        Returns true if curations are successful, false otherwise
         """
         table = SymbolTable()
         table["subject.info"] = subject_table.to_dict()
+
+        # 1. run cross-module subject-level derivations, which require completed
+        # curated data from NP, MLST, UDS, and MDS
+        try:
+            log.debug(f"Running cross-module curation for {subject.label}")
+            self.__attribute_deriver.curate(table, FormScope.CROSS_MODULE.value)
+        except (AttributeDeriverError, MissingRequiredError) as e:
+            self.__failed_files[subject.label] = str(e)
+            log.error("Failed to apply cross-module curation to " +
+                f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}")
+            return False
+
+        # 2. run subject-level missingness curation
         for scope in typing.get_args(ScopeLiterals):
             # means it was curated at some point, so no need to handle
             if scope in scoped_files:
@@ -348,6 +371,9 @@ class FormCurator(Curator):
                 self.__failed_files[subject.label] = str(e)
                 log.error("Failed to apply subject-level missingness to " +
                     f"{subject.label} on scope {scope.value}: {e}")
+                return False
+
+        return True
 
     def back_propagate_scopes(
         self,

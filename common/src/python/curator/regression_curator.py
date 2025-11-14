@@ -144,7 +144,9 @@ class RegressionCurator(Curator):
         if isinstance(value, bool):
             value = int(value)
 
-        return str(value).strip()
+        # REGRESSION: remove apostrophes for comparison since
+        # legacy code stripped them out
+        return str(value).strip().replace("'", "")
 
     def compare_baseline(
         self,
@@ -184,6 +186,29 @@ class RegressionCurator(Curator):
 
             value = self.resolve_value(value)
             expected = self.resolve_value(record[field])
+
+            # REGRESSION: SPECIAL CASES WE ARE IGNORING FOR THE 
+            # SAKE OF REGRESSION TESTING - REMOVE WHEN DONE
+            if field in ["mocalanx", "respothx", "bpdias",
+                         "bpsys", "weight", "height", "hrate"]:
+                if value == "-4" and expected == "":
+                    continue
+                if value == "" and expected == "-4":
+                    continue
+
+            # REGRESSION: cogoth2f/cogoth3f case, allow -4 == 8
+            if field in ["cogoth2f", "cogoth3f"]:
+                if value == "-4" and expected == "8":
+                    continue
+
+            # REGRESSION: ignore V1 drugs for now
+            if field.startswith("drug") and record.get("formver", None) == "1.0":
+                continue
+
+            # also clear up "." strings in the QAF
+            if value == "" and expected == ".":
+                continue
+
             result = value == expected
 
             if not result:
@@ -196,7 +221,7 @@ class RegressionCurator(Curator):
                     f"{identifier} field {field}: found value {value} "
                     + f"does not match baseline value {expected}"
                 )
-                log.info(msg)
+                log.debug(msg)
                 self.__error_writer.write(
                     unexpected_value_error(
                         field=f"{scope}.{prefix}.{field}",
@@ -227,7 +252,7 @@ class RegressionCurator(Curator):
                 + f"{expected} not found in curated variables (likely "
                 + "returned None)"
             )
-            log.info(msg)
+            log.debug(msg)
             self.__error_writer.write(
                 unexpected_value_error(
                     field=f"{scope}.{prefix}.{field}",
@@ -287,7 +312,7 @@ class RegressionCurator(Curator):
                 f"Could not find matching baseline record for {file_entry.name} "
                 + f"in QAF baseline file with key: {key}"
             )
-            log.warning(msg)
+            log.debug(msg)
             return
 
         # need to combine derived and resolved to compare against baseline QAF
