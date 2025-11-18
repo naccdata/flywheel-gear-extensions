@@ -203,7 +203,7 @@ class FormCurator(Curator):
         # as such, file.info.resolved represents the overlay of raw <- missingness,
         # ensuring we have a resolved location for data model querying without touching
         # the raw data
-        if scope in [FormScope.UDS, FormScope.NP]:
+        if scope in [FormScope.UDS, FormScope.NP, FormScope.MDS]:
             self.__set_working_metadata(
                 table,
                 "file.info.resolved",

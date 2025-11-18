@@ -196,7 +196,6 @@ def run(
     s3_qaf_file: str,
     scheduler: ProjectCurationScheduler,
     error_writer: ManagerListErrorWriter,
-    max_errors: int,
     s3_mqt_file: Optional[str] = None,
     variable_blacklist: Optional[Set[str]] = None,
 ) -> None:
@@ -208,8 +207,6 @@ def run(
         s3_qaf_file: S3 QAF file to pull baseline from
         scheduler: Schedules the files to be curated
         error_writer: Multi-processing error writer
-        max_errors: Maximum errors to report; stops regression testing once
-            maximum is hit
         s3_mqt_file: S3 MQT file to pull baseline from (optional)
         variable_blacklist: Set of variables to blacklist/ignore from QAF
     """
@@ -231,7 +228,6 @@ def run(
     curator = RegressionCurator(
         qaf_baseline=qaf_baseline,
         error_writer=error_writer,
-        max_errors=max_errors,
         mqt_baseline=mqt_baseline,
     )
 

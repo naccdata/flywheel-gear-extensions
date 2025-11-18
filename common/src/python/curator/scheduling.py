@@ -60,8 +60,6 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
 
         curator.curate_file(subject, subject_table, file_info.file_id)
         processed_files.append(file_info)
-        if curator.break_curation():
-            break
 
     curator.post_curate(subject, subject_table, processed_files)
 

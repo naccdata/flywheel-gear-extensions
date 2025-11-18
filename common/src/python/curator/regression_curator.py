@@ -40,14 +40,12 @@ class RegressionCurator(Curator):
         self,
         qaf_baseline: MutableMapping,
         error_writer: ManagerListErrorWriter,
-        max_errors: int,
         mqt_baseline: Optional[MutableMapping] = None,
     ) -> None:
         super().__init__()
         self.__qaf_baseline = SymbolTable(qaf_baseline)
         self.__mqt_baseline = SymbolTable(mqt_baseline) if mqt_baseline else None
         self.__error_writer = error_writer
-        self.__max_errors = max_errors
 
         # keep track of which variables belong to a scope of interest
         self.__scoped_variables: Dict[ScopeLiterals, Set] = {}
@@ -75,10 +73,6 @@ class RegressionCurator(Curator):
 
                     attribute = assignment.attribute.split(".")[-1]
                     self.__scoped_variables[scope].add(attribute)
-
-    def break_curation(self) -> bool:
-        """Used to globally signal to scheduler that curation should stop."""
-        return len(self.__error_writer.errors()) >= self.__max_errors
 
     def compare_as_lists(self, value: str, expected: str) -> bool:
         """Checks if the values look like lists; if so, compare as sets to
@@ -146,7 +140,11 @@ class RegressionCurator(Curator):
 
         # REGRESSION: remove apostrophes for comparison since
         # legacy code stripped them out
-        return str(value).strip().replace("'", "")
+        value = str(value).strip()
+        for character in ["'", "\""]:
+            value = value.replace(character, "")
+
+        return value
 
     def compare_baseline(
         self,
@@ -184,6 +182,10 @@ class RegressionCurator(Curator):
                 log.debug(f"Field {field} not in baseline, skipping")
                 continue
 
+            # REGRESSION: ignore drugs for now
+            if field.startswith("drug"):
+                continue
+
             value = self.resolve_value(value)
             expected = self.resolve_value(record[field])
 
@@ -200,10 +202,6 @@ class RegressionCurator(Curator):
             if field in ["cogoth2f", "cogoth3f"]:
                 if value == "-4" and expected == "8":
                     continue
-
-            # REGRESSION: ignore V1 drugs for now
-            if field.startswith("drug") and record.get("formver", None) == "1.0":
-                continue
 
             # also clear up "." strings in the QAF
             if value == "" and expected == ".":

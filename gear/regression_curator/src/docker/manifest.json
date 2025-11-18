@@ -62,11 +62,6 @@
             "type": "string",
             "default": "*UDS\\.json"
         },
-        "max_errors": {
-            "description": "Maximum errors to report; stops regression testing early once max is hit. If set to -1, no maximum. Note more errors than the maximum may be reported due to race conditions, but it will stop once all threads have globally detected >= max_errors have been written.",
-            "type": "integer",
-            "default": 1000
-        },
         "error_outfile": {
             "description": "Output file to write regression errors to",
             "type": "string",

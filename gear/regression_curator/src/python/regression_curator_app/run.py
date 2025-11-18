@@ -39,7 +39,6 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         s3_qaf_file: str,
         filename_patterns: List[str],
         error_outfile: str,
-        max_errors: int,
         s3_mqt_file: Optional[str] = None,
         naccid_blacklist_file: Optional[InputFileWrapper] = None,
         variable_blacklist_file: Optional[InputFileWrapper] = None,
@@ -49,7 +48,6 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         self.__s3_qaf_file = s3_qaf_file
         self.__s3_mqt_file = s3_mqt_file
         self.__filename_patterns = filename_patterns
-        self.__max_errors = max_errors
         self.__error_outfile = error_outfile
         self.__naccid_blacklist_file = naccid_blacklist_file
         self.__variable_blacklist_file = variable_blacklist_file
@@ -79,7 +77,6 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         if not s3_qaf_file:
             raise GearExecutionError("QAF file missing")
 
-        max_errors = context.config.get("max_errors", -1)
         filename_patterns = parse_string_to_list(
             context.config.get("filename_patterns", "*UDS\\.json")
         )
@@ -107,7 +104,6 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             s3_qaf_file=s3_qaf_file,
             s3_mqt_file=s3_mqt_file,
             filename_patterns=filename_patterns,
-            max_errors=max_errors,
             error_outfile=error_outfile,
             naccid_blacklist_file=naccid_blacklist_file,
             variable_blacklist_file=variable_blacklist_file,
@@ -164,7 +160,6 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             subjects=subjects,
             s3_qaf_file=self.__s3_qaf_file,
             s3_mqt_file=self.__s3_mqt_file,
-            max_errors=self.__max_errors,
             scheduler=scheduler,
             error_writer=error_writer,
             variable_blacklist=variable_blacklist
