@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/gather_form_data/src/python/gather_form_data_app:bin",
     ],
-    image_tags=["0.1.4", "latest"],
+    image_tags=["0.1.5", "latest"],
 )

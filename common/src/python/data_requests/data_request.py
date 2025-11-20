@@ -214,6 +214,7 @@ class DataRequestVisitor(CSVVisitor):
             query = DataRequest.model_validate(row)
         except ValidationError as error:
             self.__error_writer.write(malformed_file_error(str(error)))
+            return True  # ignore row
 
         matching_requests = self.__get_matches(request=query)
         if not matching_requests:
