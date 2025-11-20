@@ -53,7 +53,7 @@ If pants hasn't been run before the command will bootstrap the pants environment
 > If at any point you get an error that the pants command is not found, run the command
 >
 > ```bash
-> bash bin/get-pants.sh
+> bash get-pants.sh
 > ```
 >
 > and the commands in this document should work.
