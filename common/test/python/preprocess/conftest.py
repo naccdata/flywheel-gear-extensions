@@ -26,8 +26,12 @@ def uds_module_configs():
         "followup_packets": ["F"],
         "versions": ["4.0"],
         "date_field": "visitdate",
-        "legacy_module": "UDS",
-        "legacy_date": "visitdate",
+        "legacy_module": {
+            "label": "UDS",
+            "date_field": "visitdate",
+            "initial_packets": ["I", "IT"],
+            "followup_packets": ["F", "T"],
+        },
         "optional_forms": {
             "4.0": {
                 "I": ["a1a", "a2", "b1", "b3", "b5", "b6", "b7"],
@@ -118,9 +122,9 @@ def np_pp_context():
         "naccid": naccid,
         "ptid": "dummy-ptid",
         "adcid": "0",
-        "npformdate": "2025-01-01",
+        "npformdate": "2025-10-10",
         "packet": "NP",
-        "formver": "4.0",
+        "formver": "11.0",
     }
 
     return PreprocessingContext(

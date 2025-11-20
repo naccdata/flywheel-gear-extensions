@@ -54,12 +54,19 @@ class LegacySanityChecker:
         """
         log.info(f"Checking for multiple visits in {module}")
 
+        ivp_codes = module_configs.initial_packets
+        if (
+            module_configs.legacy_module
+            and module_configs.legacy_module.initial_packets
+        ):
+            ivp_codes = module_configs.legacy_module.initial_packets
+
         initial_packet_query = FormQueryArgs(
             subject_lbl=subject_lbl,
             module=module,
             legacy=True,
             search_col=FieldNames.PACKET,
-            search_val=module_configs.initial_packets,
+            search_val=ivp_codes,
             search_op=DefaultValues.FW_SEARCH_OR,
         )
 
@@ -86,12 +93,13 @@ class LegacySanityChecker:
             return False
 
         log.info(
-            "Retrospective project has an initial visit packet, "
+            f"Retrospective project has {num_legacy} initial visit packets, "
             + "checking ingest project"
         )
 
         # next compare against ingest visits
         initial_packet_query.legacy = False
+        initial_packet_query.search_val = module_configs.initial_packets
         init_packets = self.__form_store.query_form_data(
             **initial_packet_query.model_dump()
         )
@@ -101,9 +109,24 @@ class LegacySanityChecker:
             log.info("Ingest project has no initial visits, passes check")
             return True
 
-        # it not UDS or somehow more than one initial packet exists
+        if len(init_packets) > 1:
+            log.error(
+                "Multiple initial visit packets "
+                + f"found in ingest project for {module}: {len(init_packets)}"
+            )
+            self.__error_writer.write(
+                FileError(
+                    error_type="error",  # type: ignore
+                    error_code=SysErrorCodes.MULTIPLE_IVP,  # type: ignore
+                    value=f"{len(init_packets)} initial visits in ingest project",
+                    message=preprocess_errors[SysErrorCodes.MULTIPLE_IVP],
+                )
+            )
+            return False
+
+        # If not UDS or somehow more than one initial packet exists
         # we have a problem, report error
-        if module.upper() != DefaultValues.UDS_MODULE or len(init_packets) > 1:
+        if module.upper() != DefaultValues.UDS_MODULE and num_legacy > 0:
             log.error(
                 "Initial visit packet(s) already exist for "
                 + f"{module} in ingest project"
@@ -158,7 +181,9 @@ class LegacySanityChecker:
 
         visitdate = module_configs.date_field
         legacy_visitdate = (
-            module_configs.legacy_date if module_configs.legacy_date else visitdate
+            module_configs.legacy_module.date_field
+            if module_configs.legacy_module
+            else visitdate
         )
 
         duplicates_query = FormQueryArgs(
@@ -189,18 +214,16 @@ class LegacySanityChecker:
             return True
 
         # otherwise we need to compare duplicates. store each record's
-        # packet/visitnum/visitdate in a tuple and compare between the projects
-        packet_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.PACKET}"
+        # visitnum/visitdate in a tuple and compare between the projects
         visitnum_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}"
         visitdate_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{visitdate}"
         legacy_visitdate_lbl = f"{MetadataKeys.FORM_METADATA_PATH}.{legacy_visitdate}"
 
         ingest_records = [
-            (record[packet_lbl], record[visitnum_lbl], record[visitdate_lbl])
-            for record in ingest_results
+            (record[visitnum_lbl], record[visitdate_lbl]) for record in ingest_results
         ]
         retro_records = [
-            (record[packet_lbl], record[visitnum_lbl], record[legacy_visitdate_lbl])
+            (record[visitnum_lbl], record[legacy_visitdate_lbl])
             for record in retro_results
         ]
 
@@ -210,8 +233,8 @@ class LegacySanityChecker:
                 no_duplicates = False
                 duplicate_val = (
                     f"subject: {subject_lbl} module: {module}, "
-                    + f"packet: {record[0]} visitnum: {record[1]}, "
-                    + f"visitdate: {record[2]}"
+                    + f"visitnum: {record[0]}, "
+                    + f"visitdate: {record[1]}"
                 )
 
                 log.error(f"Duplicate records found for {duplicate_val}")

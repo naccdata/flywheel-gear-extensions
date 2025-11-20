@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.1.1
+
+* Rebuilt for comanage API changes
+  
 ## 3.1.0
 
 * Change how redcap project authorizations are checked so that each project is checked.

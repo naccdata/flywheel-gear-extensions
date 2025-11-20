@@ -1,6 +1,6 @@
 USERHOME=/home/vscode
 USERBIN=${USERHOME}/bin
-bash bin/get-pants.sh -d ${USERBIN}
+bash get-pants.sh -d ${USERBIN}
 
 export FW_CLI_INSTALL_DIR=${USERBIN}
 curl https://storage.googleapis.com/flywheel-dist/fw-cli/stable/install.sh | bash

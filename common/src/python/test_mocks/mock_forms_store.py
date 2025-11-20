@@ -1,6 +1,6 @@
 """Mocks datastore.forms_store.FormStore."""
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from datastore.forms_store import FormsStore
 from keys.keys import MetadataKeys
@@ -48,7 +48,7 @@ class MockFormsStore(FormsStore):
 
     def query_form_data(
         self, subject_lbl: str, module: str, **kwargs
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         # TODO - mock rest of query for better testing, this
         # is basically hardcoded to return whatever passes the tests
         if subject_lbl not in self.__subjects:
@@ -73,12 +73,12 @@ class MockFormsStore(FormsStore):
 
     def query_form_data_with_custom_filters(
         self, **kwargs
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         return self.query_form_data(**kwargs)
 
     def get_visit_data(
         self, *, file_name: str, acq_id: str
-    ) -> Optional[Dict[str, str]]:
+    ) -> Optional[Dict[str, Any]]:
         for modules in self.__subjects.values():
             for module, files in modules.items():
                 if module != acq_id:

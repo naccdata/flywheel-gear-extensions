@@ -107,7 +107,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
 def generate_project_map(
     proxy: FlywheelProxy,
     centers: Iterable[str],
-    target_project: str,
+    target_project: Optional[str] = None,
     staging_project_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generates the project map.
@@ -136,6 +136,7 @@ def generate_project_map(
 
     # else build project map from ADCID to corresponding
     # FW project for upload, and filter as needed
+    assert target_project
     return build_project_map(
         proxy=proxy, destination_label=target_project, center_filter=list(centers)
     )
@@ -148,8 +149,8 @@ def run(
     input_filename: str,
     error_writer: ListErrorWriter,
     adcid_key: str,
-    target_project: str,
     batch_size: int,
+    target_project: Optional[str] = None,
     staging_project_id: Optional[str] = None,
     include: Optional[Set[str]] = None,
     downstream_gears: Optional[List[str]] = None,

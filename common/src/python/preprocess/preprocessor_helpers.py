@@ -1,10 +1,13 @@
 """Helper classes to aid with the FormPreprocessor."""
 
 import logging
+import math
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
+from dates.form_dates import build_date
 from nacc_common.error_models import VisitKeys
 from nacc_common.field_names import (
     FieldNames,
@@ -81,7 +84,7 @@ class FormPreprocessorErrorHandler:
         self.__error_writer.write(
             preprocessing_error(
                 field=field,
-                value=value,
+                value=str(value),
                 line=pp_context.line_num,
                 error_code=error_code,
                 message=message,
@@ -171,3 +174,59 @@ class FormPreprocessorErrorHandler:
             pp_context=pp_context,
             error_code=error_code,
         )
+
+
+def validate_sex_reported_on_np(npsex: int, uds_record: Dict[str, Any]) -> bool:
+    """Check whether participant's sex reported on NP form and UDS IVP matches.
+
+    Args:
+        npsex: participant's sex reported on NP form
+        uds_record: UDS IVP packet for participant
+
+    Returns:
+        bool: True if UDS and NP values match
+    """
+
+    sex = uds_record.get(FieldNames.SEX)
+    if not sex:
+        sex = uds_record.get(FieldNames.BIRTHSEX)
+
+    if not sex:
+        return False
+
+    sex = int(sex)
+    if sex in [1, 2] and npsex in [1, 2]:
+        return sex == npsex
+
+    return True
+
+
+def validate_age_at_death(
+    np_dod: datetime, np_dage: int, uds_record: Dict[str, Any]
+) -> bool:
+    """Check whether age at death reported on NP form matches with the age at
+    death calculated using DOB reported on UDS IVP.
+
+    Args:
+        np_dod: date of death reported on NP form
+        np_dage: age at death reported on NP form
+        uds_record: UDS IVP packet for participant
+
+    Returns:
+        bool: True if UDS and NP values match
+    """
+
+    birthyr = uds_record.get("birthyr")
+    birthmo = uds_record.get("birthmo")
+
+    if not (birthyr and birthmo):
+        return False
+
+    dob = build_date(year=birthyr, month=birthmo, day="1")
+    if not dob:
+        return False
+
+    # age calculation is based off of how RT has defined it in A1
+    nacc_dage = math.floor((np_dod - dob).days / 365.25)
+
+    return abs(nacc_dage - np_dage) <= 1
