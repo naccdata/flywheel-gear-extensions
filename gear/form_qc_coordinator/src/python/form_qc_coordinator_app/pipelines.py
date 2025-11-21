@@ -9,7 +9,7 @@ from flywheel_adaptor.subject_adaptor import ParticipantVisits, SubjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 from form_qc_coordinator_app.visits import VisitsLookupHelper
@@ -172,6 +172,13 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
             return
 
+        for visit in visits_list:
+            visit[MetadataKeys.TRIGGERED_TIMESTAMP] = (
+                current_visit.validated_timestamp
+                if current_visit.validated_timestamp
+                else ""
+            )
+
         qc_coordinator = QCCoordinator(
             subject=self._subject,
             module=self._module,
@@ -181,7 +188,6 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             proxy=self._proxy,
             gear_context=self._gear_context,
         )
-
         qc_coordinator.run_error_checks(visits=visits_list)
 
     def trigger_qc_process(self):
