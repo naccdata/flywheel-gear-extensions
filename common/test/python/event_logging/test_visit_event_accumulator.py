@@ -1,13 +1,16 @@
 """Tests for VisitEventAccumulator."""
 
 from datetime import date, datetime
+from typing import Dict, Tuple
 
 import pytest
+from configs.ingest_configs import ModuleConfigs
 from event_logging.visit_event_accumulator import (
     PendingVisitData,
     VisitEventAccumulator,
 )
 from flywheel import Project
+from flywheel.models.file_entry import FileEntry
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_event_logging import MockVisitEventLogger
 from test_mocks.mock_flywheel import (
@@ -21,26 +24,26 @@ from test_mocks.mock_flywheel import (
 
 
 @pytest.fixture
-def mock_event_logger():
+def mock_event_logger() -> MockVisitEventLogger:
     """Create mock event logger."""
     return MockVisitEventLogger()
 
 
 @pytest.fixture
-def mock_proxy():
+def mock_proxy() -> MockFlywheelProxy:
     """Create mock Flywheel proxy."""
     return MockFlywheelProxy()
 
 
 @pytest.fixture
-def module_configs():
+def module_configs() -> Dict[str, ModuleConfigs]:
     """Create module configs dict."""
 
     return {"UDS": uds_ingest_configs()}
 
 
 @pytest.fixture
-def mock_project():
+def mock_project() -> Project:
     """Create mock project."""
     project = Project(label="ingest-form-alpha", group="alpha")
     project.info = {"pipeline_adcid": 42}
@@ -48,10 +51,14 @@ def mock_project():
 
 
 @pytest.fixture
-def accumulator(mock_event_logger, module_configs, mock_proxy):
+def accumulator(
+    mock_event_logger: MockVisitEventLogger,
+    module_configs: Dict[str, ModuleConfigs],
+    mock_proxy: MockFlywheelProxy,
+) -> VisitEventAccumulator:
     """Create VisitEventAccumulator instance."""
     return VisitEventAccumulator(
-        event_logger=mock_event_logger,
+        event_logger=mock_event_logger,  # type: ignore[arg-type]
         module_configs=module_configs,
         proxy=mock_proxy,
     )
@@ -60,7 +67,7 @@ def accumulator(mock_event_logger, module_configs, mock_proxy):
 class TestPendingVisitData:
     """Tests for PendingVisitData model."""
 
-    def test_create_pending_visit_data(self):
+    def test_create_pending_visit_data(self) -> None:
         """Test creating PendingVisitData."""
         data = PendingVisitData(
             visit_number="01",
@@ -89,8 +96,11 @@ class TestVisitEventAccumulator:
     """Tests for VisitEventAccumulator."""
 
     def setup_containers(
-        self, mock_proxy, visit_number="01", session_label="FORMS-VISIT-01"
-    ):
+        self,
+        mock_proxy: MockFlywheelProxy,
+        visit_number: str = "01",
+        session_label: str = "FORMS-VISIT-01",
+    ) -> Tuple[MockSession, MockAcquisition, FileEntry]:
         """Set up mock containers for testing.
 
         Args:
@@ -133,7 +143,9 @@ class TestVisitEventAccumulator:
 
         return session, acquisition, file
 
-    def test_record_file_queued_success(self, accumulator, mock_proxy, mock_project):
+    def test_record_file_queued_success(
+        self, accumulator, mock_proxy, mock_project
+    ) -> None:
         """Test successfully recording a queued file."""
         session, acquisition, file = self.setup_containers(mock_proxy)
 
@@ -166,7 +178,9 @@ class TestVisitEventAccumulator:
         # Should not store pending data
         assert len(accumulator.pending) == 0
 
-    def test_record_file_queued_missing_pipeline_adcid(self, accumulator, mock_proxy):
+    def test_record_file_queued_missing_pipeline_adcid(
+        self, accumulator, mock_proxy
+    ) -> None:
         """Test recording file when project missing pipeline_adcid."""
         session, acquisition, file = self.setup_containers(mock_proxy)
 
