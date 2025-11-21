@@ -200,12 +200,12 @@ class VisitEventAccumulator:
 
         Called after pipeline completes. Retrieves JSON metadata and creates
         events based on whether pending data exists:
-        
+
         - If pending data exists (Phase 1 was called):
           Logs "submit" event + outcome event ("pass-qc" or "not-pass-qc")
         - If no pending data (re-evaluation scenario):
           Logs only outcome event ("pass-qc" or "not-pass-qc")
-          
+
         Re-evaluation scenarios include:
         - QC alerts approved after initial failure
         - Dependency resolution (e.g., UDS packet cleared, unblocking follow-up visits)
