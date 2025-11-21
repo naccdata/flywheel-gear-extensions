@@ -25,9 +25,9 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
-from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.error_models import FileError, FileQCModel, GearQCModel, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_logger import get_file_qc_info, update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,
@@ -145,19 +145,20 @@ class QCCoordinator:
             data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
-        info = (
-            visit_file.info
-            if (visit_file.info and "qc" in visit_file.info)
-            else {"qc": {}}
-        )
+        qc_info = get_file_qc_info(visit_file)
+        if not qc_info:
+            qc_info = FileQCModel(qc={})
 
         # add qc-coordinator gear info to visit file metadata
         updated_qc_info = self.__metadata.add_gear_info("qc", visit_file, **qc_result)
         gear_name = self.__metadata.name  # type: ignore
-        info["qc"][gear_name] = updated_qc_info["qc"][gear_name]
+        gear_model = GearQCModel.model_validate(
+            updated_qc_info["qc"][gear_name], by_alias=True
+        )
+        qc_info.set(gear_name=gear_name, gear_model=gear_model)
 
         try:
-            visit_file.update_info(info)
+            visit_file.update_info(qc_info.model_dump(by_alias=True))
         except ApiException as error:
             log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
 

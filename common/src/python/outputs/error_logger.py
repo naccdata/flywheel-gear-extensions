@@ -55,24 +55,25 @@ def get_log_contents(log_file: FileEntry) -> str:
         return reset_str
 
 
-def get_log_qc_info(log_file: FileEntry) -> Optional[FileQCModel]:
-    """Gets the file.info.qc object for the log file.
+def get_file_qc_info(file_entry: FileEntry) -> Optional[FileQCModel]:
+    """Gets the file.info.qc object for the specified file.
 
     Args:
-      log_file: the file entry for the log file
+      file_entry: the file entry object
+
     Returns:
-      a QC model object for the log_file. None if the info object could not be parsed.
+      a QC model object for the file None if the info object could not be parsed.
     """
-    log_file = log_file.reload()
-    if not log_file.info:
+    file_entry = file_entry.reload()
+    if not file_entry.info:
         return FileQCModel(qc={})
-    if "qc" not in log_file.info:
+    if "qc" not in file_entry.info:
         return FileQCModel(qc={})
 
     try:
-        return FileQCModel.model_validate(log_file.info, by_alias=True)
+        return FileQCModel.model_validate(file_entry.info, by_alias=True)
     except ValidationError as error:
-        log.error("Error loading metadata for log file %s: %s", log_file.name, error)
+        log.error("Error loading QC metadata for file %s: %s", file_entry.name, error)
         return None
 
 
@@ -157,7 +158,7 @@ def update_error_log_and_qc_metadata(
     # append to existing error details if any
     if current_log:
         if reset_qc_metadata != "ALL":
-            qc_info = get_log_qc_info(current_log)
+            qc_info = get_file_qc_info(current_log)
 
         contents = get_log_contents(current_log)
 
@@ -223,7 +224,7 @@ def update_gear_qc_status(
         )
         return
 
-    qc_info = get_log_qc_info(current_log)
+    qc_info = get_file_qc_info(current_log)
     if not qc_info:
         log.warning(f"QC info not found in error log file {error_log_name}")
         return
