@@ -9,8 +9,14 @@ class ParentRef:
     @property
     def id(self) -> str: ...
     
+    @id.setter
+    def id(self, value: str) -> None: ...
+    
     @property
     def type(self) -> str: ...
+    
+    @type.setter
+    def type(self, value: str) -> None: ...
 
 
 class FileEntry:
