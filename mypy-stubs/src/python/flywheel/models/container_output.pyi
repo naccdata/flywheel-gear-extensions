@@ -1,4 +1,7 @@
+from typing import List
+
 from flywheel.models.container_parents import ContainerParents
+from flywheel.models.file_entry import FileEntry
 
 
 class ContainerOutput:
@@ -10,3 +13,6 @@ class ContainerOutput:
 
     @property
     def parents(self) -> ContainerParents: ...
+
+    @property
+    def files(self) -> List[FileEntry]: ...
