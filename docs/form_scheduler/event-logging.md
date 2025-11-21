@@ -9,16 +9,21 @@ The form-scheduler gear logs visit events to track the lifecycle of form submiss
 The gear logs three types of events for each visit:
 
 - **submit**: Records when a visit is submitted for processing (uses upload timestamp)
+  - Logged when a CSV file is initially uploaded and queued
+  
 - **pass-qc**: Records when a visit successfully completes all QC checks (uses completion timestamp)
   - **ONLY logged when BOTH conditions are met:**
     1. JSON file exists at ACQUISITION level (proves form-transformer succeeded)
     2. ALL pipeline gears have status="PASS" in QC metadata
+  - **Can be logged independently without a submit event** in the same job
+    - Example: Follow-up visits blocked on UDS packet get evaluated once UDS is cleared
+    
 - **not-pass-qc**: Records when a visit fails QC validation (uses completion timestamp)
   - Logged when ANY of these occur:
     - No JSON file at ACQUISITION level (early failure)
     - Any gear has status != "PASS"
 
-Each visit always generates two events: one "submit" event and one outcome event ("pass-qc" or "not-pass-qc").
+**Important:** Not all visits generate both submit and outcome events in the same job. "pass-qc" events can occur independently when previously blocked visits are re-evaluated.
 
 ## Key Concepts
 
@@ -97,18 +102,23 @@ Understanding where files are stored is important for event logging:
 
 ### Two-Phase Approach
 
-Event logging uses a two-phase accumulation strategy:
+Event logging uses a two-phase accumulation strategy for newly submitted visits:
 
 **Phase 1: Capture Upload Information**
 - When a CSV file is queued for processing
 - Records upload timestamp and project metadata
 - Stores data in memory keyed by visit_number
+- Only applies to newly uploaded files
 
 **Phase 2: Finalize and Log Events**
 - After pipeline completes
 - Retrieves visit metadata from JSON files
-- Creates and logs both "submit" and outcome events
+- Creates and logs events:
+  - For new submissions: both "submit" and outcome events
+  - For re-evaluations: only outcome events (no pending data from Phase 1)
 - Cleans up pending data
+
+**Note:** Re-evaluated visits (e.g., after dependency resolution) skip Phase 1 since they were already submitted previously. Only outcome events are logged for these cases.
 
 ### VisitEventAccumulator Class
 
@@ -589,15 +599,21 @@ Each event file contains a JSON object with the complete VisitEvent data:
 
 ### QC Approval Workflow
 
-The "pass-qc" event can be triggered in two scenarios:
+The "pass-qc" event can be triggered in multiple scenarios:
 
 1. **Immediate success**: Pipeline completes successfully with no QC alerts
-   - Events logged in the same form-scheduler job that processed the submission
+   - Both "submit" and "pass-qc" events logged in the same form-scheduler job
    
 2. **Deferred approval**: Pipeline completes with QC alerts that are later approved
    - "submit" and "not-pass-qc" events logged initially
    - "pass-qc" event logged later when alerts are approved
    - This happens in a separate form-scheduler job
+   
+3. **Dependency resolution**: Visits blocked on dependencies get re-evaluated
+   - Example: Follow-up visits or modules blocked on UDS packet
+   - When blocking dependency is cleared (e.g., UDS packet passes QC), blocked visits are re-evaluated
+   - "pass-qc" event logged WITHOUT a corresponding "submit" event in the same job
+   - The original "submit" event was logged when the visit was first uploaded
 
 ### Modules Without Visit Numbers
 
@@ -615,7 +631,7 @@ If the pipeline fails at identifier-lookup or form-transformer:
 
 ## Summary
 
-Event logging in form-scheduler uses a two-phase accumulation strategy:
+Event logging in form-scheduler uses a two-phase accumulation strategy for new submissions:
 
 1. **Phase 1** (record_file_queued): Capture upload timestamp when file is queued
 2. **Phase 2** (finalize_and_log_events): Complete metadata and log events after pipeline
@@ -627,7 +643,15 @@ This approach ensures:
 - Clean separation of concerns between pipeline and event logging
 - Structured event storage in S3 for downstream processing
 
-**Limitations:**
+**Event Patterns:**
+
+- **New submission**: Both "submit" and outcome events logged in same job
+- **Re-evaluation**: Only outcome event logged (no "submit" event)
+  - Examples: QC approval, dependency resolution (UDS packet cleared)
+
+**Current Limitations:**
 - Requires visit numbers in session labels (module-specific)
 - Requires JSON files at ACQUISITION level (fails for early pipeline failures)
-- Deferred QC approval requires separate job execution
+- Re-evaluation scenarios not fully implemented (returns early if no pending data)
+  - Need to extract metadata from JSON only, without pending data
+  - Need to decide: log "submit" with completion timestamp, or skip "submit" entirely
