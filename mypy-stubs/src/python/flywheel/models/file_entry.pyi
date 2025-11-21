@@ -51,6 +51,10 @@ class FileEntry:
     @property
     def parent_ref(self) -> ParentRef:
         ...
+    
+    @parent_ref.setter
+    def parent_ref(self, value: ParentRef) -> None:
+        ...
 
     def read(self) -> bytes:
         ...
@@ -88,6 +92,10 @@ class FileEntry:
 
     @property
     def created(self) -> datetime:
+        ...
+    
+    @created.setter
+    def created(self, value: datetime) -> None:
         ...
 
     @property
