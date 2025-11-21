@@ -251,9 +251,8 @@ class JSONFileProcessor(FileProcessor):
             # same file but the visit date is different from previously recorded value
             if same_file:
                 log.warning(
-                    "In {subject.label}/{module}, visit date updated from %s to %s",
-                    failed_visit.visitdate,
-                    visitdate,
+                    f"In {self.__subject.label}/{self._module} visit date {visitdate} "
+                    f"is different from failed record date {failed_visit.visitdate}"
                 )
                 return "SAME"
 
@@ -420,14 +419,15 @@ class JSONFileProcessor(FileProcessor):
                     filename=self.__file_entry.name,
                     file_id=self.__file_entry.file_id,
                     visitdate=visitdate,
+                    visitnum=self.__input_record.get(FieldNames.VISITNUM),
                 )
                 self.__subject.set_last_failed_visit(self._module, visit_info)
             # reset failed visit metadata in Flywheel
             elif failed_visit == "SAME":
                 self.__subject.reset_last_failed_visit(self._module)
 
-            # update last validated timestamp in file.info metadata
-            self.__update_validated_timestamp()
+        # update last validated timestamp in file.info metadata
+        self.__update_validated_timestamp()
 
         if not self.update_visit_error_log(
             input_record=self.__input_record, qc_passed=valid, reset_qc_metadata="GEAR"
