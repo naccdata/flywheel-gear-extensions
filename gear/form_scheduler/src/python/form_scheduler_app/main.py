@@ -20,7 +20,7 @@
 import logging
 from typing import Optional
 
-from configs.ingest_configs import PipelineConfigs
+from configs.ingest_configs import ModuleConfigs, PipelineConfigs
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
@@ -38,6 +38,7 @@ def run(
     project_id: str,
     pipeline_configs: PipelineConfigs,
     event_logger: VisitEventLogger,
+    module_configs: dict[str, ModuleConfigs],
     email_client: Optional[EmailClient] = None,
     portal_url: Optional[URLParameter] = None,
 ):
@@ -48,6 +49,8 @@ def run(
         queue: The FormSchedulerQueue which handles the queues
         project_id: The project ID
         pipeline_configs: Form pipeline configurations
+        event_logger: VisitEventLogger for logging visit events
+        module_configs: Dictionary of module configurations keyed by module name
         email_client: EmailClient to send emails from
         portal_url: The portal URL
     """
@@ -56,11 +59,21 @@ def run(
     if not project:
         raise GearExecutionError(f"Cannot find project with ID {project_id}")
 
+    # Create event accumulator for tracking visit events
+    from event_logging.visit_event_accumulator import VisitEventAccumulator
+
+    event_accumulator = VisitEventAccumulator(
+        event_logger=event_logger,
+        module_configs=module_configs,
+        proxy=proxy,
+    )
+
     queue = FormSchedulerQueue(
         proxy=proxy,
         project=project,
         pipeline_configs=pipeline_configs,
         event_logger=event_logger,
+        event_accumulator=event_accumulator,
         email_client=email_client,
         portal_url=portal_url,
     )

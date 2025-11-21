@@ -36,6 +36,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         pipeline_configs_input: InputFileWrapper,
+        form_configs_input: InputFileWrapper,
         event_bucket: S3BucketInterface,
         source_email: Optional[str] = None,
         portal_url: Optional[URLParameter] = None,
@@ -43,6 +44,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         super().__init__(client=client)
 
         self.__configs_input = pipeline_configs_input
+        self.__form_configs_input = form_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
         self.__event_bucket = event_bucket
@@ -70,6 +72,11 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         )
         assert pipeline_configs_input, "missing expected input, pipeline_configs_file"
 
+        form_configs_input = InputFileWrapper.create(
+            input_name="form_configs_file", context=context
+        )
+        assert form_configs_input, "missing expected input, form_configs_file"
+
         source_email = context.config.get("source_email", "nacchelp@uw.edu")
 
         portal_url = None
@@ -92,6 +99,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         return FormSchedulerVisitor(
             client=client,
             pipeline_configs_input=pipeline_configs_input,
+            form_configs_input=form_configs_input,
             event_bucket=event_bucket,
             source_email=source_email,
             portal_url=portal_url,
@@ -138,6 +146,20 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
+        # Load form configs for module configurations
+        try:
+            from pydantic import ValidationError
+            from utils.utils import load_form_ingest_configurations
+
+            form_project_configs = load_form_ingest_configurations(
+                self.__form_configs_input.filepath
+            )
+        except ValidationError as error:
+            raise GearExecutionError(
+                f"Error reading form configurations file "
+                f"{self.__form_configs_input.filename}: {error}"
+            ) from error
+
         event_logger = VisitEventLogger(self.__event_bucket)
 
         # if source email specified, set up client to send emails
@@ -152,6 +174,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             project_id=project_id,
             pipeline_configs=pipeline_configs,
             event_logger=event_logger,
+            module_configs=form_project_configs.module_configs,
             email_client=email_client,
             portal_url=self.__portal_url,
         )

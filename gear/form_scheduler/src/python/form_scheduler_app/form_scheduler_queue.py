@@ -6,9 +6,14 @@ import re
 from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 
-from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
+from configs.ingest_configs import (
+    Pipeline,
+    PipelineConfigs,
+    PipelineType,
+)
 from data.dataview import ColumnModel, make_builder
 from event_logging.event_logging import VisitEventLogger
+from event_logging.visit_event_accumulator import VisitEventAccumulator
 from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -117,6 +122,7 @@ class FormSchedulerQueue:
         project: Project,
         pipeline_configs: PipelineConfigs,
         event_logger: VisitEventLogger,
+        event_accumulator: VisitEventAccumulator,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -126,6 +132,8 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
+            event_logger: VisitEventLogger for logging visit events
+            event_accumulator: VisitEventAccumulator for tracking visit events
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -136,6 +144,7 @@ class FormSchedulerQueue:
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
         self.__event_logger: VisitEventLogger = event_logger
+        self.__event_accumulator = event_accumulator
 
     def queue_files_for_pipeline(self, *, project: Project, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
@@ -213,6 +222,11 @@ class FormSchedulerQueue:
             # add the file to the respective module queue
             if not pipeline_queue.add_file_to_subqueue(module=module, file=file):
                 continue
+
+            # Record file queued for event tracking
+            self.__event_accumulator.record_file_queued(
+                file=file, module=module, project=project
+            )
 
             num_files += 1
 
@@ -477,9 +491,25 @@ class FormSchedulerQueue:
                 # d. wait for the above triggered pipeline to finish
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
+                # Determine if pipeline succeeded by checking QC metadata
+                pipeline_succeeded = self.__check_pipeline_success(file, module)
+
+                # Finalize and log events
+                try:
+                    self.__event_accumulator.finalize_and_log_events(
+                        file=file,
+                        module=module,
+                        pipeline_succeeded=pipeline_succeeded,
+                    )
+                except Exception as error:
+                    log.warning(
+                        f"Failed to log events for {file.name}: {error}",
+                        exc_info=True,
+                    )
+
                 # e. if notifications enabled,
                 #    email to user who uploaded the file that pipeline has completed
-                if notify_user and self.__email_client:
+                if notify_user and self.__email_client and pipeline_succeeded:
                     assert self.__portal_url, "portal URL must be set"
                     send_email(
                         proxy=self.__proxy,
@@ -492,3 +522,96 @@ class FormSchedulerQueue:
                 # f. repeat until current subqueue is empty
 
             # Move to next subqueue, repeat a - f until all subqueues are empty
+
+    def __check_pipeline_success(self, file: FileEntry, module: str) -> bool:
+        """Check if pipeline completed successfully using QC metadata.
+
+        Checks for JSON file at ACQUISITION level and validates that ALL
+        pipeline gears have status="PASS" in QC metadata.
+
+        Args:
+            file: The original CSV file
+            module: Module name
+
+        Returns:
+            True if JSON exists and all gears passed QC, False otherwise
+        """
+        try:
+            from nacc_common.error_models import FileQCModel
+            from pydantic import ValidationError
+
+            acquisition_id = file.parent_ref.id
+            acquisition = self.__proxy.get_container_by_id(acquisition_id)
+
+            # Look for JSON file at ACQUISITION level
+            json_files = [f for f in acquisition.files if f.name.endswith(".json")]
+
+            if not json_files:
+                log.info(
+                    f"No JSON file found for {file.name} - "
+                    f"pipeline failed at identifier-lookup or form-transformer"
+                )
+                return False
+
+            # If multiple JSON files, try to match by module
+            json_file = None
+            if len(json_files) > 1:
+                module_lower = module.lower()
+                matching = [f for f in json_files if module_lower in f.name.lower()]
+                if not matching:
+                    log.warning(
+                        f"No JSON file matching module {module} for {file.name}"
+                    )
+                    return False
+                json_file = matching[0]
+            else:
+                json_file = json_files[0]
+
+            # Reload to get latest metadata
+            json_file = json_file.reload()
+
+            # Parse QC metadata using nacc_common models
+            if not json_file.info or "qc" not in json_file.info:
+                log.warning(f"No QC metadata in {json_file.name}")
+                return False
+
+            try:
+                qc_model = FileQCModel.model_validate(json_file.info)
+            except ValidationError as error:
+                log.warning(f"Failed to parse QC metadata: {error}")
+                return False
+
+            # Check status of all pipeline gears
+            # ALL gears must have status="PASS" for success
+            pipeline_gears = [
+                "form-screening",
+                "identifier-lookup",
+                "form-transformer",
+                "form-qc-checker",
+            ]
+
+            for gear_name in pipeline_gears:
+                status = qc_model.get_status(gear_name)
+
+                if status is None:
+                    # Gear hasn't run yet - pipeline incomplete
+                    log.info(
+                        f"Gear {gear_name} has not run for {file.name} - "
+                        f"pipeline incomplete"
+                    )
+                    return False
+
+                if status != "PASS":
+                    log.info(
+                        f"Gear {gear_name} has status '{status}' for {file.name} - "
+                        f"pipeline did not pass QC"
+                    )
+                    return False
+
+            # All gears passed - this is the ONLY case for success
+            log.info(f"All gears passed QC for {file.name}")
+            return True
+
+        except Exception as error:
+            log.warning(f"Error checking pipeline success: {error}")
+            return False
