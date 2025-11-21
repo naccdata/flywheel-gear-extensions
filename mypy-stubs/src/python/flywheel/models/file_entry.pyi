@@ -5,6 +5,14 @@ from flywheel.models.container_parents import ContainerParents
 from flywheel.models.file_origin import FileOrigin
 
 
+class ParentRef:
+    @property
+    def id(self) -> str: ...
+    
+    @property
+    def type(self) -> str: ...
+
+
 class FileEntry:
 
     def __init__(self, name:Optional[str], info:Optional[Dict[str, Any]]) -> None: ...
@@ -38,6 +46,10 @@ class FileEntry:
 
     @property
     def parents(self) -> ContainerParents:
+        ...
+
+    @property
+    def parent_ref(self) -> ParentRef:
         ...
 
     def read(self) -> bytes:
