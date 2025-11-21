@@ -6,12 +6,13 @@ complexity.
 """
 
 import copy
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from pydantic import field_validator
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from pydantic import BaseModel, field_validator
 
 
 class MockFile(FileEntry):
@@ -80,3 +81,103 @@ class MockProject(ProjectAdaptor):
 
     def reload(self, *args, **kwargs):
         return self
+
+
+class MockParents(BaseModel):
+    """Mock parents object for Flywheel containers."""
+
+    session: Optional[str] = None
+    acquisition: Optional[str] = None
+    subject: Optional[str] = None
+    project: Optional[str] = None
+
+
+class MockParentRef(BaseModel):
+    """Mock parent reference."""
+
+    id: str
+    type: str = "acquisition"
+
+
+class MockSession(BaseModel):
+    """Mock Flywheel session container."""
+
+    id: str
+    label: str
+    parents: MockParents = MockParents()
+
+    def reload(self, *args, **kwargs):
+        return self
+
+
+class MockAcquisition(BaseModel):
+    """Mock Flywheel acquisition container."""
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    id: str
+    label: str
+    parents: MockParents
+    files: List[FileEntry] = []
+
+    def reload(self, *args, **kwargs):
+        return self
+
+
+class MockFlywheelProxy(FlywheelProxy):
+    """Mock FlywheelProxy for testing."""
+
+    def __init__(self):
+        """Initialize mock proxy."""
+        self._containers: Dict[str, Any] = {}
+
+    def add_container(self, container_id: str, container: Any) -> None:
+        """Add a container to the mock proxy.
+
+        Args:
+            container_id: The container ID
+            container: The container object
+        """
+        self._containers[container_id] = container
+
+    def get_container_by_id(self, container_id: str) -> Any:
+        """Get a container by ID.
+
+        Args:
+            container_id: The container ID
+
+        Returns:
+            The container object
+
+        Raises:
+            KeyError: If container not found
+        """
+        if container_id not in self._containers:
+            raise KeyError(f"Container {container_id} not found")
+        return self._containers[container_id]
+
+
+def create_mock_file_with_parent(
+    name: str,
+    parent_id: str,
+    info: Optional[Dict[str, Any]] = None,
+    contents: str = "",
+    created: Optional[datetime] = None,
+) -> MockFile:
+    """Create a mock file with parent reference.
+
+    Args:
+        name: File name
+        parent_id: Parent container ID
+        info: File info metadata
+        contents: File contents
+        created: Creation timestamp
+
+    Returns:
+        MockFile with parent reference
+    """
+    file = MockFile(name=name, info=info, contents=contents)
+    file.parent_ref = MockParentRef(id=parent_id)  # type: ignore[assignment]
+    if created:
+        file.created = created  # type: ignore[misc]
+    return file
