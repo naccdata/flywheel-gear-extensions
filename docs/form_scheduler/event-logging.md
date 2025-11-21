@@ -10,7 +10,13 @@ The gear logs three types of events for each visit:
 
 - **submit**: Records when a visit is submitted for processing (uses upload timestamp)
 - **pass-qc**: Records when a visit successfully completes all QC checks (uses completion timestamp)
+  - **ONLY logged when BOTH conditions are met:**
+    1. JSON file exists at ACQUISITION level (proves form-transformer succeeded)
+    2. ALL pipeline gears have status="PASS" in QC metadata
 - **not-pass-qc**: Records when a visit fails QC validation (uses completion timestamp)
+  - Logged when ANY of these occur:
+    - No JSON file at ACQUISITION level (early failure)
+    - Any gear has status != "PASS"
 
 Each visit always generates two events: one "submit" event and one outcome event ("pass-qc" or "not-pass-qc").
 
@@ -61,22 +67,31 @@ graph TD
 A single CSV file can contain data for multiple visits. The pipeline processes each visit separately:
 
 1. User uploads CSV with visits 01, 02, 03 to PROJECT level
-2. form-screening validates the CSV and creates QC log files at PROJECT level (one per visit)
-3. form-transformer splits CSV into separate JSON files (one per visit) attached to ACQUISITION level
-4. form-qc-checker validates each visit independently and updates QC metadata
-5. Each visit generates its own pair of events
+2. form-screening validates the CSV format
+3. identifier-lookup provisions identifiers and creates QC log files at PROJECT level (one per visit)
+4. form-transformer splits CSV into separate JSON files (one per visit) attached to ACQUISITION level
+5. form-qc-checker validates each visit independently and updates QC metadata
+6. Each visit generates its own pair of events
+
+**Important Notes:**
+- If pipeline fails at identifier-lookup or form-transformer, no JSON file is created at ACQUISITION level
+- QC log files at PROJECT level are still created and track the failure
+- Not all modules have visit numbers in session labels (module-specific configuration)
 
 ### File Locations
 
 Understanding where files are stored is important for event logging:
 
 - **CSV files**: Uploaded to PROJECT level, can contain multiple visits
-- **QC log files**: Created at PROJECT level by form-screening, one per visit
+- **QC log files**: Created at PROJECT level by identifier-lookup gear, one per visit
   - Naming pattern: `{ptid}_{visitdate}_{module}_qc-status.log`
   - Example: `110001_2024-01-15_UDS_qc-status.log`
+  - Always created, even if pipeline fails
 - **JSON files**: Created at ACQUISITION level by form-transformer, one per visit/module
-  - Naming pattern: `{ptid}_FORMS-VISIT-{visitnum}_{module}.json`
+  - Naming pattern: `{ptid}_FORMS-VISIT-{visitnum}_{module}.json` (for modules with visit numbers)
   - Example: `110001_FORMS-VISIT-01_UDS.json`
+  - Only created if pipeline succeeds through form-transformer
+  - Not created if pipeline fails at identifier-lookup or form-transformer
 
 ## Event Logging Architecture
 
@@ -250,41 +265,53 @@ sequenceDiagram
 
 ## Determining Pipeline Success
 
-The gear determines pipeline success by checking QC metadata in the JSON file:
+The gear determines pipeline success by checking QC metadata in the JSON file.
+
+**CRITICAL: "pass-qc" event is ONLY logged when BOTH conditions are met:**
+1. **JSON file exists** at ACQUISITION level (proves form-transformer succeeded)
+2. **ALL gears have status="PASS"** in QC metadata
 
 ```python
 def __check_pipeline_success(file, module) -> bool:
-    """Check if pipeline completed successfully using QC metadata."""
+    """Check if pipeline completed successfully using QC metadata.
+    
+    Returns True ONLY if:
+    1. JSON file exists at ACQUISITION level
+    2. ALL pipeline gears have status="PASS"
+    """
     # Find JSON file in acquisition
     json_file = find_json_file(acquisition, module)
     
     if not json_file:
-        return False  # No JSON = pipeline failed early
+        # No JSON = early failure at identifier-lookup or form-transformer
+        # This is ALWAYS a failure - cannot log "pass-qc"
+        return False
     
     # Parse QC metadata using FileQCModel
     qc_model = FileQCModel.model_validate(json_file.info)
     
-    # Check status of all pipeline gears
-    pipeline_gears = ['form-screening', 'form-transformer', 'form-qc-checker']
+    # Check status of ALL pipeline gears
+    pipeline_gears = ['form-screening', 'identifier-lookup', 
+                      'form-transformer', 'form-qc-checker']
     
     for gear_name in pipeline_gears:
         status = qc_model.get_status(gear_name)
         
         if status is None:
-            return False  # Gear hasn't run
+            return False  # Gear hasn't run - failure
         
-        if status == "FAIL":
-            return False  # Gear failed
-        
-        if status == "IN REVIEW":
-            return False  # Defer logging until review complete
+        if status != "PASS":
+            return False  # Any non-PASS status is failure
     
-    return True  # All gears passed
+    # ALL gears passed - this is the ONLY case for "pass-qc"
+    return True
 ```
 
 **QC Metadata Structure:**
 
 Each gear writes its validation status to `file.info.qc`. Both QC log files (at PROJECT level) and JSON files (at ACQUISITION level) contain this metadata structure.
+
+**For "pass-qc" events, we check the JSON file at ACQUISITION level and require ALL gears to have status="PASS".**
 
 #### QC Log File (at PROJECT level)
 
@@ -372,6 +399,9 @@ gantt
 
 - **submit event**: timestamp = 10:00 (upload_timestamp from Phase 1)
 - **pass-qc event**: timestamp = 10:20 (completion_timestamp from Phase 2)
+  - **Requirements met:**
+    - ✅ JSON file exists at ACQUISITION level
+    - ✅ ALL gears (form-screening, identifier-lookup, form-transformer, form-qc-checker) have status="PASS"
 - Both events logged at 10:20, but with different timestamps
 
 ### Failed Submission
@@ -555,6 +585,34 @@ Each event file contains a JSON object with the complete VisitEvent data:
 }
 ```
 
+## Important Considerations
+
+### QC Approval Workflow
+
+The "pass-qc" event can be triggered in two scenarios:
+
+1. **Immediate success**: Pipeline completes successfully with no QC alerts
+   - Events logged in the same form-scheduler job that processed the submission
+   
+2. **Deferred approval**: Pipeline completes with QC alerts that are later approved
+   - "submit" and "not-pass-qc" events logged initially
+   - "pass-qc" event logged later when alerts are approved
+   - This happens in a separate form-scheduler job
+
+### Modules Without Visit Numbers
+
+Not all modules include visit numbers in their session labels. For modules without visit numbers:
+- Event logging will be skipped (cannot extract visit_number as tracking key)
+- Alternative tracking mechanisms may be needed for such modules
+
+### Early Pipeline Failures
+
+If the pipeline fails at identifier-lookup or form-transformer:
+- No JSON file is created at ACQUISITION level
+- QC log files at PROJECT level still exist and track the failure
+- Event logging requires visit metadata from JSON files, so events cannot be logged for early failures
+- **This is ALWAYS a "not-pass-qc" scenario** - JSON file is required for "pass-qc"
+
 ## Summary
 
 Event logging in form-scheduler uses a two-phase accumulation strategy:
@@ -568,3 +626,8 @@ This approach ensures:
 - Reliable success/failure detection using QC metadata
 - Clean separation of concerns between pipeline and event logging
 - Structured event storage in S3 for downstream processing
+
+**Limitations:**
+- Requires visit numbers in session labels (module-specific)
+- Requires JSON files at ACQUISITION level (fails for early pipeline failures)
+- Deferred QC approval requires separate job execution
