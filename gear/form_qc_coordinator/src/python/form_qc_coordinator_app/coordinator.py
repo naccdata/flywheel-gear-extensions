@@ -426,6 +426,8 @@ class QCCoordinator:
             bool: True if current visit was finalized after the trigger
         """
 
+        log.info(f"Validating finalization trigger: {visit}")
+
         module_timestamp = visit.get(
             f"{self.__module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
         )

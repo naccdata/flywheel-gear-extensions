@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -52,6 +52,8 @@ class VisitsLookupHelper:
         module_configs: ModuleConfigs,
         cutoff_date: Optional[str] = None,
         search_op: Optional[str] = ">=",
+        missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
+        add_timestamp: bool = False,
     ) -> Optional[List[Dict[str, str]]]:
         """Get the list of visits for this participant for the specified
         module. If cutoff_date specified, get the visits having a visit date on
@@ -65,6 +67,8 @@ class VisitsLookupHelper:
             module_configs: form ingest configs for the module
             cutoff_date (optional): If specified, filter visits on cutoff_date
             search_op (optional): Operator to filter visit date, defaults to >=
+            missing_data_strategy: missing_data_strategy, default 'drop-row'
+            add_timestamp: whether to add validation timestamp to result, default False
 
         Returns:
             List[Dict]: List of visits matching with the specified cutoff date
@@ -74,7 +78,7 @@ class VisitsLookupHelper:
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
-        columns = [
+        columns: List[Any] = [
             ptid_key,
             date_col_key,
             "file.name",
@@ -86,6 +90,11 @@ class VisitsLookupHelper:
             visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
 
+        if add_timestamp:
+            timestamp_key = f"file.info.{MetadataKeys.VALIDATED_TIMESTAMP}"
+            timestamp_label = f"{module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
+            columns.append((timestamp_key, timestamp_label))
+
         filters = f"acquisition.label={module}"
 
         if cutoff_date:
@@ -96,6 +105,7 @@ class VisitsLookupHelper:
             dv_title=title,
             columns=columns,
             filters=filters,
+            missing_data_strategy=missing_data_strategy,
         )
 
     def find_module_visits_with_matching_visitdate(

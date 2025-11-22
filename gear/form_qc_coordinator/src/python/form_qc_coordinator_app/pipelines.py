@@ -163,6 +163,8 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             module_configs=self._module_configs,
             cutoff_date=current_visit.visitdate,
             search_op=">",
+            missing_data_strategy="none",
+            add_timestamp=True,
         )
 
         if not visits_list:
