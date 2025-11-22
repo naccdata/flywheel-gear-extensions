@@ -3,12 +3,10 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
@@ -17,7 +15,7 @@ from flywheel_adaptor.subject_adaptor import (
     VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.keys import DefaultValues, MetadataKeys
+from keys.keys import DefaultValues
 from nacc_common.error_models import JSONLocation, VisitKeys
 from nacc_common.field_names import FieldNames
 from outputs.error_logger import (
@@ -270,12 +268,6 @@ class JSONFileProcessor(FileProcessor):
 
         return "NONE"
 
-    def __update_validated_timestamp(self) -> None:
-        """Set/update the validation timestamp in file.info."""
-        timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
-        self.__file_entry = self.__file_entry.reload()
-        self.__file_entry.update_info({MetadataKeys.VALIDATED_TIMESTAMP: timestamp})
-
     def validate_input(
         self, *, input_wrapper: InputFileWrapper
     ) -> Optional[Dict[str, Any]]:
@@ -425,9 +417,6 @@ class JSONFileProcessor(FileProcessor):
             # reset failed visit metadata in Flywheel
             elif failed_visit == "SAME":
                 self.__subject.reset_last_failed_visit(self._module)
-
-        # update last validated timestamp in file.info metadata
-        self.__update_validated_timestamp()
 
         if not self.update_visit_error_log(
             input_record=self.__input_record, qc_passed=valid, reset_qc_metadata="GEAR"

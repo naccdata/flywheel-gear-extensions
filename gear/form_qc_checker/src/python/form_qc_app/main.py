@@ -7,11 +7,13 @@ validator) for validating the inputs.
 
 import json
 import logging
+from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
@@ -21,6 +23,7 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
+from keys.keys import MetadataKeys
 from nacc_common.error_models import FileErrorList
 from nacc_form_validator.quality_check import (
     QualityCheck,
@@ -69,6 +72,14 @@ def update_input_file_qc_status(
         data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
+    # set/update the validation timestamp in file.info
+    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        container_type=gear_context.destination["type"],
+        info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
+    )
+
     fail_tag = f"{gear_name}-FAIL"
     pass_tag = f"{gear_name}-PASS"
     new_tag = f"{gear_name}-{status_str}"
@@ -82,7 +93,8 @@ def update_input_file_qc_status(
     # file.add_tag(new_tag)
     gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
 
-    log.info("QC check status for file %s : %s", file.name, status_str)
+    log.info("QC check status for file %s : %s [%s]", file.name, status_str, timestamp)
+
     return True
 
 
