@@ -22,6 +22,7 @@ VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
 
 class VisitEvent(BaseModel):
     action: VisitEventType
+    study: str = "adrc"
     pipeline_adcid: int
     project_label: str
     center_label: str
