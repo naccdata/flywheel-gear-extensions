@@ -19,9 +19,7 @@ class VisitEventLogger:
     Filename format: log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visitnum}.json
     """
 
-    def __init__(
-        self, s3_bucket: S3BucketInterface, environment: str = "prod"
-    ) -> None:
+    def __init__(self, s3_bucket: S3BucketInterface, environment: str = "prod") -> None:
         """Initialize the event logger.
 
         Args:
