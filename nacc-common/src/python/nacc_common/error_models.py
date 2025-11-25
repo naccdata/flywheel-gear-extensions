@@ -284,5 +284,23 @@ class FileQCModel(BaseModel):
         gear_model.set_errors(errors)
         gear_model.set_status(status)
 
+    def get_file_status(self) -> QCStatus:
+        """Returns the overall QC status for the file based on all gears.
+
+        Returns:
+          - "PASS" if all gears have status "PASS"
+          - "FAIL" if any gear has status "FAIL"
+          - "IN REVIEW" if no gear has status "FAIL" and at least one
+            gear has status "IN REVIEW"
+        """
+        status_set = {gear_model.get_status() for gear_model in self.qc.values()}
+        if "FAIL" in status_set:
+            return "FAIL"
+
+        if "IN REVIEW" in status_set:
+            return "IN REVIEW"
+
+        return "PASS"
+
     def apply(self, visitor: QCVisitor):
         visitor.visit_file_model(self)
