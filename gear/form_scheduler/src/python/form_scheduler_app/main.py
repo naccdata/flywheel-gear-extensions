@@ -22,7 +22,7 @@ from typing import Optional
 
 from configs.ingest_configs import ModuleConfigs, PipelineConfigs
 from event_logging.event_logging import VisitEventLogger
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import URLParameter
 from notifications.email import EmailClient
@@ -55,9 +55,10 @@ def run(
         portal_url: The portal URL
     """
 
-    project = proxy.get_project_by_id(project_id)
-    if not project:
+    fw_project = proxy.get_project_by_id(project_id)
+    if not fw_project:
         raise GearExecutionError(f"Cannot find project with ID {project_id}")
+    project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
     # Create event accumulator for tracking visit events
     from event_logging.visit_event_accumulator import VisitEventAccumulator
@@ -70,7 +71,7 @@ def run(
 
     queue = FormSchedulerQueue(
         proxy=proxy,
-        project=project,
+        project=ProjectAdaptor(project=project, proxy=proxy),
         pipeline_configs=pipeline_configs,
         event_logger=event_logger,
         event_accumulator=event_accumulator,

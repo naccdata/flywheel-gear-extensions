@@ -8,9 +8,8 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
-from flywheel import Project
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import (
     set_gear_inputs,
@@ -113,7 +112,7 @@ class FormSchedulerQueue:
     def __init__(
         self,
         proxy: FlywheelProxy,
-        project: Project,
+        project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
@@ -134,7 +133,9 @@ class FormSchedulerQueue:
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
 
-    def queue_files_for_pipeline(self, *, project: Project, pipeline: Pipeline) -> int:
+    def queue_files_for_pipeline(
+        self, *, project: ProjectAdaptor, pipeline: Pipeline
+    ) -> int:
         """Queue the matching files for the given pipeline.
 
         Args:
@@ -159,12 +160,12 @@ class FormSchedulerQueue:
             )
 
     def _add_submission_pipeline_files(
-        self, *, project: Project, pipeline: Pipeline
+        self, *, project: ProjectAdaptor, pipeline: Pipeline
     ) -> int:
         """Add the files (filtered by queue tags) to submission pipeline queue.
 
         Args:
-            project: Project to pull queue files from
+            project: ProjectAdaptor to pull queue files from
             pipeline: Pipeline configurations
 
         Returns:
@@ -220,13 +221,13 @@ class FormSchedulerQueue:
         return num_files
 
     def _add_finalization_pipeline_files(
-        self, *, project: Project, pipeline: Pipeline
+        self, *, project: ProjectAdaptor, pipeline: Pipeline
     ) -> int:
         """Add the files (filtered by queue tags) to finalization pipeline
         queue.
 
         Args:
-            project: Project to pull queue files from
+            project: ProjectAdaptor to pull queue files from
             pipeline: Pipeline configurations
 
         Returns:
@@ -276,7 +277,7 @@ class FormSchedulerQueue:
         return num_files
 
     def __find_matching_visits_for_the_pipeline(
-        self, *, project: Project, pipeline: Pipeline
+        self, *, project: ProjectAdaptor, pipeline: Pipeline
     ) -> Optional[List[Dict[str, str]]]:
         """Find the visit files with matching modules, tags and extensions for
         the specified pipeline.
@@ -482,7 +483,7 @@ class FormSchedulerQueue:
                         proxy=self.__proxy,
                         email_client=self.__email_client,
                         file=file,
-                        project=self.__project,
+                        project=self.__project.project,
                         portal_url=self.__portal_url,
                     )  # type: ignore
 
