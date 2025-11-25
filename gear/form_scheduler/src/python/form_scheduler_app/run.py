@@ -24,6 +24,7 @@ from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
 from s3.s3_bucket import S3BucketInterface
 
+from form_scheduler_app.form_scheduler_queue import FormSchedulerError
 from form_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
@@ -169,15 +170,18 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             else None
         )
 
-        run(
-            proxy=self.proxy,
-            project_id=project_id,
-            pipeline_configs=pipeline_configs,
-            event_logger=event_logger,
-            module_configs=form_project_configs.module_configs,
-            email_client=email_client,
-            portal_url=self.__portal_url,
-        )
+        try:
+            run(
+                proxy=self.proxy,
+                project_id=project_id,
+                pipeline_configs=pipeline_configs,
+                event_logger=event_logger,
+                module_configs=form_project_configs.module_configs,
+                email_client=email_client,
+                portal_url=self.__portal_url,
+            )
+        except FormSchedulerError as error:
+            raise GearExecutionError(error) from error
 
 
 def main():
