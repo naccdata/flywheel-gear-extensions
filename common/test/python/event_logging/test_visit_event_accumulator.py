@@ -70,6 +70,8 @@ class TestPendingVisitData:
     def test_create_pending_visit_data(self) -> None:
         """Test creating PendingVisitData."""
         data = PendingVisitData(
+            ptid="110001",
+            visit_date="2024-01-15",
             visit_number="01",
             session_id="session-123",
             acquisition_id="acq-456",
@@ -80,6 +82,8 @@ class TestPendingVisitData:
             upload_timestamp=datetime(2024, 1, 15, 10, 0, 0),
         )
 
+        assert data.ptid == "110001"
+        assert data.visit_date == "2024-01-15"
         assert data.visit_number == "01"
         assert data.session_id == "session-123"
         assert data.acquisition_id == "acq-456"
@@ -100,16 +104,22 @@ class TestVisitEventAccumulator:
         mock_proxy: MockFlywheelProxy,
         visit_number: str = "01",
         session_label: str = "FORMS-VISIT-01",
-    ) -> Tuple[MockSession, MockAcquisition, FileEntry]:
+        add_project: bool = False,
+        add_qc_log: bool = False,
+        add_json: bool = False,
+    ) -> Tuple[MockSession, MockAcquisition, FileEntry, Project]:
         """Set up mock containers for testing.
 
         Args:
             mock_proxy: Mock Flywheel proxy
             visit_number: Visit number
             session_label: Session label
+            add_project: Whether to add project container to proxy
+            add_qc_log: Whether to add QC log file at PROJECT level
+            add_json: Whether to add JSON file at ACQUISITION level
 
         Returns:
-            Tuple of (session, acquisition, file)
+            Tuple of (session, acquisition, csv_file, project)
         """
         # Create session
         session = MockSession(
@@ -130,30 +140,83 @@ class TestVisitEventAccumulator:
             files=[],
         )
 
-        # Create file
-        file = create_mock_file_with_parent(
-            name="test.csv",
-            parent_id="acq-456",
-            created=datetime(2024, 1, 15, 10, 0, 0),
-        )
-
         # Add containers to proxy
         mock_proxy.add_container("session-123", session)
         mock_proxy.add_container("acq-456", acquisition)
 
-        return session, acquisition, file
+        # Create project
+        mock_project_obj = Project(label="ingest-form-alpha", group="alpha")
+        mock_project_obj.info = {"pipeline_adcid": 42}
+        mock_project_obj.files = []
 
-    def test_record_file_queued_success(
-        self, accumulator, mock_proxy, mock_project
+        # Create CSV file at PROJECT level
+        csv_file = create_mock_file_with_parent(
+            name="test.csv",
+            parent_id="project-000",
+            created=datetime(2024, 1, 15, 10, 0, 0),
+        )
+
+        # Optionally add QC log file at PROJECT level
+        if add_qc_log:
+            qc_log_file = MockFile(
+                name="110001_2024-01-15_UDS_qc-status.log",
+                info={
+                    "ptid": "110001",
+                    "visitdate": "2024-01-15",
+                    "visitnum": "01",
+                    "packet": "I",
+                    "module": "UDS",
+                },
+            )
+            mock_project_obj.files.append(qc_log_file)
+
+        # Optionally add JSON file at ACQUISITION level
+        if add_json:
+            json_file = MockFile(
+                name="110001_FORMS-VISIT-01_UDS.json",
+                info={
+                    "forms": {
+                        "json": {
+                            "ptid": "110001",
+                            "visitnum": "01",
+                            "visitdate": "2024-01-15",
+                            "packet": "I",
+                            "module": "UDS",
+                        }
+                    },
+                },
+            )
+            acquisition.files.append(json_file)
+
+        # Add project to proxy if requested
+        if add_project:
+            mock_proxy.add_container("project-000", mock_project_obj)
+
+        return session, acquisition, csv_file, mock_project_obj
+
+    def test_record_file_queued_no_metadata(
+        self, accumulator, mock_proxy, mock_event_logger
     ) -> None:
-        """Test successfully recording a queued file."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+        """Test recording queued file when no metadata exists yet.
 
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
+        Scenario 1: CSV at PROJECT level only
+        - No QC log at PROJECT level
+        - No JSON at ACQUISITION level
 
-        # Check that pending data was stored
-        assert "01" in accumulator.pending
-        pending = accumulator.pending["01"]
+        Expected: Temp key created, no submit event logged yet
+        """
+        from event_logging.visit_event_accumulator import VisitKey
+
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Check that pending data was stored with temp key
+        temp_key = VisitKey(ptid="temp_01", visit_date="", module="UDS")
+        assert temp_key in accumulator.pending
+        pending = accumulator.pending[temp_key]
 
         assert pending.visit_number == "01"
         assert pending.session_id == "session-123"
@@ -164,16 +227,113 @@ class TestVisitEventAccumulator:
         assert pending.pipeline_adcid == 42
         assert pending.upload_timestamp == datetime(2024, 1, 15, 10, 0, 0)
         assert pending.csv_filename == "test.csv"
+        assert pending.submit_logged is False
 
-    def test_record_file_queued_invalid_session_label(
-        self, accumulator, mock_proxy, mock_project
-    ):
-        """Test recording file with invalid session label."""
-        session, acquisition, file = self.setup_containers(
-            mock_proxy, session_label="INVALID-LABEL"
+        # No submit event logged yet
+        assert len(mock_event_logger.logged_events) == 0
+
+    def test_record_file_queued_with_qc_log(
+        self, accumulator, mock_proxy, mock_event_logger
+    ) -> None:
+        """Test recording queued file when QC log exists.
+
+        Scenario 2: CSV at PROJECT level + QC log at PROJECT level
+        - QC log exists (created by identifier-lookup)
+        - No JSON at ACQUISITION level yet
+
+        Expected: Submit event logged immediately using QC log metadata
+        """
+        from event_logging.visit_event_accumulator import VisitKey
+
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True, add_qc_log=True
         )
 
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Check that pending data was stored with proper key
+        key = VisitKey(ptid="110001", visit_date="2024-01-15", module="UDS")
+        assert key in accumulator.pending
+        pending = accumulator.pending[key]
+
+        assert pending.ptid == "110001"
+        assert pending.visit_date == "2024-01-15"
+        assert pending.visit_number == "01"
+        assert pending.submit_logged is True
+
+        # Submit event should be logged
+        assert len(mock_event_logger.logged_events) == 1
+        submit_event = mock_event_logger.get_events_by_action("submit")[0]
+        assert submit_event.ptid == "110001"
+        assert submit_event.visit_date == date(2024, 1, 15)
+        assert submit_event.module == "UDS"
+
+    def test_record_file_queued_with_json(
+        self, accumulator, mock_proxy, mock_event_logger
+    ) -> None:
+        """Test recording queued file when JSON exists.
+
+        Scenario 3: CSV at PROJECT level + JSON at ACQUISITION level
+        - No QC log at PROJECT level
+        - JSON exists at ACQUISITION level
+
+        Expected: Submit event logged immediately using JSON metadata
+        """
+        from event_logging.visit_event_accumulator import VisitKey
+
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True, add_json=True
+        )
+
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Check that pending data was stored with proper key
+        key = VisitKey(ptid="110001", visit_date="2024-01-15", module="UDS")
+        assert key in accumulator.pending
+        pending = accumulator.pending[key]
+
+        assert pending.ptid == "110001"
+        assert pending.visit_date == "2024-01-15"
+        assert pending.visit_number == "01"
+        assert pending.submit_logged is True
+
+        # Submit event should be logged
+        assert len(mock_event_logger.logged_events) == 1
+        submit_event = mock_event_logger.get_events_by_action("submit")[0]
+        assert submit_event.ptid == "110001"
+
+    def test_record_file_queued_qc_log_preferred_over_json(
+        self, accumulator, mock_proxy, mock_event_logger
+    ) -> None:
+        """Test that QC log is preferred over JSON when both exist.
+
+        Scenario 4: CSV at PROJECT level + QC log at PROJECT level + JSON at ACQUISITION level
+        - Both QC log and JSON exist
+
+        Expected: QC log is used (more reliable), submit event logged
+        """
+        from event_logging.visit_event_accumulator import VisitKey
+
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True, add_qc_log=True, add_json=True
+        )
+
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Check that pending data was stored
+        key = VisitKey(ptid="110001", visit_date="2024-01-15", module="UDS")
+        assert key in accumulator.pending
+
+        # Submit event should be logged
+        assert len(mock_event_logger.logged_events) == 1
+
+    def test_record_file_queued_invalid_session_label(self, accumulator, mock_proxy):
+        """Test recording file with invalid session label."""
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, session_label="INVALID-LABEL", add_project=True
+        )
+
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
 
         # Should not store pending data
         assert len(accumulator.pending) == 0
@@ -182,37 +342,51 @@ class TestVisitEventAccumulator:
         self, accumulator, mock_proxy
     ) -> None:
         """Test recording file when project missing pipeline_adcid."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
-
-        # Create project without pipeline_adcid
-        project = Project(label="ingest-form-alpha", group="alpha")
-        project.info = {}
-
-        accumulator.record_file_queued(file=file, module="UDS", project=project)
-
-        # Should not store pending data
-        assert len(accumulator.pending) == 0
-
-    def test_record_file_queued_unknown_module(
-        self, accumulator, mock_proxy, mock_project
-    ):
-        """Test recording file with unknown module."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
-
-        accumulator.record_file_queued(
-            file=file, module="UNKNOWN", project=mock_project
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
         )
 
+        # Remove pipeline_adcid
+        project.info = {}
+
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
         # Should not store pending data
         assert len(accumulator.pending) == 0
 
-    def test_finalize_and_log_events_success(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
-    ):
-        """Test successfully finalizing and logging events."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+    def test_record_file_queued_unknown_module(self, accumulator, mock_proxy):
+        """Test recording file with unknown module."""
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
 
-        # Create JSON file with metadata
+        accumulator.record_file_queued(file=csv_file, module="UNKNOWN", project=project)
+
+        # Should not store pending data
+        assert len(accumulator.pending) == 0
+
+    def test_log_outcome_event_deferred_submit(
+        self, accumulator, mock_proxy, mock_event_logger
+    ):
+        """Test logging outcome when submit was deferred.
+
+        Setup:
+        - At queue time: CSV only (no metadata)
+        - At completion: CSV + JSON at ACQUISITION level
+
+        Expected: Submit event logged during log_outcome_event (deferred)
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # No submit event yet
+        assert len(mock_event_logger.logged_events) == 0
+
+        # Now add JSON file (simulating pipeline creating it)
         json_file = MockFile(
             name="110001_FORMS-VISIT-01_UDS.json",
             info={
@@ -225,66 +399,57 @@ class TestVisitEventAccumulator:
                         "module": "UDS",
                     }
                 },
-                "qc": {
-                    "form-screening": {"validation": {"state": "PASS"}},
-                    "form-transformer": {"validation": {"state": "PASS"}},
-                    "form-qc-checker": {"validation": {"state": "PASS"}},
-                },
             },
         )
         acquisition.files = [json_file]
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
-
-        # Then finalize and log events
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        # Log outcome event
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
         )
 
-        # Check that events were logged
+        # Check that both events were logged
         assert len(mock_event_logger.logged_events) == 2
 
-        # Check submit event
+        # Check submit event (deferred)
         submit_events = mock_event_logger.get_events_by_action("submit")
         assert len(submit_events) == 1
         submit_event = submit_events[0]
-        assert submit_event.action == "submit"
         assert submit_event.ptid == "110001"
-        assert submit_event.visit_number == "01"
-        assert submit_event.visit_date == date(2024, 1, 15)
-        assert submit_event.module == "UDS"
-        assert submit_event.packet == "I"
-        assert submit_event.pipeline_adcid == 42
-        assert submit_event.project_label == "ingest-form-alpha"
-        assert submit_event.center_label == "alpha"
-        assert submit_event.gear_name == "form-scheduler"
-        assert submit_event.datatype == "form"
         assert submit_event.timestamp == datetime(2024, 1, 15, 10, 0, 0)
 
         # Check pass-qc event
         pass_qc_events = mock_event_logger.get_events_by_action("pass-qc")
         assert len(pass_qc_events) == 1
         pass_qc_event = pass_qc_events[0]
-        assert pass_qc_event.action == "pass-qc"
         assert pass_qc_event.ptid == "110001"
-        assert pass_qc_event.visit_number == "01"
-        assert pass_qc_event.visit_date == date(2024, 1, 15)
-        assert pass_qc_event.module == "UDS"
-        assert pass_qc_event.packet == "I"
-        # Completion timestamp should be different from upload timestamp
         assert pass_qc_event.timestamp != submit_event.timestamp
 
-        # Check that pending data was cleaned up
+        # Pending data cleaned up
         assert len(accumulator.pending) == 0
 
-    def test_finalize_and_log_events_failure(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
+    def test_log_outcome_event_immediate_submit(
+        self, accumulator, mock_proxy, mock_event_logger
     ):
-        """Test finalizing and logging events when pipeline fails."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+        """Test logging outcome when submit was immediate.
 
-        # Create JSON file with metadata
+        Setup:
+        - At queue time: CSV + QC log at PROJECT level
+        - At completion: CSV + QC log + JSON at ACQUISITION level
+
+        Expected: Only outcome event logged (submit already logged at queue time)
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True, add_qc_log=True
+        )
+
+        # Queue file with QC log - submit event logged immediately
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Submit event already logged
+        assert len(mock_event_logger.logged_events) == 1
+
+        # Add JSON file (created by pipeline)
         json_file = MockFile(
             name="110001_FORMS-VISIT-01_UDS.json",
             info={
@@ -297,19 +462,63 @@ class TestVisitEventAccumulator:
                         "module": "UDS",
                     }
                 },
-                "qc": {
-                    "form-screening": {"validation": {"state": "FAIL"}},
+            },
+        )
+        acquisition.files = [json_file]
+
+        # Log outcome event
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
+        )
+
+        # Check that only outcome event was added (total 2 events)
+        assert len(mock_event_logger.logged_events) == 2
+
+        # Check pass-qc event
+        pass_qc_events = mock_event_logger.get_events_by_action("pass-qc")
+        assert len(pass_qc_events) == 1
+
+        # Pending data cleaned up
+        assert len(accumulator.pending) == 0
+
+    def test_log_outcome_event_failure(
+        self, accumulator, mock_proxy, mock_event_logger
+    ):
+        """Test logging outcome event when pipeline fails.
+
+        Setup:
+        - At queue time: CSV only
+        - At completion: CSV + JSON at ACQUISITION level
+
+        Expected: Submit + not-pass-qc events logged
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Add JSON file
+        json_file = MockFile(
+            name="110001_FORMS-VISIT-01_UDS.json",
+            info={
+                "forms": {
+                    "json": {
+                        "ptid": "110001",
+                        "visitnum": "01",
+                        "visitdate": "2024-01-15",
+                        "packet": "I",
+                        "module": "UDS",
+                    }
                 },
             },
         )
         acquisition.files = [json_file]
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
-
-        # Then finalize and log events with failure
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=False
+        # Log outcome with failure
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=False
         )
 
         # Check that events were logged
@@ -326,51 +535,62 @@ class TestVisitEventAccumulator:
         assert not_pass_qc_event.action == "not-pass-qc"
         assert not_pass_qc_event.ptid == "110001"
 
-        # Check that pending data was cleaned up
+        # Pending data cleaned up
         assert len(accumulator.pending) == 0
 
-    def test_finalize_and_log_events_no_pending_data(
+    def test_log_outcome_event_no_pending_data(
         self, accumulator, mock_proxy, mock_event_logger
     ):
-        """Test finalizing when no pending data exists (re-evaluation
-        scenario).
+        """Test logging outcome event when no pending data exists (re-
+        evaluation).
 
-        This represents cases where visits are re-evaluated without a new
-        submission, such as:
+        Setup:
+        - CSV at PROJECT level
+        - JSON at ACQUISITION level
+        - No pending data (record_file_queued not called)
+
+        This represents re-evaluation scenarios:
         - QC alerts approved after initial failure
         - Dependency resolution (e.g., UDS packet cleared)
 
         Current behavior: No events logged (returns early)
-        Future enhancement: Should log outcome event only (no submit event)
+        Future: Should log outcome event only (no submit event)
         """
-        session, acquisition, file = self.setup_containers(mock_proxy)
-
-        # Don't record file as queued, just try to finalize
-        # This simulates a re-evaluation scenario
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True, add_json=True
         )
 
-        # Current behavior: No events should be logged
-        # TODO: When re-evaluation support is added, this should log
-        # a "pass-qc" event without a "submit" event
+        # Don't call record_file_queued - simulates re-evaluation
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
+        )
+
+        # Current behavior: No events logged
+        # TODO: Support re-evaluation by logging outcome event only
         assert len(mock_event_logger.logged_events) == 0
 
-    def test_finalize_and_log_events_no_json_file(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
+    def test_log_outcome_event_no_json_file(
+        self, accumulator, mock_proxy, mock_event_logger
     ):
-        """Test finalizing when JSON file is missing."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+        """Test logging outcome when pipeline fails before creating JSON.
 
-        # No JSON file in acquisition
-        acquisition.files = []
+        Setup:
+        - At queue time: CSV only
+        - At completion: CSV only (no JSON, no QC log)
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
+        Represents: Pipeline failed at identifier-lookup or form-transformer
+        Expected: No events logged, pending data cleaned up
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
 
-        # Then try to finalize
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Try to log outcome with no JSON created
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
         )
 
         # No events should be logged
@@ -379,13 +599,26 @@ class TestVisitEventAccumulator:
         # Pending data should be cleaned up
         assert len(accumulator.pending) == 0
 
-    def test_finalize_and_log_events_missing_metadata(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
+    def test_log_outcome_event_missing_metadata(
+        self, accumulator, mock_proxy, mock_event_logger
     ):
-        """Test finalizing when JSON file missing required metadata."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+        """Test logging outcome when JSON has incomplete metadata.
 
-        # Create JSON file with incomplete metadata
+        Setup:
+        - At queue time: CSV only
+        - At completion: CSV + malformed JSON at ACQUISITION level
+
+        Represents: Malformed JSON file (missing required fields)
+        Expected: No events logged, pending data cleaned up
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Add JSON file with incomplete metadata
         json_file = MockFile(
             name="110001_FORMS-VISIT-01_UDS.json",
             info={
@@ -401,12 +634,9 @@ class TestVisitEventAccumulator:
         )
         acquisition.files = [json_file]
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
-
-        # Then try to finalize
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        # Try to log outcome
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
         )
 
         # No events should be logged
@@ -415,13 +645,25 @@ class TestVisitEventAccumulator:
         # Pending data should be cleaned up
         assert len(accumulator.pending) == 0
 
-    def test_finalize_and_log_events_multiple_json_files(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
+    def test_log_outcome_event_multiple_json_files(
+        self, accumulator, mock_proxy, mock_event_logger
     ):
-        """Test finalizing when multiple JSON files exist."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+        """Test logging outcome when multiple JSON files exist.
 
-        # Create multiple JSON files
+        Setup:
+        - At queue time: CSV only
+        - At completion: CSV + multiple JSON files at ACQUISITION level
+
+        Expected: Correct module-specific JSON file is selected
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Add multiple JSON files
         json_file_uds = MockFile(
             name="110001_FORMS-VISIT-01_UDS.json",
             info={
@@ -452,12 +694,9 @@ class TestVisitEventAccumulator:
         )
         acquisition.files = [json_file_other, json_file_uds]
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
-
-        # Then finalize - should find UDS file
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        # Log outcome - should find UDS file
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
         )
 
         # Events should be logged
@@ -467,43 +706,66 @@ class TestVisitEventAccumulator:
         submit_event = mock_event_logger.get_events_by_action("submit")[0]
         assert submit_event.module == "UDS"
 
-    def test_extract_visit_number_different_formats(
-        self, accumulator, mock_proxy, mock_project
-    ):
-        """Test extracting visit numbers from different session label
-        formats."""
+    def test_extract_visit_number_different_formats(self, accumulator, mock_proxy):
+        """Test extracting visit numbers from different session label formats.
+
+        Setup: CSV at PROJECT level with different session labels
+        Expected: Visit numbers correctly extracted from session labels
+        """
+        from event_logging.visit_event_accumulator import VisitKey
+
         # Test with visit 01
-        session1, acquisition1, file1 = self.setup_containers(
-            mock_proxy, visit_number="01", session_label="FORMS-VISIT-01"
+        session1, acquisition1, csv_file1, project1 = self.setup_containers(
+            mock_proxy,
+            visit_number="01",
+            session_label="FORMS-VISIT-01",
+            add_project=True,
         )
-        accumulator.record_file_queued(file=file1, module="UDS", project=mock_project)
-        assert "01" in accumulator.pending
+        accumulator.record_file_queued(file=csv_file1, module="UDS", project=project1)
+        temp_key_01 = VisitKey(ptid="temp_01", visit_date="", module="UDS")
+        assert temp_key_01 in accumulator.pending
 
         # Clear pending
         accumulator.pending.clear()
 
         # Test with visit 10
-        session2, acquisition2, file2 = self.setup_containers(
-            mock_proxy, visit_number="10", session_label="FORMS-VISIT-10"
+        session2, acquisition2, csv_file2, project2 = self.setup_containers(
+            mock_proxy,
+            visit_number="10",
+            session_label="FORMS-VISIT-10",
+            add_project=True,
         )
         # Update container IDs to avoid conflicts
         session2.id = "session-124"
         acquisition2.id = "acq-457"
         acquisition2.parents.session = "session-124"
-        file2.parent_ref.id = "acq-457"
+        csv_file2.parent_ref.id = "project-001"
+        project2.id = "project-001"
         mock_proxy.add_container("session-124", session2)
         mock_proxy.add_container("acq-457", acquisition2)
+        mock_proxy.add_container("project-001", project2)
 
-        accumulator.record_file_queued(file=file2, module="UDS", project=mock_project)
-        assert "10" in accumulator.pending
+        accumulator.record_file_queued(file=csv_file2, module="UDS", project=project2)
+        temp_key_10 = VisitKey(ptid="temp_10", visit_date="", module="UDS")
+        assert temp_key_10 in accumulator.pending
 
-    def test_packet_optional(
-        self, accumulator, mock_proxy, mock_project, mock_event_logger
-    ):
-        """Test that packet field is optional."""
-        session, acquisition, file = self.setup_containers(mock_proxy)
+    def test_packet_optional(self, accumulator, mock_proxy, mock_event_logger):
+        """Test that packet field is optional in metadata.
 
-        # Create JSON file without packet
+        Setup:
+        - At queue time: CSV only
+        - At completion: CSV + JSON without packet field
+
+        Expected: Events logged with packet=None
+        """
+        session, acquisition, csv_file, project = self.setup_containers(
+            mock_proxy, add_project=True
+        )
+
+        # Queue file with no metadata
+        accumulator.record_file_queued(file=csv_file, module="UDS", project=project)
+
+        # Add JSON file without packet
         json_file = MockFile(
             name="110001_FORMS-VISIT-01_UDS.json",
             info={
@@ -520,12 +782,9 @@ class TestVisitEventAccumulator:
         )
         acquisition.files = [json_file]
 
-        # First record the file as queued
-        accumulator.record_file_queued(file=file, module="UDS", project=mock_project)
-
-        # Then finalize and log events
-        accumulator.finalize_and_log_events(
-            file=file, module="UDS", pipeline_succeeded=True
+        # Log outcome
+        accumulator.log_outcome_event(
+            file=csv_file, module="UDS", pipeline_succeeded=True
         )
 
         # Events should be logged with packet=None
