@@ -6,10 +6,9 @@ from json.decoder import JSONDecodeError
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
-from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -307,7 +306,7 @@ def trigger_gear(
 
 def set_gear_inputs(
     *,
-    project: Project,
+    project: ProjectAdaptor,
     gear_name: str,
     locator: LocatorType,
     gear_inputs_list: List[GearInput],

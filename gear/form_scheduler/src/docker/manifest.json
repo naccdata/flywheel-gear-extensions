@@ -34,6 +34,15 @@
                     "source code"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with form module configurations",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -51,6 +60,11 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "event_bucket": {
+            "description": "The S3 bucket name for visit event logging",
+            "type": "string",
+            "default": "submission-events"
         }
     },
     "command": "/bin/run"

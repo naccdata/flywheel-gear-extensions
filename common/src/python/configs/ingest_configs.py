@@ -6,6 +6,7 @@ from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
+from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import PreprocessingChecks
 from nacc_common.field_names import FieldNames
@@ -267,6 +268,19 @@ class Pipeline(BaseModel):
     extensions: List[str]
     starting_gear: GearInfo
     notify_user: bool = False
+
+    def file_match(self, file_entry: FileEntry) -> bool:
+        """Indicates whether the file matches the tags and extensions for the
+        pipeline.
+
+        Args:
+          file_entry: the file
+        Returns:
+          True if the file tags and extension matches. False, otherwise.
+        """
+        return set(self.tags).issubset(
+            set(file_entry.tags)
+        ) and file_entry.name.lower().endswith(tuple(self.extensions))
 
 
 class PipelineConfigs(BaseModel):

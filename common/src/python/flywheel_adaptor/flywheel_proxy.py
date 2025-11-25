@@ -1148,6 +1148,17 @@ class ProjectAdaptor:
         """
         return self._project.get_file(name)
 
+    def get_file_by_id(self, file_id: str) -> Optional[FileEntry]:
+        """Returns the file by id.
+
+        Args:
+          file_id: the file ID
+        Returns:
+          the file with the file ID
+        """
+        # TODO: should return None if not in this project
+        return self.proxy.get_file(file_id)
+
     def reload(self):
         """Forces a reload on the project."""
         self._project = self._project.reload()
