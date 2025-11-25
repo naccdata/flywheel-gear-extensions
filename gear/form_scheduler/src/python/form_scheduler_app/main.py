@@ -82,7 +82,7 @@ def run(
     num_files = -1
     while num_files != 0:
         # force a project reload with each outer loop
-        project = project.reload()
+        project.reload()
 
         num_files = 0  # reset counter for next iteration
         # Pull and queue the tagged files for each pipeline
