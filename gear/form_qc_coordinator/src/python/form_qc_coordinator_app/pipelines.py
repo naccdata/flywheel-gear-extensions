@@ -114,6 +114,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
 
         qc_coordinator.run_error_checks(visits=visits_list)
@@ -150,6 +151,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 qc_gear_info=self._qc_gear_info,
                 proxy=self._proxy,
                 gear_context=self._gear_context,
+                visits_lookup_helper=self._visits_lookup_helper,
             )
 
             qc_coordinator.run_error_checks(visits=dep_visits)
@@ -189,6 +191,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
         qc_coordinator.run_error_checks(visits=visits_list)
 

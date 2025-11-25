@@ -77,9 +77,11 @@ class VisitsLookupHelper:
         title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
         columns: List[Any] = [
             ptid_key,
+            naccid_key,
             date_col_key,
             "file.name",
             "file.file_id",
@@ -136,11 +138,13 @@ class VisitsLookupHelper:
         title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
         timestamp_key = f"file.info.{MetadataKeys.VALIDATED_TIMESTAMP}"
         timestamp_label = f"{module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
         columns = [
             ptid_key,
+            naccid_key,
             date_col_key,
             "file.name",
             "file.file_id",
