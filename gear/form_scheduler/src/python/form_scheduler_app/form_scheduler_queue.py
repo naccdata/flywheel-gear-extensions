@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+from collections import defaultdict
 from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 
@@ -102,42 +103,48 @@ class PipelineQueue(BaseModel):
         return all(not x for x in self.subqueues.values())
 
     def add_pipeline_files(self, project: ProjectAdaptor) -> int:
-        return 0
-
-
-class SubmissionPipelineQueue(PipelineQueue):
-    def add_pipeline_files(self, project: ProjectAdaptor) -> int:
-        """Add the files (filtered by queue tags) to submission pipeline queue.
+        """Adds files from the project matching the pipeline to the queues.
 
         Args:
-            project: ProjectAdaptor to pull queue files from
-            pipeline: Pipeline configurations
-
-        Returns:
-            The number of files added to the submission pipeline queue
+          project: the project
         """
-
-        # filter project files with matching tags and extensions
-        files: List[FileEntry] = [
-            file_entry
-            for file_entry in project.files
-            if self.pipeline.file_match(file_entry)
-        ]
-
-        if len(files) == 0:
+        module_map = self.find_matching_visits_for_the_pipeline(project)
+        if not module_map:
             log.info(
                 f"No matching files for pipeline `{self.name}` with "
                 f"tags: {self.tags} and extensions: {self.extensions}"
             )
             return 0
 
-        # grabs files in the format *-<module>.<ext>
         num_files = 0
+        for module, files in module_map.items():
+            for file in files:
+                added = self.add_file_to_subqueue(module, file)
+                if added:
+                    num_files += 1
+
+        self.sort_subqueues()
+
+        return num_files
+
+    def find_matching_visits_for_the_pipeline(
+        self, project: ProjectAdaptor
+    ) -> dict[str, list[FileEntry]]:
+        return {}
+
+
+class SubmissionPipelineQueue(PipelineQueue):
+    def find_matching_visits_for_the_pipeline(
+        self, project: ProjectAdaptor
+    ) -> dict[str, list[FileEntry]]:
+        files = [
+            file_entry
+            for file_entry in project.files
+            if self.pipeline.file_match(file_entry)
+        ]
+        module_map: dict[str, list[FileEntry]] = defaultdict(list)
         for file in files:
             match = re.search(MODULE_PATTERN, file.name.lower())
-            # skip over files that do not match regex - form-screening gear should
-            # check this so these should just be files that were incorrectly tagged
-            # by something else
             if not match:
                 log.warning(
                     "File %s is incorrectly tagged with one or more tags %s",
@@ -147,64 +154,14 @@ class SubmissionPipelineQueue(PipelineQueue):
                 continue
 
             module = match.group(1)
-
-            # add the file to the respective module queue
-            if not self.add_file_to_subqueue(module=module, file=file):
-                continue
-
-            num_files += 1
-
-        # sort the files in each subqueue by ascending order of last modified date
-        self.sort_subqueues()
-
-        return num_files
+            module_map[module].append(file)
+        return module_map
 
 
 class FinalizationPipelineQueue(PipelineQueue):
-    def add_pipeline_files(self, *, project: ProjectAdaptor) -> int:
-        # TODO: Find a way to search multiple tags
-        # Checked with FW and multi tag OR search currently doesn't work
-        # finalization pipeline currently only has one tag, so no issue for now
-        if len(self.tags) > 1:
-            raise GearExecutionError(
-                f"Cannot support searching for multiple file tags {self.tags}"
-            )
-
-        # find the list of visits with matching tags and extensions
-        # for the modules accepted for this pipeline
-        finalized_visits = self.__find_matching_visits_for_the_pipeline(
-            project=project
-        )
-
-        if not finalized_visits:
-            log.info(
-                "No matching files for pipeline `%s` with tags: %s and extensions: %s",
-                self.name,
-                self.tags,
-                self.extensions,
-            )
-            return 0
-
-        num_files = 0
-        for visit in finalized_visits:
-            visit_file = project.get_file(visit["file_id"])
-            if visit_file is None:
-                continue
-
-            # add the file to the respective module queue
-            if not self.add_file_to_subqueue(module=visit["module"], file=visit_file):
-                continue
-
-            num_files += 1
-
-        # sort the files in each subqueue by ascending order of last modified date
-        self.sort_subqueues()
-
-        return num_files
-
-    def __find_matching_visits_for_the_pipeline(
+    def find_matching_visits_for_the_pipeline(
         self, *, project: ProjectAdaptor
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> dict[str, list[FileEntry]]:
         """Find the visit files with matching modules, tags and extensions for
         the specified pipeline.
 
@@ -215,6 +172,14 @@ class FinalizationPipelineQueue(PipelineQueue):
         Returns:
             List[Dict[str, str]](optional): matching visits if found
         """
+
+        # TODO: Find a way to search multiple tags
+        # Checked with FW and multi tag OR search currently doesn't work
+        # finalization pipeline currently only has one tag, so no issue for now
+        if len(self.tags) > 1:
+            raise GearExecutionError(
+                f"Cannot support searching for multiple file tags {self.tags}"
+            )
 
         modules = self.modules
         tag = self.tags[0]
@@ -228,9 +193,7 @@ class FinalizationPipelineQueue(PipelineQueue):
             description="List of finalized visits for the module",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
-                ColumnModel(data_key="file.file_id", label="file_id"),
                 ColumnModel(data_key="acquisition.label", label="module"),
-                ColumnModel(data_key="file.tags", label="file_tags"),
             ],
             container="acquisition",
             filter_str=f"acquisition.label=|[{','.join(modules)}],file.tags={tag}",
@@ -244,6 +207,7 @@ class FinalizationPipelineQueue(PipelineQueue):
         builder.file_container("acquisition")
         view = builder.build()
 
+        module_map: dict[str, list[FileEntry]] = defaultdict(list)
         with project.read_dataview(view=view) as resp:
             try:
                 result = json.load(resp)
@@ -254,12 +218,19 @@ class FinalizationPipelineQueue(PipelineQueue):
                     project.id,
                     error,
                 )
-                return None
+                return module_map
 
         if not result or "data" not in result:
-            return None
+            return module_map
 
-        return result["data"]
+        for visit in result["data"]:
+            file = project.get_file(visit["filename"])
+            if file is None:
+                continue
+
+            module_map[visit["module"]].append(file)
+
+        return module_map
 
 
 class FormSchedulerQueue:
