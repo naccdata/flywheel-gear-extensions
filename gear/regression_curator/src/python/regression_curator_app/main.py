@@ -6,13 +6,14 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
-from curator.regression_curator import RegressionCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
 from s3.s3_client import S3BucketReader
+
+from .regression_curator import RegressionCurator
 
 log = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-"""Entry script for UDS Curator."""
+"""Entry script for Attribute Curator."""
 
 import logging
 from typing import List, Optional

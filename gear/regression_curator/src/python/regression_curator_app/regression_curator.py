@@ -12,6 +12,7 @@ import math
 import logging
 from typing import Any, Dict, MutableMapping, Optional, Set
 
+from curator.curator import Curator, ProjectCurationError
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import (
@@ -28,7 +29,6 @@ from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
 from utils.decorators import api_retry
 
-from .curator import Curator, ProjectCurationError
 
 log = logging.getLogger(__name__)
 

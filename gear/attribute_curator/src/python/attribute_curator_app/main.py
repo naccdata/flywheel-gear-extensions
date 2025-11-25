@@ -4,10 +4,11 @@ import json
 import logging
 from typing import MutableMapping, Optional
 
-from curator.form_curator import FormCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
+
+from .form_curator import FormCurator
 
 log = logging.getLogger(__name__)
 

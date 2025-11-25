@@ -7,6 +7,8 @@ from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
 from typing import Any, Dict, MutableMapping, Optional, List
 
+from curator.curator import Curator, ProjectCurationError, determine_scope
+from curator.scheduling_models import FileModel
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from gear_execution.gear_execution import InputFileWrapper
@@ -25,14 +27,12 @@ from nacc_attribute_deriver.utils.errors import (
 )
 from nacc_attribute_deriver.utils.scope import (
     FormScope,
+    GeneticsScope,
     MixedProtocolScope,
     ScopeLiterals,
 )
 from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
-
-from .curator import Curator, ProjectCurationError, determine_scope
-from .scheduling_models import FileModel
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +46,25 @@ BACKPROP_SCOPES = [
     MixedProtocolScope.PET_DICOM,
 ]
 
+# scopes with cross-sectional values that need to be
+# pushed back into UDS/NP
+CHILD_SCOPES = {
+    FormScope.UDS: [
+        FormScope.CROSS_MODULE,
+        FormScope.MILESTONE,
+        FormScope.FTLD,
+        FormScope.LBD,
+        FormScope.CSF,
+        GeneticsScope.APOE,
+        GeneticsScope.NCRAD_BIOSAMPLES,
+        GeneticsScope.NIAGADS_AVAILABILITY,
+        MixedProtocolScope.MRI_DICOM,
+        MixedProtocolScope.PET_DICOM,
+    ],
+    FormScope.NP: [
+        FormScope.CROSS_MODULE
+    ]
+}
 
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
@@ -74,6 +93,20 @@ class FormCurator(Curator):
         self.__scoped_variables = {
             scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
         }
+
+        # due to the nature of UDS/NP, it also includes additional scopes
+        # TODO: this is currently a hack because the ETL process cannot
+        # pull multiple sources (e.g. file.info and subject.info), so for
+        # now we are stuffing the necessary variables back into the file
+        # level
+        for scope, child_scopes in CHILD_SCOPES.items():
+            if scope not in self.__scoped_variables:
+                self.__scoped_variables[scope] = []
+
+            for child_scope in child_scopes:
+                self.__scoped_variables[scope].extend(
+                    self.__extract_attributes(child_scope)
+                )
 
         if rxclass_concepts is not None:
             log.info("RxClass concepts provided, will not query RxNav")
@@ -394,18 +427,18 @@ class FormCurator(Curator):
 
         # filter out to scopes that need to be back-propagated
         scope_derived: Dict[str, Dict[str, Any]] = {
-            scope: {} for scope in BACKPROP_SCOPES
+            scope: {} for scope in self.__scoped_variables.keys()
         }
 
         for k, v in cs_derived.items():
-            for scope in BACKPROP_SCOPES:
-                if k in self.__scoped_variables[scope]:
+            for scope, scoped_vars in self.__scoped_variables.items():
+                if k in scoped_vars:
                     scope_derived[scope][k] = v
 
         log.debug(f"Back-propagating cross-sectional variables for {subject.label}")
         for scope, files in scoped_files.items():
             # ignore non-scopes of interest
-            if scope not in BACKPROP_SCOPES:
+            if scope not in self.__scoped_variables:
                 continue
 
             for file in files:
