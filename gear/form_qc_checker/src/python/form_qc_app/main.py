@@ -85,13 +85,21 @@ def update_input_file_qc_status(
     new_tag = f"{gear_name}-{status_str}"
 
     if file.tags:
-        if fail_tag in file.tags:
-            file.delete_tag(fail_tag)
-        if pass_tag in file.tags:
-            file.delete_tag(pass_tag)
+        updated_tags = file.tags
+        if fail_tag in updated_tags:
+            updated_tags.remove(fail_tag)
+        if pass_tag in updated_tags:
+            updated_tags.remove(pass_tag)
+        updated_tags.append(new_tag)
+    else:
+        updated_tags = [new_tag]
 
-    # file.add_tag(new_tag)
-    gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
+    # gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        tags=updated_tags,
+        container_type=gear_context.destination["type"],
+    )
 
     log.info("QC check status for file %s : %s [%s]", file.name, status_str, timestamp)
 
