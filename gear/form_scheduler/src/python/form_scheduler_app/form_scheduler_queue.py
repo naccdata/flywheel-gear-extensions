@@ -1,9 +1,9 @@
 """Defines the Form Scheduler Queue.
 
-This module implements a queue-based system for scheduling and processing
-form pipelines in Flywheel. It manages multiple pipelines (submission,
-finalization) and ensures files are processed in the correct order with
-proper coordination between pipeline stages.
+This module implements a queue-based system for scheduling and
+processing form pipelines in Flywheel. It manages multiple pipelines
+(submission, finalization) and ensures files are processed in the
+correct order with proper coordination between pipeline stages.
 """
 
 import json
@@ -137,9 +137,7 @@ class PipelineQueueBuilder(ABC):
     allows each pipeline type to implement its own file discovery logic.
     """
 
-    def __init__(
-        self, pipeline: Pipeline, queues: dict[str, list[FileEntry]]
-    ) -> None:
+    def __init__(self, pipeline: Pipeline, queues: dict[str, list[FileEntry]]) -> None:
         self.__pipeline = pipeline
         self.__queue = PipelineQueue(pipeline=pipeline, subqueues=queues)
 
@@ -251,9 +249,9 @@ class SubmissionQueueBuilder(PipelineQueueBuilder):
 class FinalizationQueueBuilder(PipelineQueueBuilder):
     """Builder for finalization pipeline queues.
 
-    Finalization pipelines process files at the ACQUISITION level.
-    Uses Flywheel's DataView API to efficiently query files across
-    multiple acquisitions, filtering by module labels, tags, and extensions.
+    Finalization pipelines process files at the ACQUISITION level. Uses
+    Flywheel's DataView API to efficiently query files across multiple
+    acquisitions, filtering by module labels, tags, and extensions.
     """
 
     def find_matching_visits_for_the_pipeline(
@@ -560,12 +558,9 @@ class FormSchedulerQueue:
                     )
 
                 # c. Trigger the starting gear for this pipeline
+                log.info(f"Kicking off pipeline `{pipeline.name}` on module {module}")
                 log.info(
-                    f"Kicking off pipeline `{pipeline.name}` on module {module}"
-                )
-                log.info(
-                    f"Triggering {pipeline.starting_gear.gear_name} "
-                    f"for {file.name}"
+                    f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
                 # Get the file's parent container as the gear destination
