@@ -17,6 +17,7 @@ from nacc_common.field_names import FieldNames
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
 from uploads.acquisition import upload_to_acquisition
+from utils.decorators import api_retry
 
 log = logging.getLogger(__name__)
 
@@ -217,6 +218,7 @@ class SubjectAdaptor:
         # Using update() will not delete any existing data
         self._subject.update_info(updates)
 
+    @api_retry
     def upload_file(self, file_spec: FileSpec) -> Optional[List[Dict]]:
         """Upload a file to this subject.
 
@@ -232,6 +234,7 @@ class SubjectAdaptor:
         try:
             return self._subject.upload_file(file_spec)
         except ApiException as error:
+            log.info(f"Failed file spec: {file_spec}")
             raise SubjectError(
                 f"Failed to upload file {file_spec.name} to {self.label} - {error}"
             ) from error
