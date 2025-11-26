@@ -9,7 +9,7 @@ Supports tracking:
 Note: processes do not support issuing an explicit QC failure event.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal, Optional, Self
 
 from identifiers.model import PTID_PATTERN
@@ -28,7 +28,7 @@ class VisitEvent(BaseModel):
     center_label: str
     gear_name: str
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
-    visit_date: date
+    visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     visit_number: str
     datatype: DatatypeNameType
     module: Optional[ModuleName] = None
