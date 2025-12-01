@@ -24,8 +24,8 @@ preprocess_errors = {
         "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)"
     ),
     SysErrorCodes.CLINICAL_FORM_REQUIRED_MLST: (
-        "Participant must have an approved UDS, BDS, or MDS packet before "
-        "a Milestone form can be submitted"
+        "Participant must have an approved UDS, BDS, or MDS packet with "
+        "a visit date on or before than the Milestone visit date"
     ),
     SysErrorCodes.DIFF_VISITDATE: (
         "Two packets cannot have the same visit number (VISITNUM) "
@@ -96,8 +96,8 @@ preprocess_errors = {
         "for one or more optional forms"
     ),
     SysErrorCodes.CLINICAL_FORM_REQUIRED_NP: (
-        "Participant must have an approved UDS, BDS, or MDS packet before "
-        "the NP form can be submitted"
+        "Participant must have an approved UDS, BDS, or MDS packet with "
+        "a visit date on or before than the NP form date"
     ),
     SysErrorCodes.DEATH_DENOTED_ON_MLST: (
         "DECEASED and AUTOPSY should both equal 1 in the most recent Milestone "

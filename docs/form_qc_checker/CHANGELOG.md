@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.6.1
+* Updates to adding validation timestamp and gear tag
+
 ## 1.6.0
 * Updates `nacc-form-validator` to `0.6.0`
   * Implements the new `get_initial_record` and `get_uds_ivp_record` Datastore methods

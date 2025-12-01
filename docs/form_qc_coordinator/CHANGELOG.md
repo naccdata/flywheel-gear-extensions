@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.0
+* Resets QC status and re-evaluates subsequent visits and modules
+  
 ## 1.3.0
 * Rebuilt for form ingest configs update
   

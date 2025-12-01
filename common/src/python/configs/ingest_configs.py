@@ -237,7 +237,8 @@ class FormProjectConfigs(BaseModel):
     module_configs: Dict[str, ModuleConfigs]
 
     def get_module_dependencies(self, module: str) -> Optional[List[str]]:
-        """Returns the list of dependent modules for a given module.
+        """Get the list of dependent modules for a given module.
+        Note: only returns the dependent modules that has an exact match.
 
         Args:
             module: module label

@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.6.1
+* Reprocesses duplicate visit if failed to copy existing QC metadata
+
 ## 1.6.0
 * Adds NP vs UDS checks
 * Rebuilt for form ingest configs update

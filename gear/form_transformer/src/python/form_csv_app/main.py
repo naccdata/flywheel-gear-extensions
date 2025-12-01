@@ -20,7 +20,6 @@ from outputs.errors import (
     partially_failed_file_error,
     preprocess_errors,
     preprocessing_error,
-    system_error,
     unexpected_value_error,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -172,6 +171,7 @@ class CSVTransformVisitor(CSVVisitor):
             in self.__module_configs.preprocess_checks
             and self.__preprocessor.is_existing_visit(input_record=transformed_row)
         ):
+            transformed_row["linenumber"] = line_num
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
 
@@ -198,15 +198,25 @@ class CSVTransformVisitor(CSVVisitor):
             return True
 
         success = True
-        for visits in self.__existing_visits.values():
+        for subject_lbl, visits in self.__existing_visits.items():
             for visit in visits:
                 self.__error_writer.clear()
-                success = (
-                    self.__copy_downstream_gears_metadata(
-                        input_record=visit, downstream_gears=downstream_gears
-                    )
-                    and success
+                copied = self.__copy_downstream_gears_metadata(
+                    input_record=visit, downstream_gears=downstream_gears
                 )
+
+                # if failed to copy metadata add it to current batch to be reprocessed
+                if not copied:
+                    log.info(
+                        f"Adding visit {visit['linenumber']} to the current batch "
+                        f"for subject {subject_lbl}"
+                    )
+                    if visit.get("file_id"):  # remove file_id if present
+                        visit.pop("file_id")
+                    self.__add_to_current_batch(
+                        subject_lbl=subject_lbl, input_record=visit
+                    )
+                success = copied and success
 
         return success
 
@@ -439,11 +449,11 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return "FAIL"
 
-        if not visit_file.info_exists:
-            log.error(f"No QC metadata in existing visit file {visit_file.name}")
+        visit_file = visit_file.reload()
+        if not visit_file.info or not visit_file.info.get("qc"):
+            log.warning(f"No QC metadata in existing visit file {visit_file.name}")
             return "FAIL"
 
-        visit_file = visit_file.reload()
         try:
             visit_info = FileQCModel.model_validate(visit_file.info)
         except ValidationError as error:
@@ -526,12 +536,7 @@ class CSVTransformVisitor(CSVVisitor):
             )
 
             if status != "PASS":
-                self.__error_writer.write(
-                    system_error(
-                        message=("Failed to load QC metadata from existing visit file"),
-                        error_type="warning",
-                    )
-                )
+                return False
 
             gear_state = status
         else:
