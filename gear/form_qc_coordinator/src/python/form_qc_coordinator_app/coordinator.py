@@ -197,7 +197,8 @@ class QCCoordinator:
         error_obj: Optional[FileError] = None,
     ):
         """Reset QC gear error metadata in the visit file qc info section.
-        and update the QC gear status tag. Also, resets qc info metadata in visit error log.
+        and update the QC gear status tag.
+        Also, resets qc info metadata in visit error log.
         Note: This method modifies metadata in a file which is not tracked as gear input
 
         Args:
