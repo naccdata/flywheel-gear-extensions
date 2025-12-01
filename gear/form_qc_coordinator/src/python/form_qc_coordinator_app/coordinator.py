@@ -30,6 +30,7 @@ from nacc_common.error_models import (
     FileErrorList,
     FileQCModel,
     GearQCModel,
+    GearTags,
     QCStatus,
     VisitKeys,
 )
@@ -231,10 +232,14 @@ class QCCoordinator:
         try:
             visit_file.update_info(qc_info.model_dump(by_alias=True))
 
-            fail_tag = f"{qc_gear_name}-FAIL"
-            pass_tag = f"{qc_gear_name}-PASS"
-            new_tag = f"{qc_gear_name}-{status}"
+            # update gear status tag
+            gear_tags = GearTags(gear_name=qc_gear_name)
+            fail_tag = gear_tags.fail_tag
+            pass_tag = gear_tags.pass_tag
+            new_tag = gear_tags.get_status_tag(status=status)
 
+            # visit file is not tracked through gear context
+            # need to directly add/remove tags from FileEntry object
             if visit_file.tags:
                 if fail_tag in visit_file.tags:
                     visit_file.delete_tag(fail_tag)

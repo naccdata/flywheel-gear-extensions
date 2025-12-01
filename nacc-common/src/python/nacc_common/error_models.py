@@ -163,6 +163,45 @@ class FileErrorList(RootModel):
 QCStatus = Literal["PASS", "FAIL", "IN REVIEW"]
 
 
+class GearTags:
+    def __init__(self, gear_name: str):
+        self.__gear_name = gear_name
+
+    @property
+    def pass_tag(self) -> str:
+        return f"{self.__gear_name}-PASS"
+
+    @property
+    def fail_tag(self) -> str:
+        return f"{self.__gear_name}-FAIL"
+
+    def get_status_tag(self, status: str) -> str:
+        return f"{self.__gear_name}-{status}"
+
+    def update_tags(self, tags: List[str], status: str) -> List[str]:
+        """Update the list of tags with current status for the gear.
+
+        Args:
+            tags: list of existing tags
+            status: gear job status (PASS/FAIL)
+
+        Returns:
+            List[str]: list of updated tags
+        """
+
+        if not tags:
+            tags = []
+
+        if self.fail_tag in tags:
+            tags.remove(self.fail_tag)
+        if self.pass_tag in tags:
+            tags.remove(self.pass_tag)
+
+        tags.append(self.get_status_tag(status=status))
+
+        return tags
+
+
 class ClearedAlertProvenance(BaseModel):
     """Model for provenance of alert clearance."""
 
@@ -277,7 +316,8 @@ class FileQCModel(BaseModel):
         gear_model = self.qc.get(gear_name)
         if gear_model is None:
             self.qc[gear_name] = GearQCModel(
-                validation=ValidationModel(data=errors, state=status, cleared=[])
+                validation=ValidationModel(
+                    data=errors, state=status, cleared=[])
             )
             return
 

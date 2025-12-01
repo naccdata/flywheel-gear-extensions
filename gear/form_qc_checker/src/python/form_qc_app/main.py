@@ -24,7 +24,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from keys.keys import MetadataKeys
-from nacc_common.error_models import FileErrorList
+from nacc_common.error_models import FileErrorList, GearTags
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
@@ -80,21 +80,8 @@ def update_input_file_qc_status(
         info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
     )
 
-    fail_tag = f"{gear_name}-FAIL"
-    pass_tag = f"{gear_name}-PASS"
-    new_tag = f"{gear_name}-{status_str}"
-
-    if file.tags:
-        updated_tags = file.tags
-        if fail_tag in updated_tags:
-            updated_tags.remove(fail_tag)
-        if pass_tag in updated_tags:
-            updated_tags.remove(pass_tag)
-        updated_tags.append(new_tag)
-    else:
-        updated_tags = [new_tag]
-
-    # gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
+    gear_tags = GearTags(gear_name=gear_name)
+    updated_tags = gear_tags.update_tags(tags=file.tags, status=status_str)
     gear_context.metadata.update_file_metadata(
         input_wrapper.file_input,
         tags=updated_tags,
