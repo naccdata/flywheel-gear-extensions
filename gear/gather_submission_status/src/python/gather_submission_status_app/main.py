@@ -11,6 +11,7 @@ from nacc_common.qc_report import (
     DictReportWriter,
     FileQCReportVisitor,
     ProjectReportVisitor,
+    WriterTableVisitor,
 )
 from outputs.error_writer import ErrorWriter
 
@@ -65,7 +66,7 @@ def run(
                 modules=set(modules),
                 ptid_set=ptid_set,
                 file_visitor=file_visitor,
-                writer=DictReportWriter(writer),
+                table_visitor=WriterTableVisitor(DictReportWriter(writer)),
             )
             project_visitor.visit_project(project.project)
 

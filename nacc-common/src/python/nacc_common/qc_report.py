@@ -265,6 +265,24 @@ class DictReportWriter(ReportWriter):
         self.__writer.writerow(row)
 
 
+class ReportTableVisitor(ABC):
+    def visit_table(self, table: List[QCReportBaseModel]) -> None:
+        for row in table:
+            self.visit_row(row)
+
+    @abstractmethod
+    def visit_row(self, row: QCReportBaseModel) -> None:
+        pass
+
+
+class WriterTableVisitor(ReportTableVisitor):
+    def __init__(self, writer: ReportWriter) -> None:
+        self.__writer = writer
+
+    def visit_row(self, row: QCReportBaseModel) -> None:
+        self.__writer.writerow(row.model_dump(by_alias=True))
+
+
 class ProjectReportVisitor:
     """Defines a partial hierarchy visitor for gathering submission status data
     from a project.
@@ -278,15 +296,17 @@ class ProjectReportVisitor:
         *,
         adcid: int,
         file_visitor: FileQCReportVisitor,
-        writer: ReportWriter,
+        table_visitor: ReportTableVisitor,
         ptid_set: Optional[set[str]] = None,
         modules: Optional[set[ModuleName]] = None,
+        file_filter: Callable[[FileEntry], bool] = lambda file: True,
     ) -> None:
         self.__adcid = adcid
-        self.__writer = writer
+        self.__table_visitor = table_visitor
         self.__modules = modules
         self.__ptid_set = ptid_set
         self.__file_visitor = file_visitor
+        self.__file_filter = file_filter
         pattern = r"^([!-~]{1,10})_(\d{4}-\d{2}-\d{2})_(\w+)_qc-status.log$"
         self.__matcher = re.compile(pattern)
 
@@ -359,8 +379,7 @@ class ProjectReportVisitor:
             )
             return
 
-        for item in self.__file_visitor.table:
-            self.__writer.writerow(item.model_dump(by_alias=True))
+        self.__table_visitor.visit_table(self.__file_visitor.table)
 
     def visit_project(self, project) -> None:
         """Applies the file_visitor to qc-status log files in the project.
@@ -373,6 +392,8 @@ class ProjectReportVisitor:
         """
         for file in project.files:
             if not self.__matcher.match(file.name):
+                continue
+            if not self.__file_filter(file):
                 continue
 
             file = file.reload()
