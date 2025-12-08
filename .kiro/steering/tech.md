@@ -1,5 +1,22 @@
 # Technology Stack
 
+## Development Environment
+
+**Dev Container** - Consistent development environment using Docker
+
+This project uses dev containers for reproducible development environments. All commands should be executed inside the dev container.
+
+### Container Management Scripts
+
+Located in `bin/` directory:
+- `start-devcontainer.sh` - Start the dev container (idempotent, safe to run multiple times)
+- `stop-devcontainer.sh` - Stop the dev container
+- `build-container.sh` - Rebuild the container after configuration changes
+- `exec-in-devcontainer.sh` - Execute a command in the running container
+- `terminal.sh` - Open an interactive shell in the container
+
+**CRITICAL**: Always run `./bin/start-devcontainer.sh` before executing any commands to ensure the container is running.
+
 ## Build System
 
 **Pants Build System** (v2.27.0) - https://www.pantsbuild.org
@@ -11,6 +28,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 - **Python 3.11** (strict interpreter constraint: `==3.11.*`)
 - Type checking with mypy
 - Pydantic v2.5.2+ for data validation
+- Dev container provides Python 3.11 pre-installed
 
 ## Key Dependencies
 
@@ -49,69 +67,105 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 ## Docker
 
+### Dev Container
+- Base image: Python 3.11 dev container
+- Features: Docker-in-Docker, Go tooling
+- VS Code extensions: Python, Docker, Ruff, Code Spell Checker
+- Configuration: `.devcontainer/devcontainer.json`
+
+### Gear Images
 - Default repository: `naccdata/{name}`
 - Build platform: `linux/amd64`
 - Hadolint for Dockerfile linting
 
 ## Common Commands
 
+**IMPORTANT**: All commands must be executed inside the dev container. Use the wrapper scripts in `bin/` or open an interactive shell.
+
 ### Setup
 ```bash
+# Ensure container is running (always run this first)
+./bin/start-devcontainer.sh
+
 # Install Pants
-bash get-pants.sh
+./bin/exec-in-devcontainer.sh bash get-pants.sh
 ```
 
 ### Building
 ```bash
 # Build all targets
-pants package ::
+./bin/exec-in-devcontainer.sh pants package ::
 
 # Build specific package (e.g., nacc-common)
-pants package nacc-common::
+./bin/exec-in-devcontainer.sh pants package nacc-common::
 
 # Build distributions (creates wheel and sdist in dist/)
-pants package nacc-common:dist
+./bin/exec-in-devcontainer.sh pants package nacc-common:dist
 ```
 
 ### Code Quality
 ```bash
 # Format code
-pants fix ::
+./bin/exec-in-devcontainer.sh pants fix ::
 
 # Run linters
-pants lint ::
+./bin/exec-in-devcontainer.sh pants lint ::
 
 # Type check
-pants check ::
+./bin/exec-in-devcontainer.sh pants check ::
 
 # Run all checks
-pants lint :: && pants check ::
+./bin/exec-in-devcontainer.sh pants lint :: && pants check ::
 ```
 
 ### Testing
 ```bash
 # Run all tests
-pants test ::
+./bin/exec-in-devcontainer.sh pants test ::
 
 # Run tests for specific module
-pants test common/test/python::
+./bin/exec-in-devcontainer.sh pants test common/test/python::
 
 # Run specific test file
-pants test path/to/test_file.py
+./bin/exec-in-devcontainer.sh pants test path/to/test_file.py
+```
+
+### Interactive Shell (Recommended for Multiple Commands)
+```bash
+# Open shell in container
+./bin/terminal.sh
+
+# Then run commands directly:
+pants fix ::
+pants lint ::
+pants check ::
+pants test ::
 ```
 
 ### Development Workflow
 ```bash
-# Format, lint, and check before committing
-pants fix :: && pants lint :: && pants check ::
+# Ensure container is running
+./bin/start-devcontainer.sh
 
-# Run tests
-pants test ::
+# Option 1: Run commands via wrapper
+./bin/exec-in-devcontainer.sh pants fix ::
+./bin/exec-in-devcontainer.sh pants lint ::
+./bin/exec-in-devcontainer.sh pants check ::
+./bin/exec-in-devcontainer.sh pants test ::
+
+# Option 2: Open interactive shell
+./bin/terminal.sh
+# Then run: pants fix :: && pants lint :: && pants check :: && pants test ::
+
+# Stop container when done
+./bin/stop-devcontainer.sh
 ```
 
 ## Python Interpreter Setup
 
-Pants searches for Python interpreters in:
+The dev container provides Python 3.11 pre-installed. No manual Python installation needed.
+
+For local development outside the container, Pants searches for Python interpreters in:
 1. System PATH
 2. pyenv installations
 
