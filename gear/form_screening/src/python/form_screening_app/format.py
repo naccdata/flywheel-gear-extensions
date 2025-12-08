@@ -134,7 +134,7 @@ class CSVFormatterVisitor(CSVVisitor):
         """
 
         out_row = {
-            key.strip().lower(): value
+            key.strip().lower(): value.strip() if isinstance(value, str) else value
             for key, value in row.items()
             if key.lower() not in REDCapKeys
         }
