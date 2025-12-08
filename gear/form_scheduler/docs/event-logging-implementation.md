@@ -2,312 +2,330 @@
 
 ## Overview
 
-This document provides implementation details for the event logging feature in form-scheduler. It's intended for developers working on the codebase.
+This document provides implementation details for the revised event logging feature. It's intended for developers working on the codebase.
 
 ## Architecture
 
-### Two-Phase Accumulation Strategy
+### Two-Component Strategy
 
-Event logging uses a two-phase approach for newly submitted visits:
+Event logging is split between two independent components:
 
-**Phase 1: Capture Upload Information**
-- When a CSV file is queued for processing
-- Records upload timestamp and project metadata
-- Stores data in memory keyed by visit_number
-- Only applies to newly uploaded files
+**Component 1: submission_logger Gear**
+- Triggered by file upload via Flywheel gear rule
+- Logs "submit" events immediately when files are uploaded
+- Creates qc-status log files if they don't exist
+- Runs independently of form-scheduler
 
-**Phase 2: Finalize and Log Events**
-- After pipeline completes
-- Retrieves visit metadata from JSON files
-- Creates and logs events (submit + outcome)
-- Cleans up pending data
+**Component 2: visitor_event_accumulator**
+- Runs in form-scheduler after pipeline completes
+- Scrapes qc-status log files for QC metadata
+- Logs "pass-qc" or "not-pass-qc" events based on QC status
+- Uses visitor pattern to traverse QC metadata structure
 
-**Re-evaluation Scenarios**: Visits that are re-evaluated (e.g., after dependency resolution) skip Phase 1 since they were already submitted. Only outcome events are logged.
+**Benefits**:
+- Submit events captured immediately at upload time
+- Outcome events captured after pipeline processing
+- QC status log files serve as single source of truth
+- Decoupled components for better maintainability
 
 ## Key Classes
 
-### VisitEventAccumulator
+### EventAccumulator
 
-Located in: `gear/form_scheduler/src/python/form_scheduler_app/form_scheduler_queue.py`
+Located in: `gear/form_scheduler/src/python/form_scheduler_app/visitor_event_accumulator.py`
 
-Manages the event logging lifecycle:
+Manages outcome event logging after pipeline completes:
 
 ```python
-class VisitEventAccumulator:
-    """Accumulates visit event data throughout pipeline processing."""
+class EventAccumulator:
+    """Scrapes qc-status log files to log outcome events."""
     
     def __init__(
         self,
-        event_logger: VisitEventLogger,
-        module_configs: ModuleConfigs,
-        proxy: FlywheelProxy
+        pipeline: Pipeline,
+        event_logger: VisitEventLogger
     )
     
-    def record_file_queued(
+    def log_events(
         self,
-        *,
         file: FileEntry,
-        module: str,
-        project: Project
+        project: ProjectAdaptor
     ) -> None:
-        """Record when a file is queued (Phase 1)."""
-    
-    def finalize_and_log_events(
-        self,
-        *,
-        file: FileEntry,
-        module: str,
-        pipeline_succeeded: bool
-    ) -> None:
-        """Complete metadata and log events (Phase 2)."""
+        """Log outcome events by scraping qc-status logs."""
 ```
 
-### PendingVisitData
+### VisitKey
 
-Pydantic model holding partial visit data:
+Composite key for uniquely identifying a visit:
 
 ```python
-class PendingVisitData(BaseModel):
-    visit_number: str              # Tracking key
-    session_id: str                # Session container ID
-    acquisition_id: str            # Acquisition container ID
-    module: str                    # Module name
-    project_label: str             # Project label
-    center_label: str              # Center label
-    pipeline_adcid: int            # ADCID for routing
-    upload_timestamp: datetime     # For "submit" event
-    completion_timestamp: Optional[datetime] = None
-    csv_filename: str = ""         # For debugging
+class VisitKey(BaseModel):
+    """Composite key for uniquely identifying a visit."""
+    
+    model_config = ConfigDict(frozen=True)
+    
+    ptid: str
+    visit_date: str
+    module: str
 ```
+
+### Visitor Pattern Classes
+
+Uses visitor pattern to traverse QC metadata:
+
+- **FirstErrorVisitor**: Finds the first error in QC metadata (for timestamp/gear info)
+- **EventTableVisitor**: Processes error reports and logs events
+- **ProjectReportVisitor**: Orchestrates traversal of project files
 
 ## Integration Points
 
-### 1. FormSchedulerQueue.__init__
+### 1. submission_logger Gear (Separate Component)
 
-Create the accumulator:
+Configured as Flywheel gear rule:
+- Trigger: File upload to PROJECT level
+- Logs submit events immediately
+- Creates qc-status log files
+
+**Not part of form-scheduler** - runs independently via gear rules.
+
+### 2. FormSchedulerQueue.__init__
+
+Create the event accumulator:
 
 ```python
-self.__event_accumulator = VisitEventAccumulator(
-    event_logger=event_logger,
-    module_configs=module_configs,
-    proxy=proxy
+self.__event_accumulator = EventAccumulator(
+    pipeline=pipeline,
+    event_logger=event_logger
 )
-```
-
-### 2. _add_submission_pipeline_files
-
-After adding file to queue (~line 230):
-
-```python
-if pipeline_queue.add_file_to_subqueue(module=module, file=file):
-    # Record upload information
-    self.__event_accumulator.record_file_queued(
-        file=file,
-        module=module,
-        project=project
-    )
-    num_files += 1
 ```
 
 ### 3. _process_pipeline_queue
 
-After pipeline completes (~line 481):
+After pipeline completes:
 
 ```python
 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-# Determine success
-pipeline_succeeded = self.__check_pipeline_success(file, module)
-
-# Finalize and log events
-try:
-    self.__event_accumulator.finalize_and_log_events(
-        file=file,
-        module=module,
-        pipeline_succeeded=pipeline_succeeded
-    )
-except Exception as error:
-    log.warning(f"Failed to log events for {file.name}: {error}")
+# Log outcome events by scraping qc-status logs
+if self.__event_accumulator:
+    try:
+        self.__event_accumulator.log_events(
+            file=file,
+            project=self.__project
+        )
+    except Exception as error:
+        log.warning(f"Failed to log events for {file.name}: {error}")
 ```
 
 ## Success/Failure Detection
 
-### __check_pipeline_success Method
+### QC Status from qc-status Log Files
 
-**"pass-qc" event is ONLY logged when BOTH conditions are met:**
-1. JSON file exists at ACQUISITION level (proves form-transformer succeeded)
-2. ALL pipeline gears have status="PASS" in QC metadata
+The visitor_event_accumulator scrapes QC status from qc-status log files at PROJECT level:
 
 ```python
-def __check_pipeline_success(self, file: FileEntry, module: str) -> bool:
-    """Check if pipeline completed successfully.
+def log_events(self, file: FileEntry, project: ProjectAdaptor) -> None:
+    """Log events by scraping qc-status logs."""
     
-    Returns True ONLY if:
-    1. JSON file exists at ACQUISITION level
-    2. ALL gears have status="PASS"
-    """
-    acquisition = self.__proxy.get_container_by_id(file.parent_ref.id)
+    # Create visitor to traverse qc-status logs
+    error_visitor = ProjectReportVisitor(
+        adcid=project.get_pipeline_adcid(),
+        modules=set(self.__pipeline.modules),
+        file_visitor=FirstErrorVisitor(error_transformer),
+        table_visitor=EventTableVisitor(self.__event_logger),
+        file_filter=create_modified_filter(file.created)
+    )
     
-    # Find JSON file
-    json_file = self.__find_json_file(acquisition, module)
-    if not json_file:
-        return False  # No JSON = early failure
-    
-    # Parse QC metadata
-    from nacc_common.error_models import FileQCModel
-    qc_model = FileQCModel.model_validate(json_file.info)
-    
-    # Check ALL gears
-    pipeline_gears = ['form-screening', 'form-transformer', 'form-qc-checker']
-    for gear_name in pipeline_gears:
-        status = qc_model.get_status(gear_name)
-        if status != "PASS":
-            return False
-    
-    return True
+    # Visit project and scrape QC metadata
+    error_visitor.visit_project(project)
 ```
 
-## Visit Number Extraction
+**How it works:**
+1. Filters qc-status log files modified after file upload
+2. Uses visitor pattern to traverse QC metadata structure
+3. FirstErrorVisitor finds first error (if any) for timestamp/gear info
+4. EventTableVisitor processes error reports and logs events
+5. QC status determined from FileQCModel.get_file_status()
 
-Visit numbers are extracted from session labels using module config templates:
+**Benefits:**
+- No hardcoded gear names or pipeline stages
+- Works with any pipeline configuration
+- Leverages existing QC infrastructure
 
-```python
-def __extract_visit_number_from_session(
-    self,
-    session_label: str,
-    module: str
-) -> Optional[str]:
-    """Extract visit number from session label.
-    
-    Example:
-        Template: "FORMS-VISIT-${visitnum}"
-        Label: "FORMS-VISIT-01"
-        Returns: "01"
-    """
-    module_config = self.__module_configs.get(module.upper())
-    hierarchy = module_config.hierarchy_labels
-    session_config = hierarchy['session']
-    template = session_config.get('template', '')
-    
-    # Convert template to regex
-    pattern = template.replace('${visitnum}', r'(\d+)')
-    pattern = pattern.replace('-', r'\-')
-    
-    # Apply transform
-    transform = session_config.get('transform', '')
-    if transform == 'upper':
-        session_label = session_label.upper()
-    
-    # Extract
-    match = re.match(pattern, session_label)
-    return match.group(1) if match else None
+## Metadata Extraction
+
+### From qc-status Log Files
+
+Visit metadata is extracted from qc-status log files at PROJECT level:
+
+**File naming pattern**: `{ptid}_{visitdate}_{module}_qc-status.log`
+
+Example: `110001_2024-01-15_UDS_qc-status.log`
+
+**QC metadata structure** in `file.info.qc`:
+```yaml
+file.info:
+  forms:
+    json:
+      ptid: "110001"
+      visitnum: "01"
+      visitdate: "2024-01-15"
+      packet: "I"
+      module: "UDS"
+  qc:
+    form-screening:
+      validation:
+        state: "PASS"
+    identifier-lookup:
+      validation:
+        state: "PASS"
+    form-transformer:
+      validation:
+        state: "PASS"
+    form-qc-checker:
+      validation:
+        state: "PASS"
 ```
 
-## Visit Metadata Extraction
+The visitor pattern traverses this structure to extract:
+- Visit metadata (ptid, visit_date, visit_number, packet)
+- QC status from all gears
+- Error details (if any)
 
-Uses existing infrastructure from `nacc_common`:
+### Visitor Pattern for Metadata Extraction
+
+The visitor pattern provides flexible traversal of QC metadata:
 
 ```python
-def __extract_visit_metadata(
-    self,
-    json_file: FileEntry,
-    module: str
-) -> Optional[Dict[str, Any]]:
-    """Extract visit metadata from JSON file."""
+class FirstErrorVisitor(ErrorReportVisitor):
+    """Finds the FIRST FileError in QC metadata."""
     
-    form_metadata = json_file.info.get('forms', {}).get('json', {})
-    module_config = self.__module_configs.get(module.upper())
+    def visit_file_model(self, file_model: FileQCModel) -> None:
+        """Visit file model and stop after finding first error."""
+        if self.table:
+            return
+        super().visit_file_model(file_model)
     
-    # Use VisitKeys.create_from() - standard way to extract visit data
-    from nacc_common.error_models import VisitKeys
-    date_field = module_config.date_field
-    visit_keys = VisitKeys.create_from(form_metadata, date_field)
+    def visit_validation_model(self, validation_model: ValidationModel) -> None:
+        """Visit validation model and check for errors."""
+        if self.table:
+            return
+        
+        state = validation_model.state
+        if state is not None and state.lower() == "pass":
+            return
+        
+        # Found a non-pass state, get first error
+        if validation_model.data:
+            validation_model.data[0].apply(self)
+
+
+class EventTableVisitor(ReportTableVisitor):
+    """Processes error reports and logs events."""
     
-    # Parse date
-    from dates.dates import datetime_from_form_date
-    visit_datetime = datetime_from_form_date(visit_keys.date)
-    visit_date = visit_datetime.date()
+    def __init__(self, event_logger: VisitEventLogger) -> None:
+        self.__event_logger = event_logger
+        self.__logged_submits: set[VisitKey] = set()
     
-    # Get packet
-    from nacc_common.field_names import FieldNames
-    packet = form_metadata.get(FieldNames.PACKET)
-    
-    return {
-        'ptid': visit_keys.ptid,
-        'visit_date': visit_date,
-        'visit_number': visit_keys.visitnum,
-        'packet': str(packet) if packet else None
-    }
+    def visit_row(self, row: QCReportBaseModel) -> None:
+        """Process error report row and log events."""
+        if not isinstance(row, ErrorReportModel):
+            return
+        
+        # Extract metadata from row
+        # Log submit event (if not already logged)
+        # Log outcome event based on QC status
 ```
 
 ## Event Creation
 
-Both events are created in `finalize_and_log_events`:
+### Submit Events (submission_logger)
+
+Created when file is uploaded:
 
 ```python
-# Submit event (always logged for new submissions)
 submit_event = VisitEvent(
     action="submit",
-    pipeline_adcid=pending.pipeline_adcid,
-    project_label=pending.project_label,
-    center_label=pending.center_label,
+    pipeline_adcid=project.get_pipeline_adcid(),
+    project_label=project.label,
+    center_label=project.group,
+    gear_name="submission-logger",
+    ptid=visit_metadata['ptid'],
+    visit_date=visit_metadata['visit_date'],
+    visit_number=visit_metadata['visit_number'],
+    datatype="form",
+    module=module,
+    packet=visit_metadata.get('packet'),
+    timestamp=file.created  # Upload time
+)
+event_logger.log_event(submit_event)
+```
+
+### Outcome Events (visitor_event_accumulator)
+
+Created after pipeline completes by scraping qc-status logs:
+
+```python
+# Determine outcome from QC status
+qc_status = FileQCModel.get_file_status()
+outcome_action = "pass-qc" if qc_status == "PASS" else "not-pass-qc"
+
+outcome_event = VisitEvent(
+    action=outcome_action,
+    pipeline_adcid=project.get_pipeline_adcid(),
+    project_label=project.label,
+    center_label=project.group,
     gear_name="form-scheduler",
     ptid=visit_metadata['ptid'],
     visit_date=visit_metadata['visit_date'],
     visit_number=visit_metadata['visit_number'],
     datatype="form",
-    module=pending.module,
+    module=module,
     packet=visit_metadata.get('packet'),
-    timestamp=pending.upload_timestamp  # Upload time
+    timestamp=datetime.now()  # Completion time
 )
-self.__event_logger.log_event(submit_event)
-
-# Outcome event
-outcome_action = "pass-qc" if pipeline_succeeded else "not-pass-qc"
-outcome_event = VisitEvent(
-    action=outcome_action,
-    # ... same fields ...
-    timestamp=pending.completion_timestamp  # Completion time
-)
-self.__event_logger.log_event(outcome_event)
+event_logger.log_event(outcome_event)
 ```
 
 ## Dependencies
 
-### Required Imports
+### Required Imports (visitor_event_accumulator)
 
 ```python
+from configs.ingest_configs import Pipeline
 from event_logging.event_logging import VisitEventLogger
-from event_logging.visit_events import VisitEvent
-from configs.ingest_configs import ModuleConfigs
-from nacc_common.error_models import VisitKeys, FileQCModel
-from nacc_common.field_names import FieldNames
-from dates.dates import datetime_from_form_date
+from flywheel.models.file_entry import FileEntry
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.error_models import FileQCModel, ValidationModel
+from nacc_common.qc_report import (
+    ErrorReportVisitor,
+    ErrorTransformer,
+    ProjectReportVisitor,
+    QCReportBaseModel,
+    ReportTableVisitor,
+)
+from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 ```
 
-### Required Inputs
+### Required Configuration
 
-The gear needs `form_configs_file` input in manifest.json:
+**submission_logger gear:**
+- Configured as Flywheel gear rule
+- Triggered on file upload
+- Requires AWS credentials for S3 access
+- Requires event_bucket configuration
 
-```json
-{
-  "inputs": {
-    "form_configs_file": {
-      "base": "file",
-      "description": "Form module configurations file",
-      "optional": false
-    }
-  }
-}
-```
+**form-scheduler gear:**
+- `form_configs_file` input (for module configurations)
+- `event_bucket` config parameter (S3 bucket name)
+- AWS credentials (for S3 access)
 
 ## Known Limitations
 
-1. **Visit number requirement**: Only works for modules with visit numbers in session labels
-2. **JSON file requirement**: Cannot log events for early pipeline failures (no JSON file)
-3. **Re-evaluation scenarios**: Currently returns early if no pending data exists
-   - Need to handle pass-qc events without corresponding submit events
-   - Example: Follow-up visits blocked on UDS packet, re-evaluated after UDS clears
+1. **qc-status log requirement**: Requires qc-status log files to exist at PROJECT level
+2. **Visitor pattern complexity**: Requires understanding of visitor pattern and QC metadata structure
+3. **Duplicate submit prevention**: Currently tracks in-memory, may log duplicate submits across gear executions
+4. **File filtering**: Uses file modification timestamp to filter relevant qc-status logs (may be imprecise)
 
 ## Error Handling
 
@@ -324,18 +342,26 @@ This ensures event logging failures don't break pipeline execution.
 
 ## Testing Considerations
 
-1. **Unit tests**: Mock FileEntry, Project, FlywheelProxy
-2. **Integration tests**: Mock pipeline execution
+### submission_logger Tests
+1. File upload triggers gear
+2. Submit event logged to S3
+3. qc-status log file created if doesn't exist
+4. qc-status log file not overwritten if exists
+
+### visitor_event_accumulator Tests
+1. **Unit tests**: Mock FileEntry, ProjectAdaptor, visitor classes
+2. **Integration tests**: Mock qc-status log files with QC metadata
 3. **Test scenarios**:
-   - Successful pipeline (both events logged)
-   - Failed pipeline (submit + not-pass-qc)
-   - Missing visit number (skip logging)
-   - Missing JSON file (skip logging)
-   - Re-evaluation (only outcome event)
+   - Successful pipeline (pass-qc event logged)
+   - Failed pipeline (not-pass-qc event logged)
+   - Multiple qc-status logs (multiple events logged)
+   - No qc-status logs (no events logged)
+   - File filtering by timestamp (only relevant logs processed)
 
 ## Future Enhancements
 
-1. Support modules without visit numbers (alternative tracking keys)
-2. Handle early pipeline failures (use QC log files at PROJECT level)
-3. Full re-evaluation support (pass-qc without submit in same job)
-4. Parameterize status handling for different pipeline types
+1. **Persistent duplicate tracking**: Store logged submits in S3 to prevent duplicates across executions
+2. **Better file filtering**: Use file metadata or tags to match qc-status logs to processed files
+3. **Event deduplication**: Check S3 before logging to avoid duplicate events
+4. **Batch event logging**: Log multiple events in single S3 operation for efficiency
+5. **Support for finalization pipeline**: Extend to log events for JSON files in finalization pipeline
