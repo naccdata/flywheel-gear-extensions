@@ -8,6 +8,7 @@ from nacc_common.qc_report import (
     ListReportWriter,
     ProjectReportVisitor,
     StatusReportVisitor,
+    WriterTableVisitor,
 )
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 from nacc_common.visit_submission_status import StatusReportModel, status_transformer
@@ -59,7 +60,7 @@ def get_status_data(
         adcid=adcid,
         modules=modules,
         file_visitor=StatusReportVisitor(status_transformer),
-        writer=ListReportWriter(result),
+        table_visitor=WriterTableVisitor(ListReportWriter(result)),
     )
     project_visitor.visit_project(project)
 
@@ -91,7 +92,7 @@ def get_error_data(
         adcid=adcid,
         modules=modules,
         file_visitor=file_visitor,
-        writer=list_writer,
+        table_visitor=WriterTableVisitor(list_writer),
     )
     project_visitor.visit_project(project)
 
