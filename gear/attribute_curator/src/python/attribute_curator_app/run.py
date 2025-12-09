@@ -80,7 +80,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         max_num_workers = context.config.get("max_num_workers", 4)
 
         # fw_project = get_project_from_destination(context=context, proxy=proxy)
-        fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
+        fw_project = proxy.get_project_by_id("66f5cb05fc9c4a909032023a")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         if context.config.get("debug", False):

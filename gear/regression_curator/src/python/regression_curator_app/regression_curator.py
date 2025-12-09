@@ -289,9 +289,9 @@ class RegressionCurator(Curator):
         # considered cross-sectional and will use the latest visit
         # under the NACCID-only key
         visit_keys = None
-        if scope == FormScope.UDS:
-            uds_record = table.get("file.info.forms.json")
-            visit_keys = VisitKeys.create_from(uds_record, date_field="visitdate")
+        if scope in [FormScope.UDS, FormScope.LBD, FormScope.FTLD]:
+            form_record = table.get("file.info.forms.json")
+            visit_keys = VisitKeys.create_from(form_record, date_field="visitdate")
             if not visit_keys.date:
                 log.debug(f"No visitdate found for UDS file {file_entry.name}, skipping")
                 return

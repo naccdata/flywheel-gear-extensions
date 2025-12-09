@@ -66,6 +66,20 @@ CHILD_SCOPES = {
     ]
 }
 
+# Scopes that need to write to file.info.resolved
+# i.e. scopes that need file missingness applied
+# ultimately this is probably just all form scopes
+RESOLVED_SCOPES = [
+    FormScope.UDS,
+    FormScope.NP,
+    FormScope.MDS,
+    FormScope.CSF,
+    FormScope.FTLD,
+    FormScope.LBD,
+    FormScope.COVID_F1,
+    FormScope.COVID_F2F3
+]
+
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
 
@@ -236,7 +250,7 @@ class FormCurator(Curator):
         # as such, file.info.resolved represents the overlay of raw <- missingness,
         # ensuring we have a resolved location for data model querying without touching
         # the raw data
-        if scope in [FormScope.UDS, FormScope.NP, FormScope.MDS]:
+        if scope in RESOLVED_SCOPES:
             self.__set_working_metadata(
                 table,
                 "file.info.resolved",
@@ -294,6 +308,7 @@ class FormCurator(Curator):
                 "cognitive.uds",
                 "demographics.uds",
                 "derived",
+                "imaging",
                 "genetics",
                 "longitudinal-data.uds",
                 "neuropathology",
@@ -317,9 +332,9 @@ class FormCurator(Curator):
         4. Adds `affiliated` tag to affiliate subjects if
             subject.info.derived.affiliate is set
             (via nacc-attribute-deriver)
+            - also adds this tag to associated files
         5. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
-
         Args:
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
@@ -347,12 +362,23 @@ class FormCurator(Curator):
             subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
-        affiliate = derived.get("affiliate", None)
+        affiliate = derived.get("affiliate", False)
 
-        # 4. add affiliated tag
-        if affiliate and "affiliated" not in subject.tags:
+        # 4. add affiliated tags
+        if affiliate:
             log.debug(f"Tagging affiliate: {subject.label}")
-            subject.add_tag("affiliated")
+            affiliate_tag = "affiliated"
+
+            if affiliate_tag not in subject.tags:
+                subject.add_tag(affiliate_tag)
+
+            # not ideal, but need to also tag all files to get around data model restrictions
+            # luckily the number of affiliates is relatively small, so this shouldn't
+            # add too many more API calls
+            for file in processed_files:
+                file_entry = self.sdk_client.get_file(file.file_id)
+                if affiliate_tag not in file_entry.tags:
+                    file_entry.add_tag(affiliate_tag)
 
         # 5. backprop
         self.back_propagate_scopes(subject, scoped_files, derived.get("cross-sectional", None))
