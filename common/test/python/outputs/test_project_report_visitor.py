@@ -17,6 +17,7 @@ from nacc_common.qc_report import (
     ProjectReportVisitor,
     QCReportBaseModel,
     StatusReportVisitor,
+    WriterTableVisitor,
 )
 from pydantic import ValidationError
 from test_mocks.mock_flywheel import MockProject
@@ -103,7 +104,7 @@ class TestProjectReportVisitor:
             modules={visit_details.module},
             ptid_set={visit_details.ptid},
             file_visitor=file_visitor,
-            writer=DictReportWriter(writer),
+            table_visitor=WriterTableVisitor(DictReportWriter(writer)),
         )
         visitor.visit_project(file_project)
         stream.seek(0)
