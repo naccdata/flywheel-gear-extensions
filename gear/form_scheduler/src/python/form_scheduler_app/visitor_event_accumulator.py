@@ -27,6 +27,7 @@ from nacc_common.qc_report import (
 )
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 from nacc_common.visit_submission_status import StatusReportModel
+from pipeline.pipeline_label import PipelineLabel
 from pydantic import BaseModel, ConfigDict
 
 log = logging.getLogger(__name__)
@@ -45,7 +46,8 @@ class EventReportVisitor(FileQCReportVisitor):
     """
 
     def __init__(
-        self, *,
+        self,
+        *,
         error_transformer: ErrorTransformer,
         validation_transformer: ValidationTransformer,
     ) -> None:
@@ -170,7 +172,8 @@ def event_status_transformer(
     )
 
 
-def create_visit_event_from_error(*,
+def create_visit_event_from_error(
+    *,
     error_model: ErrorReportModel,
     study: str,
     project: ProjectAdaptor,
@@ -221,7 +224,8 @@ def create_visit_event_from_error(*,
     )
 
 
-def create_visit_event_from_status(*,
+def create_visit_event_from_status(
+    *,
     status_model: VisitStatusReportModel,
     study: str,
     project: ProjectAdaptor,
@@ -272,7 +276,8 @@ def create_visit_event_from_status(*,
     )
 
 
-def create_visit_event(*,
+def create_visit_event(
+    *,
     visit_model: QCReportBaseModel,
     study: str,
     project: ProjectAdaptor,
@@ -320,7 +325,8 @@ class EventTableVisitor(ReportTableVisitor):
     """
 
     def __init__(
-        self, *,
+        self,
+        *,
         event_logger: VisitEventLogger,
         study: str,
         project: ProjectAdaptor,
@@ -376,13 +382,12 @@ class EventAccumulator:
     """Accumulates visit events for files with QC-status reports."""
 
     def __init__(
-        self, *,
-        study: str,
+        self,
+        *,
         pipeline: Pipeline,
         event_logger: VisitEventLogger,
         datatype: DatatypeNameType = "form",
     ) -> None:
-        self.__study = study
         self.__pipeline = pipeline
         self.__event_logger = event_logger
         self.__datatype = datatype
@@ -391,10 +396,16 @@ class EventAccumulator:
         """Logs the events for QC-status reports modified after the file
         creation.
 
+        Extracts the study identifier from the project label.
+
         Args:
           file: the submitted file
           project: the pipeline project with qc-status files
         """
+        # Extract study from project label
+        pipeline_label = PipelineLabel.model_validate(project.label)
+        study = pipeline_label.study_id
+
         error_visitor = ProjectReportVisitor(
             adcid=project.get_pipeline_adcid(),
             modules=set(self.__pipeline.modules) if self.__pipeline.modules else None,  # type: ignore
@@ -404,9 +415,9 @@ class EventAccumulator:
             ),
             table_visitor=EventTableVisitor(
                 event_logger=self.__event_logger,
-                study=self.__study,
+                study=study,
                 project=project,
-                datatype=self.__datatype, # type: ignore
+                datatype=self.__datatype,  # type: ignore
             ),
             file_filter=create_modified_filter(file.created),
         )
