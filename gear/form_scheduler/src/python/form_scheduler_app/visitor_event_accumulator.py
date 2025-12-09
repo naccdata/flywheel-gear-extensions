@@ -11,55 +11,118 @@ from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.types import DatatypeNameType
 from nacc_common.error_models import (
-    FileQCModel,
+    FileError,
     ValidationModel,
     VisitKeys,
 )
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
-    ErrorReportVisitor,
     ErrorTransformer,
+    FileQCReportVisitor,
     ProjectReportVisitor,
     QCReportBaseModel,
     QCTransformerError,
     ReportTableVisitor,
+    ValidationTransformer,
 )
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
-from pydantic import BaseModel, ConfigDict
-
 from nacc_common.visit_submission_status import StatusReportModel
+from pydantic import BaseModel, ConfigDict
 
 log = logging.getLogger(__name__)
 
 
-class FirstErrorVisitor(ErrorReportVisitor):
-    """Finds the FIRST FileError in QC metadata.
+class VisitStatusReportModel(StatusReportModel):
+    timestamp: Optional[str] = None
+    visit_number: Optional[str] = None
 
-    Unlike ErrorReportVisitor which finds all errors, this visitor stops
-    after finding the first error to get timestamp and gear info.
+
+class EventReportVisitor(FileQCReportVisitor):
+    """Defines a QC reporting visitor for gathering event report objects for
+    file.
+
+    Finds the first FileError or last passing validation in QC metadata.
     """
 
-    def __init__(self, transformer: ErrorTransformer) -> None:
-        super().__init__(transformer)
+    def __init__(
+        self, *,
+        error_transformer: ErrorTransformer,
+        validation_transformer: ValidationTransformer,
+    ) -> None:
+        super().__init__()
+        self.__error_transformer = error_transformer
+        self.__validation_transformer = validation_transformer
+        self.__error: QCReportBaseModel | None = None
+        self.__validation: QCReportBaseModel | None = None
 
-    def visit_file_model(self, file_model: FileQCModel) -> None:
-        """Visit file model and stop after finding first error."""
-        if self.table:
-            return
-        super().visit_file_model(file_model)
+    def add(self, item: QCReportBaseModel) -> None:
+        if isinstance(item, VisitStatusReportModel):
+            self.__validation = item
+        if isinstance(item, ErrorReportModel):
+            self.__error = item
+
+    @property
+    def table(self) -> list[QCReportBaseModel]:
+        if self.__error is not None:
+            return [self.__error]
+
+        if self.__validation:
+            return [self.__validation]
+
+        return []
+
+    def clear(self) -> None:
+        self.__error = None
+        self.__validation = None
 
     def visit_validation_model(self, validation_model: ValidationModel) -> None:
-        """Visit validation model and check for errors."""
-        if self.table:
+        """Defines a visit for a validation model.
+
+        Finds the first FileError, or the last pass ValidationModel.
+
+        Applies the validation transformer to the validation model if the state
+        is pass.
+
+        Args:
+          validation_model: the model to visit
+        """
+        if self.__error is not None:
+            return
+        if self.visit_details is None:
+            return
+        if self.gear_name is None:
+            return
+        if validation_model.state is None:
             return
 
-        state = validation_model.state
-        if state is not None and state.lower() == "pass":
+        if validation_model.state.lower() == "pass":
+            self.add(
+                self.__validation_transformer(
+                    self.gear_name, self.visit_details, validation_model
+                )
+            )
             return
 
-        # Found a non-pass state, get first error if available
-        if validation_model.data:
-            validation_model.data[0].apply(self)
+        for error_model in validation_model.data:
+            error_model.apply(self)
+            if self.__error:
+                return
+
+    def visit_file_error(self, file_error: FileError) -> None:
+        """Defines a visit for a file error.
+
+        Applies the error transformer
+        """
+        if self.__error is not None:
+            return
+        if self.gear_name is None:
+            return
+        if self.visit_details is None:
+            return
+
+        self.add(
+            self.__error_transformer(self.gear_name, self.visit_details, file_error)
+        )
 
 
 class VisitKey(BaseModel):
@@ -71,14 +134,12 @@ class VisitKey(BaseModel):
     visit_date: str
     module: str
 
-class VisitStatusReportModel(StatusReportModel):
-    timestamp: Optional[str] = None
-    visit_number: Optional[str] = None
 
 def event_status_transformer(
     gear_name: str, visit: VisitKeys, validation_model: ValidationModel
 ) -> VisitStatusReportModel:
-    """Transformer for creating visit status report objects from a file QC validation model.
+    """Transformer for creating visit status report objects from a file QC
+    validation model.
 
     Args:
       gear_name: the gear name corresponding to the validation model
@@ -94,7 +155,7 @@ def event_status_transformer(
         or visit.module is None
         or visit.date is None
     ):
-        raise QCTransformerError("Cannot generate status incomplete visit details")
+        raise QCTransformerError("Cannot generate status: incomplete visit details")
 
     if visit.module not in get_args(ModuleName):
         raise QCTransformerError(f"Unexpected module name: {visit.module}")
@@ -102,36 +163,101 @@ def event_status_transformer(
     return VisitStatusReportModel(
         adcid=visit.adcid,
         ptid=visit.ptid,
-        module=visit.module, # pyright: ignore[reportArgumentType]
+        module=visit.module,  # pyright: ignore[reportArgumentType]
         visitdate=visit.date,
         stage=gear_name,
-        status=validation_model.state
+        status=validation_model.state,
     )
 
-def create_visit_event(
-    status_model: VisitStatusReportModel,
+
+def create_visit_event_from_error(*,
+    error_model: ErrorReportModel,
+    study: str,
     project: ProjectAdaptor,
     datatype: DatatypeNameType,
     packet: Optional[str] = None,
-) -> Optional[VisitEvent]:
-    if status_model.timestamp is None:
-        log.warning(
-            "Expecting timestamp for not-pass-qc event for %s", status_model.ptid
-        )
-        return
-    timestamp = datetime.strptime(status_model.timestamp, "%Y-%m-%d %H:%M:%S")
+) -> VisitEvent | None:
+    """Creates a VisitEvent from an ErrorReportModel.
 
-    if not status_model.stage:
-        log.warning("No gear name known for not-pass-qc event for %s", status_model.ptid)
+    Errors unrelated to a participant or visit are skipped.
+
+    Args:
+      error_model: the error report model
+      study: the name of the study
+      project: the pipeline project
+      datatype: the submitted datatype
+      packet: the form packet if the datatype is form
+    Returns:
+      the VisitEvent if all expected values are given. None, otherwise.
+    """
+    if error_model.ptid is None:
+        log.warning("skipping non-visit error: no ptid")
         return None
-    if not status_model.visit_number:
-        log.warning(
-            "No visit number known for not-pass-qc event for %s", status_model.ptid
-        )
+    if error_model.date is None:
+        log.warning("skipping non-visit error: no date")
         return None
+    if error_model.visitnum is None:
+        log.warning("skipping non-visit error: no visit number")
+        return None
+    if error_model.timestamp is None:
+        log.warning("skipping error with no timestamp")
+        return None
+    timestamp = datetime.strptime(error_model.timestamp, "%Y-%m-%d %H:%M:%S")
 
     return VisitEvent(
         action="not-pass-qc",
+        study=study,
+        pipeline_adcid=error_model.adcid,
+        project_label=project.label,
+        center_label=project.group,
+        gear_name=error_model.stage,
+        ptid=error_model.ptid,
+        visit_date=error_model.date,
+        visit_number=error_model.visitnum,
+        datatype=datatype,
+        module=error_model.module,
+        packet=packet,
+        timestamp=timestamp,
+    )
+
+
+def create_visit_event_from_status(*,
+    status_model: VisitStatusReportModel,
+    study: str,
+    project: ProjectAdaptor,
+    datatype: DatatypeNameType,
+    packet: Optional[str] = None,
+):
+    """Creates a VisitEvent from an VisitStatusReportModel.
+
+    Expects the status to be "PASS".
+
+    Args:
+      status: the status report model
+      study: the name of the study
+      project: the pipeline project
+      datatype: the submitted datatype
+      packet: the form packet if the datatype is form
+    Returns:
+      the VisitEvent if all expected values are given. None, otherwise.
+    """
+    if status_model.status != "PASS":
+        log.warning("skipping non-pass validation event")
+        return None
+    if status_model.timestamp is None:
+        log.warning("Expecting timestamp for pass event for %s", status_model.ptid)
+        return None
+    if not status_model.stage:
+        log.warning("No gear name known for pass event for %s", status_model.ptid)
+        return None
+    if not status_model.visit_number:
+        log.warning("No visit number known for pass event for %s", status_model.ptid)
+        return None
+
+    timestamp = datetime.strptime(status_model.timestamp, "%Y-%m-%d %H:%M:%S")
+    return VisitEvent(
+        action="pass-qc",
+        study=study,
         pipeline_adcid=status_model.adcid,
         project_label=project.label,
         center_label=project.group,
@@ -146,6 +272,45 @@ def create_visit_event(
     )
 
 
+def create_visit_event(*,
+    visit_model: QCReportBaseModel,
+    study: str,
+    project: ProjectAdaptor,
+    datatype: DatatypeNameType,
+    packet: Optional[str] = None,
+) -> Optional[VisitEvent]:
+    """Creates a VisitEvent from an VisitStatusReportModel or ErrorReportModel.
+
+    Expects the status to be "PASS".
+
+    Args:
+      status: the status report model
+      study: the name of the study
+      project: the pipeline project
+      datatype: the submitted datatype
+      packet: the form packet if the datatype is form
+    Returns:
+      the VisitEvent build for the report model.
+      None, if the report model is the wrong type, or a event cannot be created
+    """
+    if isinstance(visit_model, ErrorReportModel):
+        return create_visit_event_from_error(
+            error_model=visit_model,
+            study=study,
+            project=project,
+            datatype=datatype,
+            packet=packet,
+        )
+    if isinstance(visit_model, VisitStatusReportModel):
+        return create_visit_event_from_status(
+            status_model=visit_model,
+            study=study,
+            project=project,
+            datatype=datatype,
+            packet=packet,
+        )
+    return None
+
 
 class EventTableVisitor(ReportTableVisitor):
     """Visitor for error report to create VisitEvent objects. Handles qc pass
@@ -155,13 +320,15 @@ class EventTableVisitor(ReportTableVisitor):
     """
 
     def __init__(
-        self,
+        self, *,
         event_logger: VisitEventLogger,
+        study: str,
         project: ProjectAdaptor,
         datatype: DatatypeNameType,
         packet: Optional[str] = None,
     ) -> None:
         self.__event_logger = event_logger
+        self.__study = study
         self.__project = project
         self.__datatype = datatype
         self.__packet = packet
@@ -171,7 +338,8 @@ class EventTableVisitor(ReportTableVisitor):
             log.warning("Type of error model is incorrect for event logging")
             return
         visit_event = create_visit_event(
-            status_model=row,
+            visit_model=row,
+            study=self.__study,
             project=self.__project,
             datatype=self.__datatype,  # type: ignore
             packet=self.__packet,
@@ -183,34 +351,62 @@ class EventTableVisitor(ReportTableVisitor):
 
 
 def create_modified_filter(timestamp: datetime) -> Callable[[FileEntry], bool]:
+    """Creates file predicate for files modified after the timestamp.
+
+    Args:
+      timestamp: the timestamp to use in the predicate
+    Returns:
+      a predicate testing whether a file is modified after the timestamp
+    """
+
     def after_timestamp(file: FileEntry) -> bool:
+        """Returns true if the file is modified after the timestamp.
+
+        Args:
+          file: the file to check
+        Returns:
+          True if the file is modified after the timestamp. False, otherwise.
+        """
         return file.modified >= timestamp
 
     return after_timestamp
 
 
 class EventAccumulator:
+    """Accumulates visit events for files with QC-status reports."""
+
     def __init__(
-        self,
+        self, *,
+        study: str,
         pipeline: Pipeline,
         event_logger: VisitEventLogger,
         datatype: DatatypeNameType = "form",
     ) -> None:
+        self.__study = study
         self.__pipeline = pipeline
         self.__event_logger = event_logger
         self.__datatype = datatype
 
     def log_events(self, file: FileEntry, project: ProjectAdaptor) -> None:
+        """Logs the events for QC-status reports modified after the file
+        creation.
 
-        # TODO: want a mix of error report and status report
-        # could potentially do error report and then do status report
-        # but that would involve crawling the qc object twice
+        Args:
+          file: the submitted file
+          project: the pipeline project with qc-status files
+        """
         error_visitor = ProjectReportVisitor(
             adcid=project.get_pipeline_adcid(),
             modules=set(self.__pipeline.modules) if self.__pipeline.modules else None,  # type: ignore
-            file_visitor=FirstErrorVisitor(event_status_transformer),
+            file_visitor=EventReportVisitor(
+                error_transformer=error_transformer,
+                validation_transformer=event_status_transformer,
+            ),
             table_visitor=EventTableVisitor(
-                self.__event_logger, project, self.__datatype  # type: ignore
+                event_logger=self.__event_logger,
+                study=self.__study,
+                project=project,
+                datatype=self.__datatype, # type: ignore
             ),
             file_filter=create_modified_filter(file.created),
         )
