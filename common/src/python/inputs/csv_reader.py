@@ -4,7 +4,7 @@ import abc
 import logging
 from abc import ABC, abstractmethod
 from csv import DictReader
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, Dict, List, Optional, Sequence, TextIO
 
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
@@ -56,6 +56,45 @@ class CSVVisitor(ABC):
           True if the row is valid. False, otherwise.
         """
         return True
+
+
+class AggregateCSVVisitor(CSVVisitor):
+    """Aggregates CSV visitors."""
+
+    def __init__(self, visitors: Sequence[CSVVisitor]) -> None:
+        self.__visitors = visitors
+
+    def visit_header(self, header: List[str]) -> bool:
+        """Visits headers with each of the visitors.
+
+        Args:
+          header: list of header names
+        Returns:
+          True if all of the visitors return true for the header
+        """
+        return all(visitor.visit_header(header) for visitor in self.__visitors)
+
+    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Visits row with each of the visitors.
+
+        Args:
+          row: the dictionary for a row of a CSV file
+          line_num: the line number of the row
+        Returns:
+          True if all of the visitors return True. False, otherwise.
+        """
+        return all(visitor.visit_row(row, line_num) for visitor in self.__visitors)
+
+    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Checks that the row is valid.
+
+        Args:
+          row: the dictionary for a row
+          line_num: the line number for the row
+        Returns:
+          True if all of the visitors return True. False, otherwise.
+        """
+        return all(visitor.valid_row(row, line_num) for visitor in self.__visitors)
 
 
 def read_csv(

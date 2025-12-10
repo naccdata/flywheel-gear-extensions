@@ -20,8 +20,9 @@
 import logging
 from typing import Optional
 
-from configs.ingest_configs import PipelineConfigs
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from configs.ingest_configs import ModuleConfigs, PipelineConfigs
+from event_logging.event_logging import VisitEventLogger
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import URLParameter
 from notifications.email import EmailClient
@@ -36,6 +37,8 @@ def run(
     proxy: FlywheelProxy,
     project_id: str,
     pipeline_configs: PipelineConfigs,
+    event_logger: VisitEventLogger,
+    module_configs: dict[str, ModuleConfigs],
     email_client: Optional[EmailClient] = None,
     portal_url: Optional[URLParameter] = None,
 ):
@@ -46,18 +49,32 @@ def run(
         queue: The FormSchedulerQueue which handles the queues
         project_id: The project ID
         pipeline_configs: Form pipeline configurations
+        event_logger: VisitEventLogger for logging visit events
+        module_configs: Dictionary of module configurations keyed by module name
         email_client: EmailClient to send emails from
         portal_url: The portal URL
     """
 
-    project = proxy.get_project_by_id(project_id)
-    if not project:
+    fw_project = proxy.get_project_by_id(project_id)
+    if not fw_project:
         raise GearExecutionError(f"Cannot find project with ID {project_id}")
+    project = ProjectAdaptor(project=fw_project, proxy=proxy)
+
+    # Create event accumulator for tracking visit events
+    from event_logging.visit_event_accumulator import VisitEventAccumulator
+
+    event_accumulator = VisitEventAccumulator(
+        event_logger=event_logger,
+        module_configs=module_configs,
+        proxy=proxy,
+    )
 
     queue = FormSchedulerQueue(
         proxy=proxy,
-        project=project,
+        project=ProjectAdaptor(project=project, proxy=proxy),
         pipeline_configs=pipeline_configs,
+        event_logger=event_logger,
+        event_accumulator=event_accumulator,
         email_client=email_client,
         portal_url=portal_url,
     )
@@ -65,7 +82,7 @@ def run(
     num_files = -1
     while num_files != 0:
         # force a project reload with each outer loop
-        project = project.reload()
+        project.reload()
 
         num_files = 0  # reset counter for next iteration
         # Pull and queue the tagged files for each pipeline

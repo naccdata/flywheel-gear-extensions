@@ -5,9 +5,8 @@ import os
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
-from flywheel import Project
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from gear_execution.gear_trigger import (
@@ -75,7 +74,7 @@ def save_output(
 
 
 def get_scheduler_gear_inputs(
-    scheduler_gear: GearInfo, project: Project
+    scheduler_gear: GearInfo, project: ProjectAdaptor
 ) -> Dict[str, FileEntry]:
     """Get the input files for the form scheduler gear.
 
@@ -104,7 +103,7 @@ def get_scheduler_gear_inputs(
 
 
 def trigger_scheduler_gear(
-    *, proxy: FlywheelProxy, project: Project, scheduler_gear: GearInfo
+    *, proxy: FlywheelProxy, project: ProjectAdaptor, scheduler_gear: GearInfo
 ):
     """Trigger the form-scheduler gear if it's not already running on the given
     project.
@@ -178,7 +177,9 @@ def run(
     """
 
     file = proxy.get_file(file_input.file_id)
-    project = file_input.get_parent_project(proxy=proxy, file=file)
+    project = ProjectAdaptor(
+        project=file_input.get_parent_project(proxy=proxy, file=file), proxy=proxy
+    )
 
     if not format_and_tag:
         # check whether the input file has pipeline trigger tag(s)

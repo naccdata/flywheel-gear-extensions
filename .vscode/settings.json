@@ -76,6 +76,8 @@
         "scandt",
         "setuptools",
         "subproject",
+        "subqueue",
+        "subqueues",
         "UDSv3",
         "UDSv4",
         "venv",

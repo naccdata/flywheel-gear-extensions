@@ -12,7 +12,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import unexpected_value_error
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class BaselineLocalizer(ABC):
         s3_bucket = s3_parts[0]
         key = "/".join(s3_parts[1:])
 
-        s3_client = S3BucketReader.create_from_environment(s3_bucket)
+        s3_client = S3BucketInterface.create_from_environment(s3_bucket)
         if not s3_client:
             raise GearExecutionError(f"Unable to access S3 bucket {s3_bucket}")
 
