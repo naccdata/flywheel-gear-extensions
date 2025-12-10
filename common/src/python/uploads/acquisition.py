@@ -98,17 +98,24 @@ def upload_to_acquisition(
 ) -> Optional[FileEntry]:
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
-        if existing_file and is_duplicate_record(
-            contents, existing_file.read().decode("utf-8"), content_type
-        ):
-            log.warning(
-                "Duplicate file %s already exists at %s/%s/%s",
-                filename,
-                subject_label,
-                session_label,
-                acquisition_label,
-            )
-            return None
+        if existing_file:
+            try:
+                existing_content = existing_file.read().decode("utf-8")
+                if existing_content and is_duplicate_record(
+                    contents, existing_content, content_type
+                ):
+                    log.warning(
+                        "Duplicate file %s already exists at %s/%s/%s",
+                        filename,
+                        subject_label,
+                        session_label,
+                        acquisition_label,
+                    )
+                    return existing_file
+            except ApiException as error:
+                log.error(
+                    f"Reuploading, Error reading existing file {filename}: {error}"
+                )
 
     record_file_spec = FileSpec(
         name=filename, contents=contents, content_type=content_type

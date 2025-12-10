@@ -297,10 +297,11 @@ class FormJSONUploader:
                     success = False
                     continue
 
-                # No error and no new file (i.e. duplicate file exists)
-                # this cannot happen as duplicate visits detected earlier in the process
+                # No error and no new file, something went wrong
                 if not new_file:
-                    log.error("Existing duplicate visit file %s", visit_file_name)
+                    log.error(
+                        "Error in uploading/finding visit file %s", visit_file_name
+                    )
                     success = False
                     continue
 
