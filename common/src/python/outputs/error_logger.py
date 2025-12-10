@@ -238,7 +238,12 @@ def update_gear_qc_status(
 
     gear_info.set_status(status)
     qc_info.set(gear_name=gear_name, gear_model=gear_info)
-    update_file_info(file=current_log, custom_info=qc_info.model_dump(by_alias=True))
+    try:
+        update_file_info(
+            file=current_log, custom_info=qc_info.model_dump(by_alias=True)
+        )
+    except ApiException as error:
+        log.error(f"Error in setting QC status in file {current_log.name}: {error}")
 
 
 def reset_error_log_metadata_for_gears(
@@ -269,4 +274,7 @@ def reset_error_log_metadata_for_gears(
     for gear_name in gear_names:
         qc_info.pop(gear_name, None)
 
-    update_file_info(file=current_log, custom_info={"qc": qc_info})
+    try:
+        update_file_info(file=current_log, custom_info={"qc": qc_info})
+    except ApiException as error:
+        log.error(f"Error in resetting QC metadata in file {current_log.name}: {error}")

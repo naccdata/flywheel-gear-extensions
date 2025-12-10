@@ -86,6 +86,10 @@ def update_file_info_metadata(
 
 
 @api_retry
+def _upload_file(acquisition: Acquisition, file_spec: FileSpec):
+    acquisition.upload_file(file_spec)
+
+
 def upload_to_acquisition(
     acquisition: Acquisition,
     filename: str,
@@ -122,7 +126,7 @@ def upload_to_acquisition(
     )
 
     try:
-        acquisition.upload_file(record_file_spec)
+        _upload_file(acquisition=acquisition, file_spec=record_file_spec)
     except ApiException as error:
         raise UploaderError(
             f"Failed to upload file {filename} to "

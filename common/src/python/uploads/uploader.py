@@ -299,8 +299,20 @@ class FormJSONUploader:
 
                 # No error and no new file, something went wrong
                 if not new_file:
-                    log.error(
-                        "Error in uploading/finding visit file %s", visit_file_name
+                    message = (
+                        "Error in uploading/finding visit file %s",
+                        visit_file_name,
+                    )
+                    log.error(message)
+                    self.__update_visit_error_log(
+                        error_log_name=log_file,
+                        status="FAIL",
+                        error_obj=system_error(
+                            message=str(message),
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
+                        ),
                     )
                     success = False
                     continue
@@ -329,5 +341,5 @@ class FormJSONUploader:
                     visitdate_key=visitdate_key,
                 )
 
-        success = success and self.__create_pending_visits_file()
+        success = self.__create_pending_visits_file() and success
         return success
