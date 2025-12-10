@@ -340,7 +340,7 @@ class EventTableVisitor(ReportTableVisitor):
         self.__packet = packet
 
     def visit_row(self, row: QCReportBaseModel) -> None:
-        if not isinstance(row, VisitStatusReportModel):
+        if not isinstance(row, (VisitStatusReportModel, ErrorReportModel)):
             log.warning("Type of error model is incorrect for event logging")
             return
         visit_event = create_visit_event(
