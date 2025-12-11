@@ -2,10 +2,11 @@
 
 from typing import List
 
+from event_logging.event_logging import VisitEventLogger
 from event_logging.visit_events import VisitEvent
 
 
-class MockVisitEventLogger:
+class MockVisitEventLogger(VisitEventLogger):
     """Mock VisitEventLogger for testing."""
 
     def __init__(self):
