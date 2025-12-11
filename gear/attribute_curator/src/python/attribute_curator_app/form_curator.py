@@ -1,17 +1,15 @@
 import copy
 import importlib.metadata
-import json
 import logging
 import typing as typing
 from multiprocessing import Manager
 from multiprocessing.managers import DictProxy
-from typing import Any, Dict, MutableMapping, Optional, List
+from typing import Any, Dict, List, MutableMapping, Optional
 
 from curator.curator import Curator, ProjectCurationError, determine_scope
 from curator.scheduling_models import FileModel
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from gear_execution.gear_execution import InputFileWrapper
 from nacc_attribute_deriver.attribute_deriver import (
     AttributeDeriver,
     MissingnessDeriver,
@@ -61,9 +59,7 @@ CHILD_SCOPES = {
         MixedProtocolScope.MRI_DICOM,
         MixedProtocolScope.PET_DICOM,
     ],
-    FormScope.NP: [
-        FormScope.CROSS_MODULE
-    ]
+    FormScope.NP: [FormScope.CROSS_MODULE],
 }
 
 # Scopes that need to write to file.info.resolved
@@ -77,8 +73,9 @@ RESOLVED_SCOPES = [
     FormScope.FTLD,
     FormScope.LBD,
     FormScope.COVID_F1,
-    FormScope.COVID_F2F3
+    FormScope.COVID_F2F3,
 ]
+
 
 class FormCurator(Curator):
     """Curator that uses NACC Attribute Deriver."""
@@ -243,13 +240,13 @@ class FormCurator(Curator):
         if self.__prev_scope == scope and self.__prev_record:
             self.__set_working_metadata(table, "_prev_record.info", self.__prev_record)
 
-        # to resolve raw and missingness values, we create a copy of file.info.forms.json
-        # at file.info.resolved. this information IS pushed back to flywheel
-        # depending on the missing values in file.info.forms.json, the missingness logic
-        # may write/overwrite results in file.info.resolved
-        # as such, file.info.resolved represents the overlay of raw <- missingness,
-        # ensuring we have a resolved location for data model querying without touching
-        # the raw data
+        # to resolve raw and missingness values, we create a copy of
+        # file.info.forms.json at file.info.resolved. this information IS
+        # pushed back to flywheel depending on the missing values in
+        # file.info.forms.json, the missingness logic may write/overwrite results
+        # in file.info.resolved as such, file.info.resolved represents the overlay
+        # of raw <- missingness, ensuring we have a resolved location for data model
+        # querying without touching the raw data
         if scope in RESOLVED_SCOPES:
             self.__set_working_metadata(
                 table,
@@ -318,7 +315,7 @@ class FormCurator(Curator):
                 subject_table.pop(field)
 
     @api_retry
-    def post_curate(  # noqa: C901
+    def post_curate(
         self,
         subject: Subject,
         subject_table: SymbolTable,
@@ -372,7 +369,7 @@ class FormCurator(Curator):
             if affiliate_tag not in subject.tags:
                 subject.add_tag(affiliate_tag)
 
-            # not ideal, but need to also tag all files to get around data model restrictions
+            # not ideal, but need to also tag all files to get around data model
             # luckily the number of affiliates is relatively small, so this shouldn't
             # add too many more API calls
             for file in processed_files:
@@ -381,14 +378,16 @@ class FormCurator(Curator):
                     file_entry.add_tag(affiliate_tag)
 
         # 5. backprop
-        self.back_propagate_scopes(subject, scoped_files, derived.get("cross-sectional", None))
+        self.back_propagate_scopes(
+            subject, scoped_files, derived.get("cross-sectional", None)
+        )
 
     def subject_level_curation(
         self,
         subject: Subject,
         subject_table: SymbolTable,
         scoped_files: Dict[ScopeLiterals, List[FileModel]],
-        ) -> bool:
+    ) -> bool:
         """
         1. Cross-module derived variables need to be done at the end
         and at the subject level since it needs complete data from
@@ -412,8 +411,10 @@ class FormCurator(Curator):
             self.__attribute_deriver.curate(table, FormScope.CROSS_MODULE.value)
         except (AttributeDeriverError, MissingRequiredError) as e:
             self.__failed_files[subject.label] = str(e)
-            log.error("Failed to apply cross-module curation to " +
-                f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}")
+            log.error(
+                "Failed to apply cross-module curation to "
+                + f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}"
+            )
             return False
 
         # 2. run subject-level missingness curation
@@ -423,13 +424,17 @@ class FormCurator(Curator):
                 continue
 
             try:
-                log.debug(f"Applying subject-level missingness to {subject.label} " +
-                    f"for scope {scope.value}")
+                log.debug(
+                    f"Applying subject-level missingness to {subject.label} "
+                    + f"for scope {scope.value}"
+                )
                 self.__subject_missingness.curate(table, scope.value)
             except (AttributeDeriverError, MissingRequiredError) as e:
                 self.__failed_files[subject.label] = str(e)
-                log.error("Failed to apply subject-level missingness to " +
-                    f"{subject.label} on scope {scope.value}: {e}")
+                log.error(
+                    "Failed to apply subject-level missingness to "
+                    + f"{subject.label} on scope {scope.value}: {e}"
+                )
                 return False
 
         return True
@@ -438,11 +443,13 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         scoped_files: Dict[ScopeLiterals, List[FileModel]],
-        cs_derived: Dict[str, Any] | None
+        cs_derived: Dict[str, Any] | None,
     ) -> None:
-        """Performs back-propagation on cross-sectional variables. These are
-        "finalized" only after curation over the entire subject has completed
-        and need to be applied back to each corresponding file's file.info.derived.
+        """Performs back-propagation on cross-sectional variables.
+
+        These are "finalized" only after curation over the entire
+        subject has completed and need to be applied back to each
+        corresponding file's file.info.derived.
         """
         if not cs_derived:
             log.debug(
@@ -453,7 +460,7 @@ class FormCurator(Curator):
 
         # filter out to scopes that need to be back-propagated
         scope_derived: Dict[str, Dict[str, Any]] = {
-            scope: {} for scope in self.__scoped_variables.keys()
+            scope: {} for scope in self.__scoped_variables
         }
 
         for k, v in cs_derived.items():

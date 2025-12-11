@@ -2,7 +2,7 @@
 
 import logging
 from multiprocessing import Manager
-from typing import Any, Dict, List, MutableSequence, Optional
+from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel import FileSpec
@@ -149,7 +149,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             subject = self.__project.get_subject_by_id(subject_id)
             if subject:
                 if subject.label in naccid_blacklist:
-                    log.info(f"{subject.label} in blacklist, removing from regression testing")
+                    log.info(
+                        f"{subject.label} in blacklist, removing from "
+                        + "regression testing"
+                    )
                     continue
 
                 subjects.append(subject.label)
@@ -161,15 +164,15 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             s3_mqt_file=self.__s3_mqt_file,
             scheduler=scheduler,
             error_writer=error_writer,
-            variable_blacklist=variable_blacklist
+            variable_blacklist=variable_blacklist,
         )
 
         errors = list(error_writer.errors())
 
         if errors:
             log.error(
-                f"{len(errors)} errors detected, writing errors to " +
-                f"output file {self.__error_outfile}"
+                f"{len(errors)} errors detected, writing errors to "
+                + f"output file {self.__error_outfile}"
             )
             contents = write_csv_to_stream(
                 headers=FileError.fieldnames(), data=errors

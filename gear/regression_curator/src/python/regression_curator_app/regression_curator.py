@@ -8,8 +8,8 @@ with NACC or key values such as as visit date.)
 """
 
 import ast  # type: ignore
-import math
 import logging
+import math
 from typing import Any, Dict, MutableMapping, Optional, Set
 
 from curator.curator import Curator, ProjectCurationError
@@ -27,8 +27,6 @@ from nacc_attribute_deriver.utils.scope import (
 from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
-from utils.decorators import api_retry
-
 
 log = logging.getLogger(__name__)
 
@@ -60,15 +58,17 @@ class RegressionCurator(Curator):
         missingness_rules = MissingnessDeriver("file").get_curation_rules(scope)
         self.__scoped_variables[scope] = set()
 
-        curation_rules = [] if not curation_rules else curation_rules
-        missingness_rules = [] if not missingness_rules else missingness_rules
+        curation_rules = curation_rules if curation_rules else []
+        missingness_rules = missingness_rules if missingness_rules else []
 
         # only care about derived and resolved variables from curation
         if curation_rules + missingness_rules:
             for rule in curation_rules:
                 for assignment in rule.assignments:
-                    if (".derived." not in assignment.attribute and
-                        ".resolved" not in assignment.attribute):
+                    if (
+                        ".derived." not in assignment.attribute
+                        and ".resolved" not in assignment.attribute
+                    ):
                         continue
 
                     attribute = assignment.attribute.split(".")[-1]
@@ -141,12 +141,12 @@ class RegressionCurator(Curator):
         # REGRESSION: remove apostrophes for comparison since
         # legacy code stripped them out
         value = str(value).strip()
-        for character in ["'", "\""]:
+        for character in ["'", '"']:
             value = value.replace(character, "")
 
         return value
 
-    def compare_baseline(
+    def compare_baseline(  # noqa: C901
         self,
         found_vars: Dict[str, Any],
         record: Dict[str, Any],
@@ -173,7 +173,7 @@ class RegressionCurator(Curator):
         record = {k.lower(): v for k, v in record.items()}
 
         identifier = record["naccid"]
-        if prefix.startswith("file") and 'visitdate' in record:
+        if prefix.startswith("file") and "visitdate" in record:
             identifier = f"{identifier} {record['visitdate']}"
 
         # compare
@@ -189,19 +189,27 @@ class RegressionCurator(Curator):
             value = self.resolve_value(value)
             expected = self.resolve_value(record[field])
 
-            # REGRESSION: SPECIAL CASES WE ARE IGNORING FOR THE 
+            # REGRESSION: SPECIAL CASES WE ARE IGNORING FOR THE
             # SAKE OF REGRESSION TESTING - REMOVE WHEN DONE
-            if field in ["mocalanx", "respothx", "bpdias",
-                         "bpsys", "weight", "height", "hrate"]:
+            if field in [
+                "mocalanx",
+                "respothx",
+                "bpdias",
+                "bpsys",
+                "weight",
+                "height",
+                "hrate",
+            ]:
                 if value == "-4" and expected == "":
                     continue
                 if value == "" and expected == "-4":
                     continue
 
             # REGRESSION: cogoth2f/cogoth3f case, allow -4 == 8
-            if field in ["cogoth2f", "cogoth3f"]:
-                if value == "-4" and expected == "8":
-                    continue
+            if field in ["cogoth2f", "cogoth3f"] and (
+                value == "-4" and expected == "8"
+            ):
+                continue
 
             # also clear up "." strings in the QAF
             if value == "" and expected == ".":
@@ -226,7 +234,7 @@ class RegressionCurator(Curator):
                         value=value,
                         expected=expected,
                         message=msg,
-                        visit_keys=visit_keys
+                        visit_keys=visit_keys,
                     )
                 )
 
@@ -257,7 +265,7 @@ class RegressionCurator(Curator):
                     value="",
                     expected=expected,
                     message=msg,
-                    visit_keys=visit_keys
+                    visit_keys=visit_keys,
                 )
             )
 
@@ -281,7 +289,8 @@ class RegressionCurator(Curator):
 
         if not derived_record and not resolved_record:
             log.debug(
-                f"No derived or resolved variables found for {file_entry.name}, skipping"
+                f"No derived or resolved variables found for {file_entry.name}, "
+                + "skipping"
             )
             return
 
@@ -293,7 +302,9 @@ class RegressionCurator(Curator):
             form_record = table.get("file.info.forms.json")
             visit_keys = VisitKeys.create_from(form_record, date_field="visitdate")
             if not visit_keys.date:
-                log.debug(f"No visitdate found for UDS file {file_entry.name}, skipping")
+                log.debug(
+                    f"No visitdate found for UDS file {file_entry.name}, skipping"
+                )
                 return
 
         # ensure in QAF baseline - if not affiliate, report error
@@ -319,5 +330,5 @@ class RegressionCurator(Curator):
             record=baseline_record,
             prefix="file.info.x",
             scope=scope,
-            visit_keys=visit_keys
+            visit_keys=visit_keys,
         )

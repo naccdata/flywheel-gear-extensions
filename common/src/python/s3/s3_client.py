@@ -2,7 +2,7 @@
 
 import logging
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import boto3
 from botocore.config import Config
@@ -131,3 +131,20 @@ class S3BucketReader:
         )
 
         return S3BucketReader(boto_client=client, bucket_name=s3bucket)
+
+    @classmethod
+    def parse_bucket_and_key(self, s3_uri: str) -> Tuple[str, str | None]:
+        """Parses the bucket and key from an S3 URI.
+
+        Args:
+            s3_uri: S3 URI to parse
+        Returns:
+            bucket, key. Bucket is always expected, key not always
+        """
+        stripped_s3_file = s3_uri.strip().replace("s3://", "")
+        s3_parts = stripped_s3_file.split("/")
+
+        if len(s3_parts) < 2:
+            return s3_parts[0], None
+
+        return s3_parts[0], "/".join(s3_parts[1:])

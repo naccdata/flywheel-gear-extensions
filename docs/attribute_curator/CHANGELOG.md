@@ -2,7 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.0.0, Unreleased
+## 1.0.1
+
+* Updates `rxclass_concepts` to be pulled from S3
+
+## 1.0.0
 
 * Updates `nacc-attribute-deriver` to `2.0.0rc1`, which introduces major refactoring and the remaining derived variables + missingness support
 * Adds additional form scopes. MP required a few additional refactors:

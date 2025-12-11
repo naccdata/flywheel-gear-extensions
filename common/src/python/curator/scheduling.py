@@ -4,7 +4,7 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from curator.curator import Curator, ProjectCurationError
 from data.dataview import ColumnModel, make_builder

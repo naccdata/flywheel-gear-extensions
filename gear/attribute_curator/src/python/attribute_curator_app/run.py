@@ -1,6 +1,8 @@
 """Entry script for Attribute Curator."""
 
+import json
 import logging
+from json.decoder import JSONDecodeError
 from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -12,11 +14,10 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
-    InputFileWrapper,
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from rxnav.rxnav_connection import load_rxclass_concepts_from_file
+from s3.s3_client import S3BucketReader
 from utils.utils import parse_string_to_list
 
 from attribute_curator_app.main import run
@@ -34,7 +35,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         filename_patterns: List[str],
         curation_tag: str,
         force_curate: bool = False,
-        rxclass_concepts_file: Optional[InputFileWrapper] = None,
+        rxclass_concepts_s3_uri: Optional[str] = None,
         max_num_workers: int = 4,
     ):
         super().__init__(client=client)
@@ -42,7 +43,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self.__filename_patterns = filename_patterns
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
-        self.__rxclass_concepts_file = rxclass_concepts_file
+        self.__rxclass_concepts_s3_uri = rxclass_concepts_s3_uri
         self.__max_num_workers = max_num_workers
 
     @classmethod
@@ -65,10 +66,6 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
-        rxclass_concepts_file = InputFileWrapper.create(
-            input_name="rxclass_concepts_file", context=context
-        )
-
         filename_patterns = parse_string_to_list(
             context.config.get(
                 "filename_patterns", ".*\\.json,.*\\.dicom\\,.*\\.zip,.*\\.nii\\.gz"
@@ -78,6 +75,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         curation_tag = context.config.get("curation_tag", "attribute-curator")
         force_curate = context.config.get("force_curate", False)
         max_num_workers = context.config.get("max_num_workers", 4)
+        rxclass_concepts_s3_uri = context.config.get("rxclass_concepts_s3_uri", "")
 
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
@@ -91,7 +89,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             filename_patterns=filename_patterns,
             curation_tag=curation_tag,
             force_curate=force_curate,
-            rxclass_concepts_file=rxclass_concepts_file,
+            rxclass_concepts_s3_uri=rxclass_concepts_s3_uri,
             max_num_workers=max_num_workers,
         )
 
@@ -99,11 +97,23 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         rxclass_concepts = None
-        if self.__rxclass_concepts_file:
-            with open(
-                self.__rxclass_concepts_file.filepath, mode="r", encoding="utf-8-sig"
-            ) as fh:
-                rxclass_concepts = load_rxclass_concepts_from_file(fh)
+        if self.__rxclass_concepts_s3_uri:
+            s3_bucket, s3_file = S3BucketReader.parse_bucket_and_key(
+                self.__rxclass_concepts_s3_uri
+            )
+            s3_client = S3BucketReader.create_from_environment(s3_bucket)
+            if not s3_client or not s3_file:
+                raise GearExecutionError(
+                    "Invalid S3 URI for RxNorm concepts: "
+                    + f"{self.__rxclass_concepts_s3_uri}"
+                )
+
+            try:
+                rxclass_concepts = json.load(s3_client.read_data(s3_file))
+            except (JSONDecodeError, TypeError) as error:
+                raise GearExecutionError(
+                    f"Failed to read {self.__rxclass_concepts_s3_uri}: {error}"
+                ) from error
 
         try:
             scheduler = ProjectCurationScheduler.create(

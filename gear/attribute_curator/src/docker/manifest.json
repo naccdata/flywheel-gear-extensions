@@ -2,7 +2,7 @@
     "name": "attribute-curator",
     "label": "Attribute Curator",
     "description": "Curation of derived data for MQT project",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/attribute-curator:1.0.0"
+            "image": "naccdata/attribute-curator:1.0.1"
         },
         "flywheel": {
             "suite": "Curation",
@@ -26,16 +26,6 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
-        },
-        "rxclass_concepts_file": {
-            "description": "JSON file containing cached RxClass concepts. If provided, skips the RxClass querying at the beginning of curation and uses the data provided here",
-            "base": "file",
-            "optional": true,
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
         }
     },
     "config": {
@@ -68,6 +58,11 @@
             "description": "Whether or not to use debug-level logging (level set to DEBUG)",
             "type": "boolean",
             "default": false
+        },
+        "rxclass_concepts_s3_uri": {
+            "description": "S3 URI to pull RxClass concepts JSON from. If provided, skips the RxClass querying at the beginning of curation and uses the data provided here",
+            "type": "string",
+            "default": ""
         }
     },
     "command": "/bin/run"

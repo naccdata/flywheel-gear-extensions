@@ -3,7 +3,7 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.scheduling import ProjectCurationScheduler
@@ -35,18 +35,10 @@ class BaselineLocalizer(ABC):
         """Localizess the S3 file and returns the StreamingBody."""
         log.info(f"Localizing file from {self.s3_file}")
 
-        stripped_s3_file = self.s3_file.strip().replace("s3://", "")
-        s3_parts = stripped_s3_file.split("/")
-
-        if len(s3_parts) < 2:
-            raise GearExecutionError(f"Invalid S3 key: {self.s3_file}")
-
-        s3_bucket = s3_parts[0]
-        key = "/".join(s3_parts[1:])
-
+        s3_bucket, key = S3BucketReader.parse_bucket_and_key(self.s3_file)
         s3_client = S3BucketReader.create_from_environment(s3_bucket)
-        if not s3_client:
-            raise GearExecutionError(f"Unable to access S3 bucket {s3_bucket}")
+        if not s3_client or not key:
+            raise GearExecutionError(f"Unable to access S3 file {self.s3_file}")
 
         # return body
         return s3_client.get_file_object(key)["Body"]
@@ -103,10 +95,10 @@ class BaselineLocalizer(ABC):
 
             baseline[key] = data
 
-            # this is kind of a hack to handle cross-sectional data like NP and genetics;
-            # just key on the most recent visit, which should also have the most recent
-            # cross-sectional information
-            baseline[row['naccid']] = data  # type: ignore
+            # this is kind of a hack to handle cross-sectional data like NP and
+            # genetics; just key on the most recent visit, which should also have
+            # the most recent cross-sectional information
+            baseline[row["naccid"]] = data  # type: ignore
 
         if not baseline:
             raise GearExecutionError(f"No usable records found in {self.s3_file}")
