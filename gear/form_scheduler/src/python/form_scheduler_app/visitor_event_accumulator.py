@@ -12,6 +12,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.types import DatatypeNameType
 from nacc_common.error_models import (
     FileError,
+    FileQCModel,
     ValidationModel,
     VisitKeys,
 )
@@ -50,10 +51,12 @@ class EventReportVisitor(FileQCReportVisitor):
         *,
         error_transformer: ErrorTransformer,
         validation_transformer: ValidationTransformer,
+        file_modified_timestamp: Optional[datetime] = None,
     ) -> None:
         super().__init__()
         self.__error_transformer = error_transformer
         self.__validation_transformer = validation_transformer
+        self.__file_modified_timestamp = file_modified_timestamp
         self.__error: QCReportBaseModel | None = None
         self.__validation: QCReportBaseModel | None = None
 
@@ -77,6 +80,19 @@ class EventReportVisitor(FileQCReportVisitor):
         self.__error = None
         self.__validation = None
 
+    def set_file_modified_timestamp(self, timestamp: datetime) -> None:
+        """Set the file modification timestamp for use in pass events."""
+        self.__file_modified_timestamp = timestamp
+
+    def visit_file_model(self, file_model: FileQCModel) -> None:
+        """Override to check for empty qc object before processing."""
+        # Stop processing if qc object is empty
+        if not file_model.qc:
+            return
+
+        # Call parent implementation for normal processing
+        super().visit_file_model(file_model)
+
     def visit_validation_model(self, validation_model: ValidationModel) -> None:
         """Defines a visit for a validation model.
 
@@ -98,11 +114,14 @@ class EventReportVisitor(FileQCReportVisitor):
             return
 
         if validation_model.state.lower() == "pass":
-            self.add(
-                self.__validation_transformer(
-                    self.gear_name, self.visit_details, validation_model
-                )
+            # Call the validation transformer with the file timestamp
+            result = event_status_transformer(
+                self.gear_name,
+                self.visit_details,
+                validation_model,
+                self.__file_modified_timestamp,
             )
+            self.add(result)
             return
 
         for error_model in validation_model.data:
@@ -138,7 +157,10 @@ class VisitKey(BaseModel):
 
 
 def event_status_transformer(
-    gear_name: str, visit: VisitKeys, validation_model: ValidationModel
+    gear_name: str,
+    visit: VisitKeys,
+    validation_model: ValidationModel,
+    file_modified_timestamp: Optional[datetime] = None,
 ) -> VisitStatusReportModel:
     """Transformer for creating visit status report objects from a file QC
     validation model.
@@ -147,6 +169,7 @@ def event_status_transformer(
       gear_name: the gear name corresponding to the validation model
       visit: the visit attributes for the file
       validation_model: the validation model
+      file_modified_timestamp: the QC status file modification timestamp to use for pass events
 
     Raises:
       QCTransformerError if the visit ptid, module and date are not set
@@ -162,6 +185,15 @@ def event_status_transformer(
     if visit.module not in get_args(ModuleName):
         raise QCTransformerError(f"Unexpected module name: {visit.module}")
 
+    # For pass events, use the QC status file modification timestamp
+    timestamp_str = None
+    if (
+        file_modified_timestamp
+        and validation_model.state
+        and validation_model.state.lower() == "pass"
+    ):
+        timestamp_str = file_modified_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
     return VisitStatusReportModel(
         adcid=visit.adcid,
         ptid=visit.ptid,
@@ -169,6 +201,8 @@ def event_status_transformer(
         visitdate=visit.date,
         stage=gear_name,
         status=validation_model.state,
+        timestamp=timestamp_str,
+        visit_number=visit.visitnum,  # Visit number is optional
     )
 
 
@@ -254,9 +288,7 @@ def create_visit_event_from_status(
     if not status_model.stage:
         log.warning("No gear name known for pass event for %s", status_model.ptid)
         return None
-    if not status_model.visit_number:
-        log.warning("No visit number known for pass event for %s", status_model.ptid)
-        return None
+    # Visit number is optional - it may not be available for all pass events
 
     timestamp = datetime.strptime(status_model.timestamp, "%Y-%m-%d %H:%M:%S")
     return VisitEvent(
@@ -378,6 +410,27 @@ def create_modified_filter(timestamp: datetime) -> Callable[[FileEntry], bool]:
     return after_timestamp
 
 
+class EventProjectReportVisitor(ProjectReportVisitor):
+    """Custom ProjectReportVisitor that passes file modification timestamp to
+    EventReportVisitor."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Store reference to file visitor for easier access
+        self._event_file_visitor = kwargs.get("file_visitor")
+
+    def visit_file(self, file: FileEntry) -> None:
+        """Override to set file modification timestamp before processing."""
+        # Set the file modification timestamp in the file visitor if it's an EventReportVisitor
+        if self._event_file_visitor is not None and hasattr(
+            self._event_file_visitor, "set_file_modified_timestamp"
+        ):
+            self._event_file_visitor.set_file_modified_timestamp(file.modified)
+
+        # Call the parent implementation
+        super().visit_file(file)
+
+
 class EventAccumulator:
     """Accumulates visit events for files with QC-status reports."""
 
@@ -406,7 +459,7 @@ class EventAccumulator:
         pipeline_label = PipelineLabel.model_validate(project.label)
         study = pipeline_label.study_id
 
-        error_visitor = ProjectReportVisitor(
+        error_visitor = EventProjectReportVisitor(
             adcid=project.get_pipeline_adcid(),
             modules=set(self.__pipeline.modules) if self.__pipeline.modules else None,  # type: ignore
             file_visitor=EventReportVisitor(
