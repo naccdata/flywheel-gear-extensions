@@ -98,6 +98,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
         rxclass_concepts = None
         if self.__rxclass_concepts_s3_uri:
+            log.info(f"Loading RxClass concepts from {self.__rxclass_concepts_s3_uri}")
             s3_bucket, s3_file = S3BucketReader.parse_bucket_and_key(
                 self.__rxclass_concepts_s3_uri
             )
