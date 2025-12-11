@@ -10,7 +10,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    ContextClient,
+    GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
@@ -63,7 +63,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
 
-        client = ContextClient.create(context=context)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
         proxy = client.get_proxy()
 
         filename_patterns = parse_string_to_list(
@@ -136,7 +136,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for Attribute Curator."""
-    GearEngine().run(gear_type=AttributeCuratorVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=AttributeCuratorVisitor)
 
 
 if __name__ == "__main__":
