@@ -29,7 +29,7 @@ class VisitEvent(BaseModel):
     gear_name: str
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
     visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    visit_number: str
+    visit_number: Optional[str] = None
     datatype: DatatypeNameType
     module: Optional[ModuleName] = None
     packet: Optional[str] = None
