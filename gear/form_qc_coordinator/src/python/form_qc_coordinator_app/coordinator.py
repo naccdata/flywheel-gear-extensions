@@ -25,15 +25,25 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
-from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.error_models import (
+    FileError,
+    FileErrorList,
+    FileQCModel,
+    GearQCModel,
+    GearTags,
+    QCStatus,
+    VisitKeys,
+)
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
+from outputs.error_logger import get_file_qc_info, update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,
     previous_visit_failed_error,
     system_error,
 )
+
+from form_qc_coordinator_app.visits import VisitsLookupHelper
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +77,7 @@ class QCCoordinator:
         qc_gear_info: GearInfo,
         proxy: FlywheelProxy,
         gear_context: GearToolkitContext,
+        visits_lookup_helper: VisitsLookupHelper,
     ) -> None:
         """Initialize the QC Coordinator.
 
@@ -78,6 +89,7 @@ class QCCoordinator:
             qc_gear_info: GearInfo containing info for the qc gear
             proxy: Flywheel proxy object
             gear_context: Flywheel gear context
+            visits_lookup_helper: Helper class to lookup matching visits
         """
         self.__subject = subject
         self.__module = module
@@ -90,6 +102,9 @@ class QCCoordinator:
         self.__dependent_modules = form_project_configs.get_module_dependencies(
             self.__module
         )
+        self.__project = self.__proxy.get_project_by_id(self.__subject.parents.project)
+        self.__visits_lookup_helper = visits_lookup_helper
+        self.__failed_visit: Optional[FileEntry] = None
 
     def __passed_qc_checks(self, visit_file: FileEntry, gear_name: str) -> bool:
         """Check the validation status for the specified visit for the
@@ -145,22 +160,127 @@ class QCCoordinator:
             data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
-        info = (
-            visit_file.info
-            if (visit_file.info and "qc" in visit_file.info)
-            else {"qc": {}}
-        )
+        qc_info = get_file_qc_info(visit_file)
+        if not qc_info:
+            qc_info = FileQCModel(qc={})
 
         # add qc-coordinator gear info to visit file metadata
         updated_qc_info = self.__metadata.add_gear_info("qc", visit_file, **qc_result)
         gear_name = self.__metadata.name  # type: ignore
-        info["qc"][gear_name] = updated_qc_info["qc"][gear_name]
+        gear_model = GearQCModel.model_validate(
+            updated_qc_info["qc"][gear_name], by_alias=True
+        )
+        qc_info.set(gear_name=gear_name, gear_model=gear_model)
 
         try:
-            visit_file.update_info(info)
+            visit_file.update_info(qc_info.model_dump(by_alias=True))
         except ApiException as error:
-            log.error("Error in setting QC metadata in file %s - %s", visit_file, error)
+            log.error(
+                "Error in setting QC metadata in file %s - %s", visit_file.name, error
+            )
 
+        self.__update_log_file(
+            ptid=ptid,
+            visitdate=visitdate,
+            status=status,
+            gear_name=gear_name,
+            errors=error_writer.errors(),
+        )
+
+    def __reset_qc_error_metadata(
+        self,
+        *,
+        visit_file: FileEntry,
+        ptid: str,
+        visitdate: str,
+        status: QCStatus,
+        qc_gear_name: str,
+        error_obj: Optional[FileError] = None,
+    ):
+        """Reset QC gear error metadata in the visit file qc info section.
+        and update the QC gear status tag.
+        Also, resets qc info metadata in visit error log.
+        Note: This method modifies metadata in a file which is not tracked as gear input
+
+        Args:
+            visit_file: FileEntry object for the visits file
+            ptid: PTID
+            visitdate: visit date
+            status: QC status
+            qc_gear_name: QC gear name to reset metadata
+            error_obj (optional): FileError object with failure info
+        """
+
+        error_writer = ListErrorWriter(
+            container_id=visit_file.id, fw_path=self.__proxy.get_lookup_path(visit_file)
+        )
+
+        if error_obj:
+            error_writer.write(error_obj)
+
+        visit_file = visit_file.reload()
+        qc_info = get_file_qc_info(visit_file)
+        if not qc_info:
+            qc_info = FileQCModel(qc={})
+
+        qc_info.set_errors(
+            gear_name=qc_gear_name,
+            status=status,
+            errors=error_writer.errors().model_dump(by_alias=True),
+        )
+
+        try:
+            visit_file.update_info(qc_info.model_dump(by_alias=True))
+
+            # update gear status tag
+            gear_tags = GearTags(gear_name=qc_gear_name)
+            fail_tag = gear_tags.fail_tag
+            pass_tag = gear_tags.pass_tag
+            new_tag = gear_tags.get_status_tag(status=status)
+
+            # visit file is not tracked through gear context
+            # need to directly add/remove tags from FileEntry object
+            if visit_file.tags:
+                if fail_tag in visit_file.tags:
+                    visit_file.delete_tag(fail_tag)
+                if pass_tag in visit_file.tags:
+                    visit_file.delete_tag(pass_tag)
+
+            visit_file.add_tag(new_tag)
+        except ApiException as error:
+            log.error(
+                f"Error in resetting QC metadata in file {visit_file.name}: {error}"
+            )
+
+        self.__update_log_file(
+            ptid=ptid,
+            visitdate=visitdate,
+            status=status,
+            gear_name=qc_gear_name,
+            errors=error_writer.errors(),
+        )
+
+    def __update_log_file(
+        self,
+        *,
+        ptid: str,
+        visitdate: str,
+        status: str,
+        gear_name: str,
+        errors: FileErrorList,
+    ):
+        """Updates the visit error log and add qc info metadata.
+
+        Args:
+            ptid: PTID
+            visitdate: visit date
+            status: QC status
+            gear_name: QC coordinator gear name
+            errors: error object with failure info
+
+        Raises:
+            GearExecutionError: If failed to update log file
+        """
         error_log_name = ErrorLogTemplate().instantiate(
             record={
                 f"{FieldNames.PTID}": ptid,
@@ -169,17 +289,17 @@ class QCCoordinator:
             module=self.__module,
         )
 
-        project = self.__proxy.get_project_by_id(self.__subject.parents.project)  # type: ignore
-
         if (
             not error_log_name
-            or not project
+            or not self.__project
             or not update_error_log_and_qc_metadata(
                 error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(project=project, proxy=self.__proxy),
+                destination_prj=ProjectAdaptor(
+                    project=self.__project, proxy=self.__proxy
+                ),
                 gear_name=gear_name,
                 state=status,
-                errors=error_writer.errors(),
+                errors=errors,
                 reset_qc_metadata="GEAR",
             )
         ):
@@ -189,6 +309,7 @@ class QCCoordinator:
 
     def __update_last_failed_visit(
         self,
+        module: str,
         file_id: str,
         filename: str,
         visitdate: str,
@@ -197,14 +318,21 @@ class QCCoordinator:
         """Update last failed visit details in subject metadata.
 
         Args:
+            module: module label of the failed visit
             file_id: Flywheel file id of the failed visit file
             filename: name of the failed visit file
             visitdate: visit date of the failed visit
+            visitnum (optional): visit number of the failed visit
         """
-        visit_info = VisitInfo(
-            file_id=file_id, filename=filename, visitdate=visitdate, visitnum=visitnum
-        )
-        self.__subject.set_last_failed_visit(self.__module, visit_info)
+        lfv = self.__subject.get_last_failed_visit(module=module)
+        if not lfv or lfv.visitdate >= visitdate:
+            visit_info = VisitInfo(
+                file_id=file_id,
+                filename=filename,
+                visitdate=visitdate,
+                visitnum=visitnum,
+            )
+            self.__subject.set_last_failed_visit(module, visit_info)
 
     def __get_matching_supplement_visit_file(
         self,
@@ -281,20 +409,29 @@ class QCCoordinator:
         error_obj: FileError,
         visitnum: Optional[str] = None,
     ) -> None:
-        """Set last failed visit and update QC error metadata.
+        """Set last failed visit and update QC error metadata. Reset QC status
+        of dependent module visits if there's any.
 
         Args:
             ptid: PTID for this visit
             visit_file: Flywheel file object for the visit
             visitdate: visit date
             error_obj: error metadata to report
+            visitnum: visit number
         """
-        self.__update_last_failed_visit(
-            file_id=visit_file.file_id,
-            filename=visit_file.name,
-            visitdate=visitdate,
-            visitnum=visitnum,
-        )
+
+        # set the first failed visit for this run
+        # and update the last failed visit for the subject
+        if not self.__failed_visit:
+            self.__failed_visit = visit_file
+            self.__update_last_failed_visit(
+                module=self.__module,
+                file_id=visit_file.file_id,
+                filename=visit_file.name,
+                visitdate=visitdate,
+                visitnum=visitnum,
+            )
+
         self.__update_qc_error_metadata(
             visit_file=visit_file,
             error_obj=error_obj,
@@ -302,6 +439,8 @@ class QCCoordinator:
             visitdate=visitdate,
             status="FAIL",
         )
+
+        self.__reset_dependent_modules_qc_status(visitdate=visitdate, visitnum=visitnum)
 
     def __update_remaining_visits_metadata(
         self,
@@ -375,6 +514,8 @@ class QCCoordinator:
             bool: True if current visit was finalized after the trigger
         """
 
+        log.info(f"Validating finalization trigger: {visit}")
+
         module_timestamp = visit.get(
             f"{self.__module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
         )
@@ -397,28 +538,56 @@ class QCCoordinator:
         return outdated
 
     def __get_visit_file_and_destination(
-        self, visit: Dict[str, str]
-    ) -> Tuple[FileEntry, Acquisition]:
+        self,
+        *,
+        visit: Dict[str, str],
+        ptid_key: str,
+        date_col_key: str,
+        visitnum_key: str,
+    ) -> Tuple[Optional[FileEntry], Optional[Acquisition]]:
         """Retrieve visit file and acquisition container from visit info.
 
         Args:
             visit: visit info
 
         Returns:
-            Tuple[FileEntry, Acquisition]: file entry and acquisition container
-
-        Raises:
-            GearExecutionError: if file or acquisition not found
+            Tuple[FileEntry, Acquisition]: file entry and acquisition container if found
         """
+
+        file_id = visit["file.file_id"]
+        filename = visit["file.name"]
+        visitdate = visit[date_col_key]
+        ptid = visit[ptid_key]
+        visitnum = visit.get(visitnum_key)
+
         try:
             return (
                 self.__proxy.get_file(visit["file.file_id"]),
                 self.__proxy.get_acquisition(visit["file.parents.acquisition"]),
             )
         except ApiException as error:
-            raise GearExecutionError(
-                f"Error retrieving file {visit['file.name']}: {error}"
-            ) from error
+            # can only update the log file since visit file cannot be found
+            error_obj = system_error(
+                message=f"Error retrieving file {visit['file.name']}: {error}",
+                visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+            )
+            error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
+            self.__update_log_file(
+                ptid=ptid,
+                visitdate=visitdate,
+                status="FAIL",
+                gear_name=self.__metadata.name,  # type: ignore
+                errors=FileErrorList([error_obj]),
+            )
+            self.__update_last_failed_visit(
+                module=self.__module,
+                file_id=file_id,
+                filename=filename,
+                visitdate=visitdate,
+                visitnum=visitnum,
+            )
+
+            return None, None
 
     def __build_qc_gear_inputs(
         self,
@@ -481,6 +650,117 @@ class QCCoordinator:
 
         return inputs
 
+    def __reset_module_visit_qc_status(
+        self, *, module: str, visitdate: str, visit_info: Dict[str, str]
+    ):
+        """Reset the QC metadata of the dependent module visit file and
+        respective error log file.
+
+        Args:
+            module: the dependent module to be reset
+            visitdate: visit date
+            visit_info: dependent module visit info
+        """
+        ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
+
+        file_id = visit_info["file.file_id"]
+        file_name = visit_info["file.name"]
+        visitnum = visit_info.get(visitnum_key)
+        try:
+            visit_file = self.__proxy.get_file(file_id)
+        except ApiException as error:
+            log.warning(
+                "Failed to retrieve file, error metadata not reset for "
+                f"dependent module visit {file_name}: {error}"
+            )
+            return
+
+        ptid = visit_info[ptid_key]
+        error_obj = preprocessing_error(
+            field=FieldNames.MODULE,
+            value=module,
+            error_code=SysErrorCodes.UDS_NOT_APPROVED,
+            visit_keys=VisitKeys(
+                ptid=ptid,
+                visitnum=visitnum,
+                date=visitdate,
+                naccid=visit_info.get(naccid_key),
+            ),
+        )
+
+        self.__reset_qc_error_metadata(
+            visit_file=visit_file,
+            error_obj=error_obj,
+            ptid=ptid,
+            visitdate=visitdate,
+            qc_gear_name=self.__qc_gear_info.gear_name,
+            status="FAIL",
+        )
+
+        self.__update_last_failed_visit(
+            module=module,
+            file_id=file_id,
+            filename=file_name,
+            visitdate=visitdate,
+            visitnum=visitnum,
+        )
+
+    def __reset_dependent_modules_qc_status(
+        self, *, visitdate: str, visitnum: Optional[str] = None
+    ):
+        """Reset the QC metadata of any module visits dependent on the failed
+        visit.
+
+        Args:
+            visitdate: visit date to match
+            visitnum (optional): visit number to match
+
+        Raises:
+            GearExecutionError: if errors occur while resetting metadata
+        """
+        if not self.__dependent_modules:
+            log.info(f"No dependent modules for current module {self.__module}")
+            return
+
+        for dep_module in self.__dependent_modules:
+            dep_module_configs = self.__form_project_configs.module_configs.get(
+                dep_module
+            )
+
+            if not dep_module_configs:
+                raise GearExecutionError(
+                    f"Failed to find module configs for dependent module {dep_module}"
+                )
+
+            matched_visits = (
+                self.__visits_lookup_helper.find_module_visits_with_matching_visitdate(
+                    module=dep_module,
+                    module_configs=dep_module_configs,
+                    visitdate=visitdate,
+                    visitnum=visitnum,
+                )
+            )
+
+            if not matched_visits:
+                log.info(
+                    f"No {dep_module} visits dependent on {self.__module} "
+                    f"visit with visitdate: {visitdate} "
+                    f"visitnum: {visitnum}"
+                )
+                continue
+
+            if len(matched_visits) > 1:  # this cannot happen
+                raise GearExecutionError(
+                    f"Multiple {dep_module} visits found with "
+                    f"visitdate: {visitdate} visitnum: {visitnum}"
+                )
+
+            self.__reset_module_visit_qc_status(
+                module=dep_module, visitdate=visitdate, visit_info=matched_visits[0]
+            )
+
     def run_error_checks(self, *, visits: List[Dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
@@ -504,7 +784,6 @@ class QCCoordinator:
         sorted_visits = sorted(visits, key=lambda d: d[date_col_key])
         visits_queue = deque(sorted_visits)
 
-        failed_visit = ""
         while visits_queue:
             visit = visits_queue.popleft()
             filename = visit["file.name"]
@@ -517,46 +796,39 @@ class QCCoordinator:
             if self.__is_outdated_trigger(visit):
                 continue
 
-            try:
-                visit_file, destination = self.__get_visit_file_and_destination(visit)
-                qc_gear_inputs = self.__build_qc_gear_inputs(
-                    visit_file=visit_file,
-                    ptid=ptid,
-                    visitdate=visitdate,
-                    visitnum=visitnum,
-                    naccid=naccid,
-                )
-            except GearExecutionError as error:
-                raise error
+            visit_file, destination = self.__get_visit_file_and_destination(
+                visit=visit,
+                ptid_key=ptid_key,
+                date_col_key=date_col_key,
+                visitnum_key=visitnum_key,
+            )
+            if not visit_file or not destination:
+                continue
 
-            # If required gear inputs not found, stop processing
+            qc_gear_inputs = self.__build_qc_gear_inputs(
+                visit_file=visit_file,
+                ptid=ptid,
+                visitdate=visitdate,
+                visitnum=visitnum,
+                naccid=naccid,
+            )
             if not qc_gear_inputs:
-                failed_visit = visit_file.name
-                break
+                continue
 
-            gear_name = self.__qc_gear_info.gear_name
+            qc_gear_name = self.__qc_gear_info.gear_name
             job_id = trigger_gear(
                 proxy=self.__proxy,
-                gear_name=gear_name,
+                gear_name=qc_gear_name,
                 log_args=False,
                 config=self.__qc_gear_info.configs.model_dump(),
                 inputs=qc_gear_inputs,
                 destination=destination,
             )
 
+            # If failed to trigger QC gear, report system error
             if not job_id:
-                raise GearExecutionError(
-                    f"Failed to trigger gear {gear_name} on file {filename}"
-                )
-
-            log.info(
-                "Gear %s queued for file %s - Job ID %s", gear_name, filename, job_id
-            )
-
-            # If QC gear did not complete, stop evaluating any subsequent visits
-            if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
-                    message=f"Errors occurred while running gear {gear_name}",
+                    message=f"Failed to trigger gear {qc_gear_name}",
                     visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -566,30 +838,42 @@ class QCCoordinator:
                     visitnum=visitnum,
                     error_obj=error_obj,
                 )
-                failed_visit = visit_file.name
-                break
+                continue
+
+            log.info(
+                "Gear %s queued for file %s - Job ID %s", qc_gear_name, filename, job_id
+            )
+
+            # If QC gear did not complete, report system error
+            if not JobPoll.is_job_complete(self.__proxy, job_id):
+                error_obj = system_error(
+                    message=f"Errors occurred while running gear {qc_gear_name}",
+                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                )
+                self.__update_visit_metadata_on_failure(
+                    ptid=ptid,
+                    visit_file=visit_file,
+                    visitdate=visitdate,
+                    visitnum=visitnum,
+                    error_obj=error_obj,
+                )
+                continue
 
             self.__update_qc_error_metadata(
                 visit_file=visit_file, ptid=ptid, visitdate=visitdate, status="PASS"
             )
 
-            # If QC checks failed, stop evaluating any subsequent visits
-            if not self.__passed_qc_checks(visit_file, gear_name):
-                failed_visit = visit_file.name
-                break
-
-            # Add the submission complete tag
-            # to trigger QC process on any dependent modules
-            if self.__dependent_modules:
+            qc_passed = self.__passed_qc_checks(visit_file, qc_gear_name)
+            if qc_passed:
+                # Add the submission complete tag
+                # (1) to trigger QC process on any dependent modules
+                # (2) for reporting
                 visit_file.add_tag(DefaultValues.FINALIZED_TAG)
+            else:
+                # If failed do we need to reset the dependent module QC status?
+                self.__reset_dependent_modules_qc_status(
+                    visitdate=visitdate, visitnum=visitnum
+                )
 
-        # If there are any visits left, update error metadata in the respective file
-        if len(visits_queue) > 0:
-            self.__update_remaining_visits_metadata(
-                remaining_visits=visits_queue,
-                failed_visit=failed_visit,
-                ptid_key=ptid_key,
-                date_col_key=date_col_key,
-                visitnum_key=visitnum_key,
-                naccid_key=naccid_key,
-            )
+            # continue to trigger the form-qc-checker for next visit
+            # form-qc-checker will validate whether the previous visit has passed

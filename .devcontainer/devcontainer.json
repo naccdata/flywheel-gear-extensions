@@ -1,6 +1,6 @@
 {
     "name": "Python 3",
-    "image": "mcr.microsoft.com/devcontainers/python:3.11",
+    "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
     // Features to add to the dev container. More info: https://containers.dev/features.
     // "features": {},
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -30,7 +30,7 @@
                 "ms-python.python",
                 "ms-azuretools.vscode-docker",
                 // "ms-python.mypy-type-checker",
-                "streetsidesoftware.code-spell-checker",                
+                "streetsidesoftware.code-spell-checker",
                 "yzhang.markdown-all-in-one",
                 "charliermarsh.ruff"
                 // "mermaidchart.vscode-mermaid-chart"
