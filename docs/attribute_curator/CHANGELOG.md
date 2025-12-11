@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.3
+
+* Updates `nacc-attribute-deriver` to `2.0.0rc2` to include missingness for V4 header variables
+
 ## 1.0.2 / 1.0.1
 
 * Updates `rxclass_concepts` to be pulled from S3
