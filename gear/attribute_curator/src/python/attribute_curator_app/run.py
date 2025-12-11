@@ -79,8 +79,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         force_curate = context.config.get("force_curate", False)
         max_num_workers = context.config.get("max_num_workers", 4)
 
-        # fw_project = get_project_from_destination(context=context, proxy=proxy)
-        fw_project = proxy.get_project_by_id("66f5cb05fc9c4a909032023a")
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         if context.config.get("debug", False):
