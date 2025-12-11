@@ -11,7 +11,6 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
-from flywheel.rest import ApiException
 from keys.keys import MetadataKeys
 from nacc_common.field_names import FieldNames
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
@@ -229,15 +228,9 @@ class SubjectAdaptor:
             Optional[List[Dict]]: Information on the flywheel file
 
         Raises:
-            SubjectError: if any error occurred while upload
+            flywheel.rest.ApiException: if any error occurred while upload
         """
-        try:
-            return self._subject.upload_file(file_spec)
-        except ApiException as error:
-            log.info(f"Failed file spec: {file_spec}")
-            raise SubjectError(
-                f"Failed to upload file {file_spec.name} to {self.label} - {error}"
-            ) from error
+        return self._subject.upload_file(file_spec)
 
     def upload_acquisition_file(
         self,

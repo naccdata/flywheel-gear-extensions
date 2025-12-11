@@ -7,6 +7,7 @@ import yaml
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -198,12 +199,13 @@ class FormJSONUploader:
             file_spec = FileSpec(
                 name=filename, contents=yaml_content, content_type="application/yaml"
             )
+
             try:
                 subject.upload_file(file_spec)
-                log.info("Uploaded file %s to subject %s", filename, participant)
-            except SubjectError as error:
+                log.info(f"Uploaded file {filename} to subject {participant}")
+            except ApiException as error:
                 success = False
-                log.error(error)
+                log.error(f"Failed to upload file {filename} to {participant}: {error}")
 
         return success
 
