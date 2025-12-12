@@ -7,6 +7,7 @@ if ! command -v devcontainer &> /dev/null; then
 fi
 
 export WORKSPACE_FOLDER=`pwd`
+export DOCKER_CLI_HINTS=false
 export CONTAINER_HOST=`devcontainer exec --workspace-folder $WORKSPACE_FOLDER hostname`
 export WORKSPACE=`basename $WORKSPACE_FOLDER`
 docker exec -u vscode -w /workspaces/$WORKSPACE -ti $CONTAINER_HOST /bin/zsh
