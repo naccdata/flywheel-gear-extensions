@@ -54,42 +54,96 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "22a1748707dd62b58d2ae53562ffc4d7f8bcc727e8ac7cbc69c053ddc874d47e",
-              "url": "https://files.pythonhosted.org/packages/87/e3/be76d87158ebafa0309946c4a73831974d4d6ab4f4ef40c3b53a385a66fd/mypy-1.18.2-py3-none-any.whl"
+              "hash": "ed028fc3d41adda916320712838aec289956c89b4f0a361ceadf83a53b4c047a",
+              "url": "https://files.pythonhosted.org/packages/42/54/0578a78b587e5aa22486af34239a052c6366835b55fc307bc64380229e3f/librt-0.7.3-cp311-cp311-musllinux_1_2_x86_64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "776bb00de1778caf4db739c6e83919c1d85a448f71979b6a0edd774ea8399341",
-              "url": "https://files.pythonhosted.org/packages/0f/e0/1e96c3d4266a06d4b0197ace5356d67d937d8358e2ee3ffac71faa843724/mypy-1.18.2-cp311-cp311-macosx_11_0_arm64.whl"
+              "hash": "e32d43610dff472eab939f4d7fbdd240d1667794192690433672ae22d7af8445",
+              "url": "https://files.pythonhosted.org/packages/20/aa/1e0a7aba15e78529dd21f233076b876ee58c8b8711b1793315bdd3b263b0/librt-0.7.3-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "1331eb7fd110d60c24999893320967594ff84c38ac6d19e0a76c5fd809a84c86",
-              "url": "https://files.pythonhosted.org/packages/1a/52/ec4a061dd599eb8179d5411d99775bec2a20542505988f40fc2fee781068/mypy-1.18.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+              "hash": "687403cced6a29590e6be6964463835315905221d797bc5c934a98750fe1a9af",
+              "url": "https://files.pythonhosted.org/packages/21/e6/f6391f5c6f158d31ed9af6bd1b1bcd3ffafdea1d816bc4219d0d90175a7f/librt-0.7.3-cp311-cp311-macosx_10_9_x86_64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "1379451880512ffce14505493bd9fe469e0697543717298242574882cf8cdb8d",
-              "url": "https://files.pythonhosted.org/packages/72/ef/0c9ba89eb03453e76bdac5a78b08260a848c7bfc5d6603634774d9cd9525/mypy-1.18.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl"
+              "hash": "6488e69d408b492e08bfb68f20c4a899a354b4386a446ecd490baff8d0862720",
+              "url": "https://files.pythonhosted.org/packages/35/89/51cd73006232981a3106d4081fbaa584ac4e27b49bc02266468d3919db03/librt-0.7.3-cp311-cp311-musllinux_1_2_i686.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "807d9315ab9d464125aa9fcf6d84fde6e1dc67da0b6f80e7405506b8ac72bc7f",
-              "url": "https://files.pythonhosted.org/packages/88/87/cafd3ae563f88f94eec33f35ff722d043e09832ea8530ef149ec1efbaf08/mypy-1.18.2-cp311-cp311-macosx_10_9_x86_64.whl"
+              "hash": "adeaa886d607fb02563c1f625cf2ee58778a2567c0c109378da8f17ec3076ad7",
+              "url": "https://files.pythonhosted.org/packages/69/46/3cfa325c1c2bc25775ec6ec1718cfbec9cff4ac767d37d2d3a2d1cc6f02c/librt-0.7.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "06a398102a5f203d7477b2923dda3634c36727fa5c237d8f859ef90c42a9924b",
-              "url": "https://files.pythonhosted.org/packages/c0/77/8f0d0001ffad290cef2f7f216f96c814866248a0b92a722365ed54648e7e/mypy-1.18.2.tar.gz"
+              "hash": "572a24fc5958c61431da456a0ef1eeea6b4989d81eeb18b8e5f1f3077592200b",
+              "url": "https://files.pythonhosted.org/packages/99/bb/e4553433d7ac47f4c75d0a7e59b13aee0e08e88ceadbee356527a9629b0a/librt-0.7.3-cp311-cp311-musllinux_1_2_aarch64.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "3ca30b50a51e7ba93b00422e486cbb124f1c56a535e20eff7b2d6ab72b3b2e37",
-              "url": "https://files.pythonhosted.org/packages/c4/5f/2cf2ceb3b36372d51568f2208c021870fe7834cf3186b653ac6446511839/mypy-1.18.2-cp311-cp311-musllinux_1_2_x86_64.whl"
+              "hash": "24d70810f6e2ea853ff79338001533716b373cc0f63e2a0be5bc96129edb5fb5",
+              "url": "https://files.pythonhosted.org/packages/ab/1b/53c208188c178987c081560a0fcf36f5ca500d5e21769596c845ef2f40d4/librt-0.7.3-cp311-cp311-macosx_11_0_arm64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "3ec50cf65235ff5c02c5b747748d9222e564ad48597122a361269dd3aa808798",
+              "url": "https://files.pythonhosted.org/packages/b3/d9/6f3d3fcf5e5543ed8a60cc70fa7d50508ed60b8a10e9af6d2058159ab54e/librt-0.7.3.tar.gz"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "bf8c7735fbfc0754111f00edda35cf9e98a8d478de6c47b04eaa9cef4300eaa7",
+              "url": "https://files.pythonhosted.org/packages/cb/5c/d9da832b9a1e5f8366e8a044ec80217945385b26cb89fd6f94bfdc7d80b0/librt-0.7.3-cp311-cp311-manylinux1_i686.manylinux_2_28_i686.manylinux_2_5_i686.whl"
+            }
+          ],
+          "project_name": "librt",
+          "requires_dists": [],
+          "requires_python": ">=3.9",
+          "version": "0.7.3"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
+              "hash": "0c01c99d626380752e527d5ce8e69ffbba2046eb8a060db0329690849cf9b6f9",
+              "url": "https://files.pythonhosted.org/packages/09/0e/fe228ed5aeab470c6f4eb82481837fadb642a5aa95cc8215fd2214822c10/mypy-1.19.0-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "a31e4c28e8ddb042c84c5e977e28a21195d086aaffaf08b016b78e19c9ef8106",
+              "url": "https://files.pythonhosted.org/packages/0f/d2/010fb171ae5ac4a01cc34fbacd7544531e5ace95c35ca166dd8fd1b901d0/mypy-1.19.0-cp311-cp311-macosx_10_9_x86_64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "34ec1ac66d31644f194b7c163d7f8b8434f1b49719d403a5d26c87fff7e913f7",
+              "url": "https://files.pythonhosted.org/packages/41/6b/63f095c9f1ce584fdeb595d663d49e0980c735a1d2004720ccec252c5d47/mypy-1.19.0-cp311-cp311-macosx_11_0_arm64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "7a500ab5c444268a70565e374fc803972bfd1f09545b13418a5174e29883dab7",
+              "url": "https://files.pythonhosted.org/packages/4e/51/d2beaca7c497944b07594f3f8aad8d2f0e8fc53677059848ae5d6f4d193e/mypy-1.19.0-cp311-cp311-musllinux_1_2_x86_64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "120cffe120cca5c23c03c77f84abc0c14c5d2e03736f6c312480020082f1994b",
+              "url": "https://files.pythonhosted.org/packages/99/db/d217815705987d2cbace2edd9100926196d6f85bcb9b5af05058d6e3c8ad/mypy-1.19.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "cb64b0ba5980466a0f3f9990d1c582bcab8db12e29815ecb57f1408d99b4bff7",
+              "url": "https://files.pythonhosted.org/packages/d7/83/6cb93d289038d809023ec20eb0b48bbb1d80af40511fa077da78af6ff7c7/mypy-1.19.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "f6b874ca77f733222641e5c46e4711648c4037ea13646fd0cdc814c2eaec2528",
+              "url": "https://files.pythonhosted.org/packages/f9/b5/b58cdc25fadd424552804bf410855d52324183112aa004f0732c5f6324cf/mypy-1.19.0.tar.gz"
             }
           ],
           "project_name": "mypy",
           "requires_dists": [
+            "librt>=0.6.2",
             "lxml; extra == \"reports\"",
             "mypy_extensions>=1.0.0",
             "orjson; extra == \"faster-cache\"",
@@ -101,7 +155,7 @@
             "typing_extensions>=4.6.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.18.2"
+          "version": "1.19.0"
         },
         {
           "artifacts": [
@@ -143,13 +197,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "92d3d202a745d46f9be6df459ac5a064fdaa3c1c4cd8adcfa332ccf3c05f871e",
-              "url": "https://files.pythonhosted.org/packages/82/2f/e68750da9b04856e2a7ec56fc6f034a5a79775e9b9a81882252789873798/pydantic-2.12.4-py3-none-any.whl"
+              "hash": "e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d",
+              "url": "https://files.pythonhosted.org/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "0f8cb9555000a4b5b617f66bfd2566264c4984b27589d3b845685983e8ea85ac",
-              "url": "https://files.pythonhosted.org/packages/96/ad/a17bc283d7d81837c061c49e3eaa27a45991759a1b7eae1031921c6bd924/pydantic-2.12.4.tar.gz"
+              "hash": "4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49",
+              "url": "https://files.pythonhosted.org/packages/69/44/36f1a6e523abc58ae5f928898e4aca2e0ea509b5aa6f6f392a5d882be928/pydantic-2.12.5.tar.gz"
             }
           ],
           "project_name": "pydantic",
@@ -162,7 +216,7 @@
             "tzdata; (python_version >= \"3.9\" and platform_system == \"Windows\") and extra == \"timezone\""
           ],
           "requires_python": ">=3.9",
-          "version": "2.12.4"
+          "version": "2.12.5"
         },
         {
           "artifacts": [
