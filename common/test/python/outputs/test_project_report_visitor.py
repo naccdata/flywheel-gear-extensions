@@ -98,12 +98,16 @@ class TestProjectReportVisitor:
             stream, fieldnames=list(StatusReportTestModel.model_fields.keys())
         )
         writer.writeheader()
-        file_visitor = StatusReportVisitor(test_transformer)
+
+        # Create factory function for StatusReportVisitor
+        def file_visitor_factory(file, adcid):
+            return StatusReportVisitor(file, adcid, test_transformer)
+
         visitor = ProjectReportVisitor(
             adcid=visit_details.adcid,
             modules={visit_details.module},
             ptid_set={visit_details.ptid},
-            file_visitor=file_visitor,
+            file_visitor_factory=file_visitor_factory,
             table_visitor=WriterTableVisitor(DictReportWriter(writer)),
         )
         visitor.visit_project(file_project)

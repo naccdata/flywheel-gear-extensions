@@ -59,7 +59,9 @@ def get_status_data(
     project_visitor = ProjectReportVisitor(
         adcid=adcid,
         modules=modules,
-        file_visitor=StatusReportVisitor(status_transformer),
+        file_visitor_factory=lambda file, adcid: StatusReportVisitor(
+            file, adcid, status_transformer
+        ),
         table_visitor=WriterTableVisitor(ListReportWriter(result)),
     )
     project_visitor.visit_project(project)
@@ -85,13 +87,14 @@ def get_error_data(
     if adcid is None:
         raise ReportError(f"Project {project.label} has no associated ADCID")
 
-    file_visitor = ErrorReportVisitor(error_transformer)
     result: list[dict[str, Any]] = []
     list_writer = ListReportWriter(result)
     project_visitor = ProjectReportVisitor(
         adcid=adcid,
         modules=modules,
-        file_visitor=file_visitor,
+        file_visitor_factory=lambda file, adcid: ErrorReportVisitor(
+            file, adcid, error_transformer
+        ),
         table_visitor=WriterTableVisitor(list_writer),
     )
     project_visitor.visit_project(project)

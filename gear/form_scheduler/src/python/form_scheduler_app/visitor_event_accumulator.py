@@ -48,15 +48,16 @@ class EventReportVisitor(FileQCReportVisitor):
 
     def __init__(
         self,
+        file: FileEntry,
+        adcid: int,
         *,
         error_transformer: ErrorTransformer,
         validation_transformer: ValidationTransformer,
-        file_modified_timestamp: Optional[datetime] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(file, adcid)
         self.__error_transformer = error_transformer
         self.__validation_transformer = validation_transformer
-        self.__file_modified_timestamp = file_modified_timestamp
+        self.__file_modified_timestamp = file.modified
         self.__error: QCReportBaseModel | None = None
         self.__validation: QCReportBaseModel | None = None
 
@@ -79,10 +80,6 @@ class EventReportVisitor(FileQCReportVisitor):
     def clear(self) -> None:
         self.__error = None
         self.__validation = None
-
-    def set_file_modified_timestamp(self, timestamp: datetime) -> None:
-        """Set the file modification timestamp for use in pass events."""
-        self.__file_modified_timestamp = timestamp
 
     def visit_file_model(self, file_model: FileQCModel) -> None:
         """Override to check for empty qc object before processing."""
@@ -410,27 +407,6 @@ def create_modified_filter(timestamp: datetime) -> Callable[[FileEntry], bool]:
     return after_timestamp
 
 
-class EventProjectReportVisitor(ProjectReportVisitor):
-    """Custom ProjectReportVisitor that passes file modification timestamp to
-    EventReportVisitor."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Store reference to file visitor for easier access
-        self._event_file_visitor = kwargs.get("file_visitor")
-
-    def visit_file(self, file: FileEntry) -> None:
-        """Override to set file modification timestamp before processing."""
-        # Set the file modification timestamp in the file visitor if it's an EventReportVisitor
-        if self._event_file_visitor is not None and hasattr(
-            self._event_file_visitor, "set_file_modified_timestamp"
-        ):
-            self._event_file_visitor.set_file_modified_timestamp(file.modified)
-
-        # Call the parent implementation
-        super().visit_file(file)
-
-
 class EventAccumulator:
     """Accumulates visit events for files with QC-status reports."""
 
@@ -459,10 +435,12 @@ class EventAccumulator:
         pipeline_label = PipelineLabel.model_validate(project.label)
         study = pipeline_label.study_id
 
-        error_visitor = EventProjectReportVisitor(
+        error_visitor = ProjectReportVisitor(
             adcid=project.get_pipeline_adcid(),
             modules=set(self.__pipeline.modules) if self.__pipeline.modules else None,  # type: ignore
-            file_visitor=EventReportVisitor(
+            file_visitor_factory=lambda file, adcid: EventReportVisitor(
+                file=file,
+                adcid=adcid,
                 error_transformer=error_transformer,
                 validation_transformer=event_status_transformer,
             ),
