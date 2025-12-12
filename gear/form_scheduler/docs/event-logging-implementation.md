@@ -6,27 +6,21 @@ This document provides implementation details for the revised event logging feat
 
 ## Architecture
 
-### Two-Component Strategy
+### Form Scheduler's Event Logging
 
-Event logging is split between two independent components:
+The form-scheduler gear handles outcome event logging:
 
-**Component 1: submission_logger Gear**
-- Triggered by file upload via Flywheel gear rule
-- Logs "submit" events immediately when files are uploaded
-- Creates qc-status log files if they don't exist
-- Runs independently of form-scheduler
-
-**Component 2: visitor_event_accumulator**
+**visitor_event_accumulator**
 - Runs in form-scheduler after pipeline completes
 - Scrapes qc-status log files for QC metadata
 - Logs "pass-qc" or "not-pass-qc" events based on QC status
 - Uses visitor pattern to traverse QC metadata structure
 
 **Benefits**:
-- Submit events captured immediately at upload time
 - Outcome events captured after pipeline processing
 - QC status log files serve as single source of truth
-- Decoupled components for better maintainability
+- Non-invasive: doesn't interfere with pipeline execution
+- Uses existing QC infrastructure for reliable status detection
 
 ## Key Classes
 
@@ -79,14 +73,9 @@ Uses visitor pattern to traverse QC metadata:
 
 ## Integration Points
 
-### 1. submission_logger Gear (Separate Component)
+### 1. Form Scheduler Integration
 
-Configured as Flywheel gear rule:
-- Trigger: File upload to PROJECT level
-- Logs submit events immediately
-- Creates qc-status log files
-
-**Not part of form-scheduler** - runs independently via gear rules.
+The event accumulator is integrated into form-scheduler's pipeline processing.
 
 ### 2. FormSchedulerQueue.__init__
 
@@ -239,29 +228,9 @@ class EventTableVisitor(ReportTableVisitor):
 
 ## Event Creation
 
-### Submit Events (submission_logger)
+### Outcome Events Only
 
-Created when file is uploaded:
-
-```python
-submit_event = VisitEvent(
-    action="submit",
-    pipeline_adcid=project.get_pipeline_adcid(),
-    project_label=project.label,
-    center_label=project.group,
-    gear_name="submission-logger",
-    ptid=visit_metadata['ptid'],
-    visit_date=visit_metadata['visit_date'],
-    visit_number=visit_metadata['visit_number'],
-    datatype="form",
-    module=module,
-    packet=visit_metadata.get('packet'),
-    timestamp=file.created  # Upload time
-)
-event_logger.log_event(submit_event)
-```
-
-### Outcome Events (visitor_event_accumulator)
+Form-scheduler only creates outcome events (submit events handled separately):
 
 Created after pipeline completes by scraping qc-status logs:
 
@@ -309,12 +278,6 @@ from nacc_common.visit_submission_error import ErrorReportModel, error_transform
 
 ### Required Configuration
 
-**submission_logger gear:**
-- Configured as Flywheel gear rule
-- Triggered on file upload
-- Requires AWS credentials for S3 access
-- Requires event_bucket configuration
-
 **form-scheduler gear:**
 - `form_configs_file` input (for module configurations)
 - `event_bucket` config parameter (S3 bucket name)
@@ -341,12 +304,6 @@ except Exception as error:
 This ensures event logging failures don't break pipeline execution.
 
 ## Testing Considerations
-
-### submission_logger Tests
-1. File upload triggers gear
-2. Submit event logged to S3
-3. qc-status log file created if doesn't exist
-4. qc-status log file not overwritten if exists
 
 ### visitor_event_accumulator Tests
 1. **Unit tests**: Mock FileEntry, ProjectAdaptor, visitor classes

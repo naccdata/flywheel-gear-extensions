@@ -194,6 +194,8 @@ Each event file contains a single JSON object representing one visit event.
 
 Indicates a visit was submitted for processing.
 
+**Note**: Submit events are handled by submission-logger gear, not form-scheduler.
+
 **Timestamp**: When the file was uploaded to Flywheel
 
 **Example (ADRC study)**:
@@ -322,42 +324,43 @@ Indicates a visit was deleted from the system.
 
 For a new visit that passes QC immediately:
 
-1. **submit** event (timestamp = upload time)
-2. **pass-qc** event (timestamp = completion time)
+1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+2. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
 
-Both events logged in the same form-scheduler job, but with different timestamps.
+Events logged by different gears at different times.
 
 ### Typical Failed Submission
 
 For a new visit that fails QC:
 
-1. **submit** event (timestamp = upload time)
-2. **not-pass-qc** event (timestamp = failure time)
+1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+2. **not-pass-qc** event (timestamp = failure time) - *logged by form-scheduler gear*
 
-Both events logged in the same form-scheduler job.
+Events logged by different gears at different times.
 
 ### Re-evaluation After Dependency Resolution
 
 For a visit that was blocked on a dependency (e.g., UDS packet) and later re-evaluated:
 
 **Initial submission** (UDS packet not yet cleared):
-- No events logged (visit blocked, not processed)
+- **submit** event logged by submission-logger gear
+- No outcome events (visit blocked, not processed by form-scheduler)
 
 **After dependency cleared** (separate form-scheduler job):
-1. **pass-qc** event (timestamp = completion time)
+1. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
 
-Only the outcome event is logged; no submit event in this job (the original submit was logged when first uploaded).
+Only the outcome event is logged by form-scheduler; the submit event was already logged by submission-logger when first uploaded.
 
 ### Deferred QC Approval
 
 For a visit with QC alerts that are later approved:
 
 **Initial submission**:
-1. **submit** event (timestamp = upload time)
-2. **not-pass-qc** event (timestamp = completion time with alerts)
+1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+2. **not-pass-qc** event (timestamp = completion time with alerts) - *logged by form-scheduler gear*
 
 **After approval** (separate form-scheduler job):
-1. **pass-qc** event (timestamp = approval time)
+1. **pass-qc** event (timestamp = approval time) - *logged by form-scheduler gear*
 
 ## Important Considerations for Consumers
 
