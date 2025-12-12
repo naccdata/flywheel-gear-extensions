@@ -121,7 +121,8 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
             module = context.config.get("module", "").upper()
             if not module:
                 raise GearExecutionError(
-                    "Module configuration is required when form_configs_file is provided"
+                    "Module configuration is required when form_configs_file is "
+                    "provided"
                 )
 
             # Validate module is supported

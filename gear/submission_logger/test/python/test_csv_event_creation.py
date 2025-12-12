@@ -185,7 +185,8 @@ class TestCSVEventCreation:
                 # Verify that log_event was called the expected number of times
                 actual_events = mock_event_logger.log_event.call_count
                 assert actual_events == expected_events, (
-                    f"Expected {expected_events} events to be logged, but {actual_events} were logged"
+                    f"Expected {expected_events} events to be logged, "
+                    f"but {actual_events} were logged"
                 )
 
         finally:
@@ -323,7 +324,8 @@ class TestCSVEventCreation:
                 # Verify that the result matches expected behavior
                 if expected_result:
                     # For CSV files, processing should succeed (assuming valid content)
-                    # We don't assert success here because the CSV content might be invalid
+                    # We don't assert success here because the CSV content might be
+                    # invalid
                     # The key test is that CSV files are processed, not rejected
                     mock_file_input.validate_file_extension.assert_called_with(["csv"])
                 else:
