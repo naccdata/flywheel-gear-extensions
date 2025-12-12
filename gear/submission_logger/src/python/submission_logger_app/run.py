@@ -3,9 +3,6 @@
 import logging
 from typing import Optional
 
-from configs.ingest_configs import FormProjectConfigs
-from pydantic import ValidationError
-from utils.utils import load_form_ingest_configurations
 from event_logging.event_logging import VisitEventLogger
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -17,7 +14,9 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
+from utils.utils import load_form_ingest_configurations
 
 from submission_logger_app.main import run
 
