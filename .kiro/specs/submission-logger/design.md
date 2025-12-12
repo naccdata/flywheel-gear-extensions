@@ -2,9 +2,9 @@
 
 ## Overview
 
-The submission-logger gear implements a Flywheel gear that captures "submit" events when files are uploaded to NACC projects. It uses a dynamic dispatch pattern to support multiple file formats, extracts visit information from uploaded data, logs submit events to S3, and creates initial QC status logs for downstream pipeline processing.
+The submission-logger gear implements a Flywheel gear that captures "submit" events when a single file is uploaded to NACC projects. It processes exactly one input file per gear execution, using a dynamic dispatch pattern to support multiple file formats, extracts visit information from the uploaded data, logs submit events to S3, and creates initial QC status logs for downstream pipeline processing.
 
-The design follows established gear patterns from the identifier-lookup gear while integrating with the existing event logging infrastructure.
+The design follows established gear patterns from the identifier-lookup gear while integrating with the existing event logging infrastructure. The gear's single-file processing model is clearly reflected in the code structure and metrics to avoid confusion.
 
 ## Architecture
 
@@ -266,6 +266,14 @@ Based on the requirements analysis, the following properties ensure correctness:
 *For any* supported file type, the dispatcher should select exactly one appropriate processor that can handle that file type
 **Validates: Technical Architecture Constraint 1**
 
+**Property 7: Single-File Processing Metrics Consistency**
+*For any* processing execution, the metrics should focus on visit-level statistics without misleading file-level counters, since exactly one file is processed per execution
+**Validates: Requirements 8.2, 8.3**
+
+**Property 8: Metrics Dictionary Structure**
+*For any* metrics dictionary returned by the system, it should contain visit-level metrics (visits_found, visits_processed_successfully, events_created, qc_logs_created) and should not contain file-level counters
+**Validates: Requirements 8.1, 8.4**
+
 ## Error Handling
 
 ### Error Categories
@@ -332,6 +340,22 @@ def test_qc_status_log_creation_consistency(visit_info):
     # Create QC status log using QCStatusLogCreator
     # Assert file exists with correct ErrorLogTemplate naming
     # Assert QC log file has visit metadata in file.info.visit
+
+@given(processing_execution=processing_execution_generator())
+def test_single_file_processing_metrics_consistency(processing_execution):
+    """**Feature: submission-logger, Property 7: Single-File Processing Metrics Consistency**"""
+    # Generate processing execution with various visit counts
+    # Process through submission logger
+    # Assert metrics focus on visit-level statistics
+    # Assert no misleading file-level counters are present
+
+@given(metrics_data=metrics_data_generator())
+def test_metrics_dictionary_structure(metrics_data):
+    """**Feature: submission-logger, Property 8: Metrics Dictionary Structure**"""
+    # Generate metrics data from processing
+    # Get metrics dictionary from ProcessingMetrics
+    # Assert contains visit-level keys (visits_found, visits_processed_successfully, etc.)
+    # Assert does not contain file-level counters (files_processed)
 ```
 
 ### Integration Testing

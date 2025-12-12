@@ -2,11 +2,13 @@
 
 ## Introduction
 
-The submission-logger gear captures "submit" events when new files are uploaded to ingest projects. It serves as the first step in the event logging pipeline, extracting visit information from uploaded data, logging submit events for each visit, and creating initial QC status logs at the project level to support downstream pipeline processing.
+The submission-logger gear captures "submit" events when a single file is uploaded to ingest projects. It processes exactly one input file per gear execution, extracting visit information from the uploaded data, logging submit events for each visit found in that file, and creating initial QC status logs at the project level to support downstream pipeline processing.
 
 ## Glossary
 
-- **Submission Logger**: The Flywheel gear that processes file uploads and creates submit events
+- **Submission Logger**: The Flywheel gear that processes a single uploaded file per execution and creates submit events
+- **Single File Processing**: Processing exactly one input file per gear execution, as defined by the gear manifest
+- **Gear Execution**: A single run of the Flywheel gear, triggered by file upload or manual execution
 - **Visit Event**: A structured data object representing an action (submit, pass-qc, not-pass-qc, delete) on visit data
 - **QC Status Log**: A project-level file that tracks quality control status for a visit throughout pipeline processing
 - **PTID**: Participant identifier used to uniquely identify study participants
@@ -107,14 +109,26 @@ The submission-logger gear captures "submit" events when new files are uploaded 
 
 ### Requirement 7
 
-**User Story:** As a performance monitor, I want the submission logger to provide operational metrics, so that I can track processing efficiency and identify bottlenecks.
+**User Story:** As a performance monitor, I want the submission logger to provide operational metrics focused on visit processing, so that I can track processing efficiency and identify bottlenecks.
 
 #### Acceptance Criteria
 
-1. WHEN processing files THEN the Submission Logger SHALL log the number of files processed
-2. WHEN extracting visits THEN the Submission Logger SHALL report the total number of visits identified
-3. WHEN creating events THEN the Submission Logger SHALL confirm the number of submit events successfully logged
-4. WHEN errors occur THEN the Submission Logger SHALL track error counts and types
-5. WHEN processing completes THEN the Submission Logger SHALL provide summary statistics for monitoring
+1. WHEN processing the input file THEN the Submission Logger SHALL report the total number of visits identified in that file
+2. WHEN creating events THEN the Submission Logger SHALL confirm the number of submit events successfully logged
+3. WHEN errors occur THEN the Submission Logger SHALL track error counts and types
+4. WHEN processing completes THEN the Submission Logger SHALL provide summary statistics focused on visit processing efficiency
+5. WHEN reporting metrics THEN the Submission Logger SHALL focus on visit-level success rates rather than file-level counts since only one file is processed per execution
+
+### Requirement 8
+
+**User Story:** As a developer, I want the code to clearly reflect single-file processing, so that there is no confusion about the gear's behavior and metrics accurately represent the processing model.
+
+#### Acceptance Criteria
+
+1. WHEN examining processing metrics THEN the code SHALL remove misleading `files_processed` counters since only one file is ever processed per execution
+2. WHEN logging processing summaries THEN the code SHALL focus on visit-level metrics rather than file-level counts
+3. WHEN tracking operational statistics THEN the code SHALL emphasize visits found, visits processed, events created, and QC logs created for the single input file
+4. WHEN handling errors THEN the code SHALL categorize errors by type without maintaining file-level counters that are always 1
+5. WHEN documenting and commenting code THEN the code SHALL accurately describe single-file processing behavior to avoid confusion
 
 
