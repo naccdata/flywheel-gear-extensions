@@ -18,6 +18,7 @@ from nacc_common.error_models import (
     QCStatus,
     ValidationModel,
 )
+from pydantic import ValidationError
 from test_mocks.mock_event_logging import MockVisitEventLogger
 from test_mocks.mock_flywheel import MockFile
 
@@ -92,7 +93,8 @@ def create_qc_metadata(
                 # Create provenance objects using model_validate with by_alias
                 provenance_models = []
                 for prov_dict in alert_dict.get("provenance", []):
-                    # Create ClearedAlertProvenance using model_validate with by_alias=True
+                    # Create ClearedAlertProvenance using model_validate
+                    # with by_alias=True
                     provenance = ClearedAlertProvenance.model_validate(
                         prov_dict, by_alias=True
                     )
@@ -211,7 +213,8 @@ class TestEventAccumulator:
         pipeline successfully.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log (all gears PASS)
+        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log
+          (all gears PASS)
         - ACQUISITION level: NACC100000_FORMS-VISIT-3F_UDS.json
 
         Expected: pass-qc event with gear name "form-transformer" (final gear)
@@ -223,7 +226,8 @@ class TestEventAccumulator:
         )
 
         # Create QC metadata with all gears passing (submission pipeline)
-        # For now, let's test with a simple failure case since pass events need timestamps
+        # For now, let's test with a simple failure case since pass events need
+        # timestamps
         # that aren't available in ValidationModel
         error_data = {
             "timestamp": "2025-03-19 11:30:00",
@@ -279,7 +283,8 @@ class TestEventAccumulator:
         """Test Scenario 2: Visit fails at form-transformer, pipeline stops.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1001_2025-08-22_uds_qc-status.log (form-transformer FAIL)
+        - PROJECT level: input-uds.csv, adrc1001_2025-08-22_uds_qc-status.log
+          (form-transformer FAIL)
         - ACQUISITION level: (no JSON file - pipeline failed)
 
         Expected: not-pass-qc event with error from form-transformer
@@ -348,7 +353,8 @@ class TestEventAccumulator:
         checker.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1001_2025-08-22_uds_qc-status.log (mixed PASS/FAIL)
+        - PROJECT level: input-uds.csv, adrc1001_2025-08-22_uds_qc-status.log
+          (mixed PASS/FAIL)
         - ACQUISITION level: NACC100001_FORMS-VISIT-4F_UDS.json (created before failure)
 
         Expected: not-pass-qc event with first error from form-qc-checker
@@ -366,7 +372,10 @@ class TestEventAccumulator:
                 "type": "alert",
                 "code": "b5-ivp-p-1010",
                 "location": {"key_path": "anx"},
-                "message": "if q6a. anx (anxiety) = 0 (no), then form b9, q12c. beanx (anxiety) should not equal 1 (yes)",
+                "message": (
+                    "if q6a. anx (anxiety) = 0 (no), then form b9, q12c. beanx "
+                    "(anxiety) should not equal 1 (yes)"
+                ),
                 "ptid": "ADRC1001",
                 "visitnum": "4F",
                 "date": "2025-08-22",
@@ -377,7 +386,10 @@ class TestEventAccumulator:
                 "type": "alert",
                 "code": "d1b-i4vp-p-1004",
                 "location": {"key_path": "cvd"},
-                "message": "if q7a3. structcvd (consistent with cerebrovascular disease (cvd)) =1 then q15. cvd (vascular brain injury) should = 1",
+                "message": (
+                    "if q7a3. structcvd (consistent with cerebrovascular disease "
+                    "(cvd)) =1 then q15. cvd (vascular brain injury) should = 1"
+                ),
                 "ptid": "ADRC1001",
                 "visitnum": "4F",
                 "date": "2025-08-22",
@@ -618,7 +630,8 @@ class TestEventAccumulator:
         JSON files.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1002_2025-06-18_uds_qc-status.log (finalization QC)
+        - PROJECT level: input-uds.csv, adrc1002_2025-06-18_uds_qc-status.log
+          (finalization QC)
         - ACQUISITION level: NACC274180_FORMS-VISIT-3F_UDS.json
 
         Expected: pass-qc event based on finalization pipeline outcome
@@ -632,7 +645,9 @@ class TestEventAccumulator:
         # Create cleared alerts for finalization pipeline
         cleared_alerts = [
             {
-                "alertHash": "b04446359f999c42231c90cfca5cb9895da8d0921990f2042bf61471796aae2b",
+                "alertHash": (
+                    "b04446359f999c42231c90cfca5cb9895da8d0921990f2042bf61471796aae2b"
+                ),
                 "clear": True,
                 "finalized": True,
                 "provenance": [
@@ -689,7 +704,8 @@ class TestEventAccumulator:
         relevant metadata.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log (empty/malformed QC)
+        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log
+          (empty/malformed QC)
 
         Expected: No events logged (graceful handling)
         """
@@ -733,7 +749,8 @@ class TestEventAccumulator:
 
             # Verify no events were logged
             assert len(mock_event_logger.logged_events) == 0, (
-                f"Case {i} ({malformed_metadata}) generated {len(mock_event_logger.logged_events)} events"
+                f"Case {i} ({malformed_metadata}) generated "
+                f"{len(mock_event_logger.logged_events)} events"
             )
 
     def test_scenario_8_multiple_modules(
@@ -816,7 +833,8 @@ class TestEventAccumulator:
         """Test Scenario 9: Cleared alerts are treated as passing validations.
 
         File Structure:
-        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log (has cleared alerts)
+        - PROJECT level: input-uds.csv, adrc1000_2025-03-19_uds_qc-status.log
+          (has cleared alerts)
         - ACQUISITION level: NACC100000_FORMS-VISIT-3F_UDS.json
 
         Expected: pass-qc event because cleared alerts count as passing
@@ -834,27 +852,14 @@ class TestEventAccumulator:
                 "type": "alert",
                 "code": "d1b-i4vp-p-1005",
                 "location": {"key_path": "csfad"},
-                "message": "if q6b. amylcsf or q6f. csftau at previous visit = 1, then q4a. csfad should =1",
+                "message": (
+                    "if q6b. amylcsf or q6f. csftau at previous visit = 1, "
+                    "then q4a. csfad should =1"
+                ),
                 "ptid": "ADRC1000",
                 "visitnum": "3F",
                 "date": "2025-03-19",
                 "naccid": "NACC100000",
-            }
-        ]
-
-        # Create cleared alerts
-        cleared_alerts = [
-            {
-                "alertHash": "3368b32006e31d830873b687f66e6c42f352ccf714c342f984d6bbef0e71ac2b",
-                "clear": True,
-                "finalized": True,
-                "provenance": [
-                    {
-                        "user": "user@dummy.org",
-                        "clearSetTo": True,
-                        "timestamp": "20251104085231",
-                    }
-                ],
             }
         ]
 
@@ -1074,5 +1079,5 @@ class TestEventAccumulator:
         )
 
         # This should raise an exception when trying to parse the pipeline label
-        with pytest.raises(Exception):  # PipelineLabel validation error
+        with pytest.raises(ValidationError):  # PipelineLabel validation error
             event_accumulator.log_events(file=input_file, project=project)
