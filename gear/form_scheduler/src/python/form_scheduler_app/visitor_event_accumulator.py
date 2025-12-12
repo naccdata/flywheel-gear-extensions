@@ -5,12 +5,18 @@ from datetime import datetime
 from typing import Callable, Optional, get_args
 
 from configs.ingest_configs import Pipeline
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from event_logging.event_logging import VisitEventLogger
-from event_logging.visit_events import VisitEvent
+from event_logging.visit_events import (
+    ACTION_NOT_PASS_QC,
+    ACTION_PASS_QC,
+    VisitEvent,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.types import DatatypeNameType
 from nacc_common.error_models import (
+    QC_STATUS_PASS,
     FileError,
     FileQCModel,
     ValidationModel,
@@ -24,7 +30,6 @@ from nacc_common.qc_report import (
     QCReportBaseModel,
     QCTransformerError,
     ReportTableVisitor,
-    ValidationTransformer,
     extract_visit_keys,
 )
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
@@ -33,6 +38,11 @@ from pipeline.pipeline_label import PipelineLabel
 from pydantic import BaseModel, ConfigDict
 
 log = logging.getLogger(__name__)
+
+# Extended validation transformer that includes timestamp
+EventValidationTransformer = Callable[
+    [str, VisitKeys, ValidationModel, Optional[datetime]], QCReportBaseModel
+]
 
 
 class VisitStatusReportModel(StatusReportModel):
@@ -53,7 +63,7 @@ class EventReportVisitor(FileQCReportVisitor):
         *,
         modified_timestamp: datetime,
         error_transformer: ErrorTransformer,
-        validation_transformer: ValidationTransformer,
+        validation_transformer: EventValidationTransformer,
     ) -> None:
         super().__init__(visit)
         self.__error_transformer = error_transformer
@@ -111,9 +121,9 @@ class EventReportVisitor(FileQCReportVisitor):
         if validation_model.state is None:
             return
 
-        if validation_model.state.lower() == "pass":
+        if validation_model.state.upper() == QC_STATUS_PASS:
             # Call the validation transformer with the file timestamp
-            result = event_status_transformer(
+            result = self.__validation_transformer(
                 self.gear_name,
                 self.visit_details,
                 validation_model,
@@ -167,7 +177,8 @@ def event_status_transformer(
       gear_name: the gear name corresponding to the validation model
       visit: the visit attributes for the file
       validation_model: the validation model
-      file_modified_timestamp: the QC status file modification timestamp to use for pass events
+      file_modified_timestamp: the QC status file modification timestamp to use
+        for pass events
 
     Raises:
       QCTransformerError if the visit ptid, module and date are not set
@@ -188,9 +199,9 @@ def event_status_transformer(
     if (
         file_modified_timestamp
         and validation_model.state
-        and validation_model.state.lower() == "pass"
+        and validation_model.state.upper() == QC_STATUS_PASS
     ):
-        timestamp_str = file_modified_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp_str = file_modified_timestamp.strftime(DEFAULT_DATE_TIME_FORMAT)
 
     return VisitStatusReportModel(
         adcid=visit.adcid,
@@ -237,10 +248,10 @@ def create_visit_event_from_error(
     if error_model.timestamp is None:
         log.warning("skipping error with no timestamp")
         return None
-    timestamp = datetime.strptime(error_model.timestamp, "%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.strptime(error_model.timestamp, DEFAULT_DATE_TIME_FORMAT)
 
     return VisitEvent(
-        action="not-pass-qc",
+        action=ACTION_NOT_PASS_QC,
         study=study,
         pipeline_adcid=error_model.adcid,
         project_label=project.label,
@@ -277,7 +288,7 @@ def create_visit_event_from_status(
     Returns:
       the VisitEvent if all expected values are given. None, otherwise.
     """
-    if status_model.status != "PASS":
+    if status_model.status is None or status_model.status.upper() != QC_STATUS_PASS:
         log.warning("skipping non-pass validation event")
         return None
     if status_model.timestamp is None:
@@ -288,9 +299,9 @@ def create_visit_event_from_status(
         return None
     # Visit number is optional - it may not be available for all pass events
 
-    timestamp = datetime.strptime(status_model.timestamp, "%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.strptime(status_model.timestamp, DEFAULT_DATE_TIME_FORMAT)
     return VisitEvent(
-        action="pass-qc",
+        action=ACTION_PASS_QC,
         study=study,
         pipeline_adcid=status_model.adcid,
         project_label=project.label,
