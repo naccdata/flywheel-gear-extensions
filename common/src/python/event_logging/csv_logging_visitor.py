@@ -37,7 +37,7 @@ class CSVLoggingVisitor(CSVVisitor):
 
     def visit_header(self, header: List[str]) -> bool:
         required_fields = set(self.__module_configs.required_fields)
-        if required_fields.issubset(set(header)):
+        if not required_fields.issubset(set(header)):
             missing_fields = required_fields.difference(header)
             self.__error_writer.write(missing_field_error(set(missing_fields)))
             return False
