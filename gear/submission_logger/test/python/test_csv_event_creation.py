@@ -340,8 +340,8 @@ class TestCSVEventCreation:
             Path(temp_file_path).unlink(missing_ok=True)
 
     def test_no_form_config_handling(self):
-        """Test that the gear handles gracefully when no form config is
-        provided."""
+        """Test that the gear returns error when no form config is provided for
+        CSV files."""
         # Create test CSV file
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".csv", delete=False
@@ -379,12 +379,14 @@ class TestCSVEventCreation:
                 module=None,  # No module provided
             )
 
-            # Should handle gracefully and return success
-            assert success, "Should handle missing form config gracefully"
+            # Should return failure when form config is missing for CSV
+            assert not success, (
+                "Should return False when form config is missing for CSV files"
+            )
 
-            # No events should be logged since no form processing occurred
+            # No events should be logged since processing failed
             assert mock_event_logger.log_event.call_count == 0, (
-                "No events should be logged without form config"
+                "No events should be logged when processing fails"
             )
 
         finally:
