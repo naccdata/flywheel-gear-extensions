@@ -25,6 +25,7 @@ from nacc_common.qc_report import (
     QCTransformerError,
     ReportTableVisitor,
     ValidationTransformer,
+    extract_visit_keys,
 )
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 from nacc_common.visit_submission_status import StatusReportModel
@@ -48,16 +49,16 @@ class EventReportVisitor(FileQCReportVisitor):
 
     def __init__(
         self,
-        file: FileEntry,
-        adcid: int,
+        visit: VisitKeys,
         *,
+        modified_timestamp: datetime,
         error_transformer: ErrorTransformer,
         validation_transformer: ValidationTransformer,
     ) -> None:
-        super().__init__(file, adcid)
+        super().__init__(visit)
         self.__error_transformer = error_transformer
         self.__validation_transformer = validation_transformer
-        self.__file_modified_timestamp = file.modified
+        self.__file_modified_timestamp = modified_timestamp
         self.__error: QCReportBaseModel | None = None
         self.__validation: QCReportBaseModel | None = None
 
@@ -407,6 +408,17 @@ def create_modified_filter(timestamp: datetime) -> Callable[[FileEntry], bool]:
     return after_timestamp
 
 
+def event_visitor_builder(file: FileEntry, adcid: int) -> EventReportVisitor:
+    visit = extract_visit_keys(file)
+    visit.adcid = adcid
+    return EventReportVisitor(
+        visit=visit,
+        modified_timestamp=file.modified,
+        error_transformer=error_transformer,
+        validation_transformer=event_status_transformer,
+    )
+
+
 class EventAccumulator:
     """Accumulates visit events for files with QC-status reports."""
 
@@ -438,12 +450,7 @@ class EventAccumulator:
         error_visitor = ProjectReportVisitor(
             adcid=project.get_pipeline_adcid(),
             modules=set(self.__pipeline.modules) if self.__pipeline.modules else None,  # type: ignore
-            file_visitor_factory=lambda file, adcid: EventReportVisitor(
-                file=file,
-                adcid=adcid,
-                error_transformer=error_transformer,
-                validation_transformer=event_status_transformer,
-            ),
+            file_visitor_factory=event_visitor_builder,
             table_visitor=EventTableVisitor(
                 event_logger=self.__event_logger,
                 study=study,

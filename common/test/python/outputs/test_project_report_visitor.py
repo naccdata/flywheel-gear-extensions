@@ -18,6 +18,7 @@ from nacc_common.qc_report import (
     QCReportBaseModel,
     StatusReportVisitor,
     WriterTableVisitor,
+    extract_visit_keys,
 )
 from pydantic import ValidationError
 from test_mocks.mock_flywheel import MockProject
@@ -101,7 +102,9 @@ class TestProjectReportVisitor:
 
         # Create factory function for StatusReportVisitor
         def file_visitor_factory(file, adcid):
-            return StatusReportVisitor(file, adcid, test_transformer)
+            visit = extract_visit_keys(file)
+            visit.adcid = adcid
+            return StatusReportVisitor(visit, test_transformer)
 
         visitor = ProjectReportVisitor(
             adcid=visit_details.adcid,

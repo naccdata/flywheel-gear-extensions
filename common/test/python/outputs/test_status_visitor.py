@@ -8,7 +8,11 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitKeys,
 )
-from nacc_common.qc_report import QCReportBaseModel, StatusReportVisitor
+from nacc_common.qc_report import (
+    QCReportBaseModel,
+    StatusReportVisitor,
+    extract_visit_keys,
+)
 from test_mocks.mock_flywheel import MockFile
 
 
@@ -55,18 +59,18 @@ class TestStatusVisitor:
         self, mock_file, test_transformer: Callable[..., StatusReportTestModel]
     ):
         qc_model = FileQCModel(qc={})
-        visitor = StatusReportVisitor(
-            mock_file, adcid=999, transformer=test_transformer
-        )
+        visit = extract_visit_keys(mock_file)
+        visit.adcid = 999
+        visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 
         assert visitor.table == []
 
     def test_status(self, mock_file, status_file_model, test_transformer):
         qc_model = status_file_model
-        visitor = StatusReportVisitor(
-            mock_file, adcid=999, transformer=test_transformer
-        )
+        visit = extract_visit_keys(mock_file)
+        visit.adcid = 999
+        visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 
         assert visitor.table == [

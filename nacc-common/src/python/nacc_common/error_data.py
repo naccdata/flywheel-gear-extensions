@@ -4,14 +4,18 @@ from flywheel.models.project import Project
 
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
-    ErrorReportVisitor,
     ListReportWriter,
     ProjectReportVisitor,
-    StatusReportVisitor,
     WriterTableVisitor,
 )
-from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
-from nacc_common.visit_submission_status import StatusReportModel, status_transformer
+from nacc_common.visit_submission_error import (
+    ErrorReportModel,
+    error_report_visitor_builder,
+)
+from nacc_common.visit_submission_status import (
+    StatusReportModel,
+    status_report_visitor_builder,
+)
 
 ERROR_HEADER_NAMES: list[str] = ErrorReportModel.serialized_fieldnames()
 STATUS_HEADER_NAMES: list[str] = list(StatusReportModel.model_fields.keys())
@@ -59,9 +63,7 @@ def get_status_data(
     project_visitor = ProjectReportVisitor(
         adcid=adcid,
         modules=modules,
-        file_visitor_factory=lambda file, adcid: StatusReportVisitor(
-            file, adcid, status_transformer
-        ),
+        file_visitor_factory=status_report_visitor_builder,
         table_visitor=WriterTableVisitor(ListReportWriter(result)),
     )
     project_visitor.visit_project(project)
@@ -92,9 +94,7 @@ def get_error_data(
     project_visitor = ProjectReportVisitor(
         adcid=adcid,
         modules=modules,
-        file_visitor_factory=lambda file, adcid: ErrorReportVisitor(
-            file, adcid, error_transformer
-        ),
+        file_visitor_factory=error_report_visitor_builder,
         table_visitor=WriterTableVisitor(list_writer),
     )
     project_visitor.visit_project(project)

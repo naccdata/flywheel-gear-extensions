@@ -9,7 +9,7 @@ from inputs.csv_reader import read_csv
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     DictReportWriter,
-    FileQCReportVisitor,
+    FileQCReportVisitorBuilder,
     ProjectReportVisitor,
     WriterTableVisitor,
 )
@@ -23,7 +23,7 @@ def run(
     input_file: TextIO,
     modules: set[ModuleName],
     clustering_visitor: StatusRequestClusteringVisitor,
-    file_visitor: FileQCReportVisitor,
+    file_visitor_builder: FileQCReportVisitorBuilder,
     writer: DictWriter,
     error_writer: ErrorWriter,
 ):
@@ -65,7 +65,7 @@ def run(
                 adcid=pipeline_adcid,
                 modules=set(modules),
                 ptid_set=ptid_set,
-                file_visitor=file_visitor,
+                file_visitor_factory=file_visitor_builder,
                 table_visitor=WriterTableVisitor(DictReportWriter(writer)),
             )
             project_visitor.visit_project(project.project)
