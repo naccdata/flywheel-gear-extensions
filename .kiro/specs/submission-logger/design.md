@@ -43,6 +43,33 @@ The gear leverages existing infrastructure with minimal new components:
 
 **Key Design Decision**: Instead of creating new file processors and visit extractors, directly use the existing `CSVLoggingVisitor` which already handles CSV parsing, visit extraction, and VisitEvent creation.
 
+## Implementation Constraints
+
+### Gear Execution Conventions
+
+The implementation MUST follow established gear execution patterns from the identifier-lookup gear to ensure consistency across the NACC gear ecosystem:
+
+8. **GearEngine Pattern**: The implementation SHALL use `GearEngine.create_with_parameter_store().run(gear_type=SubmissionLoggerVisitor)` for proper parameter store integration
+9. **Error Writer Integration**: The implementation SHALL create a `ListErrorWriter` with proper container ID and Flywheel path for error tracking
+10. **QC Result Reporting**: The implementation SHALL call `context.metadata.add_qc_result()` with:
+    - File input reference: `self.__file_input.file_input`
+    - Validation name: `"validation"`
+    - State: `"PASS"` if successful, `"FAIL"` if errors occurred
+    - Error data: `error_writer.errors().model_dump(by_alias=True)`
+11. **File Tagging**: The implementation SHALL call `context.metadata.add_file_tags()` with:
+    - File input reference: `self.__file_input.file_input`
+    - Tags: `tags=self.__gear_name`
+12. **Success Status Tracking**: The main processing function SHALL return a boolean success status for QC result determination
+13. **Error Writer Parameter**: The main processing function SHALL accept an `error_writer: ListErrorWriter` parameter for consistent error handling
+
+### S3 Event Logging Conventions
+
+14. **S3BucketInterface Creation**: The implementation SHALL use `S3BucketInterface.create_from_environment(bucket_name)` for S3 bucket access
+15. **Bucket Validation**: The implementation SHALL validate S3 bucket access and raise `GearExecutionError` if unavailable
+16. **VisitEventLogger Integration**: The implementation SHALL pass the S3BucketInterface directly to `VisitEventLogger(s3_bucket=s3_bucket, environment=environment)`
+
+These conventions ensure consistency with existing gears and proper integration with the Flywheel platform's metadata and error reporting systems.
+
 ## Components and Interfaces
 
 ### Core Components
