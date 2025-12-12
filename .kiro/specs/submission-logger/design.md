@@ -34,14 +34,17 @@ graph TD
 
 ### Component Architecture
 
-The gear leverages existing infrastructure with minimal new components:
+The gear leverages existing infrastructure with composition pattern:
 
 1. **SubmissionLoggerVisitor**: Main execution environment extending `GearExecutionEnvironment`
 2. **CSVLoggingVisitor**: Existing component from `common.event_logging` for CSV processing and event creation
-3. **QCStatusLogCreator**: Creates initial QC status logs using `ErrorLogTemplate`
-4. **File Type Detection**: Uses existing `InputFileWrapper.validate_file_extension()` for CSV detection
+3. **QCStatusLogCSVVisitor**: New visitor for creating QC status logs during CSV processing
+4. **QCStatusLogCreator**: Creates initial QC status logs using `ErrorLogTemplate`
+5. **FileVisitAnnotator**: Annotates QC status log files with visit metadata
+6. **AggregateCSVVisitor**: Composition pattern to combine multiple CSV visitors
+7. **File Type Detection**: Uses existing `InputFileWrapper.validate_file_extension()` for CSV detection
 
-**Key Design Decision**: Instead of creating new file processors and visit extractors, directly use the existing `CSVLoggingVisitor` which already handles CSV parsing, visit extraction, and VisitEvent creation.
+**Key Design Decision**: Use composition over inheritance with `AggregateCSVVisitor` to combine `CSVLoggingVisitor` (for event creation) and `QCStatusLogCSVVisitor` (for QC log creation) without tight coupling.
 
 ## Implementation Constraints
 
@@ -49,24 +52,24 @@ The gear leverages existing infrastructure with minimal new components:
 
 The implementation MUST follow established gear execution patterns from the identifier-lookup gear to ensure consistency across the NACC gear ecosystem:
 
-8. **GearEngine Pattern**: The implementation SHALL use `GearEngine.create_with_parameter_store().run(gear_type=SubmissionLoggerVisitor)` for proper parameter store integration
-9. **Error Writer Integration**: The implementation SHALL create a `ListErrorWriter` with proper container ID and Flywheel path for error tracking
-10. **QC Result Reporting**: The implementation SHALL call `context.metadata.add_qc_result()` with:
+1. **GearEngine Pattern**: The implementation SHALL use `GearEngine.create_with_parameter_store().run(gear_type=SubmissionLoggerVisitor)` for proper parameter store integration
+2. **Error Writer Integration**: The implementation SHALL create a `ListErrorWriter` with proper container ID and Flywheel path for error tracking
+3. **QC Result Reporting**: The implementation SHALL call `context.metadata.add_qc_result()` with:
     - File input reference: `self.__file_input.file_input`
     - Validation name: `"validation"`
     - State: `"PASS"` if successful, `"FAIL"` if errors occurred
     - Error data: `error_writer.errors().model_dump(by_alias=True)`
-11. **File Tagging**: The implementation SHALL call `context.metadata.add_file_tags()` with:
+4. **File Tagging**: The implementation SHALL call `context.metadata.add_file_tags()` with:
     - File input reference: `self.__file_input.file_input`
     - Tags: `tags=self.__gear_name`
-12. **Success Status Tracking**: The main processing function SHALL return a boolean success status for QC result determination
-13. **Error Writer Parameter**: The main processing function SHALL accept an `error_writer: ListErrorWriter` parameter for consistent error handling
+5. **Success Status Tracking**: The main processing function SHALL return a boolean success status for QC result determination
+6. **Error Writer Parameter**: The main processing function SHALL accept an `error_writer: ListErrorWriter` parameter for consistent error handling
 
 ### S3 Event Logging Conventions
 
-14. **S3BucketInterface Creation**: The implementation SHALL use `S3BucketInterface.create_from_environment(bucket_name)` for S3 bucket access
-15. **Bucket Validation**: The implementation SHALL validate S3 bucket access and raise `GearExecutionError` if unavailable
-16. **VisitEventLogger Integration**: The implementation SHALL pass the S3BucketInterface directly to `VisitEventLogger(s3_bucket=s3_bucket, environment=environment)`
+1. **S3BucketInterface Creation**: The implementation SHALL use `S3BucketInterface.create_from_environment(bucket_name)` for S3 bucket access
+2. **Bucket Validation**: The implementation SHALL validate S3 bucket access and raise `GearExecutionError` if unavailable
+3. **VisitEventLogger Integration**: The implementation SHALL pass the S3BucketInterface directly to `VisitEventLogger(s3_bucket=s3_bucket, environment=environment)`
 
 These conventions ensure consistency with existing gears and proper integration with the Flywheel platform's metadata and error reporting systems.
 
@@ -75,22 +78,52 @@ These conventions ensure consistency with existing gears and proper integration 
 ### Core Components
 
 ```python
-# Use existing infrastructure instead of creating new interfaces
+# Use existing infrastructure with composition pattern
 from event_logging.csv_logging_visitor import CSVLoggingVisitor
 from event_logging.event_logging import VisitEventLogger
 from nacc_common.error_models import VisitKeys
 from configs.ingest_configs import ErrorLogTemplate
+from inputs.csv_reader import AggregateCSVVisitor
 
-# Minimal new components needed:
+# Implemented components:
 class QCStatusLogCreator:
     """Creates initial QC status logs using ErrorLogTemplate."""
     
-    def __init__(self, error_log_template: ErrorLogTemplate):
+    def __init__(self, error_log_template: ErrorLogTemplate, visit_annotator: FileVisitAnnotator):
         self.__template = error_log_template
+        self.__visit_annotator = visit_annotator
     
-    def create_qc_log(self, visit_keys: VisitKeys, project: ProjectAdaptor) -> bool:
-        """Creates QC status log file at project level."""
+    def create_qc_log(self, visit_keys: VisitKeys, project: ProjectAdaptor, gear_name: str, error_writer: ListErrorWriter) -> bool:
+        """Creates QC status log file at project level with visit metadata."""
+        # Uses model_dump() for proper Pydantic serialization
+        # Maps VisitKeys.date to ErrorLogTemplate.visitdate field
         pass
+
+class QCStatusLogCSVVisitor(CSVVisitor):
+    """CSV visitor that creates QC status logs for each visit."""
+    
+    def __init__(self, qc_log_creator: QCStatusLogCreator, project: ProjectAdaptor, gear_name: str, error_writer: ListErrorWriter):
+        self.__qc_log_creator = qc_log_creator
+        self.__project = project
+        self.__gear_name = gear_name
+        self.__error_writer = error_writer
+    
+    def visit_row(self, row: dict[str, Any], visit_keys: VisitKeys) -> None:
+        """Creates QC status log for each CSV row/visit."""
+        self.__qc_log_creator.create_qc_log(visit_keys, self.__project, self.__gear_name, self.__error_writer)
+
+class FileVisitAnnotator:
+    """Annotates QC status log files with visit metadata."""
+    
+    def annotate_file(self, file_wrapper: FileWrapper, visit_keys: VisitKeys) -> None:
+        """Adds visit metadata to QC status log file.info.visit structure."""
+        # Uses VisitKeys.model_dump(exclude_none=True) for proper serialization
+        # Stores metadata in file.info.visit structure for individual QC log files
+
+# Architecture uses AggregateCSVVisitor for composition over inheritance
+event_visitor = CSVLoggingVisitor(...)
+qc_visitor = QCStatusLogCSVVisitor(...)
+csv_visitor = AggregateCSVVisitor([event_visitor, qc_visitor])
 ```
 
 ### Main Execution Component
@@ -123,22 +156,22 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
         # Enhance file metadata
 ```
 
-### Simplified Processing Logic
+### Actual Processing Logic
 
 ```python
 class SubmissionLoggerVisitor(GearExecutionEnvironment):
-    """Main gear execution visitor - simplified to use existing infrastructure."""
+    """Main gear execution visitor using composition pattern."""
     
     def run(self, context: GearToolkitContext):
-        """Main execution method using existing CSVLoggingVisitor."""
+        """Main execution method using AggregateCSVVisitor composition."""
         
         # 1. Check if file is CSV using existing pattern
         if not self.__file_input.validate_file_extension(["csv"]):
             log.warning(f"Unsupported file type: {self.__file_input.filename}")
             return
         
-        # 2. Use existing CSVLoggingVisitor for processing
-        csv_visitor = CSVLoggingVisitor(
+        # 2. Create event logging visitor
+        event_visitor = CSVLoggingVisitor(
             center_label=project.group,
             project_label=project.label,
             gear_name=self.__gear_name,
@@ -150,15 +183,25 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
             datatype="form"
         )
         
-        # 3. Process CSV file (creates submit events automatically)
+        # 3. Create QC status log visitor
+        qc_visitor = QCStatusLogCSVVisitor(
+            qc_log_creator=self.__qc_log_creator,
+            project=project,
+            gear_name=self.__gear_name,
+            error_writer=error_writer
+        )
+        
+        # 4. Combine visitors using composition
+        csv_visitor = AggregateCSVVisitor([event_visitor, qc_visitor])
+        
+        # 5. Process CSV file (creates submit events AND QC logs)
         success = run_csv_processing(
             input_file=open(self.__file_input.filepath),
             csv_visitor=csv_visitor,
             error_writer=error_writer
         )
         
-        # 4. Create QC status logs for each visit found
-        # 5. Add visit metadata to file.info.visit
+        # Note: NO visit metadata is added to uploaded CSV files
 ```
 
 ## Data Models
@@ -211,9 +254,9 @@ Based on the requirements analysis, the following properties ensure correctness:
 *For any* submit event created, the event timestamp should match the file upload timestamp within acceptable precision bounds
 **Validates: Requirements 1.4**
 
-**Property 4: File Metadata Enhancement Preservation**
-*For any* uploaded file processed successfully, the original file content should remain unchanged while visit metadata is added to file.info.visit
-**Validates: Requirements 4.1, 4.2**
+**Property 4: QC Status Log Metadata Enhancement**
+*For any* QC status log file created, the file should be annotated with visit metadata in file.info.visit structure while uploaded CSV files remain completely unchanged
+**Validates: Requirements 3.4** (Note: Requirements 4.1, 4.2 removed per user request)
 
 **Property 5: Error Handling Robustness**
 *For any* processing error encountered, the gear should log detailed error information and continue processing remaining visits without failing execution
@@ -286,8 +329,9 @@ def test_visit_event_creation_completeness(csv_data):
 def test_qc_status_log_creation_consistency(visit_info):
     """**Feature: submission-logger, Property 2: QC Status Log Creation Consistency**"""
     # Generate visit information
-    # Create QC status log
+    # Create QC status log using QCStatusLogCreator
     # Assert file exists with correct ErrorLogTemplate naming
+    # Assert QC log file has visit metadata in file.info.visit
 ```
 
 ### Integration Testing

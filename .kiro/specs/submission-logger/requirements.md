@@ -71,15 +71,15 @@ The submission-logger gear captures "submit" events when new files are uploaded 
 
 ### Requirement 4
 
-**User Story:** As a system integrator, I want visit metadata to be added to uploaded files, so that future event logging can access visit details without re-parsing files.
+**User Story:** As a system integrator, I want QC status log files to be annotated with visit metadata, so that downstream pipeline gears can access visit details for processing.
 
 #### Acceptance Criteria
 
-1. WHEN processing an uploaded file THEN the Submission Logger SHALL add visit details to the file metadata
-2. WHEN storing visit metadata THEN the Submission Logger SHALL use the `file.info.visit` structure
-3. WHEN visit information is extracted THEN the Submission Logger SHALL include PTID, visit date, visit number, module, packet, study, and center information
-4. WHEN metadata enhancement fails THEN the Submission Logger SHALL log the error and continue with event logging
-5. WHEN multiple visits are present THEN the Submission Logger SHALL store aggregated visit information in the file metadata
+1. WHEN creating QC status log files THEN the Submission Logger SHALL add visit details to the QC log file metadata
+2. WHEN storing visit metadata THEN the Submission Logger SHALL use the `file.info.visit` structure on QC status log files
+3. WHEN visit information is extracted THEN the Submission Logger SHALL include PTID, visit date, visit number, module, packet, study, and center information in QC log metadata
+4. WHEN QC log metadata enhancement fails THEN the Submission Logger SHALL log the error and continue with processing
+5. WHEN processing uploaded CSV files THEN the Submission Logger SHALL NOT modify the uploaded file metadata or content in any way
 
 ### Requirement 5
 
