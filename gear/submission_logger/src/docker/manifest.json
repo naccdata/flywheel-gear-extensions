@@ -36,7 +36,7 @@
             }
         },
         "form_configs_file": {
-            "description": "The YAML file containing form project configurations (optional, required only for form data)",
+            "description": "The YAML file containing form project configurations (required for CSV files, optional for other file types)",
             "base": "file",
             "optional": true,
             "type": {
@@ -81,7 +81,7 @@
             "default": true
         },
         "module": {
-            "description": "Module name for form processing (UDS, FTLD, LBD, etc.) - required only when form_configs_file is provided",
+            "description": "Module name for form processing (UDS, FTLD, LBD, etc.) - required for CSV files",
             "type": "string",
             "default": ""
         }
