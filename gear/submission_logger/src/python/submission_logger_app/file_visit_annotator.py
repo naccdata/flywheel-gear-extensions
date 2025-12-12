@@ -10,8 +10,11 @@ log = logging.getLogger(__name__)
 
 
 class FileVisitAnnotator:
-    """Annotates QC status log files with visit metadata for a specific
-    visit."""
+    """Annotates QC status log files with visit metadata.
+
+    Each QC status log file corresponds to a specific visit found during
+    single-file processing by the submission logger gear.
+    """
 
     def __init__(self, project: ProjectAdaptor):
         """Initialize file visit annotator.
