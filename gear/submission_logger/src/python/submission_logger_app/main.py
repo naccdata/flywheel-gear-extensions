@@ -3,14 +3,18 @@
 import logging
 from typing import Optional
 
-from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs, ModuleConfigs
 from event_logging.csv_logging_visitor import CSVLoggingVisitor
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
-from inputs.csv_reader import read_csv
+from inputs.csv_reader import AggregateCSVVisitor, read_csv
 from outputs.error_writer import ListErrorWriter
+
+from submission_logger_app.file_visit_annotator import FileVisitAnnotator
+from submission_logger_app.qc_csv_visitor import QCCSVVisitor
+from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
 
 log = logging.getLogger(__name__)
 
@@ -57,8 +61,8 @@ def _process_csv_form_data(
     center_label = project.group
     project_label = project.label
 
-    # Create CSVLoggingVisitor for submit event creation
-    csv_visitor = CSVLoggingVisitor(
+    # Create event logging visitor for submit events
+    event_visitor = CSVLoggingVisitor(
         center_label=center_label,
         project_label=project_label,
         gear_name=gear_name,
@@ -69,6 +73,25 @@ def _process_csv_form_data(
         action="submit",  # Key difference - this creates submit events
         datatype="form",
     )
+
+    # Create QC status log creator and visitor
+    error_log_template = (
+        module_configs.errorlog_template
+        if module_configs.errorlog_template
+        else ErrorLogTemplate()
+    )
+    visit_annotator = FileVisitAnnotator(project)
+    qc_log_creator = QCStatusLogCreator(error_log_template, visit_annotator)
+    qc_visitor = QCCSVVisitor(
+        module_configs=module_configs,
+        project=project,
+        qc_log_creator=qc_log_creator,
+        gear_name=gear_name,
+        error_writer=error_writer,
+    )
+
+    # Aggregate both visitors
+    csv_visitor = AggregateCSVVisitor([event_visitor, qc_visitor])
 
     # Process CSV file using existing infrastructure
     with open(file_input.filepath, "r", encoding="utf-8") as input_file:
