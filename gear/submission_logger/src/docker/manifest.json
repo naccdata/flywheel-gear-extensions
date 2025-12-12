@@ -34,6 +34,16 @@
                     "tabular data"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "The YAML file containing form project configurations (optional, required only for form data)",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {
@@ -69,6 +79,11 @@
             "description": "Whether to continue processing on errors",
             "type": "boolean",
             "default": true
+        },
+        "module": {
+            "description": "Module name for form processing (UDS, FTLD, LBD, etc.) - required only when form_configs_file is provided",
+            "type": "string",
+            "default": ""
         }
     },
     "command": "/bin/run"
