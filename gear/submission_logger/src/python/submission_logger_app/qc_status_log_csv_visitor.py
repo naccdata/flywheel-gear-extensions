@@ -15,7 +15,7 @@ from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
 log = logging.getLogger(__name__)
 
 
-class QCCSVVisitor(CSVVisitor):
+class QCStatusLogCSVVisitor(CSVVisitor):
     """CSV visitor that creates QC status logs for each visit."""
 
     def __init__(

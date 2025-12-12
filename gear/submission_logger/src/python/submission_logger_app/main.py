@@ -13,8 +13,8 @@ from inputs.csv_reader import AggregateCSVVisitor, read_csv
 from outputs.error_writer import ListErrorWriter
 
 from submission_logger_app.file_visit_annotator import FileVisitAnnotator
-from submission_logger_app.qc_csv_visitor import QCCSVVisitor
 from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
+from submission_logger_app.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ def _process_csv_form_data(
     )
     visit_annotator = FileVisitAnnotator(project)
     qc_log_creator = QCStatusLogCreator(error_log_template, visit_annotator)
-    qc_visitor = QCCSVVisitor(
+    qc_visitor = QCStatusLogCSVVisitor(
         module_configs=module_configs,
         project=project,
         qc_log_creator=qc_log_creator,
