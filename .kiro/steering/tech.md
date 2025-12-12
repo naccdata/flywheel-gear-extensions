@@ -104,18 +104,21 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ```
 
 ### Code Quality
+
+**IMPORTANT**: Always run `pants fix` before `pants lint` to automatically fix formatting and import issues.
+
 ```bash
-# Format code
+# Format code (ALWAYS run this first)
 ./bin/exec-in-devcontainer.sh pants fix ::
 
-# Run linters
+# Run linters (after fix)
 ./bin/exec-in-devcontainer.sh pants lint ::
 
 # Type check
 ./bin/exec-in-devcontainer.sh pants check ::
 
-# Run all checks
-./bin/exec-in-devcontainer.sh pants lint :: && pants check ::
+# Run all checks (ALWAYS run fix first to auto-fix issues)
+./bin/exec-in-devcontainer.sh pants fix :: && pants lint :: && pants check ::
 ```
 
 ### Testing
