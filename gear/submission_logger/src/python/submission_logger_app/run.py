@@ -95,7 +95,6 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
 
         # Create error writer for tracking processing errors
         from outputs.error_writer import ListErrorWriter
-        from outputs.errors import system_error
 
         file_id = self.__file_input.file_id
         error_writer = ListErrorWriter(
@@ -119,23 +118,17 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
                         f"Error reading form configurations file "
                         f"{self.__config_input.filename}: {error}"
                     )
-                    log.error(error_msg)
-                    error_writer.write(system_error(error_msg))
                     raise GearExecutionError(error_msg) from error
                 except FileNotFoundError as error:
                     error_msg = (
                         f"Form configurations file not found: "
                         f"{self.__config_input.filename}"
                     )
-                    log.error(error_msg)
-                    error_writer.write(system_error(error_msg))
                     raise GearExecutionError(error_msg) from error
                 except Exception as error:
                     error_msg = (
                         f"Unexpected error loading form configurations: {error!s}"
                     )
-                    log.error(error_msg)
-                    error_writer.write(system_error(error_msg))
                     raise GearExecutionError(error_msg) from error
 
                 # Get module from gear configuration
@@ -145,8 +138,6 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
                         "Module configuration is required when form_configs_file is "
                         "provided"
                     )
-                    log.error(error_msg)
-                    error_writer.write(system_error(error_msg))
                     raise GearExecutionError(error_msg)
 
                 # Validate module is supported
@@ -155,8 +146,6 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
                     or not form_project_configs.module_configs.get(module)
                 ):
                     error_msg = f"Failed to find the configurations for module {module}"
-                    log.error(error_msg)
-                    error_writer.write(system_error(error_msg))
                     raise GearExecutionError(error_msg)
 
             # Run the main processing with comprehensive error handling
@@ -172,21 +161,18 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
                     module=module,
                 )
             except Exception as error:
+                # Log the error but don't re-raise - let gear complete with failure
                 error_msg = f"Error during submission logger processing: {error!s}"
                 log.error(error_msg)
-                error_writer.write(system_error(error_msg))
-                # Don't re-raise - let the gear complete with failure status
                 success = False
 
         except GearExecutionError:
             # Re-raise gear execution errors (these are expected failure modes)
             raise
         except Exception as error:
-            # Catch any other unexpected errors
+            # Log unexpected errors but don't re-raise - let gear complete with failure
             error_msg = f"Critical error in submission logger gear: {error!s}"
             log.error(error_msg)
-            error_writer.write(system_error(error_msg))
-            # Don't re-raise - let the gear complete with failure status
             success = False
 
         finally:
