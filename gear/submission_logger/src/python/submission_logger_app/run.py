@@ -95,6 +95,7 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
 
         # Create error writer for tracking processing errors
         from outputs.error_writer import ListErrorWriter
+        from outputs.errors import system_error
 
         file_id = self.__file_input.file_id
         error_writer = ListErrorWriter(
@@ -105,58 +106,109 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
         # Load form project configurations if provided
         form_project_configs = None
         module = None
+        success = False
 
-        if self.__config_input:
+        try:
+            if self.__config_input:
+                try:
+                    form_project_configs = load_form_ingest_configurations(
+                        self.__config_input.filepath
+                    )
+                except ValidationError as error:
+                    error_msg = (
+                        f"Error reading form configurations file "
+                        f"{self.__config_input.filename}: {error}"
+                    )
+                    log.error(error_msg)
+                    error_writer.write(system_error(error_msg))
+                    raise GearExecutionError(error_msg) from error
+                except FileNotFoundError as error:
+                    error_msg = (
+                        f"Form configurations file not found: "
+                        f"{self.__config_input.filename}"
+                    )
+                    log.error(error_msg)
+                    error_writer.write(system_error(error_msg))
+                    raise GearExecutionError(error_msg) from error
+                except Exception as error:
+                    error_msg = (
+                        f"Unexpected error loading form configurations: {error!s}"
+                    )
+                    log.error(error_msg)
+                    error_writer.write(system_error(error_msg))
+                    raise GearExecutionError(error_msg) from error
+
+                # Get module from gear configuration
+                module = context.config.get("module", "").upper()
+                if not module:
+                    error_msg = (
+                        "Module configuration is required when form_configs_file is "
+                        "provided"
+                    )
+                    log.error(error_msg)
+                    error_writer.write(system_error(error_msg))
+                    raise GearExecutionError(error_msg)
+
+                # Validate module is supported
+                if (
+                    module not in form_project_configs.accepted_modules
+                    or not form_project_configs.module_configs.get(module)
+                ):
+                    error_msg = f"Failed to find the configurations for module {module}"
+                    log.error(error_msg)
+                    error_writer.write(system_error(error_msg))
+                    raise GearExecutionError(error_msg)
+
+            # Run the main processing with comprehensive error handling
             try:
-                form_project_configs = load_form_ingest_configurations(
-                    self.__config_input.filepath
+                success = run(
+                    file_input=self.__file_input,
+                    event_logger=self.__event_logger,
+                    gear_name=self.__gear_name,
+                    proxy=self.proxy,
+                    context=context,
+                    error_writer=error_writer,
+                    form_project_configs=form_project_configs,
+                    module=module,
                 )
-            except ValidationError as error:
-                raise GearExecutionError(
-                    f"Error reading form configurations file "
-                    f"{self.__config_input.filename}: {error}"
-                ) from error
+            except Exception as error:
+                error_msg = f"Error during submission logger processing: {error!s}"
+                log.error(error_msg)
+                error_writer.write(system_error(error_msg))
+                # Don't re-raise - let the gear complete with failure status
+                success = False
 
-            # Get module from gear configuration
-            module = context.config.get("module", "").upper()
-            if not module:
-                raise GearExecutionError(
-                    "Module configuration is required when form_configs_file is "
-                    "provided"
+        except GearExecutionError:
+            # Re-raise gear execution errors (these are expected failure modes)
+            raise
+        except Exception as error:
+            # Catch any other unexpected errors
+            error_msg = f"Critical error in submission logger gear: {error!s}"
+            log.error(error_msg)
+            error_writer.write(system_error(error_msg))
+            # Don't re-raise - let the gear complete with failure status
+            success = False
+
+        finally:
+            # Always add QC result and file tags, even if processing failed
+            try:
+                # Add QC result following identifier_lookup pattern
+                context.metadata.add_qc_result(
+                    self.__file_input.file_input,
+                    name="validation",
+                    state="PASS" if success else "FAIL",
+                    data=error_writer.errors().model_dump(by_alias=True),
                 )
 
-            # Validate module is supported
-            if (
-                module not in form_project_configs.accepted_modules
-                or not form_project_configs.module_configs.get(module)
-            ):
-                raise GearExecutionError(
-                    f"Failed to find the configurations for module {module}"
+                # Add file tags following identifier_lookup pattern
+                context.metadata.add_file_tags(
+                    self.__file_input.file_input, tags=self.__gear_name
                 )
-
-        success = run(
-            file_input=self.__file_input,
-            event_logger=self.__event_logger,
-            gear_name=self.__gear_name,
-            proxy=self.proxy,
-            context=context,
-            error_writer=error_writer,
-            form_project_configs=form_project_configs,
-            module=module,
-        )
-
-        # Add QC result following identifier_lookup pattern
-        context.metadata.add_qc_result(
-            self.__file_input.file_input,
-            name="validation",
-            state="PASS" if success else "FAIL",
-            data=error_writer.errors().model_dump(by_alias=True),
-        )
-
-        # Add file tags following identifier_lookup pattern
-        context.metadata.add_file_tags(
-            self.__file_input.file_input, tags=self.__gear_name
-        )
+            except Exception as error:
+                # Log metadata errors but don't fail the gear
+                log.error(f"Error adding metadata: {error!s}")
+                # Note: We don't write this to error_writer since metadata operations
+                # happen after the main processing and error collection
 
 
 def main():
