@@ -12,9 +12,10 @@ from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from metrics.processing_metrics import ProcessingMetrics
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-from submission_logger_app.main import ProcessingMetrics, run
+from submission_logger_app.main import run
 
 
 def create_mock_module_configs() -> ModuleConfigs:
@@ -377,7 +378,7 @@ class TestErrorHandlingAndMetrics:
         # Capture log output to verify it focuses on visit-level metrics
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
-        logger = logging.getLogger("submission_logger_app.main")
+        logger = logging.getLogger("metrics.processing_metrics")
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
