@@ -11,6 +11,10 @@ from configs.ingest_configs import (
     SupplementModuleConfigs,
 )
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from error_logging.error_logger import (
+    get_file_qc_info,
+    update_error_log_and_qc_metadata,
+)
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -35,7 +39,6 @@ from nacc_common.error_models import (
     VisitKeys,
 )
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import get_file_qc_info, update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,

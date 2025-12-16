@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
-from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs, ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from error_logging.error_logger import ErrorLogTemplate
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext

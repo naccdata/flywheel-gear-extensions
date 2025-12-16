@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import (
     DATE_FORMATS,
     DEFAULT_DATE_FORMAT,
@@ -24,6 +23,10 @@ from enrollment.enrollment_transfer import (
     is_new_enrollment,
     previously_enrolled,
 )
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
@@ -36,7 +39,6 @@ from keys.keys import DefaultValues
 from nacc_common.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
 from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
     empty_field_error,

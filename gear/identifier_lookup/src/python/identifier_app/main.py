@@ -4,8 +4,12 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
+from configs.ingest_configs import ModuleConfigs
 from enrollment.enrollment_transfer import CenterValidator
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
@@ -16,7 +20,6 @@ from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
 from nacc_common.error_models import FileError, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,

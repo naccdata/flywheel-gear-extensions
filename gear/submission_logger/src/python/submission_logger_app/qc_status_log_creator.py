@@ -3,10 +3,12 @@
 import logging
 from typing import Any, Optional
 
-from configs.ingest_configs import ErrorLogTemplate
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import VisitKeys
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 
 from submission_logger_app.file_visit_annotator import FileVisitAnnotator

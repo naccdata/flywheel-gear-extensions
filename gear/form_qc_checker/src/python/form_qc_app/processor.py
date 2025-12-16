@@ -6,7 +6,12 @@ from abc import ABC, abstractmethod
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
-from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
+from configs.ingest_configs import FormProjectConfigs
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    MetadataCleanupFlag,
+    update_error_log_and_qc_metadata,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
@@ -18,10 +23,6 @@ from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
 from nacc_common.error_models import JSONLocation, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import (
-    MetadataCleanupFlag,
-    update_error_log_and_qc_metadata,
-)
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,

@@ -4,7 +4,7 @@ from io import StringIO
 from typing import Any, Generator
 
 import pytest
-from configs.ingest_configs import ErrorLogTemplate
+from error_logging.error_logger import ErrorLogTemplate
 from nacc_common.error_models import (
     FileQCModel,
     GearQCModel,

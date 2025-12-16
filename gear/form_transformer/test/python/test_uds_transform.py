@@ -4,7 +4,7 @@ checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from configs.ingest_configs import ErrorLogTemplate
+from error_logging.error_logger import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.error_models import ValidationModel

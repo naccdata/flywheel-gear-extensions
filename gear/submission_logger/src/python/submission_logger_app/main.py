@@ -9,7 +9,8 @@ import logging
 from pathlib import Path
 from typing import Optional, Protocol
 
-from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs, ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from error_logging.error_logger import ErrorLogTemplate
 from event_logging.csv_logging_visitor import CSVLoggingVisitor
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor

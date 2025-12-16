@@ -4,7 +4,11 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
+from configs.ingest_configs import ModuleConfigs
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -12,7 +16,6 @@ from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
 from nacc_common.error_models import FileQCModel, QCStatus, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
