@@ -354,7 +354,7 @@ class ProjectReportVisitor:
         file = file.reload()
 
         try:
-            qc_model = FileQCModel.model_validate(file.info)
+            qc_model = FileQCModel.create(file)
         except ValidationError as error:
             log.warning("Failed to load QC data for %s: %s", file.name, error)
             return

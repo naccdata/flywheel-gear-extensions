@@ -12,7 +12,6 @@ from configs.ingest_configs import (
 )
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import (
-    get_file_qc_info,
     update_error_log_and_qc_metadata,
 )
 from flywheel.models.acquisition import Acquisition
@@ -45,6 +44,7 @@ from outputs.errors import (
     previous_visit_failed_error,
     system_error,
 )
+from pydantic import ValidationError
 
 from form_qc_coordinator_app.visits import VisitsLookupHelper
 
@@ -163,8 +163,10 @@ class QCCoordinator:
             data=error_writer.errors().model_dump(by_alias=True),
         )
         visit_file = visit_file.reload()
-        qc_info = get_file_qc_info(visit_file)
-        if not qc_info:
+        try:
+            qc_info = FileQCModel.create(visit_file)
+        except ValidationError as error:
+            log.warning("Error loading QC metadata for file %s: %s", visit_file.name, error)
             qc_info = FileQCModel(qc={})
 
         # add qc-coordinator gear info to visit file metadata
@@ -222,8 +224,10 @@ class QCCoordinator:
             error_writer.write(error_obj)
 
         visit_file = visit_file.reload()
-        qc_info = get_file_qc_info(visit_file)
-        if not qc_info:
+        try:
+            qc_info = FileQCModel.create(visit_file)
+        except ValidationError as error:
+            log.warning("Error loading QC metadata for file %s: %s", visit_file.name, error)
             qc_info = FileQCModel(qc={})
 
         qc_info.set_errors(

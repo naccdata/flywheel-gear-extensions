@@ -7,7 +7,6 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import QCStatusLogCreator

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
+from flywheel.models.file_entry import FileEntry
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from nacc_common.field_names import FieldNames
@@ -279,6 +280,27 @@ class FileQCModel(BaseModel):
     """
 
     qc: Dict[str, GearQCModel]
+
+    @classmethod
+    def create(cls, file_entry: FileEntry) -> "FileQCModel":
+        """Factory method to create FileQCModel from a FileEntry.
+
+        Args:
+            file_entry: The file entry to extract QC info from
+
+        Returns:
+            FileQCModel instance
+
+        Raises:
+            ValidationError: If the file.info structure is invalid
+        """
+        file_entry = file_entry.reload()
+        if not file_entry.info:
+            return cls(qc={})
+        if "qc" not in file_entry.info:
+            return cls(qc={})
+
+        return cls.model_validate(file_entry.info, by_alias=True)
 
     def get(self, gear_name: str) -> Optional[GearQCModel]:
         return self.qc.get(gear_name)

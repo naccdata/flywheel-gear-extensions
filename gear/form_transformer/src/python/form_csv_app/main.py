@@ -458,7 +458,7 @@ class CSVTransformVisitor(CSVVisitor):
             return "FAIL"
 
         try:
-            visit_info = FileQCModel.model_validate(visit_file.info)
+            visit_info = FileQCModel.create(visit_file)
         except ValidationError as error:
             log.error(
                 f"Unexpected QC metadata in visit file {visit_file.name}: {error}"
@@ -524,7 +524,7 @@ class CSVTransformVisitor(CSVVisitor):
         info = FileQCModel(qc={})
         if error_log_file.info and "qc" in error_log_file.info:
             try:
-                info = FileQCModel.model_validate(error_log_file.info)
+                info = FileQCModel.create(error_log_file)
             except ValidationError as error:
                 log.error(
                     f"error reading {self.__project}/{error_log_name} metadata: {error}"
