@@ -130,5 +130,3 @@ The submission-logger gear captures "submit" events when a single file is upload
 3. WHEN tracking operational statistics THEN the code SHALL emphasize visits found, visits processed, events created, and QC logs created for the single input file
 4. WHEN handling errors THEN the code SHALL categorize errors by type without maintaining file-level counters that are always 1
 5. WHEN documenting and commenting code THEN the code SHALL accurately describe single-file processing behavior to avoid confusion
-
-
