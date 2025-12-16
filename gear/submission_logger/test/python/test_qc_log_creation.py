@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
-from error_logging.qc_status_log_creator import QCStatusLogCreator
+from error_logging.qc_status_log_creator import QCStatusLogManager
 from event_logging.event_logger import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -249,7 +249,7 @@ class TestQCLogCreation:
         reason="QC log creation not working in test environment - needs further investigation"
     )
     def test_qc_log_creator_direct(self):
-        """Test QCStatusLogCreator directly with VisitKeys."""
+        """Test QCStatusLogManager directly with VisitKeys."""
         # Create test visit keys
         visit_keys = VisitKeys(
             ptid="TEST001",
@@ -263,7 +263,7 @@ class TestQCLogCreation:
         error_log_template = ErrorLogTemplate()
         mock_visit_annotator = Mock()
         mock_visit_annotator.annotate_qc_log_file.return_value = True
-        qc_log_creator = QCStatusLogCreator(error_log_template, mock_visit_annotator)
+        qc_log_creator = QCStatusLogManager(error_log_template, mock_visit_annotator)
 
         # Mock project and error writer
         mock_project = Mock(spec=ProjectAdaptor)
@@ -314,7 +314,7 @@ class TestQCLogCreation:
             )
 
     def test_qc_log_creator_insufficient_data(self):
-        """Test QCStatusLogCreator with insufficient visit data."""
+        """Test QCStatusLogManager with insufficient visit data."""
         # Create visit keys with missing data
         visit_keys = VisitKeys(
             ptid="TEST001",
@@ -327,7 +327,7 @@ class TestQCLogCreation:
         # Create QC status log creator
         error_log_template = ErrorLogTemplate()
         mock_visit_annotator = Mock()
-        qc_log_creator = QCStatusLogCreator(error_log_template, mock_visit_annotator)
+        qc_log_creator = QCStatusLogManager(error_log_template, mock_visit_annotator)
 
         # Mock project and error writer
         mock_project = Mock(spec=ProjectAdaptor)
@@ -359,7 +359,7 @@ class TestQCLogCreation:
         # Create QC status log creator
         error_log_template = ErrorLogTemplate()
         mock_visit_annotator = Mock()
-        qc_log_creator = QCStatusLogCreator(error_log_template, mock_visit_annotator)
+        qc_log_creator = QCStatusLogManager(error_log_template, mock_visit_annotator)
 
         # Get filename
         filename = qc_log_creator.get_qc_log_filename(visit_keys)
