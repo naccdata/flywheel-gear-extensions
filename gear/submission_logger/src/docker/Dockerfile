@@ -1,11 +1,18 @@
-FROM python:3.11
+FROM python:3.11-slim
 
-ENV BASE_DIR=/flywheel/v0
-RUN mkdir -p ${BASE_DIR}/input
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR ${BASE_DIR}
+# Set working directory
+WORKDIR /flywheel/v0
 
-COPY gear/submission_logger/src/docker/manifest.json ${BASE_DIR}
-COPY gear.submission_logger.src.python.submission_logger_app/bin.pex /bin/run
+# Copy and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT [ "/bin/run" ]
+# Copy application code
+COPY . .
+
+# Set the entrypoint
+ENTRYPOINT ["python", "run.py"]
