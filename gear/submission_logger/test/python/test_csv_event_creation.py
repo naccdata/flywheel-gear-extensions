@@ -162,8 +162,14 @@ class TestCSVEventCreation:
                 patch(
                     "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
+                patch(
+                    "error_logging.error_logger.get_log_contents"
+                ) as mock_get_log_contents,
             ):
                 mock_update_qc.return_value = True
+                mock_get_log_contents.return_value = (
+                    ""  # Return empty string instead of Mock
+                )
 
                 # Create form project configs
                 module = csv_data[0]["module"]  # Use module from first visit
@@ -246,9 +252,18 @@ class TestCSVEventCreation:
             mock_project.label = "test-project"
             mock_file_input.get_parent_project.return_value = Mock()
 
-            with patch(
-                "submission_logger_app.main.ProjectAdaptor", return_value=mock_project
+            with (
+                patch(
+                    "submission_logger_app.main.ProjectAdaptor",
+                    return_value=mock_project,
+                ),
+                patch(
+                    "error_logging.error_logger.get_log_contents"
+                ) as mock_get_log_contents,
             ):
+                mock_get_log_contents.return_value = (
+                    ""  # Return empty string instead of Mock
+                )
                 # Create form project configs
                 form_project_configs = create_mock_form_project_configs("UDS")
 
@@ -335,8 +350,14 @@ class TestCSVEventCreation:
                 patch(
                     "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
+                patch(
+                    "error_logging.error_logger.get_log_contents"
+                ) as mock_get_log_contents,
             ):
                 mock_update_qc.return_value = True
+                mock_get_log_contents.return_value = (
+                    ""  # Return empty string instead of Mock
+                )
 
                 # Create form project configs
                 form_project_configs = create_mock_form_project_configs("UDS")

@@ -290,8 +290,14 @@ class TestEventLoggingIntegration:
                 patch(
                     "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
+                patch(
+                    "error_logging.error_logger.get_log_contents"
+                ) as mock_get_log_contents,
             ):
                 mock_update_qc.return_value = True
+                mock_get_log_contents.return_value = (
+                    ""  # Return empty string instead of Mock
+                )
 
                 # Create form project configs
                 form_project_configs = create_mock_form_project_configs("UDS")
@@ -392,8 +398,14 @@ class TestEventLoggingIntegration:
                 patch(
                     "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
+                patch(
+                    "error_logging.error_logger.get_log_contents"
+                ) as mock_get_log_contents,
             ):
                 mock_update_qc.return_value = True
+                mock_get_log_contents.return_value = (
+                    ""  # Return empty string instead of Mock
+                )
 
                 # Create form project configs that accepts all modules
                 form_project_configs = FormProjectConfigs(
