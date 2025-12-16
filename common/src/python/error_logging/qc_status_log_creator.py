@@ -86,7 +86,8 @@ class FileVisitAnnotator:
 
 
 class QCStatusLogManager:
-    """Manages QC status logs using ErrorLogTemplate for both creation and updates."""
+    """Manages QC status logs using ErrorLogTemplate for both creation and
+    updates."""
 
     def __init__(
         self, error_log_template: ErrorLogTemplate, visit_annotator: FileVisitAnnotator
@@ -197,7 +198,9 @@ class QCStatusLogManager:
                 )
 
                 if not annotation_success:
-                    log.warning(f"Failed to add visit metadata to QC log: {error_log_name}")
+                    log.warning(
+                        f"Failed to add visit metadata to QC log: {error_log_name}"
+                    )
                     # Don't fail the entire operation for metadata annotation failure
         else:
             log.error(f"Failed to update QC status log: {error_log_name}")
