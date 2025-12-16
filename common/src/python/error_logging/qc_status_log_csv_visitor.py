@@ -9,7 +9,6 @@ from inputs.csv_reader import CSVVisitor
 from nacc_common.error_models import VisitKeys
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-
 from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
 
 log = logging.getLogger(__name__)

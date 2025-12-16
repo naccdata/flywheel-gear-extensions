@@ -11,6 +11,8 @@ from typing import Optional, Protocol
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
+from error_logging.file_visit_annotator import FileVisitAnnotator
+from error_logging.qc_status_log_creator import QCStatusLogCreator
 from event_logging.csv_logging_visitor import CSVLoggingVisitor
 from event_logging.event_logger import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -18,9 +20,7 @@ from inputs.csv_reader import AggregateCSVVisitor, read_csv
 from metrics.processing_metrics import ProcessingMetrics
 from outputs.error_writer import ListErrorWriter
 
-from submission_logger_app.file_visit_annotator import FileVisitAnnotator
 from submission_logger_app.metrics_tracking_visitor import MetricsTrackingVisitor
-from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
 from submission_logger_app.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 
 log = logging.getLogger(__name__)

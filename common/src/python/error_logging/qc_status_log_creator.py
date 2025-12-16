@@ -3,15 +3,15 @@
 import logging
 from typing import Any, Optional
 
-from error_logging.error_logger import (
-    ErrorLogTemplate,
-    update_error_log_and_qc_metadata,
-)
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import VisitKeys
 from outputs.error_writer import ListErrorWriter
 
-from submission_logger_app.file_visit_annotator import FileVisitAnnotator
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
+from error_logging.file_visit_annotator import FileVisitAnnotator
 
 log = logging.getLogger(__name__)
 
