@@ -161,23 +161,6 @@ def create_log_entry(*, gear_name: str, state: str, errors: FileErrorList) -> st
     return entry
 
 
-def upload_log(
-    *, project: ProjectAdaptor, filename: str, contents: str
-) -> Optional[FileEntry]:
-    """Uploads a file to the projects using the name and contents.
-
-    Args:
-      project: the project
-      filename: the file name
-      contents: the string of file contents
-    Returns:
-      the FileEntry for the file. None if the file could not be uploaded.
-    """
-    return project.upload_file_contents(
-        filename=filename, contents=contents, content_type="text"
-    )
-
-
 def update_error_log_and_qc_metadata(
     *,
     error_log_name: str,
@@ -228,8 +211,8 @@ def update_error_log_and_qc_metadata(
         gear_name=gear_name, state=state.upper(), errors=errors
     )
 
-    new_file = upload_log(
-        project=destination_prj, filename=error_log_name, contents=contents
+    new_file = destination_prj.upload_file_contents(
+        filename=error_log_name, contents=contents, content_type="text"
     )
     if new_file is None:
         return False
@@ -296,8 +279,9 @@ def update_gear_qc_status(
         )
         return
 
-    gear_info.set_status(status)
-    qc_info.set(gear_name=gear_name, gear_model=gear_info)
+    # Preserve existing errors while updating status
+    existing_errors = gear_info.get_errors()
+    qc_info.set_errors(gear_name=gear_name, status=status, errors=existing_errors)
     try:
         update_file_info(
             file=current_log, custom_info=qc_info.model_dump(by_alias=True)
@@ -321,20 +305,20 @@ def reset_error_log_metadata_for_gears(
     if not current_log:
         return
 
-    current_log = current_log.reload()
-    if not current_log.info:
+    try:
+        qc_info = FileQCModel.create(current_log)
+    except ValidationError:
+        # If we can't parse the QC info, there's nothing to reset
         return
 
-    # make sure to load the existing metadata first and then modify
-    # update_file_info() will replace everything under the top-level key
-    qc_info: Dict[str, Any] = current_log.info.get("qc", {})
-    if not qc_info:
-        return
-
+    # Remove specified gears from the QC model
     for gear_name in gear_names:
-        qc_info.pop(gear_name, None)
+        if gear_name in qc_info.qc:
+            del qc_info.qc[gear_name]
 
     try:
-        update_file_info(file=current_log, custom_info={"qc": qc_info})
+        update_file_info(
+            file=current_log, custom_info=qc_info.model_dump(by_alias=True)
+        )
     except ApiException as error:
         log.error(f"Error in resetting QC metadata in file {current_log.name}: {error}")
