@@ -147,27 +147,6 @@ class FormCurator(Curator):
 
         return table
 
-    @api_retry
-    def apply_file_curation(self, file_entry: FileEntry, table: SymbolTable) -> None:
-        """Applies the file-specific curated information back to FW.
-
-        Grabs file.info.derived (derived variables) and
-        file.info.resolved (resolved raw + missingnes data) and pushes
-        back to flywheel.
-        """
-        # collect so we only do one API call, not one per curation type
-        updated_info = {}
-        for curation_type in ["derived", "resolved"]:
-            curated_file_info = table.get(f"file.info.{curation_type}")
-            if curated_file_info:
-                updated_info.update({curation_type: curated_file_info})
-
-        if updated_info:
-            file_entry.update_info(updated_info)
-
-        if self.curation_tag not in file_entry.tags:
-            file_entry.add_tag(self.curation_tag)
-
     def __set_working_metadata(
         self, table: SymbolTable, location: str, data: Any
     ) -> None:
@@ -288,9 +267,7 @@ class FormCurator(Curator):
         self.__prev_scope = scope
         self.__prev_record = table["file.info"]
 
-        # subject data will be applied after all files processed
-        # (post-processing step)
-        self.apply_file_curation(file_entry, table)
+        # file/subject metadata will be pushed to FW in post-processing
 
     @api_retry
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
@@ -324,7 +301,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[FileModel],
+        processed_files: Dict[FileModel, Dict[str, Any]],
     ) -> None:
         """Run post-curating on the entire subject.
 
@@ -338,18 +315,21 @@ class FormCurator(Curator):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: List of FileModels that were processed
+            processed_files: Dict of FileModels to file info that were processed
         """
+        if not processed_files:
+            return
+
         # hash the processed files by scope
-        scoped_files: Dict[ScopeLiterals, List[FileModel]] = {}
-        for file in processed_files:
+        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]] = {}
+        for file, file_info in processed_files.items():
             scope = determine_scope(file.filename)
             if not scope:  # sanity check
                 raise ProjectCurationError(f"Unknown scope to post-curate: {scope}")
             if scope not in scoped_files:
-                scoped_files[scope] = []
+                scoped_files[scope] = {}
 
-            scoped_files[scope].append(file)
+            scoped_files[scope][file] = file_info
 
         # 1/2: subject-level curations
         if not self.subject_level_curation(subject, subject_table, scoped_files):
@@ -374,7 +354,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]],
     ) -> bool:
         """
         1. Cross-module derived variables need to be done at the end
@@ -427,10 +407,11 @@ class FormCurator(Curator):
 
         return True
 
+    @api_retry
     def handle_tags(
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]],
         affiliate: bool,
     ) -> None:
         """Handle curation tags.
@@ -462,10 +443,11 @@ class FormCurator(Curator):
             log.debug(f"Tagging UDS participant: {subject.label}")
             subject.add_tag(uds_tag)
 
+    @api_retry
     def back_propagate_scopes(
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]],
         cs_derived: Dict[str, Any] | None,
     ) -> None:
         """Performs back-propagation on cross-sectional variables.
@@ -497,10 +479,35 @@ class FormCurator(Curator):
             if scope not in self.__scoped_variables:
                 continue
 
-            for file in files:
+            for file, file_info in files.items():
                 file_entry = self.sdk_client.get_file(file.file_id)
-                file_entry = file_entry.reload()
 
-                derived = file_entry.info.get("derived", {})
+                # update cross-sectional derived variables to file
+                derived = file_info.get("derived", {})
                 derived.update(scope_derived[scope])
-                file_entry.update_info({"derived": derived})
+                file_info["derived"] = derived
+
+                self.apply_file_curation(file_entry, file_info)
+
+    @api_retry
+    def apply_file_curation(
+        self, file_entry: FileEntry, file_info: Dict[str, Any]
+    ) -> None:
+        """Applies the file-specific curated information back to FW.
+
+        Grabs file.info.derived (derived variables) and
+        file.info.resolved (resolved raw + missingness data) and pushes
+        back to flywheel.
+        """
+        # collect so we only do one API call, not one per curation type
+        updated_info = {}
+        for curation_type in ["derived", "resolved"]:
+            curated_file_info = file_info.get(curation_type)
+            if curated_file_info:
+                updated_info.update({curation_type: curated_file_info})
+
+        if updated_info:
+            file_entry.update_info(updated_info)
+
+        if self.curation_tag not in file_entry.tags:
+            file_entry.add_tag(self.curation_tag)

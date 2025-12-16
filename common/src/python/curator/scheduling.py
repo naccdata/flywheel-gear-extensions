@@ -4,7 +4,7 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from curator.curator import Curator, ProjectCurationError
 from data.dataview import ColumnModel, make_builder
@@ -51,15 +51,16 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     subject_table = SymbolTable(subject.info)
 
     curator.pre_curate(subject, subject_table)
-    processed_files: List[FileModel] = []
+    processed_files: Dict[FileModel, Dict[str, Any]] = {}
 
     while len(heap) > 0:
         file_info = heap.pop()
         if not file_info:
             continue
 
-        curator.curate_file(subject, subject_table, file_info.file_id)
-        processed_files.append(file_info)
+        result = curator.curate_file(subject, subject_table, file_info.file_id)
+        if result:
+            processed_files[file_info] = result
 
     curator.post_curate(subject, subject_table, processed_files)
 

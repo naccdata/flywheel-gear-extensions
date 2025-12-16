@@ -7,7 +7,8 @@ All notable changes to this gear are documented in this file.
 * Updates `nacc-attribute-deriver` to `2.0.0rc5`
 * Adds `uds-participant` tag to all UDS subjects
 * Skip curation of files that failed their scopes' QC metrics to account for some things accidentally getting copied over
-* Write errors (skipped curation or attribute curator failed) to output file
+* Refactors to only push data at end of subject heap in order to reduce number of API calls
+    * Note that this means if any of a subject's files fails, none of its files gets updated
 
 ## 1.0.3 - 1.0.5
 

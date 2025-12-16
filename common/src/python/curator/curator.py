@@ -3,7 +3,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Any, Dict, Optional
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -94,7 +94,7 @@ class Curator(ABC):
     @api_retry
     def curate_file(
         self, subject: Subject, subject_table: SymbolTable, file_id: str
-    ) -> None:
+    ) -> Dict[str, Any] | None:
         """Curates a file.
 
         Args:
@@ -102,6 +102,9 @@ class Curator(ABC):
             subject_table: SymbolTable containing subject-specific metadata
                 to curate to. Iteratively added onto for each file curation
             file_id: File ID curate
+
+        Returns:
+            SymbolTable: the curated raw file.info data
         """
         file_entry = self.sdk_client.get_file(file_id)
 
@@ -111,16 +114,18 @@ class Curator(ABC):
             and self.curation_tag in file_entry.tags
         ):
             log.debug(f"{file_entry.name} already curated, skipping")
-            return
+            return None
 
         scope = determine_scope(file_entry.name)
         if not scope:
             log.warning("could not determine scope for %s, skipping", file_entry.name)
-            return
+            return None
 
         table = self.get_table(subject, subject_table, file_entry)
         log.debug("curating file %s with scope %s", file_entry.name, scope)
         self.execute(subject, file_entry, table, scope)
+
+        return table["file.info"]
 
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-curation on the entire subject. Not required.
@@ -135,7 +140,7 @@ class Curator(ABC):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[FileModel],
+        processed_files: Dict[FileModel, Dict[str, Any]],
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 
@@ -143,7 +148,7 @@ class Curator(ABC):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: List of FileModels that were processed
+            processed_files: Dict of FileModels to file info that were processed
         """
         return
 
