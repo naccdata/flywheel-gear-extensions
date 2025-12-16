@@ -157,7 +157,7 @@ class TestEventTimestampAccuracy:
                     return_value=mock_project,
                 ),
                 patch(
-                    "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+                    "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
             ):
                 mock_update_qc.return_value = True
@@ -278,7 +278,7 @@ class TestEventTimestampAccuracy:
                     return_value=mock_project,
                 ),
                 patch(
-                    "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+                    "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
             ):
                 mock_update_qc.return_value = True

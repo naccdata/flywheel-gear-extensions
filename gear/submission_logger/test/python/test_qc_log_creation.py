@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import QCStatusLogCreator
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper
@@ -163,7 +163,7 @@ class TestQCLogCreation:
                     return_value=mock_project,
                 ),
                 patch(
-                    "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+                    "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
             ):
                 mock_update_qc.return_value = True
@@ -256,7 +256,7 @@ class TestQCLogCreation:
 
         # Mock update_error_log_and_qc_metadata
         with patch(
-            "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+            "error_logging.error_logger.update_error_log_and_qc_metadata"
         ) as mock_update_qc:
             mock_update_qc.return_value = True
 
@@ -406,7 +406,7 @@ class TestQCLogCreation:
                     return_value=mock_project,
                 ),
                 patch(
-                    "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+                    "error_logging.error_logger.update_error_log_and_qc_metadata"
                 ) as mock_update_qc,
             ):
                 mock_update_qc.return_value = True

@@ -87,7 +87,7 @@ def test_debug_single_visit():
                 return_value=mock_project,
             ),
             patch(
-                "submission_logger_app.qc_status_log_creator.update_error_log_and_qc_metadata"
+                "error_logging.error_logger.update_error_log_and_qc_metadata"
             ) as mock_update_qc,
         ):
             # Mock QC log creation to succeed
