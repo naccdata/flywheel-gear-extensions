@@ -4,11 +4,12 @@ import logging
 from typing import Any, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import VisitKeys
+from nacc_common.error_models import FileErrorList, VisitKeys
 from outputs.error_writer import ListErrorWriter
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
+    MetadataCleanupFlag,
     update_error_log_and_qc_metadata,
 )
 
@@ -84,13 +85,13 @@ class FileVisitAnnotator:
         return visit_keys.model_dump(exclude_none=True)
 
 
-class QCStatusLogCreator:
-    """Creates initial QC status logs using ErrorLogTemplate."""
+class QCStatusLogManager:
+    """Manages QC status logs using ErrorLogTemplate for both creation and updates."""
 
     def __init__(
         self, error_log_template: ErrorLogTemplate, visit_annotator: FileVisitAnnotator
     ):
-        """Initialize QC status log creator.
+        """Initialize QC status log manager.
 
         Args:
             error_log_template: Template for generating QC status log filenames
@@ -122,27 +123,33 @@ class QCStatusLogCreator:
 
         return record
 
-    def create_qc_log(
+    def update_qc_log(
         self,
         visit_keys: VisitKeys,
         project: ProjectAdaptor,
         gear_name: str,
-        error_writer: ListErrorWriter,
+        status: str,
+        errors: FileErrorList,
+        reset_qc_metadata: MetadataCleanupFlag = "NA",
+        add_visit_metadata: bool = False,
     ) -> bool:
-        """Creates QC status log file at project level.
+        """Updates or creates QC status log file at project level.
 
         Args:
             visit_keys: Visit identification information
             project: Project adaptor for file operations
-            gear_name: Name of the gear creating the log
-            error_writer: Error writer for tracking any issues
+            gear_name: Name of the gear updating the log
+            status: QC status (PASS, FAIL, IN REVIEW)
+            errors: Error list for the gear
+            reset_qc_metadata: Metadata reset strategy (ALL, GEAR, NA)
+            add_visit_metadata: Whether to add visit metadata (for initial creation)
 
         Returns:
-            True if QC log creation was successful, False otherwise
+            True if QC log update was successful, False otherwise
         """
         if not visit_keys.ptid or not visit_keys.date or not visit_keys.module:
             log.warning(
-                "Insufficient visit information to create QC log: "
+                "Insufficient visit information to update QC log: "
                 f"ptid={visit_keys.ptid}, date={visit_keys.date}, "
                 f"module={visit_keys.module}"
             )
@@ -167,35 +174,65 @@ class QCStatusLogCreator:
             )
             return False
 
-        log.info(f"Creating QC status log: {error_log_name}")
+        log.info(f"Updating QC status log: {error_log_name}")
 
-        # Create initial QC status log with empty metadata structure
-        # This initializes the log for downstream pipeline gears
+        # Update QC status log with gear results
         success = update_error_log_and_qc_metadata(
             error_log_name=error_log_name,
             destination_prj=project,
             gear_name=gear_name,
-            state="PASS",  # Initial state for submission logger
-            errors=error_writer.errors(),
-            reset_qc_metadata="ALL",  # Clean slate for new submission
+            state=status,
+            errors=errors,
+            reset_qc_metadata=reset_qc_metadata,
         )
 
         if success:
-            log.info(f"Successfully created QC status log: {error_log_name}")
+            log.info(f"Successfully updated QC status log: {error_log_name}")
 
-            # Add visit metadata to the QC status log file using FileVisitAnnotator
-            annotation_success = self.__visit_annotator.annotate_qc_log_file(
-                qc_log_filename=error_log_name,
-                visit_keys=visit_keys,
-            )
+            # Add visit metadata if requested (for initial creation)
+            if add_visit_metadata:
+                annotation_success = self.__visit_annotator.annotate_qc_log_file(
+                    qc_log_filename=error_log_name,
+                    visit_keys=visit_keys,
+                )
 
-            if not annotation_success:
-                log.warning(f"Failed to add visit metadata to QC log: {error_log_name}")
-                # Don't fail the entire operation for metadata annotation failure
+                if not annotation_success:
+                    log.warning(f"Failed to add visit metadata to QC log: {error_log_name}")
+                    # Don't fail the entire operation for metadata annotation failure
         else:
-            log.error(f"Failed to create QC status log: {error_log_name}")
+            log.error(f"Failed to update QC status log: {error_log_name}")
 
         return success
+
+    def create_qc_log(
+        self,
+        visit_keys: VisitKeys,
+        project: ProjectAdaptor,
+        gear_name: str,
+        error_writer: ListErrorWriter,
+    ) -> bool:
+        """Creates initial QC status log file at project level.
+
+        This is a convenience method that calls update_qc_log with creation defaults.
+
+        Args:
+            visit_keys: Visit identification information
+            project: Project adaptor for file operations
+            gear_name: Name of the gear creating the log
+            error_writer: Error writer for tracking any issues
+
+        Returns:
+            True if QC log creation was successful, False otherwise
+        """
+        return self.update_qc_log(
+            visit_keys=visit_keys,
+            project=project,
+            gear_name=gear_name,
+            status="PASS",
+            errors=error_writer.errors(),
+            reset_qc_metadata="ALL",
+            add_visit_metadata=True,
+        )
 
     def get_qc_log_filename(self, visit_keys: VisitKeys) -> Optional[str]:
         """Get the QC status log filename for a visit without creating it.
