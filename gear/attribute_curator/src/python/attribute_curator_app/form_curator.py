@@ -147,22 +147,6 @@ class FormCurator(Curator):
 
         return table
 
-    def __set_working_metadata(
-        self, table: SymbolTable, location: str, data: Any
-    ) -> None:
-        """Set working metadata at the specified location in the table.
-
-        Args:
-            table: SymbolTable to write metadata to
-            location: Location in the table to write metadata; throws an error if data
-                already exists here
-            data: The metadata to write
-        """
-        if table.get(location) is not None:
-            raise ProjectCurationError(f"{location} is already set, cannot override")
-
-        table[location] = data
-
     def check_qc(self, table: SymbolTable, scope: ScopeLiterals) -> bool:
         """Check that the file actually passed QC.
 
@@ -195,6 +179,22 @@ class FormCurator(Curator):
 
         # rest pass by default
         return True
+
+    def __set_working_metadata(
+        self, table: SymbolTable, location: str, data: Any
+    ) -> None:
+        """Set working metadata at the specified location in the table.
+
+        Args:
+            table: SymbolTable to write metadata to
+            location: Location in the table to write metadata; throws an error if data
+                already exists here
+            data: The metadata to write
+        """
+        if table.get(location) is not None:
+            raise ProjectCurationError(f"{location} is already set, cannot override")
+
+        table[location] = data
 
     def prepare_table(
         self, file_entry: FileEntry, table: SymbolTable, scope: ScopeLiterals
@@ -238,7 +238,7 @@ class FormCurator(Curator):
         file_entry: FileEntry,
         table: SymbolTable,
         scope: ScopeLiterals,
-    ) -> None:
+    ) -> bool:
         """Perform contents of curation. Keeps track of files that failed to be
         curated.
 
@@ -253,6 +253,7 @@ class FormCurator(Curator):
         if not self.check_qc(file_entry, scope):
             log.error(f"File {file_entry.name} did not pass QC; skipping")
             self.__failed_files[file_entry.name] = "failed QC"
+            return False
 
         try:
             self.prepare_table(file_entry, table, scope)
@@ -261,13 +262,14 @@ class FormCurator(Curator):
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
             self.__failed_files[file_entry.name] = str(e)
             log.error(f"Failed to curate {file_entry.name}: {e}")
-            return
+            return False
 
         # keep track of the last succesful curation
         self.__prev_scope = scope
         self.__prev_record = table["file.info"]
 
         # file/subject metadata will be pushed to FW in post-processing
+        return True
 
     @api_retry
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
@@ -301,7 +303,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: Dict[FileModel, Dict[str, Any]],
+        processed_files: Dict[FileEntry, Dict[str, Any]],
     ) -> None:
         """Run post-curating on the entire subject.
 
@@ -315,21 +317,21 @@ class FormCurator(Curator):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: Dict of FileModels to file info that were processed
+            processed_files: Dict of FileEntry to file info that was processed
         """
         if not processed_files:
             return
 
         # hash the processed files by scope
-        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]] = {}
-        for file, file_info in processed_files.items():
-            scope = determine_scope(file.filename)
+        scoped_files: Dict[ScopeLiterals, Dict[FileEntry, Dict[str, Any]]] = {}
+        for file_entry, file_info in processed_files.items():
+            scope = determine_scope(file_entry.name)
             if not scope:  # sanity check
                 raise ProjectCurationError(f"Unknown scope to post-curate: {scope}")
             if scope not in scoped_files:
                 scoped_files[scope] = {}
 
-            scoped_files[scope][file] = file_info
+            scoped_files[scope][file_entry] = file_info
 
         # 1/2: subject-level curations
         if not self.subject_level_curation(subject, subject_table, scoped_files):
@@ -354,7 +356,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]],
+        scoped_files: Dict[ScopeLiterals, Dict[FileEntry, Dict[str, Any]]],
     ) -> bool:
         """
         1. Cross-module derived variables need to be done at the end
@@ -411,7 +413,7 @@ class FormCurator(Curator):
     def handle_tags(
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, Dict[FileModel, Dict[str, Any]]],
+        scoped_files: Dict[ScopeLiterals, Dict[FileEntry, Dict[str, Any]]],
         affiliate: bool,
     ) -> None:
         """Handle curation tags.
@@ -432,8 +434,7 @@ class FormCurator(Curator):
             # luckily the number of affiliates is relatively small, so this shouldn't
             # add too many more API calls
             for _, files in scoped_files.items():
-                for file in files:
-                    file_entry = self.sdk_client.get_file(file.file_id)
+                for file_entry in files:
                     if affiliate_tag not in file_entry.tags:
                         file_entry.add_tag(affiliate_tag)
 
@@ -479,14 +480,12 @@ class FormCurator(Curator):
             if scope not in self.__scoped_variables:
                 continue
 
-            for file, file_info in files.items():
-                file_entry = self.sdk_client.get_file(file.file_id)
-
+            for file_entry, file_info in files.items():
                 # update cross-sectional derived variables to file
-                derived = file_info.get("derived", {})
-                derived.update(scope_derived[scope])
-                file_info["derived"] = derived
+                if "derived" not in file_info:
+                    file_info["derived"] = {}
 
+                file_info["derived"].update(scope_derived[scope])
                 self.apply_file_curation(file_entry, file_info)
 
     @api_retry
@@ -499,7 +498,7 @@ class FormCurator(Curator):
         file.info.resolved (resolved raw + missingness data) and pushes
         back to flywheel.
         """
-        # collect so we only do one API call, not one per curation type
+        # collect into a single API call
         updated_info = {}
         for curation_type in ["derived", "resolved"]:
             curated_file_info = file_info.get(curation_type)

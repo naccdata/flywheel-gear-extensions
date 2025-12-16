@@ -54,13 +54,15 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     processed_files: Dict[FileModel, Dict[str, Any]] = {}
 
     while len(heap) > 0:
-        file_info = heap.pop()
-        if not file_info:
+        file_model = heap.pop()
+        if not file_model:
             continue
 
-        result = curator.curate_file(subject, subject_table, file_info.file_id)
-        if result:
-            processed_files[file_info] = result
+        file_entry, curated_info = curator.curate_file(
+            subject, subject_table, file_model.file_id
+        )
+        if curated_info:
+            processed_files[file_entry] = curated_info
 
     curator.post_curate(subject, subject_table, processed_files)
 

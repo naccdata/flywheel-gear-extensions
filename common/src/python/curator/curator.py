@@ -3,7 +3,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -94,7 +94,7 @@ class Curator(ABC):
     @api_retry
     def curate_file(
         self, subject: Subject, subject_table: SymbolTable, file_id: str
-    ) -> Dict[str, Any] | None:
+    ) -> Tuple[FileEntry, Dict[str, Any] | None]:
         """Curates a file.
 
         Args:
@@ -114,18 +114,19 @@ class Curator(ABC):
             and self.curation_tag in file_entry.tags
         ):
             log.debug(f"{file_entry.name} already curated, skipping")
-            return None
+            return file_entry, None
 
         scope = determine_scope(file_entry.name)
         if not scope:
             log.warning("could not determine scope for %s, skipping", file_entry.name)
-            return None
+            return file_entry, None
 
         table = self.get_table(subject, subject_table, file_entry)
         log.debug("curating file %s with scope %s", file_entry.name, scope)
-        self.execute(subject, file_entry, table, scope)
+        if not self.execute(subject, file_entry, table, scope):
+            return file_entry, None
 
-        return table["file.info"]
+        return file_entry, table.get("file.info", {})
 
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-curation on the entire subject. Not required.
@@ -159,7 +160,7 @@ class Curator(ABC):
         file_entry: FileEntry,
         table: SymbolTable,
         scope: ScopeLiterals,
-    ) -> None:
+    ) -> bool:
         """Perform contents of curation.
 
         Args:
@@ -168,7 +169,7 @@ class Curator(ABC):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        pass
+        return True
 
 
 SCOPE_PATTERN = re.compile(

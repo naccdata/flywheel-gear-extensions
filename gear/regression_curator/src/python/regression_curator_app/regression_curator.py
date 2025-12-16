@@ -275,7 +275,7 @@ class RegressionCurator(Curator):
         file_entry: FileEntry,
         table: SymbolTable,
         scope: ScopeLiterals,
-    ) -> None:
+    ) -> bool:
         """Perform contents of curation. Assumes UDS data.
 
         Args:
@@ -292,7 +292,7 @@ class RegressionCurator(Curator):
                 f"No derived or resolved variables found for {file_entry.name}, "
                 + "skipping"
             )
-            return
+            return False
 
         # UDS visit needs to key to a specific visit; other scopes are
         # considered cross-sectional and will use the latest visit
@@ -305,7 +305,7 @@ class RegressionCurator(Curator):
                 log.debug(
                     f"No visitdate found for UDS file {file_entry.name}, skipping"
                 )
-                return
+                return False
 
         # ensure in QAF baseline - if not affiliate, report error
         key = f"{subject.label}_{visit_keys.date}" if visit_keys else subject.label
@@ -313,7 +313,7 @@ class RegressionCurator(Curator):
         if not baseline_record:
             if "affiliate" in subject.tags:
                 log.debug(f"{subject.label} is an affiliate, skipping")
-                return
+                return False
 
             # Might be V4 or MDS subject, so now expecting many to be missing
             # Just return instead of reporting an error in the output
@@ -322,7 +322,7 @@ class RegressionCurator(Curator):
                 + f"in QAF baseline file with key: {key}"
             )
             log.debug(msg)
-            return
+            return False
 
         # need to combine derived and resolved to compare against baseline QAF
         self.compare_baseline(
@@ -332,3 +332,5 @@ class RegressionCurator(Curator):
             scope=scope,
             visit_keys=visit_keys,
         )
+
+        return True
