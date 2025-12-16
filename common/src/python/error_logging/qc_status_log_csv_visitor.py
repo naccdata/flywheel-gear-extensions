@@ -10,7 +10,7 @@ from nacc_common.error_models import VisitKeys
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 
-from error_logging.qc_status_log_creator import QCStatusLogCreator
+from error_logging.qc_status_log_creator import QCStatusLogManager
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         self,
         module_configs: ModuleConfigs,
         project: ProjectAdaptor,
-        qc_log_creator: QCStatusLogCreator,
+        qc_log_creator: QCStatusLogManager,
         gear_name: str,
         error_writer: ListErrorWriter,
     ) -> None:
