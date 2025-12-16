@@ -2,7 +2,7 @@
 
 from typing import List
 
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from event_logging.visit_events import VisitEvent
 
 

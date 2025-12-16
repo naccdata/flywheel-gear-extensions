@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import InputFileWrapper

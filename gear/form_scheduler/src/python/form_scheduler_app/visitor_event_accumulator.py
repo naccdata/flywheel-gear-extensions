@@ -6,7 +6,7 @@ from typing import Callable, Optional, get_args
 
 from configs.ingest_configs import Pipeline
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from event_logging.visit_events import (
     ACTION_NOT_PASS_QC,
     ACTION_PASS_QC,

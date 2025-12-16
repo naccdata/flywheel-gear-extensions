@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from event_logging.visit_events import VisitEvent
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext

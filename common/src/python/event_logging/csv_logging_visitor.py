@@ -8,7 +8,7 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import missing_field_error
 
-from event_logging.event_logging import VisitEventLogger
+from event_logging.event_logger import VisitEventLogger
 from event_logging.visit_events import VisitEvent, VisitEventType
 
 
