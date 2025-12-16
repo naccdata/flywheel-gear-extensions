@@ -17,7 +17,6 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
     IdentifierRepository,
@@ -32,6 +31,8 @@ from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from utils.utils import load_form_ingest_configurations
+
+from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
 
 log = logging.getLogger(__name__)
 
