@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from error_logging.file_visit_annotator import FileVisitAnnotator
+from error_logging.qc_status_log_creator import FileVisitAnnotator
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import VisitKeys
 

@@ -7,6 +7,8 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from error_logging.error_logger import ErrorLogTemplate
+from error_logging.qc_status_log_creator import QCStatusLogCreator
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -16,7 +18,6 @@ from hypothesis import strategies as st
 from nacc_common.error_models import FileErrorList, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from submission_logger_app.main import run
-from submission_logger_app.qc_status_log_creator import QCStatusLogCreator
 
 
 # Hypothesis strategies for generating test data
