@@ -86,7 +86,6 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
             event_logger=event_logger,
         )
 
-
     def run(self, context: GearToolkitContext) -> None:
         """Runs the submission logger app.
 
