@@ -15,7 +15,6 @@ def api_retry(func, max_retries: int = 3):
         while retries <= max_retries:
             try:
                 return func(*args, **kwargs)
-                break
             except ApiException as e:
                 retries += 1
                 if retries <= max_retries:

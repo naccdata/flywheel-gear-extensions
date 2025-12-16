@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.5
+* Removes whitespace from data values
+
 ## 1.2.4
 * Rebuilt for reset error log content in read failure
 
