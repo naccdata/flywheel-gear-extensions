@@ -166,7 +166,9 @@ class QCCoordinator:
         try:
             qc_info = FileQCModel.create(visit_file)
         except ValidationError as error:
-            log.warning("Error loading QC metadata for file %s: %s", visit_file.name, error)
+            log.warning(
+                "Error loading QC metadata for file %s: %s", visit_file.name, error
+            )
             qc_info = FileQCModel(qc={})
 
         # add qc-coordinator gear info to visit file metadata
@@ -227,7 +229,9 @@ class QCCoordinator:
         try:
             qc_info = FileQCModel.create(visit_file)
         except ValidationError as error:
-            log.warning("Error loading QC metadata for file %s: %s", visit_file.name, error)
+            log.warning(
+                "Error loading QC metadata for file %s: %s", visit_file.name, error
+            )
             qc_info = FileQCModel(qc={})
 
         qc_info.set_errors(
