@@ -2,9 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.0.3
+## 1.0.6
 
-* Updates `nacc-attribute-deriver` to `2.0.0rc2` to include missingness for V4 header variables
+* Updates `nacc-attribute-deriver` to `2.0.0rc5`
+* Adds `uds-participant` tag to all UDS subjects
+* Skip curation of files that failed their scopes' QC metrics to account for some things accidentally getting copied over
+* Write errors (skipped curation or attribute curator failed) to output file
+
+## 1.0.3 - 1.0.5
+
+* RC versions of `nacc-attribute-deriver` to `2.0.0rc*` which handles various minor bugs encountered running on full data
 
 ## 1.0.2 / 1.0.1
 

@@ -17,7 +17,7 @@
 //     "fw-client>=0.7.0",
 //     "fw-utils>=3",
 //     "moto[s3,ses,ssm]>=5.0.15",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc3/nacc_attribute_deriver-2.0.0rc3-py3-none-any.whl",
+//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc4/nacc_attribute_deriver-2.0.0rc4-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -2012,8 +2012,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "e7d561d881e9fa94d409ebe704a03ae3dc8a4116688492367f5b4eda3f1a7ed3",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc3/nacc_attribute_deriver-2.0.0rc3-py3-none-any.whl"
+              "hash": "aade5f4b85f1433361015800cd9b55f16e4b9dd125f29e29fb8d35f91775c5b0",
+              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc4/nacc_attribute_deriver-2.0.0rc4-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2021,7 +2021,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.11.*",
-          "version": "2.0.0rc3"
+          "version": "2.0.0rc4"
         },
         {
           "artifacts": [
@@ -3305,19 +3305,19 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
-              "url": "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl"
+              "hash": "06a47e5700f3081aab02b2e513160914ff0694bce9947d6b76ebd6bf57cfc5d1",
+              "url": "https://files.pythonhosted.org/packages/c7/b0/003792df09decd6849a5e39c28b513c06e84436a54440380862b5aeff25d/tzdata-2025.3-py2.py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9",
-              "url": "https://files.pythonhosted.org/packages/95/32/1a225d6164441be760d75c2c42e2780dc0873fe382da3e98a2e1e48361e5/tzdata-2025.2.tar.gz"
+              "hash": "de39c2ca5dc7b0344f2eba86f49d614019d29f060fc4ebc8a417896a620b56a7",
+              "url": "https://files.pythonhosted.org/packages/5e/a7/c202b344c5ca7daf398f3b8a477eeb205cf3b6f32e7ec3a6bac0629ca975/tzdata-2025.3.tar.gz"
             }
           ],
           "project_name": "tzdata",
           "requires_dists": [],
           "requires_python": ">=2",
-          "version": "2025.2"
+          "version": "2025.3"
         },
         {
           "artifacts": [

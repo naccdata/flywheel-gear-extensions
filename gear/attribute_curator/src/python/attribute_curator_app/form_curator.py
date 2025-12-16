@@ -26,55 +26,21 @@ from nacc_attribute_deriver.utils.errors import (
 from nacc_attribute_deriver.utils.scope import (
     FormScope,
     GeneticsScope,
-    MixedProtocolScope,
+    SCANMRIScope,
+    SCANPETScope,
     ScopeLiterals,
 )
 from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
 
+from .curation_keys import (
+    BACKPROP_SCOPES,
+    CHILD_SCOPES,
+    RESOLVED_SCOPES,
+    FormCurationTags,
+)
+
 log = logging.getLogger(__name__)
-
-# scopes that cover multiple visits and need cross-sectional derived variables
-# back-propagated to each file. required for scopes that can have multiple
-# visits/data and cross-sectional derived values
-BACKPROP_SCOPES = [
-    FormScope.UDS,
-    FormScope.MILESTONE,
-    MixedProtocolScope.MRI_DICOM,
-    MixedProtocolScope.PET_DICOM,
-]
-
-# scopes with cross-sectional values that need to be
-# pushed back into UDS/NP
-CHILD_SCOPES = {
-    FormScope.UDS: [
-        FormScope.CROSS_MODULE,
-        FormScope.MILESTONE,
-        FormScope.FTLD,
-        FormScope.LBD,
-        FormScope.CSF,
-        GeneticsScope.APOE,
-        GeneticsScope.NCRAD_BIOSAMPLES,
-        GeneticsScope.NIAGADS_AVAILABILITY,
-        MixedProtocolScope.MRI_DICOM,
-        MixedProtocolScope.PET_DICOM,
-    ],
-    FormScope.NP: [FormScope.CROSS_MODULE],
-}
-
-# Scopes that need to write to file.info.resolved
-# i.e. scopes that need file missingness applied
-# ultimately this is probably just all form scopes
-RESOLVED_SCOPES = [
-    FormScope.UDS,
-    FormScope.NP,
-    FormScope.MDS,
-    FormScope.CSF,
-    FormScope.FTLD,
-    FormScope.LBD,
-    FormScope.COVID_F1,
-    FormScope.COVID_F2F3,
-]
 
 
 class FormCurator(Curator):
@@ -218,6 +184,39 @@ class FormCurator(Curator):
 
         table[location] = data
 
+    def check_qc(self, table: SymbolTable, scope: ScopeLiterals) -> bool:
+        """Check that the file actually passed QC.
+
+        Args:
+            table: Table with the file.info data - can also access QC
+                metadata this way
+            scope: the scope
+        """
+        imaging_scopes = list(SCANMRIScope) + list(SCANPETScope)
+        if scope in imaging_scopes:
+            return (
+                table.get("file.info.qc.nacc-file-validator.validation.state") == "PASS"
+            )
+
+        if scope in list(FormScope):
+            # V4 (ingest-form)
+            if "file.info.qc.form-qc-checker.validation.state" in table:
+                return (
+                    table.get("file.info.qc.form-qc-checker.validation.state") == "PASS"
+                )
+
+            # legacy (retrospective-form)
+            return table.get("file.info.qc.file-validator.validation.state") == "PASS"
+
+        if scope in list(GeneticsScope):
+            return (
+                table.get("file.info.qc.form-importer.metadata-extraction.state")
+                == "PASS"
+            )
+
+        # rest pass by default
+        return True
+
     def prepare_table(
         self, file_entry: FileEntry, table: SymbolTable, scope: ScopeLiterals
     ) -> None:
@@ -270,6 +269,12 @@ class FormCurator(Curator):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
+        # due to issues with soft copy we should double
+        # check this file actually passed QC
+        if not self.check_qc(file_entry, scope):
+            log.error(f"File {file_entry.name} did not pass QC; skipping")
+            self.__failed_files[file_entry.name] = "failed QC"
+
         try:
             self.prepare_table(file_entry, table, scope)
             self.__attribute_deriver.curate(table, scope)
@@ -326,10 +331,7 @@ class FormCurator(Curator):
         1. Run cross-module scope derived curations
         2. Run subject-level missingness curations across all scopes
         3. Pushes final subject_table back to FW
-        4. Adds `affiliated` tag to affiliate subjects if
-            subject.info.derived.affiliate is set
-            (via nacc-attribute-deriver)
-            - also adds this tag to associated files
+        4. Tags affiliates and UDS participants
         5. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
         Args:
@@ -359,23 +361,9 @@ class FormCurator(Curator):
             subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
-        affiliate = derived.get("affiliate", False)
 
-        # 4. add affiliated tags
-        if affiliate:
-            log.debug(f"Tagging affiliate: {subject.label}")
-            affiliate_tag = "affiliated"
-
-            if affiliate_tag not in subject.tags:
-                subject.add_tag(affiliate_tag)
-
-            # not ideal, but need to also tag all files to get around data model
-            # luckily the number of affiliates is relatively small, so this shouldn't
-            # add too many more API calls
-            for file in processed_files:
-                file_entry = self.sdk_client.get_file(file.file_id)
-                if affiliate_tag not in file_entry.tags:
-                    file_entry.add_tag(affiliate_tag)
+        # 4. add associated tags
+        self.handle_tags(subject, scoped_files, derived.get("affiliate", False))
 
         # 5. backprop
         self.back_propagate_scopes(
@@ -438,6 +426,41 @@ class FormCurator(Curator):
                 return False
 
         return True
+
+    def handle_tags(
+        self,
+        subject: Subject,
+        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        affiliate: bool,
+    ) -> None:
+        """Handle curation tags.
+
+        Args:
+            subject: Subject to potentially tag
+            processed_files: processed files to potentially tag
+            affiliate: whether or not this is an affiliate subject
+        """
+        if affiliate:
+            affiliate_tag = FormCurationTags.AFFILIATE
+            log.debug(f"Tagging affiliate: {subject.label}")
+
+            if affiliate_tag not in subject.tags:
+                subject.add_tag(affiliate_tag)
+
+            # not ideal, but need to also tag all files to get around data model
+            # luckily the number of affiliates is relatively small, so this shouldn't
+            # add too many more API calls
+            for _, files in scoped_files.items():
+                for file in files:
+                    file_entry = self.sdk_client.get_file(file.file_id)
+                    if affiliate_tag not in file_entry.tags:
+                        file_entry.add_tag(affiliate_tag)
+
+        # add uds-participant tag
+        uds_tag = FormCurationTags.UDS_PARTICIPANT
+        if FormScope.UDS in scoped_files and uds_tag not in subject.tags:
+            log.debug(f"Tagging UDS participant: {subject.label}")
+            subject.add_tag(uds_tag)
 
     def back_propagate_scopes(
         self,
