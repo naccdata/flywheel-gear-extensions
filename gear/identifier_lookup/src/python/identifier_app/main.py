@@ -6,12 +6,6 @@ from typing import Any, Dict, List, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from enrollment.enrollment_transfer import CenterValidator
-from error_logging.error_logger import ErrorLogTemplate
-from error_logging.qc_status_log_creator import (
-    FileVisitAnnotator,
-    QCStatusLogManager,
-)
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
     IdentifierRepository,
@@ -19,13 +13,12 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, read_csv
-from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,
     missing_field_error,
-    system_error,
 )
 from outputs.outputs import CSVWriter
 
@@ -48,9 +41,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         module_name: str,
         module_configs: ModuleConfigs,
         error_writer: ListErrorWriter,
-        gear_name: str,
         misc_errors: List[FileError],
-        project: Optional[ProjectAdaptor] = None,
     ) -> None:
         """
         Args:
@@ -60,17 +51,13 @@ class NACCIDLookupVisitor(CSVVisitor):
             module_name: the module name for the form
             module_configs: form ingest configurations for the module
             error_writer: the error output writer
-            gear_name: gear name
             misc_errors: list to store errors occur while updating visit error log
-            project: Flywheel project adaptor
         """
         self.__identifiers = identifiers
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__module_name = module_name
         self.__module_configs = module_configs
-        self.__project = project
-        self.__gear_name = gear_name
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
         self.__validator = CenterValidator(
@@ -79,21 +66,6 @@ class NACCIDLookupVisitor(CSVVisitor):
             error_writer=error_writer,
         )
         self.__misc_errors = misc_errors
-
-        # Setup QC status log manager
-        errorlog_template = (
-            module_configs.errorlog_template
-            if module_configs.errorlog_template
-            else ErrorLogTemplate(
-                id_field=FieldNames.PTID, date_field=module_configs.date_field
-            )
-        )
-        visit_annotator = FileVisitAnnotator(project) if project else None
-        self.__qc_log_manager = (
-            QCStatusLogManager(errorlog_template, visit_annotator)
-            if visit_annotator
-            else None
-        )
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -153,7 +125,6 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         # check for valid ADCID and PTID
         if not self.__validator.check(row=row, line_number=line_num):
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
         ptid = clean_ptid(row[FieldNames.PTID])
@@ -166,66 +137,13 @@ class NACCIDLookupVisitor(CSVVisitor):
                     message="No matching NACCID found for the given PTID",
                 )
             )
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
         row[FieldNames.NACCID] = identifier.naccid
         row[FieldNames.MODULE] = self.__module_name
 
-        if not self.__update_visit_error_log(input_record=row, qc_passed=True):
-            return False
-
         writer = self.__get_writer()
         writer.write(row)
-
-        return True
-
-    def __update_visit_error_log(
-        self, *, input_record: Dict[str, Any], qc_passed: bool
-    ) -> bool:
-        """Update error log file for the visit and store error metadata in
-        file.info.qc.
-
-        Args:
-            input_record: input visit record
-            qc_passed: whether the visit passed QC checks
-
-        Returns:
-            bool: False if errors occur while updating log file
-        """
-
-        if not self.__project:
-            raise GearExecutionError(
-                "Parent project not specified to upload visit error log"
-            )
-
-        # Update QC log using QCStatusLogManager
-        if self.__qc_log_manager and self.__project:
-            visit_keys = VisitKeys.create_from(
-                record=input_record, date_field=self.__module_configs.date_field
-            )
-
-            # This is first gear in pipeline validating individual rows
-            # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
-            if not self.__qc_log_manager.update_qc_log(
-                visit_keys=visit_keys,
-                project=self.__project,
-                gear_name=self.__gear_name,
-                status="PASS" if qc_passed else "FAIL",
-                errors=self.__error_writer.errors(),
-                reset_qc_metadata="ALL",
-            ):
-                message = (
-                    "Failed to update error log for visit "
-                    f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
-                )
-                self.__misc_errors.append(
-                    system_error(
-                        message=message,
-                        visit_keys=visit_keys,
-                    )
-                )
-                return False
 
         return True
 
