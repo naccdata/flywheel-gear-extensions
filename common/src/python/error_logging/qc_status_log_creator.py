@@ -11,6 +11,7 @@ from error_logging.error_logger import (
     ErrorLogTemplate,
     MetadataCleanupFlag,
     update_error_log_and_qc_metadata,
+    update_file_info,
 )
 
 log = logging.getLogger(__name__)
@@ -59,9 +60,9 @@ class FileVisitAnnotator:
             # Prepare visit metadata for this specific visit
             visit_metadata = self._create_visit_metadata(visit_keys)
 
-            # Update file info with visit metadata
+            # Update file info with visit metadata using retry-enabled method
             info_update = {"visit": visit_metadata}
-            qc_log_file.update_info(info_update)
+            update_file_info(file=qc_log_file, custom_info=info_update)
 
             log.info(f"Added visit metadata to QC log: {qc_log_filename}")
             return True
