@@ -137,7 +137,7 @@ class TestEventTimestampAccuracy:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry with the test timestamp
             mock_file_entry = Mock()
@@ -172,7 +172,7 @@ class TestEventTimestampAccuracy:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module=module,
@@ -259,7 +259,7 @@ class TestEventTimestampAccuracy:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry with microsecond precision timestamp
             mock_file_entry = Mock()
@@ -292,7 +292,7 @@ class TestEventTimestampAccuracy:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module="UDS",

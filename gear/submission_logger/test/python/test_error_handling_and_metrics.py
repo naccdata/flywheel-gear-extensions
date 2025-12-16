@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -15,7 +16,7 @@ from hypothesis import strategies as st
 from metrics.processing_metrics import ProcessingMetrics
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-from submission_logger_app.main import run
+from submission_logger_app.main import ConfigurationError, FileProcessingError, run
 
 
 def create_mock_module_configs() -> ModuleConfigs:
@@ -163,7 +164,7 @@ class TestErrorHandlingAndMetrics:
         mock_file_input = Mock(spec=InputFileWrapper)
         mock_file_input.filename = "nonexistent.csv"
         mock_file_input.filepath = "/nonexistent/path/file.csv"
-        mock_file_input.validate_file_extension.return_value = True
+        mock_file_input.validate_file_extension.return_value = "csv"
 
         # Mock file entry
         mock_file_entry = Mock()
@@ -173,23 +174,21 @@ class TestErrorHandlingAndMetrics:
         # Create form project configs
         form_project_configs = create_mock_form_project_configs("UDS")
 
-        # Run the submission logger
-        success = run(
-            file_input=mock_file_input,
-            event_logger=mock_event_logger,
-            gear_name="test-gear",
-            proxy=mock_proxy,
-            context=mock_context,
-            error_writer=mock_error_writer,
-            form_project_configs=form_project_configs,
-            module="UDS",
-        )
+        # Run the submission logger - should raise FileProcessingError for non-existent files
+        with pytest.raises(FileProcessingError) as exc_info:
+            run(
+                file_input=mock_file_input,
+                event_logger=mock_event_logger,
+                gear_name="test-gear",
+                proxy=mock_proxy,
+                timestamp=mock_file_entry.created,
+                error_writer=mock_error_writer,
+                form_project_configs=form_project_configs,
+                module="UDS",
+            )
 
-        # Should return False but not crash
-        assert not success
-
-        # Should have written system error to error_writer (via misc_errors)
-        assert mock_error_writer.write.call_count > 0
+        # Verify the error message is meaningful
+        assert "does not exist" in str(exc_info.value)
 
     def test_missing_configuration_error_handling(self):
         """Test that missing configuration errors are handled gracefully."""
@@ -212,7 +211,7 @@ class TestErrorHandlingAndMetrics:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -220,22 +219,20 @@ class TestErrorHandlingAndMetrics:
             mock_file_input.file_entry.return_value = mock_file_entry
 
             # Run without form configs (should trigger missing configuration error)
-            success = run(
-                file_input=mock_file_input,
-                event_logger=mock_event_logger,
-                gear_name="test-gear",
-                proxy=mock_proxy,
-                context=mock_context,
-                error_writer=mock_error_writer,
-                form_project_configs=None,  # Missing configuration
-                module=None,  # Missing module
-            )
+            with pytest.raises(ConfigurationError) as exc_info:
+                run(
+                    file_input=mock_file_input,
+                    event_logger=mock_event_logger,
+                    gear_name="test-gear",
+                    proxy=mock_proxy,
+                    timestamp=mock_file_entry.created,
+                    error_writer=mock_error_writer,
+                    form_project_configs=None,  # Missing configuration
+                    module=None,  # Missing module
+                )
 
-            # Should return False but not crash
-            assert not success
-
-            # Should have written system error to error_writer (via misc_errors)
-            assert mock_error_writer.write.call_count > 0
+            # Verify the error message is meaningful
+            assert "form_configs_file and module configuration" in str(exc_info.value)
 
         finally:
             # Clean up temporary file
@@ -262,7 +259,7 @@ class TestErrorHandlingAndMetrics:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "empty.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -287,7 +284,7 @@ class TestErrorHandlingAndMetrics:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module="UDS",
@@ -324,7 +321,7 @@ class TestErrorHandlingAndMetrics:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.txt"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = False  # Unsupported
+            mock_file_input.validate_file_extension.return_value = None  # Unsupported
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -334,23 +331,21 @@ class TestErrorHandlingAndMetrics:
             # Create form project configs
             form_project_configs = create_mock_form_project_configs("UDS")
 
-            # Run the submission logger
-            success = run(
-                file_input=mock_file_input,
-                event_logger=mock_event_logger,
-                gear_name="test-gear",
-                proxy=mock_proxy,
-                context=mock_context,
-                error_writer=mock_error_writer,
-                form_project_configs=form_project_configs,
-                module="UDS",
-            )
+            # Run the submission logger - should raise FileProcessingError for unsupported files
+            with pytest.raises(FileProcessingError) as exc_info:
+                run(
+                    file_input=mock_file_input,
+                    event_logger=mock_event_logger,
+                    gear_name="test-gear",
+                    proxy=mock_proxy,
+                    timestamp=mock_file_entry.created,
+                    error_writer=mock_error_writer,
+                    form_project_configs=form_project_configs,
+                    module="UDS",
+                )
 
-            # Should return False for unsupported file type
-            assert not success
-
-            # Should have written warning to error_writer (via misc_errors)
-            assert mock_error_writer.write.call_count > 0
+            # Verify the error message is meaningful
+            assert "Unsupported file type" in str(exc_info.value)
 
         finally:
             # Clean up temporary file
@@ -515,7 +510,7 @@ class TestErrorHandlingAndMetrics:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -551,7 +546,7 @@ class TestErrorHandlingAndMetrics:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module="UDS",

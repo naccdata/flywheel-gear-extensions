@@ -15,7 +15,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-from submission_logger_app.main import run
+from submission_logger_app.main import ConfigurationError, FileProcessingError, run
 
 
 # Hypothesis strategies for generating test data
@@ -140,7 +140,7 @@ class TestCSVEventCreation:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry with created timestamp
             mock_file_entry = Mock()
@@ -175,7 +175,7 @@ class TestCSVEventCreation:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module=module,
@@ -233,7 +233,7 @@ class TestCSVEventCreation:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "empty.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -258,7 +258,7 @@ class TestCSVEventCreation:
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module="UDS",
@@ -312,7 +312,9 @@ class TestCSVEventCreation:
                 f"test.{file_extension}" if file_extension else "test"
             )
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = expected_result
+            mock_file_input.validate_file_extension.return_value = (
+                "csv" if expected_result else None
+            )
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -340,29 +342,41 @@ class TestCSVEventCreation:
                 form_project_configs = create_mock_form_project_configs("UDS")
 
                 # Run the submission logger
-                success = run(
-                    file_input=mock_file_input,
-                    event_logger=mock_event_logger,
-                    gear_name="test-gear",
-                    proxy=mock_proxy,
-                    context=mock_context,
-                    error_writer=mock_error_writer,
-                    form_project_configs=form_project_configs,
-                    module="UDS",
-                )
-
-                # Verify that the result matches expected behavior
                 if expected_result:
-                    # For CSV files, processing should succeed (assuming valid content)
-                    # We don't assert success here because the CSV content might be
-                    # invalid
-                    # The key test is that CSV files are processed, not rejected
+                    # For CSV files, should process without raising exception
+                    success = run(
+                        file_input=mock_file_input,
+                        event_logger=mock_event_logger,
+                        gear_name="test-gear",
+                        proxy=mock_proxy,
+                        timestamp=mock_file_entry.created,
+                        error_writer=mock_error_writer,
+                        form_project_configs=form_project_configs,
+                        module="UDS",
+                    )
+                    # CSV files are processed, not rejected
                     mock_file_input.validate_file_extension.assert_called_with(["csv"])
                 else:
-                    # For non-CSV files, processing should return False immediately
-                    assert not success, (
-                        f"Non-CSV file {file_extension} should be rejected"
-                    )
+                    # For non-CSV files, should raise FileProcessingError
+                    try:
+                        success = run(
+                            file_input=mock_file_input,
+                            event_logger=mock_event_logger,
+                            gear_name="test-gear",
+                            proxy=mock_proxy,
+                            timestamp=mock_file_entry.created,
+                            error_writer=mock_error_writer,
+                            form_project_configs=form_project_configs,
+                            module="UDS",
+                        )
+                        # Should not reach here for unsupported files
+                        assert False, (
+                            f"Should raise FileProcessingError for {file_extension} files"
+                        )
+                    except FileProcessingError:
+                        # Expected behavior for unsupported file types
+                        pass
+
                     mock_file_input.validate_file_extension.assert_called_with(["csv"])
                     # Event logger should not be called for unsupported files
                     mock_event_logger.log_event.assert_not_called()
@@ -394,7 +408,7 @@ class TestCSVEventCreation:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -402,21 +416,24 @@ class TestCSVEventCreation:
             mock_file_input.file_entry.return_value = mock_file_entry
 
             # Run the submission logger without form configs
-            success = run(
-                file_input=mock_file_input,
-                event_logger=mock_event_logger,
-                gear_name="test-gear",
-                proxy=mock_proxy,
-                context=mock_context,
-                error_writer=mock_error_writer,
-                form_project_configs=None,  # No form config provided
-                module=None,  # No module provided
-            )
-
-            # Should return failure when form config is missing for CSV
-            assert not success, (
-                "Should return False when form config is missing for CSV files"
-            )
+            try:
+                success = run(
+                    file_input=mock_file_input,
+                    event_logger=mock_event_logger,
+                    gear_name="test-gear",
+                    proxy=mock_proxy,
+                    timestamp=mock_file_entry.created,
+                    error_writer=mock_error_writer,
+                    form_project_configs=None,  # No form config provided
+                    module=None,  # No module provided
+                )
+                # Should not reach here - should raise ConfigurationError
+                assert False, (
+                    "Should raise ConfigurationError when form config is missing"
+                )
+            except ConfigurationError:
+                # Expected behavior - configuration error should be raised
+                pass
 
             # No events should be logged since processing failed
             assert mock_event_logger.log_event.call_count == 0, (

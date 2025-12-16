@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from event_logging.event_logging import VisitEventLogger
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -14,7 +15,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-from submission_logger_app.main import run
+from submission_logger_app.main import FileProcessingError, run
 
 
 # Hypothesis strategies for generating problematic test data
@@ -132,7 +133,7 @@ class TestErrorHandlingRobustness:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "malformed.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry with created timestamp
             mock_file_entry = Mock()
@@ -168,7 +169,7 @@ class TestErrorHandlingRobustness:
                         event_logger=mock_event_logger,
                         gear_name="test-gear",
                         proxy=mock_proxy,
-                        context=mock_context,
+                        timestamp=mock_file_entry.created,
                         error_writer=mock_error_writer,
                         form_project_configs=form_project_configs,
                         module="UDS",
@@ -248,7 +249,7 @@ class TestErrorHandlingRobustness:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = f"test_{error_scenario}.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -275,42 +276,52 @@ class TestErrorHandlingRobustness:
                 # Create form project configs
                 form_project_configs = create_mock_form_project_configs("UDS")
 
-                # Run the submission logger - should handle file access errors gracefully
-                try:
+                # Run the submission logger - different error scenarios have different expected behaviors
+                if error_scenario == "nonexistent_file":
+                    # Non-existent files should raise FileProcessingError
+                    with pytest.raises(FileProcessingError) as exc_info:
+                        run(
+                            file_input=mock_file_input,
+                            event_logger=mock_event_logger,
+                            gear_name="test-gear",
+                            proxy=mock_proxy,
+                            timestamp=mock_file_entry.created,
+                            error_writer=mock_error_writer,
+                            form_project_configs=form_project_configs,
+                            module="UDS",
+                        )
+                    assert "does not exist" in str(exc_info.value)
+
+                elif error_scenario in ["binary_file", "non_utf8_file"]:
+                    # File encoding errors are caught and logged, processing returns False
                     success = run(
                         file_input=mock_file_input,
                         event_logger=mock_event_logger,
                         gear_name="test-gear",
                         proxy=mock_proxy,
-                        context=mock_context,
+                        timestamp=mock_file_entry.created,
                         error_writer=mock_error_writer,
                         form_project_configs=form_project_configs,
                         module="UDS",
                     )
+                    # These should return False due to encoding errors during CSV processing
+                    assert not success, f"Should return False for {error_scenario}"
 
-                    # Key property: should return boolean, not raise exception
+                else:  # empty_file, permission_denied, etc.
+                    # Other scenarios should process normally (may succeed or fail based on content)
+                    success = run(
+                        file_input=mock_file_input,
+                        event_logger=mock_event_logger,
+                        gear_name="test-gear",
+                        proxy=mock_proxy,
+                        timestamp=mock_file_entry.created,
+                        error_writer=mock_error_writer,
+                        form_project_configs=form_project_configs,
+                        module="UDS",
+                    )
+                    # Just verify it returns a boolean
                     assert isinstance(success, bool), (
-                        f"Gear should return boolean for {error_scenario}, not raise exception"
-                    )
-
-                    # For file access errors, should typically return False
-                    if error_scenario in [
-                        "nonexistent_file",
-                        "binary_file",
-                        "non_utf8_file",
-                    ]:
-                        assert not success, f"Should return False for {error_scenario}"
-
-                    # Verify error logging occurred
-                    assert mock_error_writer.write.call_count >= 0, (
-                        "Error writer should be available for logging"
-                    )
-
-                except Exception as e:
-                    # File access errors should not cause exceptions
-                    assert False, (
-                        f"File access error {error_scenario} should be handled gracefully, "
-                        f"but got: {type(e).__name__}: {e!s}"
+                        f"Should return boolean for {error_scenario}"
                     )
 
         finally:
@@ -345,7 +356,7 @@ class TestErrorHandlingRobustness:
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "test.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -379,7 +390,7 @@ class TestErrorHandlingRobustness:
                         event_logger=mock_event_logger,
                         gear_name="test-gear",
                         proxy=mock_proxy,
-                        context=mock_context,
+                        timestamp=mock_file_entry.created,
                         error_writer=mock_error_writer,
                         form_project_configs=form_project_configs,
                         module="UDS",
@@ -434,7 +445,7 @@ valid3,2023-01-05,5,UDS,I,1"""
             mock_file_input = Mock(spec=InputFileWrapper)
             mock_file_input.filename = "mixed_validity.csv"
             mock_file_input.filepath = temp_file_path
-            mock_file_input.validate_file_extension.return_value = True
+            mock_file_input.validate_file_extension.return_value = "csv"
 
             # Mock file entry
             mock_file_entry = Mock()
@@ -467,7 +478,7 @@ valid3,2023-01-05,5,UDS,I,1"""
                     event_logger=mock_event_logger,
                     gear_name="test-gear",
                     proxy=mock_proxy,
-                    context=mock_context,
+                    timestamp=mock_file_entry.created,
                     error_writer=mock_error_writer,
                     form_project_configs=form_project_configs,
                     module="UDS",

@@ -68,7 +68,7 @@ def test_debug_single_visit():
         mock_file_input = Mock(spec=InputFileWrapper)
         mock_file_input.filename = "test.csv"
         mock_file_input.filepath = temp_file_path
-        mock_file_input.validate_file_extension.return_value = True
+        mock_file_input.validate_file_extension.return_value = "csv"
 
         # Mock file entry
         mock_file_entry = Mock()
@@ -97,10 +97,11 @@ def test_debug_single_visit():
             form_project_configs = create_mock_form_project_configs("UDS")
 
             # Capture the global metrics before running
+            # Reset metrics for clean test
+            from metrics.processing_metrics import ProcessingMetrics
             from submission_logger_app.main import _processing_metrics
 
-            # Reset metrics for clean test
-            _processing_metrics.__init__()
+            _processing_metrics = ProcessingMetrics()
 
             print(f"Before run: visits_found = {_processing_metrics.visits_found}")
 
@@ -110,7 +111,7 @@ def test_debug_single_visit():
                 event_logger=mock_event_logger,
                 gear_name="test-gear",
                 proxy=mock_proxy,
-                context=mock_context,
+                timestamp=mock_file_entry.created,
                 error_writer=mock_error_writer,
                 form_project_configs=form_project_configs,
                 module="UDS",

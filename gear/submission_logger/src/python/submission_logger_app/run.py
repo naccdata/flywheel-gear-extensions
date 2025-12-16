@@ -18,7 +18,11 @@ from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 from utils.utils import load_form_ingest_configurations
 
-from submission_logger_app.main import run
+from submission_logger_app.main import (
+    ConfigurationError,
+    FileProcessingError,
+    run,
+)
 
 log = logging.getLogger(__name__)
 
@@ -31,17 +35,15 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
         *,
         client: ClientWrapper,
         file_input: InputFileWrapper,
-        config_input: Optional[InputFileWrapper],
+        config_input: Optional[InputFileWrapper] = None,
         gear_name: str,
         event_logger: VisitEventLogger,
-        environment: str,
     ):
         super().__init__(client=client)
         self.__file_input = file_input
         self.__config_input = config_input
         self.__gear_name = gear_name
         self.__event_logger = event_logger
-        self.__environment = environment
 
     @classmethod
     def create(
@@ -82,8 +84,8 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
             config_input=config_input,
             gear_name=gear_name,
             event_logger=event_logger,
-            environment=environment,
         )
+
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the submission logger app.
@@ -92,6 +94,13 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
             context: the gear execution context
         """
         assert context, "Gear context required"
+
+        module = self.__file_input.get_module_name_from_file_suffix()
+        if not module:
+            raise GearExecutionError(
+                f"Expect module suffix in input file name: {self.__file_input.filename}"
+            )
+        module = module.upper()
 
         # Create error writer for tracking processing errors
         from outputs.error_writer import ListErrorWriter
@@ -150,16 +159,23 @@ class SubmissionLoggerVisitor(GearExecutionEnvironment):
 
             # Run the main processing with comprehensive error handling
             try:
+                # Extract timestamp from file entry
+                file_entry = self.__file_input.file_entry(context)
+                timestamp = file_entry.created
+
                 success = run(
                     file_input=self.__file_input,
                     event_logger=self.__event_logger,
                     gear_name=self.__gear_name,
                     proxy=self.proxy,
-                    context=context,
+                    timestamp=timestamp,
                     error_writer=error_writer,
                     form_project_configs=form_project_configs,
                     module=module,
                 )
+            except (ConfigurationError, FileProcessingError) as error:
+                # Convert submission logger errors to gear execution errors
+                raise GearExecutionError(str(error)) from error
             except Exception as error:
                 # Log the error but don't re-raise - let gear complete with failure
                 error_msg = f"Error during submission logger processing: {error!s}"
