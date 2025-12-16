@@ -3,7 +3,6 @@
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Set, TextIO
 
-from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -248,18 +247,13 @@ def run(
             contents = write_csv_to_stream(
                 headers=visitor.headers, data=data
             ).getvalue()
-            file_spec = FileSpec(
-                name=filename,
-                contents=contents,
-                content_type="text/csv",
-                size=len(contents),
-            )
-
             if proxy.dry_run:
                 log.info(f"DRY RUN: Would have uploaded {filename}")
                 continue
 
-            project.upload_file(file_spec)  # type: ignore
+            project.upload_file_contents(
+                filename=filename, contents=contents, content_type="text/csv"
+            )
             project_ids_list.append(project.id)
             log.info(f"Successfully uploaded {filename}")
 

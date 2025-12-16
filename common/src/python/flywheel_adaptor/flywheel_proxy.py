@@ -1184,6 +1184,36 @@ class ProjectAdaptor:
         """
         self._project.upload_file(file_spec)
 
+    def upload_file_contents(
+        self, *, filename: str, contents: str, content_type: str = "text"
+    ) -> Optional[FileEntry]:
+        """Uploads a file to the project using filename and string contents.
+
+        Args:
+            filename: the file name
+            contents: the string contents of the file
+            content_type: the MIME content type (defaults to "text")
+
+        Returns:
+            the FileEntry for the uploaded file, or None if upload failed
+        """
+        file_spec = flywheel.FileSpec(
+            name=filename,
+            contents=contents,
+            content_type=content_type,
+            size=len(contents),
+        )
+        try:
+            self.upload_file(file_spec)
+            self.reload()
+            return self.get_file(filename)
+        except ApiException as error:
+            log.error(
+                f"Failed to upload file {filename} to "
+                f"{self.group}/{self.label}: {error}"
+            )
+            return None
+
     def get_user_roles(self, user_id: str) -> List[str]:
         """Gets the list of user role ids in this project.
 

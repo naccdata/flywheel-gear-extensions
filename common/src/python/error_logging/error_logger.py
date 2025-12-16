@@ -3,7 +3,6 @@ from datetime import datetime as dt
 from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
-from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -196,19 +195,9 @@ def upload_log(
     Returns:
       the FileEntry for the file. None if the file could not be uploaded.
     """
-    error_file_spec = FileSpec(
-        name=filename, contents=contents, content_type="text", size=len(contents)
+    return project.upload_file_contents(
+        filename=filename, contents=contents, content_type="text"
     )
-    try:
-        project.upload_file(error_file_spec)
-        project.reload()
-        return project.get_file(filename)
-    except ApiException as error:
-        log.error(
-            f"Failed to upload file {filename} to "
-            f"{project.group}/{project.label}: {error}"
-        )
-        return None
 
 
 def update_error_log_and_qc_metadata(
