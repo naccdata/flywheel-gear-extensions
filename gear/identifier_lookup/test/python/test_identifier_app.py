@@ -10,7 +10,6 @@ from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
-from test_mocks.mock_flywheel import MockProject
 
 
 @pytest.fixture(scope="function")
@@ -132,9 +131,7 @@ class TestIdentifierLookup:
                 module_name="dummy-module",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -158,9 +155,7 @@ class TestIdentifierLookup:
                 module_name="dummy-module",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -184,9 +179,7 @@ class TestIdentifierLookup:
                 module_name="dummy-module",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -210,9 +203,7 @@ class TestIdentifierLookup:
                 module_name="dummy-module",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )
@@ -244,9 +235,7 @@ class TestIdentifierLookup:
                 module_name="dummy-module",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="dummy",
                 misc_errors=misc_errors,
-                project=MockProject(label="dummy-project"),
             ),
             error_writer=error_writer,
         )

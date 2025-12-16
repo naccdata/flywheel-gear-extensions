@@ -16,7 +16,6 @@ from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
-from test_mocks.mock_flywheel import MockProject
 
 
 # Hypothesis strategies for generating test data
@@ -126,9 +125,7 @@ def capture_naccid_lookup_behavior(
             module_name="uds",
             module_configs=uds_ingest_configs(),
             error_writer=error_writer,
-            gear_name="identifier-lookup",
             misc_errors=misc_errors,
-            project=MockProject(label="test-project"),
         ),
         error_writer=error_writer,
     )

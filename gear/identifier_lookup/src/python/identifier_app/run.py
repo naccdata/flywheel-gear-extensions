@@ -182,8 +182,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             module_name=module.lower(),
             module_configs=module_configs,
             error_writer=error_writer,
-            gear_name=self.__gear_name,
-            project=project,
             misc_errors=misc_errors,
         )
 

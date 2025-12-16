@@ -14,7 +14,6 @@ from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
-from test_mocks.mock_flywheel import MockProject
 
 
 class TestBackwardCompatibility:
@@ -74,9 +73,7 @@ class TestBackwardCompatibility:
                 module_name="uds",
                 module_configs=uds_ingest_configs(),
                 error_writer=error_writer,
-                gear_name="identifier-lookup",
                 misc_errors=misc_errors,
-                project=MockProject(label="test-project"),
             ),
             error_writer=error_writer,
         )
@@ -146,19 +143,20 @@ class TestBackwardCompatibility:
         assert result["errors"] is not None
         errors = result["errors"]
 
-        # Should have container_id and fw_path
-        assert "container_id" in errors
-        assert "fw_path" in errors
-        assert "errors" in errors
+        # errors should be a list of error objects
+        assert isinstance(errors, list)
 
         # Should have at least one error for PTID999
-        assert len(errors["errors"]) > 0
+        assert len(errors) > 0
 
         # Verify error format
-        first_error = errors["errors"][0]
-        assert "line" in first_error
+        first_error = errors[0]
         assert "message" in first_error
         assert "value" in first_error
+        # Line number is stored in location.line
+        assert "location" in first_error
+        if first_error["location"]:
+            assert "line" in first_error["location"]
 
     def test_header_validation_compatibility(self):
         """Test header validation behavior remains compatible."""
