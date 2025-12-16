@@ -61,8 +61,18 @@ class CSVVisitor(ABC):
 class AggregateCSVVisitor(CSVVisitor):
     """Aggregates CSV visitors."""
 
-    def __init__(self, visitors: Sequence[CSVVisitor]) -> None:
+    def __init__(
+        self, visitors: Sequence[CSVVisitor], short_circuit: bool = True
+    ) -> None:
+        """Initialize aggregate CSV visitor.
+
+        Args:
+            visitors: Sequence of visitors to coordinate
+            short_circuit: If True (default), stop processing on first failure.
+                          If False, call all visitors even if some fail.
+        """
         self.__visitors = visitors
+        self.__short_circuit = short_circuit
 
     def visit_header(self, header: List[str]) -> bool:
         """Visits headers with each of the visitors.
@@ -83,7 +93,23 @@ class AggregateCSVVisitor(CSVVisitor):
         Returns:
           True if all of the visitors return True. False, otherwise.
         """
-        return all(visitor.visit_row(row, line_num) for visitor in self.__visitors)
+        if self.__short_circuit:
+            # Original behavior: short-circuit on first failure
+            return all(visitor.visit_row(row, line_num) for visitor in self.__visitors)
+        else:
+            # Non-short-circuiting: call all visitors regardless of failures
+            results = []
+            for visitor in self.__visitors:
+                try:
+                    result = visitor.visit_row(row, line_num)
+                    results.append(result)
+                except Exception as error:
+                    log.error(
+                        f"Error in visitor {visitor.__class__.__name__} "
+                        f"for row {line_num}: {error}"
+                    )
+                    results.append(False)
+            return all(results)
 
     def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Checks that the row is valid.
