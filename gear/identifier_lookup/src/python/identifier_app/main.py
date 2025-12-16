@@ -6,9 +6,10 @@ from typing import Any, Dict, List, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from enrollment.enrollment_transfer import CenterValidator
-from error_logging.error_logger import (
-    ErrorLogTemplate,
-    update_error_log_and_qc_metadata,
+from error_logging.error_logger import ErrorLogTemplate
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -25,7 +26,6 @@ from outputs.errors import (
     identifier_error,
     missing_field_error,
     system_error,
-    unexpected_value_error,
 )
 from outputs.outputs import CSVWriter
 
@@ -79,6 +79,21 @@ class NACCIDLookupVisitor(CSVVisitor):
             error_writer=error_writer,
         )
         self.__misc_errors = misc_errors
+
+        # Setup QC status log manager
+        errorlog_template = (
+            module_configs.errorlog_template
+            if module_configs.errorlog_template
+            else ErrorLogTemplate(
+                id_field=FieldNames.PTID, date_field=module_configs.date_field
+            )
+        )
+        visit_annotator = FileVisitAnnotator(project) if project else None
+        self.__qc_log_manager = (
+            QCStatusLogManager(errorlog_template, visit_annotator)
+            if visit_annotator
+            else None
+        )
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -184,57 +199,33 @@ class NACCIDLookupVisitor(CSVVisitor):
                 "Parent project not specified to upload visit error log"
             )
 
-        errorlog_template = (
-            self.__module_configs.errorlog_template
-            if self.__module_configs.errorlog_template
-            else ErrorLogTemplate(
-                id_field=FieldNames.PTID, date_field=self.__module_configs.date_field
+        # Update QC log using QCStatusLogManager
+        if self.__qc_log_manager and self.__project:
+            visit_keys = VisitKeys.create_from(
+                record=input_record, date_field=self.__module_configs.date_field
             )
-        )
-        error_log_name = errorlog_template.instantiate(
-            module=self.__module_name, record=input_record
-        )
 
-        if not error_log_name:
-            message = (
-                f"Invalid values found for "
-                f"{FieldNames.PTID} ({input_record[FieldNames.PTID]}) or "
-                f"{self.__module_configs.date_field} "
-                f"({input_record[self.__module_configs.date_field]})"
-            )
-            self.__misc_errors.append(
-                unexpected_value_error(
-                    field=f"{FieldNames.PTID} or {self.__module_configs.date_field}",
-                    value="",
-                    expected="",
-                    message=message,
+            # This is first gear in pipeline validating individual rows
+            # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
+            if not self.__qc_log_manager.update_qc_log(
+                visit_keys=visit_keys,
+                project=self.__project,
+                gear_name=self.__gear_name,
+                status="PASS" if qc_passed else "FAIL",
+                errors=self.__error_writer.errors(),
+                reset_qc_metadata="ALL",
+            ):
+                message = (
+                    "Failed to update error log for visit "
+                    f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
                 )
-            )
-            return False
-
-        # This is first gear in pipeline validating individual rows
-        # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
-        if not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self.__project,
-            gear_name=self.__gear_name,
-            state="PASS" if qc_passed else "FAIL",
-            errors=self.__error_writer.errors(),
-            reset_qc_metadata="ALL",
-        ):
-            message = (
-                "Failed to update error log for visit "
-                f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
-            )
-            self.__misc_errors.append(
-                system_error(
-                    message=message,
-                    visit_keys=VisitKeys.create_from(
-                        record=input_record, date_field=self.__module_configs.date_field
-                    ),
+                self.__misc_errors.append(
+                    system_error(
+                        message=message,
+                        visit_keys=visit_keys,
+                    )
                 )
-            )
-            return False
+                return False
 
         return True
 
