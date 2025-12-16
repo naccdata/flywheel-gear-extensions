@@ -10,7 +10,13 @@ from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import PreprocessingChecks
 from nacc_common.field_names import FieldNames
-from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    RootModel,
+    ValidationError,
+    model_validator,
+)
 
 PipelineType = Literal["submission", "finalization"]
 

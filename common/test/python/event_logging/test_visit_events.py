@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 import pytest
 from event_logging.visit_events import VisitEvent
@@ -13,7 +13,7 @@ class TestVisitEvent:
                 project_label="ingest-form",
                 center_label="sample-center",
                 ptid="dummy",
-                visit_date=date(year=2025, month=10, day=7),
+                visit_date="2025-10-07",
                 visit_number="v1",
                 datatype="form",
                 module="UDS",
@@ -31,7 +31,7 @@ class TestVisitEvent:
                 project_label="ingest-dicom",
                 center_label="sample-center",
                 ptid="dummy",
-                visit_date=date(year=2025, month=10, day=7),
+                visit_date="2025-10-07",
                 visit_number="v1",
                 datatype="dicom",
                 module="UDS",

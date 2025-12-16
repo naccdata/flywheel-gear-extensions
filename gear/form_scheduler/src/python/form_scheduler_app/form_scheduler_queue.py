@@ -1,9 +1,9 @@
 """Defines the Form Scheduler Queue.
 
-This module implements a queue-based system for scheduling and processing
-form pipelines in Flywheel. It manages multiple pipelines (submission,
-finalization) and ensures files are processed in the correct order with
-proper coordination between pipeline stages.
+This module implements a queue-based system for scheduling and
+processing form pipelines in Flywheel. It manages multiple pipelines
+(submission, finalization) and ensures files are processed in the
+correct order with proper coordination between pipeline stages.
 """
 
 import json
@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
+from event_logging.event_logging import VisitEventLogger
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -25,10 +26,12 @@ from gear_execution.gear_trigger import (
 )
 from inputs.parameter_store import URLParameter
 from jobs.job_poll import JobPoll
+from nacc_common.qc_report import QCTransformerError
 from notifications.email import EmailClient
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from form_scheduler_app.email_user import send_email
+from form_scheduler_app.visitor_event_accumulator import EventAccumulator
 
 # Regex pattern to extract module name from filenames
 # Matches filenames like "ptid-MODULE.csv" and captures the module name
@@ -137,9 +140,7 @@ class PipelineQueueBuilder(ABC):
     allows each pipeline type to implement its own file discovery logic.
     """
 
-    def __init__(
-        self, pipeline: Pipeline, queues: dict[str, list[FileEntry]]
-    ) -> None:
+    def __init__(self, pipeline: Pipeline, queues: dict[str, list[FileEntry]]) -> None:
         self.__pipeline = pipeline
         self.__queue = PipelineQueue(pipeline=pipeline, subqueues=queues)
 
@@ -251,13 +252,13 @@ class SubmissionQueueBuilder(PipelineQueueBuilder):
 class FinalizationQueueBuilder(PipelineQueueBuilder):
     """Builder for finalization pipeline queues.
 
-    Finalization pipelines process files at the ACQUISITION level.
-    Uses Flywheel's DataView API to efficiently query files across
-    multiple acquisitions, filtering by module labels, tags, and extensions.
+    Finalization pipelines process files at the ACQUISITION level. Uses
+    Flywheel's DataView API to efficiently query files across multiple
+    acquisitions, filtering by module labels, tags, and extensions.
     """
 
     def find_matching_visits_for_the_pipeline(
-        self, *, project: ProjectAdaptor
+        self, project: ProjectAdaptor
     ) -> dict[str, list[FileEntry]]:
         """Find acquisition-level files using DataView API.
 
@@ -350,7 +351,7 @@ def create_queue_builder(pipeline: Pipeline) -> Optional[PipelineQueueBuilder]:
         PipelineQueueBuilder instance for the pipeline type, or None if unsupported
     """
     # Initialize empty subqueues for each module
-    queues = {k: [] for k in pipeline.modules}
+    queues: dict[str, list[FileEntry]] = {k: [] for k in pipeline.modules}
 
     # Return appropriate builder based on pipeline type
     if pipeline.name == "finalization":
@@ -378,6 +379,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
+        event_logger: VisitEventLogger,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -387,23 +389,22 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
+            event_logger: VisitEventLogger for logging visit events
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
         self.__proxy = proxy
         self.__project = project
         self.__pipeline_configs = pipeline_configs
+        self.__event_logger = event_logger
         self.__email_client = email_client
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
 
-    def queue_files_for_pipeline(
-        self, *, project: ProjectAdaptor, pipeline: Pipeline
-    ) -> int:
+    def queue_files_for_pipeline(self, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
 
         Args:
-            project: Flywheel project container
             pipeline: Pipeline configurations
 
         Returns:
@@ -413,7 +414,7 @@ class FormSchedulerQueue:
         if queue_builder is None:
             raise FormSchedulerError("Pipeline with name {pipeline.name} not supported")
 
-        file_count = queue_builder.add_pipeline_files(project)
+        file_count = queue_builder.add_pipeline_files(self.__project)
         self.__pipeline_queues[pipeline.name] = queue_builder.queue()
 
         return file_count
@@ -453,6 +454,35 @@ class FormSchedulerQueue:
                 raise GearExecutionError(
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
+
+    def _log_pipeline_events(self, *, file: FileEntry, pipeline: Pipeline) -> None:
+        """Log pass-qc or not-pass-qc events for a processed file.
+
+        Event logging failures are logged but don't stop pipeline processing.
+
+        Args:
+            file: The file that was processed
+            pipeline: Pipeline configuration
+        """
+        try:
+            event_accumulator = EventAccumulator(
+                pipeline=pipeline,
+                event_logger=self.__event_logger,
+                datatype="form",
+            )
+            event_accumulator.log_events(file=file, project=self.__project)
+        except (ValidationError, QCTransformerError) as error:
+            # Validation errors from malformed data or transformers
+            log.error(
+                f"Failed to log events for {file.name}: {error}",
+                exc_info=True,
+            )
+        except Exception as error:
+            # Catch any unexpected errors (network, S3, etc.)
+            log.error(
+                f"Unexpected error logging events for {file.name}: {error}",
+                exc_info=True,
+            )
 
     def _process_pipeline_queue(
         self,
@@ -560,12 +590,9 @@ class FormSchedulerQueue:
                     )
 
                 # c. Trigger the starting gear for this pipeline
+                log.info(f"Kicking off pipeline `{pipeline.name}` on module {module}")
                 log.info(
-                    f"Kicking off pipeline `{pipeline.name}` on module {module}"
-                )
-                log.info(
-                    f"Triggering {pipeline.starting_gear.gear_name} "
-                    f"for {file.name}"
+                    f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
                 )
 
                 # Get the file's parent container as the gear destination
@@ -584,6 +611,9 @@ class FormSchedulerQueue:
                 # d. Wait for the triggered pipeline to complete
                 #    This ensures files are processed one at a time
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
+
+                # Log pass-qc or not-pass-qc events based on QC-status logs
+                self._log_pipeline_events(file=file, pipeline=pipeline)
 
                 # e. Send notification email if enabled
                 #    Notifies the user who uploaded the file that processing

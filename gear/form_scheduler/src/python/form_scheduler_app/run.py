@@ -6,6 +6,7 @@ from typing import Any, Optional
 from configs.ingest_configs import ConfigsError, PipelineConfigs
 from event_logging.event_logging import VisitEventLogger
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -24,7 +25,10 @@ from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
 from s3.s3_bucket import S3BucketInterface
 
-from form_scheduler_app.form_scheduler_queue import FormSchedulerError
+from form_scheduler_app.form_scheduler_queue import (
+    FormSchedulerError,
+    FormSchedulerQueue,
+)
 from form_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
@@ -147,20 +151,6 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
-        # Load form configs for module configurations
-        try:
-            from pydantic import ValidationError
-            from utils.utils import load_form_ingest_configurations
-
-            form_project_configs = load_form_ingest_configurations(
-                self.__form_configs_input.filepath
-            )
-        except ValidationError as error:
-            raise GearExecutionError(
-                f"Error reading form configurations file "
-                f"{self.__form_configs_input.filename}: {error}"
-            ) from error
-
         event_logger = VisitEventLogger(self.__event_bucket)
 
         # if source email specified, set up client to send emails
@@ -170,16 +160,24 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             else None
         )
 
+        # Get the project
+        fw_project = self.proxy.get_project_by_id(project_id)
+        if not fw_project:
+            raise GearExecutionError(f"Cannot find project with ID {project_id}")
+        project = ProjectAdaptor(project=fw_project, proxy=self.proxy)
+
+        # Create the queue
+        queue = FormSchedulerQueue(
+            proxy=self.proxy,
+            project=project,
+            pipeline_configs=pipeline_configs,
+            event_logger=event_logger,
+            email_client=email_client,
+            portal_url=self.__portal_url,
+        )
+
         try:
-            run(
-                proxy=self.proxy,
-                project_id=project_id,
-                pipeline_configs=pipeline_configs,
-                event_logger=event_logger,
-                module_configs=form_project_configs.module_configs,
-                email_client=email_client,
-                portal_url=self.__portal_url,
-            )
+            run(queue=queue, pipeline_configs=pipeline_configs)
         except FormSchedulerError as error:
             raise GearExecutionError(error) from error
 

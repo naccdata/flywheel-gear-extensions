@@ -18,79 +18,28 @@
 """
 
 import logging
-from typing import Optional
 
-from configs.ingest_configs import ModuleConfigs, PipelineConfigs
-from event_logging.event_logging import VisitEventLogger
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from gear_execution.gear_execution import GearExecutionError
-from inputs.parameter_store import URLParameter
-from notifications.email import EmailClient
+from configs.ingest_configs import PipelineConfigs
 
 from .form_scheduler_queue import FormSchedulerQueue
 
 log = logging.getLogger(__name__)
 
 
-def run(
-    *,
-    proxy: FlywheelProxy,
-    project_id: str,
-    pipeline_configs: PipelineConfigs,
-    event_logger: VisitEventLogger,
-    module_configs: dict[str, ModuleConfigs],
-    email_client: Optional[EmailClient] = None,
-    portal_url: Optional[URLParameter] = None,
-):
+def run(*, queue: FormSchedulerQueue, pipeline_configs: PipelineConfigs):
     """Runs the Form Scheduler process.
 
     Args:
-        proxy: the proxy for the Flywheel instance
         queue: The FormSchedulerQueue which handles the queues
-        project_id: The project ID
         pipeline_configs: Form pipeline configurations
-        event_logger: VisitEventLogger for logging visit events
-        module_configs: Dictionary of module configurations keyed by module name
-        email_client: EmailClient to send emails from
-        portal_url: The portal URL
     """
-
-    fw_project = proxy.get_project_by_id(project_id)
-    if not fw_project:
-        raise GearExecutionError(f"Cannot find project with ID {project_id}")
-    project = ProjectAdaptor(project=fw_project, proxy=proxy)
-
-    # Create event accumulator for tracking visit events
-    from event_logging.visit_event_accumulator import VisitEventAccumulator
-
-    event_accumulator = VisitEventAccumulator(
-        event_logger=event_logger,
-        module_configs=module_configs,
-        proxy=proxy,
-    )
-
-    queue = FormSchedulerQueue(
-        proxy=proxy,
-        project=ProjectAdaptor(project=project, proxy=proxy),
-        pipeline_configs=pipeline_configs,
-        event_logger=event_logger,
-        event_accumulator=event_accumulator,
-        email_client=email_client,
-        portal_url=portal_url,
-    )
-
     num_files = -1
     while num_files != 0:
-        # force a project reload with each outer loop
-        project.reload()
-
         num_files = 0  # reset counter for next iteration
         # Pull and queue the tagged files for each pipeline
         # Pipelines are processed in order they are specified in the configs file
         for pipeline in pipeline_configs.pipelines:
-            num_files += queue.queue_files_for_pipeline(
-                project=project, pipeline=pipeline
-            )
+            num_files += queue.queue_files_for_pipeline(pipeline)
 
         # Process the subqueues for each pipeline until all pipeline queues are empty
         queue.process_pipeline_queues()

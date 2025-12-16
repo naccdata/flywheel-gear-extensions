@@ -2,28 +2,25 @@
 
 ## Overview
 
-The form-scheduler gear logs visit events to track the lifecycle of form submissions through the data pipeline. This document explains how event logging works for developers unfamiliar with the gear.
+The form-scheduler gear logs visit outcome events (pass-qc, not-pass-qc) after pipeline completion by reading QC metadata from qc-status log files. Submit events are handled separately by the submission-logger gear.
 
-## What Events Are Logged
+This document explains how event logging works for developers unfamiliar with the system.
 
-The gear logs three types of events for each visit:
+## What Events Are Logged by Form Scheduler
 
-- **submit**: Records when a visit is submitted for processing (uses upload timestamp)
-  - Logged when a CSV file is initially uploaded and queued
-  
-- **pass-qc**: Records when a visit successfully completes all QC checks (uses completion timestamp)
-  - **ONLY logged when BOTH conditions are met:**
-    1. JSON file exists at ACQUISITION level (proves form-transformer succeeded)
-    2. ALL pipeline gears have status="PASS" in QC metadata
-  - **Can be logged independently without a submit event** in the same job
-    - Example: Follow-up visits blocked on UDS packet get evaluated once UDS is cleared
+The form-scheduler gear logs two types of outcome events:
 
-- **not-pass-qc**: Records when a visit fails QC validation (uses completion timestamp)
-  - Logged when ANY of these occur:
-    - No JSON file at ACQUISITION level (early failure)
-    - Any gear has status != "PASS"
+- **pass-qc**: Records when a visit successfully completes all QC checks
+  - Logged after pipeline completes
+  - Scraped from qc-status log files
+  - Uses completion timestamp
 
-**Important:** Not all visits generate both submit and outcome events in the same job. "pass-qc" events can occur independently when previously blocked visits are re-evaluated.
+- **not-pass-qc**: Records when a visit fails QC validation
+  - Logged after pipeline completes
+  - Scraped from qc-status log files
+  - Uses completion timestamp
+
+**Note**: Submit events are handled by a separate submission-logger gear, not by form-scheduler.
 
 ## Key Concepts
 
@@ -100,38 +97,30 @@ Understanding where files are stored is important for event logging:
 
 ## Event Logging Architecture
 
-### Immediate Logging Approach
+### Form Scheduler's Role
 
-Event logging logs events immediately when they are observed:
+The form-scheduler gear handles outcome event logging:
 
-**When File is Queued (record_file_queued)**
-- Attempts to find QC log file at PROJECT level (preferred, more reliable)
-- Falls back to JSON file at ACQUISITION level if no QC log
-- If metadata file exists: Extracts visit metadata and logs "submit" event immediately
-- If no metadata file yet: Stores pending data to log submit event later
-- Stores minimal data for outcome event logging
-
-**When Pipeline Completes (log_outcome_event)**
-- Retrieves metadata from QC log file (PROJECT level) or JSON file (ACQUISITION level)
-- If submit event wasn't logged earlier (no metadata file existed), logs it now
-- Logs outcome event ("pass-qc" or "not-pass-qc") immediately
-- Cleans up pending data
+**visitor_event_accumulator (Outcome Events)**
+- Runs after pipeline completes in form-scheduler
+- Scrapes qc-status log files for QC metadata
+- Logs "pass-qc" or "not-pass-qc" events based on QC status
+- Uses visitor pattern to traverse QC metadata structure
 
 **Key Benefits:**
-- Events are logged as soon as possible
-- No batching or delayed logging
-- Simpler mental model: observe action → log event
-- Still handles cases where JSON doesn't exist at queue time
+- Outcome events captured after pipeline processing
+- QC status log files serve as single source of truth
+- Non-invasive: doesn't interfere with pipeline execution
 
-### VisitEventAccumulator Class
+### VisitorEventAccumulator Class
 
-The `VisitEventAccumulator` class manages the event logging process:
+The `VisitorEventAccumulator` class in form-scheduler:
 
-- Accumulates partial data throughout pipeline execution
-- Uses visit_number as the tracking key
-- Extracts visit metadata from Flywheel containers
-- Creates complete VisitEvent objects
+- Uses visitor pattern to traverse qc-status log files
+- Extracts visit metadata and QC status from log files
+- Creates VisitEvent objects for outcome events
 - Writes events to S3 via VisitEventLogger
+- Filters log files by modification timestamp to process only relevant files
 
 ## Process Flow
 
@@ -139,158 +128,88 @@ The `VisitEventAccumulator` class manages the event logging process:
 
 ```mermaid
 flowchart TD
-    A[CSV File Uploaded] --> B[Queue File for Processing]
-    B --> C[record_file_queued]
-    C --> D[Store Upload Timestamp<br/>& Project Metadata]
+    A[CSV File Uploaded] --> B[submission_logger Triggered]
+    B --> C[Log submit Event]
+    C --> D[Create/Update qc-status Log]
     
-    D --> E[Pipeline Executes]
-    E --> F[form-screening]
-    F --> G[form-transformer]
-    G --> H[form-qc-checker]
+    D --> E[form-scheduler Queues File]
+    E --> F[Pipeline Executes]
+    F --> G[form-screening]
+    G --> H[form-transformer]
+    H --> I[form-qc-checker]
     
-    H --> I[Check Pipeline Success]
-    I --> J[finalize_and_log_events]
+    I --> J[Pipeline Completes]
+    J --> K[visitor_event_accumulator]
     
-    J --> K{Pipeline<br/>Succeeded?}
-    K -->|Yes| L[Log submit + pass-qc events]
-    K -->|No| M[Log submit + not-pass-qc events]
+    K --> L[Scrape qc-status Logs]
+    L --> M{QC Status?}
+    M -->|PASS| N[Log pass-qc Event]
+    M -->|FAIL| O[Log not-pass-qc Event]
     
-    L --> N[Clean Up Pending Data]
-    M --> N
-    
+    style B fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
     style C fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style J fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style E fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style K fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style F fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    classDef formScheduler fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef submissionLogger fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
+    
+    class K,F formScheduler
+    class B,C submissionLogger
 ```
-
-### When File is Queued
-
-When a CSV file is queued for processing, the gear calls `record_file_queued()`:
-
-```mermaid
-sequenceDiagram
-    participant FormScheduler
-    participant EventAccumulator
-    participant Flywheel
-    participant S3EventLog
-    
-    FormScheduler->>EventAccumulator: record_file_queued(file, module, project)
-    
-    EventAccumulator->>Flywheel: Get acquisition (module level)
-    Flywheel-->>EventAccumulator: Acquisition container
-    
-    EventAccumulator->>Flywheel: Get session (visit level)
-    Flywheel-->>EventAccumulator: Session container
-    
-    EventAccumulator->>EventAccumulator: Extract visit_number from session label
-    
-    EventAccumulator->>Flywheel: Try to find QC log file (PROJECT level)
-    
-    alt QC log or JSON file exists
-        Flywheel-->>EventAccumulator: Metadata file (QC log or JSON)
-        EventAccumulator->>EventAccumulator: Extract visit metadata
-        EventAccumulator->>EventAccumulator: Create "submit" event
-        EventAccumulator->>S3EventLog: Log submit event immediately
-        Note over EventAccumulator: Submit event logged!
-    else No metadata file yet
-        Note over EventAccumulator: Will log submit event later<br/>when pipeline creates metadata
-    end
-    
-    EventAccumulator->>EventAccumulator: Store pending data for outcome event
-    EventAccumulator-->>FormScheduler: Done
-```
-
-**What happens:**
-
-1. Get the acquisition container (module level) from the file
-2. Get the session container (visit level) from the acquisition
-3. Extract visit_number from session label using module config template
-4. Try to find QC log file at PROJECT level (more reliable, created early)
-5. If no QC log, try to find JSON file at ACQUISITION level
-6. If metadata file exists: Extract metadata and log "submit" event immediately
-7. If no metadata file: Store pending data to log submit event later
-8. Store minimal data for outcome event logging
-
-**Submit event is logged immediately if QC log or JSON is available.**
-
-**Note:** QC log files are preferred because they're created earlier in the pipeline by identifier-lookup gear and are more consistently available.
 
 ### When Pipeline Completes
 
-After the pipeline completes, the gear calls `log_outcome_event()`:
+After the pipeline completes, form-scheduler logs outcome events based on QC status.
+
+The form-scheduler uses visitor_event_accumulator to log outcome events:
 
 ```mermaid
 sequenceDiagram
     participant FormScheduler
-    participant EventAccumulator
+    participant VisitorAccumulator
     participant Flywheel
     participant S3EventLog
     
     FormScheduler->>FormScheduler: Pipeline completes
-    FormScheduler->>FormScheduler: Check QC metadata
+    FormScheduler->>VisitorAccumulator: log_events(file, project)
     
-    alt Pipeline Success
-        FormScheduler->>EventAccumulator: log_outcome_event(file, module, success=true)
+    VisitorAccumulator->>Flywheel: Find qc-status log files<br/>(modified after file upload)
+    Flywheel-->>VisitorAccumulator: List of qc-status logs
+    
+    loop For each qc-status log
+        VisitorAccumulator->>VisitorAccumulator: Parse QC metadata using visitor pattern
+        VisitorAccumulator->>VisitorAccumulator: Extract visit metadata:<br/>- ptid<br/>- visit_date<br/>- visit_number<br/>- packet
         
-        EventAccumulator->>Flywheel: Get session
-        Flywheel-->>EventAccumulator: Session container
+        VisitorAccumulator->>VisitorAccumulator: Check QC status
         
-        EventAccumulator->>EventAccumulator: Extract visit_number
-        EventAccumulator->>EventAccumulator: Lookup pending data
-        
-        EventAccumulator->>Flywheel: Get JSON file from acquisition
-        Flywheel-->>EventAccumulator: JSON file with metadata
-        
-        EventAccumulator->>EventAccumulator: Extract visit metadata:<br/>- ptid<br/>- visit_date<br/>- visit_number<br/>- packet
-        
-        EventAccumulator->>EventAccumulator: Create "submit" event<br/>(timestamp = upload_timestamp)
-        EventAccumulator->>S3EventLog: Log submit event
-        
-        EventAccumulator->>EventAccumulator: Create "pass-qc" event<br/>(timestamp = completion_timestamp)
-        EventAccumulator->>S3EventLog: Log pass-qc event
-        
-        EventAccumulator->>EventAccumulator: Clean up pending data
-        EventAccumulator-->>FormScheduler: Done
-        
-    else Pipeline Failure
-        FormScheduler->>EventAccumulator: log_outcome_event(file, module, success=false)
-        
-        EventAccumulator->>Flywheel: Get session
-        Flywheel-->>EventAccumulator: Session container
-        
-        EventAccumulator->>EventAccumulator: Extract visit_number
-        EventAccumulator->>EventAccumulator: Lookup pending data
-        
-        EventAccumulator->>Flywheel: Get JSON/log file from acquisition
-        Flywheel-->>EventAccumulator: File with metadata
-        
-        EventAccumulator->>EventAccumulator: Extract visit metadata:<br/>- ptid<br/>- visit_date<br/>- visit_number<br/>- packet
-        
-        EventAccumulator->>EventAccumulator: Create "submit" event<br/>(timestamp = upload_timestamp)
-        EventAccumulator->>S3EventLog: Log submit event
-        
-        EventAccumulator->>EventAccumulator: Create "not-pass-qc" event<br/>(timestamp = completion_timestamp)
-        EventAccumulator->>S3EventLog: Log not-pass-qc event
-        
-        EventAccumulator->>EventAccumulator: Clean up pending data
-        EventAccumulator-->>FormScheduler: Done
+        alt All gears PASS
+            VisitorAccumulator->>VisitorAccumulator: Create "pass-qc" event<br/>(timestamp = completion_timestamp)
+            VisitorAccumulator->>S3EventLog: Log pass-qc event
+        else Any gear FAIL
+            VisitorAccumulator->>VisitorAccumulator: Create "not-pass-qc" event<br/>(timestamp = completion_timestamp)
+            VisitorAccumulator->>S3EventLog: Log not-pass-qc event
+        end
     end
+    
+    VisitorAccumulator-->>FormScheduler: Done
 ```
 
 **What happens:**
 
-1. Get session container and extract visit_number
-2. Lookup pending data stored earlier
-3. Find QC log file (PROJECT level) or JSON file (ACQUISITION level)
-4. Extract visit metadata (ptid, visit_date, visit_number, packet)
-5. If submit event wasn't logged earlier: Log it now with upload_timestamp
-6. Create outcome event ("pass-qc" or "not-pass-qc") with current completion_timestamp
-7. Log outcome event to S3 immediately
-8. Clean up pending data from memory
+1. Pipeline completes in form-scheduler
+2. visitor_event_accumulator is invoked with the processed file
+3. Finds qc-status log files at PROJECT level modified after file upload
+4. For each qc-status log file:
+   - Uses visitor pattern to traverse QC metadata
+   - Extracts visit metadata (ptid, visit_date, visit_number, packet)
+   - Checks overall QC status from all gears
+   - Creates outcome event ("pass-qc" or "not-pass-qc")
+   - Logs event to S3 with completion timestamp
 
-**Outcome event is always logged immediately. Submit event is logged now if it wasn't logged earlier.**
+**Outcome events are scraped from qc-status log files.**
 
-**Note:** QC log files are preferred because they're created earlier and are more reliable than JSON files.
+**Note:** The visitor pattern allows flexible traversal of QC metadata structure without hardcoding gear names or pipeline stages.
 
 ## Determining Pipeline Success
 
@@ -405,90 +324,25 @@ Events use different timestamps to reflect when actions actually occurred:
 
 ### Successful Submission
 
-```mermaid
-gantt
-    title Timeline of Successful Visit Submission
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section File Upload
-    User uploads CSV                    :milestone, m1, 10:00, 0m
-    Capture upload_timestamp            :crit, 10:00, 1m
-    
-    section Pipeline
-    form-screening runs                 :active, 10:05, 5m
-    form-transformer runs               :active, 10:10, 5m
-    form-qc-checker runs                :active, 10:15, 5m
-    
-    section Event Logging
-    Capture completion_timestamp        :crit, 10:20, 1m
-    Log "submit" event (T0)             :done, 10:20, 1m
-    Log "pass-qc" event (T4)            :done, 10:21, 1m
-```
+When a visit passes QC:
 
-- **submit event**: timestamp = 10:00 (upload_timestamp from Phase 1)
-- **pass-qc event**: timestamp = 10:20 (completion_timestamp from Phase 2)
-  - **Requirements met:**
-    - ✅ JSON file exists at ACQUISITION level
-    - ✅ ALL gears (form-screening, identifier-lookup, form-transformer, form-qc-checker) have status="PASS"
-- Both events logged at 10:20, but with different timestamps
+- **submit event**: Logged by submission-logger gear when file is uploaded
+- **pass-qc event**: Logged by form-scheduler gear when pipeline completes successfully
+  - **Requirements**: ALL gears have status="PASS" in QC metadata
 
 ### Failed Submission
 
-```mermaid
-gantt
-    title Timeline of Failed Visit Submission
-    dateFormat HH:mm
-    axisFormat %H:%M
-    
-    section File Upload
-    User uploads CSV                    :milestone, m1, 10:00, 0m
-    Capture upload_timestamp            :crit, 10:00, 1m
-    
-    section Pipeline
-    form-screening runs                 :active, 10:05, 3m
-    Validation errors found             :milestone, m2, 10:08, 0m
-    Pipeline stops                      :10:08, 0m
-    
-    section Event Logging
-    Capture completion_timestamp        :crit, 10:08, 1m
-    Log "submit" event (T0)             :done, 10:08, 1m
-    Log "not-pass-qc" event (T2)        :done, 10:09, 1m
-```
+When a visit fails QC:
 
-- **submit event**: timestamp = 10:00 (upload_timestamp from Phase 1)
-- **not-pass-qc event**: timestamp = 10:08 (completion_timestamp from Phase 2)
-- Both events logged at 10:08, but with different timestamps
+- **submit event**: Logged by submission-logger gear when file is uploaded
+- **not-pass-qc event**: Logged by form-scheduler gear when pipeline completes with errors
+  - **Triggers**: Any gear has status != "PASS" in QC metadata
 
 ## Data Structures
 
-### PendingVisitData
-
-Holds partial visit data until pipeline completes:
-
-```python
-class PendingVisitData(BaseModel):
-    ptid: str                      # Participant ID
-    visit_date: str                # Visit date (YYYY-MM-DD format) - part of key
-    visit_number: str              # e.g., "01", "02"
-    session_id: str                # Session container ID
-    acquisition_id: str            # Acquisition container ID
-    module: str                    # e.g., "UDS" - part of key
-    project_label: str             # e.g., "ingest-form" (ADRC), "ingest-form-dvcid"
-    center_label: str              # e.g., "alpha"
-    pipeline_adcid: int            # ADCID for event routing
-    upload_timestamp: datetime     # For "submit" event
-    completion_timestamp: Optional[datetime] = None  # For outcome event
-    csv_filename: str = ""         # For logging/debugging
-```
-
-**Key**: Pending data is keyed by `VisitKey(ptid, visit_date, module)` - a NamedTuple that aligns with the QC log file naming pattern.
-
-**Note**: There is only one visit per year per participant at a center (ADCID). However, each visit can have multiple modules (UDS, FTLD, LBD, etc.), so module is included in the key to distinguish between different module submissions for the same visit.
-
 ### VisitEvent
 
-Complete event object logged to S3:
+Event object logged to S3:
 
 ```python
 class VisitEvent(BaseModel):
@@ -509,56 +363,46 @@ class VisitEvent(BaseModel):
 
 ## Integration Points
 
+### Form Scheduler Integration
+
+The event accumulator is integrated into the form-scheduler pipeline processing.
+
 ### In FormSchedulerQueue.__init__
 
-Create the event accumulator:
+Create the visitor event accumulator:
 
 ```python
-self.__event_accumulator = VisitEventAccumulator(
-    event_logger=event_logger,
-    module_configs=module_configs,
-    proxy=proxy
-)
-```
-
-### In _add_submission_pipeline_files
-
-After adding file to queue (logs submit event if JSON exists):
-
-```python
-# Record file queued for event tracking
-self.__event_accumulator.record_file_queued(
-    file=file,
-    module=module,
-    project=project
+self.__event_accumulator = EventAccumulator(
+    pipeline=pipeline,
+    event_logger=event_logger
 )
 ```
 
 ### In _process_pipeline_queue
 
-After pipeline completes (logs outcome event immediately):
+After pipeline completes:
 
 ```python
-# Determine if pipeline succeeded
-pipeline_succeeded = self.__check_pipeline_success(file, module)
+# After: JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-# Log outcome event immediately
-self.__event_accumulator.log_outcome_event(
-    file=file,
-    module=module,
-    pipeline_succeeded=pipeline_succeeded
-)
+# Log outcome events by scraping qc-status logs
+if self.__event_accumulator:
+    try:
+        self.__event_accumulator.log_events(
+            file=file,
+            project=self.__project
+        )
+    except Exception as error:
+        log.warning(f"Failed to log events for {file.name}: {error}")
 ```
 
 ## Key Design Principles
 
-1. **Non-invasive**: Event logging doesn't change pipeline execution
-2. **Immediate**: Events are logged as soon as they are observed
-3. **Complete**: All metadata is available before logging (waits for JSON if needed)
-4. **Dual timestamps**: Captures both upload and completion times
+1. **Separation of concerns**: Submit events (submission_logger) separate from outcome events (form-scheduler)
+2. **Non-invasive**: Event logging doesn't change pipeline execution
+3. **QC log as source of truth**: qc-status log files track QC status throughout pipeline
+4. **Visitor pattern**: Flexible traversal of QC metadata without hardcoding gear names
 5. **Robust**: Uses existing QC infrastructure to determine success/failure
-6. **Memory-efficient**: Cleans up pending data after logging
-7. **Simple**: Observe action → log event (no batching or complex state management)
 
 ## Error Handling
 
@@ -659,18 +503,16 @@ The flat structure optimizes for the primary use case: scraping all events into 
 The "pass-qc" event can be triggered in multiple scenarios:
 
 1. **Immediate success**: Pipeline completes successfully with no QC alerts
-   - Both "submit" and "pass-qc" events logged in the same form-scheduler job
+   - "pass-qc" event logged by form-scheduler
    
 2. **Deferred approval**: Pipeline completes with QC alerts that are later approved
-   - "submit" and "not-pass-qc" events logged initially
-   - "pass-qc" event logged later when alerts are approved
-   - This happens in a separate form-scheduler job
+   - "not-pass-qc" event logged initially by form-scheduler
+   - "pass-qc" event logged later when alerts are approved by form-scheduler
    
 3. **Dependency resolution**: Visits blocked on dependencies get re-evaluated
    - Example: Follow-up visits or modules blocked on UDS packet
-   - When blocking dependency is cleared (e.g., UDS packet passes QC), blocked visits are re-evaluated
-   - "pass-qc" event logged WITHOUT a corresponding "submit" event in the same job
-   - The original "submit" event was logged when the visit was first uploaded
+   - When blocking dependency is cleared, blocked visits are re-evaluated
+   - "pass-qc" event logged by form-scheduler when re-evaluation succeeds
 
 ### Modules Without Visit Numbers
 
@@ -688,32 +530,16 @@ If the pipeline fails at identifier-lookup or form-transformer:
 
 ## Summary
 
-Event logging in form-scheduler uses a two-phase accumulation strategy for new submissions:
+Event logging in form-scheduler focuses on outcome events after pipeline completion:
 
-1. **Phase 1** (record_file_queued): Capture upload timestamp when file is queued
-2. **Phase 2** (finalize_and_log_events): Complete metadata and log events after pipeline
+- **Outcome events only**: form-scheduler logs "pass-qc" and "not-pass-qc" events
+- **QC metadata source**: Events determined by reading QC status from qc-status log files
+- **Visitor pattern**: Uses visitor pattern to traverse QC metadata structure
+- **Non-invasive**: Event logging doesn't interfere with pipeline execution
+- **Robust error handling**: Event logging failures don't break pipeline execution
 
-This approach ensures:
-- Complete event data with accurate timestamps
-- No interference with pipeline execution
-- Reliable success/failure detection using QC metadata
-- Clean separation of concerns between pipeline and event logging
-- Structured event storage in S3 for downstream processing
-
-**Event Patterns:**
-
-- **New submission with existing metadata**: Submit event logged at queue time, outcome event logged at completion
-- **New submission without metadata**: Both submit and outcome events logged at completion
-- **Re-evaluation**: Only outcome event logged (no "submit" event)
-
-**Metadata Sources (in order of preference):**
-1. QC log file at PROJECT level (created by identifier-lookup, always available)
-2. JSON file at ACQUISITION level (created by form-transformer, may not exist for early failures)
-  - Examples: QC approval, dependency resolution (UDS packet cleared)
-
-**Current Limitations:**
-- Requires visit numbers in session labels (module-specific)
-- Requires JSON files at ACQUISITION level (fails for early pipeline failures)
-- Re-evaluation scenarios not fully implemented (returns early if no pending data)
-  - Need to extract metadata from JSON only, without pending data
-  - Need to decide: log "submit" with completion timestamp, or skip "submit" entirely
+**Key Points:**
+- Submit events are handled by separate submission-logger gear
+- QC log files at PROJECT level serve as single source of truth for QC status
+- Events logged after pipeline completes using completion timestamp
+- Uses FileQCModel.get_file_status() to determine overall QC outcome

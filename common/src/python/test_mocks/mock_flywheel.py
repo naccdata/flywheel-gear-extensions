@@ -19,15 +19,27 @@ class MockFile(FileEntry):
     """Pydantic to mock a Flywheel file object."""
 
     def __init__(
-        self, name: str, info: Optional[Dict[str, Any]] = None, contents: str = ""
+        self,
+        name: str,
+        info: Optional[Dict[str, Any]] = None,
+        contents: str = "",
+        created: Optional[datetime] = None,
+        modified: Optional[datetime] = None,
     ) -> None:
         info = info if info else {}
         super().__init__(name=name, info=info)
         self.contents = contents
+        if created:
+            self.created = created
+        self.__modified = modified
 
     # name: str
     # info: Dict[str, Any] = {}
     # contents: str = ""
+
+    @property
+    def modified(self):
+        return self.__modified
 
     @field_validator("info", mode="before")
     @classmethod
