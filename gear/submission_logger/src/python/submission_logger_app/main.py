@@ -11,7 +11,7 @@ from typing import Optional, Protocol
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
-from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogCreator
+from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_logging.csv_logging_visitor import CSVLoggingVisitor
 from event_logging.event_logger import VisitEventLogger
@@ -140,7 +140,7 @@ def _process_csv_form_data(
             else ErrorLogTemplate()
         )
         visit_annotator = FileVisitAnnotator(project)
-        qc_log_creator = QCStatusLogCreator(error_log_template, visit_annotator)
+        qc_log_creator = QCStatusLogManager(error_log_template, visit_annotator)
         qc_visitor = QCStatusLogCSVVisitor(
             module_configs=module_configs,
             project=project,
