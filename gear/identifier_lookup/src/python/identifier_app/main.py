@@ -4,15 +4,13 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, TextIO
 
-from configs.ingest_configs import ModuleConfigs
-from enrollment.enrollment_transfer import CenterValidator
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
 from identifiers.model import IdentifierObject, clean_ptid
-from inputs.csv_reader import CSVVisitor, read_csv
+from inputs.csv_reader import CSVVisitor, RowValidator, read_csv
 from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -35,36 +33,32 @@ class NACCIDLookupVisitor(CSVVisitor):
     def __init__(
         self,
         *,
-        adcid: int,
         identifiers: Dict[str, IdentifierObject],
         output_file: TextIO,
         module_name: str,
-        module_configs: ModuleConfigs,
+        required_fields: Optional[List[str]],
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
+        validator: Optional[RowValidator] = None,
     ) -> None:
         """
         Args:
-            adcid: ADCID for the center
             identifiers: the map from PTID to Identifier object
             output_file: the data output stream
             module_name: the module name for the form
-            module_configs: form ingest configurations for the module
+            required_fields: list of required fields for header validation
             error_writer: the error output writer
             misc_errors: list to store errors occur while updating visit error log
+            validator: optional row validator for ADCID and PTID validation
         """
         self.__identifiers = identifiers
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__module_name = module_name
-        self.__module_configs = module_configs
+        self.__required_fields = required_fields
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
-        self.__validator = CenterValidator(
-            center_id=adcid,
-            date_field=module_configs.date_field,
-            error_writer=error_writer,
-        )
+        self.__validator = validator
         self.__misc_errors = misc_errors
 
     def __get_writer(self) -> CSVWriter:
@@ -93,8 +87,8 @@ class NACCIDLookupVisitor(CSVVisitor):
           True if required fields occur in the header, False otherwise
         """
 
-        if self.__module_configs.required_fields:
-            req_fields = set(self.__module_configs.required_fields)
+        if self.__required_fields:
+            req_fields = set(self.__required_fields)
             if not req_fields.issubset(set(header)):
                 self.__error_writer.write(missing_field_error(req_fields))
                 return False
@@ -123,8 +117,10 @@ class NACCIDLookupVisitor(CSVVisitor):
         # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
-        # check for valid ADCID and PTID
-        if not self.__validator.check(row=row, line_number=line_num):
+        # check for valid ADCID and PTID if validator is provided
+        if self.__validator and not self.__validator.check(
+            row=row, line_number=line_num
+        ):
             return False
 
         ptid = clean_ptid(row[FieldNames.PTID])
