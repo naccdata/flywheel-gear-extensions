@@ -12,7 +12,6 @@ from dates.form_dates import (
 )
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
-    CenterValidator,
     Demographics,
     EnrollmentRecord,
     NewGUIDRowValidator,
@@ -34,6 +33,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import CenterIdentifiers, IdentifierObject
+from inputs.center_validator import CenterValidator
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues
 from nacc_common.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
