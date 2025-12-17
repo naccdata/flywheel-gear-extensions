@@ -129,7 +129,8 @@ class AggregateCSVVisitor(CSVVisitor):
             visitors: Sequence of visitors to coordinate
             strategy_builder: Function that builds the execution strategy for visit_row.
                             Defaults to short_circuit_strategy (stops on first failure).
-                            Use visit_all_strategy to call all visitors regardless of failures.
+                            Use visit_all_strategy to call all visitors regardless
+                            of failures.
         """
         self.__visitors = visitors
         self.__strategy = strategy_builder(visitors)
