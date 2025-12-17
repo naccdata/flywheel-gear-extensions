@@ -75,7 +75,6 @@ def test_visitor_coordination_success_case():
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
-        determine_status_from_errors=True,
         module_name="test",
     )
 
@@ -195,7 +194,6 @@ def test_visitor_coordination_failure_case():
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
-        determine_status_from_errors=True,
         module_name="test",
     )
 

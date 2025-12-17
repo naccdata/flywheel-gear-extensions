@@ -6,7 +6,7 @@ from typing import Any, Optional
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from nacc_common.error_models import VisitKeys
+from nacc_common.error_models import QCStatus, VisitKeys
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 
@@ -25,7 +25,6 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         qc_log_creator: QCStatusLogManager,
         gear_name: str,
         error_writer: ListErrorWriter,
-        determine_status_from_errors: bool = False,
         module_name: Optional[str] = None,
     ) -> None:
         """Initialize QC CSV visitor.
@@ -36,9 +35,6 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             qc_log_creator: QC status log creator
             gear_name: Name of the gear
             error_writer: Error writer for tracking issues
-            determine_status_from_errors: If True, determine QC status based on
-                error writer state (FAIL if errors, PASS if no errors).
-                If False, always use PASS status (default behavior).
             module_name: Optional module name to use when MODULE field is not
                 present in the row. If None, uses row.get(FieldNames.MODULE).
         """
@@ -47,7 +43,6 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         self.__qc_log_creator = qc_log_creator
         self.__gear_name = gear_name
         self.__error_writer = error_writer
-        self.__determine_status_from_errors = determine_status_from_errors
         self.__module_name = module_name
         self.__processed_visits: list[VisitKeys] = []
 
@@ -81,36 +76,26 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         # Store visit keys for later file metadata enhancement
         self.__processed_visits.append(visit_keys)
 
-        # Determine QC status based on configuration
-        if self.__determine_status_from_errors:
-            # Determine status based on error writer state
-            has_errors = len(self.__error_writer.errors().root) > 0
-            qc_status = "FAIL" if has_errors else "PASS"
+        # Determine status based on error writer state
+        has_errors = len(self.__error_writer.errors().root) > 0
+        qc_status: QCStatus = "FAIL" if has_errors else "PASS"
 
-            log.debug(
-                f"QC status determination for visit ptid={visit_keys.ptid}, "
-                f"date={visit_keys.date}: {qc_status} "
-                f"(errors: {len(self.__error_writer.errors().root)})"
-            )
+        log.debug(
+            f"QC status determination for visit ptid={visit_keys.ptid}, "
+            f"date={visit_keys.date}: {qc_status} "
+            f"(errors: {len(self.__error_writer.errors().root)})"
+        )
 
-            # Create QC status log with determined status
-            qc_success = self.__qc_log_creator.update_qc_log(
-                visit_keys=visit_keys,
-                project=self.__project,
-                gear_name=self.__gear_name,
-                status=qc_status,
-                errors=self.__error_writer.errors(),
-                reset_qc_metadata="ALL",
-                add_visit_metadata=True,
-            )
-        else:
-            # Default behavior: use create_qc_log (always PASS status)
-            qc_success = self.__qc_log_creator.create_qc_log(
-                visit_keys=visit_keys,
-                project=self.__project,
-                gear_name=self.__gear_name,
-                error_writer=self.__error_writer,
-            )
+        # Create QC status log with determined status
+        qc_success = self.__qc_log_creator.update_qc_log(
+            visit_keys=visit_keys,
+            project=self.__project,
+            gear_name=self.__gear_name,
+            status=qc_status,
+            errors=self.__error_writer.errors(),
+            reset_qc_metadata="ALL",
+            add_visit_metadata=True,
+        )
 
         if not qc_success:
             log.warning(
