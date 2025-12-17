@@ -87,12 +87,15 @@ class VisitKeys(BaseModel):
     naccid: Optional[str] = None
 
     @classmethod
-    def create_from(cls, record: Dict[str, Any], date_field: str) -> "VisitKeys":
+    def create_from(
+        cls, record: Dict[str, Any], date_field: Optional[str] = None
+    ) -> "VisitKeys":
+        date = record.get(date_field) if date_field is not None else None
         return VisitKeys(
             adcid=record.get(FieldNames.ADCID),
             ptid=record.get(FieldNames.PTID),
             visitnum=record.get(FieldNames.VISITNUM),
-            date=record.get(date_field),
+            date=date,
             naccid=record.get(FieldNames.NACCID),
             module=record.get(FieldNames.MODULE),
         )
