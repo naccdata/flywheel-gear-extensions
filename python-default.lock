@@ -17,7 +17,7 @@
 //     "fw-client>=0.7.0",
 //     "fw-utils>=3",
 //     "moto[s3,ses,ssm]>=5.0.15",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc4/nacc_attribute_deriver-2.0.0rc4-py3-none-any.whl",
+//     "nacc_attribute_deriver@ file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0rc55-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.5.3/nacc_form_validator-0.5.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -143,42 +143,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "d21d22af9aeb1bad8e9b670a221d6534c0120f7e7baf523dafaca83f1f5c3f90",
-              "url": "https://files.pythonhosted.org/packages/7b/eb/97fdf6fbc8066fb1475b8ef260c1a58798b2b4f1e8839b501550de5d5ba1/boto3-1.42.9-py3-none-any.whl"
+              "hash": "54939f7fc1b2777771c2a66ecc77025b2af86e567b5cf68d30dc3838205f0a4a",
+              "url": "https://files.pythonhosted.org/packages/83/dc/9c8bb4f834ab7ee4ef9ca385caa8309222adc58141aa26fe2a2b24e3678d/boto3-1.42.11-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "cdd4cc3e5bb08ed8a0c5cc77eca78f98f0239521de0991f14e44b788b0c639b2",
-              "url": "https://files.pythonhosted.org/packages/8c/07/dfa651dbd57bfc34d952a101280928bab08ed6186f009c660a36c211ccff/boto3-1.42.9.tar.gz"
+              "hash": "2537d9462b70f4432385202709d1c8aa2291f802cfd8588d33334112116c554a",
+              "url": "https://files.pythonhosted.org/packages/7a/4b/4ba41473e749f2379b403cf78b5ff9c5e1f291b33cc930d851dd89e0f939/boto3-1.42.11.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.43.0,>=1.42.9",
+            "botocore<1.43.0,>=1.42.11",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.17.0,>=0.16.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.9"
+          "version": "1.42.11"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "d9b108fb3e0af33fedb0a9f0e214bc1d474a6e092a4b8755e88ccc847dc9c624",
-              "url": "https://files.pythonhosted.org/packages/5d/9b/6ce8a6626f6a2e11dbcbd9cdf9b423e29027adaa72355deb6d56e096ece1/boto3_stubs-1.42.9-py3-none-any.whl"
+              "hash": "2e26f0fb68c619a4c50d2b79848eecea5500297b0ee583e432a9e50db67e7f0a",
+              "url": "https://files.pythonhosted.org/packages/cc/4c/6d4af5b3122b87a83af22d942e5a6860e00cc54d91ca6064e1605a367341/boto3_stubs-1.42.11-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "b132be8260eb56010b47499658cf6c485f99ea0190969e7d1adb74c505c83e68",
-              "url": "https://files.pythonhosted.org/packages/b7/d6/b6edccd902fedd447f76a20da10430777ff9cd4afaf4b954035cc1e77c78/boto3_stubs-1.42.9.tar.gz"
+              "hash": "9dbec00184f701b9fbbf2f3554ab96b5cd8bd1854bf7599d1917c659d488f864",
+              "url": "https://files.pythonhosted.org/packages/3a/39/8e537e5cc5bcda92636b2938dd54bd03ba76a683aded2a63e94bdac9d317/boto3_stubs-1.42.11.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.43.0,>=1.42.0; extra == \"full\"",
-            "boto3==1.42.9; extra == \"boto3\"",
+            "boto3==1.42.11; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"all\"",
@@ -1019,19 +1019,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.9"
+          "version": "1.42.11"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "f99ba2ca34e24c4ebec150376c815646970753c032eb84f230874b2975a185a8",
-              "url": "https://files.pythonhosted.org/packages/1f/2a/e9275f40042f7a09915c4be86b092cb02dc4bd74e77ab8864f485d998af1/botocore-1.42.9-py3-none-any.whl"
+              "hash": "73b0796870f16ccd44729c767ade20e8ed62b31b3aa2be07b35377338dcf6d7c",
+              "url": "https://files.pythonhosted.org/packages/8e/6f/a50324c3fbd3385a7a047379dcb18ccb35de6f9712433f626be14d90ec22/botocore-1.42.11-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "74f69bfd116cc7c8215481284957eecdb48580e071dd50cb8c64356a866abd8c",
-              "url": "https://files.pythonhosted.org/packages/fd/f3/2d2cfb500e2dc00b0e33e3c8743306e6330f3cf219d19e9260dab2f3d6c2/botocore-1.42.9.tar.gz"
+              "hash": "4c5278b9e0f6217f428aade811d409e321782bd14f0a202ff95a298d841be1f7",
+              "url": "https://files.pythonhosted.org/packages/62/0f/33d611ac88b189ef952a9a4f733317c239acb2eee23ed749861cd1b1973e/botocore-1.42.11.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1043,19 +1043,19 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.9"
+          "version": "1.42.11"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "9f8b652549d4f727aa69e09d462d18e54a1bd10f3dbb593da56d5d0aafe9756e",
-              "url": "https://files.pythonhosted.org/packages/7b/9f/fbed79fa17af56cea7543b70d3f69c11426575a38b3421666411becefeef/botocore_stubs-1.42.9-py3-none-any.whl"
+              "hash": "788ecde81894f149bf210286f82ff3e49b97ce736a2ecb89f210be3f0374d35e",
+              "url": "https://files.pythonhosted.org/packages/87/a8/07278a0457df15032047f3c0faf2ff13b15be74f58044c018b856a01bc38/botocore_stubs-1.42.11-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "92fdd2a1d911355166da3e30e9bb9b1803f7e2caec0d913f5fad3a920352ce6d",
-              "url": "https://files.pythonhosted.org/packages/9e/98/4ce007813d13ff107b8c5a39a85916f53bd58923dbb358882a6031d8f53a/botocore_stubs-1.42.9.tar.gz"
+              "hash": "c2bac920d8c302e15e6bec9593daeaf04777714f8309fe052fd24cf28eb85a76",
+              "url": "https://files.pythonhosted.org/packages/a4/07/84ecdc64b5b36069cc03033d796231f8b2267fe45e990e9b214e16c16d90/botocore_stubs-1.42.11.tar.gz"
             }
           ],
           "project_name": "botocore-stubs",
@@ -1064,7 +1064,7 @@
             "types-awscrt"
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.9"
+          "version": "1.42.11"
         },
         {
           "artifacts": [
@@ -2012,8 +2012,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "aade5f4b85f1433361015800cd9b55f16e4b9dd125f29e29fb8d35f91775c5b0",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0-rc4/nacc_attribute_deriver-2.0.0rc4-py3-none-any.whl"
+              "hash": "d0a42a0f79a3aa229c31dd007e3e02f334b699ff8310e2531dddd637053e3ac8",
+              "url": "file:///workspaces/flywheel-gear-extensions/dist/nacc_attribute_deriver-2.0.0rc55-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2021,7 +2021,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.11.*",
-          "version": "2.0.0rc4"
+          "version": "2.0.0rc55"
         },
         {
           "artifacts": [
@@ -3430,7 +3430,7 @@
     "fw-client>=0.7.0",
     "fw-utils>=3",
     "moto[s3,ses,ssm]>=5.0.15",
-    "nacc_attribute_deriver",
+    "nacc-attribute-deriver==2.0.0rc55",
     "nacc_form_validator",
     "natsort",
     "pandas-stubs>=2.0.3",

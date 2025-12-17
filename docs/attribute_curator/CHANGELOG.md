@@ -2,12 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.0.6
+## 1.1.0
 
 * Updates `nacc-attribute-deriver` to `2.0.0rc5`
-* Adds `uds-participant` tag to all UDS subjects
-* Skip curation of files that failed their scopes' QC metrics to account for some things accidentally getting copied over
 * Refactors to only push data at end of subject heap in order to reduce number of API calls
+* Skip curation of files that failed their scopes' QC metrics to account for some things accidentally getting copied over
+* Adds `uds-participant` tag to all UDS subjects
+* Adds COVID scopes
 
 ## 1.0.3 - 1.0.5
 

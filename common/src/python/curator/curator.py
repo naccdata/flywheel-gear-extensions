@@ -3,7 +3,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -13,7 +13,7 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
-from .scheduling_models import FileModel
+from .scheduling_models import FileModel, ProcessedFile
 
 log = logging.getLogger(__name__)
 
@@ -94,19 +94,25 @@ class Curator(ABC):
     @api_retry
     def curate_file(
         self, subject: Subject, subject_table: SymbolTable, file_id: str
-    ) -> Tuple[FileEntry, Dict[str, Any] | None]:
+    ) -> ProcessedFile:
         """Curates a file.
 
         Args:
             subject: Subject the file belongs to
             subject_table: SymbolTable containing subject-specific metadata
                 to curate to. Iteratively added onto for each file curation
-            file_id: File ID curate
+            file_id: FW ID of file to curate
 
         Returns:
-            SymbolTable: the curated raw file.info data
+            ProcessedFile: the ProcessedFile object; if not succesfully curated,
+                file_info will be None
         """
         file_entry = self.sdk_client.get_file(file_id)
+        processed_file = ProcessedFile(
+            name=file_entry.name,
+            file_id=file_id,
+            tags=file_entry.tags,
+        )
 
         if (
             self.curation_tag
@@ -114,19 +120,20 @@ class Curator(ABC):
             and self.curation_tag in file_entry.tags
         ):
             log.debug(f"{file_entry.name} already curated, skipping")
-            return file_entry, None
+            return processed_file
 
         scope = determine_scope(file_entry.name)
         if not scope:
             log.warning("could not determine scope for %s, skipping", file_entry.name)
-            return file_entry, None
+            return processed_file
 
         table = self.get_table(subject, subject_table, file_entry)
         log.debug("curating file %s with scope %s", file_entry.name, scope)
         if not self.execute(subject, file_entry, table, scope):
-            return file_entry, None
+            return processed_file
 
-        return file_entry, table.get("file.info", {})
+        processed_file.file_info = table.get("file.info", {})
+        return processed_file
 
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-curation on the entire subject. Not required.
@@ -141,7 +148,7 @@ class Curator(ABC):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: Dict[FileModel, Dict[str, Any]],
+        processed_files: List[ProcessedFile],
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 
@@ -149,7 +156,7 @@ class Curator(ABC):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: Dict of FileModels to file info that were processed
+            processed_files: List of ProcessedFiles that were successfully processed
         """
         return
 

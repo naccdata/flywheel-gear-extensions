@@ -168,3 +168,15 @@ class ViewResponseModel(BaseModel):
             Trimmed data
         """
         return [row for row in data if any(x is not None for x in row.values())]
+
+
+class ProcessedFile(BaseModel):
+    """Defines model for a processed file. Keeps track of the minimal file info
+    needed to interact with FW and curated file info (if successfully curated)"""
+
+    # unfortunately FW objects are not serializable so we cannot use FileEntry directly
+    # minimally store name, file_id, and tags instead
+    name: str
+    file_id: str
+    tags: Optional[List[str]] = None
+    file_info: Optional[Dict[str, Any]] = None

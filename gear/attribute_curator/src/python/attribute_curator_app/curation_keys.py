@@ -43,6 +43,7 @@ RESOLVED_SCOPES = [
     FormScope.CSF,
     FormScope.FTLD,
     FormScope.LBD,
+    FormScope.CLS,
     FormScope.COVID_F1,
     FormScope.COVID_F2F3,
 ]

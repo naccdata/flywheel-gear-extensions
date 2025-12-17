@@ -37,6 +37,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         force_curate: bool = False,
         rxclass_concepts_s3_uri: Optional[str] = None,
         max_num_workers: int = 4,
+        ignore_qc: bool = False
     ):
         super().__init__(client=client)
         self.__project = project
@@ -45,6 +46,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self.__force_curate = force_curate
         self.__rxclass_concepts_s3_uri = rxclass_concepts_s3_uri
         self.__max_num_workers = max_num_workers
+        self.__ignore_qc = ignore_qc
 
     @classmethod
     def create(
@@ -76,8 +78,10 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         force_curate = context.config.get("force_curate", False)
         max_num_workers = context.config.get("max_num_workers", 4)
         rxclass_concepts_s3_uri = context.config.get("rxclass_concepts_s3_uri", "")
+        ignore_qc = context.config.get("ignore_qc", False)
 
-        fw_project = get_project_from_destination(context=context, proxy=proxy)
+        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         if context.config.get("debug", False):
@@ -91,6 +95,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             force_curate=force_curate,
             rxclass_concepts_s3_uri=rxclass_concepts_s3_uri,
             max_num_workers=max_num_workers,
+            ignore_qc=ignore_qc,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -131,6 +136,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             force_curate=self.__force_curate,
             max_num_workers=self.__max_num_workers,
             rxclass_concepts=rxclass_concepts,
+            ignore_qc=self.__ignore_qc
         )
 
 

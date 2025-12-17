@@ -60,7 +60,7 @@
         "filename_patterns": {
             "description": "Filename patterns to match on; comma-deliminated for multiple patterns",
             "type": "string",
-            "default": "*UDS\\.json"
+            "default": ".*UDS\\.json"
         },
         "error_outfile": {
             "description": "Output file to write regression errors to",

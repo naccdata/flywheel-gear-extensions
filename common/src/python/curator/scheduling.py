@@ -14,7 +14,7 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from pydantic import ValidationError
 from scheduling.min_heap import MinHeap
 
-from .scheduling_models import FileModel, ViewResponseModel
+from .scheduling_models import FileModel, ProcessedFile, ViewResponseModel
 
 log = logging.getLogger(__name__)
 
@@ -51,18 +51,18 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
     subject_table = SymbolTable(subject.info)
 
     curator.pre_curate(subject, subject_table)
-    processed_files: Dict[FileModel, Dict[str, Any]] = {}
+    processed_files: List[ProcessedFile] = []
 
     while len(heap) > 0:
         file_model = heap.pop()
         if not file_model:
             continue
 
-        file_entry, curated_info = curator.curate_file(
+        processed_file = curator.curate_file(
             subject, subject_table, file_model.file_id
         )
-        if curated_info:
-            processed_files[file_entry] = curated_info
+        if processed_file.file_info:
+            processed_files.append(processed_file)
 
     curator.post_curate(subject, subject_table, processed_files)
 
