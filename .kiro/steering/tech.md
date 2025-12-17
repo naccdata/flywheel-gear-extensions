@@ -174,6 +174,59 @@ For local development outside the container, Pants searches for Python interpret
 
 Ensure Python 3.11 is available via one of these methods.
 
+## Design Principles
+
+### Dependency Injection over Flag Parameters
+
+**Prefer dependency injection over boolean flags for configurable behavior.**
+
+When designing classes that need configurable behavior, use dependency injection with strategy patterns rather than boolean flag parameters.
+
+**❌ Avoid:**
+```python
+class MyProcessor:
+    def __init__(self, data: List[str], use_fast_mode: bool = False):
+        self.data = data
+        self.use_fast_mode = use_fast_mode
+    
+    def process(self):
+        if self.use_fast_mode:
+            return self._fast_process()
+        else:
+            return self._slow_process()
+```
+
+**✅ Prefer:**
+```python
+ProcessingStrategy = Callable[[List[str]], Any]
+
+def fast_strategy(data: List[str]) -> Any:
+    # Fast processing implementation
+    pass
+
+def thorough_strategy(data: List[str]) -> Any:
+    # Thorough processing implementation
+    pass
+
+class MyProcessor:
+    def __init__(self, data: List[str], strategy: ProcessingStrategy = thorough_strategy):
+        self.data = data
+        self.strategy = strategy
+    
+    def process(self):
+        return self.strategy(self.data)
+```
+
+**Benefits:**
+- **Extensibility**: Easy to add new strategies without modifying existing code
+- **Testability**: Each strategy can be tested independently
+- **Single Responsibility**: Each strategy focuses on one approach
+- **Open/Closed Principle**: Open for extension, closed for modification
+- **Clear Intent**: Strategy names are more descriptive than boolean flags
+
+**Example in Codebase:**
+See `AggregateCSVVisitor` in `common/src/python/inputs/csv_reader.py` which uses `strategy_builder` parameter with `short_circuit_strategy` and `visit_all_strategy` functions instead of a `short_circuit: bool` flag.
+
 ## Package Distribution
 
 Distributions are built as both wheel (`.whl`) and source (`.tar.gz`) formats and placed in the `dist/` directory.
