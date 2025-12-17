@@ -1,12 +1,11 @@
 """Defines Attribute Curator."""
 
-import json
+import csv
 import logging
 from typing import MutableMapping, Optional
 
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import GearExecutionError
 
 from .form_curator import FormCurator
 
@@ -46,7 +45,12 @@ def run(
 
     if curator.failed_files:
         failed_files = curator.failed_files.copy()
-        log.error(json.dumps(failed_files, indent=4))
-        raise GearExecutionError(
-            f"Failed to curate {len(failed_files)} files, see above error logs"
-        )
+
+        with context.open_output(
+            "curation-failures.csv", mode="w", encoding="utf-8"
+        ) as fh:
+            writer = csv.DictWriter(fh, fieldnames=failed_files[0].keys())
+            writer.writeheader()
+            writer.writerows(failed_files)
+
+        log.error(f"Failed to curate {len(failed_files)} files, see error logs")

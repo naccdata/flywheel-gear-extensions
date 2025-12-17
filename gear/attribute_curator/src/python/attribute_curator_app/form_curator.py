@@ -254,7 +254,12 @@ class FormCurator(Curator):
         # check this file actually passed QC
         if not self.__ignore_qc and not self.check_qc(table, scope):
             log.error(f"File {file_entry.name} did not pass QC; skipping")
-            self.__failed_files[file_entry.name] = "failed QC"
+
+            # remove tag if in file_entry
+            if self.curation_tag in file_entry.tags:
+                file_entry.delete_tag(self.curation_tag)
+
+            self.__failed_files[f"{file_entry.name}-{file_entry.file_id}"] = "failed QC"
             return False
 
         try:
@@ -338,7 +343,10 @@ class FormCurator(Curator):
 
         # 1/2: subject-level curations - return if this fails
         if not self.subject_level_curation(subject, subject_table, scoped_files):
-            log.debug(f"Failed subject level curation for {subject.label}, will not apply curation")
+            log.debug(
+                f"Failed subject level curation for {subject.label}, "
+                + "will not apply curation"
+            )
             return
 
         # 3. push subject metadata; need to replace due to potentially
@@ -494,7 +502,8 @@ class FormCurator(Curator):
                 file_info = file.file_info
                 if not file_info:
                     raise ProjectCurationError(
-                        "Cannot back-propogate scope; processed file missing file_info")
+                        "Cannot back-propogate scope; processed file missing file_info"
+                    )
 
                 if "derived" not in file_info:
                     file_info["derived"] = {}
@@ -516,7 +525,8 @@ class FormCurator(Curator):
 
         if not file_info:
             raise ProjectCurationError(
-                "Cannot apply file curation to FW; processed file missing file_info")
+                "Cannot apply file curation to FW; processed file missing file_info"
+            )
 
         # collect metadata into a single API call
         updated_info = {}

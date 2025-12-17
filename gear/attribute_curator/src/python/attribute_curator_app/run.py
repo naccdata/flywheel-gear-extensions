@@ -37,7 +37,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         force_curate: bool = False,
         rxclass_concepts_s3_uri: Optional[str] = None,
         max_num_workers: int = 4,
-        ignore_qc: bool = False
+        ignore_qc: bool = False,
     ):
         super().__init__(client=client)
         self.__project = project
@@ -80,8 +80,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         rxclass_concepts_s3_uri = context.config.get("rxclass_concepts_s3_uri", "")
         ignore_qc = context.config.get("ignore_qc", False)
 
-        #fw_project = get_project_from_destination(context=context, proxy=proxy)
-        fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
+        fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         if context.config.get("debug", False):
@@ -136,7 +135,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             force_curate=self.__force_curate,
             max_num_workers=self.__max_num_workers,
             rxclass_concepts=rxclass_concepts,
-            ignore_qc=self.__ignore_qc
+            ignore_qc=self.__ignore_qc,
         )
 
 
