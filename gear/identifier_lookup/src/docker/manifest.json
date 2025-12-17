@@ -1,7 +1,7 @@
 {
     "name": "identifier-lookup",
     "label": "Identifier Lookup",
-    "description": "Gear to look up participant identifiers for incoming data",
+    "description": "Gear to look up participant identifiers for incoming data and log submission events when QC logging is enabled",
     "version": "2.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
@@ -90,6 +90,11 @@
             "description": "S3 bucket name for event logs",
             "type": "string",
             "default": "nacc-event-logs"
+        },
+        "module": {
+            "description": "Module name for form processing (optional, can be inferred from filename)",
+            "type": "string",
+            "optional": true
         }
     },
     "command": "/bin/run"
