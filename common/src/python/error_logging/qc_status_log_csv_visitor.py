@@ -1,4 +1,4 @@
-"""CSV visitor for QC status log creation in submission logger."""
+"""CSV visitor for QC status log creation."""
 
 import logging
 from typing import Any, Optional

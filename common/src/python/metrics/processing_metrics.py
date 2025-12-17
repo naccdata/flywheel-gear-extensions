@@ -36,7 +36,7 @@ class ProcessingMetrics:
         from datetime import datetime
 
         self.processing_start_time = datetime.now()
-        log.info("Starting submission logger processing for single input file")
+        log.info("Starting processing for single input file")
 
     def end_processing(self):
         """Mark the end of single-file processing."""
@@ -102,7 +102,7 @@ class ProcessingMetrics:
         duration = self.get_processing_duration()
 
         log.info("=" * 60)
-        log.info("SUBMISSION LOGGER PROCESSING SUMMARY")
+        log.info("PROCESSING SUMMARY")
         log.info("=" * 60)
         log.info(f"Single File Processing Duration: {duration:.2f} seconds")
         log.info(f"Visits Found in Input File: {self.visits_found}")

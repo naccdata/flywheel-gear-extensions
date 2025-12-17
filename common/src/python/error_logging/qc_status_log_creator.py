@@ -1,4 +1,4 @@
-"""QC Status Log Creator and File Visit Annotator for submission logger."""
+"""QC Status Log Creator and File Visit Annotator."""
 
 import logging
 from typing import Any, Optional
@@ -20,7 +20,7 @@ class FileVisitAnnotator:
     """Annotates QC status log files with visit metadata.
 
     Each QC status log file corresponds to a specific visit found during
-    single-file processing by the submission logger gear.
+    single-file processing.
     """
 
     def __init__(self, project: ProjectAdaptor):
