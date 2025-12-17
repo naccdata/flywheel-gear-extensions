@@ -96,20 +96,20 @@ class AggregateCSVVisitor(CSVVisitor):
         if self.__short_circuit:
             # Original behavior: short-circuit on first failure
             return all(visitor.visit_row(row, line_num) for visitor in self.__visitors)
-        else:
-            # Non-short-circuiting: call all visitors regardless of failures
-            results = []
-            for visitor in self.__visitors:
-                try:
-                    result = visitor.visit_row(row, line_num)
-                    results.append(result)
-                except Exception as error:
-                    log.error(
-                        f"Error in visitor {visitor.__class__.__name__} "
-                        f"for row {line_num}: {error}"
-                    )
-                    results.append(False)
-            return all(results)
+
+        # Non-short-circuiting: call all visitors regardless of failures
+        results = []
+        for visitor in self.__visitors:
+            try:
+                result = visitor.visit_row(row, line_num)
+                results.append(result)
+            except Exception as error:
+                log.error(
+                    f"Error in visitor {visitor.__class__.__name__} "
+                    f"for row {line_num}: {error}"
+                )
+                results.append(False)
+        return all(results)
 
     def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Checks that the row is valid.
