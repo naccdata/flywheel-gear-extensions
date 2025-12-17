@@ -69,11 +69,10 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
 
     # Create both visitors
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )
@@ -195,11 +194,10 @@ def test_error_propagation_maintains_processing_order():
     mock_qc_creator.update_qc_log.return_value = True
 
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )
@@ -294,11 +292,10 @@ def test_short_circuit_strategy_stops_on_first_failure():
     mock_qc_creator.update_qc_log.return_value = True
 
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )

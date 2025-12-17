@@ -125,11 +125,10 @@ class TestIdentifierLookup:
         success = run(
             input_file=empty_data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                adcid=1,
                 identifiers=identifiers_map,
                 output_file=out_stream,
                 module_name="dummy-module",
-                module_configs=uds_ingest_configs(),
+                required_fields=uds_ingest_configs().required_fields,
                 error_writer=error_writer,
                 misc_errors=misc_errors,
             ),
@@ -149,11 +148,10 @@ class TestIdentifierLookup:
         success = run(
             input_file=no_header_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                adcid=1,
                 identifiers=identifiers_map,
                 output_file=out_stream,
                 module_name="dummy-module",
-                module_configs=uds_ingest_configs(),
+                required_fields=uds_ingest_configs().required_fields,
                 error_writer=error_writer,
                 misc_errors=misc_errors,
             ),
@@ -173,11 +171,10 @@ class TestIdentifierLookup:
         success = run(
             input_file=no_ids_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                adcid=1,
                 identifiers=identifiers_map,
                 output_file=out_stream,
                 module_name="dummy-module",
-                module_configs=uds_ingest_configs(),
+                required_fields=uds_ingest_configs().required_fields,
                 error_writer=error_writer,
                 misc_errors=misc_errors,
             ),
@@ -197,11 +194,10 @@ class TestIdentifierLookup:
         success = run(
             input_file=data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                adcid=1,
                 identifiers=identifiers_map,
                 output_file=out_stream,
                 module_name="dummy-module",
-                module_configs=uds_ingest_configs(),
+                required_fields=uds_ingest_configs().required_fields,
                 error_writer=error_writer,
                 misc_errors=misc_errors,
             ),
@@ -230,10 +226,9 @@ class TestIdentifierLookup:
             input_file=data_stream,
             lookup_visitor=NACCIDLookupVisitor(
                 identifiers=mismatched_identifiers_map,
-                adcid=1,
                 output_file=out_stream,
                 module_name="dummy-module",
-                module_configs=uds_ingest_configs(),
+                required_fields=uds_ingest_configs().required_fields,
                 error_writer=error_writer,
                 misc_errors=misc_errors,
             ),
@@ -242,3 +237,87 @@ class TestIdentifierLookup:
         assert not success
         assert empty(out_stream)
         assert error_writer.errors()
+
+    def test_data_without_required_fields_validation(
+        self, data_stream: StringIO, identifiers_map: dict[Any, Any]
+    ):
+        """Test case where identifier lookup works without required fields
+        validation.
+
+        This simulates the case where no module config file is provided,
+        so no required fields validation is performed.
+        """
+        out_stream = StringIO()
+        misc_errors: List[FileError] = []
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
+        success = run(
+            input_file=data_stream,
+            lookup_visitor=NACCIDLookupVisitor(
+                identifiers=identifiers_map,
+                output_file=out_stream,
+                module_name="unknown",  # No specific module when no config
+                required_fields=None,  # No required fields validation
+                error_writer=error_writer,
+                misc_errors=misc_errors,
+                validator=None,  # No validator when no config
+            ),
+            error_writer=error_writer,
+        )
+        assert success
+        assert not error_writer.errors()
+        assert not empty(out_stream)
+        out_stream.seek(0)
+        reader = csv.DictReader(out_stream, dialect="unix")
+        assert reader.fieldnames
+        assert "naccid" in reader.fieldnames
+        row = next(reader)
+        assert row["naccid"] == "NACC000001"
+        assert row["module"] == "unknown"  # Module name when no config
+        row = next(reader)
+        assert row["naccid"] == "NACC000002"
+        assert row["module"] == "unknown"
+
+    def test_data_with_minimal_headers_no_validation(
+        self, identifiers_map: dict[Any, Any]
+    ):
+        """Test case with minimal headers (just ptid, adcid) and no validation.
+
+        This tests that identifier lookup works with just the essential
+        fields when no module config file is provided.
+        """
+        # Create minimal CSV with just the essential fields
+        minimal_data: List[List[str | int]] = [
+            ["adcid", "ptid"],  # Minimal header
+            [1, "1"],
+            [1, "2"],
+        ]
+        minimal_stream = StringIO()
+        write_to_stream(minimal_data, minimal_stream)
+
+        out_stream = StringIO()
+        misc_errors: List[FileError] = []
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy-path")
+        success = run(
+            input_file=minimal_stream,
+            lookup_visitor=NACCIDLookupVisitor(
+                identifiers=identifiers_map,
+                output_file=out_stream,
+                module_name="unknown",
+                required_fields=None,  # No required fields validation
+                error_writer=error_writer,
+                misc_errors=misc_errors,
+                validator=None,  # No validator
+            ),
+            error_writer=error_writer,
+        )
+        assert success
+        assert not error_writer.errors()
+        assert not empty(out_stream)
+        out_stream.seek(0)
+        reader = csv.DictReader(out_stream, dialect="unix")
+        assert reader.fieldnames
+        assert "naccid" in reader.fieldnames
+        assert "module" in reader.fieldnames
+        row = next(reader)
+        assert row["naccid"] == "NACC000001"
+        assert row["module"] == "unknown"

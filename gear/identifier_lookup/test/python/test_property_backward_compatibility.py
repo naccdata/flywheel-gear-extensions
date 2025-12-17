@@ -119,11 +119,10 @@ def capture_naccid_lookup_behavior(
     success = run(
         input_file=input_stream,
         lookup_visitor=NACCIDLookupVisitor(
-            adcid=1,
             identifiers=identifiers_map,
             output_file=out_stream,
             module_name="uds",
-            module_configs=uds_ingest_configs(),
+            required_fields=uds_ingest_configs().required_fields,
             error_writer=error_writer,
             misc_errors=misc_errors,
         ),

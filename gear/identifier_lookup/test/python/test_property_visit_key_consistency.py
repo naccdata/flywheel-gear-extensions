@@ -163,13 +163,11 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
     mock_qc_creator.update_qc_log.return_value = True
 
     # Create visitors
-    adcid: int = csv_data[0]["adcid"]  # type: ignore[assignment]
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=adcid,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )

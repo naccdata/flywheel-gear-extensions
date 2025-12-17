@@ -90,11 +90,10 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )
@@ -227,11 +226,10 @@ def test_qc_visitor_usage_with_identifier_lookup():
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )

@@ -71,11 +71,10 @@ def test_naccid_lookup_visitor_separation_of_concerns():
 
     # Create visitor without QC-related dependencies
     visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
         misc_errors=misc_errors,
     )
@@ -182,11 +181,10 @@ def test_naccid_lookup_visitor_error_handling_without_qc():
 
     # Create visitor
     visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
         misc_errors=misc_errors,
     )

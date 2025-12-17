@@ -59,11 +59,10 @@ def test_visitor_coordination_success_case():
 
     # Create visitors with shared error writer
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )
@@ -178,11 +177,10 @@ def test_visitor_coordination_failure_case():
 
     # Create visitors with shared error writer
     identifier_visitor = NACCIDLookupVisitor(
-        adcid=1,
         identifiers=identifiers,
         output_file=output_stream,
         module_name="test",
-        module_configs=uds_ingest_configs(),
+        required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
         misc_errors=misc_errors,
     )
