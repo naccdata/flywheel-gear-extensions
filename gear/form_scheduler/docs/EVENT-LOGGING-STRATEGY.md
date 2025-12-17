@@ -41,7 +41,7 @@ else:
     log_event("not-pass-qc", timestamp=now())
 ```
 
-**Note**: Submit events are handled by separate submission-logger gear, not by form-scheduler.
+**Note**: Submit events are handled by identifier-lookup gear, not by form-scheduler.
 
 ## No Duplicate Prevention Needed
 
@@ -159,7 +159,7 @@ class FormSchedulerQueue:
 
 ```
 1. User uploads CSV
-   - submit event logged by submission-logger gear
+   - submit event logged by identifier-lookup gear
 2. Form-scheduler pipeline runs
    - All gears pass
    - Events logged by form-scheduler:
@@ -170,7 +170,7 @@ class FormSchedulerQueue:
 
 ```
 1. User uploads CSV
-   - submit event logged by submission-logger gear
+   - submit event logged by identifier-lookup gear
 2. Form-scheduler pipeline runs
    - Some gear fails
    - Events logged by form-scheduler:
@@ -181,7 +181,7 @@ class FormSchedulerQueue:
 
 ```
 1. User uploads CSV
-   - submit event logged by submission-logger gear
+   - submit event logged by identifier-lookup gear
 2. Form-scheduler pipeline runs (initial)
    - QC alerts found
    - Events logged by form-scheduler:
@@ -223,6 +223,6 @@ The form-scheduler event logging strategy is simple and focused:
 - **Outcome events only**: Form-scheduler logs pass-qc and not-pass-qc events
 - **After pipeline completion**: Events logged when pipeline finishes processing
 - **QC metadata source**: Uses QC log files to determine success/failure
-- **Separation of concerns**: Submit events handled by separate submission-logger gear
+- **Separation of concerns**: Submit events handled by identifier-lookup gear
 
 This approach ensures reliable outcome event logging without interfering with pipeline execution.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The form-scheduler gear logs visit outcome events (pass-qc, not-pass-qc) after pipeline completion by reading QC metadata from qc-status log files. Submit events are handled separately by the submission-logger gear.
+The form-scheduler gear logs visit outcome events (pass-qc, not-pass-qc) after pipeline completion by reading QC metadata from qc-status log files. Submit events are handled separately by the identifier-lookup gear.
 
 This document explains how event logging works for developers unfamiliar with the system.
 
@@ -20,7 +20,7 @@ The form-scheduler gear logs two types of outcome events:
   - Scraped from qc-status log files
   - Uses completion timestamp
 
-**Note**: Submit events are handled by a separate submission-logger gear, not by form-scheduler.
+**Note**: Submit events are handled by the identifier-lookup gear, not by form-scheduler.
 
 ## Key Concepts
 
@@ -128,7 +128,7 @@ The `VisitorEventAccumulator` class in form-scheduler:
 
 ```mermaid
 flowchart TD
-    A[CSV File Uploaded] --> B[submission_logger Triggered]
+    A[CSV File Uploaded] --> B[identifier_lookup Triggered]
     B --> C[Log submit Event]
     C --> D[Create/Update qc-status Log]
     
@@ -326,7 +326,7 @@ Events use different timestamps to reflect when actions actually occurred:
 
 When a visit passes QC:
 
-- **submit event**: Logged by submission-logger gear when file is uploaded
+- **submit event**: Logged by identifier-lookup gear when file is uploaded
 - **pass-qc event**: Logged by form-scheduler gear when pipeline completes successfully
   - **Requirements**: ALL gears have status="PASS" in QC metadata
 
@@ -334,7 +334,7 @@ When a visit passes QC:
 
 When a visit fails QC:
 
-- **submit event**: Logged by submission-logger gear when file is uploaded
+- **submit event**: Logged by identifier-lookup gear when file is uploaded
 - **not-pass-qc event**: Logged by form-scheduler gear when pipeline completes with errors
   - **Triggers**: Any gear has status != "PASS" in QC metadata
 
@@ -398,7 +398,7 @@ if self.__event_accumulator:
 
 ## Key Design Principles
 
-1. **Separation of concerns**: Submit events (submission_logger) separate from outcome events (form-scheduler)
+1. **Separation of concerns**: Submit events (identifier-lookup) separate from outcome events (form-scheduler)
 2. **Non-invasive**: Event logging doesn't change pipeline execution
 3. **QC log as source of truth**: qc-status log files track QC status throughout pipeline
 4. **Visitor pattern**: Flexible traversal of QC metadata without hardcoding gear names
@@ -539,7 +539,7 @@ Event logging in form-scheduler focuses on outcome events after pipeline complet
 - **Robust error handling**: Event logging failures don't break pipeline execution
 
 **Key Points:**
-- Submit events are handled by separate submission-logger gear
+- Submit events are handled by identifier-lookup gear
 - QC log files at PROJECT level serve as single source of truth for QC status
 - Events logged after pipeline completes using completion timestamp
 - Uses FileQCModel.get_file_status() to determine overall QC outcome

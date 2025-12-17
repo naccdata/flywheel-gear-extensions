@@ -194,7 +194,7 @@ Each event file contains a single JSON object representing one visit event.
 
 Indicates a visit was submitted for processing.
 
-**Note**: Submit events are handled by submission-logger gear, not form-scheduler.
+**Note**: Submit events are handled by identifier-lookup gear, not form-scheduler.
 
 **Timestamp**: When the file was uploaded to Flywheel
 
@@ -324,7 +324,7 @@ Indicates a visit was deleted from the system.
 
 For a new visit that passes QC immediately:
 
-1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
 2. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
 
 Events logged by different gears at different times.
@@ -333,7 +333,7 @@ Events logged by different gears at different times.
 
 For a new visit that fails QC:
 
-1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
 2. **not-pass-qc** event (timestamp = failure time) - *logged by form-scheduler gear*
 
 Events logged by different gears at different times.
@@ -343,20 +343,20 @@ Events logged by different gears at different times.
 For a visit that was blocked on a dependency (e.g., UDS packet) and later re-evaluated:
 
 **Initial submission** (UDS packet not yet cleared):
-- **submit** event logged by submission-logger gear
+- **submit** event logged by identifier-lookup gear
 - No outcome events (visit blocked, not processed by form-scheduler)
 
 **After dependency cleared** (separate form-scheduler job):
 1. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
 
-Only the outcome event is logged by form-scheduler; the submit event was already logged by submission-logger when first uploaded.
+Only the outcome event is logged by form-scheduler; the submit event was already logged by identifier-lookup when first uploaded.
 
 ### Deferred QC Approval
 
 For a visit with QC alerts that are later approved:
 
 **Initial submission**:
-1. **submit** event (timestamp = upload time) - *logged by submission-logger gear*
+1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
 2. **not-pass-qc** event (timestamp = completion time with alerts) - *logged by form-scheduler gear*
 
 **After approval** (separate form-scheduler job):

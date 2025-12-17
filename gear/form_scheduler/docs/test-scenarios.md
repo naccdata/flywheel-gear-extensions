@@ -9,8 +9,8 @@ The purpose of this file is to document the design of tests for the EventAccumul
 - **Purpose**: Logs `pass-qc` and `not-pass-qc` events after pipeline completion by reading QC-status files
 - **Integration**: Called by `FormSchedulerQueue._log_pipeline_events()` after each pipeline completes
 - **Data Source**: Reads `file.info.qc` metadata using `FileQCModel` structure from nacc-common
-- **Events**: Only handles outcome events (`pass-qc`, `not-pass-qc`). Submit events are handled by separate submission-logger gear.
-- **Scope**: This document focuses only on testing the EventAccumulator in form-scheduler, not the submission-logger gear.
+- **Events**: Only handles outcome events (`pass-qc`, `not-pass-qc`). Submit events are handled by identifier-lookup gear.
+- **Scope**: This document focuses only on testing the EventAccumulator in form-scheduler, not the identifier-lookup gear.
 
 ### Pipeline Integration Point
 ```python
