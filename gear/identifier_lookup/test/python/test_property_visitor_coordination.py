@@ -14,7 +14,11 @@ from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
-from inputs.csv_reader import AggregateCSVVisitor
+from inputs.csv_reader import (
+    AggregateCSVVisitor,
+    short_circuit_strategy,
+    visit_all_strategy,
+)
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
@@ -77,7 +81,7 @@ def test_visitor_coordination_success_case():
 
     # Create aggregate visitor with non-short-circuiting behavior
     aggregate_visitor = AggregateCSVVisitor(
-        [identifier_visitor, qc_visitor], short_circuit=False
+        [identifier_visitor, qc_visitor], strategy_builder=short_circuit_strategy
     )
 
     # Create CSV data
@@ -197,7 +201,7 @@ def test_visitor_coordination_failure_case():
 
     # Create aggregate visitor with non-short-circuiting behavior
     aggregate_visitor = AggregateCSVVisitor(
-        [identifier_visitor, qc_visitor], short_circuit=False
+        [identifier_visitor, qc_visitor], strategy_builder=visit_all_strategy
     )
 
     # Create CSV data with invalid PTIDs

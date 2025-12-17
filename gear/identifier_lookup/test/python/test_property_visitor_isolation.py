@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
-from inputs.csv_reader import CSVVisitor
+from inputs.csv_reader import CSVVisitor, visit_all_strategy
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
@@ -104,7 +104,8 @@ def test_visitor_isolation_error_handling():
 
     # Test with failing visitor first, then succeeding visitor
     aggregate_visitor = AggregateCSVVisitor(
-        [identifier_visitor, failing_visitor, succeeding_visitor], short_circuit=False
+        [identifier_visitor, failing_visitor, succeeding_visitor],
+        strategy_builder=visit_all_strategy,
     )
 
     # Create CSV data
@@ -239,7 +240,9 @@ def test_visitor_isolation_state_independence():
     # Import and create aggregate visitor with non-short-circuiting behavior
     from inputs.csv_reader import AggregateCSVVisitor
 
-    aggregate_visitor = AggregateCSVVisitor([visitor_1, visitor_2], short_circuit=False)
+    aggregate_visitor = AggregateCSVVisitor(
+        [visitor_1, visitor_2], strategy_builder=visit_all_strategy
+    )
 
     # Create CSV data
     header = ["adcid", "ptid", "visitdate", "visitnum", "packet", "formver"]
