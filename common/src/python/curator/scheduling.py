@@ -4,7 +4,7 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from curator.curator import Curator, ProjectCurationError
 from data.dataview import ColumnModel, make_builder
@@ -58,9 +58,7 @@ def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
         if not file_model:
             continue
 
-        processed_file = curator.curate_file(
-            subject, subject_table, file_model.file_id
-        )
+        processed_file = curator.curate_file(subject, subject_table, file_model.file_id)
         if processed_file.file_info:
             processed_files.append(processed_file)
 

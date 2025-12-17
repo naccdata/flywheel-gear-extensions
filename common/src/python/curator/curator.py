@@ -3,7 +3,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional
 
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
@@ -13,7 +13,7 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
-from .scheduling_models import FileModel, ProcessedFile
+from .scheduling_models import ProcessedFile
 
 log = logging.getLogger(__name__)
 

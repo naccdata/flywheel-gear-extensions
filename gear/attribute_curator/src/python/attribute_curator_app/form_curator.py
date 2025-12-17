@@ -3,11 +3,11 @@ import importlib.metadata
 import logging
 import typing as typing
 from multiprocessing import Manager
-from multiprocessing.managers import DictProxy
+from multiprocessing.managers import ListProxy
 from typing import Any, Dict, List, MutableMapping, Optional
 
 from curator.curator import Curator, ProjectCurationError, determine_scope
-from curator.scheduling_models import ProcessedFile
+from curator.scheduling_models import ProcessedFile, generate_curation_failure
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import (
@@ -66,7 +66,7 @@ class FormCurator(Curator):
         self.__prev_record = None
         self.__prev_scope = None
 
-        self.__failed_files = Manager().dict()
+        self.__failed_files = Manager().list()
 
         # get expected cross-sectional derived variables by scope
         self.__scoped_variables = {
@@ -126,7 +126,7 @@ class FormCurator(Curator):
         ]
 
     @property
-    def failed_files(self) -> DictProxy:
+    def failed_files(self) -> ListProxy:
         return self.__failed_files
 
     def get_table(
@@ -259,7 +259,9 @@ class FormCurator(Curator):
             if self.curation_tag in file_entry.tags:
                 file_entry.delete_tag(self.curation_tag)
 
-            self.__failed_files[f"{file_entry.name}-{file_entry.file_id}"] = "failed QC"
+            self.__failed_files.append(
+                generate_curation_failure(file_entry, "failed_qc")
+            )
             return False
 
         try:
@@ -267,8 +269,9 @@ class FormCurator(Curator):
             self.__attribute_deriver.curate(table, scope)
             self.__file_missingness.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
-            self.__failed_files[file_entry.name] = str(e)
             log.error(f"Failed to curate {file_entry.name}: {e}")
+
+            self.__failed_files.append(generate_curation_failure(file_entry, str(e)))
             return False
 
         # keep track of the last succesful curation
@@ -396,11 +399,12 @@ class FormCurator(Curator):
             log.debug(f"Running cross-module curation for {subject.label}")
             self.__attribute_deriver.curate(table, FormScope.CROSS_MODULE.value)
         except (AttributeDeriverError, MissingRequiredError) as e:
-            self.__failed_files[subject.label] = str(e)
             log.error(
                 "Failed to apply cross-module curation to "
                 + f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}"
             )
+
+            self.__failed_files.append(generate_curation_failure(subject, str(e)))
             return False
 
         # 2. run subject-level missingness curation
@@ -416,11 +420,11 @@ class FormCurator(Curator):
                 )
                 self.__subject_missingness.curate(table, scope.value)
             except (AttributeDeriverError, MissingRequiredError) as e:
-                self.__failed_files[subject.label] = str(e)
                 log.error(
                     "Failed to apply subject-level missingness to "
                     + f"{subject.label} on scope {scope.value}: {e}"
                 )
+                self.__failed_files.append(generate_curation_failure(subject, str(e)))
                 return False
 
         return True

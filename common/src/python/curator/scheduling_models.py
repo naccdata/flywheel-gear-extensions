@@ -4,6 +4,8 @@ import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional
 
+from flywheel.models.file_entry import FileEntry
+from flywheel.models.subject import Subject
 from pydantic import BaseModel, field_validator
 
 VISIT_PATTERN = re.compile(
@@ -171,8 +173,11 @@ class ViewResponseModel(BaseModel):
 
 
 class ProcessedFile(BaseModel):
-    """Defines model for a processed file. Keeps track of the minimal file info
-    needed to interact with FW and curated file info (if successfully curated)"""
+    """Defines model for a processed file.
+
+    Keeps track of the minimal file info needed to interact with FW and
+    curated file info (if successfully curated)
+    """
 
     # unfortunately FW objects are not serializable so we cannot use FileEntry directly
     # minimally store name, file_id, and tags instead
@@ -180,3 +185,10 @@ class ProcessedFile(BaseModel):
     file_id: str
     tags: Optional[List[str]] = None
     file_info: Optional[Dict[str, Any]] = None
+
+
+def generate_curation_failure(
+    container: Subject | FileEntry, reason: str
+) -> Dict[str, str]:
+    """Creates a curation failure dict from either a subject or file."""
+    return {"name": container.name, "id": container.id, "reason": reason}

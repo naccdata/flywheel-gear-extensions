@@ -44,7 +44,7 @@ def run(
     scheduler.apply(curator=curator, context=context, max_num_workers=max_num_workers)
 
     if curator.failed_files:
-        failed_files = curator.failed_files.copy()
+        failed_files = list(curator.failed_files)
 
         with context.open_output(
             "curation-failures.csv", mode="w", encoding="utf-8"
