@@ -1,1 +1,0 @@
-"""Submission Logger application package."""

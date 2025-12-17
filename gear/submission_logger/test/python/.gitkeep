@@ -1,2 +1,0 @@
-# This file ensures the test/python directory is tracked by git
-# even when it might be empty during development
