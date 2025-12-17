@@ -77,6 +77,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         gear_name: str,
         preserve_case: bool,
         config_input: Optional[InputFileWrapper] = None,
+        environment: str,
+        event_bucket: str,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -86,6 +88,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
         self.__config_input = config_input
+        self.__environment = environment
+        self.__event_bucket = event_bucket
 
     @classmethod
     def create(
@@ -114,6 +118,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         direction = context.config.get("direction", "nacc")
         preserve_case = context.config.get("preserve_case", False)
         gear_name = context.manifest.get("name", "identifier-lookup")
+        environment = context.config.get("environment", "prod")
+        event_bucket = context.config.get("event_bucket", "nacc-event-logs")
 
         if config_input is None and direction == "nacc":
             raise GearExecutionError("form_configs_file required for 'nacc' direction")
@@ -127,6 +133,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             direction=direction,
             preserve_case=preserve_case,
             config_input=config_input,
+            environment=environment,
+            event_bucket=event_bucket,
         )
 
     def __build_naccid_lookup(

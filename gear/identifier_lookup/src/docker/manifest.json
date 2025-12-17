@@ -76,6 +76,20 @@
             "description": "Whether or not to preserve the case of the header keys in the input file",
             "type": "boolean",
             "default": true
+        },
+        "environment": {
+            "description": "Environment for event logging (prod or dev)",
+            "type": "string",
+            "default": "prod",
+            "enum": [
+                "prod",
+                "dev"
+            ]
+        },
+        "event_bucket": {
+            "description": "S3 bucket name for event logs",
+            "type": "string",
+            "default": "nacc-event-logs"
         }
     },
     "command": "/bin/run"
