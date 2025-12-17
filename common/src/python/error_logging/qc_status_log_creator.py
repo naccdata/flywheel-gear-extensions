@@ -4,8 +4,7 @@ import logging
 from typing import Any, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import FileErrorList, VisitKeys
-from outputs.error_writer import ListErrorWriter
+from nacc_common.error_models import FileErrorList, QCStatus, VisitKeys
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -130,7 +129,7 @@ class QCStatusLogManager:
         visit_keys: VisitKeys,
         project: ProjectAdaptor,
         gear_name: str,
-        status: str,
+        status: QCStatus,
         errors: FileErrorList,
         reset_qc_metadata: MetadataCleanupFlag = "NA",
         add_visit_metadata: bool = False,
@@ -207,36 +206,6 @@ class QCStatusLogManager:
             log.error(f"Failed to update QC status log: {error_log_name}")
 
         return success
-
-    def create_qc_log(
-        self,
-        visit_keys: VisitKeys,
-        project: ProjectAdaptor,
-        gear_name: str,
-        error_writer: ListErrorWriter,
-    ) -> bool:
-        """Creates initial QC status log file at project level.
-
-        This is a convenience method that calls update_qc_log with creation defaults.
-
-        Args:
-            visit_keys: Visit identification information
-            project: Project adaptor for file operations
-            gear_name: Name of the gear creating the log
-            error_writer: Error writer for tracking any issues
-
-        Returns:
-            True if QC log creation was successful, False otherwise
-        """
-        return self.update_qc_log(
-            visit_keys=visit_keys,
-            project=project,
-            gear_name=gear_name,
-            status="PASS",
-            errors=error_writer.errors(),
-            reset_qc_metadata="ALL",
-            add_visit_metadata=True,
-        )
 
     def get_qc_log_filename(self, visit_keys: VisitKeys) -> Optional[str]:
         """Get the QC status log filename for a visit without creating it.

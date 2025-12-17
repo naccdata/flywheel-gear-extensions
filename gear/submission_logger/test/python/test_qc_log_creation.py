@@ -285,11 +285,14 @@ class TestQCLogCreation:
             )
 
             # Create QC log
-            success = qc_log_creator.create_qc_log(
+            success = qc_log_creator.update_qc_log(
                 visit_keys=visit_keys,
                 project=mock_project,
                 gear_name="test-gear",
-                error_writer=mock_error_writer,
+                errors=mock_error_writer.errors(),
+                status="PASS",
+                reset_qc_metadata="ALL",
+                add_visit_metadata=True,
             )
 
             # Verify success
@@ -335,11 +338,14 @@ class TestQCLogCreation:
         mock_error_writer.errors.return_value = FileErrorList(root=[])
 
         # Create QC log
-        success = qc_log_creator.create_qc_log(
+        success = qc_log_creator.update_qc_log(
             visit_keys=visit_keys,
             project=mock_project,
             gear_name="test-gear",
-            error_writer=mock_error_writer,
+            errors=mock_error_writer.errors(),
+            status="PASS",
+            reset_qc_metadata="ALL",
+            add_visit_metadata=True,
         )
 
         # Should fail due to missing date
