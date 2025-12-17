@@ -40,10 +40,4 @@ if [ -n "$LATEST_PY_VERSION" ]; then
     echo "Created .venv/bin symlink pointing to Python $LATEST_PY_VERSION"
 else
     echo "Warning: Could not find Python version directory in .venv"
-fi$' | sort -V | tail -1)
-if [ -n "$LATEST_PY_VERSION" ]; then
-    ln -snf "$LATEST_PY_VERSION/bin" ./.venv/bin
-    echo "Created .venv/bin symlink pointing to Python $LATEST_PY_VERSION"
-else
-    echo "Warning: Could not find Python version directory in .venv"
 fi
