@@ -1,7 +1,7 @@
 """CSV visitor for QC status log creation in submission logger."""
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -25,6 +25,8 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         qc_log_creator: QCStatusLogManager,
         gear_name: str,
         error_writer: ListErrorWriter,
+        determine_status_from_errors: bool = False,
+        module_name: Optional[str] = None,
     ) -> None:
         """Initialize QC CSV visitor.
 
@@ -34,12 +36,19 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             qc_log_creator: QC status log creator
             gear_name: Name of the gear
             error_writer: Error writer for tracking issues
+            determine_status_from_errors: If True, determine QC status based on
+                error writer state (FAIL if errors, PASS if no errors).
+                If False, always use PASS status (default behavior).
+            module_name: Optional module name to use when MODULE field is not
+                present in the row. If None, uses row.get(FieldNames.MODULE).
         """
         self.__module_configs = module_configs
         self.__project = project
         self.__qc_log_creator = qc_log_creator
         self.__gear_name = gear_name
         self.__error_writer = error_writer
+        self.__determine_status_from_errors = determine_status_from_errors
+        self.__module_name = module_name
         self.__processed_visits: list[VisitKeys] = []
 
     def visit_header(self, header: list[str]) -> bool:
@@ -72,13 +81,36 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         # Store visit keys for later file metadata enhancement
         self.__processed_visits.append(visit_keys)
 
-        # Create QC status log for this visit
-        qc_success = self.__qc_log_creator.create_qc_log(
-            visit_keys=visit_keys,
-            project=self.__project,
-            gear_name=self.__gear_name,
-            error_writer=self.__error_writer,
-        )
+        # Determine QC status based on configuration
+        if self.__determine_status_from_errors:
+            # Determine status based on error writer state
+            has_errors = len(self.__error_writer.errors().root) > 0
+            qc_status = "FAIL" if has_errors else "PASS"
+
+            log.debug(
+                f"QC status determination for visit ptid={visit_keys.ptid}, "
+                f"date={visit_keys.date}: {qc_status} "
+                f"(errors: {len(self.__error_writer.errors().root)})"
+            )
+
+            # Create QC status log with determined status
+            qc_success = self.__qc_log_creator.update_qc_log(
+                visit_keys=visit_keys,
+                project=self.__project,
+                gear_name=self.__gear_name,
+                status=qc_status,
+                errors=self.__error_writer.errors(),
+                reset_qc_metadata="ALL",
+                add_visit_metadata=True,
+            )
+        else:
+            # Default behavior: use create_qc_log (always PASS status)
+            qc_success = self.__qc_log_creator.create_qc_log(
+                visit_keys=visit_keys,
+                project=self.__project,
+                gear_name=self.__gear_name,
+                error_writer=self.__error_writer,
+            )
 
         if not qc_success:
             log.warning(
@@ -102,11 +134,17 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         """
         date_field = self.__module_configs.date_field
 
+        # Determine module name: use provided module_name or get from row
+        if self.__module_name:
+            module = self.__module_name.upper()
+        else:
+            module = row.get(FieldNames.MODULE, "").upper()
+
         return VisitKeys(
             ptid=row.get(FieldNames.PTID),
             date=row.get(date_field),
             visitnum=row.get(FieldNames.VISITNUM),
-            module=row.get(FieldNames.MODULE, "").upper(),
+            module=module,
             adcid=int(row[FieldNames.ADCID]) if row.get(FieldNames.ADCID) else None,
         )
 
