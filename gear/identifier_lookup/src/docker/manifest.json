@@ -95,6 +95,11 @@
             "description": "Module name for form processing (optional, can be inferred from filename)",
             "type": "string",
             "optional": true
+        },
+        "single_center": {
+            "description": "Whether the gear is being run in a pipeline for a single center (enables center validation)",
+            "type": "boolean",
+            "default": true
         }
     },
     "command": "/bin/run"
