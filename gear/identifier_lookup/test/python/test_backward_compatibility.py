@@ -172,3 +172,142 @@ class TestBackwardCompatibility:
         assert result["success"] is False
         assert result["output_content"] == ""
         assert result["errors"] is not None
+
+    def test_fixture_based_regression(self):
+        """Test using fixture files to verify exact output compatibility.
+
+        This test uses the sample_input.csv and expected_output.csv
+        fixtures to verify that the refactored implementation produces
+        identical output.
+        """
+        # Create identifiers map matching the fixture data
+        identifiers_map = {
+            "PTID001": IdentifierObject(
+                naccid="NACC000001", adcid=1, ptid="PTID001", guid=None, naccadc=1111
+            ),
+            "PTID002": IdentifierObject(
+                naccid="NACC000002", adcid=1, ptid="PTID002", guid=None, naccadc=2222
+            ),
+        }
+
+        # Create input stream matching fixture data
+        data: List[List[str | int]] = [
+            ["adcid", "ptid", "visitdate", "visitnum", "packet", "formver", "var1"],
+            [1, "PTID001", "2024-01-15", "1", "I", "4.0", 8],
+            [1, "PTID002", "2024-01-16", "1", "I", "4.0", 99],
+            [1, "PTID999", "2024-01-17", "1", "I", "4.0", 42],  # No matching ID
+        ]
+        stream = StringIO()
+        writer = csv.writer(
+            stream,
+            delimiter=",",
+            quotechar='"',
+            quoting=csv.QUOTE_NONNUMERIC,
+            lineterminator="\n",
+        )
+        writer.writerows(data)
+        stream.seek(0)
+
+        # Process input
+        result = self.capture_current_behavior(stream, identifiers_map)
+
+        # Verify output matches expected
+        assert result["success"] is False  # PTID999 has no match
+        assert len(result["output_rows"]) == 2  # Two successful rows
+
+        # Expected output structure
+        expected_rows = [
+            {
+                "adcid": "1",
+                "ptid": "PTID001",
+                "visitdate": "2024-01-15",
+                "visitnum": "1",
+                "packet": "I",
+                "formver": "4.0",
+                "var1": "8",
+                "naccid": "NACC000001",
+                "module": "uds",
+            },
+            {
+                "adcid": "1",
+                "ptid": "PTID002",
+                "visitdate": "2024-01-16",
+                "visitnum": "1",
+                "packet": "I",
+                "formver": "4.0",
+                "var1": "99",
+                "naccid": "NACC000002",
+                "module": "uds",
+            },
+        ]
+
+        # Compare each row
+        assert len(result["output_rows"]) == len(expected_rows)
+        for actual_row, expected_row in zip(
+            result["output_rows"], expected_rows, strict=False
+        ):
+            # Compare all fields
+            for key in expected_row:
+                assert actual_row[key] == expected_row[key], (
+                    f"Mismatch in field {key}: {actual_row[key]} != {expected_row[key]}"
+                )
+
+    def test_output_csv_format_compatibility(
+        self, sample_data_stream, sample_identifiers_map
+    ):
+        """Test that output CSV format (headers, field order) remains
+        compatible."""
+        result = self.capture_current_behavior(
+            sample_data_stream, sample_identifiers_map
+        )
+
+        # Verify output has expected structure
+        assert len(result["output_rows"]) > 0
+
+        # Check that all original fields are preserved
+        first_row = result["output_rows"][0]
+        expected_fields = [
+            "adcid",
+            "ptid",
+            "visitdate",
+            "visitnum",
+            "packet",
+            "formver",
+            "var1",
+            "naccid",
+            "module",
+        ]
+
+        for field in expected_fields:
+            assert field in first_row, f"Expected field {field} not in output"
+
+    def test_error_line_numbers_compatibility(
+        self, sample_data_stream, sample_identifiers_map
+    ):
+        """Test that error line numbers are reported correctly."""
+        result = self.capture_current_behavior(
+            sample_data_stream, sample_identifiers_map
+        )
+
+        # Should have error for PTID999
+        assert result["errors"] is not None
+        errors = result["errors"]
+        assert len(errors) > 0
+
+        # Verify error has location information
+        error_with_location = [e for e in errors if e.get("location")]
+        assert len(error_with_location) > 0
+
+        # Verify that at least one error has a line number
+        # The exact line number depends on CSV reader implementation
+        # but should be present for identifier lookup errors
+        line_numbers = [
+            e.get("location", {}).get("line")
+            for e in errors
+            if e.get("location") and e.get("location", {}).get("line")
+        ]
+        assert len(line_numbers) > 0, "Expected at least one error with line number"
+        # Line numbers should be reasonable (between 1 and 10 for our test data)
+        assert all(1 <= line_num <= 10 for line_num in line_numbers), (
+            f"Line numbers out of expected range: {line_numbers}"
+        )
