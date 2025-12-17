@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
+from error_logging.error_logger import ErrorLogTemplate
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
+)
+from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -24,7 +30,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
 from identifiers.model import IdentifierObject, IdentifiersMode
-from inputs.csv_reader import CSVVisitor
+from inputs.csv_reader import AggregateCSVVisitor, CSVVisitor, visit_all_strategy
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
@@ -175,7 +181,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         if not identifiers:
             raise GearExecutionError("Unable to load center participant IDs")
 
-        return NACCIDLookupVisitor(
+        # Create identifier lookup visitor
+        naccid_visitor = NACCIDLookupVisitor(
             adcid=adcid,
             identifiers=identifiers,
             output_file=output_file,
@@ -183,6 +190,27 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             module_configs=module_configs,
             error_writer=error_writer,
             misc_errors=misc_errors,
+        )
+
+        # Create QC status log visitor
+        error_log_template = ErrorLogTemplate()
+        visit_annotator = FileVisitAnnotator(project=project)
+        qc_log_manager = QCStatusLogManager(
+            error_log_template=error_log_template, visit_annotator=visit_annotator
+        )
+
+        qc_visitor = QCStatusLogCSVVisitor(
+            module_configs=module_configs,
+            project=project,
+            qc_log_creator=qc_log_manager,
+            gear_name=self.__gear_name,
+            error_writer=error_writer,
+            module_name=module.lower(),
+        )
+
+        # Combine visitors to process both identifier lookup and QC logging
+        return AggregateCSVVisitor(
+            visitors=[naccid_visitor, qc_visitor], strategy_builder=visit_all_strategy
         )
 
     def __build_center_lookup(
