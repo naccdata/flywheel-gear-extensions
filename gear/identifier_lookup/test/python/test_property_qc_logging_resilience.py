@@ -10,7 +10,7 @@ from unittest.mock import Mock
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
@@ -46,7 +46,7 @@ def visit_data_strategy(draw):
 
 
 @given(visit_data_list=st.lists(visit_data_strategy(), min_size=2, max_size=5))
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
 def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]]):
     """Property test: QC logging continues processing after individual
     failures.
