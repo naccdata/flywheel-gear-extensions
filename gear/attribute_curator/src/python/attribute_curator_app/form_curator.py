@@ -465,7 +465,6 @@ class FormCurator(Curator):
             log.debug(f"Tagging UDS participant: {subject.label}")
             subject.add_tag(uds_tag)
 
-    @api_retry
     def back_propagate_scopes(
         self,
         subject: Subject,
@@ -542,5 +541,6 @@ class FormCurator(Curator):
         if updated_info:
             file_entry.update_info(updated_info)
 
+        # add curation tag
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
