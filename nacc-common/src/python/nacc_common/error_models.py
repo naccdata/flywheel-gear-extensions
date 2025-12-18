@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
-from nacc_common.field_names import FieldNames
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -12,6 +11,8 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     model_serializer,
 )
+
+from nacc_common.field_names import FieldNames
 
 
 class QCVisitor(ABC):
