@@ -2,7 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from nacc_common.field_names import FieldNames
 
@@ -99,6 +106,34 @@ class VisitKeys(BaseModel):
             naccid=record.get(FieldNames.NACCID),
             module=record.get(FieldNames.MODULE),
         )
+
+
+class VisitMetadata(VisitKeys):
+    """Extended visit metadata that includes packet information for VisitEvent
+    creation.
+
+    Extends VisitKeys with the packet field needed for form events. Only
+    includes fields actually needed for VisitEvent creation.
+    """
+
+    packet: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def to_visit_event_fields(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> Dict[str, Any]:
+        """Extract fields needed for VisitEvent creation with proper field name
+        mapping.
+
+        Returns:
+            Dictionary with fields mapped to VisitEvent field names
+        """
+        # Use model_dump and map field names for VisitEvent
+        data = handler(self)
+        data["visit_date"] = data.pop("date")
+        data["visit_number"] = data.pop("visitnum")
+
+        return data
 
 
 class FileError(BaseModel):
