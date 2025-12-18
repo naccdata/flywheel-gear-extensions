@@ -6,7 +6,7 @@ from typing import Any, Optional
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from nacc_common.error_models import QCStatus, VisitKeys
+from nacc_common.error_models import QCStatus, VisitMetadata
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 
@@ -44,7 +44,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         self.__gear_name = gear_name
         self.__error_writer = error_writer
         self.__module_name = module_name
-        self.__processed_visits: list[VisitKeys] = []
+        self.__processed_visits: list[VisitMetadata] = []
 
     def visit_header(self, header: list[str]) -> bool:
         """Validate CSV header - no specific requirements for QC visitor.
@@ -68,27 +68,27 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             True if processing was successful, False otherwise
         """
         # Extract visit information for QC log creation
-        visit_keys = self._extract_visit_keys(row)
-        if not visit_keys or not self._is_valid_visit(visit_keys):
+        visit_metadata = self._extract_visit_keys(row)
+        if not visit_metadata or not self._is_valid_visit(visit_metadata):
             log.debug(f"Skipping row {line_num} - insufficient visit data")
             return True  # Don't fail processing for incomplete visits
 
-        # Store visit keys for later file metadata enhancement
-        self.__processed_visits.append(visit_keys)
+        # Store visit metadata for later file metadata enhancement
+        self.__processed_visits.append(visit_metadata)
 
         # Determine status based on error writer state
         has_errors = len(self.__error_writer.errors().root) > 0
         qc_status: QCStatus = "FAIL" if has_errors else "PASS"
 
         log.debug(
-            f"QC status determination for visit ptid={visit_keys.ptid}, "
-            f"date={visit_keys.date}: {qc_status} "
+            f"QC status determination for visit ptid={visit_metadata.ptid}, "
+            f"date={visit_metadata.date}: {qc_status} "
             f"(errors: {len(self.__error_writer.errors().root)})"
         )
 
         # Create QC status log with determined status
         qc_success = self.__qc_log_creator.update_qc_log(
-            visit_keys=visit_keys,
+            visit_keys=visit_metadata,
             project=self.__project,
             gear_name=self.__gear_name,
             status=qc_status,
@@ -100,22 +100,22 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         if not qc_success:
             log.warning(
                 f"Failed to create QC status log for visit: "
-                f"ptid={visit_keys.ptid}, date={visit_keys.date}, "
-                f"module={visit_keys.module}"
+                f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
+                f"module={visit_metadata.module}"
             )
             # Don't fail the entire processing for QC log creation failure
             # This allows event logging to continue even if QC log creation fails
 
         return True
 
-    def _extract_visit_keys(self, row: dict[str, Any]) -> VisitKeys:
-        """Extract visit keys from a CSV row.
+    def _extract_visit_keys(self, row: dict[str, Any]) -> VisitMetadata:
+        """Extract visit metadata from a CSV row.
 
         Args:
             row: CSV row data
 
         Returns:
-            VisitKeys object with visit identification information
+            VisitMetadata object with visit identification information including packet
         """
         date_field = self.__module_configs.date_field
 
@@ -125,30 +125,33 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         else:
             module = row.get(FieldNames.MODULE, "").upper()
 
-        return VisitKeys(
+        return VisitMetadata(
             ptid=row.get(FieldNames.PTID),
             date=row.get(date_field),
             visitnum=row.get(FieldNames.VISITNUM),
             module=module,
             adcid=int(row[FieldNames.ADCID]) if row.get(FieldNames.ADCID) else None,
+            packet=row.get(FieldNames.PACKET),  # Include packet field from row
         )
 
-    def _is_valid_visit(self, visit_keys: VisitKeys) -> bool:
-        """Check if visit keys contain sufficient information for QC log
+    def _is_valid_visit(self, visit_metadata: VisitMetadata) -> bool:
+        """Check if visit metadata contains sufficient information for QC log
         creation.
 
         Args:
-            visit_keys: Visit identification information
+            visit_metadata: Visit identification information
 
         Returns:
             True if visit has required fields, False otherwise
         """
-        return bool(visit_keys.ptid and visit_keys.date and visit_keys.module)
+        return bool(
+            visit_metadata.ptid and visit_metadata.date and visit_metadata.module
+        )
 
-    def get_processed_visits(self) -> list[VisitKeys]:
+    def get_processed_visits(self) -> list[VisitMetadata]:
         """Get the list of visits processed from the CSV file.
 
         Returns:
-            List of VisitKeys for all successfully processed visits
+            List of VisitMetadata for all successfully processed visits
         """
         return self.__processed_visits.copy()

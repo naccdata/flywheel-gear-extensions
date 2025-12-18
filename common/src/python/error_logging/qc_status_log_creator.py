@@ -87,8 +87,8 @@ class FileVisitAnnotator:
         Returns:
             Visit metadata dictionary
         """
-        # Use Pydantic model_dump() to serialize the VisitMetadata directly
-        return visit_metadata.model_dump(exclude_none=True)
+        # Use model_dump with mode="raw" to get raw field names without transformation
+        return visit_metadata.model_dump(exclude_none=True, mode="raw")
 
 
 class QCStatusLogManager:

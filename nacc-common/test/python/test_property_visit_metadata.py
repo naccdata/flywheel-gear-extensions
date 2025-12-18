@@ -109,18 +109,28 @@ def test_visit_metadata_to_visit_event_fields_mapping(visit_data: Dict[str, Any]
     event_fields = visit_metadata.model_dump()
 
     # Assert - Should return a dictionary
-    assert isinstance(event_fields, dict), (
-        "model_dump should return a dictionary"
-    )
+    assert isinstance(event_fields, dict), "model_dump should return a dictionary"
 
     # Assert - Should have correct field name mappings (date -> visit_date, visitnum -> visit_number)
-    expected_fields = ["ptid", "visit_date", "visit_number", "module", "packet", "adcid", "naccid"]
+    expected_fields = [
+        "ptid",
+        "visit_date",
+        "visit_number",
+        "module",
+        "packet",
+        "adcid",
+        "naccid",
+    ]
     for field in expected_fields:
         assert field in event_fields, f"Event fields should contain {field}"
 
     # Assert - Should NOT have the original field names that were mapped
-    assert "date" not in event_fields, "Original 'date' field should be mapped to 'visit_date'"
-    assert "visitnum" not in event_fields, "Original 'visitnum' field should be mapped to 'visit_number'"
+    assert "date" not in event_fields, (
+        "Original 'date' field should be mapped to 'visit_date'"
+    )
+    assert "visitnum" not in event_fields, (
+        "Original 'visitnum' field should be mapped to 'visit_number'"
+    )
 
     # Assert - Field mappings should be correct
     assert event_fields["ptid"] == visit_metadata.ptid, "ptid should map directly"
@@ -195,11 +205,23 @@ def test_visit_metadata_field_name_mapping():
     assert event_fields["naccid"] == "NACC123456", "naccid should map directly"
 
     # Assert - Should NOT have the original field names that were mapped
-    assert "date" not in event_fields, "Original 'date' field should be mapped to 'visit_date'"
-    assert "visitnum" not in event_fields, "Original 'visitnum' field should be mapped to 'visit_number'"
+    assert "date" not in event_fields, (
+        "Original 'date' field should be mapped to 'visit_date'"
+    )
+    assert "visitnum" not in event_fields, (
+        "Original 'visitnum' field should be mapped to 'visit_number'"
+    )
 
     # Assert - Should include all VisitMetadata fields with proper mapping
-    expected_keys = {"ptid", "visit_date", "visit_number", "module", "packet", "adcid", "naccid"}
+    expected_keys = {
+        "ptid",
+        "visit_date",
+        "visit_number",
+        "module",
+        "packet",
+        "adcid",
+        "naccid",
+    }
     assert set(event_fields.keys()) == expected_keys, (
         "Should include all VisitMetadata fields with proper mapping"
     )
