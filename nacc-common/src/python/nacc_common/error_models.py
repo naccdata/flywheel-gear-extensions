@@ -2,16 +2,16 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
+from nacc_common.field_names import FieldNames
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     RootModel,
+    SerializationInfo,
     SerializerFunctionWrapHandler,
     model_serializer,
 )
-
-from nacc_common.field_names import FieldNames
 
 
 class QCVisitor(ABC):
@@ -120,7 +120,7 @@ class VisitMetadata(VisitKeys):
 
     @model_serializer(mode="wrap")
     def to_visit_event_fields(
-        self, handler: SerializerFunctionWrapHandler
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Dict[str, Any]:
         """Extract fields needed for VisitEvent creation with proper field name
         mapping.
@@ -130,9 +130,11 @@ class VisitMetadata(VisitKeys):
         """
         # Use model_dump and map field names for VisitEvent
         data = handler(self)
+        if info.mode == "raw":
+            return data
+
         data["visit_date"] = data.pop("date")
         data["visit_number"] = data.pop("visitnum")
-
         return data
 
 
