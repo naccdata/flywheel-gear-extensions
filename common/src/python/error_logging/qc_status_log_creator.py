@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import FileErrorList, QCStatus, VisitKeys
+from nacc_common.error_models import FileErrorList, QCStatus, VisitKeys, VisitMetadata
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -31,21 +31,27 @@ class FileVisitAnnotator:
         """
         self.__project = project
 
-    def annotate_qc_log_file(self, qc_log_filename: str, visit_keys: VisitKeys) -> bool:
+    def annotate_qc_log_file(
+        self, qc_log_filename: str, visit_metadata: VisitMetadata
+    ) -> bool:
         """Add visit metadata to a QC status log file.
 
         Args:
             qc_log_filename: Name of the QC status log file
-            visit_keys: Visit identification information for this specific visit
+            visit_metadata: Visit metadata information for this specific visit
 
         Returns:
             True if visit annotation was successful, False otherwise
         """
-        if not visit_keys.ptid or not visit_keys.date or not visit_keys.module:
+        if (
+            not visit_metadata.ptid
+            or not visit_metadata.date
+            or not visit_metadata.module
+        ):
             log.warning(
                 f"Insufficient visit data for annotation: "
-                f"ptid={visit_keys.ptid}, date={visit_keys.date}, "
-                f"module={visit_keys.module}"
+                f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
+                f"module={visit_metadata.module}"
             )
             return False
 
@@ -57,10 +63,10 @@ class FileVisitAnnotator:
                 return False
 
             # Prepare visit metadata for this specific visit
-            visit_metadata = self._create_visit_metadata(visit_keys)
+            visit_metadata_dict = self._create_visit_metadata(visit_metadata)
 
             # Update file info with visit metadata using retry-enabled method
-            info_update = {"visit": visit_metadata}
+            info_update = {"visit": visit_metadata_dict}
             update_file_info(file=qc_log_file, custom_info=info_update)
 
             log.info(f"Added visit metadata to QC log: {qc_log_filename}")
@@ -72,17 +78,17 @@ class FileVisitAnnotator:
             )
             return False
 
-    def _create_visit_metadata(self, visit_keys: VisitKeys) -> dict[str, Any]:
+    def _create_visit_metadata(self, visit_metadata: VisitMetadata) -> dict[str, Any]:
         """Create visit metadata dictionary for a single visit.
 
         Args:
-            visit_keys: Visit identification information
+            visit_metadata: Visit metadata information
 
         Returns:
             Visit metadata dictionary
         """
-        # Use Pydantic model_dump() to serialize the VisitKeys directly
-        return visit_keys.model_dump(exclude_none=True)
+        # Use Pydantic model_dump() to serialize the VisitMetadata directly
+        return visit_metadata.model_dump(exclude_none=True)
 
 
 class QCStatusLogManager:
@@ -192,9 +198,16 @@ class QCStatusLogManager:
 
             # Add visit metadata if requested (for initial creation)
             if add_visit_metadata:
+                # Convert VisitKeys to VisitMetadata for annotation
+                if isinstance(visit_keys, VisitMetadata):
+                    visit_metadata = visit_keys
+                else:
+                    # Create VisitMetadata from VisitKeys (packet will be None)
+                    visit_metadata = VisitMetadata(**visit_keys.model_dump())
+
                 annotation_success = self.__visit_annotator.annotate_qc_log_file(
                     qc_log_filename=error_log_name,
-                    visit_keys=visit_keys,
+                    visit_metadata=visit_metadata,
                 )
 
                 if not annotation_success:
