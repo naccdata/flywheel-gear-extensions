@@ -160,7 +160,7 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
     mock_project.add_qc_status_file(qc_filename, qc_status)
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)
+    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Events should only be created for PASS status
     if qc_status == QC_STATUS_PASS:
@@ -200,7 +200,7 @@ def test_no_events_for_missing_qc_status(json_file: FileEntry):
     mock_project = MockProjectAdaptor()  # Empty project with no QC status files
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)
+    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - No events should be created
     assert len(mock_logger.logged_events) == 0, (
@@ -245,10 +245,11 @@ def test_qc_pass_event_structure():
     expected_filename = error_log_template.instantiate(
         record=forms_json, module=forms_json["module"]
     )
+    assert expected_filename is not None, "ErrorLogTemplate should generate a filename"
     mock_project.add_qc_status_file(expected_filename, QC_STATUS_PASS)
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)
+    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -311,6 +312,7 @@ def test_multiple_json_files_mixed_qc_status():
         qc_filename = error_log_template.instantiate(
             record=forms_json, module=forms_json["module"]
         )
+        assert qc_filename is not None, "ErrorLogTemplate should generate a filename"
         mock_project.add_qc_status_file(qc_filename, qc_status)
 
         if qc_status == QC_STATUS_PASS:
@@ -318,7 +320,7 @@ def test_multiple_json_files_mixed_qc_status():
 
     # Act - Process each JSON file
     for json_file in json_files:
-        event_accumulator.log_events(json_file, mock_project)
+        event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Only PASS files should generate events
     assert len(mock_logger.logged_events) == expected_pass_count, (

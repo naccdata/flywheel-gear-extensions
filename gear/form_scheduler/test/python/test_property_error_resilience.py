@@ -222,7 +222,7 @@ class TestErrorResilience:
         with patch("form_scheduler_app.simplified_event_accumulator.log") as mock_log:
             # This should not raise an exception
             try:
-                accumulator.log_events(json_file, project)
+                accumulator.log_events(json_file, project)  # type: ignore[arg-type]
                 # If we get here, the error was handled gracefully
                 assert True
             except Exception as e:

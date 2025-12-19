@@ -46,7 +46,7 @@ def visit_metadata_strategy(draw):
             st.text(
                 min_size=1,
                 max_size=3,
-                alphabet=st.characters(whitelist_categories=("Nd",)),
+                alphabet=st.characters(whitelist_categories=["Nd"]),
             )
         ),
         "date": draw(

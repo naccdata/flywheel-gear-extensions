@@ -55,7 +55,7 @@ class TestMissingConfigurationHandling:
         with patch("form_scheduler_app.form_scheduler_queue.log") as mock_log:
             # This should not raise an exception regardless of input validity
             try:
-                queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)
+                queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)  # type: ignore[arg-type]
                 # If we get here, missing configuration was handled gracefully
                 assert True
             except Exception as e:

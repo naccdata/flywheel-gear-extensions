@@ -32,7 +32,7 @@ def json_file_forms_metadata_strategy(draw):
     # Generate ptid that won't become empty after lstrip("0")
     ptid_base = draw(
         st.text(
-            min_size=1, max_size=8, alphabet=st.characters(whitelist_categories=("Lu",))
+            min_size=1, max_size=8, alphabet=st.characters(whitelist_categories=["Lu"])
         )
     )
     ptid_prefix = draw(st.text(min_size=0, max_size=3, alphabet="0"))
@@ -44,7 +44,7 @@ def json_file_forms_metadata_strategy(draw):
             st.text(
                 min_size=1,
                 max_size=3,
-                alphabet=st.characters(whitelist_categories=("Nd",)),
+                alphabet=st.characters(whitelist_categories=["Nd"]),
             )
         ),
         "visitdate": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
