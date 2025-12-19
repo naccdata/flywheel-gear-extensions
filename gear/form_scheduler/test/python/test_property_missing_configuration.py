@@ -147,7 +147,7 @@ class TestMissingConfigurationHandling:
 
         # Mock the EventAccumulator import to verify it's not called
         with patch(
-            "form_scheduler_app.form_scheduler_queue.EventAccumulator"
+            "form_scheduler_app.simplified_event_accumulator.EventAccumulator"
         ) as mock_accumulator_class:
             queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)
 

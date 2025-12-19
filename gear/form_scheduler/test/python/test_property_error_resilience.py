@@ -158,12 +158,10 @@ class TestErrorResilience:
         }
 
         # Create valid mock QC status file with PASS status
-        qc_content = json.dumps(
-            {"qc": {"form-qc-checker": {"validation": {"state": "PASS", "data": []}}}}
-        )
         mock_qc_file = Mock(spec=FileEntry)
         mock_qc_file.name = "qc_status.json"
         mock_qc_file.info = {
+            "qc": {"form-qc-checker": {"validation": {"state": "PASS", "data": []}}},
             "visit": {
                 "ptid": "110001",
                 "visitnum": "01",
@@ -172,7 +170,6 @@ class TestErrorResilience:
                 "packet": "I",
             }
         }
-        mock_qc_file.read.return_value = qc_content
         mock_qc_file.modified = datetime.now()
 
         # Create mock project with valid label
