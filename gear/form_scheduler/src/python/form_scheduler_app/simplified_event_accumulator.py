@@ -247,6 +247,14 @@ class EventAccumulator:
             json_file: JSON file from finalization queue
             project: The project containing QC status logs
         """
+        # Validate inputs
+        if not json_file:
+            log.warning("JSON file is None, skipping event logging")
+            return
+        if not project:
+            log.warning("Project is None, skipping event logging")
+            return
+
         try:
             # Find corresponding QC status log
             qc_log_file = self.find_qc_status_for_json_file(json_file, project)
