@@ -175,9 +175,6 @@ class EventAccumulator:
         try:
             # Download and parse QC status file
             qc_content = qc_log_file.read()
-            if isinstance(qc_content, bytes):
-                qc_content = qc_content.decode("utf-8")
-
             qc_model = FileQCModel.model_validate_json(qc_content)
 
             # Check if QC status is PASS
@@ -211,13 +208,8 @@ class EventAccumulator:
             pipeline_label = PipelineLabel.model_validate(project.label)
             study = pipeline_label.study_id
 
-            # Get visit event fields from VisitMetadata with field name mapping
-            event_fields = visit_metadata.model_dump()
-            # Map field names for VisitEvent
-            if "date" in event_fields:
-                event_fields["visit_date"] = event_fields.pop("date")
-            if "visitnum" in event_fields:
-                event_fields["visit_number"] = event_fields.pop("visitnum")
+            # Use VisitMetadata.model_dump() to get fields with automatic name mapping
+            event_fields = visit_metadata.model_dump(exclude_none=True)
 
             return VisitEvent(
                 action=ACTION_PASS_QC,
