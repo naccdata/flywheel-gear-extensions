@@ -36,12 +36,14 @@ class VisitMetadataExtractor:
         Returns:
             VisitMetadata instance or None if not found/invalid
         """
+        if not custom_info:
+            return None
+
         visit_data = custom_info.get("visit")
         if not visit_data:
             return None
 
         try:
-            # Pydantic will automatically ignore extra fields
             return VisitMetadata.model_validate(visit_data)
         except ValidationError:
             return None
@@ -56,13 +58,15 @@ class VisitMetadataExtractor:
         Returns:
             VisitMetadata instance or None if not found/invalid
         """
+        if not json_file or not json_file.info:
+            return None
+
         forms_json = json_file.info.get("forms", {}).get("json", {})
         if not forms_json:
             return None
 
         try:
             # Create mapping for field name differences
-            # Pydantic will automatically ignore extra fields
             mapped_data = {**forms_json, "date": forms_json.get("visitdate")}
             return VisitMetadata.model_validate(mapped_data)
         except ValidationError:
@@ -72,6 +76,9 @@ class VisitMetadataExtractor:
     def is_valid_for_event(visit_metadata: VisitMetadata) -> bool:
         """Check if VisitMetadata has required fields for VisitEvent
         creation."""
+        if not visit_metadata:
+            return False
+
         return bool(
             visit_metadata.ptid and visit_metadata.date and visit_metadata.module
         )
@@ -108,12 +115,13 @@ class EventAccumulator:
         Returns:
             The corresponding QC status log file, or None if not found
         """
-        # Extract visit metadata from JSON file
+        if not json_file.info:
+            return None
+
         forms_json = json_file.info.get("forms", {}).get("json", {})
         if not forms_json:
             return None
 
-        # Get module from forms metadata
         module = forms_json.get("module")
         if not module:
             return None
@@ -127,10 +135,9 @@ class EventAccumulator:
 
         # Look up the QC status log file by name in project files
         try:
-            qc_log_file = project.get_file(qc_log_name)
-            return qc_log_file
-        except Exception as e:
-            log.warning(f"Could not find QC status log {qc_log_name}: {e}")
+            return project.get_file(qc_log_name)
+        except Exception:
+            # get_file might raise various exceptions depending on implementation
             return None
 
     def _extract_visit_metadata(
@@ -173,19 +180,17 @@ class EventAccumulator:
             QC completion timestamp if status is PASS, None otherwise
         """
         try:
-            # Download and parse QC status file
-            qc_content = qc_log_file.read()
-            qc_model = FileQCModel.model_validate_json(qc_content)
-
-            # Check if QC status is PASS
-            if qc_model.get_file_status() == QC_STATUS_PASS:
-                # Return the file modification timestamp as QC completion time
-                return qc_log_file.modified
-
+            qc_model = FileQCModel.model_validate(qc_log_file.info)
+        except ValidationError:
             return None
-        except Exception as e:
-            log.warning(f"Failed to check QC status for {qc_log_file.name}: {e}")
+
+        # Check if QC status is PASS
+        file_status = qc_model.get_file_status()
+        if file_status != QC_STATUS_PASS:
             return None
+
+        # Return the file modification timestamp as QC completion time
+        return qc_log_file.modified
 
     def _create_visit_event(
         self,
@@ -208,8 +213,13 @@ class EventAccumulator:
             pipeline_label = PipelineLabel.model_validate(project.label)
             study = pipeline_label.study_id
 
-            # Use VisitMetadata.model_dump() to get fields with automatic name mapping
-            event_fields = visit_metadata.model_dump(exclude_none=True)
+            # Get visit event fields from VisitMetadata with field name mapping
+            event_fields = visit_metadata.model_dump()
+            # Map field names for VisitEvent
+            if "date" in event_fields:
+                event_fields["visit_date"] = event_fields.pop("date")
+            if "visitnum" in event_fields:
+                event_fields["visit_number"] = event_fields.pop("visitnum")
 
             return VisitEvent(
                 action=ACTION_PASS_QC,
@@ -226,7 +236,7 @@ class EventAccumulator:
                 packet=event_fields.get("packet"),
                 timestamp=qc_completion_time,
             )
-        except Exception as e:
+        except (ValidationError, KeyError) as e:
             log.warning(f"Failed to create visit event: {e}")
             return None
 
