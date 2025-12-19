@@ -16,7 +16,6 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import (
     QC_STATUS_PASS,
-    FileQCModel,
     GearQCModel,
     ValidationModel,
 )
@@ -63,24 +62,23 @@ class MockProjectAdaptor:
     ) -> FileEntry:
         """Add a QC status file to the mock project."""
         # Create QC model with proper structure
-
-        qc_model = FileQCModel(
-            qc={
-                "test-gear": GearQCModel(
-                    validation=ValidationModel(
-                        state=qc_status,
-                        data=[],
-                    )
+        qc_data = {
+            "test-gear": GearQCModel(
+                validation=ValidationModel(
+                    state=qc_status,
+                    data=[],
                 )
-            }
-        )
+            )
+        }
 
         # Create file entry
         file_entry = Mock(spec=FileEntry)
         file_entry.name = filename
         file_entry.modified = datetime.now()
+
+        # Put QC data in custom info, not file contents
         file_entry.info = custom_info or {}
-        file_entry.read.return_value = qc_model.model_dump_json().encode("utf-8")
+        file_entry.info["qc"] = qc_data
 
         self.files[filename] = file_entry
         return file_entry
