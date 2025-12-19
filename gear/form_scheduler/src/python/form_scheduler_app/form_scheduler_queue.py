@@ -31,7 +31,6 @@ from notifications.email import EmailClient
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from form_scheduler_app.email_user import send_email
-from form_scheduler_app.visitor_event_accumulator import EventAccumulator
 
 # Regex pattern to extract module name from filenames
 # Matches filenames like "ptid-MODULE.csv" and captures the module name
@@ -379,7 +378,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
-        event_logger: VisitEventLogger,
+        event_logger: Optional[VisitEventLogger] = None,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -389,7 +388,7 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
-            event_logger: VisitEventLogger for logging visit events
+            event_logger: VisitEventLogger for logging visit events (None to skip event logging)
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -464,13 +463,19 @@ class FormSchedulerQueue:
             file: The file that was processed
             pipeline: Pipeline configuration
         """
+        # Skip event logging entirely if event logger is not configured
+        if self.__event_logger is None:
+            log.debug("Event logger not configured, skipping event logging")
+            return
+
         try:
+            from form_scheduler_app.simplified_event_accumulator import EventAccumulator
+
             event_accumulator = EventAccumulator(
-                pipeline=pipeline,
                 event_logger=self.__event_logger,
                 datatype="form",
             )
-            event_accumulator.log_events(file=file, project=self.__project)
+            event_accumulator.log_events(json_file=file, project=self.__project)
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
