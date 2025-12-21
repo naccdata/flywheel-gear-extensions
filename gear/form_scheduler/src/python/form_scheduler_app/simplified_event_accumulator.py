@@ -9,7 +9,6 @@ from event_logging.event_logger import VisitEventLogger
 from event_logging.visit_events import ACTION_PASS_QC, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from keys.types import DatatypeNameType
 from nacc_common.error_models import (
     QC_STATUS_PASS,
     FileQCModel,
@@ -87,9 +86,7 @@ class VisitMetadataExtractor:
 class EventAccumulator:
     """Simplified event accumulator for QC-pass events only."""
 
-    def __init__(
-        self, event_logger: VisitEventLogger, datatype: DatatypeNameType = "form"
-    ) -> None:
+    def __init__(self, event_logger: VisitEventLogger) -> None:
         """Initialize the simplified EventAccumulator.
 
         Args:
@@ -97,8 +94,29 @@ class EventAccumulator:
             datatype: Type of data being processed (default: "form")
         """
         self.__event_logger = event_logger
-        self.__datatype = datatype
         self.__error_log_template = ErrorLogTemplate()
+
+    def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:
+        """Creates the qc status log file from the form metadata for the file.
+
+        Args:
+          json_file: the JSON file with data
+        Returns:
+          the QC status file for the visit in the file.
+        """
+        if not json_file.info:
+            return None
+
+        forms_json = json_file.info.get("forms", {}).get("json", {})
+        if not forms_json:
+            return None
+
+        module = forms_json.get("module")
+        if not module:
+            return None
+
+        # Use ErrorLogTemplate to generate expected QC status log filename
+        return self.__error_log_template.instantiate(record=forms_json, module=module)
 
     def find_qc_status_for_json_file(
         self, json_file: FileEntry, project: ProjectAdaptor
@@ -115,21 +133,7 @@ class EventAccumulator:
         Returns:
             The corresponding QC status log file, or None if not found
         """
-        if not json_file.info:
-            return None
-
-        forms_json = json_file.info.get("forms", {}).get("json", {})
-        if not forms_json:
-            return None
-
-        module = forms_json.get("module")
-        if not module:
-            return None
-
-        # Use ErrorLogTemplate to generate expected QC status log filename
-        qc_log_name = self.__error_log_template.instantiate(
-            record=forms_json, module=module
-        )
+        qc_log_name = self.create_qc_status_file_name(json_file)
         if not qc_log_name:
             return None
 
@@ -170,7 +174,7 @@ class EventAccumulator:
 
         return None
 
-    def _check_qc_status(self, qc_log_file: FileEntry) -> Optional[datetime]:
+    def _check_qc_status(self, qc_log_file: FileEntry) -> bool:
         """Check if QC status is PASS and return completion timestamp.
 
         Args:
@@ -182,18 +186,15 @@ class EventAccumulator:
         try:
             qc_model = FileQCModel.model_validate(qc_log_file.info)
         except ValidationError:
-            return None
+            return False
 
         # Check if QC status is PASS
         file_status = qc_model.get_file_status()
-        if file_status != QC_STATUS_PASS:
-            return None
-
-        # Return the file modification timestamp as QC completion time
-        return qc_log_file.modified
+        return file_status == QC_STATUS_PASS
 
     def _create_visit_event(
         self,
+        *,
         visit_metadata: VisitMetadata,
         project: ProjectAdaptor,
         qc_completion_time: datetime,
@@ -209,36 +210,36 @@ class EventAccumulator:
             VisitEvent or None if creation fails
         """
         try:
-            # Extract study from project label
+            # Extract study and datatype from project label
             pipeline_label = PipelineLabel.model_validate(project.label)
-            study = pipeline_label.study_id
-
-            # Get visit event fields from VisitMetadata with field name mapping
-            event_fields = visit_metadata.model_dump()
-            # Map field names for VisitEvent
-            if "date" in event_fields:
-                event_fields["visit_date"] = event_fields.pop("date")
-            if "visitnum" in event_fields:
-                event_fields["visit_number"] = event_fields.pop("visitnum")
-
-            return VisitEvent(
-                action=ACTION_PASS_QC,
-                study=study,
-                pipeline_adcid=project.get_pipeline_adcid(),
-                project_label=project.label,
-                center_label=project.group,
-                gear_name="form-scheduler",
-                ptid=event_fields["ptid"],
-                visit_date=event_fields["visit_date"],
-                visit_number=event_fields.get("visit_number"),
-                datatype=self.__datatype,
-                module=event_fields["module"],
-                packet=event_fields.get("packet"),
-                timestamp=qc_completion_time,
+        except ValidationError as error:
+            log.warning(
+                "Project doesn't have expected label. Failed to create visit event: %s",
+                error,
             )
-        except (ValidationError, KeyError) as e:
-            log.warning(f"Failed to create visit event: {e}")
             return None
+
+        if pipeline_label.datatype is None:
+            log.warning(
+                "Pipeline project label should include a datatype: %s", project.label
+            )
+            return None
+
+        return VisitEvent(
+            action=ACTION_PASS_QC,
+            study=pipeline_label.study_id,
+            pipeline_adcid=project.get_pipeline_adcid(),
+            project_label=project.label,
+            center_label=project.group,
+            gear_name="form-scheduler",
+            ptid=visit_metadata.ptid,
+            visit_date=visit_metadata.date,
+            visit_number=visit_metadata.visitnum,
+            datatype=pipeline_label.datatype,
+            module=visit_metadata.module,
+            packet=visit_metadata.packet,
+            timestamp=qc_completion_time,
+        )
 
     def log_events(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
         """Log QC-pass events for a JSON file if it passes QC validation.
@@ -259,33 +260,37 @@ class EventAccumulator:
             # Find corresponding QC status log
             qc_log_file = self.find_qc_status_for_json_file(json_file, project)
             if not qc_log_file:
-                log.debug(f"No QC status log found for {json_file.name}")
+                log.debug("No QC status log found for %s", json_file.name)
                 return
 
             # Check QC status - only proceed if PASS
-            qc_completion_time = self._check_qc_status(qc_log_file)
-            if not qc_completion_time:
-                log.debug(f"QC status is not PASS for {json_file.name}")
+            if not self._check_qc_status(qc_log_file):
+                log.debug("QC status is not PASS for %s", json_file.name)
                 return
 
             # Extract visit metadata
             visit_metadata = self._extract_visit_metadata(json_file, qc_log_file)
             if not visit_metadata:
                 log.warning(
-                    f"Could not extract valid visit metadata for {json_file.name}"
+                    "Could not extract valid visit metadata for %s", json_file.name
                 )
                 return
 
             # Create and log QC-pass event
             visit_event = self._create_visit_event(
-                visit_metadata, project, qc_completion_time
+                visit_metadata=visit_metadata,
+                project=project,
+                qc_completion_time=qc_log_file.modified,
             )
             if visit_event:
                 self.__event_logger.log_event(visit_event)
-                log.info(f"Logged QC-pass event for {json_file.name}")
-            else:
-                log.warning(f"Failed to create visit event for {json_file.name}")
+                log.info("Logged QC-pass event for %s", json_file.name)
+                return
+
+            log.warning("Failed to create visit event for %s", json_file.name)
 
         except Exception as e:
             # Log error but don't fail pipeline processing
-            log.error(f"Error logging events for {json_file.name}: {e}", exc_info=True)
+            log.error(
+                "Error logging events for %s: %s", json_file.name, e, exc_info=True
+            )
