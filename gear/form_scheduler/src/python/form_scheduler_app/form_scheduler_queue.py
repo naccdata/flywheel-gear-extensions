@@ -388,7 +388,8 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
-            event_logger: VisitEventLogger for logging visit events (None to skip event logging)
+            event_logger: VisitEventLogger for logging visit events
+                (None to skip event logging)
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -454,14 +455,13 @@ class FormSchedulerQueue:
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
-    def _log_pipeline_events(self, *, file: FileEntry, pipeline: Pipeline) -> None:
-        """Log pass-qc or not-pass-qc events for a processed file.
+    def _log_pipeline_events(self, *, json_file: FileEntry) -> None:
+        """Log QC-pass events for a processed JSON file.
 
         Event logging failures are logged but don't stop pipeline processing.
 
         Args:
-            file: The file that was processed
-            pipeline: Pipeline configuration
+            json_file: The JSON file that was processed
         """
         # Skip event logging entirely if event logger is not configured
         if self.__event_logger is None:
@@ -471,21 +471,18 @@ class FormSchedulerQueue:
         try:
             from form_scheduler_app.simplified_event_accumulator import EventAccumulator
 
-            event_accumulator = EventAccumulator(
-                event_logger=self.__event_logger,
-                datatype="form",
-            )
-            event_accumulator.log_events(json_file=file, project=self.__project)
+            event_accumulator = EventAccumulator(event_logger=self.__event_logger)
+            event_accumulator.log_events(json_file=json_file, project=self.__project)
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
-                f"Failed to log events for {file.name}: {error}",
+                f"Failed to log events for {json_file.name}: {error}",
                 exc_info=True,
             )
         except Exception as error:
             # Catch any unexpected errors (network, S3, etc.)
             log.error(
-                f"Unexpected error logging events for {file.name}: {error}",
+                f"Unexpected error logging events for {json_file.name}: {error}",
                 exc_info=True,
             )
 
@@ -595,9 +592,11 @@ class FormSchedulerQueue:
                     )
 
                 # c. Trigger the starting gear for this pipeline
-                log.info(f"Kicking off pipeline `{pipeline.name}` on module {module}")
                 log.info(
-                    f"Triggering {pipeline.starting_gear.gear_name} for {file.name}"
+                    "Kicking off pipeline `%s` on module %s", pipeline.name, module
+                )
+                log.info(
+                    "Triggering %s for %s", pipeline.starting_gear.gear_name, file.name
                 )
 
                 # Get the file's parent container as the gear destination
@@ -618,7 +617,7 @@ class FormSchedulerQueue:
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
                 # Log pass-qc or not-pass-qc events based on QC-status logs
-                self._log_pipeline_events(file=file, pipeline=pipeline)
+                self._log_pipeline_events(json_file=file)
 
                 # e. Send notification email if enabled
                 #    Notifies the user who uploaded the file that processing
