@@ -123,8 +123,8 @@ class VisitMetadata(VisitKeys):
     def to_visit_event_fields(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Dict[str, Any]:
-        """Extract fields needed for VisitEvent creation. with proper field name
-        mapping.
+        """Extract fields needed for VisitEvent creation. with proper field
+        name mapping.
 
         Returns:
             Dictionary with fields mapped to VisitEvent field names
