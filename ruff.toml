@@ -13,4 +13,6 @@ select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818"
 [lint.per-file-ignores]
 # TODO: confirm that this was a yapf/ruff conflict
 "common/src/python/curator/scheduling.py" = ["I001"]
- "tests/*" = ["SLF001"]
+"common/src/python/event_logging/visit_event_accumulator.py" = ["I001"]
+"common/test/python/event_logging/test_visit_event_accumulator.py" = ["I001"]
+"tests/*" = ["SLF001"]
