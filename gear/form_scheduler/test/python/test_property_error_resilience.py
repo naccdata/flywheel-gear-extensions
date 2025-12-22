@@ -1,10 +1,10 @@
 """Property test for error resilience in EventAccumulator.
 
-**Feature: form-scheduler-event-logging-refactor, Property 7: Error Resilience**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 7: Error Resilience**
 **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 """
 
-import json
 from datetime import datetime
 from unittest.mock import Mock, patch
 
@@ -32,8 +32,9 @@ class TestErrorResilience:
     ):
         """Test that missing QC status log files are handled gracefully.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 7: Error Resilience**
-        **Validates: Requirements 5.1**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 7: Error Resilience**
+              **Validates: Requirements 5.1**
         """
         # Create mock event logger
         mock_event_logger = Mock()
@@ -68,7 +69,8 @@ class TestErrorResilience:
             assert True
         except Exception as e:
             pytest.fail(
-                f"EventAccumulator should handle missing QC status logs gracefully, but raised: {e}"
+                f"EventAccumulator should handle missing QC status logs "
+                f"gracefully, but raised: {e}"
             )
 
         # Event logger should not be called when QC status log is missing
@@ -87,8 +89,9 @@ class TestErrorResilience:
     def test_invalid_visit_metadata_extraction_handled_gracefully(self, qc_content):
         """Test that invalid visit metadata extraction is handled gracefully.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 7: Error Resilience**
-        **Validates: Requirements 5.2**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 7: Error Resilience**
+              **Validates: Requirements 5.2**
         """
         # Create mock event logger
         mock_event_logger = Mock()
@@ -125,7 +128,8 @@ class TestErrorResilience:
             assert True
         except Exception as e:
             pytest.fail(
-                f"EventAccumulator should handle invalid metadata gracefully, but raised: {e}"
+                f"EventAccumulator should handle invalid metadata "
+                f"gracefully, but raised: {e}"
             )
 
         # Event logger should not be called when metadata extraction fails
@@ -134,8 +138,9 @@ class TestErrorResilience:
     def test_s3_event_logging_failures_handled_gracefully(self):
         """Test that S3 event logging failures are handled gracefully.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 7: Error Resilience**
-        **Validates: Requirements 5.3**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 7: Error Resilience**
+              **Validates: Requirements 5.3**
         """
         # Create mock event logger that fails
         mock_event_logger = Mock()
@@ -168,7 +173,7 @@ class TestErrorResilience:
                 "date": "2024-01-15",
                 "module": "UDS",
                 "packet": "I",
-            }
+            },
         }
         mock_qc_file.modified = datetime.now()
 
@@ -186,7 +191,8 @@ class TestErrorResilience:
             assert True
         except Exception as e:
             pytest.fail(
-                f"EventAccumulator should handle S3 failures gracefully, but raised: {e}"
+                f"EventAccumulator should handle S3 failures gracefully, "
+                f"but raised: {e}"
             )
 
         # Event logger should have been called (even though it failed)
@@ -201,8 +207,9 @@ class TestErrorResilience:
     ):
         """Test that warnings are logged but processing continues.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 7: Error Resilience**
-        **Validates: Requirements 5.4**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 7: Error Resilience**
+              **Validates: Requirements 5.4**
         """
         # Create mock event logger
         mock_event_logger = Mock()
@@ -224,7 +231,8 @@ class TestErrorResilience:
                 assert True
             except Exception as e:
                 pytest.fail(
-                    f"EventAccumulator should handle invalid inputs gracefully, but raised: {e}"
+                    f"EventAccumulator should handle invalid inputs "
+                    f"gracefully, but raised: {e}"
                 )
 
             # Should have logged warnings for invalid inputs
@@ -270,14 +278,16 @@ class TestErrorResilience:
         mock_project = Mock(spec=ProjectAdaptor)
         mock_project.get_file.return_value = mock_qc_file
 
-        # This should not raise an exception - validation errors should be handled gracefully
+        # This should not raise an exception - validation errors should be
+        # handled gracefully
         try:
             accumulator.log_events(mock_json_file, mock_project)
             # If we get here, the validation errors were handled gracefully
             assert True
         except Exception as e:
             pytest.fail(
-                f"EventAccumulator should handle validation errors gracefully, but raised: {e}"
+                f"EventAccumulator should handle validation errors "
+                f"gracefully, but raised: {e}"
             )
 
         # Event logger should not be called when validation fails

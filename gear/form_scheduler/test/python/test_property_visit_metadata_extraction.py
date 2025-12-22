@@ -1,6 +1,8 @@
 """Property test for visit metadata extraction priority.
 
-**Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 4:
+  Visit Metadata Extraction Priority**
 
 **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
 """
@@ -103,8 +105,10 @@ def test_visit_metadata_extraction_priority_custom_info_first(
     """Property test: When both QC status custom info and JSON metadata are
     available, custom info should be used first.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
-    **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
     """
     # Create QC status file with custom info containing visit metadata
     qc_log_file = create_mock_file_entry("qc-status.json", {"visit": visit_data})
@@ -113,7 +117,9 @@ def test_visit_metadata_extraction_priority_custom_info_first(
     json_file = create_mock_file_entry("forms.json", {"forms": {"json": json_data}})
 
     # Extract metadata - should prioritize QC status custom info
-    result = event_accumulator._extract_visit_metadata(json_file, qc_log_file)
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file, qc_log_file
+    )
 
     # Should successfully extract from custom info if valid
     if visit_data.get("ptid") and visit_data.get("date") and visit_data.get("module"):
@@ -141,8 +147,10 @@ def test_visit_metadata_extraction_fallback_to_json(event_accumulator, json_data
     """Property test: When QC status custom info is not available, should fall
     back to JSON file metadata.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
-    **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
     """
     # Create QC status file without custom info
     qc_log_file = create_mock_file_entry("qc-status.json", {})
@@ -151,7 +159,9 @@ def test_visit_metadata_extraction_fallback_to_json(event_accumulator, json_data
     json_file = create_mock_file_entry("forms.json", {"forms": {"json": json_data}})
 
     # Extract metadata - should use JSON file metadata
-    result = event_accumulator._extract_visit_metadata(json_file, qc_log_file)
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file, qc_log_file
+    )
 
     # Should extract from JSON metadata if valid
     if json_data.get("ptid") and json_data.get("visitdate") and json_data.get("module"):
@@ -170,8 +180,10 @@ def test_visit_metadata_extraction_no_qc_file(event_accumulator, visit_data):
     """Property test: When QC status file is None, should fall back to JSON
     file metadata.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
-    **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
     """
     # Convert visit_data to JSON format (visitdate instead of date)
     json_data = {**visit_data}
@@ -182,7 +194,9 @@ def test_visit_metadata_extraction_no_qc_file(event_accumulator, visit_data):
     json_file = create_mock_file_entry("forms.json", {"forms": {"json": json_data}})
 
     # Extract metadata with no QC file
-    result = event_accumulator._extract_visit_metadata(json_file, None)
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file, None
+    )
 
     # Should extract from JSON metadata if valid
     if json_data.get("ptid") and json_data.get("visitdate") and json_data.get("module"):
@@ -198,8 +212,10 @@ def test_visit_metadata_extraction_no_qc_file(event_accumulator, visit_data):
 def test_visit_metadata_extraction_invalid_data(event_accumulator):
     """Test that invalid metadata returns None.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
-    **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
     """
     # Create files with invalid metadata (missing required fields)
     qc_log_file = create_mock_file_entry(
@@ -215,15 +231,19 @@ def test_visit_metadata_extraction_invalid_data(event_accumulator):
     )
 
     # Should return None for invalid data
-    result = event_accumulator._extract_visit_metadata(json_file, qc_log_file)
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file, qc_log_file
+    )
     assert result is None
 
 
 def test_visit_metadata_extractor_utilities():
     """Test the VisitMetadataExtractor utility methods.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 4: Visit Metadata Extraction Priority**
-    **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
     """
     # Test from_qc_status_custom_info
     custom_info = {

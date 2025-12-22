@@ -1,6 +1,7 @@
 """Property test for VisitMetadata model.
 
-**Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 9: Extended Visit Metadata Model**
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 """
 
@@ -40,11 +41,12 @@ def visit_metadata_strategy(draw):
 def test_visit_metadata_extends_visit_keys(visit_data: Dict[str, Any]):
     """Property test: VisitMetadata extends VisitKeys with packet field.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
+    **Feature: form-scheduler-event-logging-refactor,
+      Property 9: Extended Visit Metadata Model**
     **Validates: Requirements 7.1, 7.2**
 
-    For any visit data, VisitMetadata should extend VisitKeys with an optional packet field
-    and maintain all VisitKeys functionality.
+    For any visit data, VisitMetadata should extend VisitKeys with an optional
+    packet field and maintain all VisitKeys functionality.
     """
     # Act - Create VisitMetadata instance
     visit_metadata = VisitMetadata(**visit_data)
@@ -96,11 +98,13 @@ def test_visit_metadata_extends_visit_keys(visit_data: Dict[str, Any]):
 def test_visit_metadata_to_visit_event_fields_mapping(visit_data: Dict[str, Any]):
     """Property test: VisitMetadata serialization maps field names correctly.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
-    **Validates: Requirements 7.3, 7.4, 7.5**
+          **Feature: form-scheduler-event-logging-refactor,
+        Property 9: Extended Visit Metadata Model**
+          **Validates: Requirements 7.3, 7.4, 7.5**
 
-    For any VisitMetadata instance, model serialization should map field names
-    correctly for VisitEvent creation and include all required fields.
+          For any VisitMetadata instance, model serialization should map field names
+          correctly for
+    VisitEvent creation.and include all required fields.
     """
     # Arrange - Create VisitMetadata instance
     visit_metadata = VisitMetadata(**visit_data)
@@ -111,7 +115,8 @@ def test_visit_metadata_to_visit_event_fields_mapping(visit_data: Dict[str, Any]
     # Assert - Should return a dictionary
     assert isinstance(event_fields, dict), "model_dump should return a dictionary"
 
-    # Assert - Should have correct field name mappings (date -> visit_date, visitnum -> visit_number)
+    # Assert - Should have correct field name mappings
+    # (date -> visit_date, visitnum -> visit_number)
     expected_fields = [
         "ptid",
         "visit_date",
@@ -149,10 +154,11 @@ def test_visit_metadata_to_visit_event_fields_mapping(visit_data: Dict[str, Any]
 def test_visit_metadata_with_packet_field():
     """Test VisitMetadata with packet field for form packet information.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
-    **Validates: Requirements 7.1, 7.2**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 9: Extended Visit Metadata Model**
+      **Validates: Requirements 7.1, 7.2**
 
-    VisitMetadata should include an optional packet field for form packet information.
+      VisitMetadata should include an optional packet field for form packet information.
     """
     # Arrange & Act - Create VisitMetadata with packet
     visit_metadata = VisitMetadata(
@@ -176,10 +182,12 @@ def test_visit_metadata_with_packet_field():
 def test_visit_metadata_field_name_mapping():
     """Test VisitMetadata field name mapping for VisitEvent creation.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
-    **Validates: Requirements 7.3, 7.4, 7.5**
+          **Feature: form-scheduler-event-logging-refactor,
+            Property 9: Extended Visit Metadata Model**
+          **Validates: Requirements 7.3, 7.4, 7.5**
 
-    VisitMetadata serialization should map field names correctly for VisitEvent creation.
+          VisitMetadata serialization should map field names correctly for
+    VisitEvent creation.
     """
     # Arrange - Create VisitMetadata with all fields
     visit_metadata = VisitMetadata(
@@ -230,7 +238,8 @@ def test_visit_metadata_field_name_mapping():
 def test_visit_metadata_inheritance_compatibility():
     """Test VisitMetadata maintains compatibility with VisitKeys methods.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 9: Extended Visit Metadata Model**
+    **Feature: form-scheduler-event-logging-refactor,
+      Property 9: Extended Visit Metadata Model**
     **Validates: Requirements 7.1, 7.2**
 
     VisitMetadata should maintain compatibility with existing VisitKeys functionality.

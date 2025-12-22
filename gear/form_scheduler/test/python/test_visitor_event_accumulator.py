@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from configs.ingest_configs import Pipeline
-from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.visitor_event_accumulator import EventAccumulator
 from gear_execution.gear_trigger import GearConfigs, GearInfo
 from nacc_common.error_models import (
@@ -20,46 +18,7 @@ from nacc_common.error_models import (
 )
 from pydantic import ValidationError
 from test_mocks.mock_event_logging import MockVisitEventLogger
-from test_mocks.mock_flywheel import MockFile
-
-
-class MockProjectAdaptor(ProjectAdaptor):
-    """Mock ProjectAdaptor for testing EventAccumulator."""
-
-    def __init__(
-        self,
-        label: str,
-        group: str = "dummy-center",
-        pipeline_adcid: int = 42,
-        files: Optional[List[FileEntry]] = None,
-    ):
-        self.__label = label
-        self.__group = group
-        self._pipeline_adcid = pipeline_adcid
-        self.__files = files or []
-
-    @property
-    def label(self):
-        return self.__label
-
-    @property
-    def group(self):
-        return self.__group
-
-    @property
-    def files(self):
-        return self.__files
-
-    def get_pipeline_adcid(self) -> int:
-        """Get pipeline ADCID."""
-        return self._pipeline_adcid
-
-    def iter_files(self, **kwargs):
-        """Iterate over files with optional filtering."""
-        file_filter = kwargs.get("filter")
-        if file_filter:
-            return filter(file_filter, self.files)
-        return iter(self.files)
+from test_mocks.mock_flywheel import MockFile, MockProjectAdaptor
 
 
 def create_qc_metadata(
@@ -742,6 +701,7 @@ class TestEventAccumulator:
             project = MockProjectAdaptor(
                 label="ingest-form-alpha",
                 files=[qc_file],
+                info={"pipeline_adcid": 9999},
             )
 
             # Log events
@@ -807,6 +767,7 @@ class TestEventAccumulator:
         project = MockProjectAdaptor(
             label="ingest-form-alpha",
             files=[uds_qc_file, ftld_qc_file],
+            info={"pipeline_adcid": 8888},
         )
 
         # Log events
@@ -880,8 +841,7 @@ class TestEventAccumulator:
 
         # Create mock project
         project = MockProjectAdaptor(
-            label="ingest-form-alpha",
-            files=[qc_file],
+            label="ingest-form-alpha", files=[qc_file], info={"pipeline_adcid": 7777}
         )
 
         # Log events
@@ -938,8 +898,7 @@ class TestEventAccumulator:
 
             # Create mock project with specific label
             project = MockProjectAdaptor(
-                label=project_label,
-                files=[qc_file],
+                label=project_label, files=[qc_file], info={"pipeline_adcid": 6666}
             )
 
             # Log events
@@ -1009,6 +968,7 @@ class TestEventAccumulator:
         project = MockProjectAdaptor(
             label="ingest-form-alpha",
             files=[uds_qc_file, ftld_qc_file],
+            info={"pipeline_adcid": 4444},
         )
 
         # Log events
@@ -1035,6 +995,7 @@ class TestEventAccumulator:
         project = MockProjectAdaptor(
             label="ingest-form-alpha",
             files=[],  # No QC files
+            info={"pipeline_adcid": 3333},
         )
 
         # Log events

@@ -43,7 +43,8 @@ class TestFileVisitAnnotatorVisitMetadata:
             assert result is True
             self.mock_project.get_file.assert_called_once_with(qc_log_filename)
 
-            # Verify that update_file_info was called with visit metadata including packet
+            # Verify that update_file_info was called with visit metadata
+            # including packet
             mock_update.assert_called_once()
             call_args = mock_update.call_args
             assert call_args[1]["file"] == mock_file
@@ -86,7 +87,8 @@ class TestFileVisitAnnotatorVisitMetadata:
             # Assert
             assert result is True
 
-            # Check that the custom_info contains visit metadata without packet (excluded by exclude_none=True)
+            # Check that the custom_info contains visit metadata without packet
+            # (excluded by exclude_none=True)
             custom_info = mock_update.call_args[1]["custom_info"]
             visit_data = custom_info["visit"]
             assert visit_data["ptid"] == "110002"
@@ -173,7 +175,7 @@ class TestFileVisitAnnotatorVisitMetadata:
         )
 
         # Act
-        result = self.annotator._create_visit_metadata(visit_metadata)
+        result = self.annotator._create_visit_metadata(visit_metadata)  # noqa: SLF001
 
         # Assert
         assert isinstance(result, dict)
@@ -217,7 +219,8 @@ class TestFileVisitAnnotatorVisitMetadata:
             assert "visit" in custom_info
             assert len(custom_info) == 1  # Only visit metadata added
 
-            # The existing qc data should remain untouched (update_file_info handles this)
+            # The existing qc data should remain untouched
+            # (update_file_info handles this)
             visit_data = custom_info["visit"]
             assert visit_data["ptid"] == "110001"
             assert visit_data["packet"] == "I"

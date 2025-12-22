@@ -1,6 +1,7 @@
 """Property test for QC status log to JSON file matching.
 
-**Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 5: QC Status Log to JSON File Matching**
 
 **Validates: Requirements 2.5**
 """
@@ -9,6 +10,7 @@ from typing import Any, Dict, Optional
 from unittest.mock import Mock
 
 import pytest
+from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.simplified_event_accumulator import EventAccumulator
@@ -69,11 +71,11 @@ def mock_project():
     project.get_pipeline_adcid.return_value = 123
 
     # Mock file storage for get_file method
-    project._files = {}
+    project._files = {}  # noqa: SLF001
 
     def mock_get_file(filename):
-        if filename in project._files:
-            return project._files[filename]
+        if filename in project._files:  # noqa: SLF001
+            return project._files[filename]  # noqa: SLF001
         else:
             raise FileNotFoundError(f"File {filename} not found")
 
@@ -96,8 +98,9 @@ def test_qc_status_log_matching_success(
     should correctly find its corresponding QC status log using
     ErrorLogTemplate.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
-    **Validates: Requirements 2.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 5: QC Status Log to JSON File Matching**
+      **Validates: Requirements 2.5**
     """
     # Create JSON file with forms metadata
     json_file = create_mock_file_entry(
@@ -116,11 +119,22 @@ def test_qc_status_log_matching_success(
         return
 
     visitdate = forms_metadata["visitdate"]
-    expected_qc_log_name = f"{ptid}_{visitdate}_{module.lower()}_qc-status.log"
+
+    # Use the same date normalization as ErrorLogTemplate
+    normalized_date = convert_date(
+        date_string=visitdate, date_format=DEFAULT_DATE_FORMAT
+    )
+    if not normalized_date:
+        # This is a valid case where date conversion fails
+        result = event_accumulator.find_qc_status_for_json_file(json_file, mock_project)
+        assert result is None
+        return
+
+    expected_qc_log_name = f"{ptid}_{normalized_date}_{module.lower()}_qc-status.log"
 
     # Create corresponding QC status log file and add to project
     qc_log_file = create_mock_file_entry(expected_qc_log_name)
-    mock_project._files[expected_qc_log_name] = qc_log_file
+    mock_project._files[expected_qc_log_name] = qc_log_file  # noqa: SLF001
 
     # Test that the matching works
     result = event_accumulator.find_qc_status_for_json_file(json_file, mock_project)
@@ -137,8 +151,9 @@ def test_qc_status_log_matching_not_found(
     """Property test: For any JSON file where the corresponding QC status log
     doesn't exist, the system should return None.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
-    **Validates: Requirements 2.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 5: QC Status Log to JSON File Matching**
+      **Validates: Requirements 2.5**
     """
     # Create JSON file with forms metadata
     json_file = create_mock_file_entry(
@@ -157,8 +172,9 @@ def test_qc_status_log_matching_not_found(
 def test_qc_status_log_matching_invalid_json_file(event_accumulator, mock_project):
     """Test that JSON files without forms metadata return None.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
-    **Validates: Requirements 2.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 5: QC Status Log to JSON File Matching**
+      **Validates: Requirements 2.5**
     """
     # Test with no forms metadata
     json_file_no_forms = create_mock_file_entry("forms.json", {})
@@ -189,7 +205,8 @@ def test_qc_status_log_matching_invalid_json_file(event_accumulator, mock_projec
 def test_qc_status_log_matching_error_handling(event_accumulator, mock_project):
     """Test that file access errors are handled gracefully.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
+    **Feature: form-scheduler-event-logging-refactor,
+    Property 5: QC Status Log to JSON File Matching**
     **Validates: Requirements 2.5**
     """
     # Create JSON file with valid metadata
@@ -213,8 +230,9 @@ def test_qc_status_log_matching_error_handling(event_accumulator, mock_project):
 def test_error_log_template_integration(event_accumulator, mock_project):
     """Test integration with ErrorLogTemplate for filename generation.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 5: QC Status Log to JSON File Matching**
-    **Validates: Requirements 2.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 5: QC Status Log to JSON File Matching**
+      **Validates: Requirements 2.5**
     """
     # Test with realistic forms metadata
     forms_metadata = {
@@ -236,7 +254,7 @@ def test_error_log_template_integration(event_accumulator, mock_project):
 
     # Add the expected file to the project
     qc_log_file = create_mock_file_entry(expected_filename)
-    mock_project._files[expected_filename] = qc_log_file
+    mock_project._files[expected_filename] = qc_log_file  # noqa: SLF001
 
     # Test the matching
     result = event_accumulator.find_qc_status_for_json_file(json_file, mock_project)

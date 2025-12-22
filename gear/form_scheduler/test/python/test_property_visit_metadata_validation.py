@@ -1,6 +1,8 @@
 """Property test for visit metadata validation.
 
-**Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 6:
+  Visit Metadata Validation**
 
 **Validates: Requirements 4.4, 4.5**
 """
@@ -100,8 +102,10 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
     """Property test: For any VisitMetadata with required fields (ptid, date,
     module), validation should pass and allow VisitEvent creation.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     # Create VisitMetadata from valid data
     visit_metadata = VisitMetadata.model_validate(valid_metadata)
@@ -122,8 +126,10 @@ def test_invalid_visit_metadata_fails_validation(invalid_metadata):
     """Property test: For any VisitMetadata missing required fields (ptid,
     date, module), validation should fail and skip event logging.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     try:
         # Create VisitMetadata from invalid data
@@ -150,8 +156,10 @@ def test_invalid_visit_metadata_fails_validation(invalid_metadata):
 def test_visit_metadata_validation_edge_cases():
     """Test edge cases for visit metadata validation.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     # Test with empty strings (should be invalid)
     empty_metadata = VisitMetadata(ptid="", date="", module="")
@@ -177,8 +185,10 @@ def test_visit_metadata_validation_edge_cases():
 def test_visit_metadata_extraction_validation_integration(event_accumulator):
     """Test that metadata extraction properly validates extracted data.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     # Test QC status custom info with invalid data
     qc_log_invalid = create_mock_file_entry(
@@ -198,7 +208,9 @@ def test_visit_metadata_extraction_validation_integration(event_accumulator):
     )
 
     # Should fall back to JSON file when QC status is invalid
-    result = event_accumulator._extract_visit_metadata(json_file_valid, qc_log_invalid)
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file_valid, qc_log_invalid
+    )
     assert result is not None
     assert result.ptid == "110001"
 
@@ -213,7 +225,7 @@ def test_visit_metadata_extraction_validation_integration(event_accumulator):
     )
 
     # Should return None when both sources are invalid
-    result = event_accumulator._extract_visit_metadata(
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
         json_file_invalid, qc_log_invalid
     )
     assert result is None
@@ -222,8 +234,10 @@ def test_visit_metadata_extraction_validation_integration(event_accumulator):
 def test_visit_metadata_validation_with_optional_fields():
     """Test that optional fields don't affect validation of required fields.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     # Test with only required fields
     minimal_metadata = VisitMetadata(ptid="110001", date="2024-01-15", module="UDS")
@@ -268,8 +282,10 @@ def test_visit_metadata_validation_required_fields_property(ptid, date, module):
     """Property test: Validation should pass if and only if all required fields
     (ptid, date, module) are present and non-empty.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 6: Visit Metadata Validation**
-    **Validates: Requirements 4.4, 4.5**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
     """
     try:
         visit_metadata = VisitMetadata(ptid=ptid, date=date, module=module)

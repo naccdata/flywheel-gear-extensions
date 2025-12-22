@@ -1,87 +1,23 @@
 """Property test for QC-pass event creation only.
 
-**Feature: form-scheduler-event-logging-refactor, Property 1: QC-Pass Event Creation Only**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 1: QC-Pass Event Creation Only**
 **Validates: Requirements 1.1, 1.2**
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from unittest.mock import Mock
 
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import ACTION_PASS_QC, VisitEvent
+from event_logging.visit_events import ACTION_PASS_QC
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.simplified_event_accumulator import EventAccumulator
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from nacc_common.error_models import (
-    QC_STATUS_PASS,
-    GearQCModel,
-    ValidationModel,
-)
-
-
-class MockVisitEventLogger(VisitEventLogger):
-    """Mock VisitEventLogger for testing."""
-
-    def __init__(self):
-        self.logged_events: List[VisitEvent] = []
-
-    def log_event(self, event: VisitEvent) -> None:
-        """Mock log_event that stores events."""
-        self.logged_events.append(event)
-
-
-class MockProjectAdaptor:
-    """Mock ProjectAdaptor for testing."""
-
-    def __init__(self, label: str = "ingest-form-study001", group: str = "test-center"):
-        self._label = label
-        self._group = group
-        self.files: Dict[str, FileEntry] = {}
-
-    @property
-    def label(self) -> str:
-        return self._label
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    def get_pipeline_adcid(self) -> int:
-        return 123
-
-    def get_file(self, filename: str) -> Optional[FileEntry]:
-        return self.files.get(filename)
-
-    def add_qc_status_file(
-        self,
-        filename: str,
-        qc_status: str,
-        custom_info: Optional[Dict[str, Any]] = None,
-    ) -> FileEntry:
-        """Add a QC status file to the mock project."""
-        # Create QC model with proper structure
-        qc_data = {
-            "test-gear": GearQCModel(
-                validation=ValidationModel(
-                    state=qc_status,
-                    data=[],
-                )
-            )
-        }
-
-        # Create file entry
-        file_entry = Mock(spec=FileEntry)
-        file_entry.name = filename
-        file_entry.modified = datetime.now()
-
-        # Put QC data in custom info, not file contents
-        file_entry.info = custom_info or {}
-        file_entry.info["qc"] = qc_data
-
-        self.files[filename] = file_entry
-        return file_entry
+from nacc_common.error_models import QC_STATUS_PASS
+from test_mocks.assertions import assert_valid_qc_pass_event
+from test_mocks.mock_event_logging import MockVisitEventLogger
+from test_mocks.mock_factories import FileEntryFactory
+from test_mocks.mock_flywheel import MockProjectAdaptor
 
 
 @st.composite
@@ -132,16 +68,20 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
     """Property test: Only create QC-pass events for visits that pass QC
     validation.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 1: QC-Pass Event Creation Only**
-    **Validates: Requirements 1.1, 1.2**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 1: QC-Pass Event Creation Only**
+      **Validates: Requirements 1.1, 1.2**
 
-    For any pipeline completion, the system should create QC-pass events only for visits
-    that pass QC validation and should not create any events for visits that fail QC validation.
+      For any pipeline completion, the system should create QC-pass events only
+      for visits that pass QC validation and should not create any events for
+      visits that fail QC validation.
     """
     # Arrange
     mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger, datatype="form")
-    mock_project = MockProjectAdaptor()
+    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_project = MockProjectAdaptor(
+        label="ingest-form-mock", info={"pipeline_adcid": 2222}
+    )
 
     # Create QC status file based on the JSON file using ErrorLogTemplate
     from error_logging.error_logger import ErrorLogTemplate
@@ -157,7 +97,12 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
         return
 
     # Add QC status file to project
-    mock_project.add_qc_status_file(qc_filename, qc_status)
+    mock_project.add_file(
+        FileEntryFactory.create_mock_qc_status_file_for_project(
+            filename=qc_filename,
+            qc_status=qc_status,
+        )
+    )
 
     # Act
     event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
@@ -165,22 +110,23 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
     # Assert - Events should only be created for PASS status
     if qc_status == QC_STATUS_PASS:
         assert len(mock_logger.logged_events) == 1, (
-            f"Should create exactly one event for PASS status, got {len(mock_logger.logged_events)}"
+            f"Should create exactly one event for PASS status, "
+            f"got {len(mock_logger.logged_events)}"
         )
 
         event = mock_logger.logged_events[0]
-        assert event.action == ACTION_PASS_QC, (
-            f"Event action should be {ACTION_PASS_QC}, got {event.action}"
-        )
-        assert event.ptid == forms_json["ptid"], (
-            f"Event PTID should match JSON file PTID {forms_json['ptid']}, got {event.ptid}"
-        )
-        assert event.module == forms_json["module"], (
-            f"Event module should match JSON file module {forms_json['module']}, got {event.module}"
+        assert_valid_qc_pass_event(
+            event=event,
+            expected_ptid=forms_json["ptid"],
+            expected_visit_date=forms_json["visitdate"],
+            expected_visit_number=forms_json["visitnum"],
+            expected_module=forms_json["module"],
+            expected_packet=forms_json.get("packet"),
         )
     else:
         assert len(mock_logger.logged_events) == 0, (
-            f"Should not create events for non-PASS status {qc_status}, got {len(mock_logger.logged_events)} events"
+            f"Should not create events for non-PASS status {qc_status}, "
+            f"got {len(mock_logger.logged_events)} events"
         )
 
 
@@ -189,37 +135,45 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
 def test_no_events_for_missing_qc_status(json_file: FileEntry):
     """Property test: No events created when QC status file is missing.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 1: QC-Pass Event Creation Only**
-    **Validates: Requirements 1.1, 1.2**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 1: QC-Pass Event Creation Only**
+      **Validates: Requirements 1.1, 1.2**
 
-    For any JSON file without a corresponding QC status file, no events should be created.
+      For any JSON file without a corresponding QC status file, no events should
+      be created.
     """
     # Arrange
     mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger, datatype="form")
-    mock_project = MockProjectAdaptor()  # Empty project with no QC status files
+    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_project = MockProjectAdaptor(
+        "ingest-form-mock"
+    )  # Empty project with no QC status files
 
     # Act
     event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - No events should be created
     assert len(mock_logger.logged_events) == 0, (
-        f"Should not create events when QC status file is missing, got {len(mock_logger.logged_events)} events"
+        f"Should not create events when QC status file is missing, "
+        f"got {len(mock_logger.logged_events)} events"
     )
 
 
 def test_qc_pass_event_structure():
     """Test that QC-pass events have the correct structure.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 1: QC-Pass Event Creation Only**
-    **Validates: Requirements 1.1, 1.2**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 1: QC-Pass Event Creation Only**
+      **Validates: Requirements 1.1, 1.2**
 
-    QC-pass events should have the correct action and all required fields.
+      QC-pass events should have the correct action and all required fields.
     """
     # Arrange
     mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger, datatype="form")
-    mock_project = MockProjectAdaptor()
+    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_project = MockProjectAdaptor(
+        label="ingest-form-mock", info={"pipeline_adcid": 1111}
+    )
 
     # Create test JSON file
     json_file = Mock(spec=FileEntry)
@@ -246,7 +200,12 @@ def test_qc_pass_event_structure():
         record=forms_json, module=forms_json["module"]
     )
     assert expected_filename is not None, "ErrorLogTemplate should generate a filename"
-    mock_project.add_qc_status_file(expected_filename, QC_STATUS_PASS)
+    mock_project.add_file(
+        FileEntryFactory.create_mock_qc_status_file_for_project(
+            filename=expected_filename,
+            qc_status=QC_STATUS_PASS,
+        )
+    )
 
     # Act
     event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
@@ -255,32 +214,31 @@ def test_qc_pass_event_structure():
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
 
     event = mock_logger.logged_events[0]
-    assert event.action == ACTION_PASS_QC, f"Event action should be {ACTION_PASS_QC}"
-    assert event.datatype == "form", "Event datatype should be 'form'"
-    assert event.gear_name == "form-scheduler", (
-        "Event gear_name should be 'form-scheduler'"
+    assert_valid_qc_pass_event(
+        event=event,
+        expected_ptid="TEST001",
+        expected_visit_date="2024-01-15",
+        expected_visit_number="01",
+        expected_module="UDS",
+        expected_packet="I",
     )
-    assert event.ptid == "TEST001", "Event PTID should match"
-    assert event.visit_date == "2024-01-15", "Event visit_date should match"
-    assert event.visit_number == "01", "Event visit_number should match"
-    assert event.module == "UDS", "Event module should match"
-    assert event.packet == "I", "Event packet should match"
-    assert event.pipeline_adcid == 123, "Event pipeline_adcid should match project"
-    assert isinstance(event.timestamp, datetime), "Event timestamp should be datetime"
 
 
 def test_multiple_json_files_mixed_qc_status():
     """Test multiple JSON files with mixed QC status outcomes.
 
-    **Feature: form-scheduler-event-logging-refactor, Property 1: QC-Pass Event Creation Only**
-    **Validates: Requirements 1.1, 1.2**
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 1: QC-Pass Event Creation Only**
+      **Validates: Requirements 1.1, 1.2**
 
-    Only JSON files with PASS QC status should generate events.
+      Only JSON files with PASS QC status should generate events.
     """
     # Arrange
     mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger, datatype="form")
-    mock_project = MockProjectAdaptor()
+    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_project = MockProjectAdaptor(
+        label="ingest-form-mock", info={"pipeline_adcid": 1111}
+    )
 
     # Create test JSON files
     json_files = []
@@ -313,7 +271,12 @@ def test_multiple_json_files_mixed_qc_status():
             record=forms_json, module=forms_json["module"]
         )
         assert qc_filename is not None, "ErrorLogTemplate should generate a filename"
-        mock_project.add_qc_status_file(qc_filename, qc_status)
+        mock_project.add_file(
+            FileEntryFactory.create_mock_qc_status_file_for_project(
+                filename=qc_filename,
+                qc_status=qc_status,
+            )
+        )
 
         if qc_status == QC_STATUS_PASS:
             expected_pass_count += 1
@@ -324,7 +287,8 @@ def test_multiple_json_files_mixed_qc_status():
 
     # Assert - Only PASS files should generate events
     assert len(mock_logger.logged_events) == expected_pass_count, (
-        f"Should create {expected_pass_count} events for PASS files, got {len(mock_logger.logged_events)}"
+        f"Should create {expected_pass_count} events for PASS files, "
+        f"got {len(mock_logger.logged_events)}"
     )
 
     # Assert - All logged events should be QC-pass events

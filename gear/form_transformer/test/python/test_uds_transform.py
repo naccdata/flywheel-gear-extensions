@@ -15,7 +15,7 @@ from outputs.errors import (
 )
 from preprocess.preprocessor import FormPreprocessor
 from test_mocks.mock_configs import uds_ingest_configs
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
     FieldTransformations,
@@ -39,7 +39,7 @@ def run_header_test(visitor: CSVTransformVisitor, error_writer: ListErrorWriter)
 
 def create_uds_visitor(
     test_header: bool = False, transform_schema: Optional[Dict[str, Any]] = None
-) -> Tuple[CSVTransformVisitor, MockProject, MockFormsStore]:
+) -> Tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
     Returns the visitor, mocked project, and mocked form store.
 
@@ -62,7 +62,7 @@ def create_uds_visitor(
     # just use UDS for testing
     module_configs = uds_ingest_configs()
     form_store = MockFormsStore(date_field=DATE_FIELD)
-    project = MockProject(label="uds-project")
+    project = MockProjectAdaptor(label="uds-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
@@ -136,7 +136,7 @@ def create_record(data: Dict[str, Any]):
     return record
 
 
-def get_qc_errors(project: MockProject):
+def get_qc_errors(project: MockProjectAdaptor):
     """Get the first QC error from mock project.
 
     Args:

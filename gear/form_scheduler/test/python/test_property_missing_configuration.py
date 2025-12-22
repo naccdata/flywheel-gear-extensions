@@ -1,6 +1,7 @@
 """Property test for missing configuration handling in FormSchedulerQueue.
 
-**Feature: form-scheduler-event-logging-refactor, Property 8: Missing Configuration Handling**
+**Feature: form-scheduler-event-logging-refactor,
+  Property 8: Missing Configuration Handling**
 **Validates: Requirements 5.5**
 """
 
@@ -27,8 +28,9 @@ class TestMissingConfigurationHandling:
         """Test that event logging is skipped entirely when event logger is
         None.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 8: Missing Configuration Handling**
-        **Validates: Requirements 5.5**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 8: Missing Configuration Handling**
+              **Validates: Requirements 5.5**
         """
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
@@ -47,20 +49,20 @@ class TestMissingConfigurationHandling:
         if json_file:
             json_file.name = "test.json"
 
-        # Create mock pipeline
-        mock_pipeline = Mock()
-        mock_pipeline.name = "test_pipeline"
-
         # Capture log messages to verify debug message is logged
         with patch("form_scheduler_app.form_scheduler_queue.log") as mock_log:
             # This should not raise an exception regardless of input validity
             try:
-                queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)  # type: ignore[arg-type]
+                # Access the private method for testing
+                queue._log_pipeline_events(  # noqa: SLF001
+                    json_file=json_file  # type: ignore[arg-type]
+                )
                 # If we get here, missing configuration was handled gracefully
                 assert True
             except Exception as e:
                 pytest.fail(
-                    f"FormSchedulerQueue should handle missing configuration gracefully, but raised: {e}"
+                    f"FormSchedulerQueue should handle missing configuration "
+                    f"gracefully, but raised: {e}"
                 )
 
             # Should have logged debug message about missing configuration
@@ -71,8 +73,9 @@ class TestMissingConfigurationHandling:
     def test_no_errors_when_event_logger_is_none(self):
         """Test that no errors occur when event logger is None.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 8: Missing Configuration Handling**
-        **Validates: Requirements 5.5**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 8: Missing Configuration Handling**
+              **Validates: Requirements 5.5**
         """
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
@@ -90,24 +93,24 @@ class TestMissingConfigurationHandling:
         json_file = Mock(spec=FileEntry)
         json_file.name = "test.json"
 
-        mock_pipeline = Mock()
-        mock_pipeline.name = "test_pipeline"
-
         # This should complete without any errors
         try:
-            queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)
+            # Access the private method for testing
+            queue._log_pipeline_events(json_file=json_file)  # noqa: SLF001
             # If we get here, missing configuration was handled gracefully
             assert True
         except Exception as e:
             pytest.fail(
-                f"FormSchedulerQueue should handle missing configuration without errors, but raised: {e}"
+                f"FormSchedulerQueue should handle missing configuration "
+                f"without errors, but raised: {e}"
             )
 
     def test_constructor_accepts_none_event_logger(self):
         """Test that FormSchedulerQueue constructor accepts None event logger.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 8: Missing Configuration Handling**
-        **Validates: Requirements 5.5**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 8: Missing Configuration Handling**
+              **Validates: Requirements 5.5**
         """
         # This should not raise an exception
         try:
@@ -120,14 +123,16 @@ class TestMissingConfigurationHandling:
             assert queue is not None
         except Exception as e:
             pytest.fail(
-                f"FormSchedulerQueue constructor should accept None event logger, but raised: {e}"
+                f"FormSchedulerQueue constructor should accept None event "
+                f"logger, but raised: {e}"
             )
 
     def test_no_event_accumulator_creation_when_logger_none(self):
         """Test that EventAccumulator is not created when event logger is None.
 
-        **Feature: form-scheduler-event-logging-refactor, Property 8: Missing Configuration Handling**
-        **Validates: Requirements 5.5**
+              **Feature: form-scheduler-event-logging-refactor,
+        Property 8: Missing Configuration Handling**
+              **Validates: Requirements 5.5**
         """
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
@@ -143,13 +148,13 @@ class TestMissingConfigurationHandling:
 
         json_file = Mock(spec=FileEntry)
         json_file.name = "test.json"
-        mock_pipeline = Mock()
 
         # Mock the EventAccumulator import to verify it's not called
         with patch(
             "form_scheduler_app.simplified_event_accumulator.EventAccumulator"
         ) as mock_accumulator_class:
-            queue._log_pipeline_events(file=json_file, pipeline=mock_pipeline)
+            # Access the private method for testing
+            queue._log_pipeline_events(json_file=json_file)  # noqa: SLF001
 
             # EventAccumulator should not be instantiated when event_logger is None
             mock_accumulator_class.assert_not_called()
