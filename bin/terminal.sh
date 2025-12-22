@@ -6,12 +6,8 @@ if ! command -v devcontainer &> /dev/null; then
     exit 1
 fi
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <command> [args...]"
-    echo "Example: $0 ls -la"
-    exit 1
-fi
-
 export WORKSPACE_FOLDER=`pwd`
 export DOCKER_CLI_HINTS=false
-devcontainer exec --workspace-folder $WORKSPACE_FOLDER "$@"
+export CONTAINER_HOST=`devcontainer exec --workspace-folder $WORKSPACE_FOLDER hostname`
+export WORKSPACE=`basename $WORKSPACE_FOLDER`
+docker exec -u vscode -w /workspaces/$WORKSPACE -ti $CONTAINER_HOST /bin/zsh
