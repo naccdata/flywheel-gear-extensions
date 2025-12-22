@@ -1,6 +1,7 @@
 """Property test for visitor coordination using existing QCStatusLogCSVVisitor.
 
-**Feature: identifier-lookup-refactoring, Property 7: Visitor Coordination**
+**Feature: identifier-lookup-refactoring,
+  Property 7: Visitor Coordination**
 **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 """
 
@@ -27,12 +28,13 @@ from test_mocks.mock_configs import uds_ingest_configs
 def test_visitor_coordination_success_case():
     """Property test: Visitor coordination for successful identifier lookup.
 
-    **Feature: identifier-lookup-refactoring, Property 7: Visitor Coordination**
-    **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
+      **Feature: identifier-lookup-refactoring,
+    Property 7: Visitor Coordination**
+      **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 
-    For any visit processing where identifier lookup succeeds, both visitors
-    should have consistent access to visit information and the QC visitor
-    should record a PASS status.
+      For any visit processing where identifier lookup succeeds, both visitors
+      should have consistent access to visit information and the QC visitor
+      should record a PASS status.
     """
     # Arrange - Create test data with valid identifiers
     ptids = ["P001", "P002"]
@@ -152,12 +154,13 @@ def test_visitor_coordination_success_case():
 def test_visitor_coordination_failure_case():
     """Property test: Visitor coordination for failed identifier lookup.
 
-    **Feature: identifier-lookup-refactoring, Property 7: Visitor Coordination**
-    **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
+      **Feature: identifier-lookup-refactoring,
+    Property 7: Visitor Coordination**
+      **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 
-    For any visit processing where identifier lookup fails, the QC visitor
-    should record a FAIL status with appropriate error details, and error
-    reporting should be coordinated without duplication.
+      For any visit processing where identifier lookup fails, the QC visitor
+      should record a FAIL status with appropriate error details, and error
+      reporting should be coordinated without duplication.
     """
     # Arrange - Create test data with invalid identifiers (empty identifiers map)
     invalid_ptids = ["INVALID1", "INVALID2"]

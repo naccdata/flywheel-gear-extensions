@@ -1,6 +1,7 @@
 """Property test for direction-specific event logging.
 
-**Feature: identifier-lookup-event-logging, Property 3: Direction-Specific Event
+**Feature: identifier-lookup-event-logging,
+  Property 3: Direction-Specific Event
 Logging**
 **Validates: Requirements 1.4, 3.3, 6.1**
 """
@@ -35,12 +36,13 @@ from test_mocks.mock_configs import uds_ingest_configs
 def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
     """Property test: NACC direction with QC logging creates submit events.
 
-    **Feature: identifier-lookup-event-logging, Property 3: Direction-Specific
-    Event Logging**
-    **Validates: Requirements 1.4, 3.3, 6.1**
+      **Feature: identifier-lookup-event-logging,
+    Property 3: Direction-Specific
+      Event Logging**
+      **Validates: Requirements 1.4, 3.3, 6.1**
 
-    For any CSV file processed in "nacc" direction with QC status log management
-    enabled, the system should create submit events.
+      For any CSV file processed in "nacc" direction with QC status log management
+      enabled, the system should create submit events.
     """
     # Arrange - Create test data with valid identifiers
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
@@ -160,12 +162,13 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
 def test_center_direction_no_events(num_naccids: int):
     """Property test: Center direction does not create submit events.
 
-    **Feature: identifier-lookup-event-logging, Property 3: Direction-Specific
-    Event Logging**
-    **Validates: Requirements 1.4, 3.3, 6.1**
+      **Feature: identifier-lookup-event-logging,
+    Property 3: Direction-Specific
+      Event Logging**
+      **Validates: Requirements 1.4, 3.3, 6.1**
 
-    For any CSV file processed in "center" direction, the system should not
-    create any submit events.
+      For any CSV file processed in "center" direction, the system should not
+      create any submit events.
     """
     # Arrange - Create test data with NACCIDs for center direction
     naccids = [f"NACC{str(i).zfill(6)}" for i in range(1, num_naccids + 1)]
@@ -248,12 +251,13 @@ def test_center_direction_no_events(num_naccids: int):
 def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
     """Property test: NACC direction without QC logging does not create events.
 
-    **Feature: identifier-lookup-event-logging, Property 3: Direction-Specific
-    Event Logging**
-    **Validates: Requirements 1.4, 3.3, 6.1**
+      **Feature: identifier-lookup-event-logging,
+    Property 3: Direction-Specific
+      Event Logging**
+      **Validates: Requirements 1.4, 3.3, 6.1**
 
-    For any CSV file processed in "nacc" direction without QC status log
-    management (no form_configs_file), the system should not create submit events.
+      For any CSV file processed in "nacc" direction without QC status log
+      management (no form_configs_file), the system should not create submit events.
     """
     # Arrange - Create test data with valid identifiers
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]

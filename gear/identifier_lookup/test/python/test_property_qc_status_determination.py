@@ -1,6 +1,7 @@
 """Property test for QC status determination.
 
-**Feature: identifier-lookup-refactoring, Property 2: QC Status Determination**
+**Feature: identifier-lookup-refactoring,
+  Property 2: QC Status Determination**
 **Validates: Requirements 2.2, 2.3**
 """
 
@@ -51,11 +52,12 @@ def visit_data_strategy(draw):
 def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
     """Property test: QC visitor creates PASS status for successful processing.
 
-    **Feature: identifier-lookup-refactoring, Property 2: QC Status Determination**
-    **Validates: Requirements 2.2**
+      **Feature: identifier-lookup-refactoring,
+    Property 2: QC Status Determination**
+      **Validates: Requirements 2.2**
 
-    For any visit processing result where no errors are present, the QC visitor
-    should create logs with PASS status.
+      For any visit processing result where no errors are present, the QC visitor
+      should create logs with PASS status.
     """
     # Arrange - Create QC visitor with empty error writer (no errors)
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -99,11 +101,12 @@ def test_qc_status_fail_for_failed_processing(
     """Property test: QC visitor creates FAIL status with error details for
     failures.
 
-    **Feature: identifier-lookup-refactoring, Property 2: QC Status Determination**
-    **Validates: Requirements 2.3**
+      **Feature: identifier-lookup-refactoring,
+    Property 2: QC Status Determination**
+      **Validates: Requirements 2.3**
 
-    For any visit processing result where errors are present, the QC visitor
-    should create logs with FAIL status and include error details.
+      For any visit processing result where errors are present, the QC visitor
+      should create logs with FAIL status and include error details.
     """
     # Arrange - Create QC visitor with errors in error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -159,11 +162,12 @@ def test_qc_status_fail_for_failed_processing(
 def test_qc_status_determination_boundary_case_empty_visit():
     """Test QC status determination with incomplete visit data.
 
-    **Feature: identifier-lookup-refactoring, Property 2: QC Status Determination**
-    **Validates: Requirements 2.2, 2.3**
+      **Feature: identifier-lookup-refactoring,
+    Property 2: QC Status Determination**
+      **Validates: Requirements 2.2, 2.3**
 
-    When visit data is incomplete (missing required fields), the QC visitor
-    should skip processing gracefully without creating a QC log.
+      When visit data is incomplete (missing required fields), the QC visitor
+      should skip processing gracefully without creating a QC log.
     """
     # Arrange - Create QC visitor
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")

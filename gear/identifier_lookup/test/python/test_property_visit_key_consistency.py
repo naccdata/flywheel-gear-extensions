@@ -1,6 +1,7 @@
 """Property test for visit key consistency.
 
-**Feature: identifier-lookup-refactoring, Property 9: Visit Key Consistency**
+**Feature: identifier-lookup-refactoring,
+  Property 9: Visit Key Consistency**
 **Validates: Requirements 2.5**
 """
 
@@ -56,11 +57,12 @@ def visit_row_strategy(draw):
 def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
     """Property test: VisitKeys are extracted consistently from CSV rows.
 
-    **Feature: identifier-lookup-refactoring, Property 9: Visit Key Consistency**
-    **Validates: Requirements 2.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 9: Visit Key Consistency**
+      **Validates: Requirements 2.5**
 
-    For any CSV row containing visit data, the system should use VisitKeys
-    to identify visits consistently across all visitors.
+      For any CSV row containing visit data, the system should use VisitKeys
+      to identify visits consistently across all visitors.
     """
     # Arrange - Create QC visitor
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -117,11 +119,12 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
 def test_visit_keys_consistent_across_visitors(num_visits: int):
     """Property test: VisitKeys are consistent across multiple visitors.
 
-    **Feature: identifier-lookup-refactoring, Property 9: Visit Key Consistency**
-    **Validates: Requirements 2.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 9: Visit Key Consistency**
+      **Validates: Requirements 2.5**
 
-    For any CSV processing with multiple visitors, the system should use
-    VisitKeys consistently to identify the same visit across all visitors.
+      For any CSV processing with multiple visitors, the system should use
+      VisitKeys consistently to identify the same visit across all visitors.
     """
     # Arrange - Create CSV data with unique PTIDs
     # Note: Using "P###" format to avoid clean_ptid() stripping leading zeros
@@ -249,11 +252,12 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
 def test_visit_keys_with_missing_fields():
     """Test VisitKeys extraction with missing optional fields.
 
-    **Feature: identifier-lookup-refactoring, Property 9: Visit Key Consistency**
-    **Validates: Requirements 2.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 9: Visit Key Consistency**
+      **Validates: Requirements 2.5**
 
-    When CSV rows have missing optional fields, VisitKeys should still be
-    extracted consistently with None values for missing fields.
+      When CSV rows have missing optional fields, VisitKeys should still be
+      extracted consistently with None values for missing fields.
     """
     # Arrange - Create QC visitor
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -298,11 +302,12 @@ def test_visit_keys_module_name_handling():
     """Test VisitKeys module name handling with and without module_name
     parameter.
 
-    **Feature: identifier-lookup-refactoring, Property 9: Visit Key Consistency**
-    **Validates: Requirements 2.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 9: Visit Key Consistency**
+      **Validates: Requirements 2.5**
 
-    When module_name is provided to QCStatusLogCSVVisitor, it should be used
-    consistently in VisitKeys regardless of MODULE field in the row.
+      When module_name is provided to QCStatusLogCSVVisitor, it should be used
+      consistently in VisitKeys regardless of MODULE field in the row.
     """
     # Arrange - Create QC visitor with module_name parameter
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")

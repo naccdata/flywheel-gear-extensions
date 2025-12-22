@@ -1,6 +1,7 @@
 """Property test for success determination.
 
-**Feature: identifier-lookup-event-logging, Property 7: Success Determination**
+**Feature: identifier-lookup-event-logging,
+  Property 7: Success Determination**
 **Validates: Requirements 3.5, 6.5**
 """
 
@@ -37,11 +38,12 @@ def test_success_determination_with_valid_identifiers(
     """Property test: Success is determined by identifier lookup, not other
     visitors.
 
-    **Feature: identifier-lookup-event-logging, Property 7: Success Determination**
-    **Validates: Requirements 3.5, 6.5**
+      **Feature: identifier-lookup-event-logging,
+    Property 7: Success Determination**
+      **Validates: Requirements 3.5, 6.5**
 
-    For any CSV file processing where identifier lookup succeeds, the overall
-    success status should be True regardless of event logging or QC logging failures.
+      For any CSV file processing where identifier lookup succeeds, the overall
+      success status should be True regardless of event logging or QC logging failures.
     """
     # Arrange - Create test data with valid identifiers
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
@@ -200,11 +202,12 @@ def test_success_determination_with_invalid_identifiers(
     """Property test: Failure is determined by identifier lookup, not other
     visitors.
 
-    **Feature: identifier-lookup-event-logging, Property 7: Success Determination**
-    **Validates: Requirements 3.5, 6.5**
+      **Feature: identifier-lookup-event-logging,
+    Property 7: Success Determination**
+      **Validates: Requirements 3.5, 6.5**
 
-    For any CSV file processing where identifier lookup fails, the overall
-    success status should be False regardless of event logging or QC logging status.
+      For any CSV file processing where identifier lookup fails, the overall
+      success status should be False regardless of event logging or QC logging status.
     """
     # Arrange - Create test data with NO valid identifiers
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
@@ -340,11 +343,12 @@ def test_success_determination_mixed_results():
     """Property test: Success determination with mixed identifier lookup
     results.
 
-    **Feature: identifier-lookup-event-logging, Property 7: Success Determination**
-    **Validates: Requirements 3.5, 6.5**
+      **Feature: identifier-lookup-event-logging,
+    Property 7: Success Determination**
+      **Validates: Requirements 3.5, 6.5**
 
-    For any CSV file processing with some successful and some failed identifier
-    lookups, the overall success status should be False (partial failure).
+      For any CSV file processing with some successful and some failed identifier
+      lookups, the overall success status should be False (partial failure).
     """
     # Arrange - Create test data with some valid and some invalid identifiers
     num_ptids = 5

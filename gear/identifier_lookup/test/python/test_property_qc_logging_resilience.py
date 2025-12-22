@@ -1,6 +1,7 @@
 """Property test for QC logging resilience.
 
-**Feature: identifier-lookup-refactoring, Property 3: QC Logging Resilience**
+**Feature: identifier-lookup-refactoring,
+  Property 3: QC Logging Resilience**
 **Validates: Requirements 2.4**
 """
 
@@ -51,11 +52,12 @@ def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]
     """Property test: QC logging continues processing after individual
     failures.
 
-    **Feature: identifier-lookup-refactoring, Property 3: QC Logging Resilience**
-    **Validates: Requirements 2.4**
+      **Feature: identifier-lookup-refactoring,
+    Property 3: QC Logging Resilience**
+      **Validates: Requirements 2.4**
 
-    For any QC log creation failure, the system should continue processing
-    subsequent visits without failing the entire operation.
+      For any QC log creation failure, the system should continue processing
+      subsequent visits without failing the entire operation.
     """
     # Arrange - Create QC visitor with mock that fails on first call
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -106,11 +108,12 @@ def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]
 def test_qc_logging_resilience_all_failures():
     """Test QC logging resilience when all QC log creations fail.
 
-    **Feature: identifier-lookup-refactoring, Property 3: QC Logging Resilience**
-    **Validates: Requirements 2.4**
+      **Feature: identifier-lookup-refactoring,
+    Property 3: QC Logging Resilience**
+      **Validates: Requirements 2.4**
 
-    Even when all QC log creations fail, the visitor should continue processing
-    and return True (graceful handling).
+      Even when all QC log creations fail, the visitor should continue processing
+      and return True (graceful handling).
     """
     # Arrange - Create QC visitor with mock that always fails
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -179,11 +182,12 @@ def test_qc_logging_resilience_all_failures():
 def test_qc_logging_resilience_exception_handling():
     """Test QC logging resilience when QC log creation raises exceptions.
 
-    **Feature: identifier-lookup-refactoring, Property 3: QC Logging Resilience**
-    **Validates: Requirements 2.4**
+      **Feature: identifier-lookup-refactoring,
+    Property 3: QC Logging Resilience**
+      **Validates: Requirements 2.4**
 
-    When QC log creation raises an exception, the visitor should handle it
-    gracefully and continue processing.
+      When QC log creation raises an exception, the visitor should handle it
+      gracefully and continue processing.
     """
     # Arrange - Create QC visitor with mock that raises exception
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")

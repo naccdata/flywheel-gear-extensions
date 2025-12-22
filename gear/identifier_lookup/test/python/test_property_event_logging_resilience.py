@@ -1,6 +1,7 @@
 """Property test for event logging resilience.
 
-**Feature: identifier-lookup-event-logging, Property 4: Event Logging Resilience**
+**Feature: identifier-lookup-event-logging,
+  Property 4: Event Logging Resilience**
 **Validates: Requirements 1.5**
 """
 
@@ -34,11 +35,12 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
     """Property test: Event logging failures don't prevent subsequent
     processing.
 
-    **Feature: identifier-lookup-event-logging, Property 4: Event Logging Resilience**
-    **Validates: Requirements 1.5**
+      **Feature: identifier-lookup-event-logging,
+    Property 4: Event Logging Resilience**
+      **Validates: Requirements 1.5**
 
-    For any event logging failure during visit processing, the system should
-    continue processing subsequent visits without failing the entire operation.
+      For any event logging failure during visit processing, the system should
+      continue processing subsequent visits without failing the entire operation.
     """
     # Ensure failure_row is within bounds
     if failure_row >= num_ptids:
@@ -204,11 +206,12 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
 def test_event_logging_resilience_multiple_failures():
     """Property test: Multiple event logging failures don't prevent processing.
 
-    **Feature: identifier-lookup-event-logging, Property 4: Event Logging Resilience**
-    **Validates: Requirements 1.5**
+      **Feature: identifier-lookup-event-logging,
+    Property 4: Event Logging Resilience**
+      **Validates: Requirements 1.5**
 
-    For any scenario with multiple event logging failures, the system should
-    continue processing all visits without failing the entire operation.
+      For any scenario with multiple event logging failures, the system should
+      continue processing all visits without failing the entire operation.
     """
     # Arrange - Create test data with valid identifiers
     num_ptids = 5

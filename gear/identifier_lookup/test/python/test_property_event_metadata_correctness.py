@@ -1,6 +1,7 @@
 """Property test for event metadata correctness.
 
-**Feature: identifier-lookup-event-logging, Property 5: Event Metadata Correctness**
+**Feature: identifier-lookup-event-logging,
+  Property 5: Event Metadata Correctness**
 **Validates: Requirements 2.2, 2.4, 2.5, 2.6**
 """
 
@@ -91,11 +92,12 @@ def event_metadata(draw):
 @given(csv_row=valid_csv_row(), metadata=event_metadata())
 def test_property_event_metadata_correctness(csv_row, metadata):
     """Property: For any submit event created, the event should contain correct
-    center label, project label, gear name, file creation timestamp,
-    datatype='form', and packet value if present in the CSV row.
+      center label, project label, gear name, file creation timestamp,
+      datatype='form', and packet value if present in the CSV row.
 
-    **Feature: identifier-lookup-event-logging, Property 5: Event Metadata Correctness**
-    **Validates: Requirements 2.2, 2.4, 2.5, 2.6**
+      **Feature: identifier-lookup-event-logging,
+    Property 5: Event Metadata Correctness**
+      **Validates: Requirements 2.2, 2.4, 2.5, 2.6**
     """
     # Arrange - Create identifiers for the PTID
     identifiers = {
@@ -216,10 +218,11 @@ def test_property_event_metadata_correctness(csv_row, metadata):
 )
 def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
     """Property: For any collection of submit events created from multiple CSV rows,
-    each event should contain correct metadata while preserving row-specific data.
+      each event should contain correct metadata while preserving row-specific data.
 
-    **Feature: identifier-lookup-event-logging, Property 5: Event Metadata Correctness**
-    **Validates: Requirements 2.2, 2.4, 2.5, 2.6**
+      **Feature: identifier-lookup-event-logging,
+    Property 5: Event Metadata Correctness**
+      **Validates: Requirements 2.2, 2.4, 2.5, 2.6**
     """
     # Arrange - Create identifiers for all PTIDs
     identifiers = {}

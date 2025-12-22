@@ -1,6 +1,7 @@
 """Property-based test for backward compatibility baseline.
 
-**Feature: identifier-lookup-refactoring, Property 6: Backward Compatibility**
+**Feature: identifier-lookup-refactoring,
+  Property 6: Backward Compatibility**
 
 This test validates that the refactored system produces identical output files,
 error messages, and QC log structures compared to the original implementation.
@@ -158,17 +159,18 @@ class TestPropertyBackwardCompatibility:
     """Property-based tests for backward compatibility baseline."""
 
     def test_backward_compatibility_baseline_simple(self):
-        """**Feature: identifier-lookup-refactoring, Property 6: Backward
-        Compatibility**
+        """**Feature: identifier-lookup-refactoring,
+        Property 6: Backward
+              Compatibility**
 
-        **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
+              **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
-        For any input CSV file, the refactored system should produce identical
-        output files, error messages, and QC log structures compared to the
-        original implementation.
+              For any input CSV file, the refactored system should produce identical
+              output files, error messages, and QC log structures compared to the
+              original implementation.
 
-        This test establishes the baseline behavior before refactoring with a
-        simple case.
+              This test establishes the baseline behavior before refactoring with a
+              simple case.
         """
         # Simple test case with known data
         csv_data: list[list[Any]] = [

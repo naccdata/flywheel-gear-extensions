@@ -1,6 +1,7 @@
 """Property test for output format preservation.
 
-**Feature: identifier-lookup-event-logging, Property 8: Output Format Preservation**
+**Feature: identifier-lookup-event-logging,
+  Property 8: Output Format Preservation**
 **Validates: Requirements 6.4**
 """
 
@@ -33,12 +34,13 @@ def test_output_format_preservation_property(
 ):
     """Property test: Output format preservation with event logging.
 
-    **Feature: identifier-lookup-event-logging, Property 8: Output Format Preservation**
-    **Validates: Requirements 6.4**
+      **Feature: identifier-lookup-event-logging,
+    Property 8: Output Format Preservation**
+      **Validates: Requirements 6.4**
 
-    For any CSV file processed with valid identifiers, the output file format
-    and QC metadata structure should remain identical whether event logging
-    is enabled or not.
+      For any CSV file processed with valid identifiers, the output file format
+      and QC metadata structure should remain identical whether event logging
+      is enabled or not.
     """
     # Generate test data
     ptids = [f"P{i:03d}" for i in range(1, num_ptids + 1)]

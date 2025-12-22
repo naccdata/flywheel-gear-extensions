@@ -1,6 +1,7 @@
 """Property test for error propagation in aggregate visitor.
 
-**Feature: identifier-lookup-refactoring, Property 5: Error Propagation**
+**Feature: identifier-lookup-refactoring,
+  Property 5: Error Propagation**
 **Validates: Requirements 3.4, 3.5**
 """
 
@@ -34,11 +35,12 @@ from test_mocks.mock_configs import uds_ingest_configs
 def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
     """Property test: Error propagation when visitor failures occur.
 
-    **Feature: identifier-lookup-refactoring, Property 5: Error Propagation**
-    **Validates: Requirements 3.4, 3.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 5: Error Propagation**
+      **Validates: Requirements 3.4, 3.5**
 
-    For any visitor failure within the aggregate, the system should report
-    the failure appropriately while maintaining correct processing order.
+      For any visitor failure within the aggregate, the system should report
+      the failure appropriately while maintaining correct processing order.
     """
     # Arrange - Create mix of valid and invalid PTIDs
     valid_ptids = [f"VALID{i:03d}" for i in range(num_valid)]
@@ -168,11 +170,12 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
 def test_error_propagation_maintains_processing_order():
     """Property test: Processing order is maintained despite failures.
 
-    **Feature: identifier-lookup-refactoring, Property 5: Error Propagation**
-    **Validates: Requirements 3.4, 3.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 5: Error Propagation**
+      **Validates: Requirements 3.4, 3.5**
 
-    For any visitor failure within the aggregate, the system should maintain
-    correct processing order (identifier lookup before QC logging).
+      For any visitor failure within the aggregate, the system should maintain
+      correct processing order (identifier lookup before QC logging).
     """
     # Arrange - Create test data with one invalid PTID
     ptids = ["VALID001", "INVALID", "VALID002"]
@@ -274,11 +277,12 @@ def test_error_propagation_maintains_processing_order():
 def test_short_circuit_strategy_stops_on_first_failure():
     """Property test: Short-circuit strategy stops on first failure.
 
-    **Feature: identifier-lookup-refactoring, Property 5: Error Propagation**
-    **Validates: Requirements 3.4, 3.5**
+      **Feature: identifier-lookup-refactoring,
+    Property 5: Error Propagation**
+      **Validates: Requirements 3.4, 3.5**
 
-    When using short_circuit_strategy, the aggregate visitor should stop
-    processing visitors after the first failure.
+      When using short_circuit_strategy, the aggregate visitor should stop
+      processing visitors after the first failure.
     """
     # Arrange - Create test data with invalid PTID
     identifiers: Dict[str, IdentifierObject] = {}  # Empty to cause failure

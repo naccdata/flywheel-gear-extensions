@@ -1,6 +1,7 @@
 """Property test for NACCIDLookupVisitor separation of concerns.
 
-**Feature: identifier-lookup-refactoring, Property 1: NACCIDLookupVisitor
+**Feature: identifier-lookup-refactoring,
+  Property 1: NACCIDLookupVisitor
 Separation of Concerns**
 **Validates: Requirements 1.1, 1.2, 1.3**
 """
@@ -21,13 +22,14 @@ def test_naccid_lookup_visitor_separation_of_concerns():
     """Property test: NACCIDLookupVisitor performs identifier lookup without QC
     logging.
 
-    **Feature: identifier-lookup-refactoring, Property 1: NACCIDLookupVisitor
-    Separation of Concerns**
-    **Validates: Requirements 1.1, 1.2, 1.3**
+      **Feature: identifier-lookup-refactoring,
+    Property 1: NACCIDLookupVisitor
+      Separation of Concerns**
+      **Validates: Requirements 1.1, 1.2, 1.3**
 
-    For any CSV row processing, the NACCIDLookupVisitor should perform identifier
-    lookup and CSV transformation without directly creating QC logs or updating
-    QC metadata.
+      For any CSV row processing, the NACCIDLookupVisitor should perform identifier
+      lookup and CSV transformation without directly creating QC logs or updating
+      QC metadata.
     """
     # Arrange - Use fixed test data to avoid PTID validation issues
     ptids = ["P001", "P002", "P003"]
@@ -143,12 +145,13 @@ def test_naccid_lookup_visitor_error_handling_without_qc():
     """Property test: NACCIDLookupVisitor handles identifier lookup failures
     without QC logging.
 
-    **Feature: identifier-lookup-refactoring, Property 1: NACCIDLookupVisitor
-    Separation of Concerns**
-    **Validates: Requirements 1.1, 1.2, 1.3**
+      **Feature: identifier-lookup-refactoring,
+    Property 1: NACCIDLookupVisitor
+      Separation of Concerns**
+      **Validates: Requirements 1.1, 1.2, 1.3**
 
-    When identifier lookup fails, the visitor should record errors without
-    creating QC log entries.
+      When identifier lookup fails, the visitor should record errors without
+      creating QC log entries.
     """
     # Arrange - Create empty identifiers map so lookups will fail
     invalid_ptids = ["INVALID1", "INVALID2"]

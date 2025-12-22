@@ -1,6 +1,7 @@
 """Property test for visitor independence.
 
-**Feature: identifier-lookup-event-logging, Property 6: Visitor Independence**
+**Feature: identifier-lookup-event-logging,
+  Property 6: Visitor Independence**
 **Validates: Requirements 3.4**
 """
 
@@ -33,11 +34,12 @@ from test_mocks.mock_configs import uds_ingest_configs
 def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C901
     """Property test: Visitor failures don't affect other visitors.
 
-    **Feature: identifier-lookup-event-logging, Property 6: Visitor Independence**
-    **Validates: Requirements 3.4**
+      **Feature: identifier-lookup-event-logging,
+    Property 6: Visitor Independence**
+      **Validates: Requirements 3.4**
 
-    For any failure in one visitor (identifier lookup, QC logging, or event logging),
-    the other visitors should continue processing without being affected.
+      For any failure in one visitor (identifier lookup, QC logging, or event logging),
+      the other visitors should continue processing without being affected.
     """
     # Arrange - Create test data
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
@@ -250,11 +252,12 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
 def test_visitor_independence_partial_failures():
     """Property test: Partial visitor failures don't affect other visitors.
 
-    **Feature: identifier-lookup-event-logging, Property 6: Visitor Independence**
-    **Validates: Requirements 3.4**
+      **Feature: identifier-lookup-event-logging,
+    Property 6: Visitor Independence**
+      **Validates: Requirements 3.4**
 
-    For any scenario where some rows succeed and some fail in one visitor,
-    the other visitors should process all rows independently.
+      For any scenario where some rows succeed and some fail in one visitor,
+      the other visitors should process all rows independently.
     """
     # Arrange - Create test data with some valid and some invalid identifiers
     num_ptids = 5
