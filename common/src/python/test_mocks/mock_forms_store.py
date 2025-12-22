@@ -6,7 +6,7 @@ from datastore.forms_store import FormsStore
 from keys.keys import MetadataKeys
 from nacc_common.field_names import FieldNames
 
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 
 
 class MockFormsStore(FormsStore):
@@ -20,7 +20,7 @@ class MockFormsStore(FormsStore):
     def __init__(self, date_field: str):
         # make fake/nonsense projects, the methods
         # won't be called anyways
-        project = MockProject(label="mock-project")
+        project = MockProjectAdaptor(label="mock-project")
         super().__init__(project, project)
 
         self.__date_field = date_field

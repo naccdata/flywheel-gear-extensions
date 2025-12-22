@@ -21,6 +21,7 @@ class MockFile(FileEntry):
     def __init__(
         self,
         name: str,
+        parent_id: str = "",
         info: Optional[Dict[str, Any]] = None,
         contents: str = "",
         created: Optional[datetime] = None,
@@ -29,9 +30,9 @@ class MockFile(FileEntry):
         info = info if info else {}
         super().__init__(name=name, info=info)
         self.contents = contents
-        if created:
-            self.created = created
-        self.__modified = modified
+        self.created = created if created is not None else datetime.now()
+        self.__modified = modified if modified is not None else datetime.now()
+        self.__parent_id = parent_id
 
     # name: str
     # info: Dict[str, Any] = {}
@@ -60,13 +61,48 @@ class MockFile(FileEntry):
         return self.contents.encode("utf-8")
 
 
-class MockProject(ProjectAdaptor):
+class MockProject(BaseModel):
+    """Mock Flywheel project object."""
+
+    id: str = "mock-project-id"
+    label: str = "mock-project"
+    group: str = "mock-group"
+    info: Dict[str, Any] = {}
+
+    def reload(self, *args, **kwargs):
+        return self
+
+
+class MockProjectAdaptor(ProjectAdaptor):
     """Mocked class of the ProjectAdaptor."""
 
-    def __init__(self, label: str):
-        self._project = None  # type: ignore
+    def __init__(
+        self,
+        label: str,
+        files: Optional[Union[dict[str, MockFile], List[FileEntry]]] = None,
+        info: Optional[dict[str, Any]] = None,
+        group: Optional[str] = None,  # Accept but ignore for compatibility
+    ):
+        # Set default pipeline_adcid if not provided
+        project_info = info if info else {"pipeline_adcid": 123}
+        if "pipeline_adcid" not in project_info:
+            project_info["pipeline_adcid"] = 123
+
+        # Use provided group or default
+        project_group = group if group else "mock-group"
+
+        self._project = MockProject(label=label, group=project_group, info=project_info)  # type: ignore
         self._fw = None  # type: ignore
-        self.__files: Dict[str, MockFile] = {}
+
+        # Handle files as either dict or list
+        if files is None:
+            self.__files: dict[str, FileEntry] = {}
+        elif isinstance(files, dict):
+            self.__files = files  # type: ignore
+        else:
+            # Convert list to dict using file names as keys
+            self.__files = {file.name: file for file in files}
+
         self.__label = label
 
     @property
@@ -81,6 +117,9 @@ class MockProject(ProjectAdaptor):
     def get_file(self, name: str) -> Optional[FileEntry]:
         """Get the file if it exists."""
         return self.__files.get(name, None)
+
+    def add_file(self, file: FileEntry) -> None:
+        self.__files[file.name] = file
 
     def upload_file(self, file: Union[FileSpec, Dict[str, Any]]) -> None:
         """Add file to files; replacing as needed."""
@@ -175,6 +214,7 @@ def create_mock_file_with_parent(
     info: Optional[Dict[str, Any]] = None,
     contents: str = "",
     created: Optional[datetime] = None,
+    modified: Optional[datetime] = None,
 ) -> MockFile:
     """Create a mock file with parent reference.
 
@@ -188,8 +228,26 @@ def create_mock_file_with_parent(
     Returns:
         MockFile with parent reference
     """
-    file = MockFile(name=name, info=info, contents=contents)
+    file = MockFile(
+        name=name, info=info, contents=contents, created=created, modified=modified
+    )
     file.parent_ref = MockParentRef(id=parent_id)  # type: ignore[assignment]
-    if created:
-        file.created = created  # type: ignore[misc]
     return file
+
+
+def create_mock_project_adaptor(
+    label: str = "ingest-form-test",
+    group: str = "test-center",
+    pipeline_adcid: int = 123,
+) -> MockProjectAdaptor:
+    """Create a basic mock ProjectAdaptor for simple tests.
+
+    Args:
+        label: Project label
+        group: Group/center name
+        pipeline_adcid: Pipeline ADCID
+
+    Returns:
+        MockProject instance configured with the provided parameters
+    """
+    return MockProjectAdaptor(label=label)
