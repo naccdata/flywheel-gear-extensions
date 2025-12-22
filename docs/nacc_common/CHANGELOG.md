@@ -2,6 +2,13 @@
 
 Documentation of release versions of the `nacc-common` package.
 
+# v2.1.0
+
+* Adds QC status constants (`QC_STATUS_PASS`, `QC_STATUS_FAIL`, `QC_STATUS_IN_REVIEW`) to `error_models` module for consistent status value handling.
+* Refactors `ProjectReportVisitor` to use factory pattern instead of stateful `set_visit()` method, improving code maintainability and thread safety.
+* Updates `StatusReportVisitor` and `ErrorReportVisitor` constructors to extract visit details from filenames automatically.
+* Maintains full backward compatibility for public APIs including `get_status_data()` and `get_error_data()` functions.
+
 # v2.0.1
 
 * Fixes serialization of report objects so uses field name aliases.

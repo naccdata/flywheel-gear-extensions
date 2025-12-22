@@ -6,6 +6,7 @@ complexity.
 """
 
 import copy
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from flywheel.file_spec import FileSpec
@@ -18,11 +19,32 @@ class MockFile(FileEntry):
     """Pydantic to mock a Flywheel file object."""
 
     def __init__(
-        self, name: str, info: Optional[Dict[str, Any]] = None, contents: str = ""
+        self,
+        name: str,
+        parent_id: str = "",
+        info: Optional[Dict[str, Any]] = None,
+        contents: str = "",
+        created: Optional[datetime] = None,
+        modified: Optional[datetime] = None,
     ) -> None:
         info = info if info else {}
         super().__init__(name=name, info=info)
         self.contents = contents
+        self.created = created if created is not None else datetime.now()
+        self.__modified = modified if modified is not None else datetime.now()
+        self.__parent_id = parent_id
+
+    # name: str
+    # info: Dict[str, Any] = {}
+    # contents: str = ""
+
+    @property
+    def modified(self):
+        return self.__modified
+
+    @property
+    def parent_id(self):
+        return self.__parent_id
 
     # name: str
     # info: Dict[str, Any] = {}
