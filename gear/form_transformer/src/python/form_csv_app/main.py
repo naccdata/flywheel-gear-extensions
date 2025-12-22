@@ -4,7 +4,11 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
+from configs.ingest_configs import ModuleConfigs
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    update_error_log_and_qc_metadata,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -12,7 +16,6 @@ from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
 from nacc_common.error_models import FileQCModel, QCStatus, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -455,7 +458,7 @@ class CSVTransformVisitor(CSVVisitor):
             return "FAIL"
 
         try:
-            visit_info = FileQCModel.model_validate(visit_file.info)
+            visit_info = FileQCModel.create(visit_file)
         except ValidationError as error:
             log.error(
                 f"Unexpected QC metadata in visit file {visit_file.name}: {error}"
@@ -521,7 +524,7 @@ class CSVTransformVisitor(CSVVisitor):
         info = FileQCModel(qc={})
         if error_log_file.info and "qc" in error_log_file.info:
             try:
-                info = FileQCModel.model_validate(error_log_file.info)
+                info = FileQCModel.create(error_log_file)
             except ValidationError as error:
                 log.error(
                     f"error reading {self.__project}/{error_log_name} metadata: {error}"

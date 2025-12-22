@@ -5,7 +5,6 @@ from multiprocessing import Manager
 from typing import Any, Dict, List, MutableSequence, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
-from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -184,15 +183,12 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             contents = write_csv_to_stream(
                 headers=FileError.fieldnames(), data=errors
             ).getvalue()
-            file_spec = FileSpec(
-                name=self.__error_outfile,
+            # TODO: is the project the right place to write this file to?
+            self.__project.upload_file_contents(
+                filename=self.__error_outfile,
                 contents=contents,
                 content_type="text/csv",
-                size=len(contents),
             )
-
-            # TODO: is the project the right place to write this file to?
-            self.__project.upload_file(file_spec)  # type: ignore
 
 
 def main():

@@ -10,7 +10,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, S3Parameters
 from projects.project_mapper import build_project_map
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 
 from metadata_app.main import run
 
@@ -80,7 +80,7 @@ def main():
             log.error("No ADCID groups found")
             sys.exit(1)
 
-        s3_client = S3BucketReader.create_from(s3_parameters)
+        s3_client = S3BucketInterface.create_from(s3_parameters)
         if not s3_client:
             log.error("Unable to connect to S3")
             sys.exit(1)
