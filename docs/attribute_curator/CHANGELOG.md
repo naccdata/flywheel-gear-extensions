@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+
+* Updates `nacc-attribute-deriver` to `2.0.0rc6`
+* Updates to keep track of scope in `ProcessedFile` so it only has to be calculated once
+
 ## 1.1.0
 
 * Updates `nacc-attribute-deriver` to `2.0.0rc5`

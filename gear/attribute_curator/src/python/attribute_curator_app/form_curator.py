@@ -6,7 +6,7 @@ from multiprocessing import Manager
 from multiprocessing.managers import ListProxy
 from typing import Any, Dict, List, MutableMapping, Optional
 
-from curator.curator import Curator, ProjectCurationError, determine_scope
+from curator.curator import Curator, ProjectCurationError
 from curator.scheduling_models import ProcessedFile, generate_curation_failure
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -336,7 +336,7 @@ class FormCurator(Curator):
         # hash the processed files by scope
         scoped_files: Dict[ScopeLiterals, List[ProcessedFile]] = {}
         for file in processed_files:
-            scope = determine_scope(file.name)
+            scope = file.scope
             if not scope:  # sanity check
                 raise ProjectCurationError(f"Unknown scope to post-curate: {scope}")
             if scope not in scoped_files:

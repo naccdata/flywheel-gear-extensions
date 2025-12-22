@@ -184,6 +184,7 @@ class ProcessedFile(BaseModel):
     name: str
     file_id: str
     tags: Optional[List[str]] = None
+    scope: Optional[str]
     file_info: Optional[Dict[str, Any]] = None
 
 
@@ -191,4 +192,4 @@ def generate_curation_failure(
     container: Subject | FileEntry, reason: str
 ) -> Dict[str, str]:
     """Creates a curation failure dict from either a subject or file."""
-    return {"name": container.name, "id": container.id, "reason": reason}
+    return {"name": container.name, "id": container.id, "reason": reason}  # type: ignore

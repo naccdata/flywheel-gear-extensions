@@ -108,10 +108,13 @@ class Curator(ABC):
                 file_info will be None
         """
         file_entry = self.sdk_client.get_file(file_id)
+        scope = determine_scope(file_entry.name)
+
         processed_file = ProcessedFile(
             name=file_entry.name,
             file_id=file_id,
             tags=file_entry.tags,
+            scope=scope,
         )
 
         if (
@@ -122,7 +125,6 @@ class Curator(ABC):
             log.debug(f"{file_entry.name} already curated, skipping")
             return processed_file
 
-        scope = determine_scope(file_entry.name)
         if not scope:
             log.warning("could not determine scope for %s, skipping", file_entry.name)
             return processed_file
