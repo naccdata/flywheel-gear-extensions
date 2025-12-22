@@ -19,6 +19,10 @@ from form_scheduler_app.simplified_event_accumulator import (
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import VisitMetadata
+from test_mocks.strategies import (
+    invalid_visit_metadata_strategy,
+    valid_visit_metadata_strategy,
+)
 
 
 def create_mock_file_entry(
@@ -31,57 +35,7 @@ def create_mock_file_entry(
     return file_entry
 
 
-@st.composite
-def valid_visit_metadata_strategy(draw):
-    """Generate valid VisitMetadata with all required fields."""
-    return {
-        "ptid": draw(
-            st.text(
-                min_size=1,
-                max_size=10,
-                alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
-            )
-        ),
-        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
-        "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
-        "visitnum": draw(
-            st.one_of(
-                st.none(),
-                st.text(
-                    min_size=1,
-                    max_size=3,
-                    alphabet=st.characters(whitelist_categories=["Nd"]),
-                ),
-            )
-        ),
-        "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
-        "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
-        "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
-    }
-
-
-@st.composite
-def invalid_visit_metadata_strategy(draw):
-    """Generate invalid VisitMetadata missing required fields."""
-    # Generate metadata with at least one required field missing or None
-    base_data = {
-        "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
-        "date": draw(
-            st.one_of(st.none(), st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
-        ),
-        "module": draw(
-            st.one_of(st.none(), st.sampled_from(["UDS", "LBD", "FTLD", "MDS"]))
-        ),
-        "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
-        "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
-    }
-
-    # Ensure at least one required field (ptid, date, module) is None or missing
-    required_fields = ["ptid", "date", "module"]
-    field_to_invalidate = draw(st.sampled_from(required_fields))
-    base_data[field_to_invalidate] = None
-
-    return base_data
+# Use shared strategies from test_mocks.strategies
 
 
 @pytest.fixture

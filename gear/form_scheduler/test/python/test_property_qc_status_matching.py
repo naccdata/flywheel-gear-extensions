@@ -15,7 +15,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.simplified_event_accumulator import EventAccumulator
 from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
+from test_mocks.strategies import json_file_forms_metadata_strategy
 
 
 def create_mock_file_entry(
@@ -28,32 +28,7 @@ def create_mock_file_entry(
     return file_entry
 
 
-@st.composite
-def json_file_forms_metadata_strategy(draw):
-    """Generate JSON file forms metadata for testing."""
-    # Generate ptid that won't become empty after lstrip("0")
-    ptid_base = draw(
-        st.text(
-            min_size=1, max_size=8, alphabet=st.characters(whitelist_categories=["Lu"])
-        )
-    )
-    ptid_prefix = draw(st.text(min_size=0, max_size=3, alphabet="0"))
-    ptid = ptid_prefix + ptid_base  # Ensures ptid won't be all zeros
-
-    return {
-        "ptid": ptid,
-        "visitnum": draw(
-            st.text(
-                min_size=1,
-                max_size=3,
-                alphabet=st.characters(whitelist_categories=["Nd"]),
-            )
-        ),
-        "visitdate": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
-        "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
-        "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
-        "adcid": draw(st.integers(min_value=1, max_value=999)),
-    }
+# Use shared strategy from test_mocks.strategies
 
 
 @pytest.fixture

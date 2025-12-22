@@ -21,6 +21,8 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitMetadata,
 )
+from test_mocks.strategies import json_file_strategy as shared_json_strategy
+from test_mocks.strategies import visit_metadata_strategy
 
 
 class MockVisitEventLogger(VisitEventLogger):
@@ -88,63 +90,15 @@ class MockProjectAdaptor:
 
 
 @st.composite
-def visit_metadata_strategy(draw):
-    """Generate random VisitMetadata for QC status custom info."""
-    ptid = draw(
-        st.text(
-            min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        )
-    )
-    # Generate dates with 4-digit years to match VisitEvent validation pattern
-    date = draw(
-        st.dates(
-            min_value=datetime(2000, 1, 1).date(),
-            max_value=datetime(2030, 12, 31).date(),
-        ).map(lambda d: d.strftime("%Y-%m-%d"))
-    )
-    visitnum = draw(st.text(min_size=1, max_size=3, alphabet="0123456789"))
-    module = draw(st.sampled_from(["UDS", "FTLD", "LBD", "MDS"]))
-    packet = draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"])))
-
-    return VisitMetadata(
-        ptid=ptid,
-        date=date,
-        visitnum=visitnum,
-        module=module,
-        packet=packet,
-    )
-
-
-@st.composite
-def json_file_strategy(draw):
-    """Generate random JSON file data."""
-    ptid = draw(
-        st.text(
-            min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        )
-    )
-    # Generate dates with 4-digit years to match VisitEvent validation pattern
-    visitdate = draw(
-        st.dates(
-            min_value=datetime(2000, 1, 1).date(),
-            max_value=datetime(2030, 12, 31).date(),
-        ).map(lambda d: d.strftime("%Y-%m-%d"))
-    )
-    visitnum = draw(st.text(min_size=1, max_size=3, alphabet="0123456789"))
-    module = draw(st.sampled_from(["UDS", "FTLD", "LBD", "MDS"]))
-    packet = draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"])))
-
-    forms_json = {
-        "ptid": ptid,
-        "visitdate": visitdate,
-        "visitnum": visitnum,
-        "module": module,
-    }
-    if packet:
-        forms_json["packet"] = packet
+def json_file_strategy(draw) -> FileEntry:
+    """Generate random JSON file data using shared strategy."""
+    forms_json = draw(shared_json_strategy())
 
     file_entry = Mock(spec=FileEntry)
-    file_entry.name = f"{ptid}_{visitdate}_{module.lower()}.json"
+    file_entry.name = (
+        f"{forms_json['ptid']}"
+        f"_{forms_json['visitdate']}_{forms_json['module'].lower()}.json"
+    )
     file_entry.info = {"forms": {"json": forms_json}}
     file_entry.created = datetime.now()
 

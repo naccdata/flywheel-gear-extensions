@@ -7,7 +7,6 @@
 **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
 """
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 from unittest.mock import Mock
 
@@ -21,6 +20,9 @@ from form_scheduler_app.simplified_event_accumulator import (
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import VisitMetadata
+from test_mocks.strategies import (
+    valid_visit_metadata_strategy as visit_metadata_strategy,
+)
 
 
 def create_mock_file_entry(
@@ -33,35 +35,7 @@ def create_mock_file_entry(
     return file_entry
 
 
-@st.composite
-def visit_metadata_strategy(draw):
-    """Generate valid VisitMetadata for testing."""
-    return {
-        "ptid": draw(
-            st.text(
-                min_size=1,
-                max_size=10,
-                alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
-            )
-        ),
-        "visitnum": draw(
-            st.text(
-                min_size=1,
-                max_size=3,
-                alphabet=st.characters(whitelist_categories=["Nd"]),
-            )
-        ),
-        "date": draw(
-            st.dates(
-                min_value=datetime(2020, 1, 1).date(),
-                max_value=datetime(2024, 12, 31).date(),
-            )
-        ).strftime("%Y-%m-%d"),
-        "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
-        "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
-        "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
-        "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
-    }
+# Use shared strategy directly
 
 
 @st.composite

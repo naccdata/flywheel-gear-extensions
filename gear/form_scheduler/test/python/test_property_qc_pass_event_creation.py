@@ -18,48 +18,25 @@ from nacc_common.error_models import QC_STATUS_PASS
 from test_mocks.mock_event_logging import MockVisitEventLogger
 from test_mocks.mock_factories import FileEntryFactory
 from test_mocks.mock_flywheel import MockProjectAdaptor
+from test_mocks.strategies import json_file_strategy as shared_json_strategy
+from test_mocks.strategies import qc_status_strategy
 
 
 @st.composite
 def json_file_strategy(draw):
-    """Generate random JSON file data."""
-    ptid = draw(
-        st.text(
-            min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        )
-    )
-    # Generate dates with 4-digit years to match VisitEvent validation pattern
-    visitdate = draw(
-        st.dates(
-            min_value=datetime(2000, 1, 1).date(),
-            max_value=datetime(2030, 12, 31).date(),
-        ).map(lambda d: d.strftime("%Y-%m-%d"))
-    )
-    visitnum = draw(st.text(min_size=1, max_size=3, alphabet="0123456789"))
-    module = draw(st.sampled_from(["UDS", "FTLD", "LBD", "MDS"]))
-    packet = draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"])))
-
-    forms_json = {
-        "ptid": ptid,
-        "visitdate": visitdate,
-        "visitnum": visitnum,
-        "module": module,
-    }
-    if packet:
-        forms_json["packet"] = packet
+    """Generate random JSON file data using shared strategy."""
+    forms_json = draw(shared_json_strategy())
 
     file_entry = Mock(spec=FileEntry)
-    file_entry.name = f"{ptid}_{visitdate}_{module.lower()}.json"
+    file_entry.name = (
+        f"{forms_json['ptid']}"
+        f"_{forms_json['visitdate']}"
+        f"_{forms_json['module'].lower()}.json"
+    )
     file_entry.info = {"forms": {"json": forms_json}}
     file_entry.created = datetime.now()
 
     return file_entry
-
-
-@st.composite
-def qc_status_strategy(draw):
-    """Generate QC status (PASS or non-PASS)."""
-    return draw(st.sampled_from([QC_STATUS_PASS, "FAIL", "IN REVIEW"]))
 
 
 @given(json_file=json_file_strategy(), qc_status=qc_status_strategy())
