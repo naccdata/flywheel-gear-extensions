@@ -8,13 +8,13 @@
 from datetime import datetime
 from unittest.mock import Mock
 
+from assertions import assert_valid_qc_pass_event
 from event_logging.visit_events import ACTION_PASS_QC
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.simplified_event_accumulator import EventAccumulator
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import QC_STATUS_PASS
-from test_mocks.assertions import assert_valid_qc_pass_event
 from test_mocks.mock_event_logging import MockVisitEventLogger
 from test_mocks.mock_factories import FileEntryFactory
 from test_mocks.mock_flywheel import MockProjectAdaptor
