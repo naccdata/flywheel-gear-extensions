@@ -35,18 +35,17 @@ The `feature/add-event-logging` branch contains 242 commits affecting 138 files 
 
 **Files**:
 - **New packages** (no existing code modified):
-  - `common/src/python/error_logging/` (complete new package)
   - `common/src/python/event_logging/` (complete new package)
   - `common/src/python/metrics/` (complete new package)
+- **New S3 interface**: `common/src/python/s3/s3_bucket.py` (enhanced S3 operations)
 - **New test utilities**:
-  - `common/src/python/test_mocks/mock_factories.py`
-  - `common/src/python/test_mocks/strategies.py`
   - `common/src/python/test_mocks/mock_event_logging.py`
-- **New S3 interface**: `common/src/python/s3/s3_bucket.py` (renamed from `s3_client.py`)
-- **Type stubs additions**: `mypy-stubs/src/python/flywheel/models/`
-- **New center validator**: `common/src/python/inputs/center_validator.py`
+- **Type stubs enhancements**: `mypy-stubs/src/python/flywheel/models/`
+- **Complete test coverage**: Tests for all new packages
 
 **Why Second**: Purely additive changes. Existing code continues to work unchanged. Provides foundation for later PRs.
+
+**Note**: Some originally planned items (error_logging, center_validator, mock_factories, strategies) were moved to later PRs due to dependencies on nacc-common changes not yet available.
 
 ### PR #3: NACC Common Library - Backward Compatible Updates
 **Branch**: `feat/nacc-common-v2.1.0`
