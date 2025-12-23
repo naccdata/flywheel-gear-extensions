@@ -1,6 +1,15 @@
 # Form Scheduler
 
-Queues project files for the submission pipeline. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
+Queues project files for the submission pipeline and logs outcome events (pass-qc, not-pass-qc) after pipeline completion. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
+
+## Event Logging
+
+The form-scheduler logs outcome events after pipeline completion:
+
+- **pass-qc**: Visit successfully completed all QC checks
+- **not-pass-qc**: Visit failed QC validation
+
+Submit events are handled separately by the identifier-lookup gear. For detailed event logging documentation, see the [gear-specific event logging guide](../../gear/form_scheduler/docs/event-logging.md).
 
 ## Logic
 

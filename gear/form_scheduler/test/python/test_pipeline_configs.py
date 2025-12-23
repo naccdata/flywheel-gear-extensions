@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
-from form_scheduler_app.form_scheduler_queue import PipelineQueue
+from form_scheduler_app.form_scheduler_queue import create_queue_builder
 
 TEST_FILES_DIR = Path(__file__).parent.resolve() / "data"
 
@@ -72,17 +72,16 @@ class TestPipelineConfigs:
 
         assert pipeline_configs.model_dump() == configs
 
-        pipeline_queue = PipelineQueue.create_from_pipeline(
-            pipeline_configs.pipelines[0]
-        )
+        queue_builder = create_queue_builder(pipeline_configs.pipelines[0])
 
+        assert queue_builder is not None
+
+        pipeline_queue = queue_builder.queue()
         assert pipeline_queue is not None
 
         pipeline = {
             "index": -1,
-            "name": "submission",
-            "modules": ["module1", "module2", "module3"],
-            "tags": ["submission-tag"],
+            "pipeline": pipeline_configs.pipelines[0].model_dump(),
             "subqueues": {"module1": [], "module2": [], "module3": []},
         }
         assert pipeline_queue.model_dump() == pipeline
