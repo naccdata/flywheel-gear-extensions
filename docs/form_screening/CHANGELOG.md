@@ -3,7 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.2.6
-* Integrates event logging functionality for enhanced QC status tracking and error reporting
+* Bug fixes and improvements
 
 ## 1.2.5
 * Removes whitespace from data values
