@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.7.1
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
 ## 1.7.0
 * Updates `nacc-form-validator` to `0.6.1`
 * Updates to adding validation timestamp and gear tag
