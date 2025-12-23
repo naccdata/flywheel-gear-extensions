@@ -17,7 +17,7 @@ The form-scheduler logs two types of outcome events:
 
 ### EventAccumulator Class
 
-Located in: `gear/form_scheduler/src/python/form_scheduler_app/simplified_event_accumulator.py`
+Located in: `gear/form_scheduler/src/python/form_scheduler_app/event_accumulator.py`
 
 The `EventAccumulator` class handles outcome event logging:
 
@@ -40,7 +40,7 @@ The event accumulator is called in `FormSchedulerQueue._log_pipeline_events()` a
 # After pipeline completes
 if self.__event_logger:
     try:
-        from form_scheduler_app.simplified_event_accumulator import EventAccumulator
+        from form_scheduler_app.event_accumulator import EventAccumulator
         event_accumulator = EventAccumulator(event_logger=self.__event_logger)
         event_accumulator.log_events(json_file=json_file, project=self.__project)
     except Exception as error:

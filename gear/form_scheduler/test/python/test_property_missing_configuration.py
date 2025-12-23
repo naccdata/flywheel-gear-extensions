@@ -151,7 +151,7 @@ class TestMissingConfigurationHandling:
 
         # Mock the EventAccumulator import to verify it's not called
         with patch(
-            "form_scheduler_app.simplified_event_accumulator.EventAccumulator"
+            "form_scheduler_app.event_accumulator.EventAccumulator"
         ) as mock_accumulator_class:
             # Access the private method for testing
             queue._log_pipeline_events(json_file=json_file)  # noqa: SLF001

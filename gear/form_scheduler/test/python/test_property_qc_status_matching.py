@@ -13,7 +13,7 @@ import pytest
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from form_scheduler_app.simplified_event_accumulator import EventAccumulator
+from form_scheduler_app.event_accumulator import EventAccumulator
 from hypothesis import HealthCheck, given, settings
 from test_mocks.strategies import json_file_forms_metadata_strategy
 
