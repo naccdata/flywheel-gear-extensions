@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document specifies the format and structure of visit events logged by the form-scheduler gear to S3. This specification is intended for systems that consume these event logs, such as checkpoint processes or analytics pipelines.
+This document specifies the format and structure of visit events logged to S3 by the NACC event logging system. This specification is intended for systems that consume these event logs, such as checkpoint processes or analytics pipelines.
+
+**Note**: This specification covers events from both identifier-lookup (submit events) and form-scheduler (outcome events) gears.
 
 ## S3 Storage Structure
 

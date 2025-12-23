@@ -13,14 +13,16 @@ The error file will have a row for each input row in which participant ID has no
 
 ## Event Logging
 
-When processing CSV files in the `nacc` direction with QC logging enabled (i.e., when a `form_configs_file` is provided), the gear will also create submission events for each valid visit row. These events are logged to an S3 bucket for tracking data submissions in the NACC event log system.
+When processing CSV files in the `nacc` direction with QC logging enabled (i.e., when a `form_configs_file` is provided), the gear logs submission events for each valid visit row. These events are stored in S3 for tracking data submissions.
 
 Event logging behavior:
 - Only occurs when direction is `nacc` and QC logging is enabled
 - Creates a submit event for each valid visit row in the CSV
-- Events include visit metadata such as center, project, visit date, and packet information
+- Events include visit metadata (center, project, visit date, packet information)
 - Event logging failures do not affect the primary identifier lookup functionality
 - Events are stored in the configured S3 bucket with environment-specific prefixes
+
+For detailed event logging documentation, see the [form-scheduler event logging guide](../../gear/form_scheduler/docs/event-logging.md).
 
 ## Environment
 
