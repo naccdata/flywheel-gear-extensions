@@ -21,7 +21,7 @@ from nacc_common.qc_report import (
     extract_visit_keys,
 )
 from pydantic import ValidationError
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 
 
 @pytest.fixture(scope="session")
@@ -70,8 +70,10 @@ def visit_details():
 
 
 @pytest.fixture(scope="session")
-def file_project(status_file_model, visit_details) -> Generator[MockProject, Any, Any]:
-    project = MockProject("dummy_project")
+def file_project(
+    status_file_model, visit_details
+) -> Generator[MockProjectAdaptor, Any, Any]:
+    project = MockProjectAdaptor("dummy_project")
     qc_model = status_file_model
     log_filename = ErrorLogTemplate().instantiate(
         {"ptid": visit_details.ptid, "visitdate": visit_details.date},

@@ -21,7 +21,7 @@ import logging
 from typing import Optional
 
 from configs.ingest_configs import PipelineConfigs
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import URLParameter
 from notifications.email import EmailClient
@@ -53,10 +53,11 @@ def run(
     project = proxy.get_project_by_id(project_id)
     if not project:
         raise GearExecutionError(f"Cannot find project with ID {project_id}")
+    project_adaptor = ProjectAdaptor(project=project, proxy=proxy)
 
     queue = FormSchedulerQueue(
         proxy=proxy,
-        project=project,
+        project=project_adaptor,
         pipeline_configs=pipeline_configs,
         email_client=email_client,
         portal_url=portal_url,

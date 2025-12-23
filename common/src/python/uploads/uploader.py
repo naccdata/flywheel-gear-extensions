@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
+from error_logging.error_logger import update_error_log_and_qc_metadata
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -20,7 +21,6 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from nacc_common.error_models import FileError, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 

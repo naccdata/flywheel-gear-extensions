@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.4
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
 ## 0.1.3
 
 * Updates to consider when a field is in the baseline but not derived vars
