@@ -469,7 +469,7 @@ class FormSchedulerQueue:
             return
 
         try:
-            from form_scheduler_app.simplified_event_accumulator import EventAccumulator
+            from form_scheduler_app.event_accumulator import EventAccumulator
 
             event_accumulator = EventAccumulator(event_logger=self.__event_logger)
             event_accumulator.log_events(json_file=json_file, project=self.__project)

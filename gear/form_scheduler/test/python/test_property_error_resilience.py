@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from form_scheduler_app.simplified_event_accumulator import EventAccumulator
+from form_scheduler_app.event_accumulator import EventAccumulator
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -223,7 +223,7 @@ class TestErrorResilience:
         project = None if project_none else Mock(spec=ProjectAdaptor)
 
         # Capture log messages
-        with patch("form_scheduler_app.simplified_event_accumulator.log") as mock_log:
+        with patch("form_scheduler_app.event_accumulator.log") as mock_log:
             # This should not raise an exception
             try:
                 accumulator.log_events(json_file, project)  # type: ignore[arg-type]

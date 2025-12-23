@@ -13,7 +13,7 @@ from unittest.mock import Mock
 import pytest
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from form_scheduler_app.simplified_event_accumulator import (
+from form_scheduler_app.event_accumulator import (
     EventAccumulator,
     VisitMetadataExtractor,
 )
