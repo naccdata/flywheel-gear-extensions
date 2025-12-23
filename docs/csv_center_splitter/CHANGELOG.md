@@ -6,6 +6,10 @@ All notable changes to this gear are documented in this file.
 
 * Adds notification to REDCap email list on pipeline completion
 
+## 0.2.3
+
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
 ## 0.2.2
 
 * Updates to use generalized `utils.files.get_centers_with_filters` and `JobPoll.wait_for_batched_group` methods

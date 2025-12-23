@@ -114,6 +114,14 @@ class MockProjectAdaptor(ProjectAdaptor):
     def label(self) -> str:
         return self.__label
 
+    @property
+    def group(self) -> str:
+        return self._project.group
+
+    @property
+    def id(self) -> str:
+        return self._project.id
+
     def get_file(self, name: str) -> Optional[FileEntry]:
         """Get the file if it exists."""
         return self.__files.get(name, None)
@@ -124,11 +132,30 @@ class MockProjectAdaptor(ProjectAdaptor):
     def upload_file(self, file: Union[FileSpec, Dict[str, Any]]) -> None:
         """Add file to files; replacing as needed."""
         if isinstance(file, FileSpec):
-            self.__files[file.name] = MockFile(name=file.name, contents=file.contents)  # type: ignore
+            mock_file = MockFile(name=file.name, contents=file.contents)  # type: ignore
+            self.__files[file.name] = mock_file
         else:
-            self.__files[file["name"]] = MockFile(
+            mock_file = MockFile(
                 name=file["name"], contents=file["contents"], info=file.get("info", {})
             )
+            self.__files[file["name"]] = mock_file
+
+    def upload_file_contents(
+        self, *, filename: str, contents: str, content_type: str = "text"
+    ) -> Optional[FileEntry]:
+        """Uploads a file to the project using filename and string contents.
+
+        Args:
+            filename: the file name
+            contents: the string contents of the file
+            content_type: the MIME content type (defaults to "text")
+
+        Returns:
+            the uploaded file entry, or None if upload failed
+        """
+        mock_file = MockFile(name=filename, contents=contents)
+        self.__files[filename] = mock_file
+        return mock_file
 
     def reload(self, *args, **kwargs):
         return self
