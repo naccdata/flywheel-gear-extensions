@@ -1,6 +1,6 @@
 # Form Scheduler
 
-Queues project files for the submission pipeline. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
+Queues project files for the submission pipeline and logs outcome events (pass-qc, not-pass-qc) after pipeline completion. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
 
 ## Logic
 
