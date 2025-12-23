@@ -4,7 +4,9 @@ import logging
 from typing import Any, Optional
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
+from event_logging.event_logger import VisitEventLogger
 from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -21,7 +23,12 @@ from inputs.parameter_store import (
 )
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
+from s3.s3_bucket import S3BucketInterface
 
+from form_scheduler_app.form_scheduler_queue import (
+    FormSchedulerError,
+    FormSchedulerQueue,
+)
 from form_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
@@ -34,14 +41,18 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         pipeline_configs_input: InputFileWrapper,
+        form_configs_input: InputFileWrapper,
+        event_bucket: S3BucketInterface,
         source_email: Optional[str] = None,
         portal_url: Optional[URLParameter] = None,
     ):
         super().__init__(client=client)
 
         self.__configs_input = pipeline_configs_input
+        self.__form_configs_input = form_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
+        self.__event_bucket = event_bucket
 
     @classmethod
     def create(
@@ -66,6 +77,11 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         )
         assert pipeline_configs_input, "missing expected input, pipeline_configs_file"
 
+        form_configs_input = InputFileWrapper.create(
+            input_name="form_configs_file", context=context
+        )
+        assert form_configs_input, "missing expected input, form_configs_file"
+
         source_email = context.config.get("source_email", "nacchelp@uw.edu")
 
         portal_url = None
@@ -80,9 +96,16 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             except ParameterError as error:
                 raise GearExecutionError(f"Parameter error: {error}") from error
 
+        event_bucket_name = context.config.get("event_bucket", None)
+        if event_bucket_name is None:
+            raise GearExecutionError("event bucket name is required")
+        event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
+
         return FormSchedulerVisitor(
             client=client,
             pipeline_configs_input=pipeline_configs_input,
+            form_configs_input=form_configs_input,
+            event_bucket=event_bucket,
             source_email=source_email,
             portal_url=portal_url,
         )
@@ -128,6 +151,8 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
+        event_logger = VisitEventLogger(self.__event_bucket)
+
         # if source email specified, set up client to send emails
         email_client = (
             EmailClient(client=create_ses_client(), source=self.__source_email)
@@ -135,13 +160,26 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             else None
         )
 
-        run(
+        # Get the project
+        fw_project = self.proxy.get_project_by_id(project_id)
+        if not fw_project:
+            raise GearExecutionError(f"Cannot find project with ID {project_id}")
+        project = ProjectAdaptor(project=fw_project, proxy=self.proxy)
+
+        # Create the queue
+        queue = FormSchedulerQueue(
             proxy=self.proxy,
-            project_id=project_id,
+            project=project,
             pipeline_configs=pipeline_configs,
+            event_logger=event_logger,
             email_client=email_client,
             portal_url=self.__portal_url,
         )
+
+        try:
+            run(queue=queue, pipeline_configs=pipeline_configs)
+        except FormSchedulerError as error:
+            raise GearExecutionError(error) from error
 
 
 def main():
