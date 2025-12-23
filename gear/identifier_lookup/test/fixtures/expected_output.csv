@@ -1,0 +1,3 @@
+adcid,ptid,visitdate,visitnum,packet,formver,var1,naccid,module
+1,PTID001,2024-01-15,1,I,4.0,8,NACC000001,uds
+1,PTID002,2024-01-16,1,I,4.0,99,NACC000002,uds
