@@ -92,7 +92,7 @@ def get_scheduler_gear_inputs(
     # these are the project level files with fixed filename specified in the configs
     if gear_input_info and "fixed" in gear_input_info:
         set_gear_inputs(
-            project=project.project,
+            project=project,
             gear_name=scheduler_gear.gear_name,
             locator="fixed",
             gear_inputs_list=gear_input_info["fixed"],
