@@ -2,11 +2,17 @@
 
 from typing import Any, get_args
 
+from flywheel.models.file_entry import FileEntry
 from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
 from nacc_common.module_types import ModuleName
-from nacc_common.qc_report import QCReportBaseModel, QCTransformerError
+from nacc_common.qc_report import (
+    ErrorReportVisitor,
+    QCReportBaseModel,
+    QCTransformerError,
+    extract_visit_keys,
+)
 
 
 class ErrorReportModel(QCReportBaseModel, FileError):
@@ -89,3 +95,9 @@ def error_transformer(
             **error_model,
         }
     )
+
+
+def error_report_visitor_builder(file: FileEntry, adcid: int) -> ErrorReportVisitor:
+    visit = extract_visit_keys(file)
+    visit.adcid = adcid
+    return ErrorReportVisitor(visit=visit, transformer=error_transformer)

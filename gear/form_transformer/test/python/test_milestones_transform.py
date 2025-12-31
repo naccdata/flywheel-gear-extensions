@@ -12,7 +12,7 @@ from outputs.errors import (
 )
 from preprocess.preprocessor import FormPreprocessor
 from test_mocks.mock_configs import milestone_ingest_configs
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
     FieldTransformations,
@@ -22,7 +22,7 @@ from transform.transformer import (
 
 def create_mlst_visitor(
     transform_schema: Optional[Dict[str, Any]] = None,
-) -> Tuple[CSVTransformVisitor, MockProject, MockFormsStore]:
+) -> Tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
 
     Returns the visitor, mocked project, and mocked form store.
@@ -53,7 +53,7 @@ def create_mlst_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     form_store = MockFormsStore(date_field=date_field)
-    project = MockProject(label="mlst-project")
+    project = MockProjectAdaptor(label="mlst-project")
 
     preprocessor = FormPreprocessor(
         primary_key="naccid",
@@ -104,7 +104,7 @@ def create_milestones_record(data: Dict[str, Any]):
     return record
 
 
-def get_qc_errors(project: MockProject):
+def get_qc_errors(project: MockProjectAdaptor):
     """Get the first QC error from mock project.
 
     Args:

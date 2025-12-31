@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional
 
 from centers.center_group import CenterGroup
-from configs.ingest_configs import ErrorLogTemplate
 from dates.form_dates import DEFAULT_DATE_FORMAT
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_subject import EnrollmentSubject
@@ -15,6 +14,7 @@ from enrollment.enrollment_transfer import (
     TransferRecord,
     TransferStatus,
 )
+from error_logging.error_logger import ErrorLogTemplate, update_gear_qc_status
 from identifiers.identifiers_lambda_repository import (
     IdentifierRepositoryError,
     IdentifiersLambdaRepository,
@@ -23,7 +23,6 @@ from identifiers.identifiers_repository import IdentifierUpdateObject
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from keys.keys import DefaultValues
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_gear_qc_status
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError
 

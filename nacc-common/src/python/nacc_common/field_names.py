@@ -20,3 +20,7 @@ class FieldNames:
     C2C2T = "rmmodec2c2t"
     ENRLTYPE = "enrltype"
     GUIDAVAIL = "guidavail"
+    SEX = "sex"
+    BIRTHSEX = "birthsex"
+    NPSEX = "npsex"
+    NPDAGE = "npdage"

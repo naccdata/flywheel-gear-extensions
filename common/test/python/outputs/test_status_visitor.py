@@ -8,7 +8,12 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitKeys,
 )
-from nacc_common.qc_report import QCReportBaseModel, StatusReportVisitor
+from nacc_common.qc_report import (
+    QCReportBaseModel,
+    StatusReportVisitor,
+    extract_visit_keys,
+)
+from test_mocks.mock_flywheel import MockFile
 
 
 class StatusReportTestModel(QCReportBaseModel):
@@ -44,22 +49,31 @@ def status_file_model():
     )
 
 
+@pytest.fixture(scope="session")
+def mock_file():
+    return MockFile("dummy01_2023-01-01_UDS_qc-status.log")
+
+
 class TestStatusVisitor:
-    def test_empty(self, test_transformer: Callable[..., StatusReportTestModel]):
+    def test_empty(
+        self, mock_file, test_transformer: Callable[..., StatusReportTestModel]
+    ):
         qc_model = FileQCModel(qc={})
-        visitor = StatusReportVisitor(test_transformer)
-        visitor.set_visit(VisitKeys(ptid="dummy"))
+        visit = extract_visit_keys(mock_file)
+        visit.adcid = 999
+        visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 
         assert visitor.table == []
 
-    def test_status(self, status_file_model, test_transformer):
+    def test_status(self, mock_file, status_file_model, test_transformer):
         qc_model = status_file_model
-        visitor = StatusReportVisitor(test_transformer)
-        visitor.set_visit(VisitKeys(ptid="dummy"))
+        visit = extract_visit_keys(mock_file)
+        visit.adcid = 999
+        visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 
         assert visitor.table == [
-            StatusReportTestModel(stage="one", ptid="dummy", status="FAIL"),
-            StatusReportTestModel(stage="two", ptid="dummy", status="PASS"),
+            StatusReportTestModel(stage="one", ptid="dummy01", status="FAIL"),
+            StatusReportTestModel(stage="two", ptid="dummy01", status="PASS"),
         ]

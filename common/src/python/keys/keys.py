@@ -50,6 +50,7 @@ class DefaultValues:
     UDS_IT_PACKET = "IT"
     UDS_I4_PACKET = "I4"
     UDS_F_PACKET = "F"
+    UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
     FINALIZED_TAG = "submission-completed"
@@ -106,12 +107,15 @@ class SysErrorCodes:
     MISSING_SUBMISSION_STATUS = "preprocess-024"
     CLINICAL_FORM_REQUIRED_NP = "preprocess-025"
     DEATH_DENOTED_ON_MLST = "preprocess-026"
-    DEATH_DATE_MISMATCH = "preprocess-027"
+    NP_MLST_DOD_MISMATCH = "preprocess-027"
+    LOWER_NP_DOD = "preprocess-028"
+    NP_UDS_SEX_MISMATCH = "preprocess-029"
+    NP_UDS_DAGE_MISMATCH = "preprocess-030"
+    UDS_NOT_EXIST = "preprocess-031"
 
     # other errors for preprocessing issues that don't fall
     # in above categories
     PREPROCESSING_ERROR = "preprocess-error"
-    UDS_NOT_EXIST = "preprocess-100"
     CLINICAL_FORM_REQUIRED = "preprocess-101"
 
 
@@ -126,6 +130,7 @@ class PreprocessingChecks:
     VISIT_CONFLICT = "visit-conflict"
     CLINICAL_FORMS = "clinical-forms"
     NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
+    NP_UDS_RESTRICTIONS = "np-uds-restrictions"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

@@ -2,11 +2,15 @@
 
 from typing import Optional, get_args
 
+from flywheel.models.file_entry import FileEntry
+
 from nacc_common.error_models import QCStatus, ValidationModel, VisitKeys
 from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     QCReportBaseModel,
     QCTransformerError,
+    StatusReportVisitor,
+    extract_visit_keys,
 )
 
 
@@ -58,3 +62,9 @@ def status_transformer(
         stage=gear_name,
         status=validation_model.state,
     )
+
+
+def status_report_visitor_builder(file: FileEntry, adcid: int) -> StatusReportVisitor:
+    visit = extract_visit_keys(file)
+    visit.adcid = adcid
+    return StatusReportVisitor(visit=visit, transformer=status_transformer)

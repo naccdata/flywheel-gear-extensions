@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nacc-common"
-version = "2.0.1"
+version = "2.1.0"
 description = "NACC Data Platform utilities"
 license-files = ["LICENSE"]
 authors = [{ name = "NACC", email = "nacchelp@uw.edu" }]

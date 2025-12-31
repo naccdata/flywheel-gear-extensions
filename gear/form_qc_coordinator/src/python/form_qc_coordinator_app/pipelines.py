@@ -9,7 +9,7 @@ from flywheel_adaptor.subject_adaptor import ParticipantVisits, SubjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 from form_qc_coordinator_app.visits import VisitsLookupHelper
@@ -114,6 +114,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
 
         qc_coordinator.run_error_checks(visits=visits_list)
@@ -150,6 +151,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 qc_gear_info=self._qc_gear_info,
                 proxy=self._proxy,
                 gear_context=self._gear_context,
+                visits_lookup_helper=self._visits_lookup_helper,
             )
 
             qc_coordinator.run_error_checks(visits=dep_visits)
@@ -163,6 +165,8 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             module_configs=self._module_configs,
             cutoff_date=current_visit.visitdate,
             search_op=">",
+            missing_data_strategy="none",
+            add_timestamp=True,
         )
 
         if not visits_list:
@@ -172,6 +176,13 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
             return
 
+        for visit in visits_list:
+            visit[MetadataKeys.TRIGGERED_TIMESTAMP] = (
+                current_visit.validated_timestamp
+                if current_visit.validated_timestamp
+                else ""
+            )
+
         qc_coordinator = QCCoordinator(
             subject=self._subject,
             module=self._module,
@@ -180,8 +191,8 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
-
         qc_coordinator.run_error_checks(visits=visits_list)
 
     def trigger_qc_process(self):

@@ -2,7 +2,7 @@
     "name": "participant-transfer",
     "label": "Manage Participant Transfer",
     "description": "Gear to manage participant transfers between centers",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/participant-transfer:1.0.0"
+            "image": "naccdata/participant-transfer:1.0.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

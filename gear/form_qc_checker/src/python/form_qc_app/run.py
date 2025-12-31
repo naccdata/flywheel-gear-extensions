@@ -21,7 +21,7 @@ from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
 )
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 from utils.utils import load_form_ingest_configurations
 
 from form_qc_app.main import run
@@ -39,7 +39,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         config_input: InputFileWrapper,
         redcap_con: REDCapReportConnection,
-        s3_client: S3BucketReader,
+        s3_client: S3BucketInterface,
         supplement_input: Optional[InputFileWrapper] = None,
     ):
         """
@@ -103,7 +103,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
-        s3_client = S3BucketReader.create_from_environment(rules_s3_bucket)
+        s3_client = S3BucketInterface.create_from_environment(rules_s3_bucket)
         if not s3_client:
             raise GearExecutionError(f"Unable to access S3 bucket {rules_s3_bucket}")
 

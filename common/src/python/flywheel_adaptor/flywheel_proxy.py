@@ -5,7 +5,7 @@ import json
 import logging
 from codecs import StreamReader
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Literal, Optional, Self, Sequence
 
 import flywheel
 from flywheel import (
@@ -1148,9 +1148,22 @@ class ProjectAdaptor:
         """
         return self._project.get_file(name)
 
-    def reload(self):
+    def get_file_by_id(self, file_id: str) -> Optional[FileEntry]:
+        """Returns the file by id.
+
+        Args:
+          file_id: the file ID
+        Returns:
+          the file with the file ID
+        """
+        # TODO: should return None if not in this project
+        return self.proxy.get_file(file_id)
+
+    def reload(self) -> Self:
         """Forces a reload on the project."""
         self._project = self._project.reload()
+
+        return self
 
     def read_file(self, name: str) -> bytes:
         """Reads file from the named file.
@@ -1170,6 +1183,36 @@ class ProjectAdaptor:
           file_spec: the file specification
         """
         self._project.upload_file(file_spec)
+
+    def upload_file_contents(
+        self, *, filename: str, contents: str, content_type: str = "text"
+    ) -> Optional[FileEntry]:
+        """Uploads a file to the project using filename and string contents.
+
+        Args:
+            filename: the file name
+            contents: the string contents of the file
+            content_type: the MIME content type (defaults to "text")
+
+        Returns:
+            the FileEntry for the uploaded file, or None if upload failed
+        """
+        file_spec = flywheel.FileSpec(
+            name=filename,
+            contents=contents,
+            content_type=content_type,
+            size=len(contents),
+        )
+        try:
+            self.upload_file(file_spec)
+            self.reload()
+            return self.get_file(filename)
+        except ApiException as error:
+            log.error(
+                f"Failed to upload file {filename} to "
+                f"{self.group}/{self.label}: {error}"
+            )
+            return None
 
     def get_user_roles(self, user_id: str) -> List[str]:
         """Gets the list of user role ids in this project.

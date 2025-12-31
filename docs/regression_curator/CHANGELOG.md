@@ -5,6 +5,7 @@ All notable changes to this gear are documented in this file.
 ## 1.0.0
 
 * Updates to support full QAF, including missingness values, not just derived variables
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
 
 ## 0.2.0
 

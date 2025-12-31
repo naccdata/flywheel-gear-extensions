@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
+from error_logging.error_logger import update_error_log_and_qc_metadata
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -19,7 +21,6 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from nacc_common.error_models import FileError, VisitKeys
 from nacc_common.field_names import FieldNames
-from outputs.error_logger import update_error_log_and_qc_metadata
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 
@@ -198,12 +199,13 @@ class FormJSONUploader:
             file_spec = FileSpec(
                 name=filename, contents=yaml_content, content_type="application/yaml"
             )
+
             try:
                 subject.upload_file(file_spec)
-                log.info("Uploaded file %s to subject %s", filename, participant)
-            except SubjectError as error:
+                log.info(f"Uploaded file {filename} to subject {participant}")
+            except ApiException as error:
                 success = False
-                log.error(error)
+                log.error(f"Failed to upload file {filename} to {participant}: {error}")
 
         return success
 
@@ -297,10 +299,23 @@ class FormJSONUploader:
                     success = False
                     continue
 
-                # No error and no new file (i.e. duplicate file exists)
-                # this cannot happen as duplicate visits detected earlier in the process
+                # No error and no new file, something went wrong
                 if not new_file:
-                    log.error("Existing duplicate visit file %s", visit_file_name)
+                    message = (
+                        "Error in uploading/finding visit file %s",
+                        visit_file_name,
+                    )
+                    log.error(message)
+                    self.__update_visit_error_log(
+                        error_log_name=log_file,
+                        status="FAIL",
+                        error_obj=system_error(
+                            message=str(message),
+                            visit_keys=VisitKeys.create_from(
+                                record=record, date_field=visitdate_key
+                            ),
+                        ),
+                    )
                     success = False
                     continue
 
@@ -328,5 +343,5 @@ class FormJSONUploader:
                     visitdate_key=visitdate_key,
                 )
 
-        success = success and self.__create_pending_visits_file()
+        success = self.__create_pending_visits_file() and success
         return success

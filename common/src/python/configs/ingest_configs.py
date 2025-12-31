@@ -6,10 +6,18 @@ from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
+from error_logging.error_logger import ErrorLogTemplate
+from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import PreprocessingChecks
 from nacc_common.field_names import FieldNames
-from pydantic import BaseModel, Field, RootModel, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    RootModel,
+    ValidationError,
+    model_validator,
+)
 
 PipelineType = Literal["submission", "finalization"]
 
@@ -146,52 +154,18 @@ class VisitLabelTemplate(BaseModel):
         return "_".join(components)
 
 
-class ErrorLogTemplate(VisitLabelTemplate):
-    """Template for creating the name of an error log file.
-
-    The file name is form using the visit label as the prefix, and
-    suffix and extension fields from this template.
-    """
-
-    suffix: Optional[str] = "qc-status"
-    extension: Optional[str] = "log"
-
-    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
-        """Instantiates the template using the visit-label built for the record
-        and module as a prefix, and the suffix and extension fields from this
-        template.
-
-        Args:
-          record: the data record
-          module: the module name
-        Returns:
-          the file name if the visit label can be built. None, otherwise.
-        """
-        prefix = super().instantiate(record=record, module=module)
-        if not prefix:
-            return None
-
-        return self.create_filename(prefix)
-
-    def create_filename(self, visit_label: str) -> str:
-        """Creates a log file name from this template by extending the visit-
-        label.
-
-        The format of the file name is "<visit-label>_<suffix>.<extension>".
-
-        Args:
-          visit_label: the visit label
-        Returns:
-          the file name build by extending the visit label
-        """
-        return f"{visit_label}_{self.suffix}.{self.extension}"
-
-
 class SupplementModuleConfigs(BaseModel):
     label: str
     date_field: str
     version: Optional[str] = None
     exact_match: Optional[bool] = True
+
+
+class LegacyModuleConfigs(BaseModel):
+    label: str
+    date_field: str
+    initial_packets: Optional[List[str]] = None
+    followup_packets: Optional[List[str]] = None
 
 
 class ModuleConfigs(BaseModel):
@@ -201,8 +175,7 @@ class ModuleConfigs(BaseModel):
     date_field: str
     hierarchy_labels: UploadTemplateInfo
     required_fields: List[str]
-    legacy_module: Optional[str] = None
-    legacy_date: Optional[str] = None
+    legacy_module: Optional[LegacyModuleConfigs] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None
@@ -231,7 +204,8 @@ class FormProjectConfigs(BaseModel):
     module_configs: Dict[str, ModuleConfigs]
 
     def get_module_dependencies(self, module: str) -> Optional[List[str]]:
-        """Returns the list of dependent modules for a given module.
+        """Get the list of dependent modules for a given module.
+        Note: only returns the dependent modules that has an exact match.
 
         Args:
             module: module label
@@ -261,6 +235,19 @@ class Pipeline(BaseModel):
     extensions: List[str]
     starting_gear: GearInfo
     notify_user: bool = False
+
+    def file_match(self, file_entry: FileEntry) -> bool:
+        """Indicates whether the file matches the tags and extensions for the
+        pipeline.
+
+        Args:
+          file_entry: the file
+        Returns:
+          True if the file tags and extension matches. False, otherwise.
+        """
+        return set(self.tags).issubset(
+            set(file_entry.tags)
+        ) and file_entry.name.lower().endswith(tuple(self.extensions))
 
 
 class PipelineConfigs(BaseModel):

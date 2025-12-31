@@ -7,11 +7,13 @@ validator) for validating the inputs.
 
 import json
 import logging
+from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
@@ -21,15 +23,15 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import DefaultValues
-from nacc_common.error_models import FileErrorList
+from keys.keys import MetadataKeys
+from nacc_common.error_models import FileErrorList, GearTags
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
 from outputs.error_writer import ListErrorWriter
 from redcap_api.redcap_connection import REDCapReportConnection
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 
 from form_qc_app.datastore import DatastoreHelper
 from form_qc_app.definitions import DefinitionException, DefinitionsLoader
@@ -70,20 +72,24 @@ def update_input_file_qc_status(
         data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
-    fail_tag = f"{gear_name}-FAIL"
-    pass_tag = f"{gear_name}-PASS"
-    new_tag = f"{gear_name}-{status_str}"
+    # set/update the validation timestamp in file.info
+    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        container_type=gear_context.destination["type"],
+        info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
+    )
 
-    if file.tags:
-        if fail_tag in file.tags:
-            file.delete_tag(fail_tag)
-        if pass_tag in file.tags:
-            file.delete_tag(pass_tag)
+    gear_tags = GearTags(gear_name=gear_name)
+    updated_tags = gear_tags.update_tags(tags=file.tags, status=status_str)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        tags=updated_tags,
+        container_type=gear_context.destination["type"],
+    )
 
-    # file.add_tag(new_tag)
-    gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
+    log.info("QC check status for file %s : %s [%s]", file.name, status_str, timestamp)
 
-    log.info("QC check status for file %s : %s", file.name, status_str)
     return True
 
 
@@ -107,7 +113,7 @@ def run(  # noqa: C901
     *,
     client_wrapper: ClientWrapper,
     input_wrapper: InputFileWrapper,
-    s3_client: S3BucketReader,
+    s3_client: S3BucketInterface,
     admin_group: NACCGroup,
     gear_context: GearToolkitContext,
     form_project_configs: FormProjectConfigs,
@@ -184,11 +190,6 @@ def run(  # noqa: C901
             f"Failed to find the configurations for module {module}"
         )
 
-    legacy_label = (
-        form_project_configs.legacy_project_label
-        if form_project_configs.legacy_project_label
-        else DefaultValues.LEGACY_PRJ_LABEL
-    )
     pk_field = form_project_configs.primary_key.lower()
     module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
     date_field = module_configs.date_field
@@ -276,11 +277,12 @@ def run(  # noqa: C901
         pk_field=pk_field,
         proxy=proxy,
         adcid=adcid,
+        module=module,
         group_id=gid,
         project=project_adaptor,
         admin_group=admin_group,
         module_configs=module_configs,
-        legacy_label=legacy_label,
+        form_project_configs=form_project_configs,
     )
 
     try:

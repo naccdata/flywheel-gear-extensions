@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.9
+* Adds retrospective-form project to center ingest projects metadata.
+  
 ## 2.1.8
-
 * Adds pipeline ADCID to retrospective project custom info.
 
 ## 2.1.7

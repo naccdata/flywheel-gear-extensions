@@ -2,6 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.1
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
+## 1.4.0
+* Resets QC status and re-evaluates subsequent visits and modules
+  
+## 1.3.0
+* Rebuilt for form ingest configs update
+  
 ## 1.2.7
 * Rebuilt for reset error log content in read failure
   
