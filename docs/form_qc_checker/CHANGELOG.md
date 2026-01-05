@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.7.2
+
+* Updates `__get_initial_visit` in the datastore to remove the current packet from `ivp_codes` to handle I4 plausibility checks needing to explicitly check the retrospective IVP packet
+
 ## 1.7.1
 * Integrates event logging functionality for enhanced QC status tracking and error reporting
 
