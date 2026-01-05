@@ -1,0 +1,208 @@
+# Requirements Document
+
+## Introduction
+
+This specification defines requirements for enhancing the existing pull_directory and user_management gears with automated error detection, categorization, and notification capabilities. The goal is to provide non-technical support staff with actionable information about user access issues without requiring manual investigation across multiple systems (COManage registry, NACC directory, Flywheel).
+
+## Glossary
+
+- **COManage Registry**: User identity management system that handles user registration and authentication claims
+- **NACC Directory**: REDCap-based system containing user authorization and contact information
+- **Flywheel**: Data platform where users need access to projects and data
+- **Registry Person**: User record in COManage with identity and claim status
+- **User Entry**: Directory record containing user information and authorizations
+- **Claim**: Process where users link their authentication identity to their registry record
+- **Support Staff**: Non-technical personnel who assist users with access issues
+- **Error Handler**: System component that detects, categorizes, and generates notifications for user access issues
+- **Notification Client**: Component responsible for sending automated emails to support staff
+
+## Requirements
+
+### Requirement 1: General Error Event Capture Mechanism
+
+**User Story:** As a support staff member, I want the system to capture and categorize user access issues using a general notification mechanism, so that I can receive consistent, actionable information about problems that prevent users from accessing the platform.
+
+#### Acceptance Criteria
+
+1. THE Error Capture System SHALL provide a general mechanism for capturing user access issues and mapping them to predefined categories
+2. THE Error Capture System SHALL support both existing failure point detection and additional instrumentation for proactive issue detection
+3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Bad ORCID Claims, Missing Directory Permissions, Insufficient Permissions, and Duplicate/Wrong User Records
+4. THE Error Capture System SHALL include relevant user context (email, name, center, registry ID, error details) with each captured event
+5. THE Error Capture System SHALL capture error events without disrupting the normal user processing flow
+6. WHEN API calls to external services fail, THE Error Capture System SHALL log these failures for technical staff but SHALL NOT generate support staff notifications for infrastructure issues
+7. THE Error Capture System SHALL map each captured event to an appropriate notification message template based on the error category
+8. THE Error Capture System SHALL support extensible error categories that can be added without code changes
+
+### Requirement 1a: Existing Failure Point Detection
+
+**User Story:** As a developer, I want to leverage existing failure points in the user management and directory pull processes to capture error events, so that we can provide notifications without extensive code changes.
+
+#### Acceptance Criteria
+
+1. WHEN ActiveUserProcess logs "Active user not in registry", THE Error Capture System SHALL categorize this as "Unclaimed Records"
+2. WHEN ClaimedUserProcess logs "Unable to add user", THE Error Capture System SHALL categorize this as "Missing Directory Permissions" or "Duplicate/Wrong User Records" based on context
+3. WHEN UpdateUserProcess logs "Failed to find a claimed user", THE Error Capture System SHALL categorize this as "Unclaimed Records"
+4. WHEN pull_directory gear logs "Ignoring %s: Permissions not approved", THE Error Capture System SHALL categorize this as "Missing Directory Permissions"
+5. WHEN pull_directory gear logs "Ignoring %s: Data platform survey is incomplete", THE Error Capture System SHALL categorize this as "Missing Directory Permissions"
+6. WHEN UserRegistry detects bad claims via `has_bad_claim()`, THE Error Capture System SHALL categorize this as "Bad ORCID Claims"
+7. WHEN directory validation errors occur, THE Error Capture System SHALL categorize these appropriately based on the validation failure type
+8. THE Error Capture System SHALL preserve all existing logging behavior while adding event capture
+
+### Requirement 1b: Additional Instrumentation for Proactive Detection
+
+**User Story:** As a support staff member, I want the system to proactively detect user access issues that may not surface through normal processing failures, so that I can address problems before users encounter them.
+
+#### Acceptance Criteria
+
+1. THE Error Detection System SHALL check for authentication email mismatches by comparing COManage registry email with directory email
+2. THE Error Detection System SHALL check email verification status in COManage registry records
+3. THE Error Detection System SHALL detect ORCID claims without proper email configuration
+4. THE Error Detection System SHALL compare user authorizations against expected permissions for their role/center to detect insufficient permissions
+5. THE Error Detection System SHALL detect duplicate user records across COManage, directory, and Flywheel systems
+6. THE Error Detection System SHALL run these proactive checks during user processing without significantly impacting performance
+7. THE Error Detection System SHALL use existing API connections and data sources where possible to minimize additional service calls
+8. THE Error Detection System SHALL categorize proactively detected issues using the same category system as reactive failure detection
+
+### Requirement 2: Category-Based Notification Generation
+
+**User Story:** As a support staff member, I want to receive detailed email notifications that are tailored to specific categories of user access issues, so that I can provide appropriate assistance with clear, actionable guidance.
+
+#### Acceptance Criteria
+
+1. WHEN an error event is categorized as "Unclaimed Records", THE Notification Generator SHALL use a template with instructions for claiming records with appropriate identity provider
+2. WHEN an error event is categorized as "Authentication Email Mismatch", THE Notification Generator SHALL use a template with instructions for updating directory with correct authentication email
+3. WHEN an error event is categorized as "Unverified Email", THE Notification Generator SHALL use a template with instructions for contacting institutional IT support
+4. WHEN an error event is categorized as "Bad ORCID Claims", THE Notification Generator SHALL use a template with instructions to delete bad record and reclaim with correct identity provider
+5. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
+6. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for specific permission updates
+7. WHEN an error event is categorized as "Duplicate/Wrong User Records", THE Notification Generator SHALL use a template with instructions for user deactivation and OIDC cache clearing
+8. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
+9. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
+10. THE Notification Generator SHALL support both immediate and batched notification delivery modes
+
+### Requirement 3: Success Notification Enhancement
+
+**User Story:** As a support staff member, I want to be notified when users are successfully added to the system, so that I can track successful onboarding and provide proactive support.
+
+#### Acceptance Criteria
+
+1. WHEN a user is successfully created in Flywheel, THE Notification Client SHALL send a success notification to support staff
+2. WHEN sending success notifications, THE Notification Client SHALL include user details (name, email, center, registry ID)
+3. WHEN sending success notifications, THE Notification Client SHALL include the date and time of successful creation
+4. WHEN sending success notifications, THE Notification Client SHALL include the authorizations granted to the user
+5. WHEN sending success notifications, THE Notification Client SHALL use a standardized email template for consistency
+
+### Requirement 4: API Integration for Error Context
+
+**User Story:** As a system administrator, I want the error handling system to gather additional context from available sources, so that error notifications contain complete information for resolution.
+
+#### Acceptance Criteria
+
+1. WHEN categorizing errors, THE API Client SHALL query COManage Registry API for additional user record details when needed
+2. WHEN categorizing errors, THE API Client SHALL use directory information already available from the pull_directory gear output
+3. WHEN categorizing errors, THE API Client SHALL query Flywheel API for user status information when needed
+4. WHEN API calls fail, THE Error Handler SHALL log the failure and continue with available information
+5. WHEN gathering context, THE API Client SHALL include identity provider information from COManage when available
+6. THE Error Handler SHALL use existing user entry data from the directory file as the primary source of user information
+7. THE Error Handler SHALL only make additional API calls when essential information is missing from existing data sources
+
+### Requirement 5: AWS SES Template Integration
+
+**User Story:** As a system administrator, I want to use the existing AWS SES template infrastructure for error notifications, so that we maintain consistency with the current email system.
+
+#### Acceptance Criteria
+
+1. THE Notification Generator SHALL use existing AWS SES templates for error notifications
+2. THE Notification Generator SHALL create new SES templates for error event types not currently covered
+3. THE Notification Generator SHALL use the existing EmailClient and TemplateDataModel infrastructure
+4. THE Notification Generator SHALL support variable substitution using the existing template data model pattern
+5. THE Notification Generator SHALL extend the existing BaseTemplateModel for error-specific template data
+6. THE Notification Generator SHALL maintain compatibility with the existing notification configuration system
+7. THE Notification Generator SHALL use the existing SES configuration set for error notifications
+8. THE Notification Generator SHALL follow the existing email template naming conventions
+
+### Requirement 6: Support Staff Email Configuration
+
+**User Story:** As a system administrator, I want to configure support staff email addresses for error notifications, so that the right people receive alerts about user access issues.
+
+#### Acceptance Criteria
+
+1. THE Configuration Manager SHALL store support staff email addresses in AWS Parameter Store
+2. THE Configuration Manager SHALL support environment-specific email distribution lists (dev/staging/prod)
+3. THE Notification Generator SHALL retrieve support staff email addresses from parameter store at runtime
+4. THE Notification Generator SHALL send error notifications to all configured support staff email addresses
+5. WHEN parameter store access fails, THE Notification Generator SHALL log the error and continue without sending notifications
+6. THE Configuration Manager SHALL support both individual email addresses and distribution lists
+
+### Requirement 7: Error Tracking and Monitoring
+
+**User Story:** As a system administrator, I want to track error patterns and resolution status, so that I can identify systemic issues and improve the user onboarding process.
+
+#### Acceptance Criteria
+
+1. THE Error Tracker SHALL log all detected errors with timestamps and categories
+2. THE Error Tracker SHALL track email delivery success and failure rates
+3. THE Error Tracker SHALL generate periodic reports on common error patterns
+4. WHEN email delivery fails, THE Error Tracker SHALL retry sending up to 3 times
+5. WHEN email system failures occur, THE Error Tracker SHALL alert administrators
+6. THE Error Tracker SHALL maintain error statistics for performance monitoring
+
+### Requirement 8: Integration with Existing User Management Process
+
+**User Story:** As a system administrator, I want the error handling system to integrate seamlessly with existing user management workflows, so that current functionality is preserved while adding new capabilities.
+
+#### Acceptance Criteria
+
+1. THE Error Handler SHALL integrate with the existing UserProcess class without breaking current functionality
+2. THE Error Handler SHALL preserve all existing user creation and update workflows
+3. THE Error Handler SHALL maintain compatibility with existing notification templates
+4. WHEN errors occur during user processing, THE Error Handler SHALL handle them gracefully without stopping the entire process
+5. THE Error Handler SHALL extend the existing NotificationClient to support error notifications
+6. THE Error Handler SHALL use the existing EmailClient infrastructure for sending notifications
+
+### Requirement 9: Test-Driven Development and Validation
+
+**User Story:** As a developer, I want to use test-driven development for all new error handling functionality, so that I can ensure reliability and correctness through comprehensive testing from the start.
+
+#### Acceptance Criteria
+
+1. THE Development Process SHALL follow test-driven development (TDD) methodology for all new classes and functionality
+2. THE Development Process SHALL create unit tests before implementing any new error capture, categorization, or notification code
+3. THE Test Suite SHALL include unit tests for each error category detection mechanism
+4. THE Test Suite SHALL include integration tests with mock API responses for COManage and Flywheel interactions
+5. THE Test Suite SHALL validate email template rendering and variable substitution with various user scenarios
+6. THE Test Suite SHALL test error handling gracefully when external APIs are unavailable
+7. THE Test Suite SHALL verify email delivery to test accounts using the existing SES infrastructure
+8. THE Test Suite SHALL include property-based tests for error categorization logic to ensure consistent behavior across input variations
+9. THE Test Suite SHALL test both reactive error capture (from existing failure points) and proactive error detection (from new instrumentation)
+10. THE Development Process SHALL ensure all new code passes tests before integration with existing systems
+
+### Requirement 8: Integration with Existing Process Error Points
+
+**User Story:** As a developer, I want to integrate error capture seamlessly with existing user processing and directory pull workflows, so that current functionality is preserved while adding comprehensive error notification capabilities.
+
+#### Acceptance Criteria
+
+1. THE Error Event Collector SHALL integrate with existing error logging points in UserProcess classes without modifying core processing logic
+2. THE Error Event Collector SHALL extend existing logging calls to capture structured error events in addition to log messages
+3. THE Error Event Collector SHALL use existing user entry objects and registry person objects to extract context information
+4. THE Error Event Collector SHALL integrate with the existing NotificationClient infrastructure and extend it for error notifications
+5. THE Error Event Collector SHALL preserve all existing logging behavior and error handling while adding event capture
+6. THE Error Event Collector SHALL use existing API connections (COManage, Flywheel) for additional context gathering when needed
+7. THE Error Event Collector SHALL support both reactive capture (from existing failure points) and proactive detection (from additional instrumentation)
+8. THE Error Event Collector SHALL maintain backward compatibility with existing gear configurations and parameter store settings
+9. THE Error Event Collector SHALL use the existing AWS SES template system for error notification delivery
+10. THE Error Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency
+
+### Requirement 10: Performance and Reliability
+
+**User Story:** As a system administrator, I want the error handling system to be performant and reliable, so that it doesn't impact the overall user management process.
+
+#### Acceptance Criteria
+
+1. THE Error Handler SHALL process errors asynchronously to avoid blocking user management workflows
+2. THE Error Handler SHALL implement circuit breaker patterns for external API calls
+3. THE Error Handler SHALL cache API responses to reduce external service load
+4. WHEN external services are unavailable, THE Error Handler SHALL degrade gracefully
+5. THE Error Handler SHALL complete error processing within 30 seconds per user
+6. THE Error Handler SHALL handle up to 100 concurrent user processing errors
