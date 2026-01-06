@@ -2,7 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 0.1.1
 
-* Initial version
-* Adds this CHANGELOG
+* Migrated to `flywheel-gear-extensions` repo from original Flywheel gear
+
+## 0.1.0
+
+* Initial Flywheel version

@@ -1,8 +1,8 @@
 {
     "name": "dbt-runner",
     "label": "DBT Runner",
-    "description": "Gear for running the DBT process",
-    "version": "0.0.1",
+    "description": "Run dbt (data build tool) projects on Flywheel datasets stored in external storage. Transforms source parquet files using user-defined dbt models and outputs results back to external storage",
+    "version": "0.1.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -14,29 +14,47 @@
     },
     "custom": {
         "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/dbt-runner:0.0.1"
+            "category": "analysis",
+            "image": "naccdata/dbt-runner:0.1.1"
         },
         "flywheel": {
             "suite": "Utility",
-            "show-job": true
+            "show-job": true,
+            "classification": {
+                "function": [
+                    "Export"
+                ]
+            }
         }
     },
     "inputs": {
         "api-key": {
-            "base": "api-key"
+            "base": "api-key",
+            "read-only": true
         },
-        "input_file": {
-            "description": "The input file",
+        "dbt_project_zip": {
+            "description": "Zip file containing a complete dbt project with dbt_project.yml, profiles.yml, models/, and other dbt files",
             "base": "file",
             "type": {
                 "enum": [
-                    "source code"
+                    "archive"
                 ]
             }
         }
     },
     "config": {
+        "storage_label": {
+            "description": "Label of the Flywheel external storage containing source and output data",
+            "type": "string"
+        },
+        "source_prefix": {
+            "description": "Path prefix within external storage where source Flywheel dataset files are located",
+            "type": "string"
+        },
+        "output_prefix": {
+            "description": "Path prefix within external storage where transformed output tables will be written",
+            "type": "string"
+        },
         "dry_run": {
             "description": "Whether to do a dry run",
             "type": "boolean",
@@ -46,6 +64,11 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "debug": {
+            "description": "Log debug messages",
+            "type": "boolean",
+            "default": false
         }
     },
     "command": "/bin/run"
