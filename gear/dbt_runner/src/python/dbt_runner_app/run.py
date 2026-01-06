@@ -27,12 +27,10 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         dbt_project_zip: InputFileWrapper,
         storage_configs: StorageConfigs,
-        debug: bool = False,
     ):
         super().__init__(client=client)
         self.__dbt_project_zip = dbt_project_zip
         self.__storage_configs = storage_configs
-        self.__debug = debug
 
     @classmethod
     def create(
@@ -66,12 +64,14 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         )
 
         debug = context.config.get("debug", False)
+        if debug:
+            log.setLevel(logging.DEBUG)
+            log.info("Set logging level to DEBUG")
 
         return DBTRunnerVisitor(
             client=client,
             dbt_project_zip=dbt_project_zip,
-            storage_configs=storage_configs,
-            debug=debug,
+            storage_configs=storage_configs
         )
 
     def run(self, context: GearToolkitContext) -> None:
