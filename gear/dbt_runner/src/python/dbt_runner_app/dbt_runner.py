@@ -1,37 +1,30 @@
 """Runs DBT."""
+
 import json
 import logging
 import os
 import re
 import shutil
 import subprocess
-
 from pathlib import Path
+from typing import List
 
+from storage.storage import StorageManager
+
+log = logging.getLogger(__name__)
 
 
 class DBTRunner:
-
     def __init__(self, project_root: Path) -> None:
         self.__project_root = project_root
-        self.__target_dir = project_root / 'target'
-
-    @property
-    def project_root(self) -> Path:
-        return self.__project_root
-
-    @property
-    def target_dir(self) -> Path:
-        return self.__target_dir
+        self.__target_dir = project_root / "target"
 
     def __create_model_output_directories(self) -> None:
         """Create output directories for models with external materialization.
 
         Scans dbt model files for location configurations and creates
-        necessary subdirectories to prevent "directory does not exist" errors.
-
-        Args:
-            project_root: Root directory of the dbt project
+        necessary subdirectories to prevent "directory does not exist"
+        errors.
         """
         models_dir = self.__project_root / "models"
         if not models_dir.exists():
@@ -62,21 +55,19 @@ class DBTRunner:
             location_path = Path(location)
             if not location_path.is_absolute():
                 # Resolve relative to project root
-                location_path = project_root / location_path
+                location_path = self.__project_root / location_path
 
             # Create parent directory
             parent_dir = location_path.parent
-            if parent_dir != project_root:
+            if parent_dir != self.__project_root:
                 parent_dir.mkdir(parents=True, exist_ok=True)
                 log.info(
-                    f"Created output directory: {parent_dir.relative_to(project_root)}"
+                    "Created output directory: "
+                    + f"{parent_dir.relative_to(self.__project_root)}"
                 )
 
     def run(self) -> None:
         """Execute dbt run command.
-
-        Args:
-            project_root: Root directory of the dbt project
 
         Raises:
             subprocess.CalledProcessError: If dbt command fails
@@ -121,9 +112,6 @@ class DBTRunner:
 
     def __parse_external_models_from_manifest(self) -> List[dict]:
         """Parse manifest.json to extract external model configurations.
-
-        Args:
-            manifest_path: Path to manifest.json
 
         Returns:
             List of dicts with 'name' and 'location' keys for external models
@@ -194,7 +182,9 @@ class DBTRunner:
 
             if parquet_path.exists():
                 parquet_files.append(parquet_path)
-                log.info(f"Found external model output: {model['name']} at {parquet_path}")
+                log.info(
+                    f"Found external model output: {model['name']} at {parquet_path}"
+                )
             else:
                 log.warning(
                     f"External model {model['name']} location not found: {parquet_path}"
@@ -202,7 +192,9 @@ class DBTRunner:
 
         # Fallback: recursively find all parquet files under target/
         if not parquet_files:
-            log.info("Falling back to recursive parquet file search in target directory")
+            log.info(
+                "Falling back to recursive parquet file search in target directory"
+            )
             for parquet_file in self.__target_dir.rglob("*.parquet"):
                 if not parquet_file.name.endswith(".duckdb"):
                     parquet_files.append(parquet_file)
@@ -211,14 +203,14 @@ class DBTRunner:
         return parquet_files
 
     def upload_external_model_outputs(
+        self,
         storage_manager: StorageManager,
         output_prefix: str,
     ) -> None:
-        """Upload external model outputs to storage preserving subdirectory structure.
+        """Upload external model outputs to storage preserving subdirectory
+        structure.
 
         Args:
-            dbt_target_dir: Directory containing dbt target outputs
-            project_root: Root directory of the dbt project
             storage_manager: Storage manager instance for uploads
             output_prefix: Path prefix in storage where files will be written
         """
@@ -230,17 +222,19 @@ class DBTRunner:
                 # Calculate relative path to preserve subdirectory structure
                 try:
                     # Try to get path relative to target directory
-                    relative_path = parquet_file.relative_to(dbt_target_dir)
+                    relative_path = str(parquet_file.relative_to(self.__target_dir))
                 except ValueError:
                     # If file is not under target dir, use relative to project root
                     try:
-                        relative_path = parquet_file.relative_to(project_root)
+                        relative_path = str(
+                            parquet_file.relative_to(self.__project_root)
+                        )
                     except ValueError:
                         # Fallback to just the filename
                         relative_path = parquet_file.name
 
                 log.info(f"Uploading {relative_path} to external storage")
-                storage_manager.upload_file(parquet_file, output_prefix, str(relative_path))
+                storage_manager.upload_file(parquet_file, output_prefix, relative_path)
         else:
             log.warning("No external model outputs found to upload")
 

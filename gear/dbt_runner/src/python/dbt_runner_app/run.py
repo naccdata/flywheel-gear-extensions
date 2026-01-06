@@ -1,7 +1,6 @@
 """Entry script for DBT Runner."""
 
 import logging
-
 from typing import Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
@@ -13,9 +12,9 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from dbt_runner_app.main import run, StorageConfigs
 from inputs.parameter_store import ParameterStore
-from storage.storage import StorageException, StorageManager
+
+from dbt_runner_app.main import StorageConfigs, run
 
 log = logging.getLogger(__name__)
 
@@ -28,20 +27,19 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         dbt_project_zip: InputFileWrapper,
         storage_configs: StorageConfigs,
-        debug: bool = False
+        debug: bool = False,
     ):
         super().__init__(client=client)
         self.__dbt_project_zip = dbt_project_zip
         self.__storage_configs = storage_configs
         self.__debug = debug
 
-
     @classmethod
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'DBTRunnerVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "DBTRunnerVisitor":
         """Creates a DBT Runner execution visitor.
 
         Args:
@@ -54,7 +52,9 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         """
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
-        dbt_project_zip = InputFileWrapper.create(input_name="dbt_project_zip", context=context)
+        dbt_project_zip = InputFileWrapper.create(
+            input_name="dbt_project_zip", context=context
+        )
 
         if not dbt_project_zip:
             raise GearExecutionError("DBT project zip required")
@@ -62,7 +62,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         storage_configs = StorageConfigs(
             storage_label=context.config.get("storage_label", None),
             source_prefix=context.config.get("source_prefix", None),
-            output_prefix=context.config.get("output_prefix", None)
+            output_prefix=context.config.get("output_prefix", None),
         )
 
         debug = context.config.get("debug", False)
@@ -71,14 +71,16 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             client=client,
             dbt_project_zip=dbt_project_zip,
             storage_configs=storage_configs,
-            debug=debug
+            debug=debug,
         )
 
     def run(self, context: GearToolkitContext) -> None:
-        run(context=context,
+        run(
+            context=context,
             client=self.client,
             dbt_project_zip=self.__dbt_project_zip,
-            storage_configs=storage_configs)
+            storage_configs=self.__storage_configs,
+        )
 
 
 def main():

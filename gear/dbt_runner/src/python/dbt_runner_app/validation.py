@@ -1,13 +1,13 @@
 """Handles validating and opening DBT project zip file."""
 
 import logging
+import zipfile
+from pathlib import Path
 
 from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from pathlib import Path
-import zipfile
 
 log = logging.getLogger(__name__)
 
@@ -34,8 +34,7 @@ def _find_dbt_project_root(extract_dir: Path) -> Path:
         if yml_path.parent.relative_to(extract_dir).parts.__len__() <= 2:
             return yml_path.parent
 
-    raise GearExecutionError(
-        "Could not find dbt_project.yml in extracted zip file")
+    raise GearExecutionError("Could not find dbt_project.yml in extracted zip file")
 
 
 def validate_dbt_project(dbt_project_zip: InputFileWrapper, extract_dir: Path) -> Path:
@@ -59,10 +58,11 @@ def validate_dbt_project(dbt_project_zip: InputFileWrapper, extract_dir: Path) -
     log.info("Validating dbt project zip file")
 
     # Check if it's a valid zip file
-    file_type = dbt_project_zip.validate_file_extension(accepted_extensions=['.zip'])
+    file_type = dbt_project_zip.validate_file_extension(accepted_extensions=[".zip"])
     if not file_type:
         raise GearExecutionError(
-            f"DBT project zip is not a valid zip archive: {dbt_project_zip.filename}")
+            f"DBT project zip is not a valid zip archive: {dbt_project_zip.filename}"
+        )
 
     # Extract the zip file
     extract_dir.mkdir(parents=True, exist_ok=True)
@@ -72,8 +72,7 @@ def validate_dbt_project(dbt_project_zip: InputFileWrapper, extract_dir: Path) -
         with zipfile.ZipFile(dbt_project_zip.filepath, "r") as zip_ref:
             zip_ref.extractall(extract_dir)
     except Exception as e:
-        raise GearExecutionError(
-            f"Failed to extract zip file: {str(e)}") from e
+        raise GearExecutionError(f"Failed to extract zip file: {e}") from e
 
     # Find the project root (may be in a subdirectory)
     project_root = _find_dbt_project_root(extract_dir)
@@ -99,3 +98,36 @@ def validate_dbt_project(dbt_project_zip: InputFileWrapper, extract_dir: Path) -
 
     log.info("dbt project validation successful")
     return project_root
+
+
+def validate_source_data(source_dir: Path) -> None:
+    """Validate that source data follows Flywheel dataset schema.
+
+    Args:
+        source_dir: Directory containing the downloaded dataset
+
+    Raises:
+        GearExecutionError: If validation fails
+    """
+    log.info("Validating source dataset structure")
+
+    if not source_dir.exists():
+        raise GearExecutionError(f"Source directory not found: {source_dir}")
+
+    # Check for tables directory
+    tables_dir = source_dir / "tables"
+    if not tables_dir.exists() or not tables_dir.is_dir():
+        raise GearExecutionError(
+            "Source dataset missing 'tables/' directory. "
+            "Expected Flywheel dataset schema structure."
+        )
+
+    # Check that there are parquet files in the tables directory
+    parquet_files = list(tables_dir.rglob("*.parquet"))
+    if not parquet_files:
+        raise GearExecutionError(
+            "No parquet files found in source dataset 'tables/' directory"
+        )
+
+    log.info(f"Found {len(parquet_files)} parquet files in source dataset")
+    log.info("Source dataset validation successful")
