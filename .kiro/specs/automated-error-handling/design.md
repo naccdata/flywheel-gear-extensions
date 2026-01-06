@@ -195,13 +195,12 @@ class ErrorCollector:
         self._errors.clear()
 
 def create_error_event(category: ErrorCategory, user_context: UserContext, 
-                      details: Dict[str, Any], source: str = "reactive") -> ErrorEvent:
+                      details: Dict[str, Any]) -> ErrorEvent:
     """Create an error event with the provided information."""
     return ErrorEvent(
         category=category,
         user_context=user_context,
-        error_details=details,
-        source=source
+        error_details=details
     )
 ```
 
@@ -592,7 +591,6 @@ class ErrorEvent(BaseModel):
     category: ErrorCategory
     user_context: UserContext
     error_details: Dict[str, Any]
-    source: Literal["reactive", "proactive"]
     
     def to_summary(self) -> str:
         """Convert to a one-line summary for notifications."""
@@ -706,7 +704,7 @@ Property 6: Existing Logging Preservation
 **Validates: Requirements 1a.8**
 
 Property 7: Email Mismatch Detection
-*For any* user with different authentication email and directory email, the proactive detection system should identify this as an authentication email mismatch
+*For any* user with different authentication email and directory email, the additional instrumentation system should identify this as an authentication email mismatch
 **Validates: Requirements 1b.1**
 
 Property 8: Email Verification Detection
@@ -726,7 +724,7 @@ Property 11: Duplicate User Detection
 **Validates: Requirements 1b.5**
 
 Property 12: Consistent Categorization
-*For any* error detected through proactive detection, the system should use the same categorization system as reactive failure detection
+*For any* error detected through additional instrumentation, the system should use the same categorization system as errors detected from existing failure points
 **Validates: Requirements 1b.8**
 
 Property 13: Template Selection by Category
@@ -747,55 +745,14 @@ Property 16: Success Notification Generation
 
 Property 17: Success Notification Template Consistency
 *For any* success notification, the system should use the standardized email template format
-**Validates: Requirements 3.5**ping rules
-**Validates: Requirements 1a.2, 1a.7**
-
-Property 6: Existing Logging Preservation
-*For any* user processing operation, the system should maintain all existing log messages while adding error event capture
-**Validates: Requirements 1a.8**
-
-Property 7: Email Mismatch Detection
-*For any* user with different authentication email and directory email, the proactive detection system should identify this as an authentication email mismatch
-**Validates: Requirements 1b.1**
-
-Property 8: Email Verification Detection
-*For any* COManage registry record, the system should correctly identify the email verification status
-**Validates: Requirements 1b.2**
-
-Property 9: ORCID Claim Detection
-*For any* ORCID identity claim without proper email configuration, the system should detect this as a bad ORCID claim
-**Validates: Requirements 1b.3**
-
-Property 10: Permission Insufficiency Detection
-*For any* user with authorizations that don't match expected permissions for their role/center, the system should detect insufficient permissions
-**Validates: Requirements 1b.4**
-
-Property 11: Duplicate User Detection
-*For any* set of user records across COManage, directory, and Flywheel systems, the system should identify duplicates based on matching criteria
-**Validates: Requirements 1b.5**
-
-Property 12: Consistent Categorization
-*For any* error detected through proactive detection, the system should use the same categorization system as reactive failure detection
-**Validates: Requirements 1b.8**
-
-Property 13: Template Selection by Category
-*For any* error event with a specific category, the notification generator should select the correct template that contains appropriate instructions for that category type
-**Validates: Requirements 2.1-2.7**
-
-Property 14: User Context in Notifications
-*For any* generated notification, the system should include all available user-specific context information in the template data
-**Validates: Requirements 2.8**
-
-Property 15: Error Event Batching
-*For any* set of multiple error events for the same user, the system should batch them into a single comprehensive notification
-**Validates: Requirements 2.9**
+**Validates: Requirements 3.5**
 
 ## Error Handling
 
 The error handling strategy focuses on graceful degradation and maintaining system reliability:
 
 ### External Service Failures
-- **COManage API Failures**: Log for technical staff, continue with available data, skip proactive detection requiring COManage
+- **COManage API Failures**: Log for technical staff, continue with available data, skip additional instrumentation requiring COManage
 - **Flywheel API Failures**: Log for technical staff, continue with user processing, skip Flywheel-specific checks
 - **AWS SES Failures**: Implement retry logic with exponential backoff, fallback to raw email if templated email fails
 - **Parameter Store Failures**: Use cached configuration values, log warnings for missing support staff emails
@@ -806,7 +763,7 @@ The error handling strategy focuses on graceful degradation and maintaining syst
 - **Category Mapping Failures**: Use "Unknown Error" category, include original error details in notification
 
 ### Performance Safeguards
-- **Circuit Breaker Pattern**: Disable proactive detection if external services are consistently failing
+- **Circuit Breaker Pattern**: Disable additional instrumentation if external services are consistently failing
 - **Timeout Handling**: Set reasonable timeouts for all external API calls (30 seconds max)
 - **Batch Size Limits**: Limit error event batching to prevent memory issues (max 50 events per user)
 - **Rate Limiting**: Implement rate limiting for notification sending to prevent email flooding
@@ -823,7 +780,7 @@ The testing strategy follows a test-driven development approach with comprehensi
 
 ### Unit Testing Strategy
 - **Error Capture Components**: Test error event creation, categorization logic, and user context extraction
-- **Proactive Detection**: Test each detection mechanism with various user scenarios and edge cases
+- **Additional Detection**: Test each detection mechanism with various user scenarios and edge cases
 - **Notification Generation**: Test template selection, variable substitution, and batching logic
 - **Integration Points**: Test integration with existing UserProcess classes and NotificationClient
 
@@ -857,7 +814,7 @@ def test_error_event_categorization(error_event):
 ### Performance Testing
 - **Load Testing**: Verify system handles high volumes of error events without degradation
 - **Memory Usage**: Monitor memory consumption during error event batching
-- **API Response Times**: Ensure proactive detection doesn't significantly slow user processing
+- **API Response Times**: Ensure additional instrumentation doesn't significantly slow user processing
 - **Notification Throughput**: Test email sending capacity and rate limiting
 
 The testing strategy ensures that all new functionality is thoroughly validated while maintaining the reliability and performance of existing user management workflows.

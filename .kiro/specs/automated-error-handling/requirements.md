@@ -174,7 +174,7 @@ This specification defines requirements for enhancing the existing pull_director
 6. THE Test Suite SHALL test error handling gracefully when external APIs are unavailable
 7. THE Test Suite SHALL verify email delivery to test accounts using the existing SES infrastructure
 8. THE Test Suite SHALL include property-based tests for error categorization logic to ensure consistent behavior across input variations
-9. THE Test Suite SHALL test both reactive error capture (from existing failure points) and proactive error detection (from new instrumentation)
+9. THE Test Suite SHALL test both error capture from existing failure points and error detection from new instrumentation
 10. THE Development Process SHALL ensure all new code passes tests before integration with existing systems
 
 ### Requirement 8: Integration with Existing Process Error Points
@@ -189,7 +189,7 @@ This specification defines requirements for enhancing the existing pull_director
 4. THE Error Event Collector SHALL integrate with the existing NotificationClient infrastructure and extend it for error notifications
 5. THE Error Event Collector SHALL preserve all existing logging behavior and error handling while adding event capture
 6. THE Error Event Collector SHALL use existing API connections (COManage, Flywheel) for additional context gathering when needed
-7. THE Error Event Collector SHALL support both reactive capture (from existing failure points) and proactive detection (from additional instrumentation)
+7. THE Error Event Collector SHALL support both error capture from existing failure points and error detection from additional instrumentation
 8. THE Error Event Collector SHALL maintain backward compatibility with existing gear configurations and parameter store settings
 9. THE Error Event Collector SHALL use the existing AWS SES template system for error notification delivery
 10. THE Error Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency

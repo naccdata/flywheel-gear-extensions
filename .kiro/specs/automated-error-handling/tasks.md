@@ -6,7 +6,7 @@ This implementation plan converts the error handling design into discrete coding
 
 ## Tasks
 
-- [ ] 1. Write unit tests for error handling data models (TDD)
+- [x] 1. Write unit tests for error handling data models (TDD)
   - Test ErrorEvent creation and serialization
   - Test ErrorCategory enum values
   - Test UserContext creation from user entries
@@ -62,7 +62,7 @@ This implementation plan converts the error handling design into discrete coding
 - [ ] 10. Checkpoint - Ensure core error handling works
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Write unit tests for proactive detection mechanisms (TDD)
+- [ ] 11. Write unit tests for additional detection mechanisms (TDD)
   - Test email mismatch detection with various email scenarios
   - Test email verification status checking
   - Test ORCID claim validation
@@ -70,7 +70,7 @@ This implementation plan converts the error handling design into discrete coding
   - Test duplicate user detection
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
 
-- [ ] 12. Write property tests for proactive detection (TDD)
+- [ ] 12. Write property tests for additional detection (TDD)
   - **Property 7: Email Mismatch Detection**
   - **Property 8: Email Verification Detection**
   - **Property 9: ORCID Claim Detection**
@@ -78,7 +78,7 @@ This implementation plan converts the error handling design into discrete coding
   - **Property 11: Duplicate User Detection**
   - **Validates: Requirements 1b.1, 1b.2, 1b.3, 1b.4, 1b.5**
 
-- [ ] 13. Implement proactive error detection mechanisms
+- [ ] 13. Implement additional error detection mechanisms
   - Add email mismatch detection by comparing COManage and directory emails
   - Add email verification status checking in COManage registry
   - Add ORCID claim validation for proper email configuration
