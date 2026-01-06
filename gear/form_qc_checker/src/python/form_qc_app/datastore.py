@@ -309,7 +309,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.QC_GEAR,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
                 extra_columns=[date_field],
             )
 
@@ -367,7 +367,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.QC_GEAR,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
                 extra_columns=[date_field],
             )
 
