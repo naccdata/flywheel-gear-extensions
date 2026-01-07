@@ -2,14 +2,13 @@
 
 ## Overview
 
-This implementation plan converts the error handling design into discrete coding tasks that build incrementally on existing user management infrastructure. The approach follows test-driven development principles and preserves all existing functionality while adding optional error handling capabilities.
+This implementation plan converts the error handling design into discrete coding tasks that build incrementally on existing user management infrastructure. The approach follows test-driven development principles and integrates error handling as core functionality while preserving all existing behavior.
 
 ## Tasks
 
 - [x] 1. Write unit tests for error handling data models (TDD)
-  - Test ErrorEvent creation and serialization
   - Test ErrorCategory enum values
-  - Test UserContext creation from user entries
+  - Test UserContext creation from user entries (only if custom validators/serializers are added)
   - _Requirements: 1.3, 1.4_
 
 - [ ] 2. Write property test for error event categorization (TDD)
@@ -24,25 +23,26 @@ This implementation plan converts the error handling design into discrete coding
   - _Requirements: 1.3, 1.4_
 
 - [ ] 4. Write unit tests for FailureAnalyzer methods (TDD)
-  - Test each analyzer method with various user scenarios
-  - Test analyzer integration with UserProcessEnvironment
+  - Test analyze_flywheel_user_creation_failure with various error scenarios and existing users
+  - Test analyze_missing_claimed_user with different registry states
   - Mock external API calls for isolated testing
-  - _Requirements: 1a.1, 1a.2, 1a.3, 1a.6_
+  - _Requirements: 1a.2, 1a.3_
 
 - [ ] 5. Write property test for user context inclusion (TDD)
   - **Property 2: User Context Inclusion**
   - **Validates: Requirements 1.4**
 
-- [ ] 6. Implement FailureAnalyzer with UserProcessEnvironment integration
+- [ ] 6. Implement FailureAnalyzer for complex failure scenarios
   - Create FailureAnalyzer class that takes UserProcessEnvironment in constructor
-  - Implement analyzer methods that return Optional[ErrorEvent]
-  - Add methods for analyzing missing auth email, bad claims, missing creation dates, etc.
+  - Implement analyze_flywheel_user_creation_failure method with actual investigation logic
+  - Implement analyze_missing_claimed_user method with registry querying
   - Make tests pass
-  - _Requirements: 1a.1, 1a.2, 1a.3, 1a.6_
+  - _Requirements: 1a.2, 1a.3_
 
 - [ ] 7. Write integration tests for modified UserProcess classes (TDD)
-  - Test that existing functionality is preserved when error handling is disabled
-  - Test that error events are collected when error handling is enabled
+  - Test that existing functionality is preserved with error handling integrated
+  - Test that error events are created directly for simple failure cases
+  - Test that failure analysis is performed for complex cases
   - Test that all existing log messages still occur
   - _Requirements: 8.1, 8.2, 1a.8_
 
@@ -50,11 +50,11 @@ This implementation plan converts the error handling design into discrete coding
   - **Property 6: Existing Logging Preservation**
   - **Validates: Requirements 1a.8**
 
-- [ ] 9. Modify existing UserProcess classes to support optional error handling
-  - Update UserProcess constructor to accept optional ErrorCollector
-  - Update ActiveUserProcess to create FailureAnalyzer when needed
-  - Update ClaimedUserProcess to analyze Flywheel user creation failures
-  - Update UpdateUserProcess to analyze missing claimed users
+- [ ] 9. Modify existing UserProcess classes to integrate error handling
+  - Update UserProcess constructor to require ErrorCollector
+  - Update ActiveUserProcess to create error events directly for simple failures
+  - Update ClaimedUserProcess to use FailureAnalyzer for Flywheel user creation failures
+  - Update UpdateUserProcess to use FailureAnalyzer for missing claimed users
   - Preserve all existing logging and functionality
   - Make tests pass
   - _Requirements: 8.1, 8.2, 1a.8_
@@ -89,7 +89,7 @@ This implementation plan converts the error handling design into discrete coding
 
 - [ ] 14. Write unit tests for notification generation (TDD)
   - Test template selection for each error category
-  - Test notification data model creation
+  - Test notification data model creation (only if custom validators/serializers are added)
   - Test error event batching logic
   - Test user context inclusion in notifications
   - _Requirements: 2.1-2.7, 2.8, 2.9_
@@ -109,7 +109,7 @@ This implementation plan converts the error handling design into discrete coding
   - _Requirements: 2.1-2.7, 2.8, 2.9, 5.1-5.8_
 
 - [ ] 17. Write unit tests for success notifications (TDD)
-  - Test success notification generation
+  - Test success notification generation logic
   - Test inclusion of required user details and timestamps
   - Test template consistency
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
@@ -127,15 +127,14 @@ This implementation plan converts the error handling design into discrete coding
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
 - [ ] 20. Write integration tests for gear modifications (TDD)
-  - Test gear execution with error handling enabled and disabled
+  - Test gear execution with integrated error handling
   - Test Parameter Store configuration loading
   - Test end-of-run notification sending
   - Test backward compatibility with existing gear configurations
   - _Requirements: 6.1-6.6, 8.1-8.10_
 
 - [ ] 21. Integrate error handling with gear execution patterns
-  - Modify user_management gear run.py to create error handling objects when enabled
-  - Add configuration flag for enabling/disabling error handling
+  - Modify user_management gear run.py to create error handling objects as core functionality
   - Implement end-of-run consolidated notification sending
   - Add support staff email configuration via Parameter Store
   - Make tests pass
@@ -161,7 +160,7 @@ This implementation plan converts the error handling design into discrete coding
   - _Requirements: 10.1-10.6_
 
 - [ ] 25. Write integration tests for pull_directory modifications (TDD)
-  - Test directory processing with error handling enabled
+  - Test directory processing with integrated error handling
   - Test error capture for validation failures
   - Test error capture for permission issues
   - Test end-of-run notification generation
@@ -209,5 +208,7 @@ This implementation plan converts the error handling design into discrete coding
 - Checkpoints ensure incremental validation and user feedback
 - Property tests validate universal correctness properties using Hypothesis
 - Unit tests validate specific examples and edge cases
-- All modifications preserve existing functionality and maintain backward compatibility
+- Pydantic model testing is limited to custom validators/serializers only
+- Error event creation is separated from failure analysis for clarity and efficiency
+- All modifications integrate error handling as core functionality and maintain backward compatibility
 - Comprehensive testing approach ensures reliability from the start
