@@ -278,6 +278,10 @@ class FileQCModel(BaseModel):
     def get(self, gear_name: str) -> Optional[GearQCModel]:
         return self.qc.get(gear_name)
 
+    def reset(self, gear_name: str) -> None:
+        if gear_name in self.qc:
+            self.qc.pop(gear_name)
+
     def set(self, gear_name: str, gear_model: GearQCModel) -> None:
         self.qc[gear_name] = gear_model
 
@@ -316,7 +320,8 @@ class FileQCModel(BaseModel):
         gear_model = self.qc.get(gear_name)
         if gear_model is None:
             self.qc[gear_name] = GearQCModel(
-                validation=ValidationModel(data=errors, state=status, cleared=[])
+                validation=ValidationModel(
+                    data=errors, state=status, cleared=[])
             )
             return
 
