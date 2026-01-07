@@ -13,4 +13,5 @@ if [ $# -eq 0 ]; then
 fi
 
 export WORKSPACE_FOLDER=`pwd`
+export DOCKER_CLI_HINTS=false
 devcontainer exec --workspace-folder $WORKSPACE_FOLDER "$@"

@@ -4,7 +4,7 @@ from io import StringIO
 from typing import Any, Generator
 
 import pytest
-from configs.ingest_configs import ErrorLogTemplate
+from error_logging.error_logger import ErrorLogTemplate
 from nacc_common.error_models import (
     FileQCModel,
     GearQCModel,
@@ -17,9 +17,11 @@ from nacc_common.qc_report import (
     ProjectReportVisitor,
     QCReportBaseModel,
     StatusReportVisitor,
+    WriterTableVisitor,
+    extract_visit_keys,
 )
 from pydantic import ValidationError
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 
 
 @pytest.fixture(scope="session")
@@ -68,8 +70,10 @@ def visit_details():
 
 
 @pytest.fixture(scope="session")
-def file_project(status_file_model, visit_details) -> Generator[MockProject, Any, Any]:
-    project = MockProject("dummy_project")
+def file_project(
+    status_file_model, visit_details
+) -> Generator[MockProjectAdaptor, Any, Any]:
+    project = MockProjectAdaptor("dummy_project")
     qc_model = status_file_model
     log_filename = ErrorLogTemplate().instantiate(
         {"ptid": visit_details.ptid, "visitdate": visit_details.date},
@@ -97,13 +101,19 @@ class TestProjectReportVisitor:
             stream, fieldnames=list(StatusReportTestModel.model_fields.keys())
         )
         writer.writeheader()
-        file_visitor = StatusReportVisitor(test_transformer)
+
+        # Create factory function for StatusReportVisitor
+        def file_visitor_factory(file, adcid):
+            visit = extract_visit_keys(file)
+            visit.adcid = adcid
+            return StatusReportVisitor(visit, test_transformer)
+
         visitor = ProjectReportVisitor(
             adcid=visit_details.adcid,
             modules={visit_details.module},
             ptid_set={visit_details.ptid},
-            file_visitor=file_visitor,
-            writer=DictReportWriter(writer),
+            file_visitor_factory=file_visitor_factory,
+            table_visitor=WriterTableVisitor(DictReportWriter(writer)),
         )
         visitor.visit_project(file_project)
         stream.seek(0)

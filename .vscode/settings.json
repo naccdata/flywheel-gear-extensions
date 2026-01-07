@@ -1,6 +1,10 @@
 {
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.terminal.activateEnvironment": true,
     "python.analysis.typeCheckingMode": "basic",
+    "python.envFile": "${workspaceFolder}/.env",
+    "terminal.integrated.shellIntegration.enabled": true,
     "ruff.configuration": "/workspaces/flywheel-gear-extensions/ruff.toml",
     "files.exclude": {
         "**/.git": true,
@@ -76,6 +80,8 @@
         "scandt",
         "setuptools",
         "subproject",
+        "subqueue",
+        "subqueues",
         "UDSv3",
         "UDSv4",
         "venv",

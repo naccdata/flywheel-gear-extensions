@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 
 import pandas as pd
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
-from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -53,21 +52,22 @@ def upload_to_flywheel(
             f"Problem occurred while generating CSV file: {error}"
         ) from error
 
-    file_spec = FileSpec(name=filename, contents=csv_contents, content_type="text/csv")
+    uploaded_file = prj_adaptor.upload_file_contents(
+        filename=filename, contents=csv_contents, content_type="text/csv"
+    )
 
-    try:
-        prj_adaptor.upload_file(file_spec)
+    if uploaded_file:
         log.info(
             "Successfully uploaded file %s to %s/%s",
             filename,
             prj_adaptor.group,
             prj_adaptor.label,
         )
-    except ApiException as error:
+    else:
         raise GearExecutionError(
             "Failed to upload file "
-            f"{filename} to {prj_adaptor.group}/{prj_adaptor.label}: {error}"
-        ) from error
+            f"{filename} to {prj_adaptor.group}/{prj_adaptor.label}"
+        )
 
 
 def reset_upload_checkbox(

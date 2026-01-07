@@ -4,5 +4,5 @@ docker_image(
     name="pull-metadata",
     source="Dockerfile",
     dependencies=[":manifest", "gear/pull_metadata/src/python/metadata_app:bin"],
-    image_tags=["0.0.11", "latest"],
+    image_tags=["0.0.12", "latest"],
 )

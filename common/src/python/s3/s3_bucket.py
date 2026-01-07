@@ -13,12 +13,12 @@ from keys.keys import DefaultValues
 log = logging.getLogger(__name__)
 
 
-class S3BucketReader:
-    """Reads files from an S3 bucket."""
+class S3BucketInterface:
+    """Read/Write files from/to an S3 bucket."""
 
     def __init__(self, boto_client, bucket_name: str) -> None:
-        """Creates an object that uses the boto3 client to read from the
-        bucket.
+        """Creates the bucket interface object that uses the boto3 client for
+        read from/write to the bucket.
 
         Args:
           boto_client: the boto3 s3 client
@@ -46,6 +46,15 @@ class S3BucketReader:
             filename: name of file
         """
         return self.__client.get_object(Bucket=self.__bucket, Key=filename)
+
+    def put_file_object(self, *, filename: str, contents: str) -> None:
+        """Write the contents to the bucket with the filename.
+
+        Args:
+          contents: the file contents
+          filename: the filename
+        """
+        self.__client.put_object(Bucket=self.__bucket, Key=filename, Body=contents)
 
     def read_data(self, filename: str) -> StringIO:
         """Reads the file object from S3 with bucket name and file name.
@@ -86,7 +95,7 @@ class S3BucketReader:
         return file_objects
 
     @classmethod
-    def create_from(cls, parameters: S3Parameters) -> Optional["S3BucketReader"]:
+    def create_from(cls, parameters: S3Parameters) -> Optional["S3BucketInterface"]:
         """Returns the bucket reader using the access credentials in the
         parameters object.
 
@@ -97,17 +106,17 @@ class S3BucketReader:
         """
 
         client = boto3.client(
-            "s3",
+            "s3",  # type: ignore
             aws_access_key_id=parameters["accesskey"],
             aws_secret_access_key=parameters["secretkey"],
             region_name=parameters["region"],
             config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
         )
 
-        return S3BucketReader(boto_client=client, bucket_name=parameters["bucket"])
+        return S3BucketInterface(boto_client=client, bucket_name=parameters["bucket"])
 
     @classmethod
-    def create_from_environment(cls, s3bucket: str) -> Optional["S3BucketReader"]:
+    def create_from_environment(cls, s3bucket: str) -> "S3BucketInterface":
         """Returns the bucket reader using the gearbot access credentials
         stored in the environment variables. Use this method only if nacc-
         flywheel-gear user has access to the specified S3 bucket.
@@ -115,7 +124,7 @@ class S3BucketReader:
         Args:
           s3bucket: S3 bucket name
         Returns:
-          the S3BucketReader
+          the S3BucketInterface
         """
 
         secret_key = get_environment_variable("AWS_SECRET_ACCESS_KEY")
@@ -130,4 +139,4 @@ class S3BucketReader:
             config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
         )
 
-        return S3BucketReader(boto_client=client, bucket_name=s3bucket)
+        return S3BucketInterface(boto_client=client, bucket_name=s3bucket)

@@ -7,4 +7,5 @@ if ! command -v devcontainer &> /dev/null; then
 fi
 
 export WORKSPACE_FOLDER=`pwd`
+export DOCKER_CLI_HINTS=false
 devcontainer up --workspace-folder $WORKSPACE_FOLDER

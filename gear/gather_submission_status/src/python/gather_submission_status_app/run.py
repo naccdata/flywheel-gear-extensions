@@ -18,12 +18,16 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from nacc_common.qc_report import (
-    ErrorReportVisitor,
-    FileQCReportVisitor,
-    StatusReportVisitor,
+    FileQCReportVisitorBuilder,
 )
-from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
-from nacc_common.visit_submission_status import StatusReportModel, status_transformer
+from nacc_common.visit_submission_error import (
+    ErrorReportModel,
+    error_report_visitor_builder,
+)
+from nacc_common.visit_submission_status import (
+    StatusReportModel,
+    status_report_visitor_builder,
+)
 from outputs.error_writer import ListErrorWriter
 
 from gather_submission_status_app.main import ModuleName, run
@@ -44,7 +48,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         project_names: List[str],
         modules: set[ModuleName],
         study_id: str,
-        file_visitor: FileQCReportVisitor,
+        file_visitor_builder: FileQCReportVisitorBuilder,
         fieldnames: List[str],
     ):
         super().__init__(client=client)
@@ -55,7 +59,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__project_names = project_names
         self.__modules = modules
         self.__study_id = study_id
-        self.__file_visitor = file_visitor
+        self.__file_visitor_builder = file_visitor_builder
         self.__report_fieldnames = fieldnames
 
     @classmethod
@@ -98,11 +102,11 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
         query_type = query_type_arg if query_type_arg == "error" else "status"
 
-        file_visitor: FileQCReportVisitor = StatusReportVisitor(status_transformer)
+        file_visitor_builder: FileQCReportVisitorBuilder = status_report_visitor_builder
         fieldnames = list(StatusReportModel.model_fields.keys())
 
         if query_type == "error":
-            file_visitor = ErrorReportVisitor(error_transformer)
+            file_visitor_builder = error_report_visitor_builder
             fieldnames = ErrorReportModel.serialized_fieldnames()
 
         return GatherSubmissionStatusVisitor(
@@ -114,7 +118,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             project_names=project_names,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
-            file_visitor=file_visitor,
+            file_visitor_builder=file_visitor_builder,
             fieldnames=fieldnames,
         )
 
@@ -148,7 +152,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                     input_file=csv_file,
                     modules=self.__modules,
                     clustering_visitor=clustering,
-                    file_visitor=self.__file_visitor,
+                    file_visitor_builder=self.__file_visitor_builder,
                     writer=writer,
                     error_writer=error_writer,
                 )

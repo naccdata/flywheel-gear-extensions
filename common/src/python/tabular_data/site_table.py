@@ -6,7 +6,6 @@ from io import StringIO
 from typing import Dict, Optional, Set
 
 import pandas as pd
-from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 
 log = logging.getLogger(__name__)
@@ -119,7 +118,6 @@ def upload_split_table(
             )
             continue
 
-        file_spec = FileSpec(
-            name=file_name, contents=site_table, content_type="text/csv"
+        project.upload_file_contents(
+            filename=file_name, contents=site_table, content_type="text/csv"
         )
-        project.upload_file(file_spec)

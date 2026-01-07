@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
 ## 1.1.0
 * Rebuilt for ssm-parameter-store update
 * Updates to use new center metadata structure for studies

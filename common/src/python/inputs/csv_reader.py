@@ -4,7 +4,7 @@ import abc
 import logging
 from abc import ABC, abstractmethod
 from csv import DictReader
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, Callable, Dict, List, Optional, Sequence, TextIO
 
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
@@ -56,6 +56,117 @@ class CSVVisitor(ABC):
           True if the row is valid. False, otherwise.
         """
         return True
+
+
+VisitorStrategyType = Callable[[dict[str, Any], int], bool]
+VisitorStrategyBuilderType = Callable[[Sequence[CSVVisitor]], VisitorStrategyType]
+
+
+def short_circuit_strategy(visitors: Sequence[CSVVisitor]) -> VisitorStrategyType:
+    """Returns a function determining the strategy for executing visit_row
+    using the visitors in the sequence.
+
+    Builds a short-circuiting strategy, where execution stops at the first
+    visitor that returns False.
+
+    Args:
+      visitors: the visitors
+    Returns:
+      the short-circuiting strategy function
+    """
+
+    def strategy(row: dict[str, Any], line_num: int) -> bool:
+        return all(visitor.visit_row(row, line_num) for visitor in visitors)
+
+    return strategy
+
+
+def visit_all_strategy(visitors: Sequence[CSVVisitor]) -> VisitorStrategyType:
+    """Returns a function determining a strategy for executing visit_row using
+    the visitors in the sequence.
+
+    Args:
+      visitors: the visitors
+    Returns:
+      the visit-all strategy function
+    """
+
+    def strategy(row: dict[str, Any], line_num: int) -> bool:
+        """Execution strategy that calls all visitors regardless of
+        failures."""
+        results = []
+        for visitor in visitors:
+            try:
+                result = visitor.visit_row(row, line_num)
+                results.append(result)
+            except Exception as error:
+                log.error(
+                    f"Error in visitor {visitor.__class__.__name__} "
+                    f"for row {line_num}: {error}"
+                )
+                results.append(False)
+        return all(results)
+
+    return strategy
+
+
+class AggregateCSVVisitor(CSVVisitor):
+    """Aggregates CSV visitors with configurable execution strategies.
+
+    Uses dependency injection to allow different execution strategies:
+    - short_circuit_strategy: Stops execution on first visitor failure (default)
+    - visit_all_strategy: Calls all visitors regardless of individual failures
+    """
+
+    def __init__(
+        self,
+        visitors: Sequence[CSVVisitor],
+        strategy_builder: VisitorStrategyBuilderType = short_circuit_strategy,
+    ) -> None:
+        """Initialize aggregate CSV visitor.
+
+        Args:
+            visitors: Sequence of visitors to coordinate
+            strategy_builder: Function that builds the execution strategy for visit_row.
+                            Defaults to short_circuit_strategy (stops on first failure).
+                            Use visit_all_strategy to call all visitors regardless
+                            of failures.
+        """
+        self.__visitors = visitors
+        self.__strategy = strategy_builder(visitors)
+
+    def visit_header(self, header: List[str]) -> bool:
+        """Visits headers with each of the visitors.
+
+        Args:
+          header: list of header names
+        Returns:
+          True if all of the visitors return true for the header
+        """
+        return all(visitor.visit_header(header) for visitor in self.__visitors)
+
+    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Visits row with each of the visitors using the configured strategy.
+
+        Args:
+          row: the dictionary for a row of a CSV file
+          line_num: the line number of the row
+        Returns:
+          True if the execution strategy determines success, False otherwise.
+          Behavior depends on the strategy_builder used during initialization.
+        """
+        return self.__strategy(row, line_num)
+
+    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        """Checks that the row is valid.
+
+        Args:
+          row: the dictionary for a row
+          line_num: the line number for the row
+        Returns:
+          True if all of the visitors return True. False, otherwise.
+        """
+        return all(visitor.valid_row(row, line_num) for visitor in self.__visitors)
 
 
 def read_csv(

@@ -1,7 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from flywheel.models.file_entry import FileEntry
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from nacc_common.field_names import FieldNames
 
@@ -86,15 +95,48 @@ class VisitKeys(BaseModel):
     naccid: Optional[str] = None
 
     @classmethod
-    def create_from(cls, record: Dict[str, Any], date_field: str) -> "VisitKeys":
+    def create_from(
+        cls, record: Dict[str, Any], date_field: Optional[str] = None
+    ) -> "VisitKeys":
+        date = record.get(date_field) if date_field is not None else None
         return VisitKeys(
             adcid=record.get(FieldNames.ADCID),
             ptid=record.get(FieldNames.PTID),
             visitnum=record.get(FieldNames.VISITNUM),
-            date=record.get(date_field),
+            date=date,
             naccid=record.get(FieldNames.NACCID),
             module=record.get(FieldNames.MODULE),
         )
+
+
+class VisitMetadata(VisitKeys):
+    """Extended visit metadata that includes packet information for VisitEvent
+    creation.
+
+    Extends VisitKeys with the packet field needed for form events. Only
+    includes fields actually needed for VisitEvent creation.
+    """
+
+    packet: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def to_visit_event_fields(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Extract fields needed for VisitEvent creation. with proper field
+        name mapping.
+
+        Returns:
+            Dictionary with fields mapped to VisitEvent field names
+        """
+        # Use model_dump and map field names for VisitEvent
+        data = handler(self)
+        if info.mode == "raw":
+            return data
+
+        data["visit_date"] = data.pop("date")
+        data["visit_number"] = data.pop("visitnum")
+        return data
 
 
 class FileError(BaseModel):
@@ -161,6 +203,11 @@ class FileErrorList(RootModel):
 
 
 QCStatus = Literal["PASS", "FAIL", "IN REVIEW"]
+
+# QC Status constants
+QC_STATUS_PASS = "PASS"
+QC_STATUS_FAIL = "FAIL"
+QC_STATUS_IN_REVIEW = "IN REVIEW"
 
 
 class GearTags:
@@ -275,6 +322,27 @@ class FileQCModel(BaseModel):
 
     qc: Dict[str, GearQCModel]
 
+    @classmethod
+    def create(cls, file_entry: FileEntry) -> "FileQCModel":
+        """Factory method to create FileQCModel from a FileEntry.
+
+        Args:
+            file_entry: The file entry to extract QC info from
+
+        Returns:
+            FileQCModel instance
+
+        Raises:
+            ValidationError: If the file.info structure is invalid
+        """
+        file_entry = file_entry.reload()
+        if not file_entry.info:
+            return cls(qc={})
+        if "qc" not in file_entry.info:
+            return cls(qc={})
+
+        return cls.model_validate(file_entry.info, by_alias=True)
+
     def get(self, gear_name: str) -> Optional[GearQCModel]:
         return self.qc.get(gear_name)
 
@@ -317,7 +385,7 @@ class FileQCModel(BaseModel):
         if isinstance(errors, FileErrorList):
             errors = errors.list()
 
-        gear_model = self.qc.get(gear_name)
+        gear_model = self.get(gear_name)
         if gear_model is None:
             self.qc[gear_name] = GearQCModel(
                 validation=ValidationModel(
@@ -327,6 +395,24 @@ class FileQCModel(BaseModel):
 
         gear_model.set_errors(errors)
         gear_model.set_status(status)
+
+    def get_file_status(self) -> QCStatus:
+        """Returns the overall QC status for the file based on all gears.
+
+        Returns:
+          - "PASS" if all gears have status "PASS"
+          - "FAIL" if any gear has status "FAIL"
+          - "IN REVIEW" if no gear has status "FAIL" and at least one
+            gear has status "IN REVIEW"
+        """
+        status_set = {gear_model.get_status() for gear_model in self.qc.values()}
+        if "FAIL" in status_set:
+            return "FAIL"
+
+        if "IN REVIEW" in status_set:
+            return "IN REVIEW"
+
+        return "PASS"
 
     def apply(self, visitor: QCVisitor):
         visitor.visit_file_model(self)
