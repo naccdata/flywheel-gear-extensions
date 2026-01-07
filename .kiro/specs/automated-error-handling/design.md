@@ -110,18 +110,11 @@ Simple error collection that integrates directly with existing gear patterns:
 
 **Gear Integration:**
 ```python
-# In gear run.py - gear creates error handling objects when needed
+# In gear run.py - gear creates error handling objects as core functionality
 class UserManagementVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None:
-        # Check if error handling is enabled via configuration
-        error_handling_enabled = context.config.get("error_handling_enabled", False)
-        
-        error_collector = None
-        failure_analyzers = None
-        
-        if error_handling_enabled:
-            # Create error handling objects
-            error_collector = ErrorCollector()
+        # Create error handling objects as core functionality
+        error_collector = ErrorCollector()
             
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
@@ -132,7 +125,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 coid=self.__comanage_coid,
             )
             
-            # Use existing UserProcess with optional error handling
+            # Use existing UserProcess with error handling
             user_process = UserProcess(
                 environment=UserProcessEnvironment(
                     admin_group=admin_group,
@@ -148,20 +141,20 @@ class UserManagementVisitor(GearExecutionEnvironment):
             user_process.execute(user_queue)
             
             # Send consolidated notification at end if there are errors
-            if error_collector and error_collector.get_errors():
+            if error_collector.get_errors():
                 support_emails = self._get_support_staff_emails()
                 self._send_error_notification(error_collector.get_errors(), support_emails)
 
 class UserProcess(BaseUserProcess[UserEntry]):
-    """Modified to optionally include error handling."""
+    """Modified to include error handling as core functionality."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: Optional[ErrorCollector] = None):
+                 error_collector: ErrorCollector):
         self._active_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self._inactive_queue: UserQueue[UserEntry] = UserQueue()
         self._env = environment
         
-        # Optional error handling components
+        # Error handling components
         self.error_collector = error_collector
     
     def execute(self, queue: UserQueue[UserEntry]) -> None:
@@ -214,13 +207,13 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     """Modified to include failure analysis at existing log points."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: Optional[ErrorCollector] = None):
+                 error_collector: ErrorCollector):
         super().__init__()
         self._env = environment
         self._claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
         
-        # Optional error handling components
+        # Error handling components
         self.error_collector = error_collector
     
     def visit(self, entry: ActiveUserEntry) -> None:
@@ -228,12 +221,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         if not entry.auth_email:
             log.error("User %s must have authentication email", entry.email)
             
-            # Add analysis if error handling is enabled
-            if self.error_collector:
-                failure_analyzer = FailureAnalyzer(self._env)
-                error_event = failure_analyzer.analyze_missing_auth_email(entry)
-                if error_event:
-                    self.error_collector.collect(error_event)
+            # Create error event for missing auth email
+            error_event = create_error_event(
+                category=ErrorCategory.MISSING_DIRECTORY_PERMISSIONS,
+                user_context=UserContext.from_user_entry(entry),
+                details={
+                    "message": "User has no authentication email in directory",
+                    "directory_email": entry.email,
+                    "action_needed": "update_directory_auth_email"
+                }
+            )
+            self.error_collector.collect(error_event)
             return
         
         person_list = self._env.user_registry.get(email=entry.auth_email)
@@ -242,12 +240,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 log.error("Active user has incomplete claim: %s, %s", 
                          entry.full_name, entry.email)
                 
-                # Add analysis if error handling is enabled
-                if self.error_collector:
-                    failure_analyzer = FailureAnalyzer(self._env)
-                    error_event = failure_analyzer.analyze_bad_claim(entry)
-                    if error_event:
-                        self.error_collector.collect(error_event)
+                # Create error event for bad claim
+                error_event = create_error_event(
+                    category=ErrorCategory.BAD_ORCID_CLAIMS,
+                    user_context=UserContext.from_user_entry(entry),
+                    details={
+                        "message": "User has incomplete ORCID claim in registry",
+                        "full_name": entry.full_name,
+                        "action_needed": "delete_bad_record_and_reclaim"
+                    }
+                )
+                self.error_collector.collect(error_event)
                 return
             
             log.info("Active user not in registry: %s", entry.email)
@@ -261,12 +264,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         if not creation_date:
             log.warning("person record for %s has no creation date", entry.email)
             
-            # Add analysis if error handling is enabled
-            if self.error_collector:
-                failure_analyzer = FailureAnalyzer(self._env)
-                error_event = failure_analyzer.analyze_missing_creation_date(entry, person_list)
-                if error_event:
-                    self.error_collector.collect(error_event)
+            # Create error event for missing creation date
+            error_event = create_error_event(
+                category=ErrorCategory.UNCLAIMED_RECORDS,
+                user_context=UserContext.from_user_entry(entry),
+                details={
+                    "message": "Registry record exists but has no creation date",
+                    "registry_records": len(person_list),
+                    "action_needed": "check_registry_record_status"
+                }
+            )
+            self.error_collector.collect(error_event)
             return
         
         entry.registration_date = creation_date
@@ -276,12 +284,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             if not registry_id:
                 log.error("User %s has no registry ID", entry.email)
                 
-                # Add analysis if error handling is enabled
-                if self.error_collector:
-                    failure_analyzer = FailureAnalyzer(self._env)
-                    error_event = failure_analyzer.analyze_missing_registry_id(entry, claimed)
-                    if error_event:
-                        self.error_collector.collect(error_event)
+                # Create error event for missing registry ID
+                error_event = create_error_event(
+                    category=ErrorCategory.UNCLAIMED_RECORDS,
+                    user_context=UserContext.from_user_entry(entry),
+                    details={
+                        "message": "User appears claimed but has no registry ID",
+                        "claimed_records": len(claimed),
+                        "action_needed": "check_registry_id_assignment"
+                    }
+                )
+                self.error_collector.collect(error_event)
                 return
             
             self._claimed_queue.enqueue(entry.register(registry_id))
@@ -294,15 +307,16 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
     
     def __init__(self, environment: UserProcessEnvironment, 
                  claimed_queue: UserQueue[RegisteredUserEntry],
-                 error_collector: Optional[ErrorCollector] = None):
+                 error_collector: ErrorCollector):
         self._failed_count: Dict[str, int] = defaultdict(int)
         self._claimed_queue: UserQueue[RegisteredUserEntry] = claimed_queue
         self._created_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._update_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._env = environment
         
-        # Optional error handling components
+        # Error handling components
         self.error_collector = error_collector
+        self.failure_analyzer = FailureAnalyzer(environment)
     
     def __add_user(self, entry: RegisteredUserEntry) -> Optional[str]:
         """Modified to add failure analysis at existing log points."""
@@ -314,12 +328,10 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
                 log.error("Unable to add user %s with ID %s: %s",
                          entry.email, entry.registry_id, str(error))
                 
-                # Add analysis if error handling is enabled
-                if self.error_collector:
-                    failure_analyzer = FailureAnalyzer(self._env)
-                    error_event = failure_analyzer.analyze_flywheel_user_creation_failure(entry, error)
-                    if error_event:
-                        self.error_collector.collect(error_event)
+                # Analyze Flywheel user creation failure to determine root cause
+                error_event = self.failure_analyzer.analyze_flywheel_user_creation_failure(entry, error)
+                if error_event:
+                    self.error_collector.collect(error_event)
                 return None
             
             self._claimed_queue.enqueue(entry)
@@ -329,11 +341,12 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
     """Modified to include failure analysis at existing log points."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: Optional[ErrorCollector] = None):
+                 error_collector: ErrorCollector):
         self._env = environment
         
-        # Optional error handling components
+        # Error handling components
         self.error_collector = error_collector
+        self.failure_analyzer = FailureAnalyzer(environment)
     
     def visit(self, entry: RegisteredUserEntry) -> None:
         """Modified to add failure analysis at existing log points."""
@@ -343,24 +356,27 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error("Failed to find a claimed user with Registry ID %s and email %s",
                      entry.registry_id, entry.email)
             
-            # Add analysis if error handling is enabled
-            if self.error_collector:
-                failure_analyzer = FailureAnalyzer(self._env)
-                error_event = failure_analyzer.analyze_missing_claimed_user(entry)
-                if error_event:
-                    self.error_collector.collect(error_event)
+            # Analyze why claimed user is missing to determine root cause
+            error_event = self.failure_analyzer.analyze_missing_claimed_user(entry)
+            if error_event:
+                self.error_collector.collect(error_event)
             return
         
         fw_user = self._env.proxy.find_user(entry.registry_id)
         if not fw_user:
             log.error("Failed to add user %s with ID %s", entry.email, entry.registry_id)
             
-            # Add analysis if error handling is enabled
-            if self.error_collector:
-                failure_analyzer = FailureAnalyzer(self._env)
-                error_event = failure_analyzer.analyze_missing_flywheel_user(entry)
-                if error_event:
-                    self.error_collector.collect(error_event)
+            # Create error event for missing Flywheel user
+            error_event = create_error_event(
+                category=ErrorCategory.FLYWHEEL_ERROR,
+                user_context=UserContext.from_user_entry(entry),
+                details={
+                    "message": "User should exist in Flywheel but was not found",
+                    "registry_id": entry.registry_id,
+                    "action_needed": "check_flywheel_user_creation_logs"
+                }
+            )
+            self.error_collector.collect(error_event)
             return
         
         self.__update_email(user=fw_user, email=entry.email)
@@ -369,12 +385,17 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         if not registry_address:
             log.error("Registry record does not have email address: %s", entry.registry_id)
             
-            # Add analysis if error handling is enabled
-            if self.error_collector:
-                failure_analyzer = FailureAnalyzer(self._env)
-                error_event = failure_analyzer.analyze_missing_registry_email(entry, registry_person)
-                if error_event:
-                    self.error_collector.collect(error_event)
+            # Create error event for missing registry email
+            error_event = create_error_event(
+                category=ErrorCategory.UNVERIFIED_EMAIL,
+                user_context=UserContext.from_user_entry(entry),
+                details={
+                    "message": "Registry record found but has no email address",
+                    "registry_id": entry.registry_id,
+                    "action_needed": "check_email_verification_in_comanage"
+                }
+            )
+            self.error_collector.collect(error_event)
             return
         
         authorizations = {
@@ -391,65 +412,15 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
 
 ### Failure Analyzers
 
-Analyzer that takes UserProcessEnvironment and creates itself when needed:
+Analyzer that performs actual investigation for complex failure scenarios:
 
 **Simplified Failure Analyzer:**
 ```python
 class FailureAnalyzer:
-    """Failure analyzer that works with UserProcessEnvironment."""
+    """Failure analyzer for complex scenarios that require investigation."""
     
     def __init__(self, environment: UserProcessEnvironment):
         self.env = environment
-    
-    def analyze_missing_auth_email(self, entry: ActiveUserEntry) -> Optional[ErrorEvent]:
-        """Analyze why user has no authentication email."""
-        return create_error_event(
-            category=ErrorCategory.MISSING_DIRECTORY_PERMISSIONS,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User has no authentication email in directory",
-                "directory_email": entry.email,
-                "action_needed": "update_directory_auth_email"
-            }
-        )
-    
-    def analyze_bad_claim(self, entry: ActiveUserEntry) -> Optional[ErrorEvent]:
-        """Analyze what kind of bad claim this is using UserRegistry."""
-        return create_error_event(
-            category=ErrorCategory.BAD_ORCID_CLAIMS,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User has incomplete ORCID claim in registry",
-                "full_name": entry.full_name,
-                "action_needed": "delete_bad_record_and_reclaim"
-            }
-        )
-    
-    def analyze_missing_creation_date(self, entry: ActiveUserEntry, 
-                                    person_list: List[RegistryPerson]) -> Optional[ErrorEvent]:
-        """Analyze why registry person has no creation date."""
-        return create_error_event(
-            category=ErrorCategory.UNCLAIMED_RECORDS,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "Registry record exists but has no creation date",
-                "registry_records": len(person_list),
-                "action_needed": "check_registry_record_status"
-            }
-        )
-    
-    def analyze_missing_registry_id(self, entry: ActiveUserEntry, 
-                                  claimed_persons: List[RegistryPerson]) -> Optional[ErrorEvent]:
-        """Analyze why claimed user has no registry ID."""
-        return create_error_event(
-            category=ErrorCategory.UNCLAIMED_RECORDS,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User appears claimed but has no registry ID",
-                "claimed_records": len(claimed_persons),
-                "action_needed": "check_registry_id_assignment"
-            }
-        )
     
     def analyze_flywheel_user_creation_failure(self, entry: RegisteredUserEntry, 
                                              error: FlywheelError) -> Optional[ErrorEvent]:
@@ -519,31 +490,6 @@ class FailureAnalyzer:
                     "action_needed": "check_claim_status_and_email_verification"
                 }
             )
-    
-    def analyze_missing_flywheel_user(self, entry: RegisteredUserEntry) -> Optional[ErrorEvent]:
-        """Analyze why Flywheel user doesn't exist when it should."""
-        return create_error_event(
-            category=ErrorCategory.FLYWHEEL_ERROR,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User should exist in Flywheel but was not found",
-                "registry_id": entry.registry_id,
-                "action_needed": "check_flywheel_user_creation_logs"
-            }
-        )
-    
-    def analyze_missing_registry_email(self, entry: RegisteredUserEntry, 
-                                     registry_person: RegistryPerson) -> Optional[ErrorEvent]:
-        """Analyze why registry person has no email address."""
-        return create_error_event(
-            category=ErrorCategory.UNVERIFIED_EMAIL,
-            user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "Registry record found but has no email address",
-                "registry_id": entry.registry_id,
-                "action_needed": "check_email_verification_in_comanage"
-            }
-        )
 ```
 
 ### End-of-Run Notification
