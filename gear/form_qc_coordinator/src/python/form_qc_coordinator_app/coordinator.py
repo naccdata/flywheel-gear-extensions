@@ -245,7 +245,6 @@ class QCCoordinator:
             gear_tags = GearTags(gear_name=qc_gear_name)
             fail_tag = gear_tags.fail_tag
             pass_tag = gear_tags.pass_tag
-            new_tag = gear_tags.get_status_tag(status=status)
 
             # visit file is not tracked through gear context
             # need to directly add/remove tags from FileEntry object
@@ -255,7 +254,6 @@ class QCCoordinator:
                 if pass_tag in visit_file.tags:
                     visit_file.delete_tag(pass_tag)
 
-            visit_file.add_tag(new_tag)
         except ApiException as error:
             log.error(
                 f"Error in resetting QC metadata in file {visit_file.name}: {error}"
