@@ -187,14 +187,7 @@ class ErrorCollector:
         """Clear all collected errors."""
         self._errors.clear()
 
-def create_error_event(category: ErrorCategory, user_context: UserContext, 
-                      details: Dict[str, Any]) -> ErrorEvent:
-    """Create an error event with the provided information."""
-    return ErrorEvent(
-        category=category,
-        user_context=user_context,
-        error_details=details
-    )
+
 ```
 
 ### Direct Modification of Existing User Processes
@@ -222,10 +215,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             log.error("User %s must have authentication email", entry.email)
             
             # Create error event for missing auth email
-            error_event = create_error_event(
+            error_event = ErrorEvent(
                 category=ErrorCategory.MISSING_DIRECTORY_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "User has no authentication email in directory",
                     "directory_email": entry.email,
                     "action_needed": "update_directory_auth_email"
@@ -241,10 +234,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                          entry.full_name, entry.email)
                 
                 # Create error event for bad claim
-                error_event = create_error_event(
+                error_event = ErrorEvent(
                     category=ErrorCategory.BAD_ORCID_CLAIMS,
                     user_context=UserContext.from_user_entry(entry),
-                    details={
+                    error_details={
                         "message": "User has incomplete ORCID claim in registry",
                         "full_name": entry.full_name,
                         "action_needed": "delete_bad_record_and_reclaim"
@@ -265,10 +258,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             log.warning("person record for %s has no creation date", entry.email)
             
             # Create error event for missing creation date
-            error_event = create_error_event(
+            error_event = ErrorEvent(
                 category=ErrorCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "Registry record exists but has no creation date",
                     "registry_records": len(person_list),
                     "action_needed": "check_registry_record_status"
@@ -285,10 +278,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 log.error("User %s has no registry ID", entry.email)
                 
                 # Create error event for missing registry ID
-                error_event = create_error_event(
+                error_event = ErrorEvent(
                     category=ErrorCategory.UNCLAIMED_RECORDS,
                     user_context=UserContext.from_user_entry(entry),
-                    details={
+                    error_details={
                         "message": "User appears claimed but has no registry ID",
                         "claimed_records": len(claimed),
                         "action_needed": "check_registry_id_assignment"
@@ -367,10 +360,10 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error("Failed to add user %s with ID %s", entry.email, entry.registry_id)
             
             # Create error event for missing Flywheel user
-            error_event = create_error_event(
+            error_event = ErrorEvent(
                 category=ErrorCategory.FLYWHEEL_ERROR,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "User should exist in Flywheel but was not found",
                     "registry_id": entry.registry_id,
                     "action_needed": "check_flywheel_user_creation_logs"
@@ -386,10 +379,10 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error("Registry record does not have email address: %s", entry.registry_id)
             
             # Create error event for missing registry email
-            error_event = create_error_event(
+            error_event = ErrorEvent(
                 category=ErrorCategory.UNVERIFIED_EMAIL,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "Registry record found but has no email address",
                     "registry_id": entry.registry_id,
                     "action_needed": "check_email_verification_in_comanage"
@@ -428,10 +421,10 @@ class FailureAnalyzer:
         # Check if user already exists (duplicate) using environment's proxy
         existing_user = self.env.proxy.find_user(entry.registry_id)
         if existing_user:
-            return create_error_event(
+            return ErrorEvent(
                 category=ErrorCategory.DUPLICATE_USER_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "User already exists in Flywheel",
                     "existing_user_id": existing_user.id,
                     "registry_id": entry.registry_id,
@@ -441,10 +434,10 @@ class FailureAnalyzer:
         
         # Check if it's a permission issue
         if "permission" in str(error).lower() or "unauthorized" in str(error).lower():
-            return create_error_event(
+            return ErrorEvent(
                 category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "Insufficient permissions to create user in Flywheel",
                     "flywheel_error": str(error),
                     "action_needed": "check_flywheel_service_account_permissions"
@@ -452,10 +445,10 @@ class FailureAnalyzer:
             )
         
         # Generic Flywheel error
-        return create_error_event(
+        return ErrorEvent(
             category=ErrorCategory.FLYWHEEL_ERROR,
             user_context=UserContext.from_user_entry(entry),
-            details={
+            error_details={
                 "message": "Flywheel user creation failed after 3 attempts",
                 "error": str(error),
                 "registry_id": entry.registry_id,
@@ -469,10 +462,10 @@ class FailureAnalyzer:
         person_list = self.env.user_registry.get(email=entry.auth_email or entry.email)
         
         if not person_list:
-            return create_error_event(
+            return ErrorEvent(
                 category=ErrorCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "Expected claimed user not found in registry",
                     "registry_id": entry.registry_id,
                     "action_needed": "verify_registry_record_exists"
@@ -480,10 +473,10 @@ class FailureAnalyzer:
             )
         else:
             # User exists but not claimed properly
-            return create_error_event(
+            return ErrorEvent(
                 category=ErrorCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
+                error_details={
                     "message": "User found in registry but not properly claimed",
                     "registry_records": len(person_list),
                     "registry_id": entry.registry_id,
