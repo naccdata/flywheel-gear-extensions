@@ -226,8 +226,16 @@ def user_context_strategy(draw):
             st.none(),
             st.builds(
                 PersonName,
-                first_name=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=["Lu", "Ll"])),
-                last_name=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=["Lu", "Ll"])),
+                first_name=st.text(
+                    min_size=1,
+                    max_size=20,
+                    alphabet=st.characters(whitelist_categories=["Lu", "Ll"]),
+                ),
+                last_name=st.text(
+                    min_size=1,
+                    max_size=20,
+                    alphabet=st.characters(whitelist_categories=["Lu", "Ll"]),
+                ),
             ),
         )
     )
@@ -249,24 +257,30 @@ def error_details_strategy(draw):
     """Generate random error details dictionary for testing."""
     message = draw(st.one_of(st.none(), st.text(min_size=1, max_size=100)))
     action_needed = draw(st.one_of(st.none(), st.text(min_size=1, max_size=50)))
-    
+
     details = {}
     if message is not None:
         details["message"] = message
     if action_needed is not None:
         details["action_needed"] = action_needed
-    
+
     # Add some additional random fields
     additional_fields = draw(
         st.dictionaries(
-            keys=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=["Lu", "Ll", "Nd"])),
-            values=st.one_of(st.text(min_size=1, max_size=50), st.integers(), st.booleans()),
+            keys=st.text(
+                min_size=1,
+                max_size=20,
+                alphabet=st.characters(whitelist_categories=["Lu", "Ll", "Nd"]),
+            ),
+            values=st.one_of(
+                st.text(min_size=1, max_size=50), st.integers(), st.booleans()
+            ),
             min_size=0,
             max_size=3,
         )
     )
     details.update(additional_fields)
-    
+
     return details
 
 
