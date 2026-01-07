@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,7 @@ class ErrorCategory(Enum):
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
+    FLYWHEEL_ERROR = "Flywheel Error"
 
 
 class UserContext(BaseModel):
@@ -64,3 +65,47 @@ class ErrorEvent(BaseModel):
         message = self.error_details.get("message", "No details")
         # Since use_enum_values=True, category is already a string
         return f"{self.category}: {self.user_context.email} - {message}"
+
+
+class ErrorCollector:
+    """Simple error collector that accumulates errors during gear execution."""
+
+    def __init__(self):
+        """Initialize an empty error collector."""
+        self._errors: List[ErrorEvent] = []
+
+    def collect(self, event: ErrorEvent) -> None:
+        """Add an error event to the collection.
+
+        Args:
+            event: The error event to add to the collection
+        """
+        self._errors.append(event)
+
+    def get_errors(self) -> List[ErrorEvent]:
+        """Get all collected errors.
+
+        Returns:
+            A copy of the list of collected error events
+        """
+        return self._errors.copy()
+
+    def clear(self) -> None:
+        """Clear all collected errors."""
+        self._errors.clear()
+
+    def has_errors(self) -> bool:
+        """Check if there are any collected errors.
+
+        Returns:
+            True if there are errors, False otherwise
+        """
+        return len(self._errors) > 0
+
+    def error_count(self) -> int:
+        """Get the number of collected errors.
+
+        Returns:
+            The number of error events in the collection
+        """
+        return len(self._errors)
