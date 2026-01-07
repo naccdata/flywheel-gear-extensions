@@ -66,17 +66,20 @@ class DBTRunner:
                     + f"{parent_dir.relative_to(self.__project_root)}"
                 )
 
-    def run(self) -> None:
+    def run(self) -> bool:
         """Execute dbt run command.
 
         Raises:
             subprocess.CalledProcessError: If dbt command fails
+        Returns:
+            True if ran successfullyl, false otherwise
         """
         log.info(f"Running dbt from: {self.__project_root}")
 
         # Change to project directory
         original_dir = Path.cwd()
         os.chdir(self.__project_root)
+        result = None
 
         try:
             # Ensure target directory exists
@@ -104,9 +107,19 @@ class DBTRunner:
             # Log output
             log.info(f"dbt run output:\n{result.stdout}")
             if result.stderr:
-                log.info(f"dbt run stderr:\n{result.stderr}")
+                log.error(f"dbt run stderr:\n{result.stderr}")
+
+        except subprocess.CalledProcessError as e:
+            log.error(f"dbt failed with a return code of {e.returncode}")
+            log.error(e.output)
 
         finally:
+            # Log output
+            if result:
+                log.info(f"dbt run output:\n{result.stdout}")
+                if result.stderr:
+                    log.error(f"dbt run stderr:\n{result.stderr}")
+
             # Always change back to original directory
             os.chdir(original_dir)
 

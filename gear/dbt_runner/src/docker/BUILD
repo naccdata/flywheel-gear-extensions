@@ -1,8 +1,9 @@
 file(name="manifest", source="manifest.json")
+file(name="requirements", source="dbt-requirements.txt")
 
 docker_image(
     name="dbt-runner",
     source="Dockerfile",
-    dependencies=[":manifest", "gear/dbt_runner/src/python/dbt_runner_app:bin"],
-    image_tags=["0.1.1a", "latest"],
+    dependencies=[":requirements", ":manifest", "gear/dbt_runner/src/python/dbt_runner_app:bin"],
+    image_tags=["0.1.1d", "latest"],
 )

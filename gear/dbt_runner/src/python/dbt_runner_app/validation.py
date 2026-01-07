@@ -58,7 +58,7 @@ def validate_dbt_project(dbt_project_zip: InputFileWrapper, extract_dir: Path) -
     log.info("Validating dbt project zip file")
 
     # Check if it's a valid zip file
-    file_type = dbt_project_zip.validate_file_extension(accepted_extensions=[".zip"])
+    file_type = dbt_project_zip.validate_file_extension(accepted_extensions=["zip"])
     if not file_type:
         raise GearExecutionError(
             f"DBT project zip is not a valid zip archive: {dbt_project_zip.filename}"
