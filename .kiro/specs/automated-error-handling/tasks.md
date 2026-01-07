@@ -11,58 +11,85 @@ This implementation plan converts the error handling design into discrete coding
   - Test UserContext creation from user entries (only if custom validators/serializers are added)
   - _Requirements: 1.3, 1.4_
 
-- [ ] 2. Write property test for error event categorization (TDD)
+- [x] 2. Write property test for error event categorization (TDD)
   - **Property 1: Error Event Categorization**
   - **Validates: Requirements 1.3**
 
-- [ ] 3. Implement error handling data models and core infrastructure
+- [x] 3. Implement error handling data models and core infrastructure
   - Create ErrorEvent, ErrorCategory, and UserContext data models using Pydantic
   - Create ErrorCollector class for accumulating errors during gear execution
   - Create utility functions for error event creation
   - Make tests pass
   - _Requirements: 1.3, 1.4_
 
-- [ ] 4. Write unit tests for FailureAnalyzer methods (TDD)
+- [x] 4. Write unit tests for FailureAnalyzer methods (TDD)
   - Test analyze_flywheel_user_creation_failure with various error scenarios and existing users
   - Test analyze_missing_claimed_user with different registry states
   - Mock external API calls for isolated testing
   - _Requirements: 1a.2, 1a.3_
 
-- [ ] 5. Write property test for user context inclusion (TDD)
+- [x] 5. Write property test for user context inclusion (TDD)
   - **Property 2: User Context Inclusion**
   - **Validates: Requirements 1.4**
 
-- [ ] 6. Implement FailureAnalyzer for complex failure scenarios
+- [x] 6. Implement FailureAnalyzer for complex failure scenarios
   - Create FailureAnalyzer class that takes UserProcessEnvironment in constructor
   - Implement analyze_flywheel_user_creation_failure method with actual investigation logic
   - Implement analyze_missing_claimed_user method with registry querying
   - Make tests pass
   - _Requirements: 1a.2, 1a.3_
 
-- [ ] 7. Write integration tests for modified UserProcess classes (TDD)
+- [x] 7. Write integration tests for modified UserProcess classes (TDD)
   - Test that existing functionality is preserved with error handling integrated
   - Test that error events are created directly for simple failure cases
   - Test that failure analysis is performed for complex cases
   - Test that all existing log messages still occur
   - _Requirements: 8.1, 8.2, 1a.8_
 
-- [ ] 8. Write property test for existing logging preservation (TDD)
+- [x] 8. Write property test for existing logging preservation (TDD)
   - **Property 6: Existing Logging Preservation**
   - **Validates: Requirements 1a.8**
+  - **Status: COMPLETED** - Test written and failing as expected (UserProcess classes not yet updated)
 
 - [ ] 9. Modify existing UserProcess classes to integrate error handling
-  - Update UserProcess constructor to require ErrorCollector
-  - Update ActiveUserProcess to create error events directly for simple failures
-  - Update ClaimedUserProcess to use FailureAnalyzer for Flywheel user creation failures
-  - Update UpdateUserProcess to use FailureAnalyzer for missing claimed users
-  - Preserve all existing logging and functionality
-  - Make tests pass
-  - _Requirements: 8.1, 8.2, 1a.8_
+  - [ ] 9.1 Update UserProcess base class constructor to accept ErrorCollector
+    - Add ErrorCollector parameter to base class __init__ method
+    - Update all subclass constructors to pass ErrorCollector to parent
+    - Ensure all existing functionality is preserved
+    - _Requirements: 8.1, 8.2_
+  
+  - [ ] 9.2 Integrate error handling in ActiveUserProcess
+    - Update constructor to accept ErrorCollector parameter
+    - Add error event creation for missing auth email scenario
+    - Add error event creation for bad claim scenario  
+    - Preserve all existing logging and functionality
+    - Run tests to verify integration works correctly
+    - _Requirements: 8.1, 8.2, 1a.8_
+  
+  - [ ] 9.3 Integrate error handling in UpdateUserProcess
+    - Update constructor to accept ErrorCollector and FailureAnalyzer parameters
+    - Add FailureAnalyzer usage for missing claimed user scenario
+    - Preserve all existing logging and functionality
+    - Run tests to verify integration works correctly
+    - _Requirements: 8.1, 8.2, 1a.8_
+  
+  - [ ] 9.4 Integrate error handling in ClaimedUserProcess
+    - Update constructor to accept ErrorCollector and FailureAnalyzer parameters
+    - Add FailureAnalyzer usage for Flywheel user creation failures
+    - Preserve all existing logging and functionality
+    - Run tests to verify integration works correctly
+    - _Requirements: 8.1, 8.2, 1a.8_
+  
+  - [ ] 9.5 Final integration verification
+    - Run all property tests to ensure they pass
+    - Run all existing unit tests to ensure no regressions
+    - Verify all existing logging is preserved
+    - _Requirements: 8.1, 8.2, 1a.8_
 
 - [ ] 10. Checkpoint - Ensure core error handling works
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Write unit tests for additional detection mechanisms (TDD)
+- [ ]* 11. Write unit tests for additional detection mechanisms (TDD)
   - Test email mismatch detection with various email scenarios
   - Test email verification status checking
   - Test ORCID claim validation
@@ -70,7 +97,7 @@ This implementation plan converts the error handling design into discrete coding
   - Test duplicate user detection
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
 
-- [ ] 12. Write property tests for additional detection (TDD)
+- [ ]* 12. Write property tests for additional detection (TDD)
   - **Property 7: Email Mismatch Detection**
   - **Property 8: Email Verification Detection**
   - **Property 9: ORCID Claim Detection**
@@ -87,14 +114,14 @@ This implementation plan converts the error handling design into discrete coding
   - Make tests pass
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
 
-- [ ] 14. Write unit tests for notification generation (TDD)
+- [ ]* 14. Write unit tests for notification generation (TDD)
   - Test template selection for each error category
   - Test notification data model creation (only if custom validators/serializers are added)
   - Test error event batching logic
   - Test user context inclusion in notifications
   - _Requirements: 2.1-2.7, 2.8, 2.9_
 
-- [ ] 15. Write property tests for notification system (TDD)
+- [ ]* 15. Write property tests for notification system (TDD)
   - **Property 13: Template Selection by Category**
   - **Property 14: User Context in Notifications**
   - **Property 15: Error Event Batching**
@@ -108,13 +135,13 @@ This implementation plan converts the error handling design into discrete coding
   - Make tests pass
   - _Requirements: 2.1-2.7, 2.8, 2.9, 5.1-5.8_
 
-- [ ] 17. Write unit tests for success notifications (TDD)
+- [ ]* 17. Write unit tests for success notifications (TDD)
   - Test success notification generation logic
   - Test inclusion of required user details and timestamps
   - Test template consistency
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 18. Write property test for success notifications (TDD)
+- [ ]* 18. Write property test for success notifications (TDD)
   - **Property 16: Success Notification Generation**
   - **Property 17: Success Notification Template Consistency**
   - **Validates: Requirements 3.1-3.5**
@@ -140,14 +167,14 @@ This implementation plan converts the error handling design into discrete coding
   - Make tests pass
   - _Requirements: 6.1-6.6, 8.1-8.10_
 
-- [ ] 22. Write unit tests for error handling safeguards (TDD)
+- [ ]* 22. Write unit tests for error handling safeguards (TDD)
   - Test graceful degradation when external APIs fail
   - Test circuit breaker behavior
   - Test timeout handling
   - Test rate limiting and batch size limits
   - _Requirements: 10.1-10.6_
 
-- [ ] 23. Write property test for API failure handling (TDD)
+- [ ]* 23. Write property test for API failure handling (TDD)
   - **Property 3: API Failure Handling**
   - **Validates: Requirements 1.6**
 
@@ -166,7 +193,7 @@ This implementation plan converts the error handling design into discrete coding
   - Test end-of-run notification generation
   - _Requirements: 1a.4, 1a.5, 1a.7_
 
-- [ ] 26. Write property test for log message categorization (TDD)
+- [ ]* 26. Write property test for log message categorization (TDD)
   - **Property 5: Log Message Categorization**
   - **Validates: Requirements 1a.2, 1a.7**
 
@@ -185,7 +212,7 @@ This implementation plan converts the error handling design into discrete coding
   - Test performance under load
   - _Requirements: All requirements_
 
-- [ ] 29. Write property test for category template mapping (TDD)
+- [ ]* 29. Write property test for category template mapping (TDD)
   - **Property 4: Category Template Mapping**
   - **Validates: Requirements 1.7**
 
@@ -211,4 +238,6 @@ This implementation plan converts the error handling design into discrete coding
 - Pydantic model testing is limited to custom validators/serializers only
 - Error event creation is separated from failure analysis for clarity and efficiency
 - All modifications integrate error handling as core functionality and maintain backward compatibility
-- Comprehensive testing approach ensures reliability from the start
+- Tasks marked with `*` are optional and focus on comprehensive testing of detection mechanisms, notifications, and safeguards
+- Core integration and regression testing remains required to ensure system stability
+- Optional tasks can be implemented later if more comprehensive test coverage is needed
