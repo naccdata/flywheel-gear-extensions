@@ -388,8 +388,7 @@ class FileQCModel(BaseModel):
         gear_model = self.get(gear_name)
         if gear_model is None:
             self.qc[gear_name] = GearQCModel(
-                validation=ValidationModel(
-                    data=errors, state=status, cleared=[])
+                validation=ValidationModel(data=errors, state=status, cleared=[])
             )
             return
 
