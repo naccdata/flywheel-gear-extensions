@@ -80,3 +80,7 @@ class GearToolkitContext:
     @property
     def output_dir(self):
         ...
+
+    @property
+    def work_dir(self):
+        ...

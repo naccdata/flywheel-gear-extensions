@@ -4,6 +4,7 @@ botocore
 flywheel-gear-toolkit>=0.2
 flywheel-sdk>=20.0.0 
 fw-client>=0.7.0
+fw-storage>=3.8.4
 fw-utils>=3
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]==5.1.14
