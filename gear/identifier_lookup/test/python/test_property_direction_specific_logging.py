@@ -26,6 +26,9 @@ from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @given(
@@ -81,7 +84,7 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
 
     # Create visitors for NACC direction with QC logging
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
@@ -282,7 +285,7 @@ def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
 
     # Create ONLY identifier lookup visitor (no QC, no event logging)
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,

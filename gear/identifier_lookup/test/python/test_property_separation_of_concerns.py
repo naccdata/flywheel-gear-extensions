@@ -16,6 +16,9 @@ from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 def test_naccid_lookup_visitor_separation_of_concerns():
@@ -73,7 +76,7 @@ def test_naccid_lookup_visitor_separation_of_concerns():
 
     # Create visitor without QC-related dependencies
     visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
@@ -184,7 +187,7 @@ def test_naccid_lookup_visitor_error_handling_without_qc():
 
     # Create visitor
     visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,

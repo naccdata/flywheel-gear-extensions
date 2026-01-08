@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, TextIO
+from typing import List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
@@ -30,9 +30,8 @@ from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
     IdentifierRepository,
-    IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject, IdentifiersMode
+from identifiers.model import IdentifiersMode
 from inputs.center_validator import CenterValidator
 from inputs.csv_reader import AggregateCSVVisitor, CSVVisitor, visit_all_strategy
 from inputs.parameter_store import ParameterStore

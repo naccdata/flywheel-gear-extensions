@@ -10,6 +10,9 @@ from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @pytest.fixture(scope="function")
@@ -125,7 +128,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=empty_data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="dummy-module",
                 required_fields=uds_ingest_configs().required_fields,
@@ -148,7 +151,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=no_header_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="dummy-module",
                 required_fields=uds_ingest_configs().required_fields,
@@ -171,7 +174,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=no_ids_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="dummy-module",
                 required_fields=uds_ingest_configs().required_fields,
@@ -194,7 +197,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="dummy-module",
                 required_fields=uds_ingest_configs().required_fields,
@@ -225,7 +228,9 @@ class TestIdentifierLookup:
         success = run(
             input_file=data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=mismatched_identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(
+                    mismatched_identifiers_map
+                ),
                 output_file=out_stream,
                 module_name="dummy-module",
                 required_fields=uds_ingest_configs().required_fields,
@@ -253,7 +258,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=data_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="unknown",  # No specific module when no config
                 required_fields=None,  # No required fields validation
@@ -300,7 +305,7 @@ class TestIdentifierLookup:
         success = run(
             input_file=minimal_stream,
             lookup_visitor=NACCIDLookupVisitor(
-                identifiers=identifiers_map,
+                identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
                 output_file=out_stream,
                 module_name="unknown",
                 required_fields=None,  # No required fields validation

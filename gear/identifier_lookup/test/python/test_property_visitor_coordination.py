@@ -23,6 +23,9 @@ from inputs.csv_reader import (
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 def test_visitor_coordination_success_case():
@@ -61,7 +64,7 @@ def test_visitor_coordination_success_case():
 
     # Create visitors with shared error writer
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
@@ -180,7 +183,7 @@ def test_visitor_coordination_failure_case():
 
     # Create visitors with shared error writer
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,

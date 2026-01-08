@@ -25,6 +25,9 @@ from inputs.csv_reader import (
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @given(
@@ -71,7 +74,7 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
 
     # Create both visitors
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
@@ -197,7 +200,7 @@ def test_error_propagation_maintains_processing_order():
     mock_qc_creator.update_qc_log.return_value = True
 
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
@@ -296,7 +299,7 @@ def test_short_circuit_strategy_stops_on_first_failure():
     mock_qc_creator.update_qc_log.return_value = True
 
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,

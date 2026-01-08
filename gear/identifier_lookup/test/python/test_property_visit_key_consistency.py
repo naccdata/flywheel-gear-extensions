@@ -21,6 +21,9 @@ from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
 from nacc_common.error_models import FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @st.composite
@@ -167,7 +170,7 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,

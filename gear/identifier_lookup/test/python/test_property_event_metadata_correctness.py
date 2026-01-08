@@ -20,6 +20,9 @@ from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 # Strategy for generating valid CSV rows with visit data
@@ -121,7 +124,7 @@ def test_property_event_metadata_correctness(csv_row, metadata):
     output_stream = StringIO()
 
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
@@ -246,7 +249,7 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
     output_stream = StringIO()
 
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,

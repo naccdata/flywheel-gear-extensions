@@ -62,11 +62,11 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__validator = validator
         self.__misc_errors = misc_errors
 
-        self.__identifiers_cache: Dict[str, Dict[str, IdentifierObject]] = {}
+        self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
 
     def __get_identifiers(self, adcid: int) -> Dict[str, IdentifierObject]:
-        """Gets all of the Identifier objects from the identifier database for the
-        specified center.
+        """Gets all of the Identifier objects from the identifier database for
+        the specified center.
 
         Args:
           adcid: the ADCID for the center
@@ -77,7 +77,9 @@ class NACCIDLookupVisitor(CSVVisitor):
         identifiers = {}
         center_identifiers = self.__identifiers_repo.list(adcid=adcid)
         if center_identifiers:
-            identifiers = {identifier.ptid: identifier for identifier in center_identifiers}
+            identifiers = {
+                identifier.ptid: identifier for identifier in center_identifiers
+            }
 
         return identifiers
 
@@ -155,18 +157,16 @@ class NACCIDLookupVisitor(CSVVisitor):
                 unexpected_value_error(
                     field=FieldNames.ADCID,
                     value=row[FieldNames.ADCID],
-                    expected="integer ADCID",
+                    expected="valid ADCID",
                     line=line_num,
-                    message="non-integer ADCID",
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=self.__date_field
-                    ),
+                    message="invalid ADCID",
                 )
             )
             return False
         except IdentifierRepositoryError as e:
             raise GearExecutionError(
-                f"Unable to load center participant IDs for {adcid}: {e}") from e
+                f"Unable to load center participant IDs for {adcid}: {e}"
+            ) from e
             return False
 
         identifier = self.__identifiers_cache[adcid].get(ptid)
