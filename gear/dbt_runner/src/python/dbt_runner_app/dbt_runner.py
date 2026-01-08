@@ -66,7 +66,7 @@ class DBTRunner:
                     + f"{parent_dir.relative_to(self.__project_root)}"
                 )
 
-    def run(self) -> bool:
+    def run(self) -> None:
         """Execute dbt run command.
 
         Raises:
@@ -114,12 +114,6 @@ class DBTRunner:
             log.error(e.output)
 
         finally:
-            # Log output
-            if result:
-                log.info(f"dbt run output:\n{result.stdout}")
-                if result.stderr:
-                    log.error(f"dbt run stderr:\n{result.stderr}")
-
             # Always change back to original directory
             os.chdir(original_dir)
 

@@ -71,7 +71,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         return DBTRunnerVisitor(
             client=client,
             dbt_project_zip=dbt_project_zip,
-            storage_configs=storage_configs
+            storage_configs=storage_configs,
         )
 
     def run(self, context: GearToolkitContext) -> None:

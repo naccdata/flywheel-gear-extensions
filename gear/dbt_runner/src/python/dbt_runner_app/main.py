@@ -86,9 +86,7 @@ def run(
     # Step 4: Run dbt
     dbt_runner = DBTRunner(project_root)
     log.info("[4/6] Executing dbt run")
-    success = dbt_runner.run()
-    if not success:
-        raise GearExecutionError("dbt-runner failed")
+    dbt_runner.run()
 
     # Step 5: Upload results to external storage
     log.info("[5/6] Uploading results to external storage")
