@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.0
+* Adds event logging
+
 ## 2.1.0
 * Rebuilt for form ingest configs update
   
