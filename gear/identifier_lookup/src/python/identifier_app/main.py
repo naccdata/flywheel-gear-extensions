@@ -36,7 +36,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         *,
         identifiers_repo: IdentifierRepository,
         output_file: TextIO,
-        module_name: str,
+        module_name: Optional[str],
         required_fields: Optional[List[str]],
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
@@ -46,7 +46,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         Args:
             identifiers_repo: identifiers repo to pull identifiers from
             output_file: the data output stream
-            module_name: the module name for the form
+            module_name: the module name for the form, if known
             required_fields: list of required fields for header validation
             error_writer: the error output writer
             misc_errors: list to store errors occur while updating visit error log
@@ -117,7 +117,9 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         self.__header = header
         self.__header.append(FieldNames.NACCID)
-        self.__header.append(FieldNames.MODULE)
+
+        if self.__module_name:
+            self.__header.append(FieldNames.MODULE)
 
         return True
 
@@ -181,7 +183,9 @@ class NACCIDLookupVisitor(CSVVisitor):
             return False
 
         row[FieldNames.NACCID] = identifier.naccid
-        row[FieldNames.MODULE] = self.__module_name
+
+        if self.__module_name:
+            row[FieldNames.MODULE] = self.__module_name
 
         writer = self.__get_writer()
         writer.write(row)

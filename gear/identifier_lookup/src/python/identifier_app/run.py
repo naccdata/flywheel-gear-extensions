@@ -157,10 +157,12 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
     ) -> CSVVisitor:
         # Determine module name using the new logic
         module_configs: Optional[ModuleConfigs] = None
-        module = self._determine_module()
-        module_name = module.lower()
+        module_name: Optional[str] = None
 
         if self.__config_input:
+            module = self._determine_module()
+            module_name = module.lower()
+
             try:
                 form_project_configs = load_form_ingest_configurations(
                     self.__config_input.filepath
