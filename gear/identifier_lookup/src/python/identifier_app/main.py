@@ -147,7 +147,10 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         try:
             adcid = int(row[FieldNames.ADCID])
-        except (ValueError, TypeError) as e:
+            if adcid not in self.__identifiers_cache:
+                self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
+
+        except (ValueError, TypeError):
             self.__error_writer.write(
                 unexpected_value_error(
                     field=FieldNames.ADCID,
@@ -160,9 +163,11 @@ class NACCIDLookupVisitor(CSVVisitor):
                     ),
                 )
             )
-
-        if adcid not in self.__identifiers_cache:
-            self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
+            return False
+        except IdentifierRepositoryError as e:
+            raise GearExecutionError(
+                f"Unable to load center participant IDs for {adcid}: {e}") from e
+            return False
 
         identifier = self.__identifiers_cache[adcid].get(ptid)
         if not identifier:
