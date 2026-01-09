@@ -26,7 +26,7 @@ This specification defines requirements for enhancing the existing pull_director
 
 1. THE Error Capture System SHALL provide a general mechanism for capturing user access issues and mapping them to predefined categories
 2. THE Error Capture System SHALL support both existing failure point detection and additional instrumentation for proactive issue detection
-3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Bad ORCID Claims, Missing Directory Permissions, Insufficient Permissions, and Duplicate/Wrong User Records
+3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Bad ORCID Claims, Missing Directory Permissions, Insufficient Permissions, Duplicate/Wrong User Records, and Flywheel Error
 4. THE Error Capture System SHALL include relevant user context (email, name, center, registry ID, error details) with each captured event
 5. THE Error Capture System SHALL capture error events without disrupting the normal user processing flow
 6. WHEN API calls to external services fail, THE Error Capture System SHALL log these failures for technical staff but SHALL NOT generate support staff notifications for infrastructure issues
@@ -76,9 +76,10 @@ This specification defines requirements for enhancing the existing pull_director
 5. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
 6. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for specific permission updates
 7. WHEN an error event is categorized as "Duplicate/Wrong User Records", THE Notification Generator SHALL use a template with instructions for user deactivation and OIDC cache clearing
-8. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
-9. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
-10. THE Notification Generator SHALL support both immediate and batched notification delivery modes
+8. WHEN an error event is categorized as "Flywheel Error", THE Notification Generator SHALL use a template with instructions for escalating to technical support and checking system status
+9. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
+10. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
+11. THE Notification Generator SHALL support both immediate and batched notification delivery modes
 
 ### Requirement 3: Success Notification Enhancement
 
