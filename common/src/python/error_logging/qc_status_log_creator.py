@@ -123,10 +123,12 @@ class QCStatusLogManager:
 
         # Map VisitKeys field names to ErrorLogTemplate expected field names
         record = visit_data.copy()
-        if "date" in record:
-            record["visitdate"] = record.pop(
-                "date"
-            )  # ErrorLogTemplate expects "visitdate"
+
+        # ErrorLogTemplate expects "visitdate"
+        for date_field in ["date", "visit_date"]:
+            if date_field in record:
+                record["visitdate"] = record.pop(date_field)
+                break
 
         return record
 

@@ -218,6 +218,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             error_writer=error_writer,
             misc_errors=misc_errors,
             validator=center_validator,
+            reset_errors_per_row=bool(self.__config_input),
         )
 
         # Start with just the identifier lookup visitor
@@ -338,8 +339,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            clear_errors = False
             misc_errors: List[FileError] = []
+
             if self.__direction == "nacc":
                 # Extract file creation timestamp for event logging
                 file_entry = self.__file_input.file_entry(context)
@@ -353,7 +354,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     misc_errors=misc_errors,
                     timestamp=timestamp,
                 )
-                clear_errors = True
             elif self.__direction == "center":
                 lookup_visitor = self.__build_center_lookup(
                     identifiers_repo=identifiers_repo,
@@ -365,7 +365,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 input_file=csv_file,
                 lookup_visitor=lookup_visitor,
                 error_writer=error_writer,
-                clear_errors=clear_errors,
+                clear_errors=bool(self.__config_input),
                 preserve_case=self.__preserve_case,
             )
 

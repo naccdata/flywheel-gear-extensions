@@ -41,6 +41,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
         validator: Optional[RowValidator] = None,
+        reset_errors_per_row: bool = True,
     ) -> None:
         """
         Args:
@@ -51,6 +52,7 @@ class NACCIDLookupVisitor(CSVVisitor):
             error_writer: the error output writer
             misc_errors: list to store errors occur while updating visit error log
             validator: optional row validator for ADCID and PTID validation
+            reset_errors_per_row: whether or not to reset errors per row
         """
         self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
@@ -61,6 +63,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__writer: Optional[CSVWriter] = None
         self.__validator = validator
         self.__misc_errors = misc_errors
+        self.__reset_errors_per_row = reset_errors_per_row
 
         self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
 
@@ -139,7 +142,8 @@ class NACCIDLookupVisitor(CSVVisitor):
         """
 
         # processing a new row, clear previous errors if any
-        self.__error_writer.clear()
+        if self.__reset_errors_per_row:
+            self.__error_writer.clear()
 
         # check for valid ADCID and PTID if validator is provided
         if self.__validator and not self.__validator.check(
@@ -169,7 +173,6 @@ class NACCIDLookupVisitor(CSVVisitor):
             raise GearExecutionError(
                 f"Unable to load center participant IDs for {adcid}: {e}"
             ) from e
-            return False
 
         identifier = self.__identifiers_cache[adcid].get(ptid)
         if not identifier:
