@@ -24,6 +24,9 @@ from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @given(
@@ -96,7 +99,7 @@ def test_success_determination_with_valid_identifiers(
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
@@ -252,7 +255,7 @@ def test_success_determination_with_invalid_identifiers(
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
@@ -389,7 +392,7 @@ def test_success_determination_mixed_results():
 
     # Create visitors
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,

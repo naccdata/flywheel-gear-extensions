@@ -102,7 +102,7 @@ def visit_all_strategy(visitors: Sequence[CSVVisitor]) -> VisitorStrategyType:
             except Exception as error:
                 log.error(
                     f"Error in visitor {visitor.__class__.__name__} "
-                    f"for row {line_num}: {error}"
+                    f"for row {line_num}: {type(error).__name__}: {error}"
                 )
                 results.append(False)
         return all(results)

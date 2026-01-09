@@ -17,6 +17,9 @@ from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 # Hypothesis strategies for generating test data
@@ -120,7 +123,7 @@ def capture_naccid_lookup_behavior(
     success = run(
         input_file=input_stream,
         lookup_visitor=NACCIDLookupVisitor(
-            identifiers=identifiers_map,
+            identifiers_repo=MockIdentifiersLambdaRepository(identifiers_map),
             output_file=out_stream,
             module_name="uds",
             required_fields=uds_ingest_configs().required_fields,

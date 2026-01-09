@@ -89,7 +89,7 @@
         "event_bucket": {
             "description": "S3 bucket name for event logs",
             "type": "string",
-            "default": "nacc-event-logs"
+            "default": "submission-events"
         },
         "module": {
             "description": "Module name for form processing (optional, can be inferred from filename)",

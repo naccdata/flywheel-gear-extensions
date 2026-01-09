@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, TextIO
+from typing import List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
@@ -30,9 +30,8 @@ from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
     IdentifierRepository,
-    IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject, IdentifiersMode
+from identifiers.model import IdentifiersMode
 from inputs.center_validator import CenterValidator
 from inputs.csv_reader import AggregateCSVVisitor, CSVVisitor, visit_all_strategy
 from inputs.parameter_store import ParameterStore
@@ -46,27 +45,6 @@ from s3.s3_bucket import S3BucketInterface
 from utils.utils import load_form_ingest_configurations
 
 log = logging.getLogger(__name__)
-
-
-def get_identifiers(
-    identifiers_repo: IdentifierRepository, adcid: int
-) -> Dict[str, IdentifierObject]:
-    """Gets all of the Identifier objects from the identifier database for the
-    specified center.
-
-    Args:
-      identifiers_repo: identifiers repository
-      adcid: the ADCID for the center
-
-    Returns:
-      the dictionary mapping from PTID to Identifier object
-    """
-    identifiers = {}
-    center_identifiers = identifiers_repo.list(adcid=adcid)
-    if center_identifiers:
-        identifiers = {identifier.ptid: identifier for identifier in center_identifiers}
-
-    return identifiers
 
 
 class IdentifierLookupVisitor(GearExecutionEnvironment):
@@ -83,8 +61,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         gear_name: str,
         preserve_case: bool,
         config_input: Optional[InputFileWrapper] = None,
-        environment: str,
-        event_bucket: str,
         event_logger: Optional[VisitEventLogger] = None,
         module: Optional[str] = None,
         single_center: bool = True,
@@ -97,8 +73,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
         self.__config_input = config_input
-        self.__environment = environment
-        self.__event_bucket = event_bucket
         self.__event_logger = event_logger
         self.__module = module
         self.__single_center = single_center
@@ -166,8 +140,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             direction=direction,
             preserve_case=preserve_case,
             config_input=config_input,
-            environment=environment,
-            event_bucket=event_bucket,
             event_logger=event_logger,
             module=module,
             single_center=single_center,
@@ -183,27 +155,14 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         misc_errors: List[FileError],
         timestamp: datetime,
     ) -> CSVVisitor:
-        # Get basic project information
-        parent_project = file_input.get_parent_project(self.proxy)
-        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
-
-        try:
-            adcid = project.get_pipeline_adcid()
-            identifiers = get_identifiers(
-                identifiers_repo=identifiers_repo, adcid=adcid
-            )
-        except (IdentifierRepositoryError, ProjectError, TypeError) as error:
-            raise GearExecutionError(error) from error
-
-        if not identifiers:
-            raise GearExecutionError("Unable to load center participant IDs")
-
         # Determine module name using the new logic
         module_configs: Optional[ModuleConfigs] = None
-        module = self._determine_module()
-        module_name = module.lower()
+        module_name: Optional[str] = None
 
         if self.__config_input:
+            module = self._determine_module()
+            module_name = module.lower()
+
             try:
                 form_project_configs = load_form_ingest_configurations(
                     self.__config_input.filepath
@@ -226,6 +185,15 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
         center_validator = None
         if module_configs and self.__single_center:
+            # Get basic project information
+            parent_project = file_input.get_parent_project(self.proxy)
+            project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+
+            try:
+                adcid = project.get_pipeline_adcid()
+            except (ProjectError, TypeError) as error:
+                raise GearExecutionError(error) from error
+
             center_validator = CenterValidator(
                 center_id=adcid,
                 date_field=module_configs.date_field,
@@ -243,13 +211,14 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         else:
             required_fields = essential_fields
         naccid_visitor = NACCIDLookupVisitor(
-            identifiers=identifiers,
+            identifiers_repo=identifiers_repo,
             output_file=output_file,
             module_name=module_name,
             required_fields=required_fields,
             error_writer=error_writer,
             misc_errors=misc_errors,
             validator=center_validator,
+            reset_errors_per_row=bool(self.__config_input),
         )
 
         # Start with just the identifier lookup visitor
@@ -370,8 +339,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            clear_errors = False
             misc_errors: List[FileError] = []
+
             if self.__direction == "nacc":
                 # Extract file creation timestamp for event logging
                 file_entry = self.__file_input.file_entry(context)
@@ -385,7 +354,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     misc_errors=misc_errors,
                     timestamp=timestamp,
                 )
-                clear_errors = True
             elif self.__direction == "center":
                 lookup_visitor = self.__build_center_lookup(
                     identifiers_repo=identifiers_repo,
@@ -397,7 +365,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 input_file=csv_file,
                 lookup_visitor=lookup_visitor,
                 error_writer=error_writer,
-                clear_errors=clear_errors,
+                clear_errors=bool(self.__config_input),
                 preserve_case=self.__preserve_case,
             )
 

@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 2.2.0
 * Adds event logging
+* Updates to allow distribution projects to run the `nacc` direction
 
 ## 2.1.0
 * Rebuilt for form ingest configs update
