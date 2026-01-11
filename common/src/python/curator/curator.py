@@ -183,11 +183,13 @@ class Curator(ABC):
 
 SCOPE_PATTERN = re.compile(
     r"^"
+    r"(?P<bds>.+_BDS\.json)|"
     r"(?P<cls>.+_CLS\.json)|"
     r"(?P<csf>.+_CSF\.json)|"
     r"(?P<np>.+_NP\.json)|"
     r"(?P<mds>.+_MDS\.json)|"
     r"(?P<milestone>.+_MLST\.json)|"
+    r"(?P<covid>.+_COVID\.json)|"
     r"(?P<apoe>.+apoe_genotype\.json)|"
     r"(?P<ncrad_biosamples>.+NCRAD-SAMPLES.+\.json)|"
     r"(?P<niagads_availability>.+niagads_availability\.json)|"

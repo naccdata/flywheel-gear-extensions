@@ -33,6 +33,15 @@ CHILD_SCOPES = {
     FormScope.NP: [FormScope.CROSS_MODULE],
 }
 
+# these are NOT derived variables but also need to be
+# back-propagated into file.info
+RESOLVED_CROSS_SECTIONAL_VARIABLES = {
+    FormScope.UDS: [
+        "birthyr",
+        "birthmo"
+    ]
+}
+
 # Scopes that need to write to file.info.resolved
 # i.e. scopes that need file missingness applied
 # ultimately this is probably just all form scopes
@@ -44,8 +53,7 @@ RESOLVED_SCOPES = [
     FormScope.FTLD,
     FormScope.LBD,
     FormScope.CLS,
-    FormScope.COVID_F1,
-    FormScope.COVID_F2F3,
+    FormScope.COVID,
 ]
 
 

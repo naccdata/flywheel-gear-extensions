@@ -4,8 +4,9 @@ All notable changes to this gear are documented in this file.
 
 ## 1.1.1
 
-* Updates `nacc-attribute-deriver` to `2.0.0rc6`
+* Updates `nacc-attribute-deriver` to `2.0.0`
 * Updates to keep track of scope in `ProcessedFile` so it only has to be calculated once
+* Updates to handle BDS and COVID scopes
 
 ## 1.1.0
 
@@ -15,7 +16,6 @@ All notable changes to this gear are documented in this file.
 * Ensures the curation tag is only applied to files that were successfully curated
 * Writes errors to file instead of throwing error and failing gear
 * Adds `uds-participant` tag to all UDS subjects
-* Adds COVID scopes
 
 ## 1.0.3 - 1.0.5
 

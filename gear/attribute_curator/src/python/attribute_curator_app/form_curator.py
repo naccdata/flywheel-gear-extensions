@@ -37,6 +37,7 @@ from .curation_keys import (
     BACKPROP_SCOPES,
     CHILD_SCOPES,
     RESOLVED_SCOPES,
+    RESOLVED_CROSS_SECTIONAL_VARIABLES,
     FormCurationTags,
 )
 
@@ -234,6 +235,20 @@ class FormCurator(Curator):
                 copy.deepcopy(table["file.info.forms.json"]),
             )
 
+    def __handle_failed_file(self, file_entry: FileEntry, reason: str) -> None:
+        """Handle when a file fails curation. Needs to both remove
+        the curation tag and add it to the failed files.
+
+        Args:
+            file_entry: The file that failed
+            reason: The reason why the file failed
+        """
+        # remove tag if in file_entry
+        if self.curation_tag in file_entry.tags:
+            file_entry.delete_tag(self.curation_tag)
+
+        self.__failed_files(generate_curation_failure(file_entry, reason))
+
     def execute(
         self,
         subject: Subject,
@@ -254,14 +269,7 @@ class FormCurator(Curator):
         # check this file actually passed QC
         if not self.__ignore_qc and not self.check_qc(table, scope):
             log.error(f"File {file_entry.name} did not pass QC; skipping")
-
-            # remove tag if in file_entry
-            if self.curation_tag in file_entry.tags:
-                file_entry.delete_tag(self.curation_tag)
-
-            self.__failed_files.append(
-                generate_curation_failure(file_entry, "failed_qc")
-            )
+            self.__handle_failed_file(file_entry, "failed_qc")
             return False
 
         try:
@@ -270,8 +278,7 @@ class FormCurator(Curator):
             self.__file_missingness.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
             log.error(f"Failed to curate {file_entry.name}: {e}")
-
-            self.__failed_files.append(generate_curation_failure(file_entry, str(e)))
+            self.__handle_failed_file(file_entry, str(e))
             return False
 
         # keep track of the last succesful curation
@@ -358,13 +365,22 @@ class FormCurator(Curator):
             subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
+        working = subject_table.get("working", {})
 
         # 4. add associated tags
         self.handle_tags(subject, scoped_files, derived.get("affiliate", False))
 
         # 5. backprop as needed
         self.back_propagate_scopes(
-            subject, scoped_files, derived.get("cross-sectional", None)
+            subject, scoped_files, "derived",
+            self.__scoped_variables,
+            derived.get("cross-sectional", None)
+        )
+
+        self.back_propagate_scopes(
+            subject, scoped_files, "resolved",
+            RESOLVED_CROSS_SECTIONAL_VARIABLES,
+            working.get("cross-sectional", None)
         )
 
         # 6. push curation to FW
@@ -469,35 +485,51 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
-        cs_derived: Dict[str, Any] | None,
+        category: str,
+        scope_reference: Dict[str, List[str]],
+        cs_variables: Dict[str, Any] | None,
     ) -> None:
         """Performs back-propagation on cross-sectional variables.
 
         These are "finalized" only after curation over the entire
         subject has completed and need to be applied back to each
-        corresponding file's file.info.derived.
+        corresponding file's file.info
+
+        Args:
+            subject: The subject
+            scoped_files: The curated files, scoped
+            category: The variable category (derived vs resolved)
+            scope_reference: The scope reference, i.e. which variables
+                belong to which scope. Determines which files actually
+                get the back-propagated variables.
+            cs_variables: The cross-sectional variables, if any
         """
-        if not cs_derived:
+        result: Dict[str, Dict[str, Any]] = {
+            scope: {} for scope in scope_reference
+        }
+
+        for k, v in cs_variables.items():
+            for scope, scoped_vars in scope_reference.items():
+                if k in scoped_vars:
+                    result[scope][k] = v
+
+        # remove scope if there is nothing in it
+        result = {k: v for k, v in result.items() if v}
+
+        if not result:
             log.debug(
-                "No cross-sectional derived variables to "
-                f"back-propogate for {subject.label}"
+                f"No {category} cross-sectional variables to "
+                + f"back-propogate for {subject.label}"
             )
             return
 
-        # filter out to scopes that need to be back-propagated
-        scope_derived: Dict[str, Dict[str, Any]] = {
-            scope: {} for scope in self.__scoped_variables
-        }
-
-        for k, v in cs_derived.items():
-            for scope, scoped_vars in self.__scoped_variables.items():
-                if k in scoped_vars:
-                    scope_derived[scope][k] = v
-
-        log.debug(f"Back-propagating cross-sectional variables for {subject.label}")
+        log.debug(
+            f"Back-propagating {category} cross-sectional variables "
+            + f"for {subject.label}"
+        )
         for scope, processed_files in scoped_files.items():
             # ignore non-scopes of interest
-            if scope not in self.__scoped_variables:
+            if scope not in result:
                 continue
 
             for file in processed_files:
@@ -505,13 +537,15 @@ class FormCurator(Curator):
                 file_info = file.file_info
                 if not file_info:
                     raise ProjectCurationError(
-                        "Cannot back-propogate scope; processed file missing file_info"
+                        f"Cannot back-propogate {category} variables for "
+                        + f"scope {scope}; processed file {file.name} "
+                        + "missing file_info"
                     )
 
-                if "derived" not in file_info:
-                    file_info["derived"] = {}
+                if category not in file_info:
+                    file_info[category] = {}
 
-                file_info["derived"].update(scope_derived[scope])
+                file_info[category].update(scope_derived[scope])
 
     @api_retry
     def apply_file_curation(self, file: ProcessedFile) -> None:

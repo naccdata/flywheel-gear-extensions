@@ -11,7 +11,7 @@ from pydantic import BaseModel, field_validator
 VISIT_PATTERN = re.compile(
     r"^"
     r"(?P<pass2>.+("
-    r"_CLS|_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|"
+    r"_BDS|_CLS|_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|_COVID|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
