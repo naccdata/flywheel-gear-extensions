@@ -37,7 +37,6 @@ from .curation_keys import (
     BACKPROP_SCOPES,
     CHILD_SCOPES,
     RESOLVED_SCOPES,
-    RESOLVED_CROSS_SECTIONAL_VARIABLES,
     FormCurationTags,
 )
 
@@ -165,11 +164,16 @@ class FormCurator(Curator):
             )
 
         if scope in list(FormScope):
-            # V4 (ingest-form)
+            # current (ingest-form) or BDS
             if "file.info.qc.form-qc-checker.validation.state" in table:
                 return (
                     table.get("file.info.qc.form-qc-checker.validation.state") == "PASS"
                 )
+
+            # BDS uses form-qc-checker for both current and legacy, so if
+            # it didn't pass that it should fail
+            if scope == FormScope.BDS:
+                return False
 
             # legacy (retrospective-form)
             return table.get("file.info.qc.file-validator.validation.state") == "PASS"
@@ -365,22 +369,15 @@ class FormCurator(Curator):
             subject.replace_info(subject_table.to_dict())  # type: ignore
 
         derived = subject_table.get("derived", {})
-        working = subject_table.get("working", {})
 
         # 4. add associated tags
         self.handle_tags(subject, scoped_files, derived.get("affiliate", False))
 
-        # 5. backprop as needed
+        # 5. backprop as needed (currently only derived, may need to handle resolved)
         self.back_propagate_scopes(
             subject, scoped_files, "derived",
             self.__scoped_variables,
             derived.get("cross-sectional", None)
-        )
-
-        self.back_propagate_scopes(
-            subject, scoped_files, "resolved",
-            RESOLVED_CROSS_SECTIONAL_VARIABLES,
-            working.get("cross-sectional", None)
         )
 
         # 6. push curation to FW
@@ -504,6 +501,13 @@ class FormCurator(Curator):
                 get the back-propagated variables.
             cs_variables: The cross-sectional variables, if any
         """
+        if not cs_variables:
+            log.debug(
+                f"No {category} cross-sectional variables to "
+                + f"back-propogate for {subject.label}"
+            )
+            return
+
         result: Dict[str, Dict[str, Any]] = {
             scope: {} for scope in scope_reference
         }
@@ -518,7 +522,7 @@ class FormCurator(Curator):
 
         if not result:
             log.debug(
-                f"No {category} cross-sectional variables to "
+                f"No applicable {category} cross-sectional variables to "
                 + f"back-propogate for {subject.label}"
             )
             return
@@ -545,7 +549,7 @@ class FormCurator(Curator):
                 if category not in file_info:
                     file_info[category] = {}
 
-                file_info[category].update(scope_derived[scope])
+                file_info[category].update(result[scope])
 
     @api_retry
     def apply_file_curation(self, file: ProcessedFile) -> None:

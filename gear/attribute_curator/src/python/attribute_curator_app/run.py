@@ -17,7 +17,7 @@ from gear_execution.gear_execution import (
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 from utils.utils import parse_string_to_list
 
 from attribute_curator_app.main import run
@@ -80,7 +80,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         rxclass_concepts_s3_uri = context.config.get("rxclass_concepts_s3_uri", "")
         ignore_qc = context.config.get("ignore_qc", False)
 
-        fw_project = get_project_from_destination(context=context, proxy=proxy)
+        #fw_project = get_project_from_destination(context=context, proxy=proxy)
+        fw_project = proxy.get_project_by_id("68261ccff461d81205581549")
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
         if context.config.get("debug", False):
@@ -103,10 +104,10 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         rxclass_concepts = None
         if self.__rxclass_concepts_s3_uri:
             log.info(f"Loading RxClass concepts from {self.__rxclass_concepts_s3_uri}")
-            s3_bucket, s3_file = S3BucketReader.parse_bucket_and_key(
+            s3_bucket, s3_file = S3BucketInterface.parse_bucket_and_key(
                 self.__rxclass_concepts_s3_uri
             )
-            s3_client = S3BucketReader.create_from_environment(s3_bucket)
+            s3_client = S3BucketInterface.create_from_environment(s3_bucket)
             if not s3_client or not s3_file:
                 raise GearExecutionError(
                     "Invalid S3 URI for RxNorm concepts: "

@@ -102,7 +102,7 @@ class S3BucketInterface:
         Args:
           parameters: dictionary of S3 parameters
         Returns:
-          the S3BucketReader
+          the S3BucketInterface
         """
 
         client = boto3.client(
@@ -139,7 +139,7 @@ class S3BucketInterface:
             config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
         )
 
-        return S3BucketReader(boto_client=client, bucket_name=s3bucket)
+        return S3BucketInterface(boto_client=client, bucket_name=s3bucket)
 
     @classmethod
     def parse_bucket_and_key(self, s3_uri: str) -> Tuple[str, str | None]:
