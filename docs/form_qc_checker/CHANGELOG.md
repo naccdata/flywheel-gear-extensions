@@ -3,9 +3,9 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.7.2
-
 * Updates `__get_initial_visit` in the datastore to remove the current packet from `ivp_codes` to handle I4 plausibility checks needing to explicitly check the retrospective IVP packet
 * Fixes issue where searching for legacy initial visit records searched for QC_GEAR instead of LEGACY_QC_GEAR, causing it to never match
+* Updates `nacc-form-validator` to 0.6.2
 
 ## 1.7.1
 * Integrates event logging functionality for enhanced QC status tracking and error reporting
