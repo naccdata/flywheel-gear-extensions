@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from error_logging.error_logger import ErrorLogTemplate
-from event_capture.event_logger import VisitEventCapture
+from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor

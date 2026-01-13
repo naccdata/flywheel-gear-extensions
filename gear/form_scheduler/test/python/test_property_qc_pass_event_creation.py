@@ -15,7 +15,7 @@ from form_scheduler_app.event_accumulator import EventAccumulator
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import QC_STATUS_PASS
-from test_mocks.mock_event_logging import MockVisitEventCapture
+from test_mocks.mock_event_capture import MockVisitEventCapture
 from test_mocks.mock_factories import FileEntryFactory
 from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.strategies import json_file_strategy as shared_json_strategy

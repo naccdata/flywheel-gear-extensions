@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
-from event_capture.event_logger import VisitEventCapture
+from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext

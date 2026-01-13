@@ -17,7 +17,7 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitMetadata,
 )
-from test_mocks.mock_event_logging import MockVisitEventCapture
+from test_mocks.mock_event_capture import MockVisitEventCapture
 from test_mocks.mock_flywheel import (
     MockFile,
     MockFlywheelProxy,
