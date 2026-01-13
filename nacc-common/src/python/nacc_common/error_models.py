@@ -9,6 +9,7 @@ from pydantic import (
     RootModel,
     SerializationInfo,
     SerializerFunctionWrapHandler,
+    ValidationError,
     model_serializer,
 )
 
@@ -137,6 +138,30 @@ class VisitMetadata(VisitKeys):
         data["visit_date"] = data.pop("date")
         data["visit_number"] = data.pop("visitnum")
         return data
+
+    @classmethod
+    def create(cls, file_entry: FileEntry) -> Optional["VisitMetadata"]:
+        """Factory method to create VisitMetadata from a FileEntry.
+
+        Args:
+          file_entry: the file entry
+        Returns:
+          the VisitMetadata instance if there is visit metadata. None, otherwise.
+        """
+        file_entry = file_entry.reload()
+        if not file_entry.info:
+            return None
+        if "visit" not in file_entry.info:
+            return None
+
+        visit_data = file_entry.info.get("visit")
+        if not visit_data:
+            return None
+
+        try:
+            return VisitMetadata.model_validate(file_entry.info, by_alias=True)
+        except ValidationError:
+            return None
 
 
 class FileError(BaseModel):
