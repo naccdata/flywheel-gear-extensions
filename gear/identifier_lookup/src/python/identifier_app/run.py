@@ -105,8 +105,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         direction = context.config.get("direction", "nacc")
         preserve_case = context.config.get("preserve_case", False)
         gear_name = context.manifest.get("name", "identifier-lookup")
-        environment = context.config.get("environment", "prod")
-        event_bucket = context.config.get("event_bucket", "nacc-event-logs")
         module = context.config.get("module")
         single_center = context.config.get("single_center", True)
 
@@ -116,13 +114,23 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # Initialize event logger for nacc direction with QC logging
         event_logger = None
         if direction == "nacc" and config_input is not None:
+            # Get event logging parameters - required when event logging is enabled
+            event_environment = context.config.get("event_environment")
+            event_bucket = context.config.get("event_bucket")
+
+            if not event_environment or not event_bucket:
+                raise GearExecutionError(
+                    "event_environment and event_bucket are required when using "
+                    "nacc direction with form configs for event logging"
+                )
+
             try:
                 s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
                 event_logger = VisitEventLogger(
-                    s3_bucket=s3_bucket, environment=environment
+                    s3_bucket=s3_bucket, environment=event_environment
                 )
                 log.info(
-                    f"Event logging initialized for environment '{environment}' "
+                    f"Event logging initialized for environment '{event_environment}' "
                     f"with bucket '{event_bucket}'"
                 )
             except Exception as error:

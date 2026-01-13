@@ -77,19 +77,19 @@
             "type": "boolean",
             "default": true
         },
-        "environment": {
-            "description": "Environment for event logging (prod or dev)",
+        "event_environment": {
+            "description": "Environment for event logging (prod or dev); only required when using nacc direction with form configs",
             "type": "string",
-            "default": "prod",
+            "optional": true,
             "enum": [
                 "prod",
                 "dev"
             ]
         },
         "event_bucket": {
-            "description": "S3 bucket name for event logs",
+            "description": "S3 bucket name for event logs; only required when using nacc direction with form configs",
             "type": "string",
-            "default": "submission-events"
+            "optional": true
         },
         "module": {
             "description": "Module name for form processing (optional, can be inferred from filename)",
