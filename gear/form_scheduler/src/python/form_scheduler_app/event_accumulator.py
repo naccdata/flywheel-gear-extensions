@@ -93,7 +93,7 @@ class EventAccumulator:
             event_capture: Logger for visit events
             datatype: Type of data being processed (default: "form")
         """
-        self.__event_capture = event_logger
+        self.__event_capture = event_capture
         self.__error_log_template = ErrorLogTemplate()
 
     def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:

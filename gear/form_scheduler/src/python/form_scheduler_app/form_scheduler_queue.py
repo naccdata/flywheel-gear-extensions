@@ -396,7 +396,7 @@ class FormSchedulerQueue:
         self.__proxy = proxy
         self.__project = project
         self.__pipeline_configs = pipeline_configs
-        self.__event_capture = event_logger
+        self.__event_capture = event_capture
         self.__email_client = email_client
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
@@ -472,7 +472,9 @@ class FormSchedulerQueue:
             from form_scheduler_app.event_accumulator import EventAccumulator
 
             event_accumulator = EventAccumulator(event_capture=self.__event_capture)
-            event_accumulator.capture_events(json_file=json_file, project=self.__project)
+            event_accumulator.capture_events(
+                json_file=json_file, project=self.__project
+            )
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
