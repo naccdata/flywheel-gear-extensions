@@ -57,11 +57,24 @@ This specification defines requirements for enhancing the existing pull_director
 1. THE Error Detection System SHALL check for authentication email mismatches by comparing COManage registry email with directory email
 2. THE Error Detection System SHALL check email verification status in COManage registry records
 3. THE Error Detection System SHALL detect ORCID claims without proper email configuration
-4. THE Error Detection System SHALL compare user authorizations against expected permissions for their role/center to detect insufficient permissions
-5. THE Error Detection System SHALL detect duplicate user records across COManage, directory, and Flywheel systems
-6. THE Error Detection System SHALL run these proactive checks during user processing without significantly impacting performance
-7. THE Error Detection System SHALL use existing API connections and data sources where possible to minimize additional service calls
-8. THE Error Detection System SHALL categorize proactively detected issues using the same category system as reactive failure detection
+4. THE Error Detection System SHALL indicate an error if the user entry has no authorizations
+5. THE Error Detection System SHALL run these proactive checks during user processing without significantly impacting performance
+6. THE Error Detection System SHALL use existing API connections and data sources where possible to minimize additional service calls
+7. THE Error Detection System SHALL categorize proactively detected issues using the same category system as reactive failure detection
+
+### Requirement 1c: RegistryPerson Interface Enhancement
+
+**User Story:** As a developer, I want the RegistryPerson interface to provide comprehensive access to COManage data needed for error detection, so that I can implement robust error detection mechanisms without bypassing the abstraction layer.
+
+#### Acceptance Criteria
+
+1. THE RegistryPerson Interface SHALL provide methods to access email verification status from COManage EmailAddress records
+2. THE RegistryPerson Interface SHALL provide methods to access detailed ORCID claim information and validation status beyond basic is_claimed() functionality
+3. THE RegistryPerson Interface SHALL provide methods to access CoPersonRole information for permission level checking
+4. THE RegistryPerson Interface SHALL provide comprehensive email address comparison capabilities across all EmailAddress records
+5. THE RegistryPerson Interface SHALL provide methods to access OrgIdentity details for claim validation
+6. THE RegistryPerson Interface SHALL ensure all COManage data structures (EmailAddress, Identifier, CoPersonRole, OrgIdentity) needed for error detection are accessible through clean interface methods
+7. THE RegistryPerson Interface SHALL maintain backward compatibility with existing code while adding new access methods
 
 ### Requirement 2: Category-Based Notification Generation
 
@@ -69,17 +82,16 @@ This specification defines requirements for enhancing the existing pull_director
 
 #### Acceptance Criteria
 
-1. WHEN an error event is categorized as "Unclaimed Records", THE Notification Generator SHALL use a template with instructions for claiming records with appropriate identity provider
+1. WHEN an error event is categorized as "Unclaimed Records", THE Notification Generator SHALL create a list of unclaimed records with the correct identity provider for each
 2. WHEN an error event is categorized as "Authentication Email Mismatch", THE Notification Generator SHALL use a template with instructions for updating directory with correct authentication email
 3. WHEN an error event is categorized as "Unverified Email", THE Notification Generator SHALL use a template with instructions for contacting institutional IT support
 4. WHEN an error event is categorized as "Bad ORCID Claims", THE Notification Generator SHALL use a template with instructions to delete bad record and reclaim with correct identity provider
 5. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
-6. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for specific permission updates
+6. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions when no authorizations are listed in the user entry
 7. WHEN an error event is categorized as "Duplicate/Wrong User Records", THE Notification Generator SHALL use a template with instructions for user deactivation and OIDC cache clearing
-8. WHEN an error event is categorized as "Flywheel Error", THE Notification Generator SHALL use a template with instructions for escalating to technical support and checking system status
-9. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
-10. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
-11. THE Notification Generator SHALL support both immediate and batched notification delivery modes
+8. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
+9. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
+10. THE Notification Generator SHALL support both immediate and batched notification delivery modes
 
 ### Requirement 3: Success Notification Enhancement
 
@@ -178,7 +190,7 @@ This specification defines requirements for enhancing the existing pull_director
 9. THE Test Suite SHALL test both error capture from existing failure points and error detection from new instrumentation
 10. THE Development Process SHALL ensure all new code passes tests before integration with existing systems
 
-### Requirement 8: Integration with Existing Process Error Points
+### Requirement 10: Integration with Existing Process Error Points
 
 **User Story:** As a developer, I want to integrate error capture seamlessly with existing user processing and directory pull workflows, so that current functionality is preserved while adding comprehensive error notification capabilities.
 
@@ -195,7 +207,7 @@ This specification defines requirements for enhancing the existing pull_director
 9. THE Error Event Collector SHALL use the existing AWS SES template system for error notification delivery
 10. THE Error Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency
 
-### Requirement 10: Performance and Reliability
+### Requirement 11: Performance and Reliability
 
 **User Story:** As a system administrator, I want the error handling system to be performant and reliable, so that it doesn't impact the overall user management process.
 

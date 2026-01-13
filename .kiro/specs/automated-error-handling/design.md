@@ -13,7 +13,7 @@ The design builds upon the existing infrastructure including UserProcess classes
 
 ## Architecture
 
-The error handling approach follows a failure-triggered analysis pattern:
+The error handling approach follows a failure-triggered analysis pattern with enhanced RegistryPerson interface for comprehensive COManage data access:
 
 ```mermaid
 graph TB
@@ -31,12 +31,18 @@ graph TB
         UMN[End-of-Run Notification]
     end
     
+    subgraph "Enhanced Data Access"
+        RP[Enhanced RegistryPerson Interface]
+        UE[User Entry Data]
+        CM[COManage Registry API]
+    end
+    
     subgraph "Failure Analysis"
         FA[Failure Analyzers]
         UC[User Creation Analyzer]
         RA[Registry Analyzer]
-        PA[Permission Analyzer]
         EA[Email Analyzer]
+        PA[Permission Analyzer]
     end
     
     subgraph "Error Processing"
@@ -45,8 +51,7 @@ graph TB
         NG[Notification Generator]
     end
     
-    subgraph "External APIs"
-        CM[COManage Registry]
+    subgraph "External Services"
         FW[Flywheel API]
         SES[AWS SES]
     end
@@ -63,14 +68,15 @@ graph TB
     
     FA --> UC
     FA --> RA
-    FA --> PA
     FA --> EA
+    FA --> PA
     
-    UC --> CM
     UC --> FW
-    RA --> CM
-    PA --> CM
-    EA --> CM
+    RA --> RP
+    EA --> RP
+    PA --> UE
+    
+    RP --> CM
     
     PDC --> EC
     UMC --> EC
@@ -80,20 +86,33 @@ graph TB
     NG --> SES
     
     classDef gear fill:#e1f5fe
-    classDef analysis fill:#fff3e0
-    classDef process fill:#f3e5f5
-    classDef existing fill:#e8f5e8
+    classDef data fill:#fff3e0
+    classDef analysis fill:#f3e5f5
+    classDef process fill:#e8f5e8
+    classDef external fill:#ffebee
     
     class PDG,UMG gear
-    class PDA,UMA,FA,UC,RA,PA,EA analysis
+    class RP,UE,CM data
+    class PDA,UMA,FA,UC,RA,EA,PA analysis
     class PDC,UMC,EC,EH,NG process
-    class CM,FW,SES existing
+    class FW,SES external
 ```
+
+**Enhanced Data Access Pattern:**
+- **RegistryPerson Interface**: Enhanced to provide comprehensive access to COManage data including:
+  - Email verification status from EmailAddress records
+  - Detailed ORCID claim information and validation status beyond basic is_claimed()
+  - CoPersonRole information for permission level checking
+  - Comprehensive email address comparison capabilities across all EmailAddress records
+  - OrgIdentity details for claim validation
+  - All COManage data structures (EmailAddress, Identifier, CoPersonRole, OrgIdentity) accessible through clean interface methods
+- **User Entry Data**: Direct access to directory information including authorizations for permission checking
+- **COManage Registry API**: Accessed through enhanced RegistryPerson interface for consistency
 
 **Failure-Triggered Analysis Pattern:**
 1. **Normal Processing**: User processes run as usual
 2. **Failure Detection**: When a failure occurs, user process calls appropriate analyzer
-3. **Failure Analysis**: Analyzer investigates WHY the failure occurred using external APIs
+3. **Failure Analysis**: Analyzer investigates WHY the failure occurred using enhanced RegistryPerson interface and user entry data
 4. **Error Collection**: Analyzer categorizes the failure and adds to error collection
 5. **End-of-Run Notification**: All collected errors are sent in one consolidated notification via SES
 
@@ -154,8 +173,13 @@ class UserProcess(BaseUserProcess[UserEntry]):
         self._inactive_queue: UserQueue[UserEntry] = UserQueue()
         self._env = environment
         
-        # Error handling components
-        self.error_collector = error_collector
+        # Error handling components (immutable)
+        self.__error_collector = error_collector
+    
+    @property
+    def error_collector(self) -> ErrorCollector:
+        """Read-only access to the error collector."""
+        return self.__error_collector
     
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Modified to pass error handling objects to sub-processes."""
@@ -206,8 +230,13 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         self._claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
         
-        # Error handling components
-        self.error_collector = error_collector
+        # Error handling components (immutable)
+        self.__error_collector = error_collector
+    
+    @property
+    def error_collector(self) -> ErrorCollector:
+        """Read-only access to the error collector."""
+        return self.__error_collector
     
     def visit(self, entry: ActiveUserEntry) -> None:
         """Modified to add failure analysis at existing log points."""
@@ -233,7 +262,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 log.error("Active user has incomplete claim: %s, %s", 
                          entry.full_name, entry.email)
                 
-                # Create error event for bad claim
+                # Create error event for bad claim - requires ORCID analysis
                 error_event = ErrorEvent(
                     category=ErrorCategory.BAD_ORCID_CLAIMS,
                     user_context=UserContext.from_user_entry(entry),
@@ -246,6 +275,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 self.error_collector.collect(error_event)
                 return
             
+            # log.info() case - no error event needed, this is normal processing
             log.info("Active user not in registry: %s", entry.email)
             self.__add_to_registry(user_entry=entry)
             self._env.notification_client.send_claim_email(entry)
@@ -307,9 +337,14 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self._update_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._env = environment
         
-        # Error handling components
-        self.error_collector = error_collector
+        # Error handling components (immutable)
+        self.__error_collector = error_collector
         self.failure_analyzer = FailureAnalyzer(environment)
+    
+    @property
+    def error_collector(self) -> ErrorCollector:
+        """Read-only access to the error collector."""
+        return self.__error_collector
     
     def __add_user(self, entry: RegisteredUserEntry) -> Optional[str]:
         """Modified to add failure analysis at existing log points."""
@@ -337,15 +372,20 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
                  error_collector: ErrorCollector):
         self._env = environment
         
-        # Error handling components
-        self.error_collector = error_collector
+        # Error handling components (immutable)
+        self.__error_collector = error_collector
         self.failure_analyzer = FailureAnalyzer(environment)
+    
+    @property
+    def error_collector(self) -> ErrorCollector:
+        """Read-only access to the error collector."""
+        return self.__error_collector
     
     def visit(self, entry: RegisteredUserEntry) -> None:
         """Modified to add failure analysis at existing log points."""
         registry_person = self._env.user_registry.find_by_registry_id(entry.registry_id)
         
-        if not registry_person or not registry_person.email_address:
+        if not registry_person:
             log.error("Failed to find a claimed user with Registry ID %s and email %s",
                      entry.registry_id, entry.email)
             
@@ -359,14 +399,15 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         if not fw_user:
             log.error("Failed to add user %s with ID %s", entry.email, entry.registry_id)
             
-            # Create error event for missing Flywheel user
+            # Create error event for missing Flywheel user - this indicates earlier failure
+            # Note: This is not actually the failure point, the real failure occurred earlier
             error_event = ErrorEvent(
-                category=ErrorCategory.FLYWHEEL_ERROR,
+                category=ErrorCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
                 error_details={
-                    "message": "User should exist in Flywheel but was not found",
+                    "message": "User should exist in Flywheel but was not found - indicates earlier creation failure",
                     "registry_id": entry.registry_id,
-                    "action_needed": "check_flywheel_user_creation_logs"
+                    "action_needed": "check_user_creation_process_logs"
                 }
             )
             self.error_collector.collect(error_event)
@@ -386,6 +427,20 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     "message": "Registry record found but has no email address",
                     "registry_id": entry.registry_id,
                     "action_needed": "check_email_verification_in_comanage"
+                }
+            )
+            self.error_collector.collect(error_event)
+            return
+        
+        # Check for insufficient permissions based on user entry authorizations
+        if not entry.authorizations:
+            error_event = ErrorEvent(
+                category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
+                user_context=UserContext.from_user_entry(entry),
+                error_details={
+                    "message": "User entry has no authorizations listed",
+                    "registry_id": entry.registry_id,
+                    "action_needed": "contact_center_administrator_for_permissions"
                 }
             )
             self.error_collector.collect(error_event)
@@ -444,9 +499,9 @@ class FailureAnalyzer:
                 }
             )
         
-        # Generic Flywheel error
+        # Generic error - categorize as unclaimed records since user creation failed
         return ErrorEvent(
-            category=ErrorCategory.FLYWHEEL_ERROR,
+            category=ErrorCategory.UNCLAIMED_RECORDS,
             user_context=UserContext.from_user_entry(entry),
             error_details={
                 "message": "Flywheel user creation failed after 3 attempts",
@@ -608,15 +663,15 @@ class ConsolidatedNotificationData(BaseTemplateModel):
 
 ### Property Reflection
 
-After completing the prework analysis, I've identified several areas where properties can be consolidated to eliminate redundancy:
+After completing the prework analysis and incorporating requirement clarifications, I've identified several areas where properties can be consolidated to eliminate redundancy:
 
 **Consolidation Opportunities:**
-- Properties 2.1-2.7 (template selection for each category) can be combined into one comprehensive property that tests template mapping for all categories
+- Properties 2.1-2.6 (template selection for each category) can be combined into one comprehensive property that tests template mapping for all categories (removed 2.7 and 2.8 per requirement updates)
 - Properties 1a.1, 1a.3, 1a.4, 1a.5, 1a.6 (specific log message categorization) can be combined into one property that tests log message to category mapping
-- Properties 1b.1-1b.5 (proactive detection mechanisms) represent distinct detection capabilities and should remain separate
+- Properties 1b.1-1b.4 (proactive detection mechanisms) represent distinct detection capabilities and should remain separate (removed 1b.5 per requirement updates)
 
 **Final Property Set:**
-The following properties provide comprehensive validation while avoiding redundancy:
+The following properties provide comprehensive validation while avoiding redundancy and reflecting the updated requirements:
 
 Property 1: Error Event Categorization
 *For any* captured error event, the system should assign it to exactly one of the predefined error categories
@@ -654,21 +709,21 @@ Property 9: ORCID Claim Detection
 *For any* ORCID identity claim without proper email configuration, the system should detect this as a bad ORCID claim
 **Validates: Requirements 1b.3**
 
-Property 10: Permission Insufficiency Detection
-*For any* user with authorizations that don't match expected permissions for their role/center, the system should detect insufficient permissions
+Property 10: Authorization Insufficiency Detection
+*For any* user entry with no authorizations listed, the system should detect this as insufficient permissions
 **Validates: Requirements 1b.4**
 
-Property 11: Duplicate User Detection
-*For any* set of user records across COManage, directory, and Flywheel systems, the system should identify duplicates based on matching criteria
-**Validates: Requirements 1b.5**
+Property 11: RegistryPerson Interface Completeness
+*For any* COManage data structure needed for error detection (EmailAddress, Identifier, CoPersonRole, OrgIdentity), the RegistryPerson interface should provide clean access methods
+**Validates: Requirements 1c.1-1c.7**
 
 Property 12: Consistent Categorization
 *For any* error detected through additional instrumentation, the system should use the same categorization system as errors detected from existing failure points
-**Validates: Requirements 1b.8**
+**Validates: Requirements 1b.7**
 
 Property 13: Template Selection by Category
 *For any* error event with a specific category, the notification generator should select the correct template that contains appropriate instructions for that category type
-**Validates: Requirements 2.1-2.7**
+**Validates: Requirements 2.1-2.6**
 
 Property 14: User Context in Notifications
 *For any* generated notification, the system should include all available user-specific context information in the template data
