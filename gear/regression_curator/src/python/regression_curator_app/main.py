@@ -11,7 +11,7 @@ from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 
 from .regression_curator import RegressionCurator
 
@@ -35,8 +35,8 @@ class BaselineLocalizer(ABC):
         """Localizess the S3 file and returns the StreamingBody."""
         log.info(f"Localizing file from {self.s3_file}")
 
-        s3_bucket, key = S3BucketReader.parse_bucket_and_key(self.s3_file)
-        s3_client = S3BucketReader.create_from_environment(s3_bucket)
+        s3_bucket, key = S3BucketInterface.parse_bucket_and_key(self.s3_file)
+        s3_client = S3BucketInterface.create_from_environment(s3_bucket)
         if not s3_client or not key:
             raise GearExecutionError(f"Unable to access S3 file {self.s3_file}")
 

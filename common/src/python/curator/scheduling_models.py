@@ -180,7 +180,7 @@ class ProcessedFile(BaseModel):
     """
 
     # unfortunately FW objects are not serializable so we cannot use FileEntry directly
-    # minimally store name, file_id, and tags instead
+    # so store minimal attributes instead
     name: str
     file_id: str
     tags: Optional[List[str]] = None

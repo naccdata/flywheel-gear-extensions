@@ -240,8 +240,8 @@ class FormCurator(Curator):
             )
 
     def __handle_failed_file(self, file_entry: FileEntry, reason: str) -> None:
-        """Handle when a file fails curation. Needs to both remove
-        the curation tag and add it to the failed files.
+        """Handle when a file fails curation. Needs to both remove the curation
+        tag and add it to the failed files.
 
         Args:
             file_entry: The file that failed
@@ -251,7 +251,7 @@ class FormCurator(Curator):
         if self.curation_tag in file_entry.tags:
             file_entry.delete_tag(self.curation_tag)
 
-        self.__failed_files(generate_curation_failure(file_entry, reason))
+        self.__failed_files.append(generate_curation_failure(file_entry, reason))
 
     def execute(
         self,
@@ -375,9 +375,11 @@ class FormCurator(Curator):
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
         self.back_propagate_scopes(
-            subject, scoped_files, "derived",
+            subject,
+            scoped_files,
+            "derived",
             self.__scoped_variables,
-            derived.get("cross-sectional", None)
+            derived.get("cross-sectional", None),
         )
 
         # 6. push curation to FW
@@ -478,7 +480,7 @@ class FormCurator(Curator):
             log.debug(f"Tagging UDS participant: {subject.label}")
             subject.add_tag(uds_tag)
 
-    def back_propagate_scopes(
+    def back_propagate_scopes(  # noqa: C901
         self,
         subject: Subject,
         scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
@@ -508,9 +510,7 @@ class FormCurator(Curator):
             )
             return
 
-        result: Dict[str, Dict[str, Any]] = {
-            scope: {} for scope in scope_reference
-        }
+        result: Dict[str, Dict[str, Any]] = {scope: {} for scope in scope_reference}
 
         for k, v in cs_variables.items():
             for scope, scoped_vars in scope_reference.items():
