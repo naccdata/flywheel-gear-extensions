@@ -13,7 +13,7 @@ from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import given
 from hypothesis import strategies as st
@@ -208,8 +208,8 @@ def _process_csv_with_event_logging(
     mock_qc_creator.update_qc_log.return_value = True
 
     # Create mock event logging dependencies
-    mock_event_logger = Mock()
-    mock_event_logger.log_event.return_value = None
+    mock_event_capture = Mock()
+    mock_event_capture.capture_event.return_value = None
 
     # Create visitors WITH event logging
     identifier_visitor = NACCIDLookupVisitor(
@@ -230,11 +230,11 @@ def _process_csv_with_event_logging(
         module_name="uds",  # Use valid module name
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="test-center",
         project_label="test-project",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=error_writer,
         timestamp=datetime.now(),

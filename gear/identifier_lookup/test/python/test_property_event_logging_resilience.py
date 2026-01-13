@@ -13,8 +13,8 @@ from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -78,19 +78,19 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
     mock_qc_creator.update_qc_log.return_value = True
 
     # Create mock event logger that fails on a specific row
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
     # Track call count to determine when to fail
     call_count = [0]
 
-    def log_event_with_failure(event):
-        """Mock log_event that fails on a specific row."""
+    def capture_event_with_failure(event):
+        """Mock capture_event that fails on a specific row."""
         if call_count[0] == failure_row:
             call_count[0] += 1
             raise RuntimeError(f"Simulated event logging failure for row {failure_row}")
         call_count[0] += 1
 
-    mock_event_logger.log_event = Mock(side_effect=log_event_with_failure)
+    mock_event_capture.capture_event = Mock(side_effect=capture_event_with_failure)
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -114,11 +114,11 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -192,9 +192,10 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
     )
 
     # Verify event logger was called for all rows (including the one that failed)
-    assert mock_event_logger.log_event.call_count == len(ptids), (
+    assert mock_event_capture.capture_event.call_count == len(ptids), (
         f"Event logger should be called for all rows. "
-        f"Expected {len(ptids)} calls, got {mock_event_logger.log_event.call_count}"
+        f"Expected {len(ptids)} calls, got "
+        f"{mock_event_capture.capture_event.call_count}"
     )
 
     # Verify all output rows have correct NACCIDs
@@ -246,8 +247,8 @@ def test_event_logging_resilience_multiple_failures():
     mock_qc_creator.update_qc_log.return_value = True
 
     # Create mock event logger that always fails
-    mock_event_logger = Mock(spec=VisitEventLogger)
-    mock_event_logger.log_event = Mock(
+    mock_event_capture = Mock(spec=VisitEventCapture)
+    mock_event_capture.capture_event = Mock(
         side_effect=RuntimeError("Simulated event logging failure")
     )
 
@@ -273,11 +274,11 @@ def test_event_logging_resilience_multiple_failures():
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -353,9 +354,10 @@ def test_event_logging_resilience_multiple_failures():
     )
 
     # Verify event logger was called for all rows (all failed)
-    assert mock_event_logger.log_event.call_count == len(ptids), (
-        f"Event logger should be called for all rows. "
-        f"Expected {len(ptids)} calls, got {mock_event_logger.log_event.call_count}"
+    assert mock_event_capture.capture_event.call_count == len(ptids), (
+        "Event logger should be called for all rows. "
+        f"Expected {len(ptids)} calls, got "
+        f"{mock_event_capture.capture_event.call_count}"
     )
 
     # Verify all output rows have correct NACCIDs

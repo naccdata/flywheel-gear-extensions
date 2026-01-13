@@ -14,8 +14,8 @@ from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -76,8 +76,8 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
     mock_qc_creator.update_qc_log.return_value = True
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
-    mock_event_logger.log_event = Mock()
+    mock_event_capture = Mock(spec=VisitEventCapture)
+    mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -101,11 +101,11 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -152,9 +152,10 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
 
     # Assert - Verify submit events were created
     assert header_result, "Header processing should succeed"
-    assert mock_event_logger.log_event.call_count == len(ptids), (
+    assert mock_event_capture.capture_event.call_count == len(ptids), (
         f"Submit events should be created for NACC direction with QC logging. "
-        f"Expected {len(ptids)} events, got {mock_event_logger.log_event.call_count}"
+        f"Expected {len(ptids)} events, got "
+        f"{mock_event_capture.capture_event.call_count}"
     )
 
 
@@ -334,4 +335,4 @@ def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
 
     # The key assertion: without QC logging, no event logging occurs
     # This is verified by the fact that we only use NACCIDLookupVisitor
-    # without CSVLoggingVisitor
+    # without CSVCaptureVisitor

@@ -10,9 +10,9 @@ from io import StringIO
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import VisitEvent
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
+from event_capture.visit_events import VisitEvent
 from hypothesis import given
 from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
@@ -117,7 +117,7 @@ def test_property_event_metadata_correctness(csv_row, metadata):
     mock_qc_creator = Mock()
     mock_qc_creator.update_qc_log.return_value = True
 
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
     # Create visitors
     error_writer = ListErrorWriter(container_id="test", fw_path="test/path")
@@ -142,11 +142,11 @@ def test_property_event_metadata_correctness(csv_row, metadata):
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label=metadata["center_label"],
         project_label=metadata["project_label"],
         gear_name=metadata["gear_name"],
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=error_writer,
         timestamp=metadata["timestamp"],
@@ -166,8 +166,8 @@ def test_property_event_metadata_correctness(csv_row, metadata):
     aggregate_visitor.visit_row(csv_row, 1)
 
     # Assert - Verify event metadata correctness
-    mock_event_logger.log_event.assert_called_once()
-    event_call = mock_event_logger.log_event.call_args[0][0]
+    mock_event_capture.capture_event.assert_called_once()
+    event_call = mock_event_capture.capture_event.call_args[0][0]
     assert isinstance(event_call, VisitEvent)
 
     # Verify all metadata fields are correct
@@ -242,7 +242,7 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
     mock_qc_creator = Mock()
     mock_qc_creator.update_qc_log.return_value = True
 
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
     # Create visitors
     error_writer = ListErrorWriter(container_id="test", fw_path="test/path")
@@ -267,11 +267,11 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label=metadata["center_label"],
         project_label=metadata["project_label"],
         gear_name=metadata["gear_name"],
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=error_writer,
         timestamp=metadata["timestamp"],
@@ -293,9 +293,9 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
         aggregate_visitor.visit_row(row, line_num)
 
     # Assert - Verify metadata correctness for all events
-    assert mock_event_logger.log_event.call_count == len(csv_rows)
+    assert mock_event_capture.capture_event.call_count == len(csv_rows)
 
-    for i, call in enumerate(mock_event_logger.log_event.call_args_list):
+    for i, call in enumerate(mock_event_capture.capture_event.call_args_list):
         event_call = call[0][0]
         assert isinstance(event_call, VisitEvent)
 

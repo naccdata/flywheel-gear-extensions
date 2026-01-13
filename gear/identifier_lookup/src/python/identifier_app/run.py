@@ -14,8 +14,8 @@ from error_logging.qc_status_log_creator import (
     QCStatusLogManager,
 )
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -61,7 +61,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         gear_name: str,
         preserve_case: bool,
         config_input: Optional[InputFileWrapper] = None,
-        event_logger: Optional[VisitEventLogger] = None,
+        event_capture: Optional[VisitEventCapture] = None,
         module: Optional[str] = None,
         single_center: bool = True,
     ):
@@ -73,7 +73,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
         self.__config_input = config_input
-        self.__event_logger = event_logger
+        self.__event_capture = event_capture
         self.__module = module
         self.__single_center = single_center
 
@@ -111,31 +111,33 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # Note: form_configs_file is optional for 'nacc' direction
         # When not provided, only basic identifier lookup will be performed
 
-        # Initialize event logger for nacc direction with QC logging
-        event_logger = None
+        # Initialize visit event capture for nacc direction with QC logging
+        event_capture = None
         if direction == "nacc" and config_input is not None:
-            # Get event logging parameters - required when event logging is enabled
+            # Get visit event capture parameters - required when capture is enabled
             event_environment = context.config.get("event_environment")
             event_bucket = context.config.get("event_bucket")
 
             if not event_environment or not event_bucket:
                 raise GearExecutionError(
                     "event_environment and event_bucket are required when using "
-                    "nacc direction with form configs for event logging"
+                    "nacc direction with form configs for visit event capture"
                 )
 
             try:
                 s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
-                event_logger = VisitEventLogger(
+                event_capture = VisitEventCapture(
                     s3_bucket=s3_bucket, environment=event_environment
                 )
                 log.info(
-                    f"Event logging initialized for environment '{event_environment}' "
+                    "Visit event capture initialized for environment "
+                    f"'{event_environment}' "
                     f"with bucket '{event_bucket}'"
                 )
             except Exception as error:
                 raise GearExecutionError(
-                    f"Failed to initialize event logging: Unable to access S3 bucket "
+                    "Failed to initialize visit event capture:"
+                    "Unable to access S3 bucket "
                     f"'{event_bucket}'. Error: {error}"
                 ) from error
 
@@ -148,7 +150,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             direction=direction,
             preserve_case=preserve_case,
             config_input=config_input,
-            event_logger=event_logger,
+            event_capture=event_capture,
             module=module,
             single_center=single_center,
         )
@@ -250,17 +252,17 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             )
             visitors.append(qc_visitor)
 
-        # Add event logging visitor if we have both event logger and module configs
-        if self.__event_logger and module_configs:
+        # Add event capture visitor if we have both event capture and module configs
+        if self.__event_capture and module_configs:
             # Extract center label and project label from project adaptor
             center_label = project.group  # Use group as center label
             project_label = project.label
 
-            event_visitor = CSVLoggingVisitor(
+            event_visitor = CSVCaptureVisitor(
                 center_label=center_label,
                 project_label=project_label,
                 gear_name=self.__gear_name,
-                event_logger=self.__event_logger,
+                event_capture=self.__event_capture,
                 module_configs=module_configs,
                 error_writer=error_writer,
                 timestamp=timestamp,
@@ -350,7 +352,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             misc_errors: List[FileError] = []
 
             if self.__direction == "nacc":
-                # Extract file creation timestamp for event logging
+                # Extract file creation timestamp for visit event capture
                 file_entry = self.__file_input.file_entry(context)
                 timestamp = file_entry.created
 

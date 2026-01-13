@@ -13,8 +13,8 @@ from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -83,15 +83,15 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
         mock_qc_creator.update_qc_log = Mock(return_value=True)
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
-    # For event visitor failure, make log_event raise an exception
+    # For event visitor failure, make capture_event raise an exception
     if failing_visitor == "event":
-        mock_event_logger.log_event = Mock(
+        mock_event_capture.capture_event = Mock(
             side_effect=RuntimeError("Simulated event logging failure")
         )
     else:
-        mock_event_logger.log_event = Mock()
+        mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -115,11 +115,11 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -184,7 +184,7 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
         # Event logging won't be called because rows are missing required fields
         # (no NACCID when identifier lookup fails). This is correct behavior -
         # event logging should only happen for valid visits.
-        assert mock_event_logger.log_event.call_count == 0, (
+        assert mock_event_capture.capture_event.call_count == 0, (
             "Event logging should not be called for rows missing required fields"
         )
 
@@ -211,7 +211,7 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
             "Identifier lookup should still produce output despite QC logging failure"
         )
 
-        assert mock_event_logger.log_event.call_count == len(ptids), (
+        assert mock_event_capture.capture_event.call_count == len(ptids), (
             "Event logging should still be called despite QC logging failure"
         )
 
@@ -293,8 +293,8 @@ def test_visitor_independence_partial_failures():
     mock_qc_creator.update_qc_log = Mock(return_value=True)
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
-    mock_event_logger.log_event = Mock()
+    mock_event_capture = Mock(spec=VisitEventCapture)
+    mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -318,11 +318,11 @@ def test_visitor_independence_partial_failures():
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -388,10 +388,10 @@ def test_visitor_independence_partial_failures():
 
     # Event logging should only be called for rows with valid identifiers
     # (rows without identifiers are missing required fields for event logging)
-    assert mock_event_logger.log_event.call_count == len(identifiers), (
+    assert mock_event_capture.capture_event.call_count == len(identifiers), (
         f"Event logging should be called only for rows with valid "
         f"identifiers. Expected {len(identifiers)} calls, "
-        f"got {mock_event_logger.log_event.call_count}"
+        f"got {mock_event_capture.capture_event.call_count}"
     )
 
     # Identifier lookup should produce output only for successful rows

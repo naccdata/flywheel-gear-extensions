@@ -13,8 +13,8 @@ from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
-from event_logging.csv_logging_visitor import CSVLoggingVisitor
-from event_logging.event_logger import VisitEventLogger
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -84,15 +84,15 @@ def test_success_determination_with_valid_identifiers(
         mock_qc_creator.update_qc_log = Mock(return_value=True)
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
     # Optionally make event logging fail
     if event_logging_fails:
-        mock_event_logger.log_event = Mock(
+        mock_event_capture.capture_event = Mock(
             side_effect=RuntimeError("Simulated event logging failure")
         )
     else:
-        mock_event_logger.log_event = Mock()
+        mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -116,11 +116,11 @@ def test_success_determination_with_valid_identifiers(
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -240,15 +240,15 @@ def test_success_determination_with_invalid_identifiers(
         mock_qc_creator.update_qc_log = Mock(return_value=True)
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
+    mock_event_capture = Mock(spec=VisitEventCapture)
 
     # Optionally make event logging fail
     if event_logging_fails:
-        mock_event_logger.log_event = Mock(
+        mock_event_capture.capture_event = Mock(
             side_effect=RuntimeError("Simulated event logging failure")
         )
     else:
-        mock_event_logger.log_event = Mock()
+        mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -272,11 +272,11 @@ def test_success_determination_with_invalid_identifiers(
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -384,8 +384,8 @@ def test_success_determination_mixed_results():
     mock_qc_creator.update_qc_log = Mock(return_value=True)
 
     # Create mock event logger
-    mock_event_logger = Mock(spec=VisitEventLogger)
-    mock_event_logger.log_event = Mock()
+    mock_event_capture = Mock(spec=VisitEventCapture)
+    mock_event_capture.capture_event = Mock()
 
     # Create timestamp for events
     timestamp = datetime(2024, 1, 1, 12, 0, 0)
@@ -409,11 +409,11 @@ def test_success_determination_mixed_results():
         module_name="uds",
     )
 
-    event_visitor = CSVLoggingVisitor(
+    event_visitor = CSVCaptureVisitor(
         center_label="TEST_CENTER",
         project_label="TEST_PROJECT",
         gear_name="identifier-lookup",
-        event_logger=mock_event_logger,
+        event_capture=mock_event_capture,
         module_configs=uds_ingest_configs(),
         error_writer=shared_error_writer,
         timestamp=timestamp,
@@ -486,6 +486,6 @@ def test_success_determination_mixed_results():
     )
 
     # Event logging should only be called for successful identifier lookups
-    assert mock_event_logger.log_event.call_count == len(identifiers), (
+    assert mock_event_capture.capture_event.call_count == len(identifiers), (
         "Event logging should be called only for successful identifier lookups"
     )
