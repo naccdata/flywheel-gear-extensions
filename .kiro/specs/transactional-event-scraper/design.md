@@ -66,7 +66,7 @@ class EventScraper:
         date_filter: Optional[DateRange] = None
     )
     
-    def scrape_events(self) -> ScrapingResults
+    def scrape_events(self) -> ProcessingStatistics
 ```
 
 #### LogFileProcessor
@@ -106,11 +106,11 @@ class EventData(BaseModel):
     qc_completion_timestamp: Optional[datetime]
 ```
 
-#### ScrapingResults
-Summary of scraping operation results.
+#### ProcessingStatistics
+Statistics from the processing operation.
 
 ```python
-class ScrapingResults(BaseModel):
+class ProcessingStatistics(BaseModel):
     files_processed: int
     submission_events_created: int
     pass_qc_events_created: int
