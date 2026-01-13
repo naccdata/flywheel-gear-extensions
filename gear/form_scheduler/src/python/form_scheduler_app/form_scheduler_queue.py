@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
-from event_capture.event_logger import VisitEventCapture
+from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError

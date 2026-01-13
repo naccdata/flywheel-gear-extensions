@@ -10,7 +10,7 @@ from nacc_common.error_models import (
     QC_STATUS_PASS,
     VisitMetadata,
 )
-from test_mocks.mock_event_logging import MockVisitEventCapture
+from test_mocks.mock_event_capture import MockVisitEventCapture
 from test_mocks.mock_factories import (
     FileEntryFactory,
     QCMetadataFactory,

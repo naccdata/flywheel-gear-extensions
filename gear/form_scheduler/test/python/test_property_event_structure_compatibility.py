@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from unittest.mock import Mock
 
-from event_capture.event_logger import VisitEventCapture
+from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import EventAccumulator

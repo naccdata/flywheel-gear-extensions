@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from event_capture.event_logger import VisitEventCapture
+from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent
 
 
