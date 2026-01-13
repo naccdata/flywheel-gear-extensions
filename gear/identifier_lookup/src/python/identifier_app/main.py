@@ -4,24 +4,19 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
-from error_logging.error_logger import update_error_log_and_qc_metadata
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
 from identifiers.model import IdentifierObject, clean_ptid
-from inputs.center_validator import CenterValidator
-from inputs.csv_reader import CSVVisitor, read_csv
-from nacc_common.error_models import FileError, VisitKeys
+from inputs.csv_reader import CSVVisitor, RowValidator, read_csv
+from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,
     missing_field_error,
-    system_error,
     unexpected_value_error,
 )
 from outputs.outputs import CSVWriter
@@ -39,43 +34,57 @@ class NACCIDLookupVisitor(CSVVisitor):
     def __init__(
         self,
         *,
-        adcid: int,
-        identifiers: Dict[str, IdentifierObject],
+        identifiers_repo: IdentifierRepository,
         output_file: TextIO,
-        module_name: str,
-        module_configs: ModuleConfigs,
+        module_name: Optional[str],
+        required_fields: Optional[List[str]],
         error_writer: ListErrorWriter,
-        gear_name: str,
         misc_errors: List[FileError],
-        project: Optional[ProjectAdaptor] = None,
+        validator: Optional[RowValidator] = None,
+        reset_errors_per_row: bool = True,
     ) -> None:
         """
         Args:
-            adcid: ADCID for the center
-            identifiers: the map from PTID to Identifier object
+            identifiers_repo: identifiers repo to pull identifiers from
             output_file: the data output stream
-            module_name: the module name for the form
-            module_configs: form ingest configurations for the module
+            module_name: the module name for the form, if known
+            required_fields: list of required fields for header validation
             error_writer: the error output writer
-            gear_name: gear name
             misc_errors: list to store errors occur while updating visit error log
-            project: Flywheel project adaptor
+            validator: optional row validator for ADCID and PTID validation
+            reset_errors_per_row: whether or not to reset errors per row
         """
-        self.__identifiers = identifiers
+        self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__module_name = module_name
-        self.__module_configs = module_configs
-        self.__project = project
-        self.__gear_name = gear_name
+        self.__required_fields = required_fields
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
-        self.__validator = CenterValidator(
-            center_id=adcid,
-            date_field=module_configs.date_field,
-            error_writer=error_writer,
-        )
+        self.__validator = validator
         self.__misc_errors = misc_errors
+        self.__reset_errors_per_row = reset_errors_per_row
+
+        self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
+
+    def __get_identifiers(self, adcid: int) -> Dict[str, IdentifierObject]:
+        """Gets all of the Identifier objects from the identifier database for
+        the specified center.
+
+        Args:
+          adcid: the ADCID for the center
+
+        Returns:
+          the dictionary mapping from PTID to Identifier object
+        """
+        identifiers = {}
+        center_identifiers = self.__identifiers_repo.list(adcid=adcid)
+        if center_identifiers:
+            identifiers = {
+                identifier.ptid: identifier for identifier in center_identifiers
+            }
+
+        return identifiers
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -103,15 +112,17 @@ class NACCIDLookupVisitor(CSVVisitor):
           True if required fields occur in the header, False otherwise
         """
 
-        if self.__module_configs.required_fields:
-            req_fields = set(self.__module_configs.required_fields)
+        if self.__required_fields:
+            req_fields = set(self.__required_fields)
             if not req_fields.issubset(set(header)):
                 self.__error_writer.write(missing_field_error(req_fields))
                 return False
 
         self.__header = header
         self.__header.append(FieldNames.NACCID)
-        self.__header.append(FieldNames.MODULE)
+
+        if self.__module_name:
+            self.__header.append(FieldNames.MODULE)
 
         return True
 
@@ -131,15 +142,39 @@ class NACCIDLookupVisitor(CSVVisitor):
         """
 
         # processing a new row, clear previous errors if any
-        self.__error_writer.clear()
+        if self.__reset_errors_per_row:
+            self.__error_writer.clear()
 
-        # check for valid ADCID and PTID
-        if not self.__validator.check(row=row, line_number=line_num):
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
+        # check for valid ADCID and PTID if validator is provided
+        if self.__validator and not self.__validator.check(
+            row=row, line_number=line_num
+        ):
             return False
 
         ptid = clean_ptid(row[FieldNames.PTID])
-        identifier = self.__identifiers.get(ptid)
+
+        try:
+            adcid = int(row[FieldNames.ADCID])
+            if adcid not in self.__identifiers_cache:
+                self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
+
+        except (ValueError, TypeError):
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=FieldNames.ADCID,
+                    value=row[FieldNames.ADCID],
+                    expected="valid ADCID",
+                    line=line_num,
+                    message="invalid ADCID",
+                )
+            )
+            return False
+        except IdentifierRepositoryError as e:
+            raise GearExecutionError(
+                f"Unable to load center participant IDs for {adcid}: {e}"
+            ) from e
+
+        identifier = self.__identifiers_cache[adcid].get(ptid)
         if not identifier:
             self.__error_writer.write(
                 identifier_error(
@@ -148,90 +183,15 @@ class NACCIDLookupVisitor(CSVVisitor):
                     message="No matching NACCID found for the given PTID",
                 )
             )
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
             return False
 
         row[FieldNames.NACCID] = identifier.naccid
-        row[FieldNames.MODULE] = self.__module_name
 
-        if not self.__update_visit_error_log(input_record=row, qc_passed=True):
-            return False
+        if self.__module_name:
+            row[FieldNames.MODULE] = self.__module_name
 
         writer = self.__get_writer()
         writer.write(row)
-
-        return True
-
-    def __update_visit_error_log(
-        self, *, input_record: Dict[str, Any], qc_passed: bool
-    ) -> bool:
-        """Update error log file for the visit and store error metadata in
-        file.info.qc.
-
-        Args:
-            input_record: input visit record
-            qc_passed: whether the visit passed QC checks
-
-        Returns:
-            bool: False if errors occur while updating log file
-        """
-
-        if not self.__project:
-            raise GearExecutionError(
-                "Parent project not specified to upload visit error log"
-            )
-
-        errorlog_template = (
-            self.__module_configs.errorlog_template
-            if self.__module_configs.errorlog_template
-            else ErrorLogTemplate(
-                id_field=FieldNames.PTID, date_field=self.__module_configs.date_field
-            )
-        )
-        error_log_name = errorlog_template.instantiate(
-            module=self.__module_name, record=input_record
-        )
-
-        if not error_log_name:
-            message = (
-                f"Invalid values found for "
-                f"{FieldNames.PTID} ({input_record[FieldNames.PTID]}) or "
-                f"{self.__module_configs.date_field} "
-                f"({input_record[self.__module_configs.date_field]})"
-            )
-            self.__misc_errors.append(
-                unexpected_value_error(
-                    field=f"{FieldNames.PTID} or {self.__module_configs.date_field}",
-                    value="",
-                    expected="",
-                    message=message,
-                )
-            )
-            return False
-
-        # This is first gear in pipeline validating individual rows
-        # therefore, clear metadata from previous runs `reset_qc_metadata=ALL`
-        if not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self.__project,
-            gear_name=self.__gear_name,
-            state="PASS" if qc_passed else "FAIL",
-            errors=self.__error_writer.errors(),
-            reset_qc_metadata="ALL",
-        ):
-            message = (
-                "Failed to update error log for visit "
-                f"{input_record[FieldNames.PTID]}_{input_record[self.__module_configs.date_field]}"
-            )
-            self.__misc_errors.append(
-                system_error(
-                    message=message,
-                    visit_keys=VisitKeys.create_from(
-                        record=input_record, date_field=self.__module_configs.date_field
-                    ),
-                )
-            )
-            return False
 
         return True
 

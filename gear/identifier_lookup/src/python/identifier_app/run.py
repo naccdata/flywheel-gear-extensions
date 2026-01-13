@@ -2,11 +2,20 @@
 
 import logging
 import os
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, TextIO
+from typing import List, Literal, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
+from error_logging.error_logger import ErrorLogTemplate
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
+)
+from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
+from event_capture.csv_capture_visitor import CSVCaptureVisitor
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -21,40 +30,21 @@ from identifier_app.main import CenterLookupVisitor, NACCIDLookupVisitor, run
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
     IdentifierRepository,
-    IdentifierRepositoryError,
 )
-from identifiers.model import IdentifierObject, IdentifiersMode
-from inputs.csv_reader import CSVVisitor
+from identifiers.model import IdentifiersMode
+from inputs.center_validator import CenterValidator
+from inputs.csv_reader import AggregateCSVVisitor, CSVVisitor, visit_all_strategy
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.error_models import FileError
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
+from s3.s3_bucket import S3BucketInterface
 from utils.utils import load_form_ingest_configurations
 
 log = logging.getLogger(__name__)
-
-
-def get_identifiers(
-    identifiers_repo: IdentifierRepository, adcid: int
-) -> Dict[str, IdentifierObject]:
-    """Gets all of the Identifier objects from the identifier database for the
-    specified center.
-
-    Args:
-      identifiers_repo: identifiers repository
-      adcid: the ADCID for the center
-
-    Returns:
-      the dictionary mapping from PTID to Identifier object
-    """
-    identifiers = {}
-    center_identifiers = identifiers_repo.list(adcid=adcid)
-    if center_identifiers:
-        identifiers = {identifier.ptid: identifier for identifier in center_identifiers}
-
-    return identifiers
 
 
 class IdentifierLookupVisitor(GearExecutionEnvironment):
@@ -71,6 +61,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         gear_name: str,
         preserve_case: bool,
         config_input: Optional[InputFileWrapper] = None,
+        event_capture: Optional[VisitEventCapture] = None,
+        module: Optional[str] = None,
+        single_center: bool = True,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -80,6 +73,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__gear_name = gear_name
         self.__preserve_case = preserve_case
         self.__config_input = config_input
+        self.__event_capture = event_capture
+        self.__module = module
+        self.__single_center = single_center
 
     @classmethod
     def create(
@@ -91,7 +87,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
           context: the gear context
           parameter_store: the parameter store
         Raises:
-          GearExecutionError if rds parameter path is not set
+          GearExecutionError if rds parameter path is not set or S3 bucket is not
+            accessible
         """
         assert parameter_store, "Parameter store expected"
 
@@ -108,9 +105,41 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         direction = context.config.get("direction", "nacc")
         preserve_case = context.config.get("preserve_case", False)
         gear_name = context.manifest.get("name", "identifier-lookup")
+        module = context.config.get("module")
+        single_center = context.config.get("single_center", True)
 
-        if config_input is None and direction == "nacc":
-            raise GearExecutionError("form_configs_file required for 'nacc' direction")
+        # Note: form_configs_file is optional for 'nacc' direction
+        # When not provided, only basic identifier lookup will be performed
+
+        # Initialize visit event capture for nacc direction with QC logging
+        event_capture = None
+        if direction == "nacc" and config_input is not None:
+            # Get visit event capture parameters - required when capture is enabled
+            event_environment = context.config.get("event_environment")
+            event_bucket = context.config.get("event_bucket")
+
+            if not event_environment or not event_bucket:
+                raise GearExecutionError(
+                    "event_environment and event_bucket are required when using "
+                    "nacc direction with form configs for visit event capture"
+                )
+
+            try:
+                s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
+                event_capture = VisitEventCapture(
+                    s3_bucket=s3_bucket, environment=event_environment
+                )
+                log.info(
+                    "Visit event capture initialized for environment "
+                    f"'{event_environment}' "
+                    f"with bucket '{event_bucket}'"
+                )
+            except Exception as error:
+                raise GearExecutionError(
+                    "Failed to initialize visit event capture:"
+                    "Unable to access S3 bucket "
+                    f"'{event_bucket}'. Error: {error}"
+                ) from error
 
         return IdentifierLookupVisitor(
             client=client,
@@ -121,6 +150,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             direction=direction,
             preserve_case=preserve_case,
             config_input=config_input,
+            event_capture=event_capture,
+            module=module,
+            single_center=single_center,
         )
 
     def __build_naccid_lookup(
@@ -131,61 +163,152 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         output_file: TextIO,
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
+        timestamp: datetime,
     ) -> CSVVisitor:
-        assert self.__config_input, "form_configs_file required for NACCID lookup"
+        # Determine module name using the new logic
+        module_configs: Optional[ModuleConfigs] = None
+        module_name: Optional[str] = None
 
-        module = self.__file_input.get_module_name_from_file_suffix()
-        if not module:
-            raise GearExecutionError(
-                f"Expect module suffix in input file name: {self.__file_input.filename}"
+        if self.__config_input:
+            module = self._determine_module()
+            module_name = module.lower()
+
+            try:
+                form_project_configs = load_form_ingest_configurations(
+                    self.__config_input.filepath
+                )
+            except ValidationError as error:
+                raise GearExecutionError(
+                    "Error reading form configurations file"
+                    f"{self.__config_input.filename}: {error}"
+                ) from error
+
+            if (
+                module not in form_project_configs.accepted_modules
+                or not form_project_configs.module_configs.get(module)
+            ):
+                raise GearExecutionError(
+                    f"Failed to find the configurations for module {module}"
+                )
+
+            module_configs = form_project_configs.module_configs.get(module)
+
+        center_validator = None
+        if module_configs and self.__single_center:
+            # Get basic project information
+            parent_project = file_input.get_parent_project(self.proxy)
+            project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+
+            try:
+                adcid = project.get_pipeline_adcid()
+            except (ProjectError, TypeError) as error:
+                raise GearExecutionError(error) from error
+
+            center_validator = CenterValidator(
+                center_id=adcid,
+                date_field=module_configs.date_field,
+                error_writer=error_writer,
             )
-        module = module.upper()
 
-        try:
-            form_project_configs = load_form_ingest_configurations(
-                self.__config_input.filepath
+        # Create identifier lookup visitor (always needed)
+        # Ensure essential fields are always included
+        essential_fields = [FieldNames.ADCID, FieldNames.PTID]
+        if module_configs and module_configs.required_fields:
+            # Combine module required fields with essential fields, avoiding duplicates
+            required_fields = list(
+                set(essential_fields + module_configs.required_fields)
             )
-        except ValidationError as error:
-            raise GearExecutionError(
-                "Error reading form configurations file"
-                f"{self.__config_input.filename}: {error}"
-            ) from error
-
-        if (
-            module not in form_project_configs.accepted_modules
-            or not form_project_configs.module_configs.get(module)
-        ):
-            raise GearExecutionError(
-                f"Failed to find the configurations for module {module}"
-            )
-
-        module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
-
-        parent_project = file_input.get_parent_project(self.proxy)
-        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
-
-        try:
-            adcid = project.get_pipeline_adcid()
-            identifiers = get_identifiers(
-                identifiers_repo=identifiers_repo, adcid=adcid
-            )
-        except (IdentifierRepositoryError, ProjectError, TypeError) as error:
-            raise GearExecutionError(error) from error
-
-        if not identifiers:
-            raise GearExecutionError("Unable to load center participant IDs")
-
-        return NACCIDLookupVisitor(
-            adcid=adcid,
-            identifiers=identifiers,
+        else:
+            required_fields = essential_fields
+        naccid_visitor = NACCIDLookupVisitor(
+            identifiers_repo=identifiers_repo,
             output_file=output_file,
-            module_name=module.lower(),
-            module_configs=module_configs,
+            module_name=module_name,
+            required_fields=required_fields,
             error_writer=error_writer,
-            gear_name=self.__gear_name,
-            project=project,
             misc_errors=misc_errors,
+            validator=center_validator,
+            reset_errors_per_row=bool(self.__config_input),
         )
+
+        # Start with just the identifier lookup visitor
+        visitors: List[CSVVisitor] = [naccid_visitor]
+
+        # Add QC status log visitor if we have module configs
+        if module_configs:
+            error_log_template = ErrorLogTemplate()
+            visit_annotator = FileVisitAnnotator(project=project)
+            qc_log_manager = QCStatusLogManager(
+                error_log_template=error_log_template, visit_annotator=visit_annotator
+            )
+
+            qc_visitor = QCStatusLogCSVVisitor(
+                module_configs=module_configs,
+                project=project,
+                qc_log_creator=qc_log_manager,
+                gear_name=self.__gear_name,
+                error_writer=error_writer,
+                module_name=module_name,
+            )
+            visitors.append(qc_visitor)
+
+        # Add event capture visitor if we have both event capture and module configs
+        if self.__event_capture and module_configs:
+            # Extract center label and project label from project adaptor
+            center_label = project.group  # Use group as center label
+            project_label = project.label
+
+            event_visitor = CSVCaptureVisitor(
+                center_label=center_label,
+                project_label=project_label,
+                gear_name=self.__gear_name,
+                event_capture=self.__event_capture,
+                module_configs=module_configs,
+                error_writer=error_writer,
+                timestamp=timestamp,
+                action="submit",
+                datatype="form",
+            )
+            visitors.append(event_visitor)
+
+        # Combine visitors based on what's available
+        return AggregateCSVVisitor(
+            visitors=visitors, strategy_builder=visit_all_strategy
+        )
+
+    def _determine_module(self) -> str:
+        """Determines the module name using filename suffix and/or config.
+
+        Returns:
+            The module name in uppercase
+
+        Raises:
+            GearExecutionError if no module can be determined or if there's a mismatch
+        """
+        # 1. Try to get module from filename suffix
+        filename_module = self.__file_input.get_module_name_from_file_suffix()
+
+        # 2. Get module from config if provided
+        config_module = self.__module
+
+        # 3. Determine final module based on priority and validation
+        if config_module:
+            # If config module is provided, use it
+            if filename_module and filename_module.upper() != config_module.upper():
+                raise GearExecutionError(
+                    f"Module mismatch: filename suggests '{filename_module}' but "
+                    f"config specifies '{config_module}'"
+                )
+            return config_module.upper()
+        elif filename_module:
+            # If no config module but filename has suffix, use filename
+            return filename_module.upper()
+        else:
+            # No module identified from either source
+            raise GearExecutionError(
+                f"No module identified: filename '{self.__file_input.filename}' has no "
+                f"module suffix and no module specified in config"
+            )
 
     def __build_center_lookup(
         self,
@@ -226,17 +349,21 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            clear_errors = False
             misc_errors: List[FileError] = []
+
             if self.__direction == "nacc":
+                # Extract file creation timestamp for visit event capture
+                file_entry = self.__file_input.file_entry(context)
+                timestamp = file_entry.created
+
                 lookup_visitor = self.__build_naccid_lookup(
                     file_input=self.__file_input,
                     identifiers_repo=identifiers_repo,
                     output_file=out_file,
                     error_writer=error_writer,
                     misc_errors=misc_errors,
+                    timestamp=timestamp,
                 )
-                clear_errors = True
             elif self.__direction == "center":
                 lookup_visitor = self.__build_center_lookup(
                     identifiers_repo=identifiers_repo,
@@ -248,7 +375,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 input_file=csv_file,
                 lookup_visitor=lookup_visitor,
                 error_writer=error_writer,
-                clear_errors=clear_errors,
+                clear_errors=bool(self.__config_input),
                 preserve_case=self.__preserve_case,
             )
 

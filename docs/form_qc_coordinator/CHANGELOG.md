@@ -2,9 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+* Integrates event logging functionality for enhanced QC status tracking and error reporting
+
 ## 1.4.1
 * Bug fixes and improvements
-
+* Fixes a bug in updating the visit error log
+  
 ## 1.4.0
 * Resets QC status and re-evaluates subsequent visits and modules
   
