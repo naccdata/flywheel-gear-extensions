@@ -17,6 +17,7 @@ from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     identifier_error,
     missing_field_error,
+    unexpected_value_error,
 )
 from outputs.outputs import CSVWriter
 
@@ -33,25 +34,27 @@ class NACCIDLookupVisitor(CSVVisitor):
     def __init__(
         self,
         *,
-        identifiers: Dict[str, IdentifierObject],
+        identifiers_repo: IdentifierRepository,
         output_file: TextIO,
-        module_name: str,
+        module_name: Optional[str],
         required_fields: Optional[List[str]],
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
         validator: Optional[RowValidator] = None,
+        reset_errors_per_row: bool = True,
     ) -> None:
         """
         Args:
-            identifiers: the map from PTID to Identifier object
+            identifiers_repo: identifiers repo to pull identifiers from
             output_file: the data output stream
-            module_name: the module name for the form
+            module_name: the module name for the form, if known
             required_fields: list of required fields for header validation
             error_writer: the error output writer
             misc_errors: list to store errors occur while updating visit error log
             validator: optional row validator for ADCID and PTID validation
+            reset_errors_per_row: whether or not to reset errors per row
         """
-        self.__identifiers = identifiers
+        self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
         self.__error_writer = error_writer
         self.__module_name = module_name
@@ -60,6 +63,28 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__writer: Optional[CSVWriter] = None
         self.__validator = validator
         self.__misc_errors = misc_errors
+        self.__reset_errors_per_row = reset_errors_per_row
+
+        self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
+
+    def __get_identifiers(self, adcid: int) -> Dict[str, IdentifierObject]:
+        """Gets all of the Identifier objects from the identifier database for
+        the specified center.
+
+        Args:
+          adcid: the ADCID for the center
+
+        Returns:
+          the dictionary mapping from PTID to Identifier object
+        """
+        identifiers = {}
+        center_identifiers = self.__identifiers_repo.list(adcid=adcid)
+        if center_identifiers:
+            identifiers = {
+                identifier.ptid: identifier for identifier in center_identifiers
+            }
+
+        return identifiers
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -95,7 +120,9 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         self.__header = header
         self.__header.append(FieldNames.NACCID)
-        self.__header.append(FieldNames.MODULE)
+
+        if self.__module_name:
+            self.__header.append(FieldNames.MODULE)
 
         return True
 
@@ -115,7 +142,8 @@ class NACCIDLookupVisitor(CSVVisitor):
         """
 
         # processing a new row, clear previous errors if any
-        self.__error_writer.clear()
+        if self.__reset_errors_per_row:
+            self.__error_writer.clear()
 
         # check for valid ADCID and PTID if validator is provided
         if self.__validator and not self.__validator.check(
@@ -124,7 +152,29 @@ class NACCIDLookupVisitor(CSVVisitor):
             return False
 
         ptid = clean_ptid(row[FieldNames.PTID])
-        identifier = self.__identifiers.get(ptid)
+
+        try:
+            adcid = int(row[FieldNames.ADCID])
+            if adcid not in self.__identifiers_cache:
+                self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
+
+        except (ValueError, TypeError):
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=FieldNames.ADCID,
+                    value=row[FieldNames.ADCID],
+                    expected="valid ADCID",
+                    line=line_num,
+                    message="invalid ADCID",
+                )
+            )
+            return False
+        except IdentifierRepositoryError as e:
+            raise GearExecutionError(
+                f"Unable to load center participant IDs for {adcid}: {e}"
+            ) from e
+
+        identifier = self.__identifiers_cache[adcid].get(ptid)
         if not identifier:
             self.__error_writer.write(
                 identifier_error(
@@ -136,7 +186,9 @@ class NACCIDLookupVisitor(CSVVisitor):
             return False
 
         row[FieldNames.NACCID] = identifier.naccid
-        row[FieldNames.MODULE] = self.__module_name
+
+        if self.__module_name:
+            row[FieldNames.MODULE] = self.__module_name
 
         writer = self.__get_writer()
         writer.write(row)

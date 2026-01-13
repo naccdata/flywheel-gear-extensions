@@ -23,6 +23,9 @@ from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
+from test_mocks.mock_identifiers_lambda_repository import (
+    MockIdentifiersLambdaRepository,
+)
 
 
 @given(
@@ -147,7 +150,7 @@ def _process_csv_without_event_logging(
 
     # Create visitors WITHOUT event logging
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",  # Use valid module name
         required_fields=uds_ingest_configs().required_fields,
@@ -210,7 +213,7 @@ def _process_csv_with_event_logging(
 
     # Create visitors WITH event logging
     identifier_visitor = NACCIDLookupVisitor(
-        identifiers=identifiers,
+        identifiers_repo=MockIdentifiersLambdaRepository(identifiers),
         output_file=output_stream,
         module_name="uds",  # Use valid module name
         required_fields=uds_ingest_configs().required_fields,
