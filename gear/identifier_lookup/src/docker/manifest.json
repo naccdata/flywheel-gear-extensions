@@ -1,7 +1,7 @@
 {
     "name": "identifier-lookup",
     "label": "Identifier Lookup",
-    "description": "Gear to look up participant identifiers for incoming data and log submission events when QC logging is enabled",
+    "description": "Gear to look up participant identifiers for incoming data and capture visit events when QC logging is enabled",
     "version": "2.2.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
@@ -78,7 +78,7 @@
             "default": true
         },
         "event_environment": {
-            "description": "Environment for event logging (prod or dev); only required when using nacc direction with form configs",
+            "description": "Environment for visit event capture (prod or dev); only required when using nacc direction with form configs",
             "type": "string",
             "optional": true,
             "enum": [
@@ -87,7 +87,7 @@
             ]
         },
         "event_bucket": {
-            "description": "S3 bucket name for event logs; only required when using nacc direction with form configs",
+            "description": "S3 bucket name for event capture; only required when using nacc direction with form configs",
             "type": "string",
             "optional": true
         },
