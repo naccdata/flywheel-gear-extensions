@@ -228,6 +228,7 @@ class TestActiveUserProcessIntegration:
         mock_environment.user_registry.get.return_value = []  # No person found
         mock_environment.user_registry.has_bad_claim.return_value = False
         mock_environment.user_registry.add.return_value = []
+        mock_environment.user_registry.coid = 123  # Set coid as integer
 
         process = ActiveUserProcess(mock_environment, error_collector)
 
@@ -809,6 +810,7 @@ class TestUserProcessIntegrationEndToEnd:
             mock_has_bad_claim_side_effect
         )
         mock_environment.user_registry.add.return_value = []
+        mock_environment.user_registry.coid = 123  # Set coid as integer
 
         process = ActiveUserProcess(mock_environment, error_collector)
 

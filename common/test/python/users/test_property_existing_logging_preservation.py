@@ -100,6 +100,7 @@ def mock_environment_strategy(draw):
     # Use simple, direct generation
     mock_env = Mock(spec=UserProcessEnvironment)
     mock_env.user_registry = Mock()
+    mock_env.user_registry.coid = 123  # Set coid as integer to avoid validation errors
     mock_env.proxy = Mock()
     mock_env.notification_client = Mock()
     return mock_env
