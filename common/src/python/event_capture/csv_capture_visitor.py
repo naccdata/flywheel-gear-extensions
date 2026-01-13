@@ -28,7 +28,7 @@ class CSVCaptureVisitor(CSVVisitor):
         self.__center_label = center_label
         self.__project_label = project_label
         self.__gear_name = gear_name
-        self.__event_capture = event_logger
+        self.__event_capture = event_capture
         self.__module_configs = module_configs
         self.__error_writer = error_writer
         self.__action: VisitEventType = action
