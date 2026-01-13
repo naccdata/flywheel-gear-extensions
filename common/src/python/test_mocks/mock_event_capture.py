@@ -2,12 +2,12 @@
 
 from unittest.mock import Mock
 
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import VisitEvent
+from event_capture.event_logger import VisitEventCapture
+from event_capture.visit_events import VisitEvent
 
 
-class MockVisitEventLogger(VisitEventLogger):
-    """Mock VisitEventLogger for testing.
+class MockVisitEventCapture(VisitEventCapture):
+    """Mock VisitEventCapture for testing.
 
     Stores logged events in a list for verification in tests.
     """
@@ -15,8 +15,8 @@ class MockVisitEventLogger(VisitEventLogger):
     def __init__(self):
         self.logged_events: list[VisitEvent] = []
 
-    def log_event(self, event: VisitEvent) -> None:
-        """Mock log_event that stores events."""
+    def capture_event(self, event: VisitEvent) -> None:
+        """Mock capture_event that stores events."""
         self.logged_events.append(event)
 
     def clear_events(self) -> None:
@@ -42,15 +42,15 @@ class MockVisitEventLogger(VisitEventLogger):
         return [event for event in self.logged_events if event.action == action]
 
 
-def create_mock_event_logger() -> Mock:
+def create_mock_event_capture() -> Mock:
     """Create a basic mock event logger for simple tests."""
-    return Mock(spec=VisitEventLogger)
+    return Mock(spec=VisitEventCapture)
 
 
-def create_failing_mock_event_logger(
+def create_failing_mock_event_capture(
     error_message: str = "Mock event logging failure",
 ) -> Mock:
     """Create a mock event logger that always fails."""
-    mock_logger = Mock(spec=VisitEventLogger)
-    mock_logger.log_event.side_effect = RuntimeError(error_message)
+    mock_logger = Mock(spec=VisitEventCapture)
+    mock_logger.capture_event.side_effect = RuntimeError(error_message)
     return mock_logger

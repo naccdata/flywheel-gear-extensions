@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from event_logging.visit_events import ACTION_PASS_QC, VisitEvent
+from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from nacc_common.error_models import VisitMetadata
 
 

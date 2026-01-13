@@ -17,7 +17,7 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitMetadata,
 )
-from test_mocks.mock_event_logging import MockVisitEventLogger
+from test_mocks.mock_event_logging import MockVisitEventCapture
 from test_mocks.mock_flywheel import (
     MockFile,
     MockFlywheelProxy,
@@ -207,9 +207,9 @@ class TestFormSchedulerQueueIntegration:
     """Integration tests for FormSchedulerQueue with EventAccumulator."""
 
     @pytest.fixture
-    def mock_event_logger(self) -> MockVisitEventLogger:
+    def mock_event_capture(self) -> MockVisitEventCapture:
         """Create mock event logger."""
-        return MockVisitEventLogger()
+        return MockVisitEventCapture()
 
     @pytest.fixture
     def mock_proxy(self) -> MockFlywheelProxy:
@@ -245,7 +245,7 @@ class TestFormSchedulerQueueIntegration:
     def test_form_scheduler_queue_integration_with_event_accumulator(
         self,
         mock_proxy: MockFlywheelProxy,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
         finalization_pipeline_config: PipelineConfigs,
     ) -> None:
         """Test FormSchedulerQueue integration with EventAccumulator.
@@ -301,7 +301,7 @@ class TestFormSchedulerQueueIntegration:
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_logger=mock_event_logger,
+            event_capture=mock_event_capture,
             email_client=None,
             portal_url=None,
         )
@@ -351,8 +351,8 @@ class TestFormSchedulerQueueIntegration:
         mock_trigger.assert_called_once()
 
         # Verify that event was logged by EventAccumulator
-        assert len(mock_event_logger.logged_events) == 1
-        event = mock_event_logger.logged_events[0]
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
 
         # Verify event details
         assert event.action == "pass-qc"
@@ -367,7 +367,7 @@ class TestFormSchedulerQueueIntegration:
     def test_form_scheduler_queue_error_handling_doesnt_affect_pipeline(
         self,
         mock_proxy: MockFlywheelProxy,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
         finalization_pipeline_config: PipelineConfigs,
     ) -> None:
         """Test that event logging errors don't affect pipeline processing.
@@ -403,7 +403,7 @@ class TestFormSchedulerQueueIntegration:
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_logger=mock_event_logger,
+            event_capture=mock_event_capture,
             email_client=None,
             portal_url=None,
         )
@@ -447,7 +447,7 @@ class TestFormSchedulerQueueIntegration:
         mock_trigger.assert_called_once()
 
         # Verify no events were logged due to error
-        assert len(mock_event_logger.logged_events) == 0
+        assert len(mock_event_capture.logged_events) == 0
 
     def test_form_scheduler_queue_missing_event_logger_configuration(
         self,
@@ -487,7 +487,7 @@ class TestFormSchedulerQueueIntegration:
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_logger=None,  # No event logger configured
+            event_capture=None,  # No event logger configured
             email_client=None,
             portal_url=None,
         )
@@ -534,7 +534,7 @@ class TestFormSchedulerQueueIntegration:
     def test_form_scheduler_queue_multiple_files_event_logging(
         self,
         mock_proxy: MockFlywheelProxy,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
         finalization_pipeline_config: PipelineConfigs,
     ) -> None:
         """Test FormSchedulerQueue event logging with multiple files.
@@ -616,7 +616,7 @@ class TestFormSchedulerQueueIntegration:
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_logger=mock_event_logger,
+            event_capture=mock_event_capture,
             email_client=None,
             portal_url=None,
         )
@@ -675,11 +675,11 @@ class TestFormSchedulerQueueIntegration:
         assert mock_trigger.call_count == 2
 
         # Verify that events were logged for both files
-        assert len(mock_event_logger.logged_events) == 2
+        assert len(mock_event_capture.logged_events) == 2
 
         # Verify event details for both files
         events_by_ptid = {
-            event.ptid: event for event in mock_event_logger.logged_events
+            event.ptid: event for event in mock_event_capture.logged_events
         }
 
         assert "adrc1003" in events_by_ptid

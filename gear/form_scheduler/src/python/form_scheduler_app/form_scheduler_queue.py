@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
-from event_logging.event_logger import VisitEventLogger
+from event_capture.event_logger import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -378,7 +378,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
-        event_logger: Optional[VisitEventLogger] = None,
+        event_capture: Optional[VisitEventCapture] = None,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -388,7 +388,7 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
-            event_logger: VisitEventLogger for logging visit events
+            event_capture: VisitEventCapture for logging visit events
                 (None to skip event logging)
             email_client: EmailClient to send emails from
             portal_url: The portal URL
@@ -396,7 +396,7 @@ class FormSchedulerQueue:
         self.__proxy = proxy
         self.__project = project
         self.__pipeline_configs = pipeline_configs
-        self.__event_logger = event_logger
+        self.__event_capture = event_logger
         self.__email_client = email_client
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
@@ -464,15 +464,15 @@ class FormSchedulerQueue:
             json_file: The JSON file that was processed
         """
         # Skip event logging entirely if event logger is not configured
-        if self.__event_logger is None:
+        if self.__event_capture is None:
             log.debug("Event logger not configured, skipping event logging")
             return
 
         try:
             from form_scheduler_app.event_accumulator import EventAccumulator
 
-            event_accumulator = EventAccumulator(event_logger=self.__event_logger)
-            event_accumulator.log_events(json_file=json_file, project=self.__project)
+            event_accumulator = EventAccumulator(event_capture=self.__event_capture)
+            event_accumulator.capture_events(json_file=json_file, project=self.__project)
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(

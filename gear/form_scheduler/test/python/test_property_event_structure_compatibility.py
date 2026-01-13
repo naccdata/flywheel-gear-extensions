@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from unittest.mock import Mock
 
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import ACTION_PASS_QC, VisitEvent
+from event_capture.event_logger import VisitEventCapture
+from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import EventAccumulator
 from hypothesis import given, settings
@@ -25,14 +25,14 @@ from test_mocks.strategies import json_file_strategy as shared_json_strategy
 from test_mocks.strategies import visit_metadata_strategy
 
 
-class MockVisitEventLogger(VisitEventLogger):
-    """Mock VisitEventLogger for testing."""
+class MockVisitEventCapture(VisitEventCapture):
+    """Mock VisitEventCapture for testing."""
 
     def __init__(self):
         self.logged_events: List[VisitEvent] = []
 
-    def log_event(self, event: VisitEvent) -> None:
-        """Mock log_event that stores events."""
+    def capture_event(self, event: VisitEvent) -> None:
+        """Mock capture_event that stores events."""
         self.logged_events.append(event)
 
 
@@ -128,8 +128,8 @@ def test_event_structure_compatibility(
     implementation.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor()
 
     # Create JSON file from visit metadata
@@ -171,7 +171,7 @@ def test_event_structure_compatibility(
     )
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event structure compatibility
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -259,8 +259,8 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
     as events created from QC status custom info.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor()
 
     # Create QC status file WITHOUT visit metadata in custom info (forces JSON fallback)
@@ -281,7 +281,7 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS, {}, qc_completion_time)
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event structure should be the same even with JSON fallback
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -320,8 +320,8 @@ def test_event_structure_required_fields():
     Events must contain all fields that downstream consumers expect.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor()
 
     # Create test JSON file with all fields
@@ -354,7 +354,7 @@ def test_event_structure_required_fields():
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS, {}, qc_completion_time)
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - All required fields present with correct values
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -399,8 +399,8 @@ def test_event_structure_s3_storage_compatibility():
     Events should be serializable and contain the structure expected by S3 storage.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor()
 
     # Create test JSON file
@@ -432,7 +432,7 @@ def test_event_structure_s3_storage_compatibility():
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS)
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event should be serializable (test JSON serialization)
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"

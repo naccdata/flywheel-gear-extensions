@@ -41,7 +41,7 @@ class TestMissingConfigurationHandling:
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_logger=None,  # Not configured
+            event_capture=None,  # Not configured
         )
 
         # Create test file
@@ -86,7 +86,7 @@ class TestMissingConfigurationHandling:
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_logger=None,
+            event_capture=None,
         )
 
         # Create completely valid inputs that would normally result in event logging
@@ -118,7 +118,7 @@ class TestMissingConfigurationHandling:
                 proxy=Mock(),
                 project=Mock(spec=ProjectAdaptor),
                 pipeline_configs=Mock(),
-                event_logger=None,
+                event_capture=None,
             )
             assert queue is not None
         except Exception as e:
@@ -143,7 +143,7 @@ class TestMissingConfigurationHandling:
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_logger=None,
+            event_capture=None,
         )
 
         json_file = Mock(spec=FileEntry)

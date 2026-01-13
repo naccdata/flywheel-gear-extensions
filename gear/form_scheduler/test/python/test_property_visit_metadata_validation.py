@@ -39,15 +39,15 @@ def create_mock_file_entry(
 
 
 @pytest.fixture
-def mock_event_logger():
+def mock_event_capture():
     """Create a mock event logger."""
     return Mock()
 
 
 @pytest.fixture
-def event_accumulator(mock_event_logger):
+def event_accumulator(mock_event_capture):
     """Create an EventAccumulator instance."""
-    return EventAccumulator(mock_event_logger)
+    return EventAccumulator(mock_event_capture)
 
 
 @given(valid_metadata=valid_visit_metadata_strategy())

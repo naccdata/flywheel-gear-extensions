@@ -10,7 +10,7 @@ from nacc_common.error_models import (
     QC_STATUS_PASS,
     VisitMetadata,
 )
-from test_mocks.mock_event_logging import MockVisitEventLogger
+from test_mocks.mock_event_logging import MockVisitEventCapture
 from test_mocks.mock_factories import (
     FileEntryFactory,
     QCMetadataFactory,
@@ -125,21 +125,21 @@ class TestEndToEndEventLogging:
     """Integration tests for end-to-end event logging flow."""
 
     @pytest.fixture
-    def mock_event_logger(self) -> MockVisitEventLogger:
+    def mock_event_capture(self) -> MockVisitEventCapture:
         """Create mock event logger."""
-        return MockVisitEventLogger()
+        return MockVisitEventCapture()
 
     @pytest.fixture
     def event_accumulator(
-        self, mock_event_logger: MockVisitEventLogger
+        self, mock_event_capture: MockVisitEventCapture
     ) -> EventAccumulator:
         """Create EventAccumulator instance."""
-        return EventAccumulator(event_logger=mock_event_logger)
+        return EventAccumulator(event_capture=mock_event_capture)
 
     def test_end_to_end_qc_pass_event_with_visit_metadata_from_custom_info(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test end-to-end flow: JSON file -> QC status discovery ->
         VisitMetadata extraction from custom info -> QC-pass event creation ->
@@ -197,11 +197,11 @@ class TestEndToEndEventLogging:
         )
 
         # Execute end-to-end event logging
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify QC-pass event was created and logged
-        assert len(mock_event_logger.logged_events) == 1
-        event = mock_event_logger.logged_events[0]
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
 
         # Verify event structure and content
         assert event.action == "pass-qc"
@@ -221,7 +221,7 @@ class TestEndToEndEventLogging:
     def test_end_to_end_qc_pass_event_with_visit_metadata_from_json_fallback(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test end-to-end flow with fallback to JSON file metadata when QC
         status custom info is not available.
@@ -269,11 +269,11 @@ class TestEndToEndEventLogging:
         )
 
         # Execute end-to-end event logging
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify QC-pass event was created using JSON file metadata
-        assert len(mock_event_logger.logged_events) == 1
-        event = mock_event_logger.logged_events[0]
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
 
         # Verify event structure and content from JSON fallback
         assert event.action == "pass-qc"
@@ -292,7 +292,7 @@ class TestEndToEndEventLogging:
     def test_end_to_end_qc_status_log_discovery_using_error_log_template(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test QC status log discovery using ErrorLogTemplate to generate
         expected filename from JSON file metadata.
@@ -347,11 +347,11 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging - should find QC file using ErrorLogTemplate
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify event was logged (confirms QC status log was found)
-        assert len(mock_event_logger.logged_events) == 1
-        event = mock_event_logger.logged_events[0]
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
 
         assert event.action == "pass-qc"
         assert event.ptid == "adrc1002"
@@ -362,7 +362,7 @@ class TestEndToEndEventLogging:
     def test_end_to_end_no_event_when_qc_status_not_pass(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test that no events are logged when QC status is not PASS.
 
@@ -406,15 +406,15 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify no events were logged (QC status is not PASS)
-        assert len(mock_event_logger.logged_events) == 0
+        assert len(mock_event_capture.logged_events) == 0
 
     def test_end_to_end_no_event_when_qc_status_log_not_found(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test that no events are logged when QC status log is not found.
 
@@ -438,15 +438,15 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify no events were logged (no QC status log found)
-        assert len(mock_event_logger.logged_events) == 0
+        assert len(mock_event_capture.logged_events) == 0
 
     def test_end_to_end_no_event_when_visit_metadata_invalid(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test that no events are logged when visit metadata is invalid.
 
@@ -490,15 +490,15 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify no events were logged (invalid visit metadata)
-        assert len(mock_event_logger.logged_events) == 0
+        assert len(mock_event_capture.logged_events) == 0
 
     def test_end_to_end_error_resilience_continues_processing(
         self,
         event_accumulator: EventAccumulator,
-        mock_event_logger: MockVisitEventLogger,
+        mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test that event logging errors don't stop processing.
 
@@ -523,10 +523,10 @@ class TestEndToEndEventLogging:
 
         # Execute event logging - should handle error gracefully
         # This should not raise an exception
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # Verify no events were logged due to error, but no exception was raised
-        assert len(mock_event_logger.logged_events) == 0
+        assert len(mock_event_capture.logged_events) == 0
 
     def test_end_to_end_missing_event_logger_configuration(self) -> None:
         """Test that event logging is skipped when event logger is None.
@@ -536,7 +536,7 @@ class TestEndToEndEventLogging:
         """
         # Create EventAccumulator with None event logger
         event_accumulator = EventAccumulator(
-            event_logger=None,  # type: ignore
+            event_capture=None,  # type: ignore
         )
 
         # Create JSON file
@@ -557,6 +557,6 @@ class TestEndToEndEventLogging:
 
         # Execute event logging - should handle None logger gracefully
         # This should not raise an exception
-        event_accumulator.log_events(json_file=json_file, project=project)
+        event_accumulator.capture_events(json_file=json_file, project=project)
 
         # No assertions needed - the test passes if no exception is raised
