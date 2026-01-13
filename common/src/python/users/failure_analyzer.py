@@ -10,7 +10,7 @@ from users.error_models import (
     UserContext,
 )
 from users.user_entry import RegisteredUserEntry
-from users.user_processes import UserProcessEnvironment
+from users.user_process_environment import UserProcessEnvironment
 
 
 class FailureAnalyzer:
