@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pytest
-from event_logging.visit_events import VisitEvent
+from event_capture.visit_events import VisitEvent
 
 
 class TestVisitEvent:

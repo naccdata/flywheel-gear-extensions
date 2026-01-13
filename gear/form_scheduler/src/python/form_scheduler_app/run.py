@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
-from event_logging.event_logger import VisitEventLogger
+from event_capture.event_logger import VisitEventCapture
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -151,7 +151,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
-        event_logger = VisitEventLogger(self.__event_bucket)
+        event_logger = VisitEventCapture(self.__event_bucket)
 
         # if source email specified, set up client to send emails
         email_client = (
@@ -171,7 +171,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             proxy=self.proxy,
             project=project,
             pipeline_configs=pipeline_configs,
-            event_logger=event_logger,
+            event_capture=event_logger,
             email_client=email_client,
             portal_url=self.__portal_url,
         )

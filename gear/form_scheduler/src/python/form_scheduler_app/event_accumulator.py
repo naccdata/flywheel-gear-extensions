@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from error_logging.error_logger import ErrorLogTemplate
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import ACTION_PASS_QC, VisitEvent
+from event_capture.event_logger import VisitEventCapture
+from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import (
@@ -86,14 +86,14 @@ class VisitMetadataExtractor:
 class EventAccumulator:
     """Simplified event accumulator for QC-pass events only."""
 
-    def __init__(self, event_logger: VisitEventLogger) -> None:
+    def __init__(self, event_capture: VisitEventCapture) -> None:
         """Initialize the simplified EventAccumulator.
 
         Args:
-            event_logger: Logger for visit events
+            event_capture: Logger for visit events
             datatype: Type of data being processed (default: "form")
         """
-        self.__event_logger = event_logger
+        self.__event_capture = event_logger
         self.__error_log_template = ErrorLogTemplate()
 
     def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:
@@ -241,7 +241,7 @@ class EventAccumulator:
             timestamp=qc_completion_time,
         )
 
-    def log_events(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
+    def capture_events(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
         """Log QC-pass events for a JSON file if it passes QC validation.
 
         Args:
@@ -283,7 +283,7 @@ class EventAccumulator:
                 qc_completion_time=qc_log_file.modified,
             )
             if visit_event:
-                self.__event_logger.log_event(visit_event)
+                self.__event_capture.capture_event(visit_event)
                 log.info("Logged QC-pass event for %s", json_file.name)
                 return
 

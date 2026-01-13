@@ -9,13 +9,13 @@ from datetime import datetime
 from unittest.mock import Mock
 
 from assertions import assert_valid_qc_pass_event
-from event_logging.visit_events import ACTION_PASS_QC
+from event_capture.visit_events import ACTION_PASS_QC
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import EventAccumulator
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import QC_STATUS_PASS
-from test_mocks.mock_event_logging import MockVisitEventLogger
+from test_mocks.mock_event_logging import MockVisitEventCapture
 from test_mocks.mock_factories import FileEntryFactory
 from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.strategies import json_file_strategy as shared_json_strategy
@@ -54,8 +54,8 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
       visits that fail QC validation.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor(
         label="ingest-form-mock", info={"pipeline_adcid": 2222}
     )
@@ -82,7 +82,7 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
     )
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Events should only be created for PASS status
     if qc_status == QC_STATUS_PASS:
@@ -120,14 +120,14 @@ def test_no_events_for_missing_qc_status(json_file: FileEntry):
       be created.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor(
         "ingest-form-mock"
     )  # Empty project with no QC status files
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - No events should be created
     assert len(mock_logger.logged_events) == 0, (
@@ -146,8 +146,8 @@ def test_qc_pass_event_structure():
       QC-pass events should have the correct action and all required fields.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor(
         label="ingest-form-mock", info={"pipeline_adcid": 1111}
     )
@@ -185,7 +185,7 @@ def test_qc_pass_event_structure():
     )
 
     # Act
-    event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -211,8 +211,8 @@ def test_multiple_json_files_mixed_qc_status():
       Only JSON files with PASS QC status should generate events.
     """
     # Arrange
-    mock_logger = MockVisitEventLogger()
-    event_accumulator = EventAccumulator(event_logger=mock_logger)
+    mock_logger = MockVisitEventCapture()
+    event_accumulator = EventAccumulator(event_capture=mock_logger)
     mock_project = MockProjectAdaptor(
         label="ingest-form-mock", info={"pipeline_adcid": 1111}
     )
@@ -260,7 +260,7 @@ def test_multiple_json_files_mixed_qc_status():
 
     # Act - Process each JSON file
     for json_file in json_files:
-        event_accumulator.log_events(json_file, mock_project)  # type: ignore[arg-type]
+        event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Only PASS files should generate events
     assert len(mock_logger.logged_events) == expected_pass_count, (

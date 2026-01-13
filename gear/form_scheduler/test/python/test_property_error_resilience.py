@@ -37,8 +37,8 @@ class TestErrorResilience:
               **Validates: Requirements 5.1**
         """
         # Create mock event logger
-        mock_event_logger = Mock()
-        accumulator = EventAccumulator(mock_event_logger)
+        mock_event_capture = Mock()
+        accumulator = EventAccumulator(mock_event_capture)
 
         # Create mock JSON file with varying levels of metadata
         mock_json_file = Mock(spec=FileEntry)
@@ -64,7 +64,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - errors should be handled gracefully
         try:
-            accumulator.log_events(mock_json_file, mock_project)
+            accumulator.capture_events(mock_json_file, mock_project)
             # If we get here, the error was handled gracefully
             assert True
         except Exception as e:
@@ -74,7 +74,7 @@ class TestErrorResilience:
             )
 
         # Event logger should not be called when QC status log is missing
-        mock_event_logger.log_event.assert_not_called()
+        mock_event_capture.capture_event.assert_not_called()
 
     @given(
         qc_content=st.one_of(
@@ -94,8 +94,8 @@ class TestErrorResilience:
               **Validates: Requirements 5.2**
         """
         # Create mock event logger
-        mock_event_logger = Mock()
-        accumulator = EventAccumulator(mock_event_logger)
+        mock_event_capture = Mock()
+        accumulator = EventAccumulator(mock_event_capture)
 
         # Create mock JSON file with valid metadata
         mock_json_file = Mock(spec=FileEntry)
@@ -123,7 +123,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - errors should be handled gracefully
         try:
-            accumulator.log_events(mock_json_file, mock_project)
+            accumulator.capture_events(mock_json_file, mock_project)
             # If we get here, the error was handled gracefully
             assert True
         except Exception as e:
@@ -133,7 +133,7 @@ class TestErrorResilience:
             )
 
         # Event logger should not be called when metadata extraction fails
-        mock_event_logger.log_event.assert_not_called()
+        mock_event_capture.capture_event.assert_not_called()
 
     def test_s3_event_logging_failures_handled_gracefully(self):
         """Test that S3 event logging failures are handled gracefully.
@@ -143,10 +143,10 @@ class TestErrorResilience:
               **Validates: Requirements 5.3**
         """
         # Create mock event logger that fails
-        mock_event_logger = Mock()
-        mock_event_logger.log_event.side_effect = Exception("S3 connection failed")
+        mock_event_capture = Mock()
+        mock_event_capture.capture_event.side_effect = Exception("S3 connection failed")
 
-        accumulator = EventAccumulator(mock_event_logger)
+        accumulator = EventAccumulator(mock_event_capture)
 
         # Create valid mock JSON file
         mock_json_file = Mock(spec=FileEntry)
@@ -186,7 +186,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - S3 failures should be handled gracefully
         try:
-            accumulator.log_events(mock_json_file, mock_project)
+            accumulator.capture_events(mock_json_file, mock_project)
             # If we get here, the S3 error was handled gracefully
             assert True
         except Exception as e:
@@ -196,7 +196,7 @@ class TestErrorResilience:
             )
 
         # Event logger should have been called (even though it failed)
-        mock_event_logger.log_event.assert_called_once()
+        mock_event_capture.capture_event.assert_called_once()
 
     @given(
         json_file_none=st.booleans(),
@@ -212,8 +212,8 @@ class TestErrorResilience:
               **Validates: Requirements 5.4**
         """
         # Create mock event logger
-        mock_event_logger = Mock()
-        accumulator = EventAccumulator(mock_event_logger)
+        mock_event_capture = Mock()
+        accumulator = EventAccumulator(mock_event_capture)
 
         # Create inputs based on test parameters
         json_file = None if json_file_none else Mock(spec=FileEntry)
@@ -226,7 +226,7 @@ class TestErrorResilience:
         with patch("form_scheduler_app.event_accumulator.log") as mock_log:
             # This should not raise an exception
             try:
-                accumulator.log_events(json_file, project)  # type: ignore[arg-type]
+                accumulator.capture_events(json_file, project)  # type: ignore[arg-type]
                 # If we get here, the error was handled gracefully
                 assert True
             except Exception as e:
@@ -240,13 +240,13 @@ class TestErrorResilience:
                 mock_log.warning.assert_called()
 
         # Event logger should not be called with invalid inputs
-        mock_event_logger.log_event.assert_not_called()
+        mock_event_capture.capture_event.assert_not_called()
 
     def test_validation_errors_handled_gracefully(self):
         """Test that Pydantic validation errors are handled gracefully."""
         # Create mock event logger
-        mock_event_logger = Mock()
-        accumulator = EventAccumulator(mock_event_logger)
+        mock_event_capture = Mock()
+        accumulator = EventAccumulator(mock_event_capture)
 
         # Create mock JSON file with invalid metadata that will cause validation errors
         mock_json_file = Mock(spec=FileEntry)
@@ -281,7 +281,7 @@ class TestErrorResilience:
         # This should not raise an exception - validation errors should be
         # handled gracefully
         try:
-            accumulator.log_events(mock_json_file, mock_project)
+            accumulator.capture_events(mock_json_file, mock_project)
             # If we get here, the validation errors were handled gracefully
             assert True
         except Exception as e:
@@ -291,4 +291,4 @@ class TestErrorResilience:
             )
 
         # Event logger should not be called when validation fails
-        mock_event_logger.log_event.assert_not_called()
+        mock_event_capture.capture_event.assert_not_called()

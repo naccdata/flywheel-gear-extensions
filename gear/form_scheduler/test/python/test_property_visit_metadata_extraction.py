@@ -50,7 +50,7 @@ def json_file_metadata_strategy(draw):
 
 
 @pytest.fixture
-def mock_event_logger():
+def mock_event_capture():
     """Create a mock event logger."""
     return Mock()
 
@@ -66,9 +66,9 @@ def mock_project():
 
 
 @pytest.fixture
-def event_accumulator(mock_event_logger):
+def event_accumulator(mock_event_capture):
     """Create an EventAccumulator instance."""
-    return EventAccumulator(mock_event_logger)
+    return EventAccumulator(mock_event_capture)
 
 
 @given(visit_data=visit_metadata_strategy(), json_data=json_file_metadata_strategy())
