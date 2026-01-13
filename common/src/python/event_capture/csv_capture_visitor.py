@@ -8,17 +8,17 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import missing_field_error
 
-from event_logging.event_logger import VisitEventLogger
-from event_logging.visit_events import VisitEvent, VisitEventType
+from event_capture.event_capture import VisitEventCapture
+from event_capture.visit_events import VisitEvent, VisitEventType
 
 
-class CSVLoggingVisitor(CSVVisitor):
+class CSVCaptureVisitor(CSVVisitor):
     def __init__(
         self,
         center_label: str,
         project_label: str,
         gear_name: str,
-        event_logger: VisitEventLogger,
+        event_capture: VisitEventCapture,
         module_configs: ModuleConfigs,
         error_writer: ListErrorWriter,
         timestamp: datetime,
@@ -28,7 +28,7 @@ class CSVLoggingVisitor(CSVVisitor):
         self.__center_label = center_label
         self.__project_label = project_label
         self.__gear_name = gear_name
-        self.__event_logger = event_logger
+        self.__event_capture = event_capture
         self.__module_configs = module_configs
         self.__error_writer = error_writer
         self.__action: VisitEventType = action
@@ -72,7 +72,7 @@ class CSVLoggingVisitor(CSVVisitor):
         if not adcid:
             return False
 
-        self.__event_logger.log_event(
+        self.__event_capture.capture_event(
             VisitEvent(
                 action=self.__action,
                 pipeline_adcid=adcid,

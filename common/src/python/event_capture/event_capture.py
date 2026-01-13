@@ -1,10 +1,10 @@
 from s3.s3_bucket import S3BucketInterface
 
-from event_logging.visit_events import VisitEvent
+from event_capture.visit_events import VisitEvent
 
 
-class VisitEventLogger:
-    """Writes VisitEvent objects to transaction log.
+class VisitEventCapture:
+    """Captures VisitEvent objects to transaction log.
 
     Manages transaction log as S3 bucket with flat structure:
 
@@ -20,7 +20,7 @@ class VisitEventLogger:
     """
 
     def __init__(self, s3_bucket: S3BucketInterface, environment: str = "prod") -> None:
-        """Initialize the event logger.
+        """Initialize the event capture.
 
         Args:
             s3_bucket: S3 bucket interface for writing events
@@ -52,8 +52,8 @@ class VisitEventLogger:
         )
         return filename
 
-    def log_event(self, event: VisitEvent) -> None:
-        """Logs the event.
+    def capture_event(self, event: VisitEvent) -> None:
+        """Captures the event.
 
         Args:
           event: the visit event
