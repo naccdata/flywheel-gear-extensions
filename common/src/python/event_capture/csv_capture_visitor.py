@@ -36,12 +36,7 @@ class CSVCaptureVisitor(CSVVisitor):
         self.__timestamp = timestamp
 
     def visit_header(self, header: List[str]) -> bool:
-        required_fields = set(self.__module_configs.required_fields)
-        if not required_fields.issubset(set(header)):
-            missing_fields = required_fields.difference(header)
-            self.__error_writer.write(missing_field_error(set(missing_fields)))
-            return False
-
+        # No validation needed - NACCIDLookupVisitor already validates required fields
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
