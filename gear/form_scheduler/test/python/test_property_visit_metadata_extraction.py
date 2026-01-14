@@ -221,15 +221,13 @@ def test_visit_metadata_extractor_utilities():
     """
     # Test from_qc_status_custom_info
     custom_info = {
-        "visit": {
-            "ptid": "110001",
-            "date": "2024-01-15",
-            "module": "UDS",
-            "packet": "I",
-        }
+        "ptid": "110001",
+        "date": "2024-01-15",
+        "module": "UDS",
+        "packet": "I",
     }
 
-    result = VisitMetadataExtractor.from_qc_status_custom_info(custom_info)
+    result: Optional[VisitMetadata] = VisitMetadata.model_validate(custom_info)
     assert result is not None
     assert result.ptid == "110001"
     assert result.date == "2024-01-15"
