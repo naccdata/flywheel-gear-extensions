@@ -29,6 +29,7 @@ graph LR
 ### Framework Classes
 
 #### TransactionalEventScraperVisitor
+
 Extends GearExecutionEnvironment to handle gear execution framework integration.
 
 ```python
@@ -36,9 +37,9 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         client: ClientWrapper,
+        config: TransactionalEventScraperConfig,
+        project: ProjectAdaptor,
         event_capture: Optional[VisitEventCapture] = None,
-        dry_run: bool = False,
-        date_filter: Optional[DateRange] = None
     )
     
     @classmethod
@@ -51,9 +52,25 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None
 ```
 
+**Key Design Decisions:**
+
+- **Dependency Injection**: All dependencies (client, config, project, event_capture) are passed to `__init__` rather than built internally
+- **Context Operations in create()**: The `create()` class method handles all context operations:
+  - Parses gear configuration
+  - Creates GearBot client
+  - Retrieves destination container and validates it's a project
+  - Gets project from Flywheel
+  - Initializes S3 bucket and VisitEventCapture (unless dry-run mode)
+- **Simplified run()**: The `run()` method focuses on orchestration:
+  - Logs configuration details
+  - Creates EventScraper with all dependencies
+  - Calls `main.run(scraper=scraper)` to execute the scraping
+- **Natural Exception Propagation**: No excessive exception handling - exceptions propagate naturally to be caught by GearEngine
+
 ### Core Business Logic Classes
 
 #### EventScraper
+
 Main orchestrator class that coordinates the scraping process.
 
 ```python
@@ -69,7 +86,31 @@ class EventScraper:
     def scrape_events(self) -> ProcessingStatistics
 ```
 
+#### main module
+
+Simple function-based module that serves as the entry point for the scraping logic.
+
+```python
+def run(*, scraper: EventScraper) -> ProcessingStatistics:
+    """Runs the Transactional Event Scraper process.
+    
+    Args:
+        scraper: The configured EventScraper instance
+    
+    Returns:
+        ProcessingStatistics with summary of the operation
+    """
+```
+
+**Key Design Decisions:**
+
+- **Minimal main.py**: The main module is intentionally simple - it just calls `scraper.scrape_events()` and returns results
+- **Dependency Injection**: All dependencies are built in `run.py` and passed to `main.run()` as a configured EventScraper
+- **No Context Passing**: The main module doesn't receive context or config - everything is encapsulated in the scraper object
+- **Natural Exception Propagation**: No exception handling in main - exceptions propagate to GearEngine.run() which handles them appropriately
+
 #### log_file_processor module
+
 Simple function-based module for extracting event data from QC status log files.
 
 ```python
@@ -89,6 +130,7 @@ def extract_event_from_log(log_file: FileEntry) -> EventData | None:
 ```
 
 #### EventGenerator
+
 Creates VisitEvent objects from extracted log data.
 
 ```python
@@ -102,6 +144,7 @@ class EventGenerator:
 ### Data Models
 
 #### EventData
+
 Intermediate data structure for extracted event information.
 
 ```python
@@ -114,6 +157,7 @@ class EventData(BaseModel):
 ```
 
 #### ProcessingStatistics
+
 Statistics from the processing operation.
 
 ```python
@@ -126,6 +170,7 @@ class ProcessingStatistics(BaseModel):
 ```
 
 #### DateRange
+
 Optional configuration for filtering files by date.
 
 ```python
@@ -145,20 +190,26 @@ class DateRange(BaseModel):
 ### Interfaces
 
 #### GearExecutionEnvironment Integration
+
 Uses the standard NACC gear framework:
+
 - **ClientWrapper**: For Flywheel API access through proxy
 - **GearToolkitContext**: For configuration and input handling
 - **ParameterStore**: For AWS parameter access
 - **GearExecutionError**: For error handling and reporting
 
 #### ProjectAdaptor Integration
+
 Uses existing ProjectAdaptor interface for:
+
 - Discovering QC status log files
 - Extracting project metadata (pipeline ADCID, center label)
 - Accessing file contents and timestamps
 
 #### Event Capture Integration
+
 Uses existing VisitEventCapture interface for:
+
 - Storing events to S3 transaction log
 - Maintaining consistent event format and naming
 
@@ -216,12 +267,14 @@ The scraper extracts visit metadata using the same patterns as existing gears:
 ### Event Creation Strategy
 
 #### Submission Events
+
 - **Action**: "submit"
 - **Timestamp**: QC status log file creation time
 - **Gear Name**: "transactional-event-scraper"
 - **Metadata**: Extracted from log filename and project context
 
 #### Pass-QC Events
+
 - **Action**: "pass-qc"
 - **Timestamp**: QC status log file modification time
 - **Condition**: Only created when overall QC status is PASS
@@ -230,6 +283,7 @@ The scraper extracts visit metadata using the same patterns as existing gears:
 ### Project Context Extraction
 
 Uses PipelineLabel parsing to extract:
+
 - Study ID
 - Datatype (form, dicom, etc.)
 - Pipeline stage information
@@ -237,11 +291,13 @@ Uses PipelineLabel parsing to extract:
 ## Error Handling
 
 ### Resilient Processing
+
 - Continue processing remaining files when individual files fail
 - Log errors with sufficient detail for debugging
 - Provide summary statistics of successes and failures
 
 ### Error Categories
+
 1. **File Access Errors**: Log file cannot be read
 2. **Parsing Errors**: Log content or metadata is malformed
 3. **Validation Errors**: Extracted data fails validation
@@ -249,25 +305,41 @@ Uses PipelineLabel parsing to extract:
 5. **Capture Errors**: Event storage to S3 fails
 
 ### Fallback Strategies
+
 - Use file modification time when creation time unavailable
 - Skip events when required metadata is missing
 - Continue processing when non-critical errors occur
 
+### Exception Handling Strategy
+
+The gear follows a natural exception propagation pattern:
+
+- **No Excessive Wrapping**: Individual components don't wrap exceptions in GearExecutionError
+- **Natural Propagation**: Exceptions propagate up the call stack naturally
+- **GearEngine Handling**: The GearEngine.run() method catches and handles exceptions:
+  - `GearExecutionError`: Logs "Gear execution error: %s"
+  - Generic `Exception`: Logs "Unexpected error during gear execution: %s"
+  - Both exit with code 1
+- **Better Observability**: Distinguishing between gear errors and unexpected errors aids debugging
+
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test individual component functionality
 - Mock external dependencies (S3, Flywheel API)
 - Verify error handling and edge cases
 - Test configuration parsing and validation
 
 ### Integration Tests
+
 - Test end-to-end scraping workflow
 - Use test projects with known QC status logs
 - Verify event creation and storage
 - Test with various project configurations
 
 ### Property-Based Tests
+
 Property-based testing will validate universal correctness properties across randomized inputs to ensure robust behavior.
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
