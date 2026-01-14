@@ -6,7 +6,6 @@ from inputs.csv_reader import CSVVisitor
 from keys.types import DatatypeNameType
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-from outputs.errors import missing_field_error
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent, VisitEventType
