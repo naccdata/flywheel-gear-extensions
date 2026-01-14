@@ -69,16 +69,23 @@ class EventScraper:
     def scrape_events(self) -> ProcessingStatistics
 ```
 
-#### LogFileProcessor
-Processes individual QC status log files to extract event data.
+#### log_file_processor module
+Simple function-based module for extracting event data from QC status log files.
 
 ```python
-class LogFileProcessor:
-    def __init__(self, error_log_template: ErrorLogTemplate)
+def extract_event_from_log(log_file: FileEntry) -> EventData | None:
+    """Extract event data from a QC status log file.
     
-    def extract_events(self, log_file: FileEntry) -> List[EventData]
-    def parse_visit_metadata(self, log_file: FileEntry) -> Optional[VisitMetadata]
-    def determine_qc_status(self, log_file: FileEntry) -> Optional[QCStatus]
+    Uses canonical creation methods:
+    - VisitMetadata.create(log_file) for visit metadata
+    - FileQCModel.create(log_file) for QC status
+    
+    Extracts timestamps from file attributes only (no content parsing):
+    - submission_timestamp: log_file.created
+    - qc_completion_timestamp: log_file.modified (if PASS status)
+    
+    Returns EventData object or None if extraction fails.
+    """
 ```
 
 #### EventGenerator

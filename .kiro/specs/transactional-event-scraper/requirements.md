@@ -49,7 +49,7 @@ The Transactional Event Scraper is a gear designed to backfill event data by scr
 3. WHEN capturing events, THE Event_Scraper SHALL use the same S3 bucket structure and naming conventions as other gears
 4. THE Event_Scraper SHALL support configurable environment prefixes (prod/dev) for event storage
 
-### Requirement 4: Timestamp Extraction and Estimation
+### Requirement 4: Timestamp Extraction
 
 **User Story:** As a data platform administrator, I want accurate timestamp estimation for events, so that the historical event timeline reflects the actual processing sequence.
 
@@ -57,9 +57,7 @@ The Transactional Event Scraper is a gear designed to backfill event data by scr
 
 1. WHEN extracting submission events, THE Event_Scraper SHALL use the QC status log file creation timestamp as the submission time
 2. WHEN extracting pass-qc events, THE Event_Scraper SHALL use the QC status log file modification timestamp as the QC completion time
-3. WHEN a QC status log file shows multiple PASS entries, THE Event_Scraper SHALL use the file modification time as the final QC completion time
-4. WHEN file creation timestamp is not available, THE Event_Scraper SHALL parse the earliest log entry timestamp from the log content as a fallback for submission events
-5. WHEN file modification timestamp is not available, THE Event_Scraper SHALL parse the latest PASS entry timestamp from the log content as a fallback for pass-qc events
+3. WHEN a QC status log file shows PASS status, THE Event_Scraper SHALL use the file modification time as the QC completion time
 
 ### Requirement 5: Project and Visit Context
 

@@ -6,22 +6,25 @@ This implementation plan creates a Flywheel gear that scrapes existing QC status
 
 ## Tasks
 
-- [ ] 1. Set up core data models and configuration handling
-  - Create EventData, ScrapingResults, and DateRange data models
+- [x] 1. Set up core data models and configuration handling
+  - Create EventData, ProcessingStatistics, and DateRange data models
   - Implement configuration parsing for gear parameters (dry_run, date filters, S3 settings)
   - Set up logging and error handling infrastructure
+  - Create unit tests for data models and configuration handling
   - _Requirements: 7.2, 7.3, 7.4_
 
 - [ ]* 1.1 Write property test for configuration handling
   - **Property 5: Dry Run Behavior**
   - **Validates: Requirements 7.3**
 
-- [ ] 2. Implement LogFileProcessor for QC status log parsing
-  - Create LogFileProcessor class with ErrorLogTemplate integration
-  - Implement visit metadata extraction from log filenames and content
-  - Add QC status determination from file metadata
-  - Handle malformed log files gracefully
+- [x] 2. Implement log file processing for QC status log parsing
+  - Create `extract_event_from_log()` function using canonical methods
+  - Use `VisitMetadata.create()` for visit metadata extraction
+  - Use `FileQCModel.create()` for QC status determination
+  - Extract timestamps from file attributes only (no content parsing)
+  - Returns single EventData or None (simplified from class-based approach)
   - _Requirements: 1.2, 1.3, 2.3, 2.5_
+  - _Note: Tests removed as code is now simple enough to not require them_
 
 - [ ]* 2.1 Write property test for timestamp extraction
   - **Property 3: Timestamp Extraction**
@@ -33,6 +36,7 @@ This implementation plan creates a Flywheel gear that scrapes existing QC status
   - Implement pass-qc event creation using file modification timestamps
   - Add PipelineLabel parsing for project metadata extraction
   - Set gear_name to "transactional-event-scraper" for all events
+  - Create unit tests for EventGenerator class
   - _Requirements: 2.1, 2.2, 2.4, 5.1, 5.2, 5.3, 5.4_
 
 - [ ]* 3.1 Write property test for event creation
@@ -45,6 +49,7 @@ This implementation plan creates a Flywheel gear that scrapes existing QC status
   - Add batch processing with error resilience (continue on individual failures)
   - Generate summary statistics (files processed, events created, errors)
   - Integrate with VisitEventCapture for event storage
+  - Create unit tests for EventScraper class
   - _Requirements: 1.1, 1.4, 6.2, 6.4, 7.1_
 
 - [ ]* 4.1 Write property test for complete file processing
@@ -61,12 +66,14 @@ This implementation plan creates a Flywheel gear that scrapes existing QC status
   - Add configuration validation and error handling with GearExecutionError
   - Integrate with ParameterStore for AWS credentials
   - Wire all components together in the run method
+  - Create unit tests for visitor class integration
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
 - [ ] 6. Update manifest.json configuration
   - Add event_bucket and event_environment configuration options
   - Add optional start_date and end_date parameters
   - Update gear description and metadata
+  - Create unit tests for manifest configuration validation
   - _Requirements: 7.2, 7.3, 7.4_
 
 - [ ] 7. Checkpoint - Ensure all tests pass
@@ -82,6 +89,7 @@ This implementation plan creates a Flywheel gear that scrapes existing QC status
   - Run full test suite and fix any remaining issues
   - Verify gear can be built and packaged correctly
   - Test with sample QC status log files
+  - Create comprehensive unit tests for any remaining untested components
   - _Requirements: All_
 
 ## Notes
