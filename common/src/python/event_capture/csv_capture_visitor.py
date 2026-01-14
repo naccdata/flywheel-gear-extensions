@@ -46,13 +46,10 @@ class CSVCaptureVisitor(CSVVisitor):
         if not module:
             return False
 
-        packet = row.get(FieldNames.PACKET, "").upper()
-        if not packet:
-            return False
-
-        visit_number = row.get(FieldNames.VISITNUM)
-        if not visit_number:
-            return False
+        # PACKET and VISITNUM are optional - some modules (e.g., NP, Milestones)
+        # don't correspond to visits and don't have these fields
+        packet = row.get(FieldNames.PACKET, "").upper() or None
+        visit_number = row.get(FieldNames.VISITNUM) or None
 
         date_field = self.__module_configs.date_field
         visit_date = row.get(date_field)
