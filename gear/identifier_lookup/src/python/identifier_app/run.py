@@ -300,15 +300,16 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     f"config specifies '{config_module}'"
                 )
             return config_module.upper()
-        elif filename_module:
+
+        if filename_module:
             # If no config module but filename has suffix, use filename
             return filename_module.upper()
-        else:
-            # No module identified from either source
-            raise GearExecutionError(
-                f"No module identified: filename '{self.__file_input.filename}' has no "
-                f"module suffix and no module specified in config"
-            )
+
+        # No module identified from either source
+        raise GearExecutionError(
+            f"No module identified: filename '{self.__file_input.filename}' has no "
+            f"module suffix and no module specified in config"
+        )
 
     def __build_center_lookup(
         self,
