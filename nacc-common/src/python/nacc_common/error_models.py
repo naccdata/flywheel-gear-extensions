@@ -151,15 +151,13 @@ class VisitMetadata(VisitKeys):
         file_entry = file_entry.reload()
         if not file_entry.info:
             return None
-        if "visit" not in file_entry.info:
-            return None
 
         visit_data = file_entry.info.get("visit")
         if not visit_data:
             return None
 
         try:
-            return VisitMetadata.model_validate(file_entry.info, by_alias=True)
+            return VisitMetadata.model_validate(visit_data)
         except ValidationError:
             return None
 
