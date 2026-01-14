@@ -6,6 +6,7 @@ from inputs.csv_reader import CSVVisitor
 from keys.types import DatatypeNameType
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
+from outputs.errors import empty_field_error
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent, VisitEventType
@@ -41,27 +42,30 @@ class CSVCaptureVisitor(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         self.__error_writer.clear()
 
+        # Note: ADCID, PTID, and MODULE are already validated/added by
+        #  NACCIDLookupVisitor
+        # We only need to check for the date field which is module-specific
+
         module = row.get(FieldNames.MODULE, "").upper()
         if not module:
-            return False
+            return True  # Skip event logging silently (shouldn't happen in normal flow)
 
         # PACKET and VISITNUM are optional - some modules (e.g., NP, Milestones)
         # don't correspond to visits and don't have these fields
         packet = row.get(FieldNames.PACKET, "").upper() or None
         visit_number = row.get(FieldNames.VISITNUM) or None
 
+        # Check date field - this is module-specific and
+        #  is not validated by NACCIDLookupVisitor
         date_field = self.__module_configs.date_field
         visit_date = row.get(date_field)
         if not visit_date:
-            return False
+            self.__error_writer.write(empty_field_error(date_field, line=line_num))
+            return True  # Don't fail - just skip event logging
 
+        # PTID and ADCID are already validated by NACCIDLookupVisitor
         ptid = row.get(FieldNames.PTID)
-        if not ptid:
-            return False
-
         adcid = row.get(FieldNames.ADCID)
-        if not adcid:
-            return False
 
         self.__event_capture.capture_event(
             VisitEvent(

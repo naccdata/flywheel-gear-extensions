@@ -6,9 +6,10 @@ from typing import Any, List, Optional
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from nacc_common.error_models import FileError, QCStatus, VisitMetadata
+from nacc_common.error_models import CSVLocation, FileError, QCStatus, VisitMetadata
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 
@@ -107,9 +108,6 @@ class QCStatusLogCSVVisitor(CSVVisitor):
                 f"module={visit_metadata.module}"
             )
             # Add system error to misc_errors for QC log creation failure
-            from nacc_common.error_models import CSVLocation
-            from outputs.errors import system_error
-
             self.__misc_errors.append(
                 system_error(
                     message=f"Failed to create QC status log for visit: "
