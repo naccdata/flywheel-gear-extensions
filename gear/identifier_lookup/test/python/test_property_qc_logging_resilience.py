@@ -13,6 +13,7 @@ from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 
@@ -73,6 +74,8 @@ def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]
         call_count += 1
         return call_count != 1  # First call fails, subsequent calls succeed
 
+    misc_errors: List[FileError] = []
+
     mock_qc_creator.update_qc_log.side_effect = update_qc_log_side_effect
 
     qc_visitor = QCStatusLogCSVVisitor(
@@ -81,6 +84,7 @@ def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -122,12 +126,14 @@ def test_qc_logging_resilience_all_failures():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = False  # Always fail
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -207,12 +213,14 @@ def test_qc_logging_resilience_exception_handling():
 
     mock_qc_creator.update_qc_log.side_effect = update_qc_log_side_effect
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 

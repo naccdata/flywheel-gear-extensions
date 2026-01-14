@@ -226,7 +226,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             module_name=module,
             required_fields=required_fields,
             error_writer=error_writer,
-            misc_errors=misc_errors,
             validator=center_validator,
             reset_errors_per_row=bool(self.__config_input),
         )
@@ -248,6 +247,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 qc_log_creator=qc_log_manager,
                 gear_name=self.__gear_name,
                 error_writer=error_writer,
+                misc_errors=misc_errors,
                 module_name=module,
             )
             visitors.append(qc_visitor)

@@ -73,6 +73,7 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
     mock_project = Mock(spec=ProjectAdaptor)
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
+    misc_errors: List[FileError] = []
 
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
@@ -80,6 +81,7 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -158,7 +160,6 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -175,15 +176,16 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -269,12 +271,14 @@ def test_visit_keys_with_missing_fields():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -319,12 +323,14 @@ def test_visit_keys_module_name_handling():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="custom_module",  # Explicit module name
     )
 

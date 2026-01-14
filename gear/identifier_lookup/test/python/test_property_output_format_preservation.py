@@ -140,7 +140,7 @@ def _process_csv_without_event_logging(
     """Process CSV without event logging and return results."""
     # Create error writer and output stream
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
+
     output_stream = StringIO()
 
     # Create mock QC dependencies
@@ -155,15 +155,16 @@ def _process_csv_without_event_logging(
         module_name="uds",  # Use valid module name
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=error_writer,
+        misc_errors=misc_errors,
         module_name="uds",  # Use valid module name
     )
 
@@ -199,7 +200,6 @@ def _process_csv_with_event_logging(
     """Process CSV with event logging and return results."""
     # Create error writer and output stream
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
     output_stream = StringIO()
 
     # Create mock QC dependencies
@@ -218,15 +218,16 @@ def _process_csv_with_event_logging(
         module_name="uds",  # Use valid module name
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=error_writer,
+        misc_errors=misc_errors,
         module_name="uds",  # Use valid module name
     )
 

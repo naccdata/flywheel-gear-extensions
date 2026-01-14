@@ -7,6 +7,7 @@
 
 from datetime import datetime
 from io import StringIO
+from typing import List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
@@ -18,6 +19,7 @@ from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
+from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_identifiers_lambda_repository import (
@@ -129,16 +131,17 @@ def test_property_event_metadata_correctness(csv_row, metadata):
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=[],
         validator=None,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=Mock(),
         qc_log_creator=mock_qc_creator,
         gear_name=metadata["gear_name"],
         error_writer=error_writer,
+        misc_errors=misc_errors,
         module_name="uds",
     )
 
@@ -254,16 +257,17 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=[],
         validator=None,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=Mock(),
         qc_log_creator=mock_qc_creator,
         gear_name=metadata["gear_name"],
         error_writer=error_writer,
+        misc_errors=misc_errors,
         module_name="uds",
     )
 

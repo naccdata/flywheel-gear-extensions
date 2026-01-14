@@ -11,7 +11,6 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import IdentifierObject, clean_ptid
 from inputs.csv_reader import CSVVisitor, RowValidator, read_csv
-from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
@@ -39,7 +38,6 @@ class NACCIDLookupVisitor(CSVVisitor):
         module_name: Optional[str],
         required_fields: Optional[List[str]],
         error_writer: ListErrorWriter,
-        misc_errors: List[FileError],
         validator: Optional[RowValidator] = None,
         reset_errors_per_row: bool = True,
     ) -> None:
@@ -50,7 +48,6 @@ class NACCIDLookupVisitor(CSVVisitor):
             module_name: the module name for the form, if known
             required_fields: list of required fields for header validation
             error_writer: the error output writer
-            misc_errors: list to store errors occur while updating visit error log
             validator: optional row validator for ADCID and PTID validation
             reset_errors_per_row: whether or not to reset errors per row
         """
@@ -62,7 +59,6 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__header: Optional[List[str]] = None
         self.__writer: Optional[CSVWriter] = None
         self.__validator = validator
-        self.__misc_errors = misc_errors
         self.__reset_errors_per_row = reset_errors_per_row
 
         self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}

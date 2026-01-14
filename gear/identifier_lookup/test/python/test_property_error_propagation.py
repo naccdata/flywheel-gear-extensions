@@ -64,7 +64,7 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
+
     output_stream = StringIO()
 
     # Create mock QC dependencies
@@ -79,15 +79,16 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -192,7 +193,6 @@ def test_error_propagation_maintains_processing_order():
     }
 
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
     output_stream = StringIO()
 
     mock_project = Mock(spec=ProjectAdaptor)
@@ -205,15 +205,16 @@ def test_error_propagation_maintains_processing_order():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -291,7 +292,6 @@ def test_short_circuit_strategy_stops_on_first_failure():
     identifiers: Dict[str, IdentifierObject] = {}  # Empty to cause failure
 
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
     output_stream = StringIO()
 
     mock_project = Mock(spec=ProjectAdaptor)
@@ -304,15 +304,16 @@ def test_short_circuit_strategy_stops_on_first_failure():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 

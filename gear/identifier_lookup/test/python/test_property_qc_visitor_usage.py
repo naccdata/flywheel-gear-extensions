@@ -81,7 +81,6 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -98,16 +97,17 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
     # Use QCStatusLogCSVVisitor for QC logging
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -217,7 +217,6 @@ def test_qc_visitor_usage_with_identifier_lookup():
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -234,16 +233,17 @@ def test_qc_visitor_usage_with_identifier_lookup():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
     # Use QCStatusLogCSVVisitor for QC logging
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 

@@ -65,7 +65,6 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -102,15 +101,16 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="uds",
     )
 
@@ -234,7 +234,6 @@ def test_event_logging_resilience_multiple_failures():
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -262,15 +261,16 @@ def test_event_logging_resilience_multiple_failures():
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="uds",
     )
 
