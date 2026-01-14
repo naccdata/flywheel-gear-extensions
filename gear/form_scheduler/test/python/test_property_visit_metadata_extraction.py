@@ -32,6 +32,8 @@ def create_mock_file_entry(
     file_entry = Mock(spec=FileEntry)
     file_entry.name = name
     file_entry.info = info or {}
+    # Mock reload() to return self (required by VisitMetadata.create())
+    file_entry.reload.return_value = file_entry
     return file_entry
 
 

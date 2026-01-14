@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
@@ -22,30 +22,6 @@ log = logging.getLogger(__name__)
 
 class VisitMetadataExtractor:
     """Utility for extracting VisitMetadata from QC status or JSON files."""
-
-    @staticmethod
-    def from_qc_status_custom_info(
-        custom_info: Dict[str, Any],
-    ) -> Optional[VisitMetadata]:
-        """Extract VisitMetadata from QC status custom info.
-
-        Args:
-            custom_info: Custom info from QC status log file
-
-        Returns:
-            VisitMetadata instance or None if not found/invalid
-        """
-        if not custom_info:
-            return None
-
-        visit_data = custom_info.get("visit")
-        if not visit_data:
-            return None
-
-        try:
-            return VisitMetadata.model_validate(visit_data)
-        except ValidationError:
-            return None
 
     @staticmethod
     def from_json_file_metadata(json_file: FileEntry) -> Optional[VisitMetadata]:
@@ -158,10 +134,8 @@ class EventAccumulator:
             VisitMetadata instance or None if extraction fails
         """
         # Try QC status custom info first
-        if qc_log_file and qc_log_file.info:
-            visit_metadata = VisitMetadataExtractor.from_qc_status_custom_info(
-                qc_log_file.info
-            )
+        if qc_log_file:
+            visit_metadata = VisitMetadata.create(qc_log_file)
             if visit_metadata and VisitMetadataExtractor.is_valid_for_event(
                 visit_metadata
             ):
