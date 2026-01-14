@@ -188,7 +188,8 @@ class NACCIDLookupVisitor(CSVVisitor):
         row[FieldNames.NACCID] = identifier.naccid
 
         if self.__module_name:
-            row[FieldNames.MODULE] = self.__module_name
+            # Convert to lowercase for CSV output (convention for MODULE field)
+            row[FieldNames.MODULE] = self.__module_name.lower()
 
         writer = self.__get_writer()
         writer.write(row)
