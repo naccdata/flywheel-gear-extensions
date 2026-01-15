@@ -295,6 +295,7 @@ class FinalizationQueueBuilder(PipelineQueueBuilder):
             description="List of finalized visits for the module",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
+                ColumnModel(data_key="file.file_id", label="file_id"),
                 ColumnModel(data_key="acquisition.label", label="module"),
             ],
             container="acquisition",
@@ -330,9 +331,24 @@ class FinalizationQueueBuilder(PipelineQueueBuilder):
 
         # Group files by module from DataView results
         for visit in result["data"]:
-            # Retrieve full file object from project
-            file = project.get_file(visit["filename"])
+            # Retrieve full file object using file_id
+            # Note: Cannot use project.get_file() as these are acquisition-level files
+            file_id = visit.get("file_id")
+            if not file_id:
+                log.warning(
+                    "No file_id found for file %s in module %s",
+                    visit.get("filename"),
+                    visit.get("module"),
+                )
+                continue
+
+            file = project.get_file_by_id(file_id)
             if file is None:
+                log.warning(
+                    "Could not retrieve file with id %s (filename: %s)",
+                    file_id,
+                    visit.get("filename"),
+                )
                 continue
 
             # Add file to its module's list
