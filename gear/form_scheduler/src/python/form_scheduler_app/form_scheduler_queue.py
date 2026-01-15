@@ -379,7 +379,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
-        event_capture: Optional[VisitEventCapture] = None,
+        event_capture: VisitEventCapture,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -389,8 +389,7 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
-            event_capture: VisitEventCapture for logging visit events
-                (None to skip event logging)
+            event_capture: VisitEventCapture for capturing visit events
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -464,11 +463,6 @@ class FormSchedulerQueue:
         Args:
             json_file: The JSON file that was processed
         """
-        # Skip event capture entirely if event capture is not configured
-        if self.__event_capture is None:
-            log.debug("Event capture not configured, skipping event capture")
-            return
-
         try:
             event_accumulator = EventAccumulator(event_capture=self.__event_capture)
             event_accumulator.capture_events(
