@@ -77,7 +77,7 @@ def run(
     storage_manager.verify_access(storage_configs.source_prefix)
 
     # Step 3: Download source dataset
-    log.info("[3/7] Downloading source dataset from external storage")
+    log.info("[3/6] Downloading source dataset from external storage")
     storage_manager.download_dataset(storage_configs.source_prefix, source_data_dir)
 
     # Validate source data structure
