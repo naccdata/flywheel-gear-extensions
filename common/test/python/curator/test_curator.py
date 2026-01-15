@@ -31,27 +31,27 @@ class TestDetermineScope:
         assert determine_scope("NACCXXX_historical_apoe_genotype.json") == "apoe"
         assert determine_scope("apoe_historic_genotype.json") is None
 
-    def test_ncrad_samples(self):
+    def test_ncrad_biosamples(self):
         """Test NCRAD samples, which can have different sample types."""
         assert (
             determine_scope("NACCXXX_NCRAD-SAMPLES-BRAIN-2008-06-20.json")
-            == "ncrad_samples"
+            == "ncrad_biosamples"
         )
         assert (
             determine_scope("NACCXXX_NCRAD-SAMPLES-BRAIN-TISSUE-2008-06-20.json")
-            == "ncrad_samples"
+            == "ncrad_biosamples"
         )
         assert (
             determine_scope("NACCXXX_NCRAD-SAMPLES-BLOOD-2008-06-20.json")
-            == "ncrad_samples"
+            == "ncrad_biosamples"
         )
         assert (
             determine_scope("NACCXXX_NCRAD-SAMPLES-PLASMA-2008-06-20.json")
-            == "ncrad_samples"
+            == "ncrad_biosamples"
         )
         assert (
             determine_scope("NACCXXX_NCRAD-SAMPLES-DNA-2008-06-20.json")
-            == "ncrad_samples"
+            == "ncrad_biosamples"
         )
 
     def test_scan(self):

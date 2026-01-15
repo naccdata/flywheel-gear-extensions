@@ -2,9 +2,42 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.1.1
 
+* Updates `nacc-attribute-deriver` to `2.0.0`
+* Updates to keep track of scope in `ProcessedFile` so it only has to be calculated once
+* Updates to handle BDS and COVID scopes
+
+## 1.1.0
+
+* Updates `nacc-attribute-deriver` to `2.0.0rc5`
+* Refactors to only push data at end of subject heap in order to reduce number of API calls
+* Skip curation of files that failed their scopes' QC metrics to account for some things accidentally getting copied over
+* Ensures the curation tag is only applied to files that were successfully curated
+* Writes errors to file instead of throwing error and failing gear
+* Adds `uds-participant` tag to all UDS subjects
+
+## 1.0.3 - 1.0.5
+
+* RC versions of `nacc-attribute-deriver` to `2.0.0rc*` which handles various minor bugs encountered running on full data
+
+## 1.0.2 / 1.0.1
+
+* Updates `rxclass_concepts` to be pulled from S3
+
+## 1.0.0
+
+* Updates `nacc-attribute-deriver` to `2.0.0rc1`, which introduces major refactoring and the remaining derived variables + missingness support
+* Adds additional form scopes. MP required a few additional refactors:
+    * Updates to support curating over dicom and nifti files, and expands the `filename_pattern` to `filename_patterns` to support multiple patterns
+    * Adds `img_study_date` to use the `file.info.header.dicom.StudyDate` field for image file ordering
+    * Adds `file.info._filename` as temporary metadata added to the table for deriver use (needed for curation of images file locators)
+* Queries RxClass API for V4+ A4 derived variable calculations, and passes to the deriver through the table under `_rxclass`
+    * Adds optional input JSON `rxclass_concepts` to provide cached results to skip querying, since this step takes a while otherwise
+* Adds loop for missingness logic
+    * Passes the previous record to the deriver to support missingness needs through the table under `_prev_record`
 * Updates function names from `pre/post_process` to `pre/post_curate`
+* Parameterizes number of workers
 
 ## 0.4.4
 
