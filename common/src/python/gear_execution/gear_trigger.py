@@ -69,6 +69,12 @@ class CredentialGearConfigs(GearConfigs):
     apikey_path_prefix: str
 
 
+class GearInputs(BaseModel):
+    """Class to represent base gear inputs."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
 class GearInfo(BaseModel):
     """Class to represent gear information."""
 
@@ -153,6 +159,7 @@ class BatchRunInfo(BaseModel):
     batch_size: int
     gear_name: str
     gear_configs: Dict[str, Any]
+    gear_inputs: Dict[str, Any] = {}
 
     @classmethod
     def load_from_file(cls, configs_file_path: str) -> Optional["BatchRunInfo"]:
@@ -260,6 +267,30 @@ class BatchRunInfo(BaseModel):
             return None
 
         return configs
+
+    def get_gear_inputs(self, center, gear_input_class=GearInputs,) -> Dict[str, Any]:
+        """Get the gear inputs from batch run info gear template.
+
+        Args:=
+            center: The source center project
+            gear_input_class: GearInputs class
+
+        Returns:
+            File inputs, if specified
+        """
+        if not self.gear_inputs:
+            return {}
+
+        result = {}
+        for input_file, filename in self.gear_inputs.items():
+            file = center.get_file(filename)
+            if not file:
+                raise GearExecutionError(
+                    f"Project {center.group}/{center.label} has no file {filename}")
+
+            result[input_file] = file
+
+        return resuluts
 
 
 def trigger_gear(
