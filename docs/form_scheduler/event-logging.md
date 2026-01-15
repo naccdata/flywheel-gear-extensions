@@ -41,10 +41,10 @@ graph TD
     C --> E[Session: FORMS-VISIT-02<br/>VISIT LEVEL]
     
     D --> F[Acquisition: UDS<br/>MODULE LEVEL]
-    F --> G[110001_FORMS-VISIT-01_UDS.json<br/>visit data file]
+    F --> G[NACC000001_FORMS-VISIT-01_UDS.json<br/>visit data file]
     
     E --> H[Acquisition: UDS<br/>MODULE LEVEL]
-    H --> I[110001_FORMS-VISIT-02_UDS.json<br/>visit data file]
+    H --> I[NACC000001_FORMS-VISIT-02_UDS.json<br/>visit data file]
     
     style A fill:#f0f0f0,stroke:#333,stroke-width:2px
     style B fill:#ffe6e6,stroke:#cc0000,stroke-width:2px
@@ -90,8 +90,8 @@ Understanding where files are stored is important for event logging:
   - Example: `110001_2024-01-15_UDS_qc-status.log`
   - Always created, even if pipeline fails
 - **JSON files**: Created at ACQUISITION level by form-transformer, one per visit/module
-  - Naming pattern: `{ptid}_FORMS-VISIT-{visitnum}_{module}.json` (for modules with visit numbers)
-  - Example: `110001_FORMS-VISIT-01_UDS.json`
+  - Naming pattern: `{naccid}_FORMS-VISIT-{visitnum}_{module}.json` (for modules with visit numbers)
+  - Example: `NACC000001_FORMS-VISIT-01_UDS.json`
   - Only created if pipeline succeeds through form-transformer
   - Not created if pipeline fails at identifier-lookup or form-transformer
 
@@ -126,36 +126,41 @@ The `VisitorEventAccumulator` class in form-scheduler:
 
 ### High-Level Overview
 
+There are two distinct workflows in the form processing system:
+
+#### Submission Pipeline (CSV files)
+
 ```mermaid
 flowchart TD
-    A[CSV File Uploaded] --> B[identifier_lookup Triggered]
-    B --> C[Log submit Event]
-    C --> D[Create/Update qc-status Log]
+    A[CSV File Uploaded] --> B[form-screening]
+    B --> C[form-scheduler]
+    C --> D[nacc-file-validator]
+    D --> E[identifier-lookup]
+    E --> F[form-transformer]
+    F --> G[form-qc-coordinator]
+    G --> H[form-qc-checker]
     
-    D --> E[form-scheduler Queues File]
-    E --> F[Pipeline Executes]
-    F --> G[form-screening]
-    G --> H[form-transformer]
-    H --> I[form-qc-checker]
+    H --> I[Pipeline Completes]
+    I --> J[form-scheduler logs outcome events]
     
-    I --> J[Pipeline Completes]
-    J --> K[visitor_event_accumulator]
+    style C fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style J fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+```
+
+#### Finalization Pipeline (QC passed JSON files)
+
+```mermaid
+flowchart TD
+    A[QC Passed JSON File] --> B[form-screening]
+    B --> C[form-scheduler]
+    C --> D[form-qc-coordinator]
+    D --> E[form-qc-checker<br/>for associated modules<br/>and subsequent visits]
     
-    K --> L[Scrape qc-status Logs]
-    L --> M{QC Status?}
-    M -->|PASS| N[Log pass-qc Event]
-    M -->|FAIL| O[Log not-pass-qc Event]
+    E --> F[Pipeline Completes]
+    F --> G[form-scheduler logs outcome events]
     
-    style B fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style C fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style K fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style F fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    classDef formScheduler fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef submissionLogger fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    
-    class K,F formScheduler
-    class B,C submissionLogger
+    style C fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style G fill:#fff3e0,stroke:#f57c00,stroke-width:2px
 ```
 
 ### When Pipeline Completes
@@ -285,7 +290,7 @@ file.info:
 
 #### Visit JSON File (at ACQUISITION level)
 
-**Filename**: `110001_FORMS-VISIT-01_UDS.json`
+**Filename**: `NACC000001_FORMS-VISIT-01_UDS.json`
 
 ```yaml
 file.info:
