@@ -3,10 +3,11 @@
 import json
 from datetime import datetime
 from typing import List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from configs.ingest_configs import Pipeline, PipelineConfigs
+from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
 from gear_execution.gear_trigger import GearConfigs, GearInfo, GearInput
@@ -482,12 +483,15 @@ class TestFormSchedulerQueueIntegration:
         mock_acquisition.id = "acquisition-123"
         mock_proxy.add_container("acquisition-123", mock_acquisition)
 
-        # Create FormSchedulerQueue with None event logger
+        # Create mock event capture
+        mock_event_capture = Mock(spec=VisitEventCapture)
+
+        # Create FormSchedulerQueue with mock event capture
         form_scheduler = FormSchedulerQueue(
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_capture=None,  # No event logger configured
+            event_capture=mock_event_capture,
             email_client=None,
             portal_url=None,
         )
