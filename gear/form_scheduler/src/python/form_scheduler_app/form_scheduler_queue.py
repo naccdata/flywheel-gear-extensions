@@ -404,12 +404,18 @@ class FormSchedulerQueue:
     def queue_files_for_pipeline(self, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
 
+        Reloads the project first to pick up any new files that may have been
+        added during processing.
+
         Args:
             pipeline: Pipeline configurations
 
         Returns:
             int: Number of files added to the pipeline queue
         """
+        # Reload project to pick up any new files or updated attributes
+        self.__project.reload()
+
         queue_builder = create_queue_builder(pipeline)
         if queue_builder is None:
             raise FormSchedulerError("Pipeline with name {pipeline.name} not supported")
