@@ -9,6 +9,9 @@ import subprocess
 from pathlib import Path
 from typing import List
 
+from gear_execution.gear_execution import (
+    GearExecutionError,
+)
 from storage.storage import StorageManager
 
 log = logging.getLogger(__name__)
@@ -112,6 +115,7 @@ class DBTRunner:
         except subprocess.CalledProcessError as e:
             log.error(f"dbt failed with a return code of {e.returncode}")
             log.error(e.output)
+            raise GearExecutionError(e) from e
 
         finally:
             # Always change back to original directory
