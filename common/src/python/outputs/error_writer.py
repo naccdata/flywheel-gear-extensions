@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
 from logging import Logger
-from typing import Optional, TextIO
+from typing import Any, Dict, MutableSequence, Optional, TextIO
 
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from nacc_common.error_models import FileError, FileErrorList
@@ -133,3 +133,39 @@ class ListErrorWriter(UserErrorWriter):
           True if there are errors to report, else False
         """
         return len(self.__errors) > 0
+
+
+class ManagerListErrorWriter(UserErrorWriter):
+    """Manages errors as dictionary objects to be compatible with
+    multiprocessing."""
+
+    def __init__(
+        self,
+        container_id: str,
+        fw_path: str,
+        errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+    ) -> None:
+        super().__init__(container_id, fw_path)
+        self.__errors = [] if errors is None else errors
+
+    def write(self, error: FileError, set_timestamp: bool = True) -> None:
+        """Captures error for writing to metadata.
+
+        Args:
+          error: the file error object
+          set_timestamp: if True, assign the writer timestamp to the error
+        """
+        self.prepare_error(error, set_timestamp)
+        self.__errors.append(error.model_dump(by_alias=True))
+
+    def errors(self) -> MutableSequence[Dict[str, Any]]:
+        """Returns serialized list of accumulated file errors.
+
+        Returns:
+          List of serialized FileError objects
+        """
+        return self.__errors
+
+    def clear(self):
+        """Clear the errors list."""
+        self.__errors.clear()

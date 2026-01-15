@@ -19,7 +19,7 @@
 //     "fw-utils>=3",
 //     "hypothesis>=6.0.0",
 //     "moto[s3,ses,ssm]==5.1.14",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v1.4.3/nacc_attribute_deriver-1.4.3-py3-none-any.whl",
+//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0/nacc_attribute_deriver-2.0.0-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.2/nacc_form_validator-0.6.2-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -2463,8 +2463,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "4c42fd16a34f56abc8a53528933a158cf0a14427ba021a7c96b895d6067d368d",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v1.4.3/nacc_attribute_deriver-1.4.3-py3-none-any.whl"
+              "hash": "c5d61a711827f969d596bcc6e33b126b82f8d384ba5f793e4032a2b4d70ca49a",
+              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.0/nacc_attribute_deriver-2.0.0-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2472,7 +2472,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.11.*",
-          "version": "1.4.3"
+          "version": "2.0.0"
         },
         {
           "artifacts": [

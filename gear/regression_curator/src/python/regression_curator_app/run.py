@@ -2,9 +2,10 @@
 
 import logging
 from multiprocessing import Manager
-from typing import Any, Dict, List, MutableSequence, Optional
+from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
+from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
@@ -19,49 +20,13 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from nacc_common.error_models import FileError
-from outputs.error_writer import UserErrorWriter
+from outputs.error_writer import ManagerListErrorWriter
 from outputs.outputs import write_csv_to_stream
 from utils.utils import parse_string_to_list
 
 from regression_curator_app.main import run
 
 log = logging.getLogger(__name__)
-
-
-class ManagerListErrorWriter(UserErrorWriter):
-    """Manages errors as dictionary objects to be compatible with
-    multiprocessing."""
-
-    def __init__(
-        self,
-        container_id: str,
-        fw_path: str,
-        errors: Optional[MutableSequence[Dict[str, Any]]] = None,
-    ) -> None:
-        super().__init__(container_id, fw_path)
-        self.__errors = [] if errors is None else errors
-
-    def write(self, error: FileError, set_timestamp: bool = True) -> None:
-        """Captures error for writing to metadata.
-
-        Args:
-          error: the file error object
-          set_timestamp: if True, assign the writer timestamp to the error
-        """
-        self.prepare_error(error, set_timestamp)
-        self.__errors.append(error.model_dump(by_alias=True))
-
-    def errors(self) -> MutableSequence[Dict[str, Any]]:
-        """Returns serialized list of accumulated file errors.
-
-        Returns:
-          List of serialized FileError objects
-        """
-        return self.__errors
-
-    def clear(self):
-        """Clear the errors list."""
-        self.__errors.clear()
 
 
 class RegressionCuratorVisitor(GearExecutionEnvironment):
@@ -72,20 +37,20 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         project: ProjectAdaptor,
         s3_qaf_file: str,
-        keep_fields: List[str],
-        filename_pattern: str,
+        filename_patterns: List[str],
         error_outfile: str,
         s3_mqt_file: Optional[str] = None,
-        blacklist_file: Optional[InputFileWrapper] = None,
+        naccid_blacklist_file: Optional[InputFileWrapper] = None,
+        variable_blacklist_file: Optional[InputFileWrapper] = None,
     ):
         super().__init__(client=client)
         self.__project = project
         self.__s3_qaf_file = s3_qaf_file
         self.__s3_mqt_file = s3_mqt_file
-        self.__keep_fields = keep_fields
-        self.__filename_pattern = filename_pattern
+        self.__filename_patterns = filename_patterns
         self.__error_outfile = error_outfile
-        self.__blacklist_file = blacklist_file
+        self.__naccid_blacklist_file = naccid_blacklist_file
+        self.__variable_blacklist_file = variable_blacklist_file
 
     @classmethod
     def create(
@@ -112,8 +77,9 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         if not s3_qaf_file:
             raise GearExecutionError("QAF file missing")
 
-        keep_fields = parse_string_to_list(context.config.get("keep_fields", ""))
-        filename_pattern = context.config.get("filename_pattern", "*UDS.json")
+        filename_patterns = parse_string_to_list(
+            context.config.get("filename_patterns", ".*UDS\\.json")
+        )
 
         proxy = client.get_proxy()
         fw_project = get_project_from_destination(context=context, proxy=proxy)
@@ -121,8 +87,11 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         error_outfile = context.config.get("error_outfile", "regression_errors.csv")
 
-        blacklist_file = InputFileWrapper.create(
-            input_name="blacklist_file", context=context
+        naccid_blacklist_file = InputFileWrapper.create(
+            input_name="naccid_blacklist_file", context=context
+        )
+        variable_blacklist_file = InputFileWrapper.create(
+            input_name="variable_blacklist_file", context=context
         )
 
         if context.config.get("debug", False):
@@ -133,10 +102,10 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             project=project,
             s3_qaf_file=s3_qaf_file,
             s3_mqt_file=s3_mqt_file,
-            keep_fields=keep_fields,
-            filename_pattern=filename_pattern,
+            filename_patterns=filename_patterns,
             error_outfile=error_outfile,
-            blacklist_file=blacklist_file,
+            naccid_blacklist_file=naccid_blacklist_file,
+            variable_blacklist_file=variable_blacklist_file,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -151,44 +120,74 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             container_id=self.__project.id, fw_path=fw_path, errors=Manager().list()
         )
 
-        blacklist = None
-        if self.__blacklist_file:
-            with open(self.__blacklist_file.filepath, mode="r") as fh:
-                blacklist = [x.strip() for x in fh.readlines()]
+        naccid_blacklist = set([])
+        if self.__naccid_blacklist_file:
+            with open(self.__naccid_blacklist_file.filepath, mode="r") as fh:
+                naccid_blacklist = set([x.strip() for x in fh.readlines()])
 
         try:
             scheduler = ProjectCurationScheduler.create(
                 project=self.__project,
-                filename_pattern=self.__filename_pattern,
-                blacklist=blacklist,
+                filename_patterns=self.__filename_patterns,
             )
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
+        variable_blacklist = set([])
+        if self.__variable_blacklist_file:
+            with open(self.__variable_blacklist_file.filepath, mode="r") as fh:
+                variable_blacklist = set([x.strip() for x in fh.readlines()])
+
+        # to avoid loading the entire baseline files (which explode memory
+        # usage), only load NACCIDs relevant to this curation. unfortunately
+        # this means we have to query each subject ID to get its corresponding
+        # label, which is slow if there are a lot of subjects.
+        # probably better way to do this but for the purposes of
+        # regression testing gets the job done
+        subjects = []
+        for subject_id in scheduler.get_subject_ids():
+            subject = self.__project.get_subject_by_id(subject_id)
+            if subject:
+                if subject.label in naccid_blacklist:
+                    log.info(
+                        f"{subject.label} in blacklist, removing from "
+                        + "regression testing"
+                    )
+                    continue
+
+                subjects.append(subject.label)
+
         run(
             context=context,
+            subjects=subjects,
             s3_qaf_file=self.__s3_qaf_file,
             s3_mqt_file=self.__s3_mqt_file,
-            keep_fields=self.__keep_fields,
             scheduler=scheduler,
             error_writer=error_writer,
+            variable_blacklist=variable_blacklist,
         )
 
         errors = list(error_writer.errors())
 
         if errors:
             log.error(
-                f"Errors detected, writing errors to output file {self.__error_outfile}"
+                f"{len(errors)} errors detected, writing errors to "
+                + f"output file {self.__error_outfile}"
             )
             contents = write_csv_to_stream(
                 headers=FileError.fieldnames(), data=errors
             ).getvalue()
-            # TODO: is the project the right place to write this file to?
-            self.__project.upload_file_contents(
-                filename=self.__error_outfile,
+            file_spec = FileSpec(
+                name=self.__error_outfile,
                 contents=contents,
                 content_type="text/csv",
+                size=len(contents),
             )
+
+            # TODO: is the project the right place to write this file to?
+            self.__project.upload_file(file_spec)  # type: ignore
+        else:
+            log.info("No errors detected!")
 
 
 def main():
