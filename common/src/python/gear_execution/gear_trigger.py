@@ -268,7 +268,11 @@ class BatchRunInfo(BaseModel):
 
         return configs
 
-    def get_gear_inputs(self, center, gear_input_class=GearInputs,) -> Dict[str, Any]:
+    def get_gear_inputs(
+        self,
+        center,
+        gear_input_class=GearInputs,
+    ) -> Dict[str, Any]:
         """Get the gear inputs from batch run info gear template.
 
         Args:=
@@ -281,16 +285,17 @@ class BatchRunInfo(BaseModel):
         if not self.gear_inputs:
             return {}
 
-        result = {}
+        results = {}
         for input_file, filename in self.gear_inputs.items():
             file = center.get_file(filename)
             if not file:
                 raise GearExecutionError(
-                    f"Project {center.group}/{center.label} has no file {filename}")
+                    f"Project {center.group}/{center.label} has no file {filename}"
+                )
 
-            result[input_file] = file
+            results[input_file] = file
 
-        return resuluts
+        return results
 
 
 def trigger_gear(
