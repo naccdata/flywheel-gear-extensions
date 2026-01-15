@@ -31,6 +31,7 @@ from notifications.email import EmailClient
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from form_scheduler_app.email_user import send_email
+from form_scheduler_app.event_accumulator import EventAccumulator
 
 # Regex pattern to extract module name from filenames
 # Matches filenames like "ptid-MODULE.csv" and captures the module name
@@ -455,22 +456,20 @@ class FormSchedulerQueue:
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
-    def _log_pipeline_events(self, *, json_file: FileEntry) -> None:
-        """Log QC-pass events for a processed JSON file.
+    def _capture_pipeline_events(self, *, json_file: FileEntry) -> None:
+        """Capture QC-pass events for a processed JSON file.
 
-        Event logging failures are logged but don't stop pipeline processing.
+        Event capture failures are logged but don't stop pipeline processing.
 
         Args:
             json_file: The JSON file that was processed
         """
-        # Skip event logging entirely if event logger is not configured
+        # Skip event capture entirely if event capture is not configured
         if self.__event_capture is None:
-            log.debug("Event logger not configured, skipping event logging")
+            log.debug("Event capture not configured, skipping event capture")
             return
 
         try:
-            from form_scheduler_app.event_accumulator import EventAccumulator
-
             event_accumulator = EventAccumulator(event_capture=self.__event_capture)
             event_accumulator.capture_events(
                 json_file=json_file, project=self.__project
@@ -478,13 +477,13 @@ class FormSchedulerQueue:
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
-                f"Failed to log events for {json_file.name}: {error}",
+                f"Failed to capture events for {json_file.name}: {error}",
                 exc_info=True,
             )
         except Exception as error:
             # Catch any unexpected errors (network, S3, etc.)
             log.error(
-                f"Unexpected error logging events for {json_file.name}: {error}",
+                f"Unexpected error capturing events for {json_file.name}: {error}",
                 exc_info=True,
             )
 
@@ -618,8 +617,8 @@ class FormSchedulerQueue:
                 #    This ensures files are processed one at a time
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-                # Log pass-qc or not-pass-qc events based on QC-status logs
-                self._log_pipeline_events(json_file=file)
+                # Capture pass-qc or not-pass-qc events based on QC-status logs
+                self._capture_pipeline_events(json_file=file)
 
                 # e. Send notification email if enabled
                 #    Notifies the user who uploaded the file that processing
