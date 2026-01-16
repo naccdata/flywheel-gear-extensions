@@ -8,6 +8,7 @@ fi
 
 export WORKSPACE_FOLDER=`pwd`
 export DOCKER_CLI_HINTS=false
-export CONTAINER_HOST=`devcontainer exec --workspace-folder $WORKSPACE_FOLDER hostname`
-export WORKSPACE=`basename $WORKSPACE_FOLDER`
-docker exec -u vscode -w /workspaces/$WORKSPACE -ti $CONTAINER_HOST /bin/zsh
+
+# Use devcontainer exec to open an interactive zsh shell
+# This ensures the remoteEnv PATH is set correctly
+devcontainer exec --workspace-folder $WORKSPACE_FOLDER /bin/zsh -l

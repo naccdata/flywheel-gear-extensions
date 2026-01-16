@@ -8,7 +8,7 @@ indent-width = 4
 target-version = "py311"
 
 [lint]
-select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818", "SLF001"]
+select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818", "SLF001", "E402"]
 
 [lint.per-file-ignores]
 # TODO: confirm that this was a yapf/ruff conflict

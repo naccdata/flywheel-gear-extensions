@@ -8,7 +8,7 @@ All notable changes to this gear are documented in this file.
 
 ## 0.2.3
 
-* Integrates event logging functionality for enhanced QC status tracking and error reporting
+* Bug fixes and improvements
 
 ## 0.2.2
 
