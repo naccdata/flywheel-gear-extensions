@@ -4,7 +4,7 @@
 
 This document specifies the format and structure of visit events logged to S3 by the NACC event logging system. This specification is intended for systems that consume these event logs, such as checkpoint processes or analytics pipelines.
 
-**Note**: This specification covers events from both identifier-lookup (submit events) and form-scheduler (outcome events) gears.
+**Note**: This specification covers events from both identifier-lookup (submit events) and form-scheduler (pass-qc events) gears.
 
 ## S3 Storage Structure
 
@@ -15,12 +15,12 @@ Events are stored in S3 with a flat structure organized by environment:
 ```
 s3://{bucket-name}/
 ├── prod/
-│   ├── log-submit-20240115-100000-42-ingest-form-110001-01.json
-│   ├── log-pass-qc-20240115-102000-42-ingest-form-110001-01.json
-│   ├── log-submit-20240115-100000-44-ingest-form-dvcid-110003-01.json
-│   └── log-not-pass-qc-20240116-143000-45-ingest-dicom-leads-220002-02.json
+│   ├── log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
+│   ├── log-pass-qc-20240115-102000-42-ingest-form-110001-2024-01-15.json
+│   ├── log-submit-20240115-100000-44-ingest-form-dvcid-110003-2024-01-15.json
+│   └── log-pass-qc-20240116-143000-45-ingest-dicom-leads-220002-2024-01-16.json
 └── dev/
-    ├── log-submit-20240115-100000-42-ingest-form-110001-01.json
+    ├── log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
     └── ...
 ```
 
@@ -34,15 +34,15 @@ s3://{bucket-name}/
 Filenames encode key event metadata for efficient filtering without reading file contents:
 
 ```
-log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visitnum}.json
+log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json
 ```
 
-- **action**: Event type (`submit`, `pass-qc`, `not-pass-qc`, `delete`)
+- **action**: Event type (`submit`, `pass-qc`)
 - **timestamp**: Event timestamp in format `YYYYMMDD-HHMMSS`
 - **adcid**: Pipeline ADCID (integer)
 - **project**: Project label (sanitized, special characters replaced with hyphens)
 - **ptid**: Participant ID
-- **visitnum**: Visit number
+- **visit_date**: Visit date in format `YYYY-MM-DD`
 
 ### Example Paths
 
@@ -51,20 +51,20 @@ For events with:
 - pipeline_adcid: `42`
 - project_label: `ingest-form` (ADRC study, no suffix)
 - ptid: `110001`
-- visit_number: `01`
+- visit_date: `2024-01-15`
 - submit timestamp: `2024-01-15T10:00:00Z`
 - pass-qc timestamp: `2024-01-15T10:20:00Z`
 
 Events are stored at:
 ```
-s3://nacc-events/prod/log-submit-20240115-100000-42-ingest-form-110001-01.json
-s3://nacc-events/prod/log-pass-qc-20240115-102000-42-ingest-form-110001-01.json
+s3://nacc-events/prod/log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
+s3://nacc-events/prod/log-pass-qc-20240115-102000-42-ingest-form-110001-2024-01-15.json
 ```
 
 For non-ADRC studies:
 ```
-s3://nacc-events/prod/log-submit-20240115-100000-44-ingest-form-dvcid-110003-01.json
-s3://nacc-events/prod/log-submit-20240116-100000-45-ingest-dicom-leads-220002-02.json
+s3://nacc-events/prod/log-submit-20240115-100000-44-ingest-form-dvcid-110003-2024-01-15.json
+s3://nacc-events/prod/log-submit-20240116-100000-45-ingest-dicom-leads-220002-2024-01-16.json
 ```
 
 ## Event File Format
@@ -73,11 +73,11 @@ s3://nacc-events/prod/log-submit-20240116-100000-45-ingest-dicom-leads-220002-02
 
 Event files follow this naming pattern:
 ```
-log-{action}-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visitnum}.json
+log-{action}-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visit_date}.json
 ```
 
 Where:
-- **action**: Event type (`submit`, `pass-qc`, `not-pass-qc`, `delete`)
+- **action**: Event type (`submit`, `pass-qc`)
 - **YYYYMMDD-HHMMSS**: Event timestamp in format `YYYYMMDD-HHMMSS`
   - Example: `20240115-100000` for `2024-01-15T10:00:00Z`
   - Derived from the event's `timestamp` field
@@ -85,14 +85,14 @@ Where:
 - **adcid**: Pipeline ADCID (integer)
 - **project**: Project label (sanitized)
 - **ptid**: Participant ID
-- **visitnum**: Visit number
+- **visit_date**: Visit date in format `YYYY-MM-DD`
 
 ### Collision Avoidance
 
 The filename components provide natural uniqueness:
 - **timestamp**: Precise to the second
 - **adcid + project**: Identifies the pipeline
-- **ptid + visitnum**: Identifies the visit
+- **ptid + visit_date**: Identifies the visit
 
 In the extremely unlikely event of a collision (same visit, same action, same second), the last write wins. This is acceptable since events are idempotent.
 
@@ -126,8 +126,8 @@ Each event file contains a single JSON object representing one visit event.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `action` | string | Yes | Event type: `"submit"`, `"pass-qc"`, `"not-pass-qc"`, `"delete"` |
-| `study` | string | Yes | Study identifier (e.g., `"adrc"`, `"dvcid"`, `"leads"`), defaults to `"adrc"` |
+| `action` | string | Yes | Event type: `"submit"`, `"pass-qc"` |
+| `study` | string | Yes | Study identifier (extracted from project label), defaults to `"adrc"` |
 | `pipeline_adcid` | integer | Yes | ADCID identifying the pipeline/center |
 | `project_label` | string | Yes | Flywheel project label following convention: `"ingest-{datatype}-{study}"` for non-ADRC studies, `"ingest-{datatype}"` for ADRC (e.g., `"ingest-form"`, `"ingest-form-dvcid"`, `"ingest-dicom-leads"`) |
 | `center_label` | string | Yes | Center/group label |
@@ -143,7 +143,7 @@ Each event file contains a single JSON object representing one visit event.
 ### Field Constraints
 
 #### action
-- Enum: `"submit"`, `"pass-qc"`, `"not-pass-qc"`, `"delete"`
+- Enum: `"submit"`, `"pass-qc"`
 - Case-sensitive
 
 #### study
@@ -196,7 +196,7 @@ Each event file contains a single JSON object representing one visit event.
 
 Indicates a visit was submitted for processing.
 
-**Note**: Submit events are handled by identifier-lookup gear, not form-scheduler.
+**Logged by**: identifier-lookup gear
 
 **Timestamp**: When the file was uploaded to Flywheel
 
@@ -208,7 +208,7 @@ Indicates a visit was submitted for processing.
   "pipeline_adcid": 42,
   "project_label": "ingest-form",
   "center_label": "alpha",
-  "gear_name": "form-scheduler",
+  "gear_name": "identifier-lookup",
   "ptid": "110001",
   "visit_date": "2024-01-15",
   "visit_number": "01",
@@ -227,7 +227,7 @@ Indicates a visit was submitted for processing.
   "pipeline_adcid": 44,
   "project_label": "ingest-form-dvcid",
   "center_label": "beta",
-  "gear_name": "form-scheduler",
+  "gear_name": "identifier-lookup",
   "ptid": "110003",
   "visit_date": "2024-01-15",
   "visit_number": "01",
@@ -246,7 +246,7 @@ Indicates a visit was submitted for processing.
   "pipeline_adcid": 45,
   "project_label": "ingest-dicom-leads",
   "center_label": "gamma",
-  "gear_name": "dicom-scheduler",
+  "gear_name": "dicom-identifier-lookup",
   "ptid": "220002",
   "visit_date": "2024-01-16",
   "visit_number": "02",
@@ -259,11 +259,13 @@ Indicates a visit was submitted for processing.
 
 Indicates a visit successfully passed all QC checks.
 
-**Timestamp**: When the pipeline completed successfully
+**Logged by**: form-scheduler gear
+
+**Timestamp**: When QC validation completed successfully (QC status log file modification time)
 
 **Requirements for this event**:
-1. JSON file exists at ACQUISITION level (form-transformer succeeded)
-2. ALL pipeline gears have status="PASS" in QC metadata
+- QC status log file exists at PROJECT level
+- FileQCModel.get_file_status() returns QC_STATUS_PASS
 
 **Example**:
 ```json
@@ -284,50 +286,14 @@ Indicates a visit successfully passed all QC checks.
 }
 ```
 
-### not-pass-qc
-
-Indicates a visit failed QC validation.
-
-**Timestamp**: When the pipeline failed or completed with errors
-
-**Reasons for this event**:
-- No JSON file at ACQUISITION level (early pipeline failure)
-- Any gear has status != "PASS" in QC metadata
-- Validation errors found
-
-**Example**:
-```json
-{
-  "action": "not-pass-qc",
-  "study": "adrc",
-  "pipeline_adcid": 42,
-  "project_label": "ingest-form",
-  "center_label": "alpha",
-  "gear_name": "form-scheduler",
-  "ptid": "110001",
-  "visit_date": "2024-01-15",
-  "visit_number": "01",
-  "datatype": "form",
-  "module": "UDS",
-  "packet": "I",
-  "timestamp": "2024-01-15T10:08:00Z"
-}
-```
-
-### delete
-
-Indicates a visit was deleted from the system.
-
-**Note**: Currently not implemented by form-scheduler, but reserved for future use.
-
 ## Event Patterns and Sequences
 
 ### Typical Successful Submission
 
-For a new visit that passes QC immediately:
+For a new visit that passes QC:
 
 1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
-2. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
+2. **pass-qc** event (timestamp = QC completion time) - *logged by form-scheduler gear*
 
 Events logged by different gears at different times.
 
@@ -336,9 +302,7 @@ Events logged by different gears at different times.
 For a new visit that fails QC:
 
 1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
-2. **not-pass-qc** event (timestamp = failure time) - *logged by form-scheduler gear*
-
-Events logged by different gears at different times.
+2. No pass-qc event (form-scheduler only logs successful outcomes)
 
 ### Re-evaluation After Dependency Resolution
 
@@ -349,7 +313,7 @@ For a visit that was blocked on a dependency (e.g., UDS packet) and later re-eva
 - No outcome events (visit blocked, not processed by form-scheduler)
 
 **After dependency cleared** (separate form-scheduler job):
-1. **pass-qc** event (timestamp = completion time) - *logged by form-scheduler gear*
+1. **pass-qc** event (timestamp = QC completion time) - *logged by form-scheduler gear*
 
 Only the outcome event is logged by form-scheduler; the submit event was already logged by identifier-lookup when first uploaded.
 
@@ -359,10 +323,10 @@ For a visit with QC alerts that are later approved:
 
 **Initial submission**:
 1. **submit** event (timestamp = upload time) - *logged by identifier-lookup gear*
-2. **not-pass-qc** event (timestamp = completion time with alerts) - *logged by form-scheduler gear*
+2. No pass-qc event (QC status is not PASS due to alerts)
 
 **After approval** (separate form-scheduler job):
-1. **pass-qc** event (timestamp = approval time) - *logged by form-scheduler gear*
+1. **pass-qc** event (timestamp = approval completion time) - *logged by form-scheduler gear*
 
 ## Important Considerations for Consumers
 
@@ -374,21 +338,21 @@ For a visit with QC alerts that are later approved:
 
 ### Event Uniqueness
 
-- A visit may have multiple events of the same type over time
-- Example: `not-pass-qc` followed by `pass-qc` after corrections
+- A visit may have multiple pass-qc events over time if re-evaluated
+- Example: Initial pass-qc, then later re-evaluation after dependency resolution
 - Consumers should track the most recent event per visit
 
 ### Missing Events
 
-- Not all visits will have both `submit` and outcome events in the same job
-- Re-evaluated visits may only have outcome events
-- Early pipeline failures may not generate events (no JSON file = no visit metadata)
+- Not all visits will have both `submit` and pass-qc events
+- Failed visits will only have submit events (no pass-qc)
+- Re-evaluated visits may only have outcome events (submit was logged earlier)
 
 ### Timestamp Interpretation
 
 - `timestamp` reflects when the action occurred, not when the event was logged
 - `submit` events use upload timestamp (from file creation time)
-- Outcome events use completion timestamp (when pipeline finished)
+- `pass-qc` events use QC completion timestamp (QC log file modification time)
 - Events may be logged minutes or hours after the timestamp
 
 ### File Naming and Timestamps
@@ -421,7 +385,7 @@ s3://{bucket}/prod/log-pass-qc-*.json
 
 Examples:
 - All submit events: `log-submit-*.json`
-- All QC failures: `log-not-pass-qc-*.json`
+- All pass-qc events: `log-pass-qc-*.json`
 
 ### Listing Events by Date Range
 
@@ -480,12 +444,12 @@ s3://{bucket}/prod/log-*-*-*-*-110001-*.json
 
 To find all events for a specific visit:
 ```
-s3://{bucket}/prod/log-*-*-*-*-{ptid}-{visitnum}.json
+s3://{bucket}/prod/log-*-*-*-*-{ptid}-{visit_date}.json
 ```
 
-Example: All events for PTID 110001, visit 01:
+Example: All events for PTID 110001, visit date 2024-01-15:
 ```
-s3://{bucket}/prod/log-*-*-*-*-110001-01.json
+s3://{bucket}/prod/log-*-*-*-*-110001-2024-01-15.json
 ```
 
 ### Chronological Processing
@@ -538,7 +502,7 @@ File: `s3://nacc-events/prod/log-submit-20240115-100000-42-ingest-form-110001-01
   "pipeline_adcid": 42,
   "project_label": "ingest-form",
   "center_label": "alpha",
-  "gear_name": "form-scheduler",
+  "gear_name": "identifier-lookup",
   "ptid": "110001",
   "visit_date": "2024-01-15",
   "visit_number": "01",
@@ -593,7 +557,7 @@ Consumers should validate event files against this JSON schema:
   "properties": {
     "action": {
       "type": "string",
-      "enum": ["submit", "pass-qc", "not-pass-qc", "delete"]
+      "enum": ["submit", "pass-qc"]
     },
     "study": {
       "type": "string",
