@@ -5,7 +5,7 @@
 **Validates: Requirements 2.2, 2.3**
 """
 
-from typing import Dict
+from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -65,6 +65,7 @@ def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
     mock_project = Mock(spec=ProjectAdaptor)
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
+    misc_errors: List[FileError] = []
 
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
@@ -72,6 +73,7 @@ def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -125,12 +127,14 @@ def test_qc_status_fail_for_failed_processing(
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -176,12 +180,14 @@ def test_qc_status_determination_boundary_case_empty_visit():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 

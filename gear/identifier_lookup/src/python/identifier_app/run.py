@@ -167,11 +167,11 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
     ) -> CSVVisitor:
         # Determine module name using the new logic
         module_configs: Optional[ModuleConfigs] = None
-        module_name: Optional[str] = None
+        module: Optional[str] = None
 
         if self.__config_input:
+            # Module is defined in uppercase in form configs file (e.g., "UDS", "LBD")
             module = self._determine_module()
-            module_name = module.lower()
 
             try:
                 form_project_configs = load_form_ingest_configurations(
@@ -223,10 +223,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         naccid_visitor = NACCIDLookupVisitor(
             identifiers_repo=identifiers_repo,
             output_file=output_file,
-            module_name=module_name,
+            module_name=module,
             required_fields=required_fields,
             error_writer=error_writer,
-            misc_errors=misc_errors,
             validator=center_validator,
             reset_errors_per_row=bool(self.__config_input),
         )
@@ -248,7 +247,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 qc_log_creator=qc_log_manager,
                 gear_name=self.__gear_name,
                 error_writer=error_writer,
-                module_name=module_name,
+                misc_errors=misc_errors,
+                module_name=module,
             )
             visitors.append(qc_visitor)
 
@@ -300,15 +300,16 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     f"config specifies '{config_module}'"
                 )
             return config_module.upper()
-        elif filename_module:
+
+        if filename_module:
             # If no config module but filename has suffix, use filename
             return filename_module.upper()
-        else:
-            # No module identified from either source
-            raise GearExecutionError(
-                f"No module identified: filename '{self.__file_input.filename}' has no "
-                f"module suffix and no module specified in config"
-            )
+
+        # No module identified from either source
+        raise GearExecutionError(
+            f"No module identified: filename '{self.__file_input.filename}' has no "
+            f"module suffix and no module specified in config"
+        )
 
     def __build_center_lookup(
         self,

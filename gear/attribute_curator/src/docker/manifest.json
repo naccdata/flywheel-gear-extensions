@@ -2,7 +2,7 @@
     "name": "attribute-curator",
     "label": "Attribute Curator",
     "description": "Curation of derived data for MQT project",
-    "version": "0.4.4",
+    "version": "1.1.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/attribute-curator:0.4.4"
+            "image": "naccdata/attribute-curator:1.1.1"
         },
         "flywheel": {
             "suite": "Curation",
@@ -26,16 +26,6 @@
         "api-key": {
             "base": "api-key",
             "read-only": false
-        },
-        "blacklist_file": {
-            "description": "Plain-text file containing the NACCIDs to blacklist from curation, one per line",
-            "base": "file",
-            "optional": true,
-            "type": {
-                "enum": [
-                    "text"
-                ]
-            }
         }
     },
     "config": {
@@ -44,10 +34,10 @@
             "type": "boolean",
             "default": false
         },
-        "filename_pattern": {
-            "description": "Filename pattern to match on",
+        "filename_patterns": {
+            "description": "Filename patterns to match on; comma-deliminated for multiple patterns",
             "type": "string",
-            "default": "*.json"
+            "default": ".*\\.json,.*\\.dicom\\.zip,.*\\.nii\\.gz"
         },
         "curation_tag": {
             "description": "Tag to apply to curated files",
@@ -57,12 +47,32 @@
         "force_curate": {
             "description": "Curate file even if it's already been curated",
             "type": "boolean",
+            "default": true
+        },
+        "ignore_qc": {
+            "description": "Curate file even if QC failed",
+            "type": "boolean",
             "default": false
+        },
+        "max_num_workers": {
+            "description": "Max number of workers to use",
+            "type": "integer",
+            "default": 4
         },
         "debug": {
             "description": "Whether or not to use debug-level logging (level set to DEBUG)",
             "type": "boolean",
             "default": false
+        },
+        "rxclass_concepts_s3_uri": {
+            "description": "S3 URI to pull RxClass concepts JSON from. If provided, skips the RxClass querying at the beginning of curation and uses the data provided here",
+            "type": "string",
+            "default": ""
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
         }
     },
     "command": "/bin/run"

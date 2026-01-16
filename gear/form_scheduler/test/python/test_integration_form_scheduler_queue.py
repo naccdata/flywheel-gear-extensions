@@ -3,10 +3,11 @@
 import json
 from datetime import datetime
 from typing import List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from configs.ingest_configs import Pipeline, PipelineConfigs
+from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
 from gear_execution.gear_trigger import GearConfigs, GearInfo, GearInput
@@ -324,20 +325,37 @@ class TestFormSchedulerQueueIntegration:
 
                 def read(self):
                     return json.dumps(
-                        {"data": [{"filename": json_file.name, "module": "UDS"}]}
+                        {
+                            "data": [
+                                {
+                                    "filename": json_file.name,
+                                    "file_id": "file-id-1",
+                                    "module": "UDS",
+                                }
+                            ]
+                        }
                     ).encode()
 
             mock_dataview.return_value = MockDataviewResponse()
 
-            # Mock project.get_file to return appropriate files based on filename
-            def mock_get_file(filename):
-                if filename == json_file.name:
+            # Mock project.get_file_by_id to return the JSON file
+            def mock_get_file_by_id(file_id):
+                if file_id == "file-id-1":
                     return json_file
-                elif filename == qc_file.name:
+                return None
+
+            # Mock project.get_file for QC status files
+            def mock_get_file(filename):
+                if filename == qc_file.name:
                     return qc_file
                 return None
 
-            with patch.object(project, "get_file", side_effect=mock_get_file):
+            with (
+                patch.object(
+                    project, "get_file_by_id", side_effect=mock_get_file_by_id
+                ),
+                patch.object(project, "get_file", side_effect=mock_get_file),
+            ):
                 # Queue files for finalization pipeline
                 file_count = form_scheduler.queue_files_for_pipeline(
                     finalization_pipeline_config.pipelines[0]
@@ -426,13 +444,21 @@ class TestFormSchedulerQueueIntegration:
 
                 def read(self):
                     return json.dumps(
-                        {"data": [{"filename": json_file.name, "module": "UDS"}]}
+                        {
+                            "data": [
+                                {
+                                    "filename": json_file.name,
+                                    "file_id": "file-id-1",
+                                    "module": "UDS",
+                                }
+                            ]
+                        }
                     ).encode()
 
             mock_dataview.return_value = MockDataviewResponse()
 
-            # Mock project.get_file to return our JSON file
-            with patch.object(project, "get_file", return_value=json_file):
+            # Mock project.get_file_by_id to return our JSON file
+            with patch.object(project, "get_file_by_id", return_value=json_file):
                 # Queue files
                 file_count = form_scheduler.queue_files_for_pipeline(
                     finalization_pipeline_config.pipelines[0]
@@ -482,12 +508,15 @@ class TestFormSchedulerQueueIntegration:
         mock_acquisition.id = "acquisition-123"
         mock_proxy.add_container("acquisition-123", mock_acquisition)
 
-        # Create FormSchedulerQueue with None event logger
+        # Create mock event capture
+        mock_event_capture = Mock(spec=VisitEventCapture)
+
+        # Create FormSchedulerQueue with mock event capture
         form_scheduler = FormSchedulerQueue(
             proxy=mock_proxy,
             project=project,
             pipeline_configs=finalization_pipeline_config,
-            event_capture=None,  # No event logger configured
+            event_capture=mock_event_capture,
             email_client=None,
             portal_url=None,
         )
@@ -510,13 +539,21 @@ class TestFormSchedulerQueueIntegration:
 
                 def read(self):
                     return json.dumps(
-                        {"data": [{"filename": json_file.name, "module": "UDS"}]}
+                        {
+                            "data": [
+                                {
+                                    "filename": json_file.name,
+                                    "file_id": "file-id-1",
+                                    "module": "UDS",
+                                }
+                            ]
+                        }
                     ).encode()
 
             mock_dataview.return_value = MockDataviewResponse()
 
-            # Mock project.get_file to return our JSON file
-            with patch.object(project, "get_file", return_value=json_file):
+            # Mock project.get_file_by_id to return our JSON file
+            with patch.object(project, "get_file_by_id", return_value=json_file):
                 # Queue files
                 file_count = form_scheduler.queue_files_for_pipeline(
                     finalization_pipeline_config.pipelines[0]
@@ -641,27 +678,44 @@ class TestFormSchedulerQueueIntegration:
                     return json.dumps(
                         {
                             "data": [
-                                {"filename": json_file_1.name, "module": "UDS"},
-                                {"filename": json_file_2.name, "module": "FTLD"},
+                                {
+                                    "filename": json_file_1.name,
+                                    "file_id": "file-id-1",
+                                    "module": "UDS",
+                                },
+                                {
+                                    "filename": json_file_2.name,
+                                    "file_id": "file-id-2",
+                                    "module": "FTLD",
+                                },
                             ]
                         }
                     ).encode()
 
             mock_dataview.return_value = MockDataviewResponse()
 
-            # Mock project.get_file to return appropriate files
-            def mock_get_file(filename):
-                if filename == json_file_1.name:
+            # Mock project.get_file_by_id to return appropriate files
+            def mock_get_file_by_id(file_id):
+                if file_id == "file-id-1":
                     return json_file_1
-                elif filename == json_file_2.name:
+                elif file_id == "file-id-2":
                     return json_file_2
-                elif filename == qc_file_1.name:
+                return None
+
+            # Mock project.get_file for QC status files
+            def mock_get_file(filename):
+                if filename == qc_file_1.name:
                     return qc_file_1
                 elif filename == qc_file_2.name:
                     return qc_file_2
                 return None
 
-            with patch.object(project, "get_file", side_effect=mock_get_file):
+            with (
+                patch.object(
+                    project, "get_file_by_id", side_effect=mock_get_file_by_id
+                ),
+                patch.object(project, "get_file", side_effect=mock_get_file),
+            ):
                 # Queue files
                 file_count = form_scheduler.queue_files_for_pipeline(
                     finalization_pipeline_config.pipelines[0]

@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from configs.ingest_configs import ModuleConfigs
+from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from inputs.csv_reader import CSVVisitor
 from keys.types import DatatypeNameType
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-from outputs.errors import missing_field_error
+from outputs.errors import empty_field_error, unexpected_value_error
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent, VisitEventType
@@ -36,41 +37,52 @@ class CSVCaptureVisitor(CSVVisitor):
         self.__timestamp = timestamp
 
     def visit_header(self, header: List[str]) -> bool:
-        required_fields = set(self.__module_configs.required_fields)
-        if not required_fields.issubset(set(header)):
-            missing_fields = required_fields.difference(header)
-            self.__error_writer.write(missing_field_error(set(missing_fields)))
-            return False
-
+        # No validation needed - NACCIDLookupVisitor already validates required fields
         return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         self.__error_writer.clear()
 
+        # Note: ADCID, PTID, and MODULE are already validated/added by
+        #  NACCIDLookupVisitor
+        # We only need to check for the date field which is module-specific
+
         module = row.get(FieldNames.MODULE, "").upper()
         if not module:
-            return False
+            return True  # Skip event logging silently (shouldn't happen in normal flow)
 
-        packet = row.get(FieldNames.PACKET, "").upper()
-        if not packet:
-            return False
+        # PACKET and VISITNUM are optional - some modules (e.g., NP, Milestones)
+        # don't correspond to visits and don't have these fields
+        packet = row.get(FieldNames.PACKET, "").upper() or None
+        visit_number = row.get(FieldNames.VISITNUM) or None
 
-        visit_number = row.get(FieldNames.VISITNUM)
-        if not visit_number:
-            return False
-
+        # Check date field - this is module-specific and
+        #  is not validated by NACCIDLookupVisitor
         date_field = self.__module_configs.date_field
         visit_date = row.get(date_field)
         if not visit_date:
-            return False
+            self.__error_writer.write(empty_field_error(date_field, line=line_num))
+            return True  # Don't fail - just skip event logging
 
+        # Normalize date to YYYY-MM-DD format
+        normalized_date = convert_date(
+            date_string=visit_date, date_format=DEFAULT_DATE_FORMAT
+        )
+        if not normalized_date:
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=date_field,
+                    value=visit_date,
+                    expected="valid date",
+                    message="Expected a valid date string",
+                    line=line_num,
+                )
+            )
+            return True  # Don't fail - just skip event logging
+
+        # PTID and ADCID are already validated by NACCIDLookupVisitor
         ptid = row.get(FieldNames.PTID)
-        if not ptid:
-            return False
-
         adcid = row.get(FieldNames.ADCID)
-        if not adcid:
-            return False
 
         self.__event_capture.capture_event(
             VisitEvent(
@@ -80,7 +92,7 @@ class CSVCaptureVisitor(CSVVisitor):
                 center_label=self.__center_label,
                 gear_name=self.__gear_name,
                 ptid=ptid,
-                visit_date=visit_date,
+                visit_date=normalized_date,
                 visit_number=visit_number,
                 datatype=self.__datatype,
                 module=module,

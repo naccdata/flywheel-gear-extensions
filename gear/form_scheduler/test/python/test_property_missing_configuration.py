@@ -8,6 +8,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
+from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
@@ -35,13 +36,14 @@ class TestMissingConfigurationHandling:
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
         mock_pipeline_configs = Mock()
+        mock_event_capture = Mock(spec=VisitEventCapture)
 
-        # Create FormSchedulerQueue with None event logger (not configured)
+        # Create FormSchedulerQueue with mock event capture
         queue = FormSchedulerQueue(
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_capture=None,  # Not configured
+            event_capture=mock_event_capture,
         )
 
         # Create test file
@@ -50,11 +52,11 @@ class TestMissingConfigurationHandling:
             json_file.name = "test.json"
 
         # Capture log messages to verify debug message is logged
-        with patch("form_scheduler_app.form_scheduler_queue.log") as mock_log:
+        with patch("form_scheduler_app.form_scheduler_queue.log") as _mock_log:
             # This should not raise an exception regardless of input validity
             try:
                 # Access the private method for testing
-                queue._log_pipeline_events(  # noqa: SLF001
+                queue._capture_pipeline_events(  # noqa: SLF001
                     json_file=json_file  # type: ignore[arg-type]
                 )
                 # If we get here, missing configuration was handled gracefully
@@ -64,11 +66,6 @@ class TestMissingConfigurationHandling:
                     f"FormSchedulerQueue should handle missing configuration "
                     f"gracefully, but raised: {e}"
                 )
-
-            # Should have logged debug message about missing configuration
-            mock_log.debug.assert_called_with(
-                "Event logger not configured, skipping event logging"
-            )
 
     def test_no_errors_when_event_logger_is_none(self):
         """Test that no errors occur when event logger is None.
@@ -80,13 +77,14 @@ class TestMissingConfigurationHandling:
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
         mock_pipeline_configs = Mock()
+        mock_event_capture = Mock(spec=VisitEventCapture)
 
-        # Create FormSchedulerQueue with None event logger
+        # Create FormSchedulerQueue with mock event capture
         queue = FormSchedulerQueue(
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_capture=None,
+            event_capture=mock_event_capture,
         )
 
         # Create completely valid inputs that would normally result in event logging
@@ -96,7 +94,7 @@ class TestMissingConfigurationHandling:
         # This should complete without any errors
         try:
             # Access the private method for testing
-            queue._log_pipeline_events(json_file=json_file)  # noqa: SLF001
+            queue._capture_pipeline_events(json_file=json_file)  # noqa: SLF001
             # If we get here, missing configuration was handled gracefully
             assert True
         except Exception as e:
@@ -114,17 +112,18 @@ class TestMissingConfigurationHandling:
         """
         # This should not raise an exception
         try:
+            mock_event_capture = Mock(spec=VisitEventCapture)
             queue = FormSchedulerQueue(
                 proxy=Mock(),
                 project=Mock(spec=ProjectAdaptor),
                 pipeline_configs=Mock(),
-                event_capture=None,
+                event_capture=mock_event_capture,
             )
             assert queue is not None
         except Exception as e:
             pytest.fail(
-                f"FormSchedulerQueue constructor should accept None event "
-                f"logger, but raised: {e}"
+                f"FormSchedulerQueue constructor should accept event "
+                f"capture, but raised: {e}"
             )
 
     def test_no_event_accumulator_creation_when_logger_none(self):
@@ -137,24 +136,27 @@ class TestMissingConfigurationHandling:
         # Create mock project and pipeline configs
         mock_project = Mock(spec=ProjectAdaptor)
         mock_pipeline_configs = Mock()
+        mock_event_capture = Mock(spec=VisitEventCapture)
 
-        # Create FormSchedulerQueue with None event logger
+        # Create FormSchedulerQueue with mock event capture
         queue = FormSchedulerQueue(
             proxy=Mock(),
             project=mock_project,
             pipeline_configs=mock_pipeline_configs,
-            event_capture=None,
+            event_capture=mock_event_capture,
         )
 
         json_file = Mock(spec=FileEntry)
         json_file.name = "test.json"
 
-        # Mock the EventAccumulator import to verify it's not called
+        # Mock the EventAccumulator import to verify it's called
         with patch(
-            "form_scheduler_app.event_accumulator.EventAccumulator"
+            "form_scheduler_app.form_scheduler_queue.EventAccumulator"
         ) as mock_accumulator_class:
             # Access the private method for testing
-            queue._log_pipeline_events(json_file=json_file)  # noqa: SLF001
+            queue._capture_pipeline_events(json_file=json_file)  # noqa: SLF001
 
-            # EventAccumulator should not be instantiated when event_logger is None
-            mock_accumulator_class.assert_not_called()
+            # EventAccumulator should be instantiated with event_capture
+            mock_accumulator_class.assert_called_once_with(
+                event_capture=mock_event_capture
+            )

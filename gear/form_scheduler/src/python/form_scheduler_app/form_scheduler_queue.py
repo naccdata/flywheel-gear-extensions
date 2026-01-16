@@ -12,7 +12,7 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from json.decoder import JSONDecodeError
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
@@ -31,6 +31,7 @@ from notifications.email import EmailClient
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from form_scheduler_app.email_user import send_email
+from form_scheduler_app.event_accumulator import EventAccumulator
 
 # Regex pattern to extract module name from filenames
 # Matches filenames like "ptid-MODULE.csv" and captures the module name
@@ -329,9 +330,24 @@ class FinalizationQueueBuilder(PipelineQueueBuilder):
 
         # Group files by module from DataView results
         for visit in result["data"]:
-            # Retrieve full file object from project
-            file = project.get_file(visit["filename"])
+            # Retrieve full file object using file_id
+            # Note: Cannot use project.get_file() as these are acquisition-level files
+            file_id = visit.get("file_id")
+            if not file_id:
+                log.warning(
+                    "No file_id found for file %s in module %s",
+                    visit.get("filename"),
+                    visit.get("module"),
+                )
+                continue
+
+            file = project.get_file_by_id(file_id)
             if file is None:
+                log.warning(
+                    "Could not retrieve file with id %s (filename: %s)",
+                    file_id,
+                    visit.get("filename"),
+                )
                 continue
 
             # Add file to its module's list
@@ -378,7 +394,7 @@ class FormSchedulerQueue:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
-        event_capture: Optional[VisitEventCapture] = None,
+        event_capture: VisitEventCapture,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -388,8 +404,7 @@ class FormSchedulerQueue:
             proxy: the proxy for the Flywheel instance
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
-            event_capture: VisitEventCapture for logging visit events
-                (None to skip event logging)
+            event_capture: VisitEventCapture for capturing visit events
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -404,12 +419,18 @@ class FormSchedulerQueue:
     def queue_files_for_pipeline(self, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
 
+        Reloads the project first to pick up any new files that may have been
+        added during processing.
+
         Args:
             pipeline: Pipeline configurations
 
         Returns:
             int: Number of files added to the pipeline queue
         """
+        # Reload project to pick up any new files or updated attributes
+        self.__project.reload()
+
         queue_builder = create_queue_builder(pipeline)
         if queue_builder is None:
             raise FormSchedulerError("Pipeline with name {pipeline.name} not supported")
@@ -443,34 +464,35 @@ class FormSchedulerQueue:
             if pipeline.name not in self.__pipeline_queues:
                 continue
 
+            # Only capture events for finalization pipeline
+            event_capture_callback = (
+                self._capture_pipeline_events
+                if pipeline.name == "finalization"
+                else None
+            )
+
             try:
                 self._process_pipeline_queue(
                     pipeline=pipeline,
                     pipeline_queue=self.__pipeline_queues[pipeline.name],
                     job_search=search_str,
                     notify_user=pipeline.notify_user,
+                    event_capture_callback=event_capture_callback,
                 )
             except ValueError as error:
                 raise GearExecutionError(
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
-    def _log_pipeline_events(self, *, json_file: FileEntry) -> None:
-        """Log QC-pass events for a processed JSON file.
+    def _capture_pipeline_events(self, json_file: FileEntry) -> None:
+        """Capture QC-pass events for a processed JSON file.
 
-        Event logging failures are logged but don't stop pipeline processing.
+        Event capture failures are logged but don't stop pipeline processing.
 
         Args:
             json_file: The JSON file that was processed
         """
-        # Skip event logging entirely if event logger is not configured
-        if self.__event_capture is None:
-            log.debug("Event logger not configured, skipping event logging")
-            return
-
         try:
-            from form_scheduler_app.event_accumulator import EventAccumulator
-
             event_accumulator = EventAccumulator(event_capture=self.__event_capture)
             event_accumulator.capture_events(
                 json_file=json_file, project=self.__project
@@ -478,13 +500,13 @@ class FormSchedulerQueue:
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
-                f"Failed to log events for {json_file.name}: {error}",
+                f"Failed to capture events for {json_file.name}: {error}",
                 exc_info=True,
             )
         except Exception as error:
             # Catch any unexpected errors (network, S3, etc.)
             log.error(
-                f"Unexpected error logging events for {json_file.name}: {error}",
+                f"Unexpected error capturing events for {json_file.name}: {error}",
                 exc_info=True,
             )
 
@@ -495,6 +517,7 @@ class FormSchedulerQueue:
         pipeline_queue: PipelineQueue,
         job_search: str,
         notify_user: bool,
+        event_capture_callback: Optional[Callable[[FileEntry], None]] = None,
     ):
         """Process files in a pipeline queue using round-robin scheduling.
 
@@ -512,6 +535,8 @@ class FormSchedulerQueue:
             pipeline_queue: files queued for this pipeline
             job_search: lookup string to find running pipelines
             notify_user: whether to notify the user about completion
+            event_capture_callback: optional callback to capture events after
+                processing each file (used for finalization pipeline)
         """
 
         # Get the starting gear's input file configurations
@@ -618,8 +643,9 @@ class FormSchedulerQueue:
                 #    This ensures files are processed one at a time
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-                # Log pass-qc or not-pass-qc events based on QC-status logs
-                self._log_pipeline_events(json_file=file)
+                # Capture events if callback provided (finalization pipeline only)
+                if event_capture_callback:
+                    event_capture_callback(file)
 
                 # e. Send notification email if enabled
                 #    Notifies the user who uploaded the file that processing

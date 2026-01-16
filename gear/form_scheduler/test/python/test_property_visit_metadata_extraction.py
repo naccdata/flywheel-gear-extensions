@@ -32,8 +32,6 @@ def create_mock_file_entry(
     file_entry = Mock(spec=FileEntry)
     file_entry.name = name
     file_entry.info = info or {}
-    # Mock reload() to return self (required by VisitMetadata.create())
-    file_entry.reload.return_value = file_entry
     return file_entry
 
 
@@ -223,13 +221,15 @@ def test_visit_metadata_extractor_utilities():
     """
     # Test from_qc_status_custom_info
     custom_info = {
-        "ptid": "110001",
-        "date": "2024-01-15",
-        "module": "UDS",
-        "packet": "I",
+        "visit": {
+            "ptid": "110001",
+            "date": "2024-01-15",
+            "module": "UDS",
+            "packet": "I",
+        }
     }
 
-    result: Optional[VisitMetadata] = VisitMetadata.model_validate(custom_info)
+    result = VisitMetadataExtractor.from_qc_status_custom_info(custom_info)
     assert result is not None
     assert result.ptid == "110001"
     assert result.date == "2024-01-15"

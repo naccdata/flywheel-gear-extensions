@@ -63,7 +63,6 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -89,15 +88,16 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="uds",
     )
 
@@ -279,7 +279,6 @@ def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -291,7 +290,6 @@ def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
         module_name="uds",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
     # Create CSV data with valid visit rows

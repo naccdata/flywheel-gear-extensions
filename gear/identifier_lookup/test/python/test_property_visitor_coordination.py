@@ -52,7 +52,6 @@ def test_visitor_coordination_success_case():
 
     # Create shared error writer for coordination
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -69,16 +68,17 @@ def test_visitor_coordination_success_case():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
     # Use existing QCStatusLogCSVVisitor with status determination from errors
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 
@@ -171,7 +171,6 @@ def test_visitor_coordination_failure_case():
 
     # Create shared error writer for coordination
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create output stream for identifier lookup
     output_stream = StringIO()
@@ -188,16 +187,17 @@ def test_visitor_coordination_failure_case():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=shared_error_writer,
-        misc_errors=misc_errors,
     )
 
     # Use existing QCStatusLogCSVVisitor with status determination from errors
+    misc_errors: List[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
         qc_log_creator=mock_qc_creator,
         gear_name="identifier-lookup",
         error_writer=shared_error_writer,
+        misc_errors=misc_errors,
         module_name="test",
     )
 

@@ -50,7 +50,6 @@ def test_naccid_lookup_visitor_separation_of_concerns():
 
     output_stream = StringIO()
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
 
     # Create CSV data with required fields
     header = ["adcid", "ptid", "visitdate", "visitnum", "packet", "formver"]
@@ -81,7 +80,6 @@ def test_naccid_lookup_visitor_separation_of_concerns():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=misc_errors,
     )
 
     # Act - Process header
@@ -192,7 +190,6 @@ def test_naccid_lookup_visitor_error_handling_without_qc():
         module_name="test",
         required_fields=uds_ingest_configs().required_fields,
         error_writer=error_writer,
-        misc_errors=misc_errors,
     )
 
     # Act - Process header and rows

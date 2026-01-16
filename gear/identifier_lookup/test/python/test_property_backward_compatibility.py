@@ -128,7 +128,6 @@ def capture_naccid_lookup_behavior(
             module_name="uds",
             required_fields=uds_ingest_configs().required_fields,
             error_writer=error_writer,
-            misc_errors=misc_errors,
         ),
         error_writer=error_writer,
     )

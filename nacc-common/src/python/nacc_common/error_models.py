@@ -332,6 +332,9 @@ class GearQCModel(BaseModel):
     def set_status(self, state: QCStatus) -> None:
         self.validation.state = state
 
+    def reset_cleared_alerts(self) -> None:
+        self.validation.cleared = []
+
     def apply(self, visitor: QCVisitor):
         visitor.visit_gear_model(self)
 
@@ -396,7 +399,11 @@ class FileQCModel(BaseModel):
         return gear_model.get_errors()
 
     def set_errors(
-        self, gear_name: str, status: QCStatus, errors: List[FileError] | FileErrorList
+        self,
+        gear_name: str,
+        status: QCStatus,
+        errors: List[FileError] | FileErrorList,
+        reset_cleared: Optional[bool] = True,
     ) -> None:
         """Sets the status and errors in the validation model for the gear.
 
@@ -404,6 +411,7 @@ class FileQCModel(BaseModel):
           gear_name: the name of the gear
           status: the QC status to set
           errors: the list of errors to set
+          reset_cleared (optional): reset cleared alerts (Default True)
         """
         if isinstance(errors, FileErrorList):
             errors = errors.list()
@@ -417,6 +425,9 @@ class FileQCModel(BaseModel):
 
         gear_model.set_errors(errors)
         gear_model.set_status(status)
+
+        if reset_cleared:
+            gear_model.reset_cleared_alerts()
 
     def get_file_status(self) -> QCStatus:
         """Returns the overall QC status for the file based on all gears.
