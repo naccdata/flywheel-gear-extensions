@@ -13,9 +13,13 @@ from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
 
-from .scheduling_models import FileModel
+from .scheduling_models import ProcessedFile
 
 log = logging.getLogger(__name__)
+
+
+class ProjectCurationError(Exception):
+    pass
 
 
 class Curator(ABC):
@@ -31,7 +35,7 @@ class Curator(ABC):
     @property
     def sdk_client(self) -> Client:
         if not self.__sdk_client:
-            raise ValueError("SDK Client not set")
+            raise ProjectCurationError("SDK Client not set")
 
         return self.__sdk_client
 
@@ -84,21 +88,34 @@ class Curator(ABC):
         # mutated globally
         table["subject.info"] = subject_table.to_dict()
         table["file.info"] = file_entry.reload().info
+
         return table
 
     @api_retry
     def curate_file(
         self, subject: Subject, subject_table: SymbolTable, file_id: str
-    ) -> None:
+    ) -> ProcessedFile:
         """Curates a file.
 
         Args:
             subject: Subject the file belongs to
             subject_table: SymbolTable containing subject-specific metadata
                 to curate to. Iteratively added onto for each file curation
-            file_id: File ID curate
+            file_id: FW ID of file to curate
+
+        Returns:
+            ProcessedFile: the ProcessedFile object; if not succesfully curated,
+                file_info will be None
         """
         file_entry = self.sdk_client.get_file(file_id)
+        scope = determine_scope(file_entry.name)
+
+        processed_file = ProcessedFile(
+            name=file_entry.name,
+            file_id=file_id,
+            tags=file_entry.tags,
+            scope=scope,
+        )
 
         if (
             self.curation_tag
@@ -106,16 +123,19 @@ class Curator(ABC):
             and self.curation_tag in file_entry.tags
         ):
             log.debug(f"{file_entry.name} already curated, skipping")
-            return
+            return processed_file
 
-        scope = determine_scope(file_entry.name)
         if not scope:
             log.warning("could not determine scope for %s, skipping", file_entry.name)
-            return
+            return processed_file
 
         table = self.get_table(subject, subject_table, file_entry)
         log.debug("curating file %s with scope %s", file_entry.name, scope)
-        self.execute(subject, file_entry, table, scope)
+        if not self.execute(subject, file_entry, table, scope):
+            return processed_file
+
+        processed_file.file_info = table.get("file.info", {})
+        return processed_file
 
     def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
         """Run pre-curation on the entire subject. Not required.
@@ -130,7 +150,7 @@ class Curator(ABC):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[FileModel],
+        processed_files: List[ProcessedFile],
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 
@@ -138,7 +158,7 @@ class Curator(ABC):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: List of FileModels that were processed
+            processed_files: List of ProcessedFiles that were successfully processed
         """
         return
 
@@ -149,7 +169,7 @@ class Curator(ABC):
         file_entry: FileEntry,
         table: SymbolTable,
         scope: ScopeLiterals,
-    ) -> None:
+    ) -> bool:
         """Perform contents of curation.
 
         Args:
@@ -158,17 +178,20 @@ class Curator(ABC):
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
-        pass
+        return True
 
 
 SCOPE_PATTERN = re.compile(
     r"^"
+    r"(?P<bds>.+_BDS\.json)|"
     r"(?P<cls>.+_CLS\.json)|"
+    r"(?P<csf>.+_CSF\.json)|"
     r"(?P<np>.+_NP\.json)|"
     r"(?P<mds>.+_MDS\.json)|"
     r"(?P<milestone>.+_MLST\.json)|"
+    r"(?P<covid>.+_COVID\.json)|"
     r"(?P<apoe>.+apoe_genotype\.json)|"
-    r"(?P<ncrad_samples>.+NCRAD-SAMPLES.+\.json)|"
+    r"(?P<ncrad_biosamples>.+NCRAD-SAMPLES.+\.json)|"
     r"(?P<niagads_availability>.+niagads_availability\.json)|"
     r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
     r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
@@ -177,6 +200,10 @@ SCOPE_PATTERN = re.compile(
     r"(?P<scan_amyloid_pet_npdka>.+SCAN-AMYLOID-PET-NPDKA.+\.json)|"
     r"(?P<scan_fdg_pet_npdka>.+SCAN-FDG-PET-NPDKA.+\.json)|"
     r"(?P<scan_tau_pet_npdka>.+SCAN-TAU-PET-NPDKA.+\.json)|"
+    r"(?P<mri_summary>.+MRI-SUMMARY-DATA.+\.json)|"
+    r"(?P<mri_dicom>.+MR.+\.dicom\.zip)|"
+    r"(?P<mri_nifti>.+MR.+\.nii\.gz)|"
+    r"(?P<pet_dicom>.+PET.+\.dicom\.zip)|"
     r"(?P<meds>.+_MEDS\.json)|"
     r"(?P<ftld>.+_FTLD\.json)|"
     r"(?P<lbd>.+_LBD\.json)|"
@@ -204,6 +231,6 @@ def determine_scope(filename: str) -> Optional[ScopeLiterals]:
     groups = match.groupdict()
     names = {key for key in groups if groups.get(key) is not None}
     if len(names) != 1:
-        raise ValueError(f"error matching file name {filename}")
+        raise ProjectCurationError(f"error matching file name {filename} to scope")
 
     return names.pop()  # type: ignore

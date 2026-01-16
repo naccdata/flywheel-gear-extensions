@@ -8,7 +8,7 @@ All notable changes to this gear are documented in this file.
 * Updates `nacc-form-validator` to 0.6.2
 
 ## 1.7.1
-* Integrates event logging functionality for enhanced QC status tracking and error reporting
+* Bug fixes and improvements
 
 ## 1.7.0
 * Updates `nacc-form-validator` to `0.6.1`
@@ -120,12 +120,12 @@ All notable changes to this gear are documented in this file.
 ## 0.0.32
 
 * [#102](https://github.com/naccdata/flywheel-gear-extensions/pull/102) Form QC Checker updates
-	* Add functionality to update/reset failed visit info in subject metadata
-	* Updates how to access rule definitions in S3 - use `nacc-flywheel-gear` user credentials
-	* Update optional form validation for non-strict mode
-	* Update `FlywheelDatastore` class functionality - retrieve legacy module info from Flywheel admin group metadata project
-	* Check whether there's a failed previous visit before evaluating the current visit
-	* Move dataview creation/reading to FW proxy class
+        * Add functionality to update/reset failed visit info in subject metadata
+        * Updates how to access rule definitions in S3 - use `nacc-flywheel-gear` user credentials
+        * Update optional form validation for non-strict mode
+        * Update `FlywheelDatastore` class functionality - retrieve legacy module info from Flywheel admin group metadata project
+        * Check whether there's a failed previous visit before evaluating the current visit
+        * Move dataview creation/reading to FW proxy class
 
 ## 0.0.31
 
@@ -134,7 +134,7 @@ All notable changes to this gear are documented in this file.
 ## 0.0.30
 
 * [#89](https://github.com/naccdata/flywheel-gear-extensions/pull/89) Adds support for optional forms validation
-	* Uses `optional_forms.json` to define optional forms, and load correct definition file dependin on the value of the **mode** variable for the respective form
+        * Uses `optional_forms.json` to define optional forms, and load correct definition file dependin on the value of the **mode** variable for the respective form
 
 ## 0.0.29 and earlier
 

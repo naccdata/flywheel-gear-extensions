@@ -1,43 +1,56 @@
 """Defines Attribute Curator."""
 
-import json
+import csv
 import logging
+from typing import MutableMapping, Optional
 
-from curator.form_curator import FormCurator
 from curator.scheduling import ProjectCurationScheduler
 from flywheel_gear_toolkit import GearToolkitContext
-from gear_execution.gear_execution import GearExecutionError
-from nacc_attribute_deriver.attribute_deriver import AttributeDeriver
+
+from .form_curator import FormCurator
 
 log = logging.getLogger(__name__)
 
 
 def run(
     context: GearToolkitContext,
-    deriver: AttributeDeriver,
     scheduler: ProjectCurationScheduler,
     curation_tag: str,
     force_curate: bool = False,
+    max_num_workers: int = 4,
+    rxclass_concepts: Optional[MutableMapping] = None,
+    ignore_qc: bool = False,
 ) -> None:
     """Runs the Attribute Curator process.
 
     Args:
         context: gear context
-        deriver: attribute deriver
-        curation_type: which type of file and derive rules to curate with
         scheduler: Schedules the files to be curated
         curation_tag: Tag to apply to curated files
         force_curate: Curate file even if it's already been curated
+        max_num_workers: Max number of workers to use
+        rxclass_concepts: RxClass concepts - uses this instead of querying
+            RxNav if provided
+        ignore_qc: Whether or not to ignore QC failures, e.g. will curate
+            files regardless of QC status
     """
     curator = FormCurator(
-        deriver=deriver, curation_tag=curation_tag, force_curate=force_curate
+        curation_tag=curation_tag,
+        force_curate=force_curate,
+        rxclass_concepts=rxclass_concepts,
+        ignore_qc=ignore_qc,
     )
 
-    scheduler.apply(curator=curator, context=context)
+    scheduler.apply(curator=curator, context=context, max_num_workers=max_num_workers)
 
     if curator.failed_files:
-        failed_files = curator.failed_files.copy()
-        log.error(json.dumps(failed_files, indent=4))
-        raise GearExecutionError(
-            f"Failed to curate {len(failed_files)} files, see above error logs"
-        )
+        failed_files = list(curator.failed_files)
+
+        with context.open_output(
+            "curation-failures.csv", mode="w", encoding="utf-8"
+        ) as fh:
+            writer = csv.DictWriter(fh, fieldnames=failed_files[0].keys())
+            writer.writeheader()
+            writer.writerows(failed_files)
+
+        log.error(f"Failed to curate {len(failed_files)} files, see error logs")
