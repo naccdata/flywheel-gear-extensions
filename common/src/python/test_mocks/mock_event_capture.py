@@ -9,7 +9,7 @@ from event_capture.visit_events import VisitEvent
 class MockVisitEventCapture(VisitEventCapture):
     """Mock VisitEventCapture for testing.
 
-    Stores logged events in a list for verification in tests.
+    Stores captured events in a list for verification in tests.
     """
 
     def __init__(self):
@@ -43,14 +43,14 @@ class MockVisitEventCapture(VisitEventCapture):
 
 
 def create_mock_event_capture() -> Mock:
-    """Create a basic mock event logger for simple tests."""
+    """Create a basic mock event capture for simple tests."""
     return Mock(spec=VisitEventCapture)
 
 
 def create_failing_mock_event_capture(
-    error_message: str = "Mock event logging failure",
+    error_message: str = "Mock event capture failure",
 ) -> Mock:
-    """Create a mock event logger that always fails."""
-    mock_logger = Mock(spec=VisitEventCapture)
-    mock_logger.capture_event.side_effect = RuntimeError(error_message)
-    return mock_logger
+    """Create a mock event capture that always fails."""
+    mock_capture = Mock(spec=VisitEventCapture)
+    mock_capture.capture_event.side_effect = RuntimeError(error_message)
+    return mock_capture

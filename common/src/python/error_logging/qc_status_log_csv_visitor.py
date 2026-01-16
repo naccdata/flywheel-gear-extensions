@@ -1,14 +1,15 @@
 """CSV visitor for QC status log creation."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from nacc_common.error_models import QCStatus, VisitMetadata
+from nacc_common.error_models import CSVLocation, FileError, QCStatus, VisitMetadata
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 
@@ -25,6 +26,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         qc_log_creator: QCStatusLogManager,
         gear_name: str,
         error_writer: ListErrorWriter,
+        misc_errors: List[FileError],
         module_name: Optional[str] = None,
     ) -> None:
         """Initialize QC CSV visitor.
@@ -35,6 +37,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             qc_log_creator: QC status log creator
             gear_name: Name of the gear
             error_writer: Error writer for tracking issues
+            misc_errors: List to store errors that occur while updating visit error log
             module_name: Optional module name to use when MODULE field is not
                 present in the row. If None, uses row.get(FieldNames.MODULE).
         """
@@ -43,6 +46,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         self.__qc_log_creator = qc_log_creator
         self.__gear_name = gear_name
         self.__error_writer = error_writer
+        self.__misc_errors = misc_errors
         self.__module_name = module_name
         self.__processed_visits: list[VisitMetadata] = []
 
@@ -102,6 +106,15 @@ class QCStatusLogCSVVisitor(CSVVisitor):
                 f"Failed to create QC status log for visit: "
                 f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
                 f"module={visit_metadata.module}"
+            )
+            # Add system error to misc_errors for QC log creation failure
+            self.__misc_errors.append(
+                system_error(
+                    message=f"Failed to create QC status log for visit: "
+                    f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
+                    f"module={visit_metadata.module}",
+                    error_location=CSVLocation(line=line_num, column_name=""),
+                )
             )
             # Don't fail the entire processing for QC log creation failure
             # This allows event logging to continue even if QC log creation fails

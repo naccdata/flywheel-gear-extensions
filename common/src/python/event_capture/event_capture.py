@@ -4,23 +4,23 @@ from event_capture.visit_events import VisitEvent
 
 
 class VisitEventCapture:
-    """Writes VisitEvent objects to transaction log.
+    """Captures VisitEvent objects to transaction log.
 
     Manages transaction log as S3 bucket with flat structure:
 
     <transaction-log-bucket>
     ├── prod
-    │   ├── log-submit-20240115-100000-42-ingest-form-alpha-110001-01.json
-    │   ├── log-pass-qc-20240115-102000-42-ingest-form-alpha-110001-01.json
-    │   └── log-not-pass-qc-20240116-143000-43-ingest-dicom-beta-220002-02.json
+    │   ├── log-submit-20240115-100000-42-ingest-form-alpha-110001-2024-01-15.json
+    │   ├── log-pass-qc-20240115-102000-42-ingest-form-alpha-110001-2024-01-15.json
+    │   └── log-not-pass-qc-20240116-143000-43-ingest-dicom-beta-220002-2024-01-16.json
     └── dev
-        └── log-submit-20240115-100000-42-ingest-form-alpha-110001-01.json
+        └── log-submit-20240115-100000-42-ingest-form-alpha-110001-2024-01-15.json
 
-    Filename format: log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visitnum}.json
+    Filename format: log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json
     """
 
     def __init__(self, s3_bucket: S3BucketInterface, environment: str = "prod") -> None:
-        """Initialize the event logger.
+        """Initialize the event capture.
 
         Args:
             s3_bucket: S3 bucket interface for writing events
@@ -37,7 +37,9 @@ class VisitEventCapture:
 
         Returns:
             Filename in format:
-            {env}/log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visitnum}.json
+            {env}/log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json
+
+            Uses visit_date for all modules to ensure consistency.
         """
         timestamp = event.timestamp.strftime("%Y%m%d-%H%M%S")
 
@@ -48,12 +50,12 @@ class VisitEventCapture:
             f"{self.__environment}/"
             f"log-{event.action}-{timestamp}-"
             f"{event.pipeline_adcid}-{project}-"
-            f"{event.ptid}-{event.visit_number}.json"
+            f"{event.ptid}-{event.visit_date}.json"
         )
         return filename
 
     def capture_event(self, event: VisitEvent) -> None:
-        """Logs the event.
+        """Captures the event.
 
         Args:
           event: the visit event
