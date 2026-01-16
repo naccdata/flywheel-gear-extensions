@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from configs.ingest_configs import ModuleConfigs
+from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from inputs.csv_reader import CSVVisitor
 from keys.types import DatatypeNameType
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-from outputs.errors import empty_field_error
+from outputs.errors import empty_field_error, unexpected_value_error
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent, VisitEventType
@@ -63,6 +64,22 @@ class CSVCaptureVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(date_field, line=line_num))
             return True  # Don't fail - just skip event logging
 
+        # Normalize date to YYYY-MM-DD format
+        normalized_date = convert_date(
+            date_string=visit_date, date_format=DEFAULT_DATE_FORMAT
+        )
+        if not normalized_date:
+            self.__error_writer.write(
+                unexpected_value_error(
+                    field=date_field,
+                    value=visit_date,
+                    expected="valid date",
+                    message="Expected a valid date string",
+                    line=line_num,
+                )
+            )
+            return True  # Don't fail - just skip event logging
+
         # PTID and ADCID are already validated by NACCIDLookupVisitor
         ptid = row.get(FieldNames.PTID)
         adcid = row.get(FieldNames.ADCID)
@@ -75,7 +92,7 @@ class CSVCaptureVisitor(CSVVisitor):
                 center_label=self.__center_label,
                 gear_name=self.__gear_name,
                 ptid=ptid,
-                visit_date=visit_date,
+                visit_date=normalized_date,
                 visit_number=visit_number,
                 datatype=self.__datatype,
                 module=module,
