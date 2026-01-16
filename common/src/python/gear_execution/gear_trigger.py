@@ -275,7 +275,7 @@ class BatchRunInfo(BaseModel):
     ) -> Dict[str, Any]:
         """Get the gear inputs from batch run info gear template.
 
-        Args:=
+        Args:
             center: The source center project
             gear_input_class: GearInputs class
 
