@@ -1,10 +1,9 @@
 """Entry script for DBT Runner."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 
 from flywheel_gear_toolkit import GearToolkitContext
-from fw_dataset.admin.dataset_builder import DatasetLoader
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -15,11 +14,12 @@ from gear_execution.gear_execution import (
 )
 from inputs.context_parser import get_api_key
 from inputs.parameter_store import ParameterStore
+from storage.storage import StorageManager
 
 from .main import run
-from .storage_configs import (
-    MultiStorageConfigs,
-    SingleStorageConfigs,
+from .storage_handler import (
+    MultiStorageHandler,
+    SingleStorageHandler,
 )
 
 log = logging.getLogger(__name__)
@@ -100,21 +100,22 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         )
 
     def __get_source_prefixes(
-        self, api_key: str, context: GearToolkitContext
-    ) -> List[str]:
+        self, storage_manager: StorageManager, context: GearToolkitContext
+    ) -> Dict[str, str]:
         """Create source prefixes from center map by looking up which centers
         have the specified target project.
 
         Args:
-            api_key: The FW API key; needed to create DatasetLoader
+            storage_manager: The StorageManager to aid with finding the
+                latest prefix
             context: The context to grab center map filtering
                 arguments from
 
         Returns:
-            List of found prefixes
+            Mapping of center to its latest prefix
         """
         center_ids = self.get_center_ids(context)
-        source_prefixes: List[str] = []
+        source_prefixes: Dict[str, str] = {}
 
         for center in center_ids:
             project = self.proxy.lookup(f"{center}/{self.__target_project}")
@@ -125,9 +126,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
                 )
                 continue
 
-            dataset_loader = DatasetLoader(api_key=api_key)
-            dataset = dataset_loader.load_dataset(project.id)
-            latest_dataset = dataset.get_latest_version()
+            latest_dataset = storage_manager.get_latest_dataset_version(project)
             if not latest_dataset:
                 log.warning(
                     f"No dataset found in {self.__target_project} project for "
@@ -135,11 +134,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
                 )
                 continue
 
-            # build prefix from the latest dataset version
-            instance = "TODO"  # way to query this from client?
-            source_prefixes.append(
-                f"{instance}/{center}/{project.id}/versions/{latest_dataset['version']}"
-            )
+            source_prefixes[center] = latest_dataset
 
         return source_prefixes
 
@@ -148,25 +143,27 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not api_key:
             raise GearExecutionError("API key not found")
 
-        storage_args: Dict[str, Any] = {
-            "storage_label": self.__storage_label,
-            "output_prefix": self.__output_prefix,
-        }
+        log.info("Initializing storage client")
+        storage_manager = StorageManager(api_key, self.__storage_label)
 
         if self.__source_prefix:
-            storage_args["source_prefix"] = self.__source_prefix
-            storage_class = SingleStorageConfigs
-        else:
-            storage_args["source_prefixes"] = self.__get_source_prefixes(
-                api_key, context
+            storage_handler = SingleStorageHandler(
+                storage_manager, self.__source_prefix
             )
-            storage_class = MultiStorageConfigs
+        else:
+            source_prefixes = self.__get_source_prefixes(storage_manager, context)
+            storage_handler = MultiStorageHandler(  # type: ignore
+                storage_manager, source_prefixes
+            )
+
+        storage_handler.verify_access()
 
         run(
             context=context,
             api_key=api_key,
             dbt_project_zip=self.__dbt_project_zip,
-            storage_configs=storage_class(**storage_args),
+            storage_handler=storage_handler,
+            output_prefix=self.__output_prefix,
         )
 
 

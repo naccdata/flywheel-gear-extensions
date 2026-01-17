@@ -1,13 +1,28 @@
 """Storage module for interacting with Flywheel external storage."""
 
+import json
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fw_client import FWClient
 from fw_storage import Storage, create_storage_client
+from pydantic import BaseModel, ValidationError
 
 log = logging.getLogger(__name__)
+
+DATASET_DATE_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
+
+
+class FWDataset(BaseModel):
+    """Models a FW dataset."""
+
+    bucket: str
+    prefix: str
+    storage_id: str
+    storage_label: Optional[str] = None
+    type: Literal["s3"]  # for now only allowing s3 datasets
 
 
 class StorageError(Exception):
@@ -99,6 +114,69 @@ class StorageManager:
                 raise StorageError(f"Failed to download '{file_info.path}': {e}") from e
 
         log.info(f"Dataset downloaded successfully to: {local_dir}")
+
+    def get_latest_dataset_version(self, project) -> Optional[str]:
+        """Find the latest dataset version for the given project.
+
+        This could also be done with using dataset.get_latest_version()
+        from the fw-dataset library. However, fw-dataset causes major versioning
+        conflicts with our other packages in this monorepo. As a result, this
+        function is aimed to basically recreate what it's doing without needing
+        to pull in fw-datset.
+
+        Args:
+            project: The project to grab the latest dataset for
+        Returns:
+            prefix of the latest version, if found, None otherwise
+        """
+        project = project.reload()
+        project_label = f"{project.group}/{project.label}"
+        dataset_info = project.info.get("dataset", {})
+
+        if not dataset_info:
+            log.info(f"Project {project_label} has no dataset defined")
+            return None
+
+        log.info(
+            f"Grabbing latest dataset for {project_label} under "
+            + f"storage {self.storage_label}"
+        )
+
+        try:
+            dataset = FWDataset(**dataset_info)
+        except ValidationError:
+            log.error(
+                f"dataset metadata for project {project_label} does "
+                + "not match expected format"
+            )
+            return None
+
+        # iterate over versions and scrape their creation dates
+        latest_creation = None
+        latest_dataset = None
+
+        try:
+            for version in list(self.storage_client.ls(f"{dataset.prefix}/versions")):
+                description_path = f"{version.path}/provenance/dataset_description.json"
+                if not self.storage_client.ls(description_path):
+                    continue
+
+                with self.storage_client.get(description_path) as remote_file:
+                    description = json.load(remote_file)
+
+                    created = datetime.strptime(
+                        description["created"], DATASET_DATE_FMT
+                    )
+                    if not latest_creation or latest_creation < created:
+                        latest_creation = created
+                        latest_dataset = version.path
+
+        except Exception as e:
+            raise StorageError(
+                f"Failed to inspect version '{version.path}': {e}"
+            ) from e
+
+        return latest_dataset
 
     def upload_results(
         self,
