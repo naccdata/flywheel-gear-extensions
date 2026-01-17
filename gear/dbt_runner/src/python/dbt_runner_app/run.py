@@ -143,7 +143,11 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not api_key:
             raise GearExecutionError("API key not found")
 
-        log.info("Initializing storage client")
+        log.info("=" * 80)
+        log.info("dbt Runner Gear - Starting execution")
+        log.info("=" * 80)
+
+        log.info("[1/6] Initializing storage client")
         storage_manager = StorageManager(api_key, self.__storage_label)
 
         if self.__source_prefix:
@@ -164,6 +168,10 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             storage_handler=storage_handler,
             output_prefix=self.__output_prefix,
         )
+
+        log.info("\n" + "=" * 80)
+        log.info("dbt Runner Gear - Completed successfully")
+        log.info("=" * 80)
 
 
 def main():

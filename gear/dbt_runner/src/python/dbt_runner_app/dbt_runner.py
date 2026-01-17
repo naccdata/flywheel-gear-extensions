@@ -74,8 +74,6 @@ class DBTRunner:
 
         Raises:
             subprocess.CalledProcessError: If dbt command fails
-        Returns:
-            True if ran successfullyl, false otherwise
         """
         log.info(f"Running dbt from: {self.__project_root}")
 
