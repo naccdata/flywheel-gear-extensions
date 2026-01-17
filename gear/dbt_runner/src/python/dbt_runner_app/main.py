@@ -20,7 +20,6 @@ log = logging.getLogger(__name__)
 def run(
     *,
     context: GearToolkitContext,
-    api_key: str,
     dbt_project_zip: InputFileWrapper,
     storage_handler: StorageHandler,
     output_prefix: str,
@@ -29,7 +28,6 @@ def run(
 
     Args:
         context: the gear context
-        api_key: the FW API key
         dbt_project_zip: the DBT project zip
         storage_handler: the StorageHandler
         output_prefix: output prefix to write results to
@@ -48,8 +46,6 @@ def run(
     project_root = validate_dbt_project(dbt_project_zip, dbt_extract_dir)
     log.info(f"dbt project root: {project_root}")
 
-    storage_manager = storage_handler.storage_manager
-
     # Step 3: Download source dataset
     log.info("[2/5] Downloading source dataset from external storage")
     storage_handler.download(source_data_dir)
@@ -64,7 +60,8 @@ def run(
 
     # Step 5: Upload results to external storage
     log.info("[4/5] Uploading results to external storage")
-    dbt_runner.upload_external_model_outputs(storage_manager, output_prefix)
+    dbt_runner.upload_external_model_outputs(
+        storage_handler.storage_manager, output_prefix)
 
     # Step 6: Save dbt artifacts as gear outputs
     log.info("[5/5] Saving dbt artifacts")

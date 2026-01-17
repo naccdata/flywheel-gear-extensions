@@ -160,7 +160,6 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
 
         run(
             context=context,
-            api_key=api_key,
             dbt_project_zip=self.__dbt_project_zip,
             storage_handler=storage_handler,
             output_prefix=self.__output_prefix,
