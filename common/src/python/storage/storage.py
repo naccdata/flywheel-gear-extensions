@@ -125,11 +125,9 @@ class StorageManager:
     def get_latest_dataset_version(self, project) -> Optional[str]:
         """Find the latest dataset version for the given project.
 
-        This could also be done with using dataset.get_latest_version()
-        from the fw-dataset library. However, fw-dataset causes major versioning
-        conflicts with our other packages in this monorepo. As a result, this
-        function is aimed to basically recreate what it's doing without needing
-        to pull in fw-datset.
+        This could also be done using dataset.get_latest_version() from
+        the fw-dataset library. However, fw-dataset causes major versioning
+        conflicts with other packages in this monorepo.
 
         Args:
             project: The project to grab the latest dataset for
@@ -185,6 +183,7 @@ class StorageManager:
             raise StorageError(f"Failed to inspect '{file.path}': {e}") from e
 
         if latest_dataset:
+            # remove target_path suffix to get prefix of version itself
             latest_dataset = latest_dataset.removesuffix(target_path)
             log.info(f"Found latest dataset for {project_label}: {latest_dataset}")
         else:
@@ -277,7 +276,7 @@ class StorageManager:
         Raises:
             StorageError: If access verification fails
         """
-        log.info(f"Verifying access under {self.storage_label} to: {prefix}")
+        log.info(f"Verifying access to: {prefix}")
 
         try:
             # Try to list files at the prefix

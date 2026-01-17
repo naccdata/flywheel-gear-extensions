@@ -62,7 +62,7 @@ class DBTRunner:
 
             # Create parent directory
             parent_dir = location_path.parent
-            if parent_dir != self.__project_root:
+            if parent_dir != self.__project_root and not parent_dir.exists():
                 parent_dir.mkdir(parents=True, exist_ok=True)
                 log.info(
                     "Created output directory: "
