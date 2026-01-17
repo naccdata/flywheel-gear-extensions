@@ -1,9 +1,9 @@
 """Models for executing the dbt-runner."""
 
-from typing import List, Optional
-from pydantic import BaseModel, ValidationError, field_validator
+from typing import Dict
 
-from centers.nacc_group import NACCGroup
+from pydantic import BaseModel, ValidationError, field_validator
+from storage.storage import StorageManager
 
 
 class StorageConfigs(BaseModel):
@@ -24,7 +24,7 @@ class StorageConfigs(BaseModel):
 
     def verify_access(self, storage_manager: StorageManager) -> None:
         """Verify the prefix is accessible."""
-        storage_manager.verify_access()
+        storage_manager.verify_access(None)
 
 
 class SingleStorageConfigs(StorageConfigs):
@@ -43,16 +43,15 @@ class SingleStorageConfigs(StorageConfigs):
 
 
 class MultiStorageConfigs(StorageConfigs):
-    """For when the source data comes from an aggregation
-    of sources."""
+    """For when the source data comes from an aggregation of sources."""
 
     # maps center to source prefix
     source_prefixes: Dict[str, str]
 
     @field_validator("source_prefix")
     @classmethod
-    def validate_prefixes(cls, value: Dict[str, str]) -> List[str]:
-        return [cls.validate_prefix(v) for x in value.values()]
+    def validate_prefixes(cls, value: Dict[str, str]) -> Dict[str, str]:
+        return {k: cls.validate_prefix(v) for k, v in value.items()}
 
     def verify_access(self, storage_manager: StorageManager):
         """Verify all prefixes are accessible."""

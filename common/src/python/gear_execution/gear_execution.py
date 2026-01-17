@@ -459,8 +459,9 @@ class GearExecutionEnvironment(ABC):
 
         # if include_centers is specified, just parase the list
         if include_centers:
+            include_centers_list = parse_string_to_list(include_centers)
             log.info("Including centers %s", include_centers_list)
-            return parse_string_to_list(include_centers)
+            return include_centers_list
 
         # otherwise, we need to grab the full center mapping and exclude
         # the specified centers and studies
