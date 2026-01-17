@@ -173,7 +173,7 @@ class StorageManager:
         except Exception as e:
             raise StorageError(f"Failed to upload '{local_file}': {e}") from e
 
-    def verify_access(self, prefix: str) -> bool:
+    def verify_access(self, prefix: str | None) -> None:
         """Verify that the storage and prefix are accessible.
 
         Args:
@@ -185,12 +185,15 @@ class StorageManager:
         Raises:
             StorageError: If access verification fails
         """
-        log.info(f"Verifying access to: {prefix}")
+        log.info(f"Verifying access under {self.storage_label} to: {prefix}")
 
         try:
             # Try to list files at the prefix
-            list(self.storage_client.ls(prefix))
+            if prefix:
+                list(self.storage_client.ls(prefix))
+            else:
+                self.storage_client.ls()
+
             log.info("Access verified successfully")
-            return True
         except Exception as e:
             raise StorageError(f"Failed to verify access to '{prefix}': {e}") from e

@@ -1,6 +1,10 @@
 """Defines DBT Runner."""
 
 import logging
+import shutil
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 from pathlib import Path
 
 from flywheel_gear_toolkit import GearToolkitContext
@@ -10,31 +14,74 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.context_parser import get_api_key
-from pydantic import BaseModel, ValidationError, field_validator
 from storage.storage import StorageManager
 
 from .dbt_runner import DBTRunner
+from .storage_configs import StorageConfigs, SingleStorageConfigs
 from .validation import validate_dbt_project, validate_source_data
 
 log = logging.getLogger(__name__)
 
 
-class StorageConfigs(BaseModel):
-    """Model to keep track of DBT storage configs."""
+def download_and_aggregate_sources(
+    storage_manager: StorageManager,
+    source_prefixes: Dict[str, str],
+    aggregation_dir: Path,
+    source_data_dir: Path
+) -> None:
+    """Aggregate data sources.
 
-    storage_label: str
-    source_prefix: str
-    output_prefix: str
+    Args:
+        storage_manager: StorageManager for downloading data
+        source_prefixes: Mapping of center to source prefixes to
+            pull from
+        aggregation_dir: Location to initially download files before
+            aggregation
+        source_data_dir: Location to write final aggregation
+    """
+    # need to open writers for each unique table, and append as we find them
+    table_writers = {}
 
-    @field_validator("source_prefix", "output_prefix")
-    @classmethod
-    def validate_prefix(cls, v: str) -> str:
-        """Ensure prefixes have no trailing backslash."""
-        v = v.rstrip("/")
-        if not v:
-            raise ValidationError("Prefix cannot be empty")
+    try:
+        for center, source_prefix in source_prefixes.items():
+            target_dir = aggregation_dir / center
+            storage_manager.download_dataset(source_prefix, target_dir)
 
-        return v
+            # we only really care about the files under tables/
+            tables_dir = target_dir / "tables"
+            for table in tables_dir.iterdir():
+                if not p.is_dir():
+                    continue
+
+                # assuming there is exactly one parquet for the table
+                parquet_files = list(table.glob("*.parquet"))
+                if len(parquet_files) != 1:
+                    raise GearExecutionError("Did not find exactly one parquet "
+                        + f"file for table {table.name} under {source_prefix}")
+
+                data = pq.read_table(parquet_files[0])
+
+                # TODO: this is a good spot to inject center info, something like
+                # data.append_column("center", pa.array([center] * data.num_rows)
+
+                if table.name not in table_writers:
+                    table_writers[table.name] = pq.ParquetWriter(
+                        source_data_dir / "tables" / table.name / f"aggregate_{table.name}.parquet",
+                        data.schema
+                    )
+
+                table_writers[table.name].write_table(data)
+
+                # clean up as we go
+                shutil.rmtree(target_dir)
+    except Exception as e:
+        raise GearExecutionError(
+            f"Failed to download from {source_prefix}: {e}") from e
+
+    # make sure we close writers
+    finally:
+        for writer in table_writers.values():
+            writer.close()
 
 
 def run(
@@ -74,11 +121,20 @@ def run(
         raise GearExecutionError("API key not found")
 
     storage_manager = StorageManager(api_key, storage_configs.storage_label)
-    storage_manager.verify_access(storage_configs.source_prefix)
+    storage_configs.verify_access(storage_manager)
 
     # Step 3: Download source dataset
     log.info("[3/6] Downloading source dataset from external storage")
-    storage_manager.download_dataset(storage_configs.source_prefix, source_data_dir)
+    if isinstance(storage_configs, SingleStorageConfigs):
+        storage_manager.download_dataset(storage_configs.source_prefix, source_data_dir)
+    else:
+        aggregation_dir = work_dir / "aggregation"
+        download_and_aggregate_sources(
+            storage_manager,
+            storage_configs.source_prefixes,
+            aggregation_dir,
+            source_data_dir
+        )
 
     # Validate source data structure
     validate_source_data(source_data_dir)

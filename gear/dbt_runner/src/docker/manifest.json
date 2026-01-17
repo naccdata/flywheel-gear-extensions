@@ -2,7 +2,7 @@
     "name": "dbt-runner",
     "label": "DBT Runner",
     "description": "Run dbt (data build tool) projects on Flywheel datasets stored in external storage. Transforms source parquet files using user-defined dbt models and outputs results back to external storage",
-    "version": "0.1.1",
+    "version": "0.2.0a",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/dbt-runner:0.1.1"
+            "image": "naccdata/dbt-runner:0.2.0a"
         },
         "flywheel": {
             "suite": "Utility",
@@ -47,13 +47,39 @@
             "description": "Label of the Flywheel external storage containing source and output data",
             "type": "string"
         },
-        "source_prefix": {
-            "description": "Path prefix within external storage where source Flywheel dataset files are located",
-            "type": "string"
-        },
         "output_prefix": {
             "description": "Path prefix within external storage where transformed output tables will be written",
             "type": "string"
+        },
+        "source_prefix": {
+            "description": "Path prefix within external storage where source Flywheel dataset files are located. If provided, will pull directly from this source.",
+            "type": "string",
+            "default": ""
+        },
+        "target_project": {
+            "description": "Target project to aggregate source data from. If provided, will pull data from all centers with this project and aggregate before executing DBT.",
+            "type": "string",
+            "default": ""
+        },
+        "admin_group": {
+            "description": "Name of the admin group",
+            "type": "string",
+            "default": "nacc"
+        },
+        "include_centers": {
+            "description": "Comma separated list of centers to include in aggregation of target_project",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_centers": {
+            "description": "Comma separated list of centers to exclude from aggregation of target_project",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_studies": {
+            "description": "Comma separated list of study suffixes to exclude from aggregation of target_project",
+            "type": "string",
+            "optional": true
         },
         "dry_run": {
             "description": "Whether to do a dry run",
