@@ -4,6 +4,7 @@ import logging
 import sys
 from typing import Optional
 
+from configs.ingest_configs import load_form_ingest_configurations
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -22,7 +23,6 @@ from redcap_api.redcap_connection import (
     REDCapReportConnection,
 )
 from s3.s3_bucket import S3BucketInterface
-from utils.utils import load_form_ingest_configurations
 
 from form_qc_app.main import run
 

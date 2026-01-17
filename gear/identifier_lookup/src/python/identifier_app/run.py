@@ -7,7 +7,10 @@ from io import StringIO
 from pathlib import Path
 from typing import List, Literal, Optional, TextIO
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import (
+    ModuleConfigs,
+    load_form_ingest_configurations,
+)
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
@@ -42,7 +45,6 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
-from utils.utils import load_form_ingest_configurations
 
 log = logging.getLogger(__name__)
 

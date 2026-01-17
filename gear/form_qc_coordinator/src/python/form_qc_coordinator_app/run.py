@@ -3,7 +3,11 @@
 import logging
 from typing import Any, Optional
 
-from configs.ingest_configs import FormProjectConfigs, PipelineType
+from configs.ingest_configs import (
+    FormProjectConfigs,
+    PipelineType,
+    load_form_ingest_configurations,
+)
 from flywheel import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.subject_adaptor import (
@@ -26,7 +30,6 @@ from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 from pydantic import ValidationError
-from utils.utils import load_form_ingest_configurations
 
 from form_qc_coordinator_app.coordinator import QCGearConfigs
 from form_qc_coordinator_app.main import run
