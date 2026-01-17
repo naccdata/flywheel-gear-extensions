@@ -1,4 +1,5 @@
-"""Storage Configs; keeps track of and validates prefixes."""
+"""Storage handler; handles verifying and downloading dataset(s) from
+storage."""
 
 import shutil
 from abc import ABC, abstractmethod
