@@ -128,13 +128,14 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
 
             latest_dataset = storage_manager.get_latest_dataset_version(project)
             if not latest_dataset:
-                log.warning(
-                    f"No dataset found in {self.__target_project} project for "
-                    + f"center {center}, skipping"
-                )
                 continue
 
             source_prefixes[center] = latest_dataset
+
+        if not source_prefixes:
+            raise GearExecutionError(
+                f"No datasets found for project {self.__target_project}"
+            )
 
         return source_prefixes
 

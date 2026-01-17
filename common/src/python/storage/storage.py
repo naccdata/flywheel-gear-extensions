@@ -24,6 +24,13 @@ class FWDataset(BaseModel):
     storage_label: Optional[str] = None
     type: Literal["s3"]  # for now only allowing s3 datasets
 
+    def strip_prefix(self, prefix_to_strip: str) -> str:
+        """The FW dataset represents the full prefix relative to the bucket,
+        but when accessed through the StorageManger may need to additionally
+        remove the storage's own prefix, e.g. the sandbox/dataset part."""
+        result = self.prefix.removeprefix(prefix_to_strip)
+        return result.removeprefix("/")  # remove lingering front slashes
+
 
 class StorageError(Exception):
     """Exception class for external storage errors."""
@@ -138,7 +145,7 @@ class StorageManager:
             return None
 
         log.info(
-            f"Grabbing latest dataset for {project_label} under "
+            f"Looking up latest dataset for {project_label} under "
             + f"storage {self.storage_label}"
         )
 
@@ -151,17 +158,20 @@ class StorageManager:
             )
             return None
 
-        # iterate over versions and scrape their creation dates
+        prefix = dataset.strip_prefix(self.storage_client.config.prefix)  # type: ignore
+        target_path = "/provenance/dataset_description.json"
         latest_creation = None
         latest_dataset = None
 
         try:
-            for version in list(self.storage_client.ls(f"{dataset.prefix}/versions")):
-                description_path = f"{version.path}/provenance/dataset_description.json"
-                if not self.storage_client.ls(description_path):
-                    continue
-
-                with self.storage_client.get(description_path) as remote_file:
+            # iterate over the description JSONs to get the creation dates
+            found_descriptions = list(
+                self.storage_client.ls(
+                    f"{prefix}/versions/", include=[f"path=~*{target_path}"]
+                )
+            )
+            for file in found_descriptions:
+                with self.storage_client.get(file.path) as remote_file:
                     description = json.load(remote_file)
 
                     created = datetime.strptime(
@@ -169,12 +179,16 @@ class StorageManager:
                     )
                     if not latest_creation or latest_creation < created:
                         latest_creation = created
-                        latest_dataset = version.path
+                        latest_dataset = file.path
 
         except Exception as e:
-            raise StorageError(
-                f"Failed to inspect version '{version.path}': {e}"
-            ) from e
+            raise StorageError(f"Failed to inspect '{file.path}': {e}") from e
+
+        if latest_dataset:
+            latest_dataset = latest_dataset.removesuffix(target_path)
+            log.info(f"Found latest dataset for {project_label}: {latest_dataset}")
+        else:
+            log.warning(f"No dataset found for {project_label}")
 
         return latest_dataset
 
@@ -268,7 +282,7 @@ class StorageManager:
         try:
             # Try to list files at the prefix
             if prefix:
-                list(self.storage_client.ls(prefix))
+                self.storage_client.ls(prefix)
             else:
                 self.storage_client.ls()
 
