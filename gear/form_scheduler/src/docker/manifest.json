@@ -62,9 +62,14 @@
             "default": "/prod/flywheel/gearbot"
         },
         "event_bucket": {
-            "description": "The S3 bucket name for visit event logging",
+            "description": "The S3 bucket name for visit event capture",
             "type": "string",
             "default": "submission-events"
+        },
+        "event_environment": {
+            "description": "The execution environment for visit event capture: prod or dev",
+            "type": "string",
+            "default": "prod"
         }
     },
     "command": "/bin/run"
