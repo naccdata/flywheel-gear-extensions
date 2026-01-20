@@ -127,7 +127,8 @@ class StorageManager:
 
         This could also be done using dataset.get_latest_version() from
         the fw-dataset library. However, fw-dataset causes major versioning
-        conflicts with other packages in this monorepo.
+        conflicts with other packages in this monorepo, so this code
+        was added to basically get around that.
 
         Args:
             project: The project to grab the latest dataset for

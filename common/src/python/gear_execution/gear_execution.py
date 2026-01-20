@@ -457,7 +457,7 @@ class GearExecutionEnvironment(ABC):
                 "provide either include list or exclude list"
             )
 
-        # if include_centers is specified, just parase the list
+        # if include_centers is specified, just prase the list
         if include_centers:
             include_centers_list = parse_string_to_list(include_centers)
             log.info("Including centers %s", include_centers_list)
