@@ -1,8 +1,9 @@
 """Entry script for form_scheduler."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
+from botocore.exceptions import ClientError
 from configs.ingest_configs import ConfigsError, PipelineConfigs
 from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
@@ -43,6 +44,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         pipeline_configs_input: InputFileWrapper,
         form_configs_input: InputFileWrapper,
         event_bucket: S3BucketInterface,
+        event_environment: Literal["prod", "dev"],
         source_email: Optional[str] = None,
         portal_url: Optional[URLParameter] = None,
     ):
@@ -53,6 +55,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self.__source_email = source_email
         self.__portal_url = portal_url
         self.__event_bucket = event_bucket
+        self.__event_environment = event_environment
 
     @classmethod
     def create(
@@ -96,16 +99,23 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             except ParameterError as error:
                 raise GearExecutionError(f"Parameter error: {error}") from error
 
-        event_bucket_name = context.config.get("event_bucket", None)
-        if event_bucket_name is None:
-            raise GearExecutionError("event bucket name is required")
-        event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
+        event_bucket_name = context.config.get("event_bucket", "submission-events")
+        event_environment = context.config.get("event_environment", "prod")
+
+        try:
+            event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
+        except ClientError as error:
+            raise GearExecutionError(
+                f"Failed to initialize S3 bucket interface: "
+                f"Unable to access S3 bucket '{event_bucket_name}'. Error: {error}"
+            ) from error
 
         return FormSchedulerVisitor(
             client=client,
             pipeline_configs_input=pipeline_configs_input,
             form_configs_input=form_configs_input,
             event_bucket=event_bucket,
+            event_environment=event_environment,
             source_email=source_email,
             portal_url=portal_url,
         )
@@ -151,7 +161,9 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__configs_input.filename}: {error}"
             ) from error
 
-        event_logger = VisitEventCapture(self.__event_bucket)
+        event_logger = VisitEventCapture(
+            s3_bucket=self.__event_bucket, environment=self.__event_environment
+        )
 
         # if source email specified, set up client to send emails
         email_client = (

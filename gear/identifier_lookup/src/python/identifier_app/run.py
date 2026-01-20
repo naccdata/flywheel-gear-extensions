@@ -7,6 +7,7 @@ from io import StringIO
 from pathlib import Path
 from typing import List, Literal, Optional, TextIO
 
+from botocore.exceptions import ClientError
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
@@ -134,9 +135,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     f"'{event_environment}' "
                     f"with bucket '{event_bucket}'"
                 )
-            except Exception as error:
+            except ClientError as error:
                 raise GearExecutionError(
-                    "Failed to initialize visit event capture:"
+                    "Failed to initialize visit event capture: "
                     "Unable to access S3 bucket "
                     f"'{event_bucket}'. Error: {error}"
                 ) from error
