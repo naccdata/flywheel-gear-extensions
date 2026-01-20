@@ -3,6 +3,7 @@
 import logging
 from typing import Dict, Optional
 
+from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -117,8 +118,14 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         center_ids = self.get_center_ids(context)
         source_prefixes: Dict[str, str] = {}
 
+        log.info(f"Looking up latest datasets under {storage_manager.storage_label}")
+
         for center in center_ids:
-            project = self.proxy.lookup(f"{center}/{self.__target_project}")
+            try:
+                project = self.proxy.lookup(f"{center}/{self.__target_project}")
+            except ApiException:
+                project = None
+
             if not project:
                 log.warning(
                     f"No {self.__target_project} project found for "
@@ -161,7 +168,9 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
                 storage_manager, source_prefixes
             )
 
+        log.info("Verifying access to all prefixes...")
         storage_handler.verify_access()
+        log.info("Access verified successfully")
 
         run(
             context=context,

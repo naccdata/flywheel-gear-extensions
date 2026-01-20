@@ -88,7 +88,7 @@ class StorageManager:
             source_prefix: Path prefix in storage where dataset is located
             local_dir: Local directory to download files to
         """
-        log.info(f"Downloading dataset from: {source_prefix}")
+        log.debug(f"Downloading dataset from: {source_prefix}")
         local_dir.mkdir(parents=True, exist_ok=True)
 
         # List all files in the source prefix
@@ -100,7 +100,7 @@ class StorageManager:
         if not files:
             raise StorageError(f"No files found at source prefix: {source_prefix}")
 
-        log.info(f"Found {len(files)} files to download")
+        log.debug(f"Found {len(files)} files to download")
 
         # Download each file
         for file_info in files:
@@ -120,7 +120,7 @@ class StorageManager:
             except Exception as e:
                 raise StorageError(f"Failed to download '{file_info.path}': {e}") from e
 
-        log.info(f"Dataset downloaded successfully to: {local_dir}")
+        log.debug(f"Dataset downloaded successfully to: {local_dir}")
 
     def get_latest_dataset_version(self, project) -> Optional[str]:
         """Find the latest dataset version for the given project.
@@ -142,10 +142,7 @@ class StorageManager:
             log.info(f"Project {project_label} has no dataset defined")
             return None
 
-        log.info(
-            f"Looking up latest dataset for {project_label} under "
-            + f"storage {self.storage_label}"
-        )
+        log.info(f"Looking up latest dataset for {project_label}")
 
         try:
             dataset = FWDataset(**dataset_info)
@@ -185,7 +182,7 @@ class StorageManager:
         if latest_dataset:
             # remove target_path suffix to get prefix of version itself
             latest_dataset = latest_dataset.removesuffix(target_path)
-            log.info(f"Found latest dataset for {project_label}: {latest_dataset}")
+            log.debug(f"Found latest dataset for {project_label}: {latest_dataset}")
         else:
             log.warning(f"No dataset found for {project_label}")
 
@@ -276,7 +273,7 @@ class StorageManager:
         Raises:
             StorageError: If access verification fails
         """
-        log.info(f"Verifying access to: {prefix}")
+        log.debug(f"Verifying access to: {prefix}")
 
         try:
             # Try to list files at the prefix
@@ -285,6 +282,6 @@ class StorageManager:
             else:
                 self.storage_client.ls()
 
-            log.info("Access verified successfully")
+            log.debug("Access verified successfully")
         except Exception as e:
             raise StorageError(f"Failed to verify access to '{prefix}': {e}") from e

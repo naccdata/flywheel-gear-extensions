@@ -51,11 +51,6 @@
             "description": "Path prefix within external storage where transformed output tables will be written",
             "type": "string"
         },
-        "output_filetypes": {
-            "description": "Comma-deliminated string of output file types; will write the set of results for each specified filetype",
-            "type": "string",
-            "default": ".parquet"
-        },
         "source_prefix": {
             "description": "Path prefix within external storage where source Flywheel dataset files are located. If provided, will pull directly from this source.",
             "type": "string",

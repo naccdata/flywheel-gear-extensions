@@ -58,7 +58,8 @@ class SingleStorageHandler(StorageHandler):
         """Download the dataset."""
         if tables_only:
             self.storage_manager.download_dataset(
-                f"{self.__source_prefix}/tables", target_dir / "tables")
+                f"{self.__source_prefix}/tables", target_dir / "tables"
+            )
         else:
             self.storage_manager.download_dataset(self.__source_prefix, target_dir)
 
@@ -84,7 +85,9 @@ class MultiStorageHandler(StorageHandler):
         """Download the dataset."""
         self.__download_and_aggregate_sources(target_dir, tables_only)
 
-    def __download_and_aggregate_sources(self, target_dir: Path, tables_only: bool = True) -> None:
+    def __download_and_aggregate_sources(
+        self, target_dir: Path, tables_only: bool = True
+    ) -> None:
         """Aggregate data sources into a single parquet.
 
         Args:
@@ -98,13 +101,15 @@ class MultiStorageHandler(StorageHandler):
 
         try:
             for center, source_prefix in self.__source_prefixes.items():
+                log.info(f"Downloading data for {center}...")
+
                 center_dir = target_dir / center
                 tables_dir = center_dir / "tables"
-                download_dir = tables_dir if tables_only else center_dir
 
                 if tables_only:
                     self.storage_manager.download_dataset(
-                        f"{source_prefix}/tables", tables_dir)
+                        f"{source_prefix}/tables", tables_dir
+                    )
                 else:
                     self.storage_manager.download_dataset(source_prefix, center_dir)
 
@@ -116,7 +121,8 @@ class MultiStorageHandler(StorageHandler):
                     parquet_files = list(table.glob("*.parquet"))
                     if len(parquet_files) != 1:
                         raise GearExecutionError(
-                            f"Did not find exactly one parquet file for table {table.name}"
+                            "Did not find exactly one parquet file for table "
+                            + f"{table.name}"
                         )
 
                     data = pq.read_table(parquet_files[0])
