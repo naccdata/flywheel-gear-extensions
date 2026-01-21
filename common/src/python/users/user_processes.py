@@ -7,6 +7,7 @@ from typing import Dict, Generic, List, Optional, TypeVar
 from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError
+
 from users.authorization_visitor import CenterAuthorizationVisitor
 from users.authorizations import StudyAuthorizations
 from users.error_models import ErrorCategory, ErrorCollector, ErrorEvent, UserContext
