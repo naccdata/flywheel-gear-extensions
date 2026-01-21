@@ -19,3 +19,7 @@ __defaults__(
         docker_image: dict(build_platform=["linux/amd64"]),
     }
 )
+
+shell_sources(
+    name="root",
+)

@@ -12,6 +12,7 @@ from configs.ingest_configs import (
 )
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import (
+    reset_error_log_metadata_for_gears,
     update_error_log_and_qc_metadata,
 )
 from flywheel.models.acquisition import Acquisition
@@ -187,6 +188,7 @@ class QCCoordinator:
             )
 
         self.__update_log_file(
+            module=self.__module,
             ptid=ptid,
             visitdate=visitdate,
             status=status,
@@ -197,6 +199,7 @@ class QCCoordinator:
     def __reset_qc_error_metadata(
         self,
         *,
+        module: str,
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
@@ -210,6 +213,7 @@ class QCCoordinator:
         Note: This method modifies metadata in a file which is not tracked as gear input
 
         Args:
+            module: module
             visit_file: FileEntry object for the visits file
             ptid: PTID
             visitdate: visit date
@@ -234,8 +238,10 @@ class QCCoordinator:
             )
             qc_info = FileQCModel(qc={})
 
+        # rest form-qc-checker errors if any
+        qc_info.reset(gear_name=qc_gear_name)
         qc_info.set_errors(
-            gear_name=qc_gear_name,
+            gear_name=self.__metadata.name,  # type: ignore
             status=status,
             errors=error_writer.errors().model_dump(by_alias=True),
         )
@@ -247,7 +253,6 @@ class QCCoordinator:
             gear_tags = GearTags(gear_name=qc_gear_name)
             fail_tag = gear_tags.fail_tag
             pass_tag = gear_tags.pass_tag
-            new_tag = gear_tags.get_status_tag(status=status)
 
             # visit file is not tracked through gear context
             # need to directly add/remove tags from FileEntry object
@@ -257,37 +262,42 @@ class QCCoordinator:
                 if pass_tag in visit_file.tags:
                     visit_file.delete_tag(pass_tag)
 
-            visit_file.add_tag(new_tag)
         except ApiException as error:
             log.error(
                 f"Error in resetting QC metadata in file {visit_file.name}: {error}"
             )
 
         self.__update_log_file(
+            module=module,
             ptid=ptid,
             visitdate=visitdate,
             status=status,
-            gear_name=qc_gear_name,
+            gear_name=self.__metadata.name,  # type: ignore
             errors=error_writer.errors(),
+            reset_gears=[qc_gear_name],
         )
 
     def __update_log_file(
         self,
         *,
+        module: str,
         ptid: str,
         visitdate: str,
         status: str,
         gear_name: str,
         errors: FileErrorList,
+        reset_gears: Optional[List[str]] = None,
     ):
         """Updates the visit error log and add qc info metadata.
 
         Args:
+            module: module
             ptid: PTID
             visitdate: visit date
             status: QC status
             gear_name: QC coordinator gear name
             errors: error object with failure info
+            reset_gears (optional): list of gear names to reset QC metadata
 
         Raises:
             GearExecutionError: If failed to update log file
@@ -297,7 +307,7 @@ class QCCoordinator:
                 f"{FieldNames.PTID}": ptid,
                 f"{FieldNames.DATE_COLUMN}": visitdate,
             },
-            module=self.__module,
+            module=module,
         )
 
         if (
@@ -316,6 +326,15 @@ class QCCoordinator:
         ):
             raise GearExecutionError(
                 f"Failed to update error log for visit {ptid}, {visitdate}"
+            )
+
+        if reset_gears:
+            reset_error_log_metadata_for_gears(
+                error_log_name=error_log_name,
+                destination_prj=ProjectAdaptor(
+                    project=self.__project, proxy=self.__proxy
+                ),
+                gear_names=reset_gears,
             )
 
     def __update_last_failed_visit(
@@ -584,6 +603,7 @@ class QCCoordinator:
             )
             error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
             self.__update_log_file(
+                module=self.__module,
                 ptid=ptid,
                 visitdate=visitdate,
                 status="FAIL",
@@ -702,6 +722,7 @@ class QCCoordinator:
         )
 
         self.__reset_qc_error_metadata(
+            module=module,
             visit_file=visit_file,
             error_obj=error_obj,
             ptid=ptid,

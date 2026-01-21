@@ -10,7 +10,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, Proje
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 from nacc_form_validator.datastore import Datastore
-from rxnorm.rxnorm_connection import RxcuiStatus, RxNormConnection
+from rxnav.rxnav_connection import RxCuiConnection, RxCuiStatus
 
 log = logging.getLogger(__name__)
 
@@ -278,6 +278,13 @@ class DatastoreHelper(Datastore):
         ivp_codes = self.__module_configs.initial_packets
         date_field = self.__module_configs.date_field
 
+        # remove current packet from ivp_codes, e.g. I4 should not be
+        # considered if this is the I4 record
+        current_packet = current_record.get(FieldNames.PACKET)
+        if ivp_codes and current_packet in ivp_codes:
+            # each item should be unique but loop as sanity check
+            ivp_codes = [packet for packet in ivp_codes if packet != current_packet]
+
         initial_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=module,
@@ -302,7 +309,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.QC_GEAR,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
                 extra_columns=[date_field],
             )
 
@@ -360,7 +367,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.QC_GEAR,
+                qc_gear=DefaultValues.LEGACY_QC_GEAR,
                 extra_columns=[date_field],
             )
 
@@ -546,7 +553,7 @@ class DatastoreHelper(Datastore):
         Returns:
             bool: True if provided drug ID is valid, else False
         """
-        return RxNormConnection.get_rxcui_status(drugid) == RxcuiStatus.ACTIVE
+        return RxCuiConnection.get_rxcui_status(drugid) == RxCuiStatus.ACTIVE
 
     def is_valid_adcid(self, adcid: int, own: bool) -> bool:
         """Overriding the abstract method to check whether a given ADCID is

@@ -3,7 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## 2.0.2
-* Integrates event logging functionality for enhanced QC status tracking and error reporting
+* Bug fixes and improvements
 
 ## 2.0.1
 * Rebuilt for reset error log content in read failure

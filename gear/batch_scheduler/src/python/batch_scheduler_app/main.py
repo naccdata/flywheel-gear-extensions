@@ -69,7 +69,7 @@ def trigger_gear_for_center(
         proxy=proxy,
         gear_name=batch_configs.gear_name,
         config=gear_configs,
-        inputs={},
+        inputs=batch_configs.get_gear_inputs(center.source),
         destination=center.source,
     )
 

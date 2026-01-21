@@ -48,7 +48,7 @@ def email_list():
 def email_list_client(ses, email_list):
     """Fixture for EmailListClient."""
     backend = ses_backends[DEFAULT_ACCOUNT_ID]["us-east-1"]
-    backend.addresses.append("dummy@dummy.org")
+    backend.verify_email_identity("dummy@dummy.org")
     backend.add_template(
         {
             "template_name": "dummy_template",

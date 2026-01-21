@@ -2,8 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.1.4
+## 1.0.0
+
+* Updates to support full QAF, including missingness values, not just derived variables
 * Integrates event logging functionality for enhanced QC status tracking and error reporting
+
+## 0.2.0
+
+* Add support for MRI QAFs
+* Adds support for multiple filename patterns
 
 ## 0.1.3
 
