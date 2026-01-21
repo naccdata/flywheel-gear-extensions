@@ -9,5 +9,5 @@ docker_image(
         ":manifest",
         "gear/dbt_runner/src/python/dbt_runner_app:bin",
     ],
-    image_tags=["0.2.0a", "latest"],
+    image_tags=["0.2.0", "latest"],
 )

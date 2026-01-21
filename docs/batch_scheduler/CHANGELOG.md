@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Refactors code to pull center IDs
+
 ## 1.2.0
 * Adds support for specifying gear inputs by filename (assumes project-level file)
 
