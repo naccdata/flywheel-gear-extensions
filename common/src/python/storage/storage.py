@@ -140,7 +140,7 @@ class StorageManager:
         dataset_info = project.info.get("dataset", {})
 
         if not dataset_info:
-            log.info(f"Project {project_label} has no dataset defined")
+            log.warning(f"Project {project_label} has no dataset defined")
             return None
 
         log.info(f"Looking up latest dataset for {project_label}")
@@ -183,7 +183,7 @@ class StorageManager:
         if latest_dataset:
             # remove target_path suffix to get prefix of version itself
             latest_dataset = latest_dataset.removesuffix(target_path)
-            log.debug(f"Found latest dataset for {project_label}: {latest_dataset}")
+            log.info(f"Found latest dataset for {project_label}: {latest_dataset}")
         else:
             log.warning(f"No dataset found for {project_label}")
 
