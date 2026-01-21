@@ -20,10 +20,11 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
+from users.error_models import ErrorCollector
 from users.user_entry import ActiveUserEntry, UserEntry
+from users.user_process_environment import NotificationModeType
 from users.user_processes import (
     NotificationClient,
-    NotificationModeType,
     UserProcess,
     UserProcessEnvironment,
     UserQueue,
@@ -142,6 +143,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
 
             try:
+                error_collector = ErrorCollector()
                 run(
                     user_queue=self.__get_user_queue(self.__user_filepath),
                     user_process=UserProcess(
@@ -162,7 +164,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
                                 api_instance=DefaultApi(comanage_client),
                                 coid=self.__comanage_coid,
                             ),
-                        )
+                        ),
+                        error_collector=error_collector,
                     ),
                 )
             except RegistryError as error:

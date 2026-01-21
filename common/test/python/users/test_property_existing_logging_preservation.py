@@ -319,7 +319,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     """
     error_collector = ErrorCollector()
     failure_analyzer = FailureAnalyzer(mock_env)
-    claimed_queue = UserQueue()
+    claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
 
     # Test scenario: User creation needed (should log info)
     mock_env.proxy.find_user.side_effect = [

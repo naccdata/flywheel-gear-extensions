@@ -304,7 +304,7 @@ class TestClaimedUserProcessIntegration:
         mock_environment.proxy.find_user.return_value = mock_user
         mock_environment.proxy.add_user.return_value = "user123"
 
-        claimed_queue = UserQueue()
+        claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         process = ClaimedUserProcess(
             mock_environment, claimed_queue, error_collector, failure_analyzer
         )
@@ -336,7 +336,7 @@ class TestClaimedUserProcessIntegration:
         ]  # Not found, then found after creation
         mock_environment.proxy.add_user.return_value = "user123"
 
-        claimed_queue = UserQueue()
+        claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         process = ClaimedUserProcess(
             mock_environment, claimed_queue, error_collector, failure_analyzer
         )
@@ -369,7 +369,7 @@ class TestClaimedUserProcessIntegration:
         flywheel_error = FlywheelError("Permission denied")
         mock_environment.proxy.add_user.side_effect = flywheel_error
 
-        claimed_queue = UserQueue()
+        claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
 
         # Create a real failure analyzer for this test
         failure_analyzer = FailureAnalyzer(mock_environment)
@@ -414,7 +414,7 @@ class TestClaimedUserProcessIntegration:
         mock_environment.proxy.find_user.return_value = None  # Always not found
         mock_environment.proxy.add_user.return_value = "user123"
 
-        claimed_queue = UserQueue()
+        claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         process = ClaimedUserProcess(
             mock_environment, claimed_queue, error_collector, failure_analyzer
         )
