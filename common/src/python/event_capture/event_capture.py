@@ -19,7 +19,7 @@ class VisitEventCapture:
     Filename format: log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json
     """
 
-    def __init__(self, s3_bucket: S3BucketInterface, environment: str = "prod") -> None:
+    def __init__(self, *, s3_bucket: S3BucketInterface, environment: str) -> None:
         """Initialize the event capture.
 
         Args:
