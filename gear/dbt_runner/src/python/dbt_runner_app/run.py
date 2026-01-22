@@ -33,11 +33,13 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         dbt_project_zip: InputFileWrapper,
         source_prefixes: str,
         output_prefix: str,
+        debug: bool = False,
     ):
         super().__init__(client=client)
         self.__dbt_project_zip = dbt_project_zip
         self.__source_prefixes = source_prefixes
         self.__output_prefix = output_prefix
+        self.__debug = debug
 
     @classmethod
     def create(
@@ -82,6 +84,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             dbt_project_zip=dbt_project_zip,
             source_prefixes=source_prefixes,
             output_prefix=output_prefix,
+            debug=debug,
         )
 
     def __load_source_prefixes(
@@ -146,6 +149,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             source_prefixes=parsed_source_prefixes,
             output_prefix=self.__output_prefix,
             dry_run=self.client.dry_run,
+            debug=self.__debug,
         )
 
 
