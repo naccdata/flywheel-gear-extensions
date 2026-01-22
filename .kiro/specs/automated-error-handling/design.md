@@ -598,8 +598,10 @@ class ErrorCategory(Enum):
     UNVERIFIED_EMAIL = "Unverified Email"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
+    MISSING_DIRECTORY_DATA = "Missing Directory Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
+    FLYWHEEL_ERROR = "Flywheel Error"
 ```
 
 ### User Context Model
