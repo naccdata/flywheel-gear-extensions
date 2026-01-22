@@ -1,4 +1,4 @@
-"""Entry script for File Aggregator."""
+"""Entry script for Dataset Aggregator."""
 
 import logging
 
@@ -12,14 +12,14 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
-from file_aggregator_app.main import run
+from dataset_aggregator_app.main import run
 from inputs.parameter_store import ParameterStore
 
 log = logging.getLogger(__name__)
 
 
-class FileAggregatorVisitor(GearExecutionEnvironment):
-    """Visitor for the File Aggregator gear."""
+class DatasetAggregatorVisitor(GearExecutionEnvironment):
+    """Visitor for the Dataset Aggregator gear."""
 
     def __init__(self, client: ClientWrapper):
         super().__init__(client=client)
@@ -28,9 +28,9 @@ class FileAggregatorVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None,
-    ) -> "FileAggregatorVisitor":
-        """Creates a File Aggregator execution visitor.
+        parameter_store: Optional[ParameterStore] = None
+    ) -> 'DatasetAggregatorVisitor':
+        """Creates a Dataset Aggregator execution visitor.
 
         Args:
             context: The gear context.
@@ -43,16 +43,16 @@ class FileAggregatorVisitor(GearExecutionEnvironment):
 
         client = ContextClient.create(context=context)
 
-        return FileAggregatorVisitor(client=client)
+        return DatasetAggregatorVisitor(client=client)
 
     def run(self, context: GearToolkitContext) -> None:
         run(proxy=self.proxy)
 
 
 def main():
-    """Main method for File Aggregator."""
+    """Main method for Dataset Aggregator."""
 
-    GearEngine().run(gear_type=FileAggregatorVisitor)
+    GearEngine().run(gear_type=DatasetAggregatorVisitor)
 
 
 if __name__ == "__main__":

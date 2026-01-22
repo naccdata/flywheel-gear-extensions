@@ -1,4 +1,4 @@
-"""Defines File Aggregator."""
+"""Defines Dataset Aggregator."""
 
 import logging
 
@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def run(*, proxy: FlywheelProxy):
-    """Runs the File Aggregator process.
+    """Runs the Dataset Aggregator process.
 
     Args:
         proxy: the proxy for the Flywheel instance
