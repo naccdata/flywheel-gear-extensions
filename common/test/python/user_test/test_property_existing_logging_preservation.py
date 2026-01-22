@@ -11,7 +11,6 @@ from unittest.mock import Mock
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from users.error_models import ErrorCollector
-from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
     ActiveUserProcess,
@@ -103,6 +102,11 @@ def mock_environment_strategy(draw):
     mock_env.user_registry.coid = 123  # Set coid as integer to avoid validation errors
     mock_env.proxy = Mock()
     mock_env.notification_client = Mock()
+
+    # Configure wrapper methods to delegate to proxy
+    mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(user_id)
+    mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+
     return mock_env
 
 
@@ -231,13 +235,12 @@ def test_update_user_process_preserves_existing_logging_with_error_handling(
     log messages while adding error event capture.
     """
     error_collector = ErrorCollector()
-    failure_analyzer = FailureAnalyzer(mock_env)
 
     # Test scenario: Missing claimed user (should log error)
     mock_env.user_registry.find_by_registry_id.return_value = None
-    mock_env.user_registry.get.return_value = []  # For failure analyzer
+    mock_env.get_from_registry.return_value = []  # For failure analyzer
 
-    process = UpdateUserProcess(mock_env, error_collector, failure_analyzer)
+    process = UpdateUserProcess(mock_env, error_collector)
 
     with LogCapture(level=logging.ERROR) as log_capture:
         process.visit(entry)
@@ -273,7 +276,6 @@ def test_update_user_process_preserves_info_logging_for_successful_updates(
     log messages while adding error event capture.
     """
     error_collector = ErrorCollector()
-    failure_analyzer = FailureAnalyzer(mock_env)
 
     # Setup for successful update scenario
     mock_registry_person = Mock(spec=RegistryPerson)
@@ -287,7 +289,7 @@ def test_update_user_process_preserves_info_logging_for_successful_updates(
     mock_env.user_registry.find_by_registry_id.return_value = mock_registry_person
     mock_env.proxy.find_user.return_value = mock_fw_user
 
-    process = UpdateUserProcess(mock_env, error_collector, failure_analyzer)
+    process = UpdateUserProcess(mock_env, error_collector)
 
     process.visit(entry)
 
@@ -318,7 +320,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     log messages while adding error event capture.
     """
     error_collector = ErrorCollector()
-    failure_analyzer = FailureAnalyzer(mock_env)
+
     claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
 
     # Test scenario: User creation needed (should log info)
@@ -328,9 +330,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     ]  # Not found, then found after creation
     mock_env.proxy.add_user.return_value = "user123"
 
-    process = ClaimedUserProcess(
-        mock_env, claimed_queue, error_collector, failure_analyzer
-    )
+    process = ClaimedUserProcess(mock_env, claimed_queue, error_collector)
 
     with LogCapture(level=logging.INFO) as log_capture:
         process.visit(entry)

@@ -118,7 +118,7 @@ class TestActiveUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.MISSING_DIRECTORY_PERMISSIONS.value
+        assert error_event.category == ErrorCategory.MISSING_DIRECTORY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
         assert "no authentication email" in error_event.error_details["message"]
 
@@ -153,11 +153,11 @@ class TestActiveUserProcessIntegration:
         assert error_event.user_context.email == "john.doe@example.com"
         assert "incomplete ORCID claim" in error_event.error_details["message"]
 
-    def test_active_user_process_creates_error_for_missing_creation_date(
+    def test_active_user_process_no_error_for_missing_creation_date(
         self, mock_environment, error_collector, sample_active_entry, caplog
     ):
-        """Test that ActiveUserProcess creates error event for missing creation
-        date."""
+        """Test that ActiveUserProcess does NOT create error event for missing
+        creation date (defensive check)."""
         # Setup mocks for missing creation date scenario
         mock_person = Mock(spec=RegistryPerson)
         mock_person.creation_date = None  # No creation date
@@ -176,21 +176,15 @@ class TestActiveUserProcessIntegration:
             "person record for john.doe@example.com has no creation date" in caplog.text
         )
 
-        # Verify error event was created
-        assert error_collector.has_errors()
-        assert error_collector.error_count() == 1
+        # Verify NO error event was created (this is a defensive check)
+        assert not error_collector.has_errors()
+        assert error_collector.error_count() == 0
 
-        errors = error_collector.get_errors()
-        error_event = errors[0]
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
-        assert error_event.user_context.email == "john.doe@example.com"
-        assert "no creation date" in error_event.error_details["message"]
-
-    def test_active_user_process_creates_error_for_missing_registry_id(
+    def test_active_user_process_no_error_for_missing_registry_id(
         self, mock_environment, error_collector, sample_active_entry, caplog
     ):
-        """Test that ActiveUserProcess creates error event for missing registry
-        ID."""
+        """Test that ActiveUserProcess does NOT create error event for missing
+        registry ID (defensive check)."""
         # Setup mocks for missing registry ID scenario
         mock_person = Mock(spec=RegistryPerson)
         mock_person.creation_date = "2024-01-01"
@@ -209,15 +203,9 @@ class TestActiveUserProcessIntegration:
         # Verify existing log message still occurs
         assert "User john.doe@example.com has no registry ID" in caplog.text
 
-        # Verify error event was created
-        assert error_collector.has_errors()
-        assert error_collector.error_count() == 1
-
-        errors = error_collector.get_errors()
-        error_event = errors[0]
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
-        assert error_event.user_context.email == "john.doe@example.com"
-        assert "no registry ID" in error_event.error_details["message"]
+        # Verify NO error event was created (this is a defensive check)
+        assert not error_collector.has_errors()
+        assert error_collector.error_count() == 0
 
     def test_active_user_process_handles_new_user_registration(
         self, mock_environment, error_collector, sample_active_entry, caplog
@@ -262,6 +250,13 @@ class TestClaimedUserProcessIntegration:
         mock_env = Mock(spec=UserProcessEnvironment)
         mock_env.proxy = Mock()
         mock_env.notification_client = Mock()
+
+        # Configure wrapper methods to delegate to proxy
+        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
+            user_id
+        )
+        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+
         return mock_env
 
     @pytest.fixture
@@ -305,9 +300,7 @@ class TestClaimedUserProcessIntegration:
         mock_environment.proxy.add_user.return_value = "user123"
 
         claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        process = ClaimedUserProcess(
-            mock_environment, claimed_queue, error_collector, failure_analyzer
-        )
+        process = ClaimedUserProcess(mock_environment, claimed_queue, error_collector)
 
         # Process the entry
         process.visit(sample_registered_entry)
@@ -337,9 +330,7 @@ class TestClaimedUserProcessIntegration:
         mock_environment.proxy.add_user.return_value = "user123"
 
         claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        process = ClaimedUserProcess(
-            mock_environment, claimed_queue, error_collector, failure_analyzer
-        )
+        process = ClaimedUserProcess(mock_environment, claimed_queue, error_collector)
 
         # Process the entry
         with caplog.at_level(logging.INFO):
@@ -372,11 +363,8 @@ class TestClaimedUserProcessIntegration:
         claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
 
         # Create a real failure analyzer for this test
-        failure_analyzer = FailureAnalyzer(mock_environment)
 
-        process = ClaimedUserProcess(
-            mock_environment, claimed_queue, error_collector, failure_analyzer
-        )
+        process = ClaimedUserProcess(mock_environment, claimed_queue, error_collector)
 
         # Process the entry (this will fail 3 times)
         with caplog.at_level(logging.ERROR):
@@ -415,9 +403,7 @@ class TestClaimedUserProcessIntegration:
         mock_environment.proxy.add_user.return_value = "user123"
 
         claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        process = ClaimedUserProcess(
-            mock_environment, claimed_queue, error_collector, failure_analyzer
-        )
+        process = ClaimedUserProcess(mock_environment, claimed_queue, error_collector)
 
         # Process the entry
         with caplog.at_level(logging.ERROR):
@@ -442,6 +428,13 @@ class TestUpdateUserProcessIntegration:
         mock_env = Mock(spec=UserProcessEnvironment)
         mock_env.user_registry = Mock()
         mock_env.proxy = Mock()
+
+        # Configure wrapper methods to delegate to proxy
+        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
+            user_id
+        )
+        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+
         return mock_env
 
     @pytest.fixture
@@ -491,7 +484,7 @@ class TestUpdateUserProcessIntegration:
         )
         mock_environment.proxy.find_user.return_value = mock_fw_user
 
-        process = UpdateUserProcess(mock_environment, error_collector, failure_analyzer)
+        process = UpdateUserProcess(mock_environment, error_collector)
 
         # Process the entry
         process.visit(sample_registered_entry)
@@ -513,12 +506,11 @@ class TestUpdateUserProcessIntegration:
         users."""
         # Setup mocks for missing claimed user scenario
         mock_environment.user_registry.find_by_registry_id.return_value = None
-        mock_environment.user_registry.get.return_value = []  # For failure analyzer
+        mock_environment.get_from_registry.return_value = []  # For failure analyzer
 
         # Create a real failure analyzer for this test
-        failure_analyzer = FailureAnalyzer(mock_environment)
 
-        process = UpdateUserProcess(mock_environment, error_collector, failure_analyzer)
+        process = UpdateUserProcess(mock_environment, error_collector)
 
         # Process the entry
         with caplog.at_level(logging.ERROR):
@@ -540,7 +532,7 @@ class TestUpdateUserProcessIntegration:
         assert error_event.user_context.email == "bob.wilson@example.com"
         assert "not found in registry" in error_event.error_details["message"]
 
-    def test_update_user_process_creates_error_for_missing_flywheel_user(
+    def test_update_user_process_no_error_for_missing_flywheel_user(
         self,
         mock_environment,
         error_collector,
@@ -548,8 +540,8 @@ class TestUpdateUserProcessIntegration:
         sample_registered_entry,
         caplog,
     ):
-        """Test that UpdateUserProcess creates error event for missing Flywheel
-        user."""
+        """Test that UpdateUserProcess does NOT create error event for missing
+        Flywheel user (defensive check)."""
         # Setup mocks for missing Flywheel user scenario
         mock_registry_person = Mock()
         mock_registry_person.email_address = Mock()
@@ -562,29 +554,23 @@ class TestUpdateUserProcessIntegration:
             None  # User not found in Flywheel
         )
 
-        process = UpdateUserProcess(mock_environment, error_collector, failure_analyzer)
+        process = UpdateUserProcess(mock_environment, error_collector)
 
         # Process the entry
         with caplog.at_level(logging.ERROR):
             process.visit(sample_registered_entry)
 
         # Verify existing log message still occurs
-        assert "Failed to add user bob.wilson@example.com with ID reg789" in caplog.text
-
-        # Verify error event was created
-        assert error_collector.has_errors()
-        assert error_collector.error_count() == 1
-
-        errors = error_collector.get_errors()
-        error_event = errors[0]
-        assert error_event.category == ErrorCategory.FLYWHEEL_ERROR.value
-        assert error_event.user_context.email == "bob.wilson@example.com"
         assert (
-            "should exist in Flywheel but was not found"
-            in error_event.error_details["message"]
+            "Expected user bob.wilson@example.com with ID reg789 in Flywheel not found"
+            in caplog.text
         )
 
-    def test_update_user_process_creates_error_for_missing_registry_email(
+        # Verify NO error event was created (this is a defensive check)
+        assert not error_collector.has_errors()
+        assert error_collector.error_count() == 0
+
+    def test_update_user_process_no_error_for_missing_registry_email(
         self,
         mock_environment,
         error_collector,
@@ -592,8 +578,8 @@ class TestUpdateUserProcessIntegration:
         sample_registered_entry,
         caplog,
     ):
-        """Test that UpdateUserProcess creates error event for missing registry
-        email address."""
+        """Test that UpdateUserProcess does NOT create error event for missing
+        registry email address (defensive check)."""
         # Setup mocks for missing registry email scenario
         mock_registry_person = Mock()
         mock_registry_person.email_address = None  # No email address
@@ -606,7 +592,7 @@ class TestUpdateUserProcessIntegration:
         )
         mock_environment.proxy.find_user.return_value = mock_fw_user
 
-        process = UpdateUserProcess(mock_environment, error_collector, failure_analyzer)
+        process = UpdateUserProcess(mock_environment, error_collector)
 
         # Process the entry
         with caplog.at_level(logging.ERROR):
@@ -615,15 +601,9 @@ class TestUpdateUserProcessIntegration:
         # Verify existing log message still occurs
         assert "Registry record does not have email address: reg789" in caplog.text
 
-        # Verify error event was created
-        assert error_collector.has_errors()
-        assert error_collector.error_count() == 1
-
-        errors = error_collector.get_errors()
-        error_event = errors[0]
-        assert error_event.category == ErrorCategory.UNVERIFIED_EMAIL.value
-        assert error_event.user_context.email == "bob.wilson@example.com"
-        assert "has no email address" in error_event.error_details["message"]
+        # Verify NO error event was created (this is a defensive check)
+        assert not error_collector.has_errors()
+        assert error_collector.error_count() == 0
 
 
 class TestUserProcessIntegrationEndToEnd:
@@ -637,6 +617,13 @@ class TestUserProcessIntegrationEndToEnd:
         mock_env.user_registry = Mock()
         mock_env.proxy = Mock()
         mock_env.notification_client = Mock()
+
+        # Configure wrapper methods to delegate to proxy
+        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
+            user_id
+        )
+        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+
         return mock_env
 
     @pytest.fixture
@@ -690,7 +677,7 @@ class TestUserProcessIntegrationEndToEnd:
         errors = error_collector.get_errors()
         error_categories = [error.category for error in errors]
 
-        assert ErrorCategory.MISSING_DIRECTORY_PERMISSIONS.value in error_categories
+        assert ErrorCategory.MISSING_DIRECTORY_DATA.value in error_categories
         assert ErrorCategory.BAD_ORCID_CLAIMS.value in error_categories
 
         # Verify both log messages occurred
@@ -735,12 +722,9 @@ class TestUserProcessIntegrationEndToEnd:
 
         # Setup mocks for missing claimed user
         mock_environment.user_registry.find_by_registry_id.return_value = None
-        mock_environment.user_registry.get.return_value = []
+        mock_environment.get_from_registry.return_value = []
 
-        failure_analyzer = FailureAnalyzer(mock_environment)
-        process2 = UpdateUserProcess(
-            mock_environment, error_collector, failure_analyzer
-        )
+        process2 = UpdateUserProcess(mock_environment, error_collector)
         process2.visit(entry2)
 
         # Verify both errors are now collected
