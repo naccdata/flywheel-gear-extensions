@@ -105,9 +105,15 @@ graph TB
   - ✅ Priority-based email selection (organizational → official → verified → any) via `email_address` property
   - ✅ Comprehensive email address comparison via `email_addresses`, `organization_email_addresses`, `official_email_addresses`, `verified_email_addresses`, and `has_email()` methods
   - ✅ OrgIdentity details via `organization_email_addresses` property (uses internal `__get_claim_org()`)
+  - ✅ OrgIdentity filtering via `org_identities(predicate)` method with predicate support for identity provider detection
   - ✅ Identifier filtering via `identifiers()` method with predicate support
   - ⚠️ CoPersonRole accessible through underlying `CoPersonMessage` but may need explicit property for error detection
   - ✅ All COManage data structures (EmailAddress, Identifier, OrgIdentity) accessible through clean interface methods
+- **UserRegistry Interface**: ✅ **ENHANCED** - Provides methods for incomplete claim detection:
+  - ✅ `has_bad_claim(name)` - Check if a person has an incomplete claim (claimed but no email)
+  - ✅ `get_bad_claim(name)` - Retrieve list of RegistryPerson objects with incomplete claims for analysis
+- **Module-Level Utilities**: ✅ **ADDED** - Helper functions for common predicates:
+  - ✅ `org_name_is(name)` - Creates predicate for testing organizational identity names (e.g., "ORCID")
 - **User Entry Data**: Direct access to directory information including authorizations for permission checking
 - **COManage Registry API**: Accessed through enhanced RegistryPerson interface for consistency
 
@@ -260,21 +266,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         
         person_list = self._env.user_registry.get(email=entry.auth_email)
         if not person_list:
-            if self._env.user_registry.has_bad_claim(entry.full_name):
+            bad_claim = self._env.user_registry.get_bad_claim(entry.full_name)
+            if bad_claim:
                 log.error("Active user has incomplete claim: %s, %s", 
                          entry.full_name, entry.email)
                 
-                # Create error event for bad claim - requires ORCID analysis
-                error_event = ErrorEvent(
-                    category=ErrorCategory.BAD_ORCID_CLAIMS,
-                    user_context=UserContext.from_user_entry(entry),
-                    error_details={
-                        "message": "User has incomplete ORCID claim in registry",
-                        "full_name": entry.full_name,
-                        "action_needed": "delete_bad_record_and_reclaim"
-                    }
+                # Analyze incomplete claim to determine if ORCID is the identity provider
+                error_event = self.failure_analyzer.detect_incomplete_claim(
+                    entry, bad_claim
                 )
-                self.error_collector.collect(error_event)
+                if error_event:
+                    self.error_collector.collect(error_event)
                 return
             
             # log.info() case - no error event needed, this is normal processing
@@ -540,6 +542,54 @@ class FailureAnalyzer:
                     "action_needed": "check_claim_status_and_email_verification"
                 }
             )
+    
+    def detect_incomplete_claim(self, entry: UserEntry, 
+                               bad_claim_persons: List[RegistryPerson]) -> Optional[ErrorEvent]:
+        """Detect incomplete claims and identify if ORCID is the identity provider.
+        
+        An incomplete claim occurs when a user has claimed their account (logged in
+        via an identity provider) but the identity provider did not return complete
+        information such as email address. ORCID is a common identity provider that
+        requires special configuration and often causes this issue.
+        
+        Args:
+            entry: The user entry from the directory
+            bad_claim_persons: List of RegistryPerson objects with incomplete claims
+            
+        Returns:
+            ErrorEvent with category BAD_ORCID_CLAIMS if ORCID detected,
+            or INCOMPLETE_CLAIM otherwise
+        """
+        from users.user_registry import org_name_is
+        
+        # Check if any of the bad claim persons have ORCID org identity
+        has_orcid = any(
+            person.org_identities(predicate=org_name_is("ORCID"))
+            for person in bad_claim_persons
+        )
+        
+        if has_orcid:
+            return ErrorEvent(
+                category=ErrorCategory.BAD_ORCID_CLAIMS,
+                user_context=UserContext.from_user_entry(entry),
+                error_details={
+                    "message": "User has incomplete claim with ORCID identity provider",
+                    "full_name": entry.name.full_name if entry.name else "unknown",
+                    "has_orcid_org_identity": True,
+                    "action_needed": "delete_bad_record_and_reclaim_with_institutional_idp"
+                }
+            )
+        else:
+            return ErrorEvent(
+                category=ErrorCategory.INCOMPLETE_CLAIM,
+                user_context=UserContext.from_user_entry(entry),
+                error_details={
+                    "message": "User has incomplete claim (identity provider did not return email)",
+                    "full_name": entry.name.full_name if entry.name else "unknown",
+                    "has_orcid_org_identity": False,
+                    "action_needed": "verify_identity_provider_configuration_and_reclaim"
+                }
+            )
 ```
 
 ### End-of-Run Notification
@@ -596,6 +646,7 @@ class ErrorCategory(Enum):
     UNCLAIMED_RECORDS = "Unclaimed Records"
     EMAIL_MISMATCH = "Authentication Email Mismatch"
     UNVERIFIED_EMAIL = "Unverified Email"
+    INCOMPLETE_CLAIM = "Incomplete Claim"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
