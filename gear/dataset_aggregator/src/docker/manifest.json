@@ -28,22 +28,18 @@
         }
     },
     "config": {
-        "storage_label": {
-            "description": "Label of the Flywheel external storage containing source and output data.",
-            "type": "string"
-        },
-        "output_prefix": {
-            "description": "Path prefix within external storage where aggregated results will be written.",
-            "type": "string"
-        },
         "target_project": {
             "description": "Target project to aggregate datasets from.",
+            "type": "string"
+        },
+        "output_uri": {
+            "description": "S3 path of where aggregated results should be written to.",
             "type": "string"
         },
         "file_type": {
             "description": "Type of file to aggregate.",
             "type": "string",
-            "enum": [".parquet", ".csv", ".json"]
+            "enum": [".parquet", ".csv"]
         },
         "dry_run": {
             "description": "Whether to do a dry run",
