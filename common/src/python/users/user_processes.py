@@ -497,7 +497,8 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
         person_list = self.__env.user_registry.get(email=entry.auth_email)
         if not person_list:
-            if self.__env.user_registry.has_bad_claim(entry.full_name):
+            bad_claim = self.__env.user_registry.get_bad_claim(entry.full_name)
+            if bad_claim:
                 log.error(
                     "Active user has incomplete claim: %s, %s",
                     entry.full_name,
