@@ -1,8 +1,6 @@
 """Entry script for Attribute Curator."""
 
-import json
 import logging
-from json.decoder import JSONDecodeError
 from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -10,14 +8,15 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    GearBotClient,
+    ContextClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
     get_project_from_destination,
 )
 from inputs.parameter_store import ParameterStore
-from s3.s3_bucket import S3BucketInterface
+from rxnav.rxnav_connection import load_rxclass_concepts_from_file
 from utils.utils import parse_string_to_list
 
 from attribute_curator_app.main import run
@@ -35,7 +34,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         filename_patterns: List[str],
         curation_tag: str,
         force_curate: bool = False,
-        rxclass_concepts_s3_uri: Optional[str] = None,
+        rxclass_concepts_file: Optional[InputFileWrapper] = None,
         max_num_workers: int = 4,
         ignore_qc: bool = False,
     ):
@@ -44,7 +43,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self.__filename_patterns = filename_patterns
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
-        self.__rxclass_concepts_s3_uri = rxclass_concepts_s3_uri
+        self.__rxclass_concepts_file = rxclass_concepts_file
         self.__max_num_workers = max_num_workers
         self.__ignore_qc = ignore_qc
 
@@ -65,8 +64,12 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
 
-        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        client = ContextClient.create(context=context)
         proxy = client.get_proxy()
+
+        rxclass_concepts_file = InputFileWrapper.create(
+            input_name="rxclass_concepts_file", context=context
+        )
 
         filename_patterns = parse_string_to_list(
             context.config.get(
@@ -74,10 +77,10 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             ),
             to_lower=False,
         )
+
         curation_tag = context.config.get("curation_tag", "attribute-curator")
         force_curate = context.config.get("force_curate", False)
         max_num_workers = context.config.get("max_num_workers", 4)
-        rxclass_concepts_s3_uri = context.config.get("rxclass_concepts_s3_uri", "")
         ignore_qc = context.config.get("ignore_qc", False)
 
         fw_project = get_project_from_destination(context=context, proxy=proxy)
@@ -92,7 +95,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             filename_patterns=filename_patterns,
             curation_tag=curation_tag,
             force_curate=force_curate,
-            rxclass_concepts_s3_uri=rxclass_concepts_s3_uri,
+            rxclass_concepts_file=rxclass_concepts_file,
             max_num_workers=max_num_workers,
             ignore_qc=ignore_qc,
         )
@@ -101,24 +104,11 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         rxclass_concepts = None
-        if self.__rxclass_concepts_s3_uri:
-            log.info(f"Loading RxClass concepts from {self.__rxclass_concepts_s3_uri}")
-            s3_bucket, s3_file = S3BucketInterface.parse_bucket_and_key(
-                self.__rxclass_concepts_s3_uri
-            )
-            s3_client = S3BucketInterface.create_from_environment(s3_bucket)
-            if not s3_client or not s3_file:
-                raise GearExecutionError(
-                    "Invalid S3 URI for RxNorm concepts: "
-                    + f"{self.__rxclass_concepts_s3_uri}"
-                )
-
-            try:
-                rxclass_concepts = json.load(s3_client.read_data(s3_file))
-            except (JSONDecodeError, TypeError) as error:
-                raise GearExecutionError(
-                    f"Failed to read {self.__rxclass_concepts_s3_uri}: {error}"
-                ) from error
+        if self.__rxclass_concepts_file:
+            with open(
+                self.__rxclass_concepts_file.filepath, mode="r", encoding="utf-8-sig"
+            ) as fh:
+                rxclass_concepts = load_rxclass_concepts_from_file(fh)
 
         try:
             scheduler = ProjectCurationScheduler.create(
@@ -141,7 +131,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for Attribute Curator."""
-    GearEngine.create_with_parameter_store().run(gear_type=AttributeCuratorVisitor)
+    GearEngine().run(gear_type=AttributeCuratorVisitor)
 
 
 if __name__ == "__main__":
