@@ -1,15 +1,16 @@
 """User process environment for user management operations."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from centers.nacc_group import NACCGroup
+from flywheel import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from notifications.email import DestinationModel, EmailClient, TemplateDataModel
 
 from users.authorizations import AuthMap
 from users.user_entry import ActiveUserEntry
-from users.user_registry import UserRegistry
+from users.user_registry import RegistryPerson, UserRegistry
 
 NotificationModeType = Literal["date", "force", "none"]
 
@@ -171,3 +172,12 @@ class UserProcessEnvironment:
     @property
     def notification_client(self) -> NotificationClient:
         return self.__notification_client
+
+    def add_user(self, user: User) -> str:
+        return self.proxy.add_user(user)
+
+    def find_user(self, user_id: str) -> Optional[User]:
+        return self.proxy.find_user(user_id)
+
+    def get_from_registry(self, email: str) -> list[RegistryPerson]:
+        return self.user_registry.get(email=email)
