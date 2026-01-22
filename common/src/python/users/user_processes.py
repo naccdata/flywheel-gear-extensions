@@ -506,11 +506,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     entry.email,
                 )
 
-                error_event = self.failure_analyzer.detect_incomplete_claim(
+                incomplete_claim_event = self.failure_analyzer.detect_incomplete_claim(
                     entry, bad_claim
                 )
-                if error_event:
-                    self.error_collector.collect(error_event)
+                if incomplete_claim_event:
+                    self.error_collector.collect(incomplete_claim_event)
                 return
 
             log.info("Active user not in registry: %s", entry.email)
