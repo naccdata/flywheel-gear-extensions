@@ -118,6 +118,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             raise GearExecutionError("source_prefixes cannot be empty")
 
         results: Dict[str, Dict[str, str]] = {}
+        table_names = set({})
         # make sure keys are valid
         for table, prefix in source_prefixes.items():
             # make sure key can be used as a directory name
@@ -125,6 +126,10 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
                 raise GearExecutionError(
                     f"'{table}' is not a valid key for directory name"
                 )
+
+            if table in table_names:
+                raise GearExecutionError(f"Duplicate key: {table}")
+            table_names.add(table)
 
             # make sure the value "looks like" a proper S3 prefix
             # and can be split into a bucket and key

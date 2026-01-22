@@ -43,7 +43,7 @@ Note FW will handle escaping characters if kicking off directly through the FW U
 {"table1": "my-bucket/some/path/to/parquet/files","table2": "my-other-bucket/some-other-path-to-parquet-files"}
 ```
 
-Do not include the `s3://` prefix nor the trailing `/` in your specified prefixes. Additionally, the keys should only contain alphanumeric characters, with `-`, or `_` allowed in the middle, as these keys will be used as directory names. More specifically, it must match the regex `^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$`
+Do not include the `s3://` prefix nor the trailing `/` in your specified prefixes. Additionally, the keys should only contain alphanumeric characters, with `-`, or `_` allowed in the middle, as these keys will be used as directory names. More specifically, it must match the regex `^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$`. Keys should also be unique, otherwise the parquet files may clobber each other.
 
 The gear will glob for `*.parquet` files under the specified S3 path (recursively), and pulls them to a local directory under `source_table` based on the key name. For example, given the above input:
 

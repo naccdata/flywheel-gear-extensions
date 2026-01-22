@@ -89,7 +89,7 @@ def run(
         dbt_runner.upload_external_model_outputs(output_s3_interface, output_key)
 
     if not debug:
-        log.info("[6/6] Not debugging; skipping saving dbt argifacts")
+        log.info("[6/6] Not debugging; skipping saving dbt artifacts")
     else:
         # Step 6: Save dbt artifacts as gear outputs
         log.info("[6/6] Saving dbt artifacts")
