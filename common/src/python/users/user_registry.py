@@ -19,6 +19,21 @@ from coreapi_client.models.org_identity import OrgIdentity
 from pydantic import ValidationError
 
 
+def org_name_is(name: str) -> Callable[[OrgIdentity], bool]:
+    """Creates a predicate function for testing organizational identity name.
+
+    Args:
+      name: the organization name to match (case-insensitive)
+    Returns:
+      a predicate function that returns True if org identity has matching name
+    """
+
+    def predicate(org_identity: OrgIdentity) -> bool:
+        return org_identity.o is not None and org_identity.o.upper() == name.upper()
+
+    return predicate
+
+
 class RegistryPerson:
     """Wrapper for COManage CoPersonMessage object.
 
@@ -235,6 +250,28 @@ class RegistryPerson:
             if predicate(identifier)
         ]
 
+    def org_identities(
+        self, predicate: Callable[[OrgIdentity], bool] = lambda x: True
+    ) -> List[OrgIdentity]:
+        """Returns the list of organizational identities for this CoPerson.
+
+        If a predicate is given, returns the org identities satisfying the predicate.
+        Default predicate includes all org identities.
+
+        Args:
+          predicate: a function indicating org identities to include
+        Returns:
+          the list of org identities satisfying the predicate
+        """
+        if self.__coperson_message.org_identity is None:
+            return []
+
+        return [
+            org_identity
+            for org_identity in self.__coperson_message.org_identity
+            if predicate(org_identity)
+        ]
+
     def is_claimed(self) -> bool:
         """Indicates whether the CoPerson record is claimed.
 
@@ -430,6 +467,19 @@ class UserRegistry:
             self.__list()
 
         return name in self.__bad_claims
+
+    def get_bad_claim(self, name: str) -> List[RegistryPerson]:
+        """Returns the list of RegistryPerson objects with incomplete claims for the given name.
+
+        Args:
+          name: the registry person name
+        Returns:
+          the list of RegistryPerson objects with incomplete claims, empty list if none
+        """
+        if not self.__registry_map:
+            self.__list()
+
+        return self.__bad_claims.get(name, [])
 
     def __list(self) -> None:
         """Returns the dictionary of RegistryPerson objects for records in the
