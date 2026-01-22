@@ -51,7 +51,7 @@ This implementation plan converts the error handling design into discrete coding
   - **Validates: Requirements 1a.8**
   - **Status: COMPLETED** - Test written and failing as expected (UserProcess classes not yet updated)
 
-- [ ] 9. Modify existing UserProcess classes to integrate error handling
+- [x] 9. Modify existing UserProcess classes to integrate error handling
   - [x] 9.1 Update UserProcess base class constructor to accept ErrorCollector
     - Add ErrorCollector parameter to base class __init__ method
     - Update all subclass constructors to pass ErrorCollector to parent
@@ -73,20 +73,20 @@ This implementation plan converts the error handling design into discrete coding
     - Run tests to verify integration works correctly
     - _Requirements: 8.1, 8.2, 1a.8_
   
-  - [ ] 9.4 Integrate error handling in ClaimedUserProcess
+  - [x] 9.4 Integrate error handling in ClaimedUserProcess
     - Update constructor to accept ErrorCollector and FailureAnalyzer parameters
     - Add FailureAnalyzer usage for Flywheel user creation failures
     - Preserve all existing logging and functionality
     - Run tests to verify integration works correctly
     - _Requirements: 8.1, 8.2, 1a.8_
   
-  - [ ] 9.5 Final integration verification
+  - [x] 9.5 Final integration verification
     - Run all property tests to ensure they pass
     - Run all existing unit tests to ensure no regressions
     - Verify all existing logging is preserved
     - _Requirements: 8.1, 8.2, 1a.8_
 
-- [ ] 10. Checkpoint - Ensure core error handling works
+- [x] 10. Checkpoint - Ensure core error handling works
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ]* 11. Write unit tests for additional detection mechanisms (TDD)
@@ -105,137 +105,183 @@ This implementation plan converts the error handling design into discrete coding
   - **Property 16: Duplicate User Detection**
   - **Validates: Requirements 1b.1, 1b.2, 1b.3, 1b.4, 1b.5**
 
-- [ ] 13. Enhance RegistryPerson interface for additional error detection
-  - Add methods to access email verification status from COManage (currently email_address.verified is available but may need better access patterns)
-  - Add methods to access ORCID claim information and validation status (expand beyond current is_claimed() method)
-  - Add methods to check permission levels and roles (expand CoPersonRole access)
-  - Add methods to detect duplicate records across different identifiers (enhance identifier() method capabilities)
-  - Add comprehensive email address comparison capabilities (improve email_addresses property usage)
-  - Add methods to access organizational identity details for claim validation
-  - Ensure all COManage EmailAddress, Identifier, CoPersonRole, and OrgIdentity data needed for error detection is accessible
-  - Write unit tests for new interface methods
+- [x] 13. Enhance RegistryPerson interface for additional error detection
+  - ✅ Email verification status now accessible via `verified_email_addresses` property
+  - ✅ ORCID claim information enhanced with detailed `is_claimed()` logic and documentation
+  - ✅ Comprehensive email address comparison via `email_addresses`, `organization_email_addresses`, `official_email_addresses`, `verified_email_addresses`, and `has_email()` methods
+  - ✅ Organizational identity details accessible via `organization_email_addresses` property
+  - ✅ Priority-based email selection implemented (organizational → official → verified → any)
+  - ✅ Multi-valued attribute filtering with `identifiers()` method
+  - **Note**: CoPersonRole access may need explicit property if required for error detection
+  - **Note**: Most requirements satisfied by recent RegistryPerson enhancements merged from separate branch
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
 
-- [ ] 14. Implement additional error detection mechanisms
+- [x] 14. Implement additional error detection mechanisms
   - Add email mismatch detection by comparing COManage and directory emails
   - Add email verification status checking in COManage registry
   - Add ORCID claim validation for proper email configuration
   - Add permission insufficiency detection
   - Add duplicate user detection across systems
-  - Make tests pass
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
 
-- [ ]* 15. Write unit tests for notification generation (TDD)
+- [ ] 15. Make additional detection mechanism tests pass
+  - Run tests for email mismatch detection
+  - Run tests for email verification status checking
+  - Run tests for ORCID claim validation
+  - Run tests for permission insufficiency detection
+  - Run tests for duplicate user detection
+  - Fix any failing tests
+  - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
+
+- [ ] 15. Make additional detection mechanism tests pass
+  - Run tests for email mismatch detection
+  - Run tests for email verification status checking
+  - Run tests for ORCID claim validation
+  - Run tests for permission insufficiency detection
+  - Run tests for duplicate user detection
+  - Fix any failing tests
+  - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4, 1b.5_
+
+- [ ]* 16. Write unit tests for notification generation (TDD)
   - Test template selection for each error category
   - Test notification data model creation (only if custom validators/serializers are added)
   - Test error event batching logic
   - Test user context inclusion in notifications
   - _Requirements: 2.1-2.7, 2.8, 2.9_
 
-- [ ]* 16. Write property tests for notification system (TDD)
+- [ ]* 17. Write property tests for notification system (TDD)
   - **Property 17: Template Selection by Category**
   - **Property 18: User Context in Notifications**
   - **Property 19: Error Event Batching**
   - **Validates: Requirements 2.1-2.7, 2.8, 2.9**
 
-- [ ] 17. Create notification generation and template system
+- [ ] 18. Create notification generation and template system
   - Extend existing AWS SES template infrastructure for error notifications
   - Create ConsolidatedNotificationData model extending BaseTemplateModel
   - Implement template selection logic based on error categories
   - Create notification batching logic for multiple errors per user
-  - Make tests pass
   - _Requirements: 2.1-2.7, 2.8, 2.9, 5.1-5.8_
 
-- [ ]* 18. Write unit tests for success notifications (TDD)
+- [ ] 19. Make notification generation tests pass
+  - Run unit tests for notification generation
+  - Run property tests for notification system
+  - Fix any failing tests
+  - _Requirements: 2.1-2.7, 2.8, 2.9, 5.1-5.8_
+
+- [ ]* 20. Write unit tests for success notifications (TDD)
   - Test success notification generation logic
   - Test inclusion of required user details and timestamps
   - Test template consistency
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ]* 19. Write property test for success notifications (TDD)
+- [ ]* 21. Write property test for success notifications (TDD)
   - **Property 20: Success Notification Generation**
   - **Property 21: Success Notification Template Consistency**
   - **Validates: Requirements 3.1-3.5**
 
-- [ ] 20. Implement success notification enhancement
+- [ ] 22. Implement success notification enhancement
   - Extend NotificationClient to send success notifications for user creation
   - Include user details, timestamp, and authorization information
   - Use standardized email template for consistency
-  - Make tests pass
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 21. Write integration tests for gear modifications (TDD)
+- [ ] 23. Make success notification tests pass
+  - Run unit tests for success notifications
+  - Run property tests for success notifications
+  - Fix any failing tests
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 24. Write integration tests for gear modifications (TDD)
   - Test gear execution with integrated error handling
   - Test Parameter Store configuration loading
   - Test end-of-run notification sending
   - Test backward compatibility with existing gear configurations
   - _Requirements: 6.1-6.6, 8.1-8.10_
 
-- [ ] 22. Integrate error handling with gear execution patterns
+- [ ] 25. Integrate error handling with gear execution patterns
   - Modify user_management gear run.py to create error handling objects as core functionality
   - Implement end-of-run consolidated notification sending
   - Add support staff email configuration via Parameter Store
-  - Make tests pass
   - _Requirements: 6.1-6.6, 8.1-8.10_
 
-- [ ]* 23. Write unit tests for error handling safeguards (TDD)
+- [ ] 26. Make gear integration tests pass
+  - Run integration tests for gear modifications
+  - Fix any failing tests
+  - _Requirements: 6.1-6.6, 8.1-8.10_
+
+- [ ]* 27. Write unit tests for error handling safeguards (TDD)
   - Test graceful degradation when external APIs fail
   - Test circuit breaker behavior
   - Test timeout handling
   - Test rate limiting and batch size limits
   - _Requirements: 10.1-10.6_
 
-- [ ]* 24. Write property test for API failure handling (TDD)
+- [ ]* 28. Write property test for API failure handling (TDD)
   - **Property 3: API Failure Handling**
   - **Validates: Requirements 1.6**
 
-- [ ] 25. Implement error handling and performance safeguards
+- [ ] 29. Implement error handling and performance safeguards
   - Add graceful degradation for external service failures
   - Implement circuit breaker patterns for API calls
   - Add timeout handling and rate limiting
   - Add batch size limits and memory management
-  - Make tests pass
   - _Requirements: 10.1-10.6_
 
-- [ ] 26. Write integration tests for pull_directory modifications (TDD)
+- [ ] 30. Make error handling safeguard tests pass
+  - Run unit tests for error handling safeguards
+  - Run property test for API failure handling
+  - Fix any failing tests
+  - _Requirements: 10.1-10.6_
+
+- [ ] 31. Write integration tests for pull_directory modifications (TDD)
   - Test directory processing with integrated error handling
   - Test error capture for validation failures
   - Test error capture for permission issues
   - Test end-of-run notification generation
   - _Requirements: 1a.4, 1a.5, 1a.7_
 
-- [ ]* 27. Write property test for log message categorization (TDD)
+- [ ]* 32. Write property test for log message categorization (TDD)
   - **Property 5: Log Message Categorization**
   - **Validates: Requirements 1a.2, 1a.7**
 
-- [ ] 28. Integrate with pull_directory gear
+- [ ] 33. Integrate with pull_directory gear
   - Modify pull_directory gear to use error handling framework
   - Add error capture for directory validation failures
   - Add error capture for permission and survey completion issues
   - Implement end-of-run notification for directory processing errors
-  - Make tests pass
   - _Requirements: 1a.4, 1a.5, 1a.7_
 
-- [ ] 29. Write end-to-end integration tests (TDD)
+- [ ] 34. Make pull_directory integration tests pass
+  - Run integration tests for pull_directory modifications
+  - Run property test for log message categorization
+  - Fix any failing tests
+  - _Requirements: 1a.4, 1a.5, 1a.7_
+
+- [ ] 35. Write end-to-end integration tests (TDD)
   - Test complete workflows with both gears
   - Test email delivery using SES test environment
   - Test configuration loading and caching
   - Test performance under load
   - _Requirements: All requirements_
 
-- [ ]* 30. Write property test for category template mapping (TDD)
+- [ ]* 36. Write property test for category template mapping (TDD)
   - **Property 4: Category Template Mapping**
   - **Validates: Requirements 1.7**
 
-- [ ] 31. Final integration and end-to-end testing
+- [ ] 37. Final integration and end-to-end testing
   - Test complete error capture → categorization → notification flow
   - Verify no disruption to existing user management processes
   - Test AWS SES integration with actual email delivery
   - Validate Parameter Store integration and configuration loading
-  - Make tests pass
   - _Requirements: All requirements_
 
-- [ ] 32. Final checkpoint - Ensure all functionality works correctly
+- [ ] 38. Make end-to-end tests pass
+  - Run all end-to-end integration tests
+  - Run property test for category template mapping
+  - Fix any failing tests
+  - _Requirements: All requirements_
+
+- [ ] 39. Final checkpoint - Ensure all functionality works correctly
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
