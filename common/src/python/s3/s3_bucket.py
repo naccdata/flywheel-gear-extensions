@@ -56,6 +56,50 @@ class S3BucketInterface:
         """
         self.__client.put_object(Bucket=self.__bucket, Key=filename, Body=contents)
 
+    def upload_directory(
+        self,
+        local_dir: Path,
+        output_prefix: str,
+        exclude_patterns: Optional[List[str]] = None,
+    ) -> None:
+        """Upload local directory to S3.
+
+        Args:
+            local_dir: Local directory containing files to upload
+            output_prefix: Path prefix under bucket where results will be written
+            exclude_patterns: Optional list of glob patterns to exclude from upload
+        """
+        log.info(f"Uploading results to: {output_prefix}")
+
+        if not local_dir.exists():
+            raise S3InterfaceError(f"Local directory does not exist: {local_dir}")
+
+        exclude_patterns = exclude_patterns or []
+
+        # Find all files to upload
+        files_to_upload = []
+        for file_path in local_dir.rglob("*"):
+            if file_path.is_file():
+                # Check if file matches any exclude pattern
+                should_exclude = any(
+                    file_path.match(pattern) for pattern in exclude_patterns
+                )
+                if not should_exclude:
+                    files_to_upload.append(file_path)
+
+        if not files_to_upload:
+            log.warning(f"No files found to upload in: {local_dir}")
+            return
+
+        log.info(f"Uploading {len(files_to_upload)} files")
+
+        # Upload each file using upload_file method
+        for local_file_path in files_to_upload:
+            relative_path = str(local_file_path.relative_to(local_dir))
+            self.upload_file(local_file_path, output_prefix, relative_path)
+
+        log.info("Results uploaded successfully")
+
     def read_data(self, filename: str) -> StringIO:
         """Reads the file object from S3 with bucket name and file name.
 

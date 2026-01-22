@@ -14,8 +14,6 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import BatchRunInfo
 from inputs.parameter_store import ParameterStore
-from keys.keys import DefaultValues
-from utils.utils import parse_string_to_list
 
 from batch_scheduler_app.main import run
 

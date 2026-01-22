@@ -36,11 +36,6 @@
             "description": "S3 path of where aggregated results should be written to.",
             "type": "string"
         },
-        "file_type": {
-            "description": "Type of file to aggregate.",
-            "type": "string",
-            "enum": [".parquet", ".csv"]
-        },
         "dry_run": {
             "description": "Whether to do a dry run",
             "type": "boolean",

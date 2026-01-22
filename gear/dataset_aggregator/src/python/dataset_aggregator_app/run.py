@@ -1,11 +1,8 @@
 """Entry script for Dataset Aggregator."""
 
 import logging
+from typing import Dict, List, Optional
 
-from pydantic import ValidationError
-from typing import Any, Dict, List, Optional
-
-from dataset_aggregator_app.main import FWDataset, run
 from flywheel.rest import ApiException
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import (
@@ -16,7 +13,14 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.parameter_store import ParameterStore
-from s3.s3_bucket import S3BucketInterface
+from pydantic import ValidationError
+from storage.dataset import (
+    AggregateDataset,
+    FWDataset,
+    ParquetAggregateDataset,
+)
+
+from dataset_aggregator_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -29,19 +33,17 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         target_project: str,
         output_uri: str,
-        file_type: str,
     ):
         super().__init__(client=client)
         self.__target_project = target_project
         self.__output_uri = output_uri
-        self.__file_type = file_type
 
     @classmethod
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'DatasetAggregatorVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "DatasetAggregatorVisitor":
         """Creates a Dataset Aggregator execution visitor.
 
         Args:
@@ -55,39 +57,33 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
+        target_project = context.config.get("target_project", None)
+        if not target_project:
+            raise GearExecutionError("target_project required")
+
+        output_uri = context.config.get("output_uri", None)
+        if not output_uri:
+            raise GearExecutionError("output_uri required")
+
         return DatasetAggregatorVisitor(
             client=client,
-            target_project=context.config.get("target_project", None),
-            output_uri=context.config.get("output_uri", None),
-            file_type=context.config.get("file_type", None),
+            target_project=target_project,
+            output_uri=output_uri,
         )
 
-    def __get_source_prefixes(self, center_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-        """Create source prefixes from center map by looking up which centers
-        have the specified target project.
+    def __group_datasets(self, center_ids: List[str]) -> List[AggregateDataset]:
+        """Get datasets for each center ID by looking up which centers have the
+        specified target project and dataset metadata. Then group by common
+        buckets.
 
         Args:
             center_ids: List of center IDs to aggregate
         Returns:
-            Mapping of bucket to center to latest prefix, along with the s3 interface, e.g.
-            {
-                "my-bucket-1": {
-                    "interface": S3BucketInterface instance,
-                    "centers": {
-                        "center-1": "most-recent-prefix-for-center-1",
-                        "center-2": "most/recent/prefix/for/center-2"
-                    }
-                },
-                ...
-            }
+            List of AggregateDataset, which contain all datasets for a specific
+                bucket
         """
-        source_prefixes: Dict[str, Dict[str, Any]] = {}
-
-        # keep track of interfaces so we don't instantiate more than necessary
-        # since they're all likely to belong to the same bucket anyways
-        interfaces: Dict[str, S3BucketInterface] = {}
-
-        log.info(f"Looking up latest datasets for {self.__target_project} projects")
+        log.info(f"Looking up dataset metadata for {self.__target_project} projects...")
+        grouped_datasets: Dict[str, Dict[str, FWDataset]] = {}
 
         for center in center_ids:
             try:
@@ -101,57 +97,49 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
 
             try:
                 project = project.reload()
-                dataset = FWDataset(project.info.get("dataset", {}))
-            except (ApiException, ValidationError) as e:
+                dataset = FWDataset(**project.info.get("dataset", {}))
+            except (ApiException, ValidationError):
                 log.error(
                     f"dataset metadata not defined for {center}/{self.__target_project}"
                 )
                 continue
 
-            # if first time encountering this particular bucket
-            if dataset.bucket not in source_prefixes:
-                source_prefixes[dataset.bucket] = {
-                    "interface": S3BucketInterface.create_from_environment(dataset.bucket),
-                    "centers": {}
+            if dataset.bucket not in grouped_datasets:
+                grouped_datasets[dataset.bucket] = {}
 
-                }
+            grouped_datasets[dataset.bucket][center] = dataset
 
-            latest_dataset = dataset.get_latest_version(interfaces[dataset.bucket])
-            if not latest_dataset:
-                log.warning(
-                    f"No latest dataset found for {center}/{self.__target_project}"
-                )
-                continue
-
-            source_prefixes[dataset.bucket]['centers'][center] = latest_dataset
-
-        # remove buckets that have no centers with latest datasets
-        source_prefixes = {k: v if v.get("centers")
-                           for k, v in source_prefixes.items()}
-
-        if not source_prefixes:
+        if not grouped_datasets:
             raise GearExecutionError(
-                f"No datasets found for project {self.__target_project}"
+                f"No datasets found in centers for project {self.__target_project}"
             )
 
-        return source_prefixes
+        results: List[AggregateDataset] = []
+        for bucket, datasets in grouped_datasets.items():
+            results.append(
+                ParquetAggregateDataset(
+                    bucket=bucket,
+                    project=self.__target_project,
+                    datasets=datasets,
+                )
+            )
+            # TODO: can support other filetypes like csv/json?
+
+        return results
 
     def run(self, context: GearToolkitContext) -> None:
-
-        source_prefixes = self.__get_source_prefixes(self.get_center_ids(context))
+        grouped_datasets = self.__group_datasets(self.get_center_ids(context))
 
         run(
-            proxy=self.proxy,
-            source_prefixes=source_prefixes,
+            context=context,
+            grouped_datasets=grouped_datasets,
             output_uri=self.__output_uri,
-            file_type=self.__file_type,
             dry_run=self.client.dry_run,
         )
 
 
 def main():
     """Main method for Dataset Aggregator."""
-
     GearEngine.create_with_parameter_store().run(gear_type=DatasetAggregatorVisitor)
 
 
