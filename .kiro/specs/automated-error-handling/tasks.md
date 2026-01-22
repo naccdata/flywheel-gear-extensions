@@ -159,7 +159,7 @@ This implementation plan converts the error handling design into discrete coding
   - **Note**: Additional proactive detection can be added in future iterations if needed
   - _Requirements: 1b.1, 1b.2, 1b.3, 1b.4_
 
-- [-] 15. Fix failing tests for core detection mechanisms
+- [x] 15. Fix failing tests for core detection mechanisms
   - Fix mock setup issues in test_failure_analyzer.py (14 failing tests)
   - Fix mock setup issues in test_property_existing_logging_preservation.py (3 failing tests)
   - Fix mock setup issues in test_user_process_integration.py
