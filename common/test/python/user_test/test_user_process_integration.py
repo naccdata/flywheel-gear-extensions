@@ -32,6 +32,17 @@ class TestActiveUserProcessIntegration:
         mock_env = Mock(spec=UserProcessEnvironment)
         mock_env.user_registry = Mock()
         mock_env.notification_client = Mock()
+
+        # Add wrapper methods
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
+            if hasattr(mock_env, "proxy")
+            else None
+        )
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
+
         return mock_env
 
     @pytest.fixture
@@ -130,6 +141,9 @@ class TestActiveUserProcessIntegration:
         # Setup mocks for bad claim scenario
         mock_environment.user_registry.get.return_value = []  # No person found
         mock_environment.user_registry.has_bad_claim.return_value = True
+        mock_environment.user_registry.get_bad_claim.return_value = [
+            Mock(spec=RegistryPerson)
+        ]  # Return list
 
         process = ActiveUserProcess(mock_environment, error_collector)
 
@@ -151,7 +165,7 @@ class TestActiveUserProcessIntegration:
         error_event = errors[0]
         assert error_event.category == ErrorCategory.BAD_ORCID_CLAIMS.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "incomplete ORCID claim" in error_event.error_details["message"]
+        assert "incomplete claim" in error_event.error_details["message"]
 
     def test_active_user_process_no_error_for_missing_creation_date(
         self, mock_environment, error_collector, sample_active_entry, caplog
@@ -215,6 +229,7 @@ class TestActiveUserProcessIntegration:
         # Setup mocks for new user scenario
         mock_environment.user_registry.get.return_value = []  # No person found
         mock_environment.user_registry.has_bad_claim.return_value = False
+        mock_environment.user_registry.get_bad_claim.return_value = []
         mock_environment.user_registry.add.return_value = []
         mock_environment.user_registry.coid = 123  # Set coid as integer
 
@@ -252,10 +267,13 @@ class TestClaimedUserProcessIntegration:
         mock_env.notification_client = Mock()
 
         # Configure wrapper methods to delegate to proxy
-        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
-            user_id
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
         )
-        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+        mock_env.add_user = Mock(side_effect=lambda user: mock_env.proxy.add_user(user))
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: []
+        )  # Default empty list
 
         return mock_env
 
@@ -410,9 +428,7 @@ class TestClaimedUserProcessIntegration:
             process.visit(sample_registered_entry)
 
         # Verify existing log message still occurs
-        assert (
-            "Failed to find user jane.smith@example.com with ID reg456" in caplog.text
-        )
+        assert "Failed to add user jane.smith@example.com with ID reg456" in caplog.text
 
         # Verify no errors were collected (this is existing behavior)
         assert not error_collector.has_errors()
@@ -430,10 +446,13 @@ class TestUpdateUserProcessIntegration:
         mock_env.proxy = Mock()
 
         # Configure wrapper methods to delegate to proxy
-        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
-            user_id
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
         )
-        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+        mock_env.add_user = Mock(side_effect=lambda user: mock_env.proxy.add_user(user))
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
 
         return mock_env
 
@@ -506,7 +525,8 @@ class TestUpdateUserProcessIntegration:
         users."""
         # Setup mocks for missing claimed user scenario
         mock_environment.user_registry.find_by_registry_id.return_value = None
-        mock_environment.get_from_registry.return_value = []  # For failure analyzer
+        mock_environment.user_registry.get.return_value = []  # For failure analyzer
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         # Create a real failure analyzer for this test
 
@@ -528,7 +548,7 @@ class TestUpdateUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
+        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "bob.wilson@example.com"
         assert "not found in registry" in error_event.error_details["message"]
 
@@ -619,10 +639,13 @@ class TestUserProcessIntegrationEndToEnd:
         mock_env.notification_client = Mock()
 
         # Configure wrapper methods to delegate to proxy
-        mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(
-            user_id
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
         )
-        mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+        mock_env.add_user = Mock(side_effect=lambda user: mock_env.proxy.add_user(user))
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
 
         return mock_env
 
@@ -662,6 +685,9 @@ class TestUserProcessIntegrationEndToEnd:
         # Setup mocks for different scenarios
         mock_environment.user_registry.get.return_value = []
         mock_environment.user_registry.has_bad_claim.return_value = True
+        mock_environment.user_registry.get_bad_claim.return_value = [
+            Mock(spec=RegistryPerson)
+        ]  # Return list
 
         process = ActiveUserProcess(mock_environment, error_collector)
 
@@ -722,7 +748,8 @@ class TestUserProcessIntegrationEndToEnd:
 
         # Setup mocks for missing claimed user
         mock_environment.user_registry.find_by_registry_id.return_value = None
-        mock_environment.get_from_registry.return_value = []
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         process2 = UpdateUserProcess(mock_environment, error_collector)
         process2.visit(entry2)
@@ -789,9 +816,17 @@ class TestUserProcessIntegrationEndToEnd:
         def mock_has_bad_claim_side_effect(full_name):
             return full_name == "Bad Claim"
 
+        def mock_get_bad_claim_side_effect(full_name):
+            if full_name == "Bad Claim":
+                return [Mock(spec=RegistryPerson)]  # Return list for bad claim
+            return []  # Return empty list for others
+
         mock_environment.user_registry.get.side_effect = mock_get_side_effect
         mock_environment.user_registry.has_bad_claim.side_effect = (
             mock_has_bad_claim_side_effect
+        )
+        mock_environment.user_registry.get_bad_claim.side_effect = (
+            mock_get_bad_claim_side_effect
         )
         mock_environment.user_registry.add.return_value = []
         mock_environment.user_registry.coid = 123  # Set coid as integer

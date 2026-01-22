@@ -44,7 +44,7 @@ class TestErrorCategory:
 
         # Test that we can iterate over all values
         categories = list(ErrorCategory)
-        assert len(categories) == 9
+        assert len(categories) == 11
 
         # Test that each category has a string value
         for category in categories:

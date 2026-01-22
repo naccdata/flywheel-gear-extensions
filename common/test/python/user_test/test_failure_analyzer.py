@@ -17,6 +17,15 @@ class TestFailureAnalyzer:
         mock_env = Mock()
         mock_env.proxy = Mock()
         mock_env.user_registry = Mock()
+
+        # Add wrapper methods that delegate to proxy and user_registry
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
+        )
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
+
         return mock_env
 
     @pytest.fixture
@@ -223,26 +232,24 @@ class TestFailureAnalyzer:
 
         # Setup mock to return empty list (no person found)
         mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         analyzer = FailureAnalyzer(mock_environment)
         error_event = analyzer.analyze_missing_claimed_user(sample_registered_entry)
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
+        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert (
-            error_event.error_details["message"]
-            == "Expected claimed user not found in registry"
-        )
+        assert "not found in registry" in error_event.error_details["message"]
         assert error_event.error_details["registry_id"] == "reg123"
         assert (
             error_event.error_details["action_needed"]
-            == "verify_registry_record_exists"
+            == "verify_registry_record_exists_or_was_deleted"
         )
 
-        # Verify user_registry.get was called with correct email
-        mock_environment.user_registry.get.assert_called_once_with(
+        # Verify get_from_registry was called with correct email
+        mock_environment.get_from_registry.assert_called_once_with(
             email="john.auth@example.com"
         )
 
@@ -269,67 +276,70 @@ class TestFailureAnalyzer:
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         analyzer = FailureAnalyzer(mock_environment)
         error_event = analyzer.analyze_missing_claimed_user(entry_no_auth)
 
-        # Verify user_registry.get was called with main email as fallback
-        mock_environment.user_registry.get.assert_called_once_with(
+        # Verify get_from_registry was called with main email as fallback
+        mock_environment.get_from_registry.assert_called_once_with(
             email="john.doe@example.com"
         )
 
         assert error_event is not None
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
+        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
 
     def test_analyze_missing_claimed_user_person_exists_but_not_claimed(
         self, mock_environment, sample_registered_entry
     ):
-        """Test analyze_missing_claimed_user when person exists but not
-        properly claimed."""
-        from users.error_models import ErrorCategory
+        """Test analyze_missing_claimed_user when person exists but not.
+
+        properly claimed - should raise RuntimeError.
+        """
         from users.failure_analyzer import FailureAnalyzer
 
-        # Setup mock to return person list (user exists but not claimed properly)
+        # Setup mock to return person list (user exists - this is a data inconsistency)
         mock_person1 = Mock(spec=RegistryPerson)
+        mock_person1.registry_id.return_value = "different_id_1"
         mock_person2 = Mock(spec=RegistryPerson)
+        mock_person2.registry_id.return_value = "different_id_2"
         mock_environment.user_registry.get.return_value = [mock_person1, mock_person2]
 
         analyzer = FailureAnalyzer(mock_environment)
-        error_event = analyzer.analyze_missing_claimed_user(sample_registered_entry)
 
-        # Verify the error event was created correctly
-        assert error_event is not None
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
-        assert error_event.user_context.email == "john.doe@example.com"
-        assert (
-            error_event.error_details["message"]
-            == "User found in registry but not properly claimed"
-        )
-        assert error_event.error_details["registry_records"] == 2
-        assert error_event.error_details["registry_id"] == "reg123"
-        assert (
-            error_event.error_details["action_needed"]
-            == "check_claim_status_and_email_verification"
-        )
+        # This should raise RuntimeError because user found by email but not by
+        #  registry_id
+        with pytest.raises(RuntimeError) as exc_info:
+            analyzer.analyze_missing_claimed_user(sample_registered_entry)
+
+        # Verify the error message indicates data inconsistency
+        assert "Registry data inconsistency" in str(exc_info.value)
+        assert "john.auth@example.com" in str(exc_info.value)
+        assert "reg123" in str(exc_info.value)
 
     def test_analyze_missing_claimed_user_single_person_record(
         self, mock_environment, sample_registered_entry
     ):
-        """Test analyze_missing_claimed_user with single person record."""
-        from users.error_models import ErrorCategory
+        """Test analyze_missing_claimed_user with single person record.
+
+        Should raise RuntimeError.
+        """
         from users.failure_analyzer import FailureAnalyzer
 
-        # Setup mock to return single person
+        # Setup mock to return single person (data inconsistency)
         mock_person = Mock(spec=RegistryPerson)
+        mock_person.registry_id.return_value = "different_id"
         mock_environment.user_registry.get.return_value = [mock_person]
 
         analyzer = FailureAnalyzer(mock_environment)
-        error_event = analyzer.analyze_missing_claimed_user(sample_registered_entry)
 
-        # Verify the error event was created correctly
-        assert error_event is not None
-        assert error_event.category == ErrorCategory.UNCLAIMED_RECORDS.value
-        assert error_event.error_details["registry_records"] == 1
+        # This should raise RuntimeError because user found by email but
+        # not by registry_id
+        with pytest.raises(RuntimeError) as exc_info:
+            analyzer.analyze_missing_claimed_user(sample_registered_entry)
+
+        # Verify the error message indicates data inconsistency
+        assert "Registry data inconsistency" in str(exc_info.value)
 
     def test_analyze_missing_claimed_user_with_different_user_data(
         self, mock_environment
@@ -352,6 +362,7 @@ class TestFailureAnalyzer:
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         analyzer = FailureAnalyzer(mock_environment)
         error_event = analyzer.analyze_missing_claimed_user(different_entry)
@@ -365,7 +376,7 @@ class TestFailureAnalyzer:
         assert error_event.error_details["registry_id"] == "reg789"
 
         # Verify correct email was used for lookup
-        mock_environment.user_registry.get.assert_called_once_with(
+        mock_environment.get_from_registry.assert_called_once_with(
             email="alice.auth@example.com"
         )
 
@@ -396,7 +407,7 @@ class TestFailureAnalyzer:
     def test_analyze_missing_claimed_user_registry_exception(
         self, mock_environment, sample_registered_entry
     ):
-        """Test analyze_missing_claimed_user when user_registry.get raises
+        """Test analyze_missing_claimed_user when get_from_registry raises
         exception."""
         from users.failure_analyzer import FailureAnalyzer
 
@@ -404,14 +415,12 @@ class TestFailureAnalyzer:
         mock_environment.user_registry.get.side_effect = Exception("Registry error")
 
         analyzer = FailureAnalyzer(mock_environment)
-        error_event = analyzer.analyze_missing_claimed_user(sample_registered_entry)
 
-        # Should return None or handle gracefully when registry call fails
-        # The exact behavior depends on implementation - this test ensures we
-        #  handle exceptions
-        # For now, we expect it to either return None or re-raise the exception
-        # The implementation will determine the exact behavior
-        assert error_event is None or error_event is not None
+        # The exception should propagate up
+        with pytest.raises(Exception) as exc_info:
+            analyzer.analyze_missing_claimed_user(sample_registered_entry)
+
+        assert "Registry error" in str(exc_info.value)
 
     def test_failure_analyzer_methods_return_optional_error_event(
         self, mock_environment, sample_registered_entry, sample_flywheel_error
@@ -422,6 +431,7 @@ class TestFailureAnalyzer:
         # Setup mocks
         mock_environment.proxy.find_user.return_value = None
         mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []  # No bad claims
 
         analyzer = FailureAnalyzer(mock_environment)
 
@@ -499,6 +509,7 @@ class TestFailureAnalyzer:
         # Setup mocks
         mock_environment.proxy.find_user.return_value = None
         mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
 
         analyzer = FailureAnalyzer(mock_environment)
 

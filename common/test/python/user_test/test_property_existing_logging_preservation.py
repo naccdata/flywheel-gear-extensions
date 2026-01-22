@@ -103,9 +103,20 @@ def mock_environment_strategy(draw):
     mock_env.proxy = Mock()
     mock_env.notification_client = Mock()
 
-    # Configure wrapper methods to delegate to proxy
-    mock_env.find_user.side_effect = lambda user_id: mock_env.proxy.find_user(user_id)
-    mock_env.add_user.side_effect = lambda user: mock_env.proxy.add_user(user)
+    # Set default return values for methods that should return lists
+    mock_env.user_registry.get = Mock(return_value=[])  # Default to empty list
+    mock_env.user_registry.get_bad_claim = Mock(
+        return_value=[]
+    )  # Default to empty list
+
+    # Configure wrapper methods to delegate to proxy and user_registry
+    mock_env.find_user = Mock(
+        side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
+    )
+    mock_env.add_user = Mock(side_effect=lambda user: mock_env.proxy.add_user(user))
+    mock_env.get_from_registry = Mock(
+        side_effect=lambda email: mock_env.user_registry.get(email=email)
+    )
 
     return mock_env
 
@@ -150,6 +161,9 @@ def test_active_user_process_preserves_existing_logging_with_error_handling(
     # Test scenario 2: Bad claim (should log error)
     mock_env.user_registry.get.return_value = []  # No person found
     mock_env.user_registry.has_bad_claim.return_value = True
+    mock_env.user_registry.get_bad_claim.return_value = [
+        Mock(spec=RegistryPerson)
+    ]  # Return list of mocks
 
     process = ActiveUserProcess(mock_env, error_collector)
 
@@ -239,6 +253,7 @@ def test_update_user_process_preserves_existing_logging_with_error_handling(
     # Test scenario: Missing claimed user (should log error)
     mock_env.user_registry.find_by_registry_id.return_value = None
     mock_env.get_from_registry.return_value = []  # For failure analyzer
+    mock_env.user_registry.get_bad_claim.return_value = []  # No bad claims
 
     process = UpdateUserProcess(mock_env, error_collector)
 
