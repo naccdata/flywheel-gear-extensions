@@ -22,6 +22,7 @@ def run(
     dbt_project_zip: InputFileWrapper,
     source_prefixes: Dict[str, Dict[str, str]],
     output_prefix: str,
+    dry_run: bool,
 ) -> None:
     """Runs the DBT Runner process.
 
@@ -31,6 +32,7 @@ def run(
         source_prefixes: the table to source prefix mappings,
             grouped by bucket
         output_prefix: The output prefix
+        dry_run: whether or not this is a dry run
     """
     # parse out the output prefix bucket/key and create its
     # S3 interface
@@ -77,9 +79,12 @@ def run(
     log.info("[4/6] Executing dbt run")
     dbt_runner.run()
 
-    # Step 5: Upload results to external storage
-    log.info("[5/6] Uploading results to external storage")
-    dbt_runner.upload_external_model_outputs(output_s3_interface, output_key)
+    if dry_run:
+        log.info("[5/6] DRY RUN: skipping uploading results to S3")
+    else:
+        # Step 5: Upload results to S3
+        log.info("[5/6] Uploading results to S3")
+        dbt_runner.upload_external_model_outputs(output_s3_interface, output_key)
 
     # Step 6: Save dbt artifacts as gear outputs
     log.info("[6/6] Saving dbt artifacts")

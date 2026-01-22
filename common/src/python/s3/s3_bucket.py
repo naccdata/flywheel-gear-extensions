@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from inputs.environment import get_environment_variable
 from inputs.parameter_store import S3Parameters
 from keys.keys import DefaultValues
@@ -38,6 +39,12 @@ class S3BucketInterface:
         Returns:
           the object for the client and bucket
         """
+        # ensure the bucket exists
+        try:
+            boto_client.head_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            raise S3InterfaceError(f"Bucket {bucket_name} does not exist: {e}") from e
+
         self.__client = boto_client
         self.__bucket = bucket_name
 
@@ -184,7 +191,7 @@ class S3BucketInterface:
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            self.__client.download(self.__bucket, key, target_path)
+            self.__client.download_file(self.__bucket, key, target_path)
         except Exception as e:
             raise S3InterfaceError(
                 f"Failed to download {self.__bucket}/{key}: {e}"

@@ -62,7 +62,7 @@ class DBTRunner:
 
             # Create parent directory
             parent_dir = location_path.parent
-            if parent_dir != self.__project_root:
+            if parent_dir != self.__project_root and not parent_dir.is_dir():
                 parent_dir.mkdir(parents=True, exist_ok=True)
                 log.info(
                     "Created output directory: "
@@ -226,6 +226,7 @@ class DBTRunner:
             output_prefix: Path prefix in storage where files will be written
         """
         parquet_files = self.__find_external_model_outputs()
+        log.info(f"Uploading model outputs to {output_prefix}")
 
         if parquet_files:
             log.info(f"Found {len(parquet_files)} parquet file(s) to upload")

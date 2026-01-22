@@ -145,6 +145,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             dbt_project_zip=self.__dbt_project_zip,
             source_prefixes=parsed_source_prefixes,
             output_prefix=self.__output_prefix,
+            dry_run=self.client.dry_run,
         )
 
 
