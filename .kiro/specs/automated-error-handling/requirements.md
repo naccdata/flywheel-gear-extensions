@@ -26,7 +26,7 @@ This specification defines requirements for enhancing the existing pull_director
 
 1. THE Error Capture System SHALL provide a general mechanism for capturing user access issues and mapping them to predefined categories
 2. THE Error Capture System SHALL support both existing failure point detection and additional instrumentation for proactive issue detection
-3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Bad ORCID Claims, Missing Directory Permissions, Missing Directory Data, Insufficient Permissions, Duplicate/Wrong User Records, and Flywheel Error
+3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Incomplete Claim, Bad ORCID Claims, Missing Directory Permissions, Missing Directory Data, Insufficient Permissions, Duplicate/Wrong User Records, and Flywheel Error
 4. THE Error Capture System SHALL include relevant user context (email, name, center, registry ID, error details) with each captured event
 5. THE Error Capture System SHALL capture error events without disrupting the normal user processing flow
 6. WHEN API calls to external services fail, THE Error Capture System SHALL log these failures for technical staff but SHALL NOT generate support staff notifications for infrastructure issues
@@ -44,7 +44,7 @@ This specification defines requirements for enhancing the existing pull_director
 3. WHEN UpdateUserProcess logs "Failed to find a claimed user", THE Error Capture System SHALL categorize this as "Unclaimed Records"
 4. WHEN pull_directory gear logs "Ignoring %s: Permissions not approved", THE Error Capture System SHALL categorize this as "Missing Directory Permissions"
 5. WHEN pull_directory gear logs "Ignoring %s: Data platform survey is incomplete", THE Error Capture System SHALL categorize this as "Missing Directory Permissions"
-6. WHEN UserRegistry detects bad claims via `has_bad_claim()`, THE Error Capture System SHALL categorize this as "Bad ORCID Claims"
+6. WHEN UserRegistry detects incomplete claims via `has_bad_claim()`, THE Error Capture System SHALL analyze the claim to determine if ORCID is the identity provider and categorize as "Bad ORCID Claims" if ORCID is detected, or "Incomplete Claim" otherwise
 7. WHEN directory validation errors occur, THE Error Capture System SHALL categorize these appropriately based on the validation failure type
 8. THE Error Capture System SHALL preserve all existing logging behavior while adding event capture
 
@@ -56,8 +56,9 @@ This specification defines requirements for enhancing the existing pull_director
 
 1. THE Error Detection System SHALL check for authentication email mismatches by comparing COManage registry email with directory email
 2. THE Error Detection System SHALL check email verification status in COManage registry records
-3. THE Error Detection System SHALL detect ORCID claims without proper email configuration
-4. THE Error Detection System SHALL indicate an error if the user entry has no authorizations
+3. THE Error Detection System SHALL detect incomplete claims (users who have logged in but whose identity provider did not return complete information such as email address)
+4. THE Error Detection System SHALL identify when incomplete claims are specifically caused by ORCID identity provider by checking organizational identity records
+5. THE Error Detection System SHALL indicate an error if the user entry has no authorizations
 5. THE Error Detection System SHALL run these proactive checks during user processing without significantly impacting performance
 6. THE Error Detection System SHALL use existing API connections and data sources where possible to minimize additional service calls
 7. THE Error Detection System SHALL categorize proactively detected issues using the same category system as reactive failure detection
@@ -83,8 +84,10 @@ This specification defines requirements for enhancing the existing pull_director
 4. ✅ **SATISFIED** - THE RegistryPerson Interface SHALL provide comprehensive email address comparison capabilities across all EmailAddress records
    - **Implementation**: Multiple properties (`email_addresses`, `organization_email_addresses`, `official_email_addresses`, `verified_email_addresses`) and `has_email()` method
    
-5. ✅ **SATISFIED** - THE RegistryPerson Interface SHALL provide methods to access OrgIdentity details for claim validation
+5. ✅ **SATISFIED** - THE RegistryPerson Interface SHALL provide methods to access OrgIdentity details for claim validation and identity provider detection
    - **Implementation**: `organization_email_addresses` property uses internal `__get_claim_org()` method to access claimed organizational identity
+   - **Implementation**: `org_identities(predicate)` method allows filtering organizational identities by custom predicates
+   - **Implementation**: `org_name_is(name)` module-level function creates predicates for testing organization names (e.g., "ORCID")
    
 6. ✅ **SATISFIED** - THE RegistryPerson Interface SHALL ensure all COManage data structures (EmailAddress, Identifier, CoPersonRole, OrgIdentity) needed for error detection are accessible through clean interface methods
    - **Implementation**: EmailAddress, Identifier, and OrgIdentity fully accessible; CoPersonRole accessible but may need explicit property
@@ -101,10 +104,12 @@ This specification defines requirements for enhancing the existing pull_director
 1. WHEN an error event is categorized as "Unclaimed Records", THE Notification Generator SHALL create a list of unclaimed records with the correct identity provider for each
 2. WHEN an error event is categorized as "Authentication Email Mismatch", THE Notification Generator SHALL use a template with instructions for updating directory with correct authentication email
 3. WHEN an error event is categorized as "Unverified Email", THE Notification Generator SHALL use a template with instructions for contacting institutional IT support
-4. WHEN an error event is categorized as "Bad ORCID Claims", THE Notification Generator SHALL use a template with instructions to delete bad record and reclaim with correct identity provider
-5. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
-6. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions when no authorizations are listed in the user entry
-7. WHEN an error event is categorized as "Duplicate/Wrong User Records", THE Notification Generator SHALL use a template with instructions for user deactivation and OIDC cache clearing
+4. WHEN an error event is categorized as "Incomplete Claim", THE Notification Generator SHALL use a template with instructions to verify identity provider configuration and reclaim account
+5. WHEN an error event is categorized as "Bad ORCID Claims", THE Notification Generator SHALL use a template with instructions to delete bad record and reclaim with institutional identity provider (not ORCID)
+6. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
+6. WHEN an error event is categorized as "Missing Directory Permissions", THE Notification Generator SHALL use a template with instructions to contact center administrator for permission assignment
+7. WHEN an error event is categorized as "Insufficient Permissions", THE Notification Generator SHALL use a template with instructions when no authorizations are listed in the user entry
+8. WHEN an error event is categorized as "Duplicate/Wrong User Records", THE Notification Generator SHALL use a template with instructions for user deactivation and OIDC cache clearing
 8. THE Notification Generator SHALL include user-specific context (name, email, center, identity provider details) in all notification templates
 9. THE Notification Generator SHALL batch multiple error events for the same user into a single comprehensive notification
 10. THE Notification Generator SHALL support both immediate and batched notification delivery modes
