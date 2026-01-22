@@ -12,7 +12,7 @@ from typing import List
 from gear_execution.gear_execution import (
     GearExecutionError,
 )
-from storage.storage import StorageManager
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 
@@ -215,14 +215,14 @@ class DBTRunner:
 
     def upload_external_model_outputs(
         self,
-        storage_manager: StorageManager,
+        s3_interface: S3BucketInterface,
         output_prefix: str,
     ) -> None:
         """Upload external model outputs to storage preserving subdirectory
         structure.
 
         Args:
-            storage_manager: Storage manager instance for uploads
+            s3_interface: S3BucketInterface instance for uploads
             output_prefix: Path prefix in storage where files will be written
         """
         parquet_files = self.__find_external_model_outputs()
@@ -245,7 +245,7 @@ class DBTRunner:
                         relative_path = parquet_file.name
 
                 log.info(f"Uploading {relative_path} to external storage")
-                storage_manager.upload_file(parquet_file, output_prefix, relative_path)
+                s3_interface.upload_file(parquet_file, output_prefix, relative_path)
         else:
             log.warning("No external model outputs found to upload")
 
