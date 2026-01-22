@@ -28,8 +28,8 @@ class FileAggregatorVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'FileAggregatorVisitor':
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "FileAggregatorVisitor":
         """Creates a File Aggregator execution visitor.
 
         Args:

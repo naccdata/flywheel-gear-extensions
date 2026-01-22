@@ -19,6 +19,8 @@ from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from flywheel_gear_toolkit import GearToolkitContext
 from fw_client.client import FWClient
 from inputs.parameter_store import ParameterError, ParameterStore
+from keys.keys import DefaultValues
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
@@ -432,6 +434,64 @@ class GearExecutionEnvironment(ABC):
 
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
+
+    def get_center_ids(self, context: GearToolkitContext) -> List[str]:
+        """Get center IDs.
+
+        If used, assumes include_centers, exclude_centers, exclude_studies,
+        and/or admin_group are input configs.
+        Args:
+            context: The GearToolkitContext to grab configs from
+        Returns:
+            The list of center IDs to use for this execution
+        """
+        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        include_centers = context.config.get("include_centers", None)
+        exclude_centers = context.config.get("exclude_centers", None)
+        exclude_studies = context.config.get("exclude_studies", None)
+
+        if include_centers and (exclude_centers or exclude_studies):
+            raise GearExecutionError(
+                "Cannot support both include and exclude configs at the same time, "
+                "provide either include list or exclude list"
+            )
+
+        # if include_centers is specified, just prase the list
+        if include_centers:
+            include_centers_list = parse_string_to_list(include_centers)
+            log.info("Including centers %s", include_centers_list)
+            return include_centers_list
+
+        # otherwise, we need to grab the full center mapping and exclude
+        # the specified centers and studies
+
+        exclude_centers_list = (
+            parse_string_to_list(exclude_centers) if exclude_centers else []
+        )
+        exclude_studies_list = (
+            parse_string_to_list(exclude_studies) if exclude_studies else []
+        )
+
+        log.info("Skipping centers %s", exclude_centers_list)
+        log.info("Skipping studies %s", exclude_studies_list)
+
+        nacc_group = self.admin_group(admin_id=admin_id)
+        center_groups = nacc_group.get_center_map().group_ids()
+
+        if not center_groups:
+            raise GearExecutionError(
+                "Center information not found in "
+                f"{admin_id}/{DefaultValues.METADATA_PRJ_LBL}"
+            )
+
+        center_ids = [
+            group_id
+            for group_id in center_groups
+            if group_id not in exclude_centers_list
+            and not group_id.endswith(tuple(exclude_studies_list))
+        ]
+
+        return center_ids
 
 
 # TODO: remove type ignore when using python 3.12 or above
