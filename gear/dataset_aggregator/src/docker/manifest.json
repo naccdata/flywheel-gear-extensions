@@ -25,18 +25,26 @@
     "inputs": {
         "api-key": {
             "base": "api-key"
-        },
-        "input_file": {
-            "description": "The input file",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
         }
     },
     "config": {
+        "storage_label": {
+            "description": "Label of the Flywheel external storage containing source and output data.",
+            "type": "string"
+        },
+        "output_prefix": {
+            "description": "Path prefix within external storage where aggregated results will be written.",
+            "type": "string"
+        },
+        "target_project": {
+            "description": "Target project to aggregate datasets from.",
+            "type": "string"
+        },
+        "file_type": {
+            "description": "Type of file to aggregate.",
+            "type": "string",
+            "enum": [".parquet", ".csv", ".json"]
+        },
         "dry_run": {
             "description": "Whether to do a dry run",
             "type": "boolean",
