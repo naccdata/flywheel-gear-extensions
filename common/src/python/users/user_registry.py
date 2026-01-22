@@ -469,7 +469,8 @@ class UserRegistry:
         return name in self.__bad_claims
 
     def get_bad_claim(self, name: str) -> List[RegistryPerson]:
-        """Returns the list of RegistryPerson objects with incomplete claims for the given name.
+        """Returns the list of RegistryPerson objects with incomplete claims
+        for the given name.
 
         Args:
           name: the registry person name
