@@ -471,6 +471,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         self.__env = environment
         self.__claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self.__unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.failure_analyzer = FailureAnalyzer(environment)
 
     def visit(self, entry: ActiveUserEntry) -> None:
         """Adds a new user to user registry, otherwise, adds the user to
@@ -505,17 +506,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     entry.email,
                 )
 
-                # Create error event for bad claim
-                error_event = ErrorEvent(
-                    category=ErrorCategory.BAD_ORCID_CLAIMS,
-                    user_context=UserContext.from_user_entry(entry),
-                    error_details={
-                        "message": "User has incomplete ORCID claim in registry",
-                        "full_name": entry.full_name,
-                        "action_needed": "delete_bad_record_and_reclaim",
-                    },
+                error_event = self.failure_analyzer.detect_incomplete_claim(
+                    entry, bad_claim
                 )
-                self.error_collector.collect(error_event)
+                if error_event:
+                    self.error_collector.collect(error_event)
                 return
 
             log.info("Active user not in registry: %s", entry.email)
