@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.2
+
+* Reverts `rxclass_concepts` to being an input file now that Batch Scheduler (`1.2.0+`) can support input files; removes gear's reliancy on the gearbot
+
 ## 1.1.1
 
 * Updates `nacc-attribute-deriver` to `2.0.0`
