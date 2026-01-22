@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.0
+
+* Updates to not rely on FW storage/datasets and pull directly from specified S3 paths
+
 ## 1.0.6
 
 * Adds `source_file` to file metadata to track provenance
