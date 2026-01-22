@@ -464,21 +464,37 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
 
 ### Failure Analyzers
 
-Analyzer that performs actual investigation for complex failure scenarios:
+Analyzer that performs actual investigation for complex failure scenarios. The implementation includes only the three methods that are actively used in the user processes:
 
-**Simplified Failure Analyzer:**
+**Implemented Failure Analyzer:**
 ```python
 class FailureAnalyzer:
-    """Failure analyzer for complex scenarios that require investigation."""
+    """Failure analyzer for complex scenarios that require investigation.
+    
+    This analyzer provides three core methods that are integrated into the user
+    management processes:
+    1. analyze_flywheel_user_creation_failure - Called when Flywheel user creation fails
+    2. analyze_missing_claimed_user - Called when a claimed user can't be found
+    3. detect_incomplete_claim - Called when a user has an incomplete claim
+    """
     
     def __init__(self, environment: UserProcessEnvironment):
         self.env = environment
     
-    def analyze_flywheel_user_creation_failure(self, entry: RegisteredUserEntry, 
-                                             error: FlywheelError) -> Optional[ErrorEvent]:
-        """Analyze why Flywheel user creation failed after 3 attempts."""
-        # Check if user already exists (duplicate) using environment's proxy
-        existing_user = self.env.proxy.find_user(entry.registry_id)
+    def analyze_flywheel_user_creation_failure(
+        self, entry: RegisteredUserEntry, error: FlywheelError
+    ) -> Optional[ErrorEvent]:
+        """Analyze why Flywheel user creation failed after 3 attempts.
+        
+        Checks for:
+        - Duplicate user already exists in Flywheel
+        - Permission issues
+        - Generic Flywheel errors
+        
+        Called by: ClaimedUserProcess.__add_user()
+        """
+        # Check if user already exists (duplicate)
+        existing_user = self.env.find_user(entry.registry_id)
         if existing_user:
             return ErrorEvent(
                 category=ErrorCategory.DUPLICATE_USER_RECORDS,
@@ -492,7 +508,8 @@ class FailureAnalyzer:
             )
         
         # Check if it's a permission issue
-        if "permission" in str(error).lower() or "unauthorized" in str(error).lower():
+        error_str = str(error).lower()
+        if "permission" in error_str or "unauthorized" in error_str:
             return ErrorEvent(
                 category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
@@ -503,9 +520,9 @@ class FailureAnalyzer:
                 }
             )
         
-        # Generic error - categorize as unclaimed records since user creation failed
+        # Generic Flywheel error
         return ErrorEvent(
-            category=ErrorCategory.UNCLAIMED_RECORDS,
+            category=ErrorCategory.FLYWHEEL_ERROR,
             user_context=UserContext.from_user_entry(entry),
             error_details={
                 "message": "Flywheel user creation failed after 3 attempts",
@@ -515,42 +532,72 @@ class FailureAnalyzer:
             }
         )
     
-    def analyze_missing_claimed_user(self, entry: RegisteredUserEntry) -> Optional[ErrorEvent]:
-        """Analyze why we can't find a claimed user that should exist."""
-        # Use environment's user registry to check what's actually there
-        person_list = self.env.user_registry.get(email=entry.auth_email or entry.email)
+    def analyze_missing_claimed_user(
+        self, entry: RegisteredUserEntry
+    ) -> Optional[ErrorEvent]:
+        """Analyze why we can't find a claimed user by registry_id.
         
-        if not person_list:
-            return ErrorEvent(
-                category=ErrorCategory.UNCLAIMED_RECORDS,
-                user_context=UserContext.from_user_entry(entry),
-                error_details={
-                    "message": "Expected claimed user not found in registry",
-                    "registry_id": entry.registry_id,
-                    "action_needed": "verify_registry_record_exists"
-                }
+        This method is called when find_by_registry_id() returns None for a user
+        that should exist (was previously found and claimed). It checks:
+        1. If user exists by email (data inconsistency - raises RuntimeError)
+        2. If user is in bad claims (incomplete claim)
+        3. If user is missing entirely from registry
+        
+        Called by: UpdateUserProcess.visit()
+        
+        Raises:
+            RuntimeError: If user found by email but not by registry_id
+                         (indicates registry data structure inconsistency)
+        """
+        # Check if user exists by email
+        email_to_check = entry.auth_email or entry.email
+        person_list = self.env.get_from_registry(email=email_to_check)
+        
+        if person_list:
+            # Data inconsistency - should never happen
+            found_ids = [p.registry_id() for p in person_list]
+            raise RuntimeError(
+                f"Registry data inconsistency: User {email_to_check} found by "
+                f"email (registry_ids: {found_ids}) but not by registry_id "
+                f"{entry.registry_id}. This indicates a bug in registry indexing."
             )
-        else:
-            # User exists but not claimed properly
-            return ErrorEvent(
-                category=ErrorCategory.UNCLAIMED_RECORDS,
-                user_context=UserContext.from_user_entry(entry),
-                error_details={
-                    "message": "User found in registry but not properly claimed",
-                    "registry_records": len(person_list),
-                    "registry_id": entry.registry_id,
-                    "action_needed": "check_claim_status_and_email_verification"
-                }
-            )
+        
+        # Check if it's a bad claim
+        full_name = entry.name.as_str() if entry.name else None
+        if full_name:
+            bad_claim_persons = self.env.user_registry.get_bad_claim(full_name)
+            if bad_claim_persons:
+                return self.detect_incomplete_claim(entry, bad_claim_persons)
+        
+        # Not found anywhere
+        return ErrorEvent(
+            category=ErrorCategory.MISSING_REGISTRY_DATA,
+            user_context=UserContext.from_user_entry(entry),
+            error_details={
+                "message": (
+                    "Expected claimed user not found in registry by ID, "
+                    "email, or bad claims"
+                ),
+                "registry_id": entry.registry_id,
+                "checked_email": email_to_check,
+                "checked_name": full_name,
+                "action_needed": "verify_registry_record_exists_or_was_deleted"
+            }
+        )
     
-    def detect_incomplete_claim(self, entry: UserEntry, 
-                               bad_claim_persons: List[RegistryPerson]) -> Optional[ErrorEvent]:
+    def detect_incomplete_claim(
+        self, entry: UserEntry, bad_claim_persons: List[RegistryPerson]
+    ) -> Optional[ErrorEvent]:
         """Detect incomplete claims and identify if ORCID is the identity provider.
         
         An incomplete claim occurs when a user has claimed their account (logged in
         via an identity provider) but the identity provider did not return complete
         information such as email address. ORCID is a common identity provider that
         requires special configuration and often causes this issue.
+        
+        Called by: 
+        - ActiveUserProcess.visit() when bad claim detected
+        - analyze_missing_claimed_user() when checking bad claims
         
         Args:
             entry: The user entry from the directory
@@ -574,23 +621,25 @@ class FailureAnalyzer:
                 user_context=UserContext.from_user_entry(entry),
                 error_details={
                     "message": "User has incomplete claim with ORCID identity provider",
-                    "full_name": entry.name.full_name if entry.name else "unknown",
+                    "full_name": entry.name.as_str() if entry.name else "unknown",
                     "has_orcid_org_identity": True,
                     "action_needed": "delete_bad_record_and_reclaim_with_institutional_idp"
                 }
             )
-        else:
-            return ErrorEvent(
-                category=ErrorCategory.INCOMPLETE_CLAIM,
-                user_context=UserContext.from_user_entry(entry),
-                error_details={
-                    "message": "User has incomplete claim (identity provider did not return email)",
-                    "full_name": entry.name.full_name if entry.name else "unknown",
-                    "has_orcid_org_identity": False,
-                    "action_needed": "verify_identity_provider_configuration_and_reclaim"
-                }
-            )
+        
+        return ErrorEvent(
+            category=ErrorCategory.INCOMPLETE_CLAIM,
+            user_context=UserContext.from_user_entry(entry),
+            error_details={
+                "message": "User has incomplete claim (identity provider did not return email)",
+                "full_name": entry.name.as_str() if entry.name else "unknown",
+                "has_orcid_org_identity": False,
+                "action_needed": "verify_identity_provider_configuration_and_reclaim"
+            }
+        )
 ```
+
+**Note:** The original design included additional detection methods (detect_email_mismatch, detect_unverified_email, detect_insufficient_permissions, detect_duplicate_user) but these were not integrated into the user processes and have been removed from the implementation. The three methods above represent the actual failure analysis needs discovered during implementation.
 
 ### End-of-Run Notification
 
