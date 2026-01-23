@@ -60,6 +60,10 @@
         "database_mode": {
             "description": "Whether to lookup identifiers from dev or prod database",
             "type": "string",
+            "enum": [
+                "prod",
+                "dev"
+            ],
             "default": "prod"
         },
         "apikey_path_prefix": {
@@ -70,6 +74,10 @@
         "direction": {
             "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
             "type": "string",
+            "enum": [
+                "nacc",
+                "center"
+            ],
             "default": "nacc"
         },
         "preserve_case": {
