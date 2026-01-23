@@ -1,6 +1,7 @@
 """Error models for user access issues."""
 
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -71,27 +72,81 @@ class ErrorEvent(BaseModel):
 
 
 class ErrorCollector:
-    """Simple error collector that accumulates errors during gear execution."""
+    """Error collector that accumulates and categorizes errors during gear
+    execution."""
 
     def __init__(self):
         """Initialize an empty error collector."""
-        self._errors: List[ErrorEvent] = []
+        self._errors: Dict[ErrorCategory, List[ErrorEvent]] = defaultdict(list)
 
     def collect(self, event: ErrorEvent) -> None:
-        """Add an error event to the collection.
+        """Add an error event to the collection, automatically categorizing it.
 
         Args:
             event: The error event to add to the collection
         """
-        self._errors.append(event)
+        # Convert string category back to enum if needed
+        if isinstance(event.category, str):
+            category_enum = next(
+                (cat for cat in ErrorCategory if cat.value == event.category),
+                None,
+            )
+            if category_enum:
+                self._errors[category_enum].append(event)
+        else:
+            self._errors[event.category].append(event)
 
     def get_errors(self) -> List[ErrorEvent]:
-        """Get all collected errors.
+        """Get all collected errors as a flat list.
 
         Returns:
-            A copy of the list of collected error events
+            A list of all collected error events
         """
-        return self._errors.copy()
+        all_errors = []
+        for error_list in self._errors.values():
+            all_errors.extend(error_list)
+        return all_errors
+
+    def get_errors_by_category(self) -> Dict[ErrorCategory, List[ErrorEvent]]:
+        """Get errors grouped by category.
+
+        Returns:
+            Dictionary mapping error category to list of error events
+        """
+        return dict(self._errors)
+
+    def get_errors_for_category(self, category: ErrorCategory) -> List[ErrorEvent]:
+        """Get all errors for a specific category.
+
+        Args:
+            category: The error category to retrieve
+
+        Returns:
+            List of error events for the specified category
+        """
+        return self._errors.get(category, []).copy()
+
+    def count_by_category(self) -> Dict[str, int]:
+        """Count errors by category.
+
+        Returns:
+            Dictionary mapping category name (string) to count
+        """
+        return {
+            category.value: len(errors) for category, errors in self._errors.items()
+        }
+
+    def get_affected_users(self) -> List[str]:
+        """Get list of unique user emails affected by errors.
+
+        Returns:
+            List of unique user email addresses
+        """
+        users = set()
+        for error_list in self._errors.values():
+            for error in error_list:
+                users.add(error.user_context.email)
+        return list(users)
 
     def clear(self) -> None:
         """Clear all collected errors."""
@@ -106,9 +161,9 @@ class ErrorCollector:
         return len(self._errors) > 0
 
     def error_count(self) -> int:
-        """Get the number of collected errors.
+        """Get the total number of collected errors.
 
         Returns:
-            The number of error events in the collection
+            The total number of error events in the collection
         """
-        return len(self._errors)
+        return sum(len(errors) for errors in self._errors.values())

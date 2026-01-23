@@ -380,8 +380,8 @@ class TestErrorCollector:
         assert error_event1 in errors
         assert error_event2 in errors
 
-    def test_error_collector_get_errors_returns_copy(self):
-        """Test that get_errors returns a copy, not the original list."""
+    def test_error_collector_get_errors_by_category(self):
+        """Test getting errors grouped by category."""
         from users.error_models import (
             ErrorCategory,
             ErrorCollector,
@@ -390,25 +390,149 @@ class TestErrorCollector:
         )
 
         collector = ErrorCollector()
-        user_context = UserContext(email="test@example.com")
-        error_event = ErrorEvent(
+
+        error1 = ErrorEvent(
             category=ErrorCategory.UNCLAIMED_RECORDS,
-            user_context=user_context,
-            error_details={"message": "Test error"},
+            user_context=UserContext(email="user1@example.com"),
+            error_details={"message": "First unclaimed"},
+        )
+        error2 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user2@example.com"),
+            error_details={"message": "Second unclaimed"},
+        )
+        error3 = ErrorEvent(
+            category=ErrorCategory.EMAIL_MISMATCH,
+            user_context=UserContext(email="user3@example.com"),
+            error_details={"message": "Email mismatch"},
         )
 
-        collector.collect(error_event)
-        errors1 = collector.get_errors()
-        errors2 = collector.get_errors()
+        collector.collect(error1)
+        collector.collect(error2)
+        collector.collect(error3)
 
-        # Should be equal but not the same object
-        assert errors1 == errors2
-        assert errors1 is not errors2
+        errors_by_category = collector.get_errors_by_category()
 
-        # Modifying the returned list should not affect the collector
-        errors1.clear()
-        assert collector.error_count() == 1
-        assert len(collector.get_errors()) == 1
+        assert len(errors_by_category) == 2
+        assert len(errors_by_category[ErrorCategory.UNCLAIMED_RECORDS]) == 2
+        assert len(errors_by_category[ErrorCategory.EMAIL_MISMATCH]) == 1
+
+    def test_error_collector_get_errors_for_category(self):
+        """Test getting errors for a specific category."""
+        from users.error_models import (
+            ErrorCategory,
+            ErrorCollector,
+            ErrorEvent,
+            UserContext,
+        )
+
+        collector = ErrorCollector()
+
+        error1 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user1@example.com"),
+            error_details={"message": "Unclaimed"},
+        )
+        error2 = ErrorEvent(
+            category=ErrorCategory.EMAIL_MISMATCH,
+            user_context=UserContext(email="user2@example.com"),
+            error_details={"message": "Mismatch"},
+        )
+
+        collector.collect(error1)
+        collector.collect(error2)
+
+        unclaimed_errors = collector.get_errors_for_category(
+            ErrorCategory.UNCLAIMED_RECORDS
+        )
+        assert len(unclaimed_errors) == 1
+        assert unclaimed_errors[0] == error1
+
+        mismatch_errors = collector.get_errors_for_category(
+            ErrorCategory.EMAIL_MISMATCH
+        )
+        assert len(mismatch_errors) == 1
+        assert mismatch_errors[0] == error2
+
+        # Test non-existent category
+        flywheel_errors = collector.get_errors_for_category(
+            ErrorCategory.FLYWHEEL_ERROR
+        )
+        assert len(flywheel_errors) == 0
+
+    def test_error_collector_count_by_category(self):
+        """Test counting errors by category."""
+        from users.error_models import (
+            ErrorCategory,
+            ErrorCollector,
+            ErrorEvent,
+            UserContext,
+        )
+
+        collector = ErrorCollector()
+
+        error1 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user1@example.com"),
+            error_details={"message": "First"},
+        )
+        error2 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user2@example.com"),
+            error_details={"message": "Second"},
+        )
+        error3 = ErrorEvent(
+            category=ErrorCategory.EMAIL_MISMATCH,
+            user_context=UserContext(email="user3@example.com"),
+            error_details={"message": "Mismatch"},
+        )
+
+        collector.collect(error1)
+        collector.collect(error2)
+        collector.collect(error3)
+
+        counts = collector.count_by_category()
+
+        assert counts["Unclaimed Records"] == 2
+        assert counts["Authentication Email Mismatch"] == 1
+        assert len(counts) == 2
+
+    def test_error_collector_get_affected_users(self):
+        """Test getting list of affected users."""
+        from users.error_models import (
+            ErrorCategory,
+            ErrorCollector,
+            ErrorEvent,
+            UserContext,
+        )
+
+        collector = ErrorCollector()
+
+        error1 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user1@example.com"),
+            error_details={"message": "Error 1"},
+        )
+        error2 = ErrorEvent(
+            category=ErrorCategory.EMAIL_MISMATCH,
+            user_context=UserContext(email="user2@example.com"),
+            error_details={"message": "Error 2"},
+        )
+        error3 = ErrorEvent(
+            category=ErrorCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext(email="user1@example.com"),
+            error_details={"message": "Error 3"},
+        )
+
+        collector.collect(error1)
+        collector.collect(error2)
+        collector.collect(error3)
+
+        affected_users = collector.get_affected_users()
+
+        assert len(affected_users) == 2
+        assert "user1@example.com" in affected_users
+        assert "user2@example.com" in affected_users
 
     def test_error_collector_clear(self):
         """Test clearing all errors from the collector."""
@@ -435,6 +559,8 @@ class TestErrorCollector:
         assert not collector.has_errors()
         assert collector.error_count() == 0
         assert collector.get_errors() == []
+        assert collector.get_errors_by_category() == {}
+        assert collector.get_affected_users() == []
 
     def test_error_collector_has_errors_states(self):
         """Test has_errors method in different states."""
