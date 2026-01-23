@@ -285,3 +285,22 @@ class RxClassConnection(RxNavConnection):
                 )
 
         return results
+
+
+def load_rxclass_concepts_from_file(stream) -> MutableMapping:
+    """Loads RxClass concepts from file, to avoid querying.
+
+    Args:
+        stream: input IO stream
+    Returns:
+        Mapping of RxClass to the RxCUI members and their data
+    """
+    results: MutableMapping = {}
+    raw_concepts = json.load(stream)
+
+    for rxclass, members in raw_concepts.items():
+        results[rxclass] = {}
+        for rxcui, data in members.items():
+            results[rxclass][rxcui] = data
+
+    return results
