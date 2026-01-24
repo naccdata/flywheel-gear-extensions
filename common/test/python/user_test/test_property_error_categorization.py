@@ -6,7 +6,7 @@
 
 from hypothesis import given, settings
 from test_mocks.strategies import error_event_strategy
-from users.error_models import ErrorCategory
+from users.event_models import EventCategory
 
 
 @given(error_event=error_event_strategy())
@@ -31,32 +31,30 @@ def test_error_event_categorization(error_event):
     assert len(error_event.category) > 0, "Category should not be empty"
 
     # Assert - Category should match one of the expected string values from
-    #  ErrorCategory enum
-    expected_category_values = {cat.value for cat in ErrorCategory}
+    #  EventCategory enum
+    expected_category_values = {cat.value for cat in EventCategory}
     assert error_event.category in expected_category_values, (
         f"Category value '{error_event.category}' "
         "should be one of the expected values: "
         f"{expected_category_values}"
     )
 
-    # Assert - Category should be one of the predefined ErrorCategory enum values
+    # Assert - Category should be one of the predefined EventCategory enum values
     # Verify that the category corresponds to a valid enum member
     category_found = False
-    for category_enum in ErrorCategory:
+    for category_enum in EventCategory:
         if category_enum.value == error_event.category:
             category_found = True
             break
 
     assert category_found, (
         f"Error event category '{error_event.category}' should correspond to "
-        f"one of the predefined ErrorCategory enum values"
+        f"one of the predefined EventCategory enum values"
     )
 
     # Assert - Error event should have all required fields for categorization
     assert hasattr(error_event, "user_context"), "Error event should have user_context"
-    assert hasattr(error_event, "error_details"), (
-        "Error event should have error_details"
-    )
+    assert hasattr(error_event, "details"), "Error event should have details"
     assert hasattr(error_event, "event_id"), "Error event should have event_id"
     assert hasattr(error_event, "timestamp"), "Error event should have timestamp"
 
@@ -71,6 +69,4 @@ def test_error_event_categorization(error_event):
     )
 
     # Assert - Error details should be a dictionary
-    assert isinstance(error_event.error_details, dict), (
-        "Error details should be a dictionary"
-    )
+    assert isinstance(error_event.details, dict), "Error details should be a dictionary"

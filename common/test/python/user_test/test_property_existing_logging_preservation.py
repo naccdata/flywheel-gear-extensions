@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from users.error_models import ErrorCollector
+from users.event_models import EventCollector
 from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
     ActiveUserProcess,
@@ -135,7 +135,7 @@ def test_active_user_process_preserves_existing_logging_with_error_handling(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     # Test scenario 1: Missing auth email (should log error)
     if entry.auth_email is None:
@@ -201,7 +201,7 @@ def test_active_user_process_preserves_info_logging_for_new_users(entry, mock_en
     if entry.auth_email is None:
         return
 
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     # Setup for new user scenario
     mock_env.user_registry.get.return_value = []  # No person found
@@ -248,7 +248,7 @@ def test_update_user_process_preserves_existing_logging_with_error_handling(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     # Test scenario: Missing claimed user (should log error)
     mock_env.user_registry.find_by_registry_id.return_value = None
@@ -290,7 +290,7 @@ def test_update_user_process_preserves_info_logging_for_successful_updates(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     # Setup for successful update scenario
     mock_registry_person = Mock(spec=RegistryPerson)
@@ -334,7 +334,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
 
@@ -374,7 +374,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
 @given(mock_env=mock_environment_strategy())
 @settings(max_examples=2, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_error_collector_does_not_interfere_with_logging(mock_env):
-    """Property test: ErrorCollector itself does not interfere with existing
+    """Property test: EventCollector itself does not interfere with existing
     logging.
 
     **Feature: automated-error-handling, Property 6: Existing Logging Preservation**
@@ -383,7 +383,7 @@ def test_error_collector_does_not_interfere_with_logging(mock_env):
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
-    error_collector = ErrorCollector()
+    error_collector = EventCollector()
 
     # Create a simple entry that will trigger logging
     entry = ActiveUserEntry(
@@ -408,7 +408,7 @@ def test_error_collector_does_not_interfere_with_logging(mock_env):
     # Test without error collector (simulate original behavior)
     # Note: This is a conceptual test - in practice, the original classes
     # would not have error collector parameter
-    process_without_collector = ActiveUserProcess(mock_env, ErrorCollector())
+    process_without_collector = ActiveUserProcess(mock_env, EventCollector())
 
     with LogCapture(level=logging.ERROR) as log_capture_without:
         process_without_collector.visit(entry)

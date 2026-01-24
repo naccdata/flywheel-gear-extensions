@@ -6,7 +6,11 @@ from typing import Literal, Optional
 from centers.nacc_group import NACCGroup
 from flywheel import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from notifications.email import DestinationModel, EmailClient, TemplateDataModel
+from notifications.email import (
+    DestinationModel,
+    EmailClient,
+    TemplateDataModel,
+)
 
 from users.authorizations import AuthMap
 from users.user_entry import ActiveUserEntry

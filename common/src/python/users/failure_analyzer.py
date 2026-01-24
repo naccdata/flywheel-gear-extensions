@@ -4,10 +4,11 @@ from typing import List, Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 
-from users.error_models import (
-    ErrorCategory,
-    ErrorEvent,
+from users.event_models import (
+    EventCategory,
+    EventType,
     UserContext,
+    UserProcessEvent,
 )
 from users.user_entry import RegisteredUserEntry, UserEntry
 from users.user_process_environment import UserProcessEnvironment
@@ -27,7 +28,7 @@ class FailureAnalyzer:
 
     def analyze_flywheel_user_creation_failure(
         self, entry: RegisteredUserEntry, error: FlywheelError
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Analyze why Flywheel user creation failed after 3 attempts.
 
         Args:
@@ -35,16 +36,17 @@ class FailureAnalyzer:
             error: The FlywheelError that occurred
 
         Returns:
-            An ErrorEvent describing the failure, or None if analysis fails
+            A UserProcessEvent describing the failure, or None if analysis fails
         """
         try:
             # Check if user already exists (duplicate)
             existing_user = self.env.find_user(entry.registry_id)
             if existing_user:
-                return ErrorEvent(
-                    category=ErrorCategory.DUPLICATE_USER_RECORDS,
+                return UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.DUPLICATE_USER_RECORDS,
                     user_context=UserContext.from_user_entry(entry),
-                    error_details={
+                    details={
                         "message": "User already exists in Flywheel",
                         "existing_user_id": existing_user.id,
                         "registry_id": entry.registry_id,
@@ -55,10 +57,11 @@ class FailureAnalyzer:
             # Check if it's a permission issue
             error_str = str(error).lower()
             if "permission" in error_str or "unauthorized" in error_str:
-                return ErrorEvent(
-                    category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
+                return UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.INSUFFICIENT_PERMISSIONS,
                     user_context=UserContext.from_user_entry(entry),
-                    error_details={
+                    details={
                         "message": (
                             "Insufficient permissions to create user in Flywheel"
                         ),
@@ -68,10 +71,11 @@ class FailureAnalyzer:
                 )
 
             # Generic Flywheel error
-            return ErrorEvent(
-                category=ErrorCategory.FLYWHEEL_ERROR,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.FLYWHEEL_ERROR,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "Flywheel user creation failed after 3 attempts",
                     "error": str(error),
                     "registry_id": entry.registry_id,
@@ -81,10 +85,11 @@ class FailureAnalyzer:
 
         except Exception:
             # If analysis fails, return a generic error event
-            return ErrorEvent(
-                category=ErrorCategory.FLYWHEEL_ERROR,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.FLYWHEEL_ERROR,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "Flywheel user creation failed after 3 attempts",
                     "error": str(error),
                     "registry_id": entry.registry_id,
@@ -94,7 +99,7 @@ class FailureAnalyzer:
 
     def analyze_missing_claimed_user(
         self, entry: RegisteredUserEntry
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Analyze why we can't find a claimed user by registry_id.
 
         This method is specifically for the scenario where:
@@ -120,7 +125,7 @@ class FailureAnalyzer:
                   by registry_id lookup
 
         Returns:
-            An ErrorEvent describing the issue, or None if the user is found
+            A UserProcessEvent describing the issue, or None if the user is found
             by email but not by registry_id (indicating a bad claim scenario)
 
         Raises:
@@ -150,10 +155,11 @@ class FailureAnalyzer:
                 return self.detect_incomplete_claim(entry, bad_claim_persons)
 
         # Not found anywhere - user is missing from registry
-        return ErrorEvent(
-            category=ErrorCategory.MISSING_REGISTRY_DATA,
+        return UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.MISSING_REGISTRY_DATA,
             user_context=UserContext.from_user_entry(entry),
-            error_details={
+            details={
                 "message": (
                     "Expected claimed user not found in registry by ID, "
                     "email, or bad claims"
@@ -167,7 +173,7 @@ class FailureAnalyzer:
 
     def detect_incomplete_claim(
         self, entry: UserEntry, bad_claim_persons: List[RegistryPerson]
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Detect incomplete claims and identify if ORCID is the identity
         provider.
 
@@ -181,7 +187,7 @@ class FailureAnalyzer:
             bad_claim_persons: List of RegistryPerson objects with incomplete claims
 
         Returns:
-            An ErrorEvent with category BAD_ORCID_CLAIMS or INCOMPLETE_CLAIM
+            A UserProcessEvent with category BAD_ORCID_CLAIMS or INCOMPLETE_CLAIM
         """
         # Check if any of the bad claim persons have ORCID org identity
         has_orcid = any(
@@ -190,10 +196,11 @@ class FailureAnalyzer:
         )
 
         if has_orcid:
-            return ErrorEvent(
-                category=ErrorCategory.BAD_ORCID_CLAIMS,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.BAD_ORCID_CLAIMS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User has incomplete claim with ORCID identity provider",
                     "full_name": entry.name.as_str() if entry.name else "unknown",
                     "has_orcid_org_identity": True,
@@ -203,10 +210,11 @@ class FailureAnalyzer:
                 },
             )
 
-        return ErrorEvent(
-            category=ErrorCategory.INCOMPLETE_CLAIM,
+        return UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext.from_user_entry(entry),
-            error_details={
+            details={
                 "message": (
                     "User has incomplete claim (identity provider did not return email)"
                 ),

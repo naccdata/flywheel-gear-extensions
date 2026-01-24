@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
-from users.error_models import ErrorCategory, ErrorCollector
+from users.event_models import EventCategory, EventCollector
 from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
@@ -47,8 +47,8 @@ class TestActiveUserProcessIntegration:
 
     @pytest.fixture
     def error_collector(self):
-        """Create an ErrorCollector for testing."""
-        return ErrorCollector()
+        """Create an EventCollector for testing."""
+        return EventCollector()
 
     @pytest.fixture
     def sample_active_entry(self):
@@ -129,9 +129,9 @@ class TestActiveUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.MISSING_DIRECTORY_DATA.value
+        assert error_event.category == EventCategory.MISSING_DIRECTORY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "no authentication email" in error_event.error_details["message"]
+        assert "no authentication email" in error_event.details["message"]
 
     def test_active_user_process_creates_error_for_bad_claim(
         self, mock_environment, error_collector, sample_active_entry, caplog
@@ -163,9 +163,9 @@ class TestActiveUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.BAD_ORCID_CLAIMS.value
+        assert error_event.category == EventCategory.BAD_ORCID_CLAIMS.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "incomplete claim" in error_event.error_details["message"]
+        assert "incomplete claim" in error_event.details["message"]
 
     def test_active_user_process_no_error_for_missing_creation_date(
         self, mock_environment, error_collector, sample_active_entry, caplog
@@ -279,8 +279,8 @@ class TestClaimedUserProcessIntegration:
 
     @pytest.fixture
     def error_collector(self):
-        """Create an ErrorCollector for testing."""
-        return ErrorCollector()
+        """Create an EventCollector for testing."""
+        return EventCollector()
 
     @pytest.fixture
     def failure_analyzer(self, mock_environment):
@@ -402,9 +402,9 @@ class TestClaimedUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.INSUFFICIENT_PERMISSIONS.value
+        assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
         assert error_event.user_context.email == "jane.smith@example.com"
-        assert "Insufficient permissions" in error_event.error_details["message"]
+        assert "Insufficient permissions" in error_event.details["message"]
 
     def test_claimed_user_process_handles_user_not_found_after_creation(
         self,
@@ -458,8 +458,8 @@ class TestUpdateUserProcessIntegration:
 
     @pytest.fixture
     def error_collector(self):
-        """Create an ErrorCollector for testing."""
-        return ErrorCollector()
+        """Create an EventCollector for testing."""
+        return EventCollector()
 
     @pytest.fixture
     def failure_analyzer(self, mock_environment):
@@ -548,9 +548,9 @@ class TestUpdateUserProcessIntegration:
 
         errors = error_collector.get_errors()
         error_event = errors[0]
-        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
+        assert error_event.category == EventCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "bob.wilson@example.com"
-        assert "not found in registry" in error_event.error_details["message"]
+        assert "not found in registry" in error_event.details["message"]
 
     def test_update_user_process_no_error_for_missing_flywheel_user(
         self,
@@ -651,8 +651,8 @@ class TestUserProcessIntegrationEndToEnd:
 
     @pytest.fixture
     def error_collector(self):
-        """Create an ErrorCollector for testing."""
-        return ErrorCollector()
+        """Create an EventCollector for testing."""
+        return EventCollector()
 
     def test_multiple_error_types_collected_in_single_run(
         self, mock_environment, error_collector, caplog
@@ -703,8 +703,8 @@ class TestUserProcessIntegrationEndToEnd:
         errors = error_collector.get_errors()
         error_categories = [error.category for error in errors]
 
-        assert ErrorCategory.MISSING_DIRECTORY_DATA.value in error_categories
-        assert ErrorCategory.BAD_ORCID_CLAIMS.value in error_categories
+        assert EventCategory.MISSING_DIRECTORY_DATA.value in error_categories
+        assert EventCategory.BAD_ORCID_CLAIMS.value in error_categories
 
         # Verify both log messages occurred
         assert "no.auth@example.com must have authentication email" in caplog.text
@@ -713,7 +713,7 @@ class TestUserProcessIntegrationEndToEnd:
     def test_error_collector_maintains_state_across_processes(
         self, mock_environment, error_collector
     ):
-        """Test that ErrorCollector maintains state across different process
+        """Test that EventCollector maintains state across different process
         instances."""
         # Create first process and add an error
         entry1 = ActiveUserEntry(

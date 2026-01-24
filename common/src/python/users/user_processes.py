@@ -10,7 +10,13 @@ from flywheel_adaptor.flywheel_proxy import FlywheelError
 
 from users.authorization_visitor import CenterAuthorizationVisitor
 from users.authorizations import StudyAuthorizations
-from users.error_models import ErrorCategory, ErrorCollector, ErrorEvent, UserContext
+from users.event_models import (
+    EventCategory,
+    EventCollector,
+    EventType,
+    UserContext,
+    UserProcessEvent,
+)
 from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import ActiveUserEntry, RegisteredUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
@@ -33,7 +39,7 @@ class BaseUserProcess(ABC, Generic[T]):
     Subclasses should apply the process as a visitor to the queue.
     """
 
-    def __init__(self, error_collector: ErrorCollector) -> None:
+    def __init__(self, error_collector: EventCollector) -> None:
         """Initialize the base user process.
 
         Args:
@@ -42,7 +48,7 @@ class BaseUserProcess(ABC, Generic[T]):
         self.__error_collector = error_collector
 
     @property
-    def error_collector(self) -> ErrorCollector:
+    def error_collector(self) -> EventCollector:
         """Get the error collector (read-only access)."""
         return self.__error_collector
 
@@ -96,7 +102,7 @@ class UserQueue(Generic[T]):
 class InactiveUserProcess(BaseUserProcess[UserEntry]):
     """User process for user entries marked inactive."""
 
-    def __init__(self, error_collector: ErrorCollector) -> None:
+    def __init__(self, error_collector: EventCollector) -> None:
         """Initialize the inactive user process.
 
         Args:
@@ -129,24 +135,41 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
     def __init__(
         self,
         notification_client: NotificationClient,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the created user process.
 
         Args:
             notification_client: Client for sending notifications
-            error_collector: Error collector for capturing error events
+            error_collector: Event collector for capturing events
         """
         super().__init__(error_collector)
         self.__notification_client = notification_client
 
     def visit(self, entry: RegisteredUserEntry) -> None:
-        """Processes the user entry by sending a notification email.
+        """Processes the user entry by sending a notification email and
+        collecting success event.
 
         Args:
           entry: the user entry
         """
+        # Send user creation email to the user
         self.__notification_client.send_creation_email(entry)
+
+        # Collect success event for end-of-run notification
+        success_event = UserProcessEvent(
+            event_type=EventType.SUCCESS,
+            category=EventCategory.USER_CREATED,
+            user_context=UserContext.from_user_entry(entry),
+            details={
+                "message": "User successfully created in Flywheel",
+                "registry_id": entry.registry_id,
+                "center_id": str(entry.adcid),
+                "center_name": entry.org_name,
+                "authorizations": [str(auth) for auth in entry.authorizations],
+            },
+        )
+        self.error_collector.collect(success_event)
 
     def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
         """Applies this process to the queue.
@@ -165,7 +188,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the update user process.
 
@@ -308,14 +331,14 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self,
         environment: UserProcessEnvironment,
         claimed_queue: UserQueue[RegisteredUserEntry],
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the claimed user process.
 
         Args:
             environment: The user process environment
             claimed_queue: Queue for claimed user entries
-            error_collector: Error collector for capturing error events
+            error_collector: Event collector for capturing events
         """
         super().__init__(error_collector)
         self.__failed_count: Dict[str, int] = defaultdict(int)
@@ -423,7 +446,7 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __init__(
         self,
         notification_client: NotificationClient,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the unclaimed user process.
 
@@ -459,13 +482,13 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the active user process.
 
         Args:
             environment: The user process environment
-            error_collector: Error collector for capturing error events
+            error_collector: Event collector for capturing events
         """
         super().__init__(error_collector)
         self.__env = environment
@@ -484,10 +507,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             log.error("User %s must have authentication email", entry.email)
 
             # Create error event for missing auth email
-            error_event = ErrorEvent(
-                category=ErrorCategory.MISSING_DIRECTORY_DATA,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_DATA,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User has no authentication email in directory",
                     "directory_email": entry.email,
                     "action_needed": "update_directory_auth_email",
@@ -648,13 +672,13 @@ class UserProcess(BaseUserProcess[UserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
     ) -> None:
         """Initialize the user process.
 
         Args:
             environment: The user process environment
-            error_collector: Error collector for capturing error events
+            error_collector: Event collector for capturing events
         """
         super().__init__(error_collector)
         self.__active_queue: UserQueue[ActiveUserEntry] = UserQueue()

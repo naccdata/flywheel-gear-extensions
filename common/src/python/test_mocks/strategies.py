@@ -217,7 +217,7 @@ visitnum_strategy = st.text(min_size=1, max_size=3, alphabet="0123456789")
 @st.composite
 def user_context_strategy(draw):
     """Generate random UserContext for testing."""
-    from users.error_models import UserContext
+    from users.event_models import UserContext
     from users.user_entry import PersonName
 
     email = draw(st.emails())
@@ -286,15 +286,16 @@ def error_details_strategy(draw):
 
 @st.composite
 def error_event_strategy(draw):
-    """Generate random ErrorEvent for testing."""
-    from users.error_models import ErrorCategory, ErrorEvent
+    """Generate random UserProcessEvent for testing."""
+    from users.event_models import EventCategory, EventType, UserProcessEvent
 
-    category = draw(st.sampled_from(list(ErrorCategory)))
+    category = draw(st.sampled_from(list(EventCategory)))
     user_context = draw(user_context_strategy())
-    error_details = draw(error_details_strategy())
+    details = draw(error_details_strategy())
 
-    return ErrorEvent(
+    return UserProcessEvent(
+        event_type=EventType.ERROR,
         category=category,
         user_context=user_context,
-        error_details=error_details,
+        details=details,
     )

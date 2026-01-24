@@ -6,7 +6,7 @@ from typing import ClassVar, Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 
-from users.error_models import ErrorCategory, ErrorCollector
+from users.event_models import EventCategory, EventCollector
 
 log = logging.getLogger(__name__)
 
@@ -43,20 +43,20 @@ class ErrorNotificationGenerator:
     """Generates notifications for error events using AWS SES templates."""
 
     # Template name mapping for each error category
-    CATEGORY_TEMPLATES: ClassVar[Dict[ErrorCategory, str]] = {
-        ErrorCategory.UNCLAIMED_RECORDS: "error-unclaimed-records",
-        ErrorCategory.EMAIL_MISMATCH: "error-email-mismatch",
-        ErrorCategory.UNVERIFIED_EMAIL: "error-unverified-email",
-        ErrorCategory.INCOMPLETE_CLAIM: "error-incomplete-claim",
-        ErrorCategory.BAD_ORCID_CLAIMS: "error-bad-orcid-claims",
-        ErrorCategory.MISSING_DIRECTORY_PERMISSIONS: (
+    CATEGORY_TEMPLATES: ClassVar[Dict[EventCategory, str]] = {
+        EventCategory.UNCLAIMED_RECORDS: "error-unclaimed-records",
+        EventCategory.EMAIL_MISMATCH: "error-email-mismatch",
+        EventCategory.UNVERIFIED_EMAIL: "error-unverified-email",
+        EventCategory.INCOMPLETE_CLAIM: "error-incomplete-claim",
+        EventCategory.BAD_ORCID_CLAIMS: "error-bad-orcid-claims",
+        EventCategory.MISSING_DIRECTORY_PERMISSIONS: (
             "error-missing-directory-permissions"
         ),
-        ErrorCategory.MISSING_DIRECTORY_DATA: "error-missing-directory-data",
-        ErrorCategory.MISSING_REGISTRY_DATA: "error-missing-registry-data",
-        ErrorCategory.INSUFFICIENT_PERMISSIONS: "error-insufficient-permissions",
-        ErrorCategory.DUPLICATE_USER_RECORDS: "error-duplicate-user-records",
-        ErrorCategory.FLYWHEEL_ERROR: "error-flywheel-error",
+        EventCategory.MISSING_DIRECTORY_DATA: "error-missing-directory-data",
+        EventCategory.MISSING_REGISTRY_DATA: "error-missing-registry-data",
+        EventCategory.INSUFFICIENT_PERMISSIONS: "error-insufficient-permissions",
+        EventCategory.DUPLICATE_USER_RECORDS: "error-duplicate-user-records",
+        EventCategory.FLYWHEEL_ERROR: "error-flywheel-error",
     }
 
     def __init__(self, email_client: EmailClient, configuration_set_name: str):
@@ -69,7 +69,7 @@ class ErrorNotificationGenerator:
         self.__email_client = email_client
         self.__configuration_set_name = configuration_set_name
 
-    def select_template(self, category: ErrorCategory) -> str:
+    def select_template(self, category: EventCategory) -> str:
         """Select the appropriate SES template for an error category.
 
         Args:
@@ -81,12 +81,12 @@ class ErrorNotificationGenerator:
         return self.CATEGORY_TEMPLATES.get(category, "error-generic")
 
     def create_notification_data(
-        self, error_collector: ErrorCollector, gear_name: str
+        self, error_collector: EventCollector, gear_name: str
     ) -> ConsolidatedNotificationData:
         """Create template data for consolidated notification.
 
         Args:
-            error_collector: The ErrorCollector with categorized errors
+            error_collector: The EventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
 
         Returns:
@@ -108,7 +108,7 @@ class ErrorNotificationGenerator:
                         if error.user_context.name
                         else "Unknown"
                     ),
-                    "message": error.error_details.get("message", "No details"),
+                    "message": error.details.get("message", "No details"),
                     "timestamp": error.timestamp.isoformat(),
                 }
 
@@ -121,7 +121,7 @@ class ErrorNotificationGenerator:
                     error_dict["center_id"] = str(error.user_context.center_id)
 
                 # Add action needed if present
-                action_needed = error.error_details.get("action_needed")
+                action_needed = error.details.get("action_needed")
                 if action_needed:
                     error_dict["action_needed"] = action_needed
 
@@ -144,7 +144,7 @@ class ErrorNotificationGenerator:
             **category_data,
         )
 
-    def _category_to_field_name(self, category: ErrorCategory) -> str:
+    def _category_to_field_name(self, category: EventCategory) -> str:
         """Convert error category to field name for template data.
 
         Args:
@@ -154,19 +154,19 @@ class ErrorNotificationGenerator:
             Field name for the category in template data
         """
         mapping = {
-            ErrorCategory.UNCLAIMED_RECORDS: "unclaimed_records",
-            ErrorCategory.EMAIL_MISMATCH: "email_mismatches",
-            ErrorCategory.UNVERIFIED_EMAIL: "unverified_emails",
-            ErrorCategory.INCOMPLETE_CLAIM: "incomplete_claims",
-            ErrorCategory.BAD_ORCID_CLAIMS: "bad_orcid_claims",
-            ErrorCategory.MISSING_DIRECTORY_PERMISSIONS: (
+            EventCategory.UNCLAIMED_RECORDS: "unclaimed_records",
+            EventCategory.EMAIL_MISMATCH: "email_mismatches",
+            EventCategory.UNVERIFIED_EMAIL: "unverified_emails",
+            EventCategory.INCOMPLETE_CLAIM: "incomplete_claims",
+            EventCategory.BAD_ORCID_CLAIMS: "bad_orcid_claims",
+            EventCategory.MISSING_DIRECTORY_PERMISSIONS: (
                 "missing_directory_permissions"
             ),
-            ErrorCategory.MISSING_DIRECTORY_DATA: "missing_directory_data",
-            ErrorCategory.MISSING_REGISTRY_DATA: "missing_registry_data",
-            ErrorCategory.INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
-            ErrorCategory.DUPLICATE_USER_RECORDS: "duplicate_user_records",
-            ErrorCategory.FLYWHEEL_ERROR: "flywheel_errors",
+            EventCategory.MISSING_DIRECTORY_DATA: "missing_directory_data",
+            EventCategory.MISSING_REGISTRY_DATA: "missing_registry_data",
+            EventCategory.INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
+            EventCategory.DUPLICATE_USER_RECORDS: "duplicate_user_records",
+            EventCategory.FLYWHEEL_ERROR: "flywheel_errors",
         }
         return mapping.get(category, "unknown_errors")
 
@@ -211,7 +211,7 @@ class ErrorNotificationGenerator:
 
     def send_error_notification(
         self,
-        error_collector: ErrorCollector,
+        error_collector: EventCollector,
         gear_name: str,
         support_emails: List[str],
     ) -> Optional[str]:
@@ -220,7 +220,7 @@ class ErrorNotificationGenerator:
         This is the main entry point for sending notifications from gears.
 
         Args:
-            error_collector: The ErrorCollector with categorized errors
+            error_collector: The EventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
             support_emails: List of support staff email addresses
 

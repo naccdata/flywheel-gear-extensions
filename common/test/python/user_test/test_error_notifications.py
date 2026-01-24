@@ -5,10 +5,16 @@ from unittest.mock import Mock
 
 import pytest
 from notifications.email import EmailClient
-from users.error_models import ErrorCategory, ErrorCollector, ErrorEvent, UserContext
 from users.error_notifications import (
     ConsolidatedNotificationData,
     ErrorNotificationGenerator,
+)
+from users.event_models import (
+    EventCategory,
+    EventCollector,
+    EventType,
+    UserContext,
+    UserProcessEvent,
 )
 from users.user_entry import PersonName
 
@@ -30,14 +36,15 @@ def notification_generator(mock_email_client):
 @pytest.fixture
 def sample_error_event():
     """Create a sample error event for testing."""
-    return ErrorEvent(
-        category=ErrorCategory.UNCLAIMED_RECORDS,
+    return UserProcessEvent(
+        event_type=EventType.ERROR,
+        category=EventCategory.UNCLAIMED_RECORDS,
         user_context=UserContext(
             email="test@example.com",
             name=PersonName(first_name="Test", last_name="User"),
             auth_email="auth@example.com",
         ),
-        error_details={
+        details={
             "message": "User not found in registry",
             "action_needed": "check_registry_status",
         },
@@ -47,7 +54,7 @@ def sample_error_event():
 @pytest.fixture
 def error_collector():
     """Create an error collector for testing."""
-    return ErrorCollector()
+    return EventCollector()
 
 
 class TestConsolidatedNotificationData:
@@ -75,11 +82,11 @@ class TestErrorNotificationGenerator:
     def test_select_template(self, notification_generator):
         """Test template selection for error categories."""
         template = notification_generator.select_template(
-            ErrorCategory.UNCLAIMED_RECORDS
+            EventCategory.UNCLAIMED_RECORDS
         )
         assert template == "error-unclaimed-records"
 
-        template = notification_generator.select_template(ErrorCategory.EMAIL_MISMATCH)
+        template = notification_generator.select_template(EventCategory.EMAIL_MISMATCH)
         assert template == "error-email-mismatch"
 
     def test_create_notification_data(
@@ -104,20 +111,23 @@ class TestErrorNotificationGenerator:
         self, notification_generator, error_collector
     ):
         """Test creating notification data with multiple error categories."""
-        error1 = ErrorEvent(
-            category=ErrorCategory.UNCLAIMED_RECORDS,
+        error1 = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="test1@example.com"),
-            error_details={"message": "Unclaimed record"},
+            details={"message": "Unclaimed record"},
         )
-        error2 = ErrorEvent(
-            category=ErrorCategory.UNCLAIMED_RECORDS,
+        error2 = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="test2@example.com"),
-            error_details={"message": "Another unclaimed record"},
+            details={"message": "Another unclaimed record"},
         )
-        error3 = ErrorEvent(
-            category=ErrorCategory.EMAIL_MISMATCH,
+        error3 = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.EMAIL_MISMATCH,
             user_context=UserContext(email="test3@example.com"),
-            error_details={"message": "Email mismatch"},
+            details={"message": "Email mismatch"},
         )
 
         error_collector.collect(error1)

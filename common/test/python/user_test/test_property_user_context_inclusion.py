@@ -6,7 +6,7 @@
 
 from hypothesis import given, settings
 from test_mocks.strategies import error_event_strategy, user_context_strategy
-from users.error_models import UserContext
+from users.event_models import UserContext
 
 
 @given(error_event=error_event_strategy())

@@ -60,7 +60,7 @@ class TestFailureAnalyzer:
     ):
         """Test analyze_flywheel_user_creation_failure when user already exists
         (duplicate)."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return existing user (duplicate scenario)
@@ -75,13 +75,13 @@ class TestFailureAnalyzer:
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.DUPLICATE_USER_RECORDS.value
+        assert error_event.category == EventCategory.DUPLICATE_USER_RECORDS.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert error_event.error_details["message"] == "User already exists in Flywheel"
-        assert error_event.error_details["existing_user_id"] == "existing_user_id"
-        assert error_event.error_details["registry_id"] == "reg123"
+        assert error_event.details["message"] == "User already exists in Flywheel"
+        assert error_event.details["existing_user_id"] == "existing_user_id"
+        assert error_event.details["registry_id"] == "reg123"
         assert (
-            error_event.error_details["action_needed"]
+            error_event.details["action_needed"]
             == "deactivate_duplicate_and_clear_cache"
         )
 
@@ -93,7 +93,7 @@ class TestFailureAnalyzer:
     ):
         """Test analyze_flywheel_user_creation_failure with permission
         error."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return no existing user
@@ -109,18 +109,18 @@ class TestFailureAnalyzer:
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.INSUFFICIENT_PERMISSIONS.value
+        assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
         assert error_event.user_context.email == "john.doe@example.com"
         assert (
-            error_event.error_details["message"]
+            error_event.details["message"]
             == "Insufficient permissions to create user in Flywheel"
         )
         assert (
-            error_event.error_details["flywheel_error"]
+            error_event.details["flywheel_error"]
             == "Permission denied: unauthorized access"
         )
         assert (
-            error_event.error_details["action_needed"]
+            error_event.details["action_needed"]
             == "check_flywheel_service_account_permissions"
         )
 
@@ -129,7 +129,7 @@ class TestFailureAnalyzer:
     ):
         """Test analyze_flywheel_user_creation_failure with unauthorized
         error."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return no existing user
@@ -145,17 +145,16 @@ class TestFailureAnalyzer:
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.INSUFFICIENT_PERMISSIONS.value
+        assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
         assert (
-            error_event.error_details["flywheel_error"]
-            == "Unauthorized: invalid credentials"
+            error_event.details["flywheel_error"] == "Unauthorized: invalid credentials"
         )
 
     def test_analyze_flywheel_user_creation_failure_generic_error(
         self, mock_environment, sample_registered_entry
     ):
         """Test analyze_flywheel_user_creation_failure with generic error."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return no existing user
@@ -171,16 +170,16 @@ class TestFailureAnalyzer:
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.FLYWHEEL_ERROR.value
+        assert error_event.category == EventCategory.FLYWHEEL_ERROR.value
         assert error_event.user_context.email == "john.doe@example.com"
         assert (
-            error_event.error_details["message"]
+            error_event.details["message"]
             == "Flywheel user creation failed after 3 attempts"
         )
-        assert error_event.error_details["error"] == "Network timeout occurred"
-        assert error_event.error_details["registry_id"] == "reg123"
+        assert error_event.details["error"] == "Network timeout occurred"
+        assert error_event.details["registry_id"] == "reg123"
         assert (
-            error_event.error_details["action_needed"]
+            error_event.details["action_needed"]
             == "check_flywheel_logs_and_service_status"
         )
 
@@ -220,14 +219,14 @@ class TestFailureAnalyzer:
         assert error_event.user_context.name
         assert error_event.user_context.name.first_name == "Jane"
         assert error_event.user_context.name.last_name == "Smith"
-        assert error_event.error_details["registry_id"] == "reg456"
+        assert error_event.details["registry_id"] == "reg456"
 
     def test_analyze_missing_claimed_user_no_person_found(
         self, mock_environment, sample_registered_entry
     ):
         """Test analyze_missing_claimed_user when no person found in
         registry."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return empty list (no person found)
@@ -239,12 +238,12 @@ class TestFailureAnalyzer:
 
         # Verify the error event was created correctly
         assert error_event is not None
-        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
+        assert error_event.category == EventCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "not found in registry" in error_event.error_details["message"]
-        assert error_event.error_details["registry_id"] == "reg123"
+        assert "not found in registry" in error_event.details["message"]
+        assert error_event.details["registry_id"] == "reg123"
         assert (
-            error_event.error_details["action_needed"]
+            error_event.details["action_needed"]
             == "verify_registry_record_exists_or_was_deleted"
         )
 
@@ -258,7 +257,7 @@ class TestFailureAnalyzer:
     ):
         """Test analyze_missing_claimed_user falls back to main email when
         auth_email is None."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Create entry without auth_email
@@ -287,7 +286,7 @@ class TestFailureAnalyzer:
         )
 
         assert error_event is not None
-        assert error_event.category == ErrorCategory.MISSING_REGISTRY_DATA.value
+        assert error_event.category == EventCategory.MISSING_REGISTRY_DATA.value
 
     def test_analyze_missing_claimed_user_person_exists_but_not_claimed(
         self, mock_environment, sample_registered_entry
@@ -373,7 +372,7 @@ class TestFailureAnalyzer:
         assert error_event.user_context.name
         assert error_event.user_context.name.first_name == "Alice"
         assert error_event.user_context.name.last_name == "Johnson"
-        assert error_event.error_details["registry_id"] == "reg789"
+        assert error_event.details["registry_id"] == "reg789"
 
         # Verify correct email was used for lookup
         mock_environment.get_from_registry.assert_called_once_with(
@@ -385,7 +384,7 @@ class TestFailureAnalyzer:
     ):
         """Test analyze_flywheel_user_creation_failure when proxy.find_user
         raises exception."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to raise exception when finding user
@@ -398,9 +397,9 @@ class TestFailureAnalyzer:
 
         # Should still return a generic error event when proxy call fails
         assert error_event is not None
-        assert error_event.category == ErrorCategory.FLYWHEEL_ERROR.value
+        assert error_event.category == EventCategory.FLYWHEEL_ERROR.value
         assert (
-            error_event.error_details["message"]
+            error_event.details["message"]
             == "Flywheel user creation failed after 3 attempts"
         )
 
@@ -425,7 +424,8 @@ class TestFailureAnalyzer:
     def test_failure_analyzer_methods_return_optional_error_event(
         self, mock_environment, sample_registered_entry, sample_flywheel_error
     ):
-        """Test that FailureAnalyzer methods return Optional[ErrorEvent]."""
+        """Test that FailureAnalyzer methods return
+        Optional[UserProcessEvent]."""
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mocks
@@ -435,7 +435,7 @@ class TestFailureAnalyzer:
 
         analyzer = FailureAnalyzer(mock_environment)
 
-        # Test that methods can return ErrorEvent
+        # Test that methods can return UserProcessEvent
         flywheel_result = analyzer.analyze_flywheel_user_creation_failure(
             sample_registered_entry, sample_flywheel_error
         )
@@ -443,21 +443,21 @@ class TestFailureAnalyzer:
             sample_registered_entry
         )
 
-        # Both should return ErrorEvent objects (not None in these cases)
+        # Both should return UserProcessEvent objects (not None in these cases)
         assert flywheel_result is not None
         assert missing_user_result is not None
 
         # Verify they are the correct type
-        from users.error_models import ErrorEvent
+        from users.event_models import UserProcessEvent
 
-        assert isinstance(flywheel_result, ErrorEvent)
-        assert isinstance(missing_user_result, ErrorEvent)
+        assert isinstance(flywheel_result, UserProcessEvent)
+        assert isinstance(missing_user_result, UserProcessEvent)
 
     def test_analyze_flywheel_user_creation_failure_case_insensitive_permission_check(
         self, mock_environment, sample_registered_entry
     ):
         """Test that permission error detection is case-insensitive."""
-        from users.error_models import ErrorCategory
+        from users.event_models import EventCategory
         from users.failure_analyzer import FailureAnalyzer
 
         # Setup mock to return no existing user
@@ -481,9 +481,9 @@ class TestFailureAnalyzer:
             )
 
             assert error_event is not None
-            assert error_event.category == ErrorCategory.INSUFFICIENT_PERMISSIONS.value
+            assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
             assert (
-                error_event.error_details["message"]
+                error_event.details["message"]
                 == "Insufficient permissions to create user in Flywheel"
             )
 
