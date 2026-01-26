@@ -26,10 +26,10 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 ## Language & Runtime
 
-- **Python 3.11** (strict interpreter constraint: `==3.11.*`)
+- **Python 3.12** (strict interpreter constraint: `==3.12.*`)
 - Type checking with mypy
 - Pydantic v2.5.2+ for data validation
-- Dev container provides Python 3.11 pre-installed
+- Dev container provides Python 3.12 pre-installed
 
 ## Key Dependencies
 
@@ -76,7 +76,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 ### Dev Container
 
-- Base image: Python 3.11 dev container
+- Base image: Python 3.12 dev container
 - Features: Docker-in-Docker, Go tooling
 - VS Code extensions: Python, Docker, Ruff, Code Spell Checker
 - Configuration: `.devcontainer/devcontainer.json`
@@ -180,14 +180,14 @@ pants test ::
 
 ## Python Interpreter Setup
 
-The dev container provides Python 3.11 pre-installed. No manual Python installation needed.
+The dev container provides Python 3.12 pre-installed. No manual Python installation needed.
 
 For local development outside the container, Pants searches for Python interpreters in:
 
 1. System PATH
 2. pyenv installations
 
-Ensure Python 3.11 is available via one of these methods.
+Ensure Python 3.12 is available via one of these methods.
 
 ## Design Principles
 
