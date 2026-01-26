@@ -8,7 +8,6 @@ from identifiers.model import NACCID_PATTERN
 from inputs.csv_reader import CSVVisitor
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_common.error_models import CSVLocation, FileError
-from nacc_common.module_types import ModuleName
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from outputs.outputs import StringCSVWriter
@@ -47,7 +46,7 @@ class ModuleDataGatherer:
     def __init__(
         self,
         proxy: FlywheelProxy,
-        module_name: ModuleName,
+        module_name: str,
         info_paths: Optional[list[str]] = None,
     ) -> None:
         self.__proxy = proxy

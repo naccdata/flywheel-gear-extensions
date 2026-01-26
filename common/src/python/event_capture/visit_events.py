@@ -14,7 +14,6 @@ from typing import Literal, Optional, Self
 
 from identifiers.model import PTID_PATTERN
 from keys.types import DatatypeNameType
-from nacc_common.module_types import ModuleName
 from pydantic import BaseModel, Field, model_validator
 
 VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
@@ -37,7 +36,7 @@ class VisitEvent(BaseModel):
     visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     visit_number: Optional[str] = None
     datatype: DatatypeNameType
-    module: Optional[ModuleName] = None
+    module: Optional[str] = None
     packet: Optional[str] = None
     timestamp: datetime
 

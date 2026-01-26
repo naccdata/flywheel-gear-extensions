@@ -6,13 +6,14 @@ from flywheel.models.file_entry import FileEntry
 from pydantic import SerializerFunctionWrapHandler, model_serializer
 
 from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
-from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     ErrorReportVisitor,
     QCReportBaseModel,
     QCTransformerError,
     extract_visit_keys,
 )
+
+ModuleName = str
 
 
 class ErrorReportModel(QCReportBaseModel, FileError):
@@ -81,9 +82,6 @@ def error_transformer(
         or visit.date is None
     ):
         raise QCTransformerError("Cannot generate status incomplete visit details")
-
-    if visit.module not in get_args(ModuleName):
-        raise QCTransformerError(f"Unexpected module name: {visit.module}")
 
     error_model = file_error.model_dump()
 

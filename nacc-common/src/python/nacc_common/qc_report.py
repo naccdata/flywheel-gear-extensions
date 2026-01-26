@@ -19,8 +19,8 @@ from nacc_common.error_models import (
     ValidationModel,
     VisitKeys,
 )
-from nacc_common.module_types import ModuleName
 
+ModuleName = str
 log = logging.getLogger(__name__)
 
 # TODO: Consider consolidating QC filename pattern usage - currently duplicated
@@ -312,7 +312,7 @@ class ProjectReportVisitor:
         file_visitor_factory: FileQCReportVisitorBuilder,
         table_visitor: ReportTableVisitor,
         ptid_set: Optional[set[str]] = None,
-        modules: Optional[set[ModuleName]] = None,
+        modules: Optional[set[str]] = None,
         file_filter: Callable[[FileEntry], bool] = lambda file: True,
     ) -> None:
         self.__adcid = adcid
