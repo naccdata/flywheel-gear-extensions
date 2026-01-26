@@ -3,6 +3,7 @@
 import logging
 from typing import List, Optional
 
+from botocore.exceptions import ClientError
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
 from coreapi_client.configuration import Configuration
@@ -14,7 +15,10 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
-from inputs.parameter_store import ParameterError, ParameterStore
+from inputs.parameter_store import (
+    ParameterError,
+    ParameterStore,
+)
 from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
@@ -81,58 +85,39 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        user_filepath = context.get_input_path("user_file")
-        if not user_filepath:
-            raise GearExecutionError("No user directory file provided")
-        auth_filepath = context.get_input_path("auth_file")
-        if not auth_filepath:
-            raise GearExecutionError("No user role file provided")
+        # Validate and retrieve file paths
+        user_filepath, auth_filepath = cls._get_input_filepaths(context)
 
-        comanage_path = context.config.get("comanage_parameter_path")
-        if not comanage_path:
-            raise GearExecutionError("No CoManage parameter path")
-        sender_path = context.config.get("sender_path")
-        if not sender_path:
-            raise GearExecutionError("No email sender parameter path")
+        # Retrieve required parameters from parameter store
+        comanage_path = cls._require_config(
+            context, "comanage_parameter_path", "CoManage parameter path"
+        )
+        sender_path = cls._require_config(
+            context, "sender_path", "email sender parameter path"
+        )
+        portal_path = cls._require_config(
+            context, "portal_url_path", "path for portal URL"
+        )
 
-        portal_path = context.config.get("portal_url_path")
-        if not portal_path:
-            raise GearExecutionError("No path for portal URL")
+        comanage_parameters = cls._get_parameters(
+            parameter_store.get_comanage_parameters,
+            comanage_path,
+            "COManage configuration",
+        )
+        sender_parameters = cls._get_parameters(
+            parameter_store.get_notification_parameters,
+            sender_path,
+            "email sender configuration",
+        )
+        portal_url = cls._get_parameters(
+            parameter_store.get_portal_url, portal_path, "portal URL"
+        )
 
-        # Optional: support staff emails for error notifications
-        support_staff_path = context.config.get("support_staff_emails_path")
+        # Retrieve optional support staff emails
+        support_staff_emails = cls._get_support_staff_emails(context, parameter_store)
 
-        try:
-            comanage_parameters = parameter_store.get_comanage_parameters(comanage_path)
-            sender_parameters = parameter_store.get_notification_parameters(sender_path)
-            portal_url = parameter_store.get_portal_url(portal_path)
-
-            # Retrieve support staff emails if path is configured
-            support_staff_emails = None
-            if support_staff_path:
-                try:
-                    support_staff_emails = parameter_store.get_support_staff_emails(
-                        support_staff_path
-                    )
-                    log.info(
-                        "Loaded %d support staff email(s) for error notifications",
-                        len(support_staff_emails),
-                    )
-                except ParameterError as error:
-                    log.warning(
-                        "Failed to load support staff emails: %s. "
-                        "Error notifications will not be sent.",
-                        error,
-                    )
-        except ParameterError as error:
-            raise GearExecutionError(f"Parameter error: {error}") from error
-
-        redcap_path = context.config.get("redcap_parameter_path", "/redcap/aws")
-        redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
-            param_store=parameter_store, base_path=redcap_path
-        )  # type: ignore
-        if not redcap_param_repo:
-            raise GearExecutionError("Failed to create REDCap parameter repository")
+        # Create REDCap parameter repository
+        redcap_param_repo = cls._create_redcap_repository(context, parameter_store)
 
         return UserManagementVisitor(
             admin_id=context.config.get("admin_group", "nacc"),
@@ -151,6 +136,136 @@ class UserManagementVisitor(GearExecutionEnvironment):
             portal_url=portal_url["url"],
             support_staff_emails=support_staff_emails,
         )
+
+    @staticmethod
+    def _require_config(context: GearToolkitContext, key: str, description: str) -> str:
+        """Get a required configuration value.
+
+        Args:
+            context: The gear context
+            key: The configuration key
+            description: Human-readable description for error messages
+
+        Returns:
+            The configuration value
+
+        Raises:
+            GearExecutionError: If the configuration value is missing
+        """
+        value = context.config.get(key)
+        if not value:
+            raise GearExecutionError(f"No {description}")
+        return value
+
+    @staticmethod
+    def _get_parameters(getter, path: str, description: str):
+        """Get parameters from parameter store.
+
+        Args:
+            getter: The parameter store getter method
+            path: The parameter path
+            description: Human-readable description for error messages
+
+        Returns:
+            The parameters
+
+        Raises:
+            GearExecutionError: If parameter retrieval fails
+        """
+        try:
+            return getter(path)
+        except ParameterError as error:
+            raise GearExecutionError(
+                f"Parameter error - {description} required: {error}"
+            ) from error
+
+    @staticmethod
+    def _get_input_filepaths(context: GearToolkitContext) -> tuple[str, str]:
+        """Validate and retrieve input file paths from context.
+
+        Args:
+            context: The gear context
+
+        Returns:
+            Tuple of (user_filepath, auth_filepath)
+
+        Raises:
+            GearExecutionError: If required file paths are missing
+        """
+        user_filepath = context.get_input_path("user_file")
+        if not user_filepath:
+            raise GearExecutionError("No user directory file provided")
+
+        auth_filepath = context.get_input_path("auth_file")
+        if not auth_filepath:
+            raise GearExecutionError("No user role file provided")
+
+        return user_filepath, auth_filepath
+
+    @staticmethod
+    def _get_support_staff_emails(
+        context: GearToolkitContext, parameter_store: ParameterStore
+    ) -> Optional[List[str]]:
+        """Retrieve optional support staff emails from parameter store.
+
+        Args:
+            context: The gear context
+            parameter_store: The parameter store instance
+
+        Returns:
+            List of support staff email addresses, or None if not configured
+        """
+        support_staff_path = context.config.get("support_staff_emails_path")
+        if not support_staff_path:
+            return None
+
+        try:
+            support_staff_emails = parameter_store.get_support_staff_emails(
+                support_staff_path
+            )
+            log.info(
+                "Loaded %d support staff email(s) for error notifications",
+                len(support_staff_emails),
+            )
+            return support_staff_emails
+        except ParameterError as error:
+            # Support staff emails are optional - log warning but don't fail
+            log.warning(
+                "Failed to load support staff emails from %s: %s. "
+                "Error notifications will not be sent.",
+                support_staff_path,
+                error,
+            )
+            return None
+
+    @staticmethod
+    def _create_redcap_repository(
+        context: GearToolkitContext, parameter_store: ParameterStore
+    ) -> REDCapParametersRepository:
+        """Create REDCap parameter repository from parameter store.
+
+        Args:
+            context: The gear context
+            parameter_store: The parameter store instance
+
+        Returns:
+            REDCap parameter repository instance
+
+        Raises:
+            GearExecutionError: If repository creation fails
+        """
+        redcap_path = context.config.get("redcap_parameter_path", "/redcap/aws")
+        try:
+            redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
+                param_store=parameter_store, base_path=redcap_path
+            )  # type: ignore
+            if not redcap_param_repo:
+                raise GearExecutionError("Failed to create REDCap parameter repository")
+            return redcap_param_repo
+        except (ParameterError, ValueError, TypeError) as error:
+            raise GearExecutionError(
+                f"Failed to create REDCap parameter repository: {error}"
+            ) from error
 
     def run(self, context: GearToolkitContext) -> None:
         """Executes the gear.
@@ -200,25 +315,48 @@ class UserManagementVisitor(GearExecutionEnvironment):
                         "Sending consolidated error notification for %d error(s)",
                         collector.error_count(),
                     )
-                    notification_generator = ErrorNotificationGenerator(
-                        email_client=EmailClient(
-                            client=create_ses_client(),
-                            source=self.__email_source,
-                        ),
-                        configuration_set_name="user-management-errors",
-                    )
-                    message_id = notification_generator.send_error_notification(
-                        collector=collector,
-                        gear_name="user_management",
-                        support_emails=self.__support_staff_emails,
-                    )
-                    if message_id:
-                        log.info(
-                            "Successfully sent error notification with message ID: %s",
-                            message_id,
+                    try:
+                        notification_generator = ErrorNotificationGenerator(
+                            email_client=EmailClient(
+                                client=create_ses_client(),
+                                source=self.__email_source,
+                            ),
+                            configuration_set_name="user-management-errors",
                         )
-                    else:
-                        log.warning("Failed to send error notification")
+                        message_id = notification_generator.send_error_notification(
+                            collector=collector,
+                            gear_name="user_management",
+                            support_emails=self.__support_staff_emails,
+                        )
+                        if message_id:
+                            log.info(
+                                (
+                                    "Successfully sent error notification with "
+                                    "message ID: %s"
+                                ),
+                                message_id,
+                            )
+                        else:
+                            log.warning(
+                                (
+                                    "Failed to send error notification - "
+                                    "notification system returned no message ID"
+                                )
+                            )
+                    except (
+                        ClientError,
+                        ValidationError,
+                        ValueError,
+                    ) as notification_error:
+                        # Notification failures should not fail the gear run
+                        # Log the error and continue
+                        log.error(
+                            "Failed to send error notification email: %s. "
+                            "Individual errors have been logged. "
+                            "Gear run will continue.",
+                            notification_error,
+                            exc_info=True,
+                        )
                 elif collector.has_errors():
                     log.warning(
                         "Errors occurred but no support staff emails configured. "
@@ -226,7 +364,10 @@ class UserManagementVisitor(GearExecutionEnvironment):
                     )
 
             except RegistryError as error:
-                raise GearExecutionError(f"User registry error: {error}") from error
+                # Critical service failure - registry is essential for user management
+                raise GearExecutionError(
+                    f"Critical service failure - User registry error: {error}"
+                ) from error
 
     def __get_user_queue(self, user_file_path: str) -> UserQueue[UserEntry]:
         """Get the active user objects from the user file.

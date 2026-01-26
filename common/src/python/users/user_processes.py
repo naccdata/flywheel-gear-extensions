@@ -89,14 +89,24 @@ class UserQueue(Generic[T]):
     def apply(self, process: BaseUserProcess[T]) -> None:
         """Applies the user process to the entries of the queue.
 
-        Destroys the queue.
+        Destroys the queue. Individual entry processing errors are logged
+        but do not stop the batch processing.
 
         Args:
           process: the user process
         """
         while self.__queue:
             entry = self.__dequeue()
-            process.visit(entry)
+            try:
+                process.visit(entry)
+            except (FlywheelError, ValueError, KeyError, AttributeError) as error:
+                # Individual user processing errors should not stop the batch
+                # Log the error and continue with the next user
+                log.error(
+                    "Error processing user entry: %s. Continuing with remaining users.",
+                    error,
+                    exc_info=True,
+                )
 
 
 class InactiveUserProcess(BaseUserProcess[UserEntry]):
