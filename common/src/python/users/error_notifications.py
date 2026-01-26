@@ -6,7 +6,7 @@ from typing import ClassVar, Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 
-from users.event_models import EventCategory, EventCollector
+from users.event_models import EventCategory, UserEventCollector
 
 log = logging.getLogger(__name__)
 
@@ -81,19 +81,19 @@ class ErrorNotificationGenerator:
         return self.CATEGORY_TEMPLATES.get(category, "error-generic")
 
     def create_notification_data(
-        self, error_collector: EventCollector, gear_name: str
+        self, collector: UserEventCollector, gear_name: str
     ) -> ConsolidatedNotificationData:
         """Create template data for consolidated notification.
 
         Args:
-            error_collector: The EventCollector with categorized errors
+            collector: The UserEventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
 
         Returns:
             ConsolidatedNotificationData ready for template rendering
         """
         # Get errors grouped by category from the collector
-        grouped = error_collector.get_errors_by_category()
+        grouped = collector.get_errors_by_category()
 
         # Create category-specific data
         category_data = {}
@@ -132,15 +132,15 @@ class ErrorNotificationGenerator:
             category_data[field_name] = error_list
 
         # Get all errors as flat list for summaries
-        all_errors = error_collector.get_errors()
+        all_errors = collector.get_errors()
 
         return ConsolidatedNotificationData(
             gear_name=gear_name,
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=error_collector.error_count(),
-            errors_by_category=error_collector.count_by_category(),
+            total_errors=collector.error_count(),
+            errors_by_category=collector.count_by_category(),
             error_summaries=[error.to_summary() for error in all_errors],
-            affected_users=error_collector.get_affected_users(),
+            affected_users=collector.get_affected_users(),
             **category_data,
         )
 
@@ -211,7 +211,7 @@ class ErrorNotificationGenerator:
 
     def send_error_notification(
         self,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
         gear_name: str,
         support_emails: List[str],
     ) -> Optional[str]:
@@ -220,16 +220,16 @@ class ErrorNotificationGenerator:
         This is the main entry point for sending notifications from gears.
 
         Args:
-            error_collector: The EventCollector with categorized errors
+            collector: The UserEventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
             support_emails: List of support staff email addresses
 
         Returns:
             Message ID if successfully sent, None otherwise
         """
-        if not error_collector.has_errors():
+        if not collector.has_errors():
             log.info("No errors to notify about")
             return None
 
-        notification_data = self.create_notification_data(error_collector, gear_name)
+        notification_data = self.create_notification_data(collector, gear_name)
         return self.send_consolidated_notification(support_emails, notification_data)

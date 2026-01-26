@@ -11,9 +11,9 @@ from users.error_notifications import (
 )
 from users.event_models import (
     EventCategory,
-    EventCollector,
     EventType,
     UserContext,
+    UserEventCollector,
     UserProcessEvent,
 )
 from users.user_entry import PersonName
@@ -52,9 +52,9 @@ def sample_error_event():
 
 
 @pytest.fixture
-def error_collector():
+def collector():
     """Create an error collector for testing."""
-    return EventCollector()
+    return UserEventCollector()
 
 
 class TestConsolidatedNotificationData:
@@ -90,13 +90,13 @@ class TestErrorNotificationGenerator:
         assert template == "error-email-mismatch"
 
     def test_create_notification_data(
-        self, notification_generator, error_collector, sample_error_event
+        self, notification_generator, collector, sample_error_event
     ):
         """Test creating notification data from error collector."""
-        error_collector.collect(sample_error_event)
+        collector.collect(sample_error_event)
 
         notification_data = notification_generator.create_notification_data(
-            error_collector, "user_management"
+            collector, "user_management"
         )
 
         assert notification_data.gear_name == "user_management"
@@ -108,7 +108,7 @@ class TestErrorNotificationGenerator:
         assert len(notification_data.unclaimed_records) == 1
 
     def test_create_notification_data_multiple_categories(
-        self, notification_generator, error_collector
+        self, notification_generator, collector
     ):
         """Test creating notification data with multiple error categories."""
         error1 = UserProcessEvent(
@@ -130,12 +130,12 @@ class TestErrorNotificationGenerator:
             details={"message": "Email mismatch"},
         )
 
-        error_collector.collect(error1)
-        error_collector.collect(error2)
-        error_collector.collect(error3)
+        collector.collect(error1)
+        collector.collect(error2)
+        collector.collect(error3)
 
         notification_data = notification_generator.create_notification_data(
-            error_collector, "user_management"
+            collector, "user_management"
         )
 
         assert notification_data.total_errors == 3
@@ -193,26 +193,26 @@ class TestErrorNotificationGenerator:
         self,
         notification_generator,
         mock_email_client,
-        error_collector,
+        collector,
         sample_error_event,
     ):
         """Test sending error notification (main entry point)."""
-        error_collector.collect(sample_error_event)
+        collector.collect(sample_error_event)
         mock_email_client.send.return_value = "message-id-456"
 
         message_id = notification_generator.send_error_notification(
-            error_collector, "user_management", ["support@example.com"]
+            collector, "user_management", ["support@example.com"]
         )
 
         assert message_id == "message-id-456"
         mock_email_client.send.assert_called_once()
 
     def test_send_error_notification_no_errors(
-        self, notification_generator, mock_email_client, error_collector
+        self, notification_generator, mock_email_client, collector
     ):
         """Test sending notification with no errors."""
         message_id = notification_generator.send_error_notification(
-            error_collector, "user_management", ["support@example.com"]
+            collector, "user_management", ["support@example.com"]
         )
 
         assert message_id is None

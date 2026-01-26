@@ -12,9 +12,9 @@ from users.authorization_visitor import CenterAuthorizationVisitor
 from users.authorizations import StudyAuthorizations
 from users.event_models import (
     EventCategory,
-    EventCollector,
     EventType,
     UserContext,
+    UserEventCollector,
     UserProcessEvent,
 )
 from users.failure_analyzer import FailureAnalyzer
@@ -39,18 +39,18 @@ class BaseUserProcess(ABC, Generic[T]):
     Subclasses should apply the process as a visitor to the queue.
     """
 
-    def __init__(self, error_collector: EventCollector) -> None:
+    def __init__(self, collector: UserEventCollector) -> None:
         """Initialize the base user process.
 
         Args:
-            error_collector: Error collector for capturing error events
+            collector: Error collector for capturing error events
         """
-        self.__error_collector = error_collector
+        self.__collector = collector
 
     @property
-    def error_collector(self) -> EventCollector:
+    def collector(self) -> UserEventCollector:
         """Get the error collector (read-only access)."""
-        return self.__error_collector
+        return self.__collector
 
     @abstractmethod
     def visit(self, entry: T) -> None:
@@ -102,13 +102,13 @@ class UserQueue(Generic[T]):
 class InactiveUserProcess(BaseUserProcess[UserEntry]):
     """User process for user entries marked inactive."""
 
-    def __init__(self, error_collector: EventCollector) -> None:
+    def __init__(self, collector: UserEventCollector) -> None:
         """Initialize the inactive user process.
 
         Args:
-            error_collector: Error collector for capturing error events
+            collector: Error collector for capturing error events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
 
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
@@ -135,15 +135,15 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
     def __init__(
         self,
         notification_client: NotificationClient,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the created user process.
 
         Args:
             notification_client: Client for sending notifications
-            error_collector: Event collector for capturing events
+            collector: Event collector for capturing events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__notification_client = notification_client
 
     def visit(self, entry: RegisteredUserEntry) -> None:
@@ -169,7 +169,7 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
                 "authorizations": [str(auth) for auth in entry.authorizations],
             },
         )
-        self.error_collector.collect(success_event)
+        self.collector.collect(success_event)
 
     def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
         """Applies this process to the queue.
@@ -188,15 +188,15 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the update user process.
 
         Args:
             environment: The user process environment
-            error_collector: Error collector for capturing error events
+            collector: Error collector for capturing error events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__env = environment
         self.failure_analyzer = FailureAnalyzer(environment)
 
@@ -223,7 +223,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             # Analyze why claimed user is missing to determine root cause
             error_event = self.failure_analyzer.analyze_missing_claimed_user(entry)
             if error_event:
-                self.error_collector.collect(error_event)
+                self.collector.collect(error_event)
             return
 
         fw_user = self.__env.find_user(entry.registry_id)
@@ -331,16 +331,16 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         self,
         environment: UserProcessEnvironment,
         claimed_queue: UserQueue[RegisteredUserEntry],
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the claimed user process.
 
         Args:
             environment: The user process environment
             claimed_queue: Queue for claimed user entries
-            error_collector: Event collector for capturing events
+            collector: Event collector for capturing events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__failed_count: Dict[str, int] = defaultdict(int)
         self.__claimed_queue: UserQueue[RegisteredUserEntry] = claimed_queue
         self.__created_queue: UserQueue[RegisteredUserEntry] = UserQueue()
@@ -377,7 +377,7 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     )
                 )
                 if error_event:
-                    self.error_collector.collect(error_event)
+                    self.collector.collect(error_event)
 
                 return None
 
@@ -431,11 +431,11 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         queue.apply(self)
 
         created_process = CreatedUserProcess(
-            self.__env.notification_client, self.error_collector
+            self.__env.notification_client, self.collector
         )
         created_process.execute(self.__created_queue)
 
-        update_process = UpdateUserProcess(self.__env, self.error_collector)
+        update_process = UpdateUserProcess(self.__env, self.collector)
         update_process.execute(self.__update_queue)
 
 
@@ -446,15 +446,15 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __init__(
         self,
         notification_client: NotificationClient,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the unclaimed user process.
 
         Args:
             notification_client: Client for sending notifications
-            error_collector: Error collector for capturing error events
+            collector: Error collector for capturing error events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__notification_client = notification_client
 
     def visit(self, entry: ActiveUserEntry) -> None:
@@ -482,15 +482,15 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the active user process.
 
         Args:
             environment: The user process environment
-            error_collector: Event collector for capturing events
+            collector: Event collector for capturing events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__env = environment
         self.__claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self.__unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
@@ -517,7 +517,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     "action_needed": "update_directory_auth_email",
                 },
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
 
         person_list = self.__env.user_registry.get(email=entry.auth_email)
@@ -534,7 +534,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     entry, bad_claim
                 )
                 if incomplete_claim_event:
-                    self.error_collector.collect(incomplete_claim_event)
+                    self.collector.collect(incomplete_claim_event)
                 return
 
             log.info("Active user not in registry: %s", entry.email)
@@ -655,12 +655,12 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         claimed_process = ClaimedUserProcess(
             environment=self.__env,
             claimed_queue=self.__claimed_queue,
-            error_collector=self.error_collector,
+            collector=self.collector,
         )
         claimed_process.execute(self.__claimed_queue)
 
         unclaimed_process = UnclaimedUserProcess(
-            self.__env.notification_client, self.error_collector
+            self.__env.notification_client, self.collector
         )
         unclaimed_process.execute(self.__unclaimed_queue)
 
@@ -672,15 +672,15 @@ class UserProcess(BaseUserProcess[UserEntry]):
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        error_collector: EventCollector,
+        collector: UserEventCollector,
     ) -> None:
         """Initialize the user process.
 
         Args:
             environment: The user process environment
-            error_collector: Event collector for capturing events
+            collector: Event collector for capturing events
         """
-        super().__init__(error_collector)
+        super().__init__(collector)
         self.__active_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self.__inactive_queue: UserQueue[UserEntry] = UserQueue()
         self.__env = environment
@@ -713,5 +713,5 @@ class UserProcess(BaseUserProcess[UserEntry]):
         log.info("**Processing directory entries")
         queue.apply(self)
 
-        ActiveUserProcess(self.__env, self.error_collector).execute(self.__active_queue)
-        InactiveUserProcess(self.error_collector).execute(self.__inactive_queue)
+        ActiveUserProcess(self.__env, self.collector).execute(self.__active_queue)
+        InactiveUserProcess(self.collector).execute(self.__inactive_queue)

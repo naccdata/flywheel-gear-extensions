@@ -107,7 +107,7 @@ class UserProcessEvent(BaseModel):
         )
 
 
-class EventCollector:
+class UserEventCollector:
     """Event collector that accumulates and categorizes events during gear
     execution.
 

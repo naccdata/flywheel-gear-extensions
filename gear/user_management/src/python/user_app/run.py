@@ -1,7 +1,7 @@
 """The run script for the user management gear."""
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
@@ -20,7 +20,8 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
-from users.event_models import EventCollector
+from users.error_notifications import ErrorNotificationGenerator
+from users.event_models import UserEventCollector
 from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (
@@ -51,6 +52,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         redcap_param_repo: REDCapParametersRepository,
         portal_url: str,
         notification_mode: NotificationModeType = "date",
+        support_staff_emails: Optional[List[str]] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -62,6 +64,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__redcap_param_repo = redcap_param_repo
         self.__notification_mode: NotificationModeType = notification_mode
         self.__portal_url = portal_url
+        self.__support_staff_emails = support_staff_emails or []
 
     @classmethod
     def create(
@@ -96,10 +99,31 @@ class UserManagementVisitor(GearExecutionEnvironment):
         if not portal_path:
             raise GearExecutionError("No path for portal URL")
 
+        # Optional: support staff emails for error notifications
+        support_staff_path = context.config.get("support_staff_emails_path")
+
         try:
             comanage_parameters = parameter_store.get_comanage_parameters(comanage_path)
             sender_parameters = parameter_store.get_notification_parameters(sender_path)
             portal_url = parameter_store.get_portal_url(portal_path)
+
+            # Retrieve support staff emails if path is configured
+            support_staff_emails = None
+            if support_staff_path:
+                try:
+                    support_staff_emails = parameter_store.get_support_staff_emails(
+                        support_staff_path
+                    )
+                    log.info(
+                        "Loaded %d support staff email(s) for error notifications",
+                        len(support_staff_emails),
+                    )
+                except ParameterError as error:
+                    log.warning(
+                        "Failed to load support staff emails: %s. "
+                        "Error notifications will not be sent.",
+                        error,
+                    )
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
@@ -125,6 +149,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             redcap_param_repo=redcap_param_repo,
             notification_mode=context.config.get("notification_mode", "none"),
             portal_url=portal_url["url"],
+            support_staff_emails=support_staff_emails,
         )
 
     def run(self, context: GearToolkitContext) -> None:
@@ -143,7 +168,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
 
             try:
-                error_collector = EventCollector()
+                collector = UserEventCollector()
                 run(
                     user_queue=self.__get_user_queue(self.__user_filepath),
                     user_process=UserProcess(
@@ -165,9 +190,41 @@ class UserManagementVisitor(GearExecutionEnvironment):
                                 coid=self.__comanage_coid,
                             ),
                         ),
-                        error_collector=error_collector,
+                        collector=collector,
                     ),
                 )
+
+                # Send consolidated error notification at end of run if there are errors
+                if collector.has_errors() and self.__support_staff_emails:
+                    log.info(
+                        "Sending consolidated error notification for %d error(s)",
+                        collector.error_count(),
+                    )
+                    notification_generator = ErrorNotificationGenerator(
+                        email_client=EmailClient(
+                            client=create_ses_client(),
+                            source=self.__email_source,
+                        ),
+                        configuration_set_name="user-management-errors",
+                    )
+                    message_id = notification_generator.send_error_notification(
+                        collector=collector,
+                        gear_name="user_management",
+                        support_emails=self.__support_staff_emails,
+                    )
+                    if message_id:
+                        log.info(
+                            "Successfully sent error notification with message ID: %s",
+                            message_id,
+                        )
+                    else:
+                        log.warning("Failed to send error notification")
+                elif collector.has_errors():
+                    log.warning(
+                        "Errors occurred but no support staff emails configured. "
+                        "Skipping error notification."
+                    )
+
             except RegistryError as error:
                 raise GearExecutionError(f"User registry error: {error}") from error
 

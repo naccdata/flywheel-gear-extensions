@@ -302,26 +302,26 @@ class TestUserProcessEvent:
             pytest.fail("event_id should be a valid UUID string")
 
 
-class TestEventCollector:
-    """Tests for EventCollector class."""
+class TestUserEventCollector:
+    """Tests for UserEventCollector class."""
 
-    def test_error_collector_initialization(self):
-        """Test EventCollector initialization."""
-        from users.event_models import EventCollector
+    def test_collector_initialization(self):
+        """Test UserEventCollector initialization."""
+        from users.event_models import UserEventCollector
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         assert collector.error_count() == 0
         assert not collector.has_errors()
         assert collector.get_errors() == []
 
-    def test_error_collector_collect_single_error(self):
+    def test_collector_collect_single_error(self):
         """Test collecting a single error event."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
         user_context = UserContext(email="test@example.com")
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -338,13 +338,13 @@ class TestEventCollector:
         assert len(errors) == 1
         assert errors[0] == error_event
 
-    def test_error_collector_collect_multiple_errors(self):
+    def test_collector_collect_multiple_errors(self):
         """Test collecting multiple error events."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
         user_context1 = UserContext(email="user1@example.com")
         user_context2 = UserContext(email="user2@example.com")
 
@@ -371,13 +371,13 @@ class TestEventCollector:
         assert error_event1 in errors
         assert error_event2 in errors
 
-    def test_error_collector_get_errors_by_category(self):
+    def test_collector_get_errors_by_category(self):
         """Test getting errors grouped by category."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         error1 = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -408,13 +408,13 @@ class TestEventCollector:
         assert len(errors_by_category[EventCategory.UNCLAIMED_RECORDS]) == 2
         assert len(errors_by_category[EventCategory.EMAIL_MISMATCH]) == 1
 
-    def test_error_collector_get_errors_for_category(self):
+    def test_collector_get_errors_for_category(self):
         """Test getting errors for a specific category."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         error1 = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -450,13 +450,13 @@ class TestEventCollector:
         )
         assert len(flywheel_errors) == 0
 
-    def test_error_collector_count_by_category(self):
+    def test_collector_count_by_category(self):
         """Test counting errors by category."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         error1 = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -487,13 +487,13 @@ class TestEventCollector:
         assert counts["Authentication Email Mismatch"] == 1
         assert len(counts) == 2
 
-    def test_error_collector_get_affected_users(self):
+    def test_collector_get_affected_users(self):
         """Test getting list of affected users."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         error1 = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -524,13 +524,13 @@ class TestEventCollector:
         assert "user1@example.com" in affected_users
         assert "user2@example.com" in affected_users
 
-    def test_error_collector_clear(self):
+    def test_collector_clear(self):
         """Test clearing all errors from the collector."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
         user_context = UserContext(email="test@example.com")
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
@@ -550,13 +550,13 @@ class TestEventCollector:
         assert collector.get_errors_by_category() == {}
         assert collector.get_affected_users() == []
 
-    def test_error_collector_has_errors_states(self):
+    def test_collector_has_errors_states(self):
         """Test has_errors method in different states."""
         from users.event_models import (
-            EventCollector,
+            UserEventCollector,
         )
 
-        collector = EventCollector()
+        collector = UserEventCollector()
 
         # Initially no errors
         assert not collector.has_errors()
