@@ -42,7 +42,7 @@ This implementation plan converts the error handling design into discrete coding
 
 - [x] 3. Implement error handling data models and core infrastructure
   - Create ErrorEvent, ErrorCategory, and UserContext data models using Pydantic
-  - Create ErrorCollector class for accumulating errors during gear execution
+  - Create UserEventCollector class for accumulating events during gear execution
   - Create utility functions for error event creation
   - Make tests pass
   - _Requirements: 1.3, 1.4_
@@ -77,14 +77,14 @@ This implementation plan converts the error handling design into discrete coding
   - **Status: COMPLETED** - Test written and failing as expected (UserProcess classes not yet updated)
 
 - [x] 9. Modify existing UserProcess classes to integrate error handling
-  - [x] 9.1 Update UserProcess base class constructor to accept ErrorCollector
-    - Add ErrorCollector parameter to base class __init__ method
-    - Update all subclass constructors to pass ErrorCollector to parent
+  - [x] 9.1 Update UserProcess base class constructor to accept UserEventCollector
+    - Add UserEventCollector parameter to base class __init__ method
+    - Update all subclass constructors to pass UserEventCollector to parent
     - Ensure all existing functionality is preserved
     - _Requirements: 8.1, 8.2_
   
   - [x] 9.2 Integrate error handling in ActiveUserProcess
-    - Update constructor to accept ErrorCollector parameter
+    - Update constructor to accept UserEventCollector parameter
     - Add error event creation for missing auth email scenario
     - Add error event creation for bad claim scenario  
     - Preserve all existing logging and functionality
@@ -92,14 +92,14 @@ This implementation plan converts the error handling design into discrete coding
     - _Requirements: 8.1, 8.2, 1a.8_
   
   - [x] 9.3 Integrate error handling in UpdateUserProcess
-    - Update constructor to accept ErrorCollector and FailureAnalyzer parameters
+    - Update constructor to accept UserEventCollector and FailureAnalyzer parameters
     - Add FailureAnalyzer usage for missing claimed user scenario
     - Preserve all existing logging and functionality
     - Run tests to verify integration works correctly
     - _Requirements: 8.1, 8.2, 1a.8_
   
   - [x] 9.4 Integrate error handling in ClaimedUserProcess
-    - Update constructor to accept ErrorCollector and FailureAnalyzer parameters
+    - Update constructor to accept UserEventCollector and FailureAnalyzer parameters
     - Add FailureAnalyzer usage for Flywheel user creation failures
     - Preserve all existing logging and functionality
     - Run tests to verify integration works correctly
@@ -317,7 +317,8 @@ This implementation plan converts the error handling design into discrete coding
 ## Implementation Status Summary
 
 ### Completed Core Infrastructure (Tasks 1-10.1)
-- ✅ Error handling data models (ErrorEvent, ErrorCategory, UserContext, ErrorCollector)
+
+- ✅ Error handling data models (ErrorEvent, ErrorCategory, UserContext, UserEventCollector)
 - ✅ FailureAnalyzer with three core methods:
   - `analyze_flywheel_user_creation_failure` - Analyzes Flywheel user creation failures
   - `analyze_missing_claimed_user` - Analyzes missing claimed user scenarios

@@ -217,16 +217,16 @@ This specification defines requirements for enhancing the existing pull_director
 
 #### Acceptance Criteria
 
-1. THE Error Event Collector SHALL integrate with existing error logging points in UserProcess classes without modifying core processing logic
-2. THE Error Event Collector SHALL extend existing logging calls to capture structured error events in addition to log messages
-3. THE Error Event Collector SHALL use existing user entry objects and registry person objects to extract context information
-4. THE Error Event Collector SHALL integrate with the existing NotificationClient infrastructure and extend it for error notifications
-5. THE Error Event Collector SHALL preserve all existing logging behavior and error handling while adding event capture
-6. THE Error Event Collector SHALL use existing API connections (COManage, Flywheel) for additional context gathering when needed
-7. THE Error Event Collector SHALL support both error capture from existing failure points and error detection from additional instrumentation
-8. THE Error Event Collector SHALL maintain backward compatibility with existing gear configurations and parameter store settings
-9. THE Error Event Collector SHALL use the existing AWS SES template system for error notification delivery
-10. THE Error Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency
+1. THE User Event Collector SHALL integrate with existing error logging points in UserProcess classes without modifying core processing logic
+2. THE User Event Collector SHALL extend existing logging calls to capture structured error events in addition to log messages
+3. THE User Event Collector SHALL use existing user entry objects and registry person objects to extract context information
+4. THE User Event Collector SHALL integrate with the existing NotificationClient infrastructure and extend it for error notifications
+5. THE User Event Collector SHALL preserve all existing logging behavior and error handling while adding event capture
+6. THE User Event Collector SHALL use existing API connections (COManage, Flywheel) for additional context gathering when needed
+7. THE User Event Collector SHALL support both error capture from existing failure points and error detection from additional instrumentation
+8. THE User Event Collector SHALL maintain backward compatibility with existing gear configurations and parameter store settings
+9. THE User Event Collector SHALL use the existing AWS SES template system for error notification delivery
+10. THE User Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency
 
 ### Requirement 11: Performance and Reliability
 

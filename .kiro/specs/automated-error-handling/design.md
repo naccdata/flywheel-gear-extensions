@@ -141,7 +141,7 @@ Error collection with automatic categorization that integrates directly with exi
 class UserManagementVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None:
         # Create error handling objects as core functionality
-        error_collector = ErrorCollector()
+        collector = UserEventCollector()
             
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
@@ -161,21 +161,21 @@ class UserManagementVisitor(GearExecutionEnvironment):
                     proxy=self.proxy,
                     registry=user_registry,
                 ),
-                error_collector=error_collector
+                collector=collector
             )
             
             # Run user processing
             user_process.execute(user_queue)
             
             # Send consolidated notification at end if there are errors
-            if error_collector.has_errors():
+            if collector.has_errors():
                 support_emails = self._get_support_staff_emails()
                 notification_generator = ErrorNotificationGenerator(
                     email_client=create_ses_client(),
                     configuration_set_name="your-ses-config"
                 )
                 notification_generator.send_error_notification(
-                    error_collector=error_collector,
+                    collector=collector,
                     gear_name="user_management",
                     support_emails=support_emails
                 )
@@ -184,18 +184,18 @@ class UserProcess(BaseUserProcess[UserEntry]):
     """Modified to include error handling as core functionality."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: ErrorCollector):
+                 collector: UserEventCollector):
         self._active_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self._inactive_queue: UserQueue[UserEntry] = UserQueue()
         self._env = environment
         
         # Error handling components (immutable)
-        self.__error_collector = error_collector
+        self.__collector = collector
     
     @property
-    def error_collector(self) -> ErrorCollector:
-        """Read-only access to the error collector."""
-        return self.__error_collector
+    def collector(self) -> UserEventCollector:
+        """Read-only access to the event collector."""
+        return self.__collector
     
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Modified to pass error handling objects to sub-processes."""
@@ -204,49 +204,49 @@ class UserProcess(BaseUserProcess[UserEntry]):
 
         # Pass error handling objects to sub-processes
         ActiveUserProcess(
-            self._env, self.error_collector
+            self._env, self.collector
         ).execute(self._active_queue)
         
         InactiveUserProcess().execute(self._inactive_queue)
 
-class ErrorCollector:
-    """Error collector that accumulates and categorizes errors during gear execution.
+class UserEventCollector:
+    """Event collector that accumulates and categorizes events during gear execution.
     
-    The ErrorCollector automatically categorizes errors as they are collected,
-    maintaining an internal structure grouped by ErrorCategory. This allows
+    The UserEventCollector automatically categorizes events as they are collected,
+    maintaining an internal structure grouped by EventCategory. This allows
     efficient querying by category and simplifies notification generation.
     """
     
     def __init__(self):
-        """Initialize an empty error collector with categorized storage."""
-        self._errors: Dict[ErrorCategory, List[ErrorEvent]] = defaultdict(list)
+        """Initialize an empty event collector with categorized storage."""
+        self._events: Dict[EventCategory, List[UserProcessEvent]] = defaultdict(list)
     
-    def collect(self, event: ErrorEvent) -> None:
-        """Add an error event to the collection, automatically categorizing it.
+    def collect(self, event: UserProcessEvent) -> None:
+        """Add an event to the collection, automatically categorizing it.
         
         Args:
-            event: The error event to add to the collection
+            event: The event to add to the collection
         """
         # Convert string category back to enum if needed (handles use_enum_values=True)
         if isinstance(event.category, str):
             category_enum = next(
-                (cat for cat in ErrorCategory if cat.value == event.category),
+                (cat for cat in EventCategory if cat.value == event.category),
                 None,
             )
             if category_enum:
-                self._errors[category_enum].append(event)
+                self._events[category_enum].append(event)
         else:
-            self._errors[event.category].append(event)
+            self._events[event.category].append(event)
     
-    def get_errors(self) -> List[ErrorEvent]:
-        """Get all collected errors as a flat list.
+    def get_errors(self) -> List[UserProcessEvent]:
+        """Get all collected error events as a flat list.
         
         Returns:
             A list of all collected error events
         """
         all_errors = []
-        for error_list in self._errors.values():
-            all_errors.extend(error_list)
+        for event_list in self._events.values():
+            all_errors.extend([e for e in event_list if e.is_error()])
         return all_errors
     
     def get_errors_by_category(self) -> Dict[ErrorCategory, List[ErrorEvent]]:
@@ -324,19 +324,19 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     """Modified to include failure analysis at existing log points."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: ErrorCollector):
+                 collector: UserEventCollector):
         super().__init__()
         self._env = environment
         self._claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
         
-        # Error handling components (immutable)
-        self.__error_collector = error_collector
+        # Event handling components (immutable)
+        self.__collector = collector
     
     @property
-    def error_collector(self) -> ErrorCollector:
-        """Read-only access to the error collector."""
-        return self.__error_collector
+    def collector(self) -> UserEventCollector:
+        """Read-only access to the event collector."""
+        return self.__collector
     
     def visit(self, entry: ActiveUserEntry) -> None:
         """Modified to add failure analysis at existing log points."""
@@ -353,7 +353,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     "action_needed": "update_directory_auth_email"
                 }
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
         
         person_list = self._env.user_registry.get(email=entry.auth_email)
@@ -368,7 +368,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     entry, bad_claim
                 )
                 if error_event:
-                    self.error_collector.collect(error_event)
+                    self.collector.collect(error_event)
                 return
             
             # log.info() case - no error event needed, this is normal processing
@@ -393,7 +393,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     "action_needed": "check_registry_record_status"
                 }
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
         
         entry.registration_date = creation_date
@@ -413,7 +413,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                         "action_needed": "check_registry_id_assignment"
                     }
                 )
-                self.error_collector.collect(error_event)
+                self.collector.collect(error_event)
                 return
             
             self._claimed_queue.enqueue(entry.register(registry_id))
@@ -426,21 +426,21 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
     
     def __init__(self, environment: UserProcessEnvironment, 
                  claimed_queue: UserQueue[RegisteredUserEntry],
-                 error_collector: ErrorCollector):
+                 collector: UserEventCollector):
         self._failed_count: Dict[str, int] = defaultdict(int)
         self._claimed_queue: UserQueue[RegisteredUserEntry] = claimed_queue
         self._created_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._update_queue: UserQueue[RegisteredUserEntry] = UserQueue()
         self._env = environment
         
-        # Error handling components (immutable)
-        self.__error_collector = error_collector
+        # Event handling components (immutable)
+        self.__collector = collector
         self.failure_analyzer = FailureAnalyzer(environment)
     
     @property
-    def error_collector(self) -> ErrorCollector:
-        """Read-only access to the error collector."""
-        return self.__error_collector
+    def collector(self) -> UserEventCollector:
+        """Read-only access to the event collector."""
+        return self.__collector
     
     def __add_user(self, entry: RegisteredUserEntry) -> Optional[str]:
         """Modified to add failure analysis at existing log points."""
@@ -455,7 +455,7 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
                 # Analyze Flywheel user creation failure to determine root cause
                 error_event = self.failure_analyzer.analyze_flywheel_user_creation_failure(entry, error)
                 if error_event:
-                    self.error_collector.collect(error_event)
+                    self.collector.collect(error_event)
                 return None
             
             self._claimed_queue.enqueue(entry)
@@ -465,17 +465,17 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
     """Modified to include failure analysis at existing log points."""
     
     def __init__(self, environment: UserProcessEnvironment,
-                 error_collector: ErrorCollector):
+                 collector: UserEventCollector):
         self._env = environment
         
-        # Error handling components (immutable)
-        self.__error_collector = error_collector
+        # Event handling components (immutable)
+        self.__collector = collector
         self.failure_analyzer = FailureAnalyzer(environment)
     
     @property
-    def error_collector(self) -> ErrorCollector:
-        """Read-only access to the error collector."""
-        return self.__error_collector
+    def collector(self) -> UserEventCollector:
+        """Read-only access to the event collector."""
+        return self.__collector
     
     def visit(self, entry: RegisteredUserEntry) -> None:
         """Modified to add failure analysis at existing log points."""
@@ -488,7 +488,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             # Analyze why claimed user is missing to determine root cause
             error_event = self.failure_analyzer.analyze_missing_claimed_user(entry)
             if error_event:
-                self.error_collector.collect(error_event)
+                self.collector.collect(error_event)
             return
         
         fw_user = self._env.proxy.find_user(entry.registry_id)
@@ -506,7 +506,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     "action_needed": "check_user_creation_process_logs"
                 }
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
         
         self.__update_email(user=fw_user, email=entry.email)
@@ -525,7 +525,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     "action_needed": "check_email_verification_in_comanage"
                 }
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
         
         # Check for insufficient permissions based on user entry authorizations
@@ -539,7 +539,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     "action_needed": "contact_center_administrator_for_permissions"
                 }
             )
-            self.error_collector.collect(error_event)
+            self.collector.collect(error_event)
             return
         
         authorizations = {
@@ -735,19 +735,19 @@ class FailureAnalyzer:
 
 ### End-of-Run Notification
 
-Notification generation that renders an ErrorCollector into a consolidated email:
+Notification generation that renders a UserEventCollector into a consolidated email:
 
 **ErrorNotificationGenerator:**
 ```python
 class ErrorNotificationGenerator:
     """Generates notifications for error events using AWS SES templates.
     
-    The ErrorNotificationGenerator is a rendering engine that transforms an
-    ErrorCollector (which contains categorized error events) into a formatted
+    The ErrorNotificationGenerator is a rendering engine that transforms a
+    UserEventCollector (which contains categorized events) into a formatted
     email notification and sends it to support staff via AWS SES.
     
     Usage Pattern:
-        ErrorCollector → ErrorNotificationGenerator → Email to Support Staff
+        UserEventCollector → ErrorNotificationGenerator → Email to Support Staff
     """
     
     # Template name mapping for each error category
@@ -787,22 +787,22 @@ class ErrorNotificationGenerator:
         return self.CATEGORY_TEMPLATES.get(category, "error-generic")
     
     def create_notification_data(
-        self, error_collector: ErrorCollector, gear_name: str
+        self, collector: UserEventCollector, gear_name: str
     ) -> ConsolidatedNotificationData:
         """Create template data for consolidated notification.
         
-        Transforms the categorized errors from the ErrorCollector into a
+        Transforms the categorized errors from the UserEventCollector into a
         structured data model ready for email template rendering.
         
         Args:
-            error_collector: The ErrorCollector with categorized errors
+            collector: The UserEventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
             
         Returns:
             ConsolidatedNotificationData ready for template rendering
         """
         # Get errors grouped by category from the collector
-        grouped = error_collector.get_errors_by_category()
+        grouped = collector.get_errors_by_category()
         
         # Create category-specific data
         category_data = {}
@@ -841,15 +841,15 @@ class ErrorNotificationGenerator:
             category_data[field_name] = error_list
         
         # Get all errors as flat list for summaries
-        all_errors = error_collector.get_errors()
+        all_errors = collector.get_errors()
         
         return ConsolidatedNotificationData(
             gear_name=gear_name,
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=error_collector.error_count(),
-            errors_by_category=error_collector.count_by_category(),
+            total_errors=collector.error_count(),
+            errors_by_category=collector.count_by_category(),
             error_summaries=[error.to_summary() for error in all_errors],
-            affected_users=error_collector.get_affected_users(),
+            affected_users=collector.get_affected_users(),
             **category_data,
         )
     
@@ -894,7 +894,7 @@ class ErrorNotificationGenerator:
     
     def send_error_notification(
         self,
-        error_collector: ErrorCollector,
+        collector: UserEventCollector,
         gear_name: str,
         support_emails: List[str],
     ) -> Optional[str]:
@@ -903,24 +903,24 @@ class ErrorNotificationGenerator:
         This is the main entry point for sending notifications from gears.
         
         Args:
-            error_collector: The ErrorCollector with categorized errors
+            collector: The UserEventCollector with categorized errors
             gear_name: Name of the gear that generated the errors
             support_emails: List of support staff email addresses
             
         Returns:
             Message ID if successfully sent, None otherwise
         """
-        if not error_collector.has_errors():
+        if not collector.has_errors():
             log.info("No errors to notify about")
             return None
         
-        notification_data = self.create_notification_data(error_collector, gear_name)
+        notification_data = self.create_notification_data(collector, gear_name)
         return self.send_consolidated_notification(support_emails, notification_data)
 ```
 
 **Key Features:**
-- **Renders ErrorCollector**: Takes an ErrorCollector object and transforms it into email-ready data
-- **Automatic Categorization**: Leverages ErrorCollector's built-in categorization
+- **Renders UserEventCollector**: Takes a UserEventCollector object and transforms it into email-ready data
+- **Automatic Categorization**: Leverages UserEventCollector's built-in categorization
 - **Template Selection**: Maps each error category to specific SES templates
 - **Consolidated Output**: One email per gear run, no matter how many errors
 - **Graceful Handling**: Returns None if no errors, no support emails, or send fails
