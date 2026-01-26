@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
 ## 2.2.0
 
 * Adds event capture for submit events during CSV processing

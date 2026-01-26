@@ -3,8 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## Unreleased
-
-* tbd
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
 ## 1.1.4
 * Rebuilt for ssm-parameter-store update

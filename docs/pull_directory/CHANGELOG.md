@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
 ## 2.1.2
 
 * Fixes how authorization for genetic data maps to apoe, so study is set to ncrad.

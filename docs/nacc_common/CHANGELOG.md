@@ -2,6 +2,9 @@
 
 Documentation of release versions of the `nacc-common` package.
 
+## Unreleased
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
 # v2.1.0
 
 * Adds QC status constants (`QC_STATUS_PASS`, `QC_STATUS_FAIL`, `QC_STATUS_IN_REVIEW`) to `error_models` module for consistent status value handling.
