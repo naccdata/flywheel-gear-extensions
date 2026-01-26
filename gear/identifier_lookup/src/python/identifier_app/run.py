@@ -18,7 +18,7 @@ from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -80,7 +80,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "IdentifierLookupVisitor":
         """Creates an identifier lookup execution visitor.
 
@@ -325,7 +325,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             error_writer=error_writer,
         )
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the identifier lookup app.
 
         Args:

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from botocore.response import StreamingBody
 from curator.scheduling import ProjectCurationScheduler
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ManagerListErrorWriter
 from outputs.errors import unexpected_value_error
@@ -184,7 +184,7 @@ class MQTBaselineLocalizer(BaselineLocalizer):
 
 
 def run(
-    context: GearToolkitContext,
+    context: GearContext,
     subjects: List[str],
     s3_qaf_file: str,
     scheduler: ProjectCurationScheduler,

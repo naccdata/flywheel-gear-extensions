@@ -8,7 +8,7 @@ from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -55,7 +55,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "RegressionCuratorVisitor":
         """Creates a Regression Curator execution visitor.
@@ -108,7 +108,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             variable_blacklist_file=variable_blacklist_file,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         try:
             fw_path = self.proxy.get_lookup_path(self.__project.project)
         except ApiException as error:

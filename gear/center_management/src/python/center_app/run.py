@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from centers.center_info import CenterList
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -47,7 +47,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "CenterCreationVisitor":
         """Creates a center creation execution visitor.
@@ -61,7 +61,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         """
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        center_filepath = context.get_input_path("center_file")
+        center_filepath = context.config.get_input_path("center_file")
         if not center_filepath:
             raise GearExecutionError("No center file provided")
         admin_id = context.config.get("admin_group", "nacc")
@@ -96,7 +96,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         except ValidationError as error:
             raise GearExecutionError(f"Error in center file: {error}") from error
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Executes the gear.
 
         Args:

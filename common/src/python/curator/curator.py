@@ -8,7 +8,7 @@ from typing import List, Optional
 from flywheel import Client
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
 from utils.decorators import api_retry
@@ -47,7 +47,7 @@ class Curator(ABC):
     def force_curate(self) -> bool:
         return self.__force_curate
 
-    def set_client(self, context: GearToolkitContext) -> None:
+    def set_client(self, context: GearContext) -> None:
         """Set the SDK client. For multiprocessing, this client must be
         separate per process, so expected to be set at the worker instantiation
         level.

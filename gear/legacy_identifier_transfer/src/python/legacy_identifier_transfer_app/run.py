@@ -7,7 +7,7 @@ from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -106,7 +106,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "LegacyIdentifierTransferVisitor":
         """Creates a legacy naccid transfer execution visitor.
 
@@ -135,7 +135,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             legacy_ingest_label=legacy_ingest_label,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the legacy NACCID transfer gear.
 
         Args: context: The gear execution context
@@ -145,7 +145,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         # Get destination container
         try:
-            dest_container = context.get_destination_container()
+            dest_container = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Error getting destination container: {error}"

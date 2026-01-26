@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -68,7 +68,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "CSVCenterSplitterVisitor":
         """Creates a gear execution object.
@@ -141,7 +141,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             email_client=email_client,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV Center Splitter app."""
         # if local run, give dummy container for local file, otherwise
         # grab from project

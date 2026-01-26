@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from gear_execution.gear_trigger import (
     CredentialGearConfigs,
@@ -39,7 +39,7 @@ class FormSchedulerGearConfigs(CredentialGearConfigs):
 
 
 def save_output(
-    context: GearToolkitContext,
+    context: GearContext,
     outfilename: str,
     contents: str,
     tags: Optional[List[str]] = None,
@@ -142,7 +142,7 @@ def trigger_scheduler_gear(
 def run(
     *,
     proxy: FlywheelProxy,
-    context: GearToolkitContext,
+    context: GearContext,
     file_input: InputFileWrapper,
     accepted_modules: List[str],
     queue_tags: List[str],

@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from fw_client.client import FWClient
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -42,7 +42,7 @@ class TemplatingVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "TemplatingVisitor":
         """Creates a templating execution visitor.
@@ -75,7 +75,7 @@ class TemplatingVisitor(GearExecutionEnvironment):
             new_only=context.config.get("new_only", False),
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         projects = self.proxy.find_projects(
             group_id=self.__template_group, project_label=self.__template_label
         )

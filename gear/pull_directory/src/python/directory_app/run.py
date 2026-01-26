@@ -4,7 +4,7 @@ user management gear."""
 import logging
 from typing import Dict, List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -36,7 +36,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "DirectoryPullVisitor":
         """Creates directory pull execution visitor.
 
@@ -78,7 +78,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             client=client, user_filename=user_filename, user_report=user_report
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the directory pull gear.
 
         Args:

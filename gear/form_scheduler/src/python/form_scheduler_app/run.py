@@ -8,7 +8,7 @@ from configs.ingest_configs import ConfigsError, PipelineConfigs
 from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -60,7 +60,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormSchedulerVisitor":
         """Creates a gear execution object.
@@ -120,10 +120,10 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             portal_url=portal_url,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the Form Scheduler app."""
         try:
-            dest_container: Any = context.get_destination_container()
+            dest_container: Any = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -140,7 +140,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         # check for other form-scheduler gear jobs running on this project
         # there shouldn't be any
         gear_name = context.manifest.get("name", "form-scheduler")
-        job_id = context.config_json.get("job", {}).get("id")
+        job_id = context.config_json.job.get("id")
         if JobPoll.is_another_gear_instance_running(
             proxy=self.proxy,
             gear_name=gear_name,

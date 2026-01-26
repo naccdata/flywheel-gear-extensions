@@ -17,7 +17,7 @@ from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,
@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 def update_input_file_qc_status(
     *,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     gear_name: str,
     input_wrapper: InputFileWrapper,
     file: FileEntry,
@@ -115,7 +115,7 @@ def run(  # noqa: C901
     input_wrapper: InputFileWrapper,
     s3_client: S3BucketInterface,
     admin_group: NACCGroup,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     form_project_configs: FormProjectConfigs,
     redcap_connection: Optional[REDCapReportConnection] = None,
     supplement_input: Optional[InputFileWrapper] = None,

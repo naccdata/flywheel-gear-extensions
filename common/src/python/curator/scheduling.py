@@ -9,7 +9,7 @@ from typing import Dict, List
 from curator.curator import Curator, ProjectCurationError
 from data.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from pydantic import ValidationError
 from scheduling.min_heap import MinHeap
@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 curator = None  # global curator object
 
 
-def initialize_worker(in_curator: Curator, context: GearToolkitContext):
+def initialize_worker(in_curator: Curator, context: GearContext):
     """Initialize worker context, this function is executed once in each worker
     process upon its creation.
 
@@ -169,7 +169,7 @@ class ProjectCurationScheduler:
         return list(self.__heap_map.keys())
 
     def apply(
-        self, curator: Curator, context: GearToolkitContext, max_num_workers: int = 4
+        self, curator: Curator, context: GearContext, max_num_workers: int = 4
     ) -> None:
         """Applies a Curator to the form files in this curator.
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, get_args
 
 from data_requests.data_request import DataRequestVisitor, ModuleDataGatherer
-from flywheel_gear_toolkit.context.context import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -47,7 +47,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "GatherFormDataVisitor":
         """Creates a Gather Form Data execution visitor.
@@ -88,7 +88,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             study_id=study_id,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         data_gatherers: list[ModuleDataGatherer] = []
         for module_name in self.__modules:
             data_gatherers.append(
@@ -134,7 +134,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         )
 
     def __write_output(
-        self, context: GearToolkitContext, gatherers: list[ModuleDataGatherer]
+        self, context: GearContext, gatherers: list[ModuleDataGatherer]
     ):
         """Using the gear context, writes the data content in each gatherer to
         a file named with the study-id and the module of the gatherer.

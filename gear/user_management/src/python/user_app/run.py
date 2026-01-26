@@ -6,7 +6,7 @@ from typing import Optional
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
 from coreapi_client.configuration import Configuration
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -65,22 +65,22 @@ class UserManagementVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "UserManagementVisitor":
         """Visits the gear context to gather inputs.
 
         Args:
-            context (GearToolkitContext): The gear context.
+            context (GearContext): The gear context.
         """
         assert parameter_store, "Parameter store expected"
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        user_filepath = context.get_input_path("user_file")
+        user_filepath = context.config.get_input_path("user_file")
         if not user_filepath:
             raise GearExecutionError("No user directory file provided")
-        auth_filepath = context.get_input_path("auth_file")
+        auth_filepath = context.config.get_input_path("auth_file")
         if not auth_filepath:
             raise GearExecutionError("No user role file provided")
 
@@ -126,7 +126,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             portal_url=portal_url["url"],
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Executes the gear.
 
         Args:

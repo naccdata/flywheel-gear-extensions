@@ -10,7 +10,7 @@ from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -53,7 +53,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "CsvToJsonVisitor":
         """Creates a gear execution object.
 
@@ -105,7 +105,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             req_fields=req_fields,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV to JSON Transformer app.
 
         Args:

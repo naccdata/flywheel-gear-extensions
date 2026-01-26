@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from enrollment.enrollment_project import EnrollmentProject
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -48,7 +48,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "ParticipantTransferVisitor":
         """Creates a Manage Participant Transfer execution visitor.
@@ -87,7 +87,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             copy_only=copy_only,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         project = self.proxy.lookup(self.__enroll_project_path)
         if not project:
             raise GearExecutionError(

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, get_args
 
 from data_requests.status_request import StatusRequestClusteringVisitor
-from flywheel_gear_toolkit.context.context import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -65,7 +65,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "GatherSubmissionStatusVisitor":
         """Creates a Gather Submission Status execution visitor.
@@ -122,7 +122,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             fieldnames=fieldnames,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the gather-submission-status app.
 
         Args:

@@ -3,7 +3,7 @@
 import logging
 from typing import List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -60,7 +60,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "BatchSchedulerVisitor":
         """Creates a batch scheduler execution visitor.
@@ -146,7 +146,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         return center_ids
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Invoke the batch scheduler app.
 
         Args:

@@ -6,7 +6,7 @@ from typing import Optional
 
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -48,7 +48,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "IdentifierProvisioningVisitor":
         assert parameter_store, "Parameter store expected"
 
@@ -66,7 +66,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             identifiers_mode=mode,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the identifier provisioning app.
 
         Args:

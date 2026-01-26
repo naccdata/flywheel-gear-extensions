@@ -36,7 +36,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ### Core Libraries
 
 - `flywheel-sdk>=20.0.0` - Flywheel platform SDK
-- `flywheel-gear-toolkit>=0.2` - Gear development toolkit
+- `fw-gear>=0.3.5` - Gear development toolkit
 - `fw-client>=0.7.0`, `fw-utils>=3` - Flywheel utilities
 - `pydantic>=2.5.2` - Data validation and settings management
 - `pandas>=2.1.1` - Data manipulation

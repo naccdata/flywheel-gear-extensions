@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from centers.center_group import REDCapProjectInput
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -32,7 +32,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "REDCapProjectInfoVisitor":
         """Visit context to accumulate inputs for the gear.
@@ -41,7 +41,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             context: The gear context.
         """
         client = ContextClient.create(context=context)
-        input_file_path = context.get_input_path("input_file")
+        input_file_path = context.config.get_input_path("input_file")
         if not input_file_path:
             raise GearExecutionError("No input file provided")
 
@@ -51,7 +51,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             input_filepath=input_file_path,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the REDCap Project Info Management gear.
 
         Args:

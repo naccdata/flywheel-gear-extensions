@@ -4,7 +4,7 @@ import logging
 import sys
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -60,7 +60,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "FormQCCheckerVisitor":
         """Creates a form-qc-checker execution visitor.
 
@@ -121,7 +121,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             supplement_input=supplement_input,
         )
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the form-qc-checker app.
 
         Args:

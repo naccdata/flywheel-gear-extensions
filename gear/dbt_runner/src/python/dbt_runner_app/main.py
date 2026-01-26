@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,
@@ -39,7 +39,7 @@ class StorageConfigs(BaseModel):
 
 def run(
     *,
-    context: GearToolkitContext,
+    context: GearContext,
     client: ClientWrapper,
     dbt_project_zip: InputFileWrapper,
     storage_configs: StorageConfigs,

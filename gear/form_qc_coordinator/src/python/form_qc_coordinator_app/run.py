@@ -11,7 +11,7 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     VisitInfo,
 )
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -69,7 +69,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormQCCoordinator":
         """Creates a gear execution object, loads gear context.
@@ -86,7 +86,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         try:
-            dest_container: Any = context.get_destination_container()
+            dest_container: Any = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -266,7 +266,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         return self.__parse_yaml_input(subject)
 
-    def __update_input_file_tags(self, gear_context: GearToolkitContext):
+    def __update_input_file_tags(self, gear_context: GearContext):
         """Add gear tag to input file.
 
         Args:
@@ -279,7 +279,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
             self.__file_input.file_input, tags=gear_name
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Validates input files, runs the form-qc-coordinator app.
 
         Args:

@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from flywheel import Client
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, S3Parameters
 from projects.project_mapper import build_project_map
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 def main():
     """Main method to distribute metadata from S3 bucket to center projects."""
 
-    with GearToolkitContext() as gear_context:
+    with GearContext() as gear_context:
         gear_context.init_logging()
         gear_context.log_config()
 

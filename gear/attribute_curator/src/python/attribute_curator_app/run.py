@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -50,7 +50,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "AttributeCuratorVisitor":
         """Creates a UDS Curator execution visitor.
@@ -100,7 +100,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             ignore_qc=ignore_qc,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         rxclass_concepts = None

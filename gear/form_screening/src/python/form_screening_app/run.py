@@ -5,7 +5,7 @@ import sys
 import time
 from typing import List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -46,7 +46,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormScreeningVisitor":
         """Creates a gear execution object.
@@ -88,7 +88,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 )
             sys.exit(0)
 
-        config_file_path = context.get_input_path("scheduler_gear_configs_file")
+        config_file_path = context.config.get_input_path("scheduler_gear_configs_file")
 
         accepted_modules = parse_string_to_list(
             context.config.get("accepted_modules", None)
@@ -124,7 +124,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             format_and_tag=format_and_tag,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the Form Screening app."""
 
         error_writer = run(

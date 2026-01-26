@@ -9,7 +9,7 @@ from flywheel_adaptor.subject_adaptor import (
     ParticipantVisits,
     SubjectAdaptor,
 )
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     proxy: FlywheelProxy,
     subject: SubjectAdaptor,
     visits_info: ParticipantVisits,
