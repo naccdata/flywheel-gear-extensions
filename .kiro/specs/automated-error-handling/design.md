@@ -1053,9 +1053,9 @@ Property 2: User Context Inclusion
 *For any* captured error event, the system should include all available user context information (email, name, center, registry ID)
 **Validates: Requirements 1.4**
 
-Property 3: API Failure Handling
-*For any* API failure to external services, the system should log the failure for technical staff but not generate support staff notifications
-**Validates: Requirements 1.6**
+Property 3: Critical Failure Handling
+*For any* critical service failure during gear initialization (COManage, Flywheel, Parameter Store), the system should log detailed error information and exit with a non-zero status code
+**Validates: Requirements 11.1**
 
 Property 4: Category Template Mapping
 *For any* error event with a valid category, there should exist a corresponding notification template that can be retrieved and used
@@ -1116,24 +1116,35 @@ Property 17: Success Notification Template Consistency
 
 ## Error Handling
 
-The error handling strategy focuses on graceful degradation and maintaining system reliability:
+The error handling strategy is designed for batch job execution with appropriate failure modes:
 
-### External Service Failures
-- **COManage API Failures**: Log for technical staff, continue with available data, skip additional instrumentation requiring COManage
-- **Flywheel API Failures**: Log for technical staff, continue with user processing, skip Flywheel-specific checks
-- **AWS SES Failures**: Implement retry logic with exponential backoff, fallback to raw email if templated email fails
-- **Parameter Store Failures**: Use cached configuration values, log warnings for missing support staff emails
+### Critical Service Failures (Gear Should Exit)
+- **COManage API Initialization Failures**: If COManage API cannot be initialized at gear startup, log detailed error and exit with non-zero status code
+- **Flywheel API Initialization Failures**: If Flywheel proxy cannot be initialized at gear startup, log detailed error and exit with non-zero status code
+- **Parameter Store Critical Failures**: If required configuration cannot be loaded at startup, log detailed error and exit with non-zero status code
+
+### Non-Critical Failures (Collect and Continue)
+- **Individual User Processing Errors**: When a single user fails to process, capture error event, log details, continue with remaining users
+- **COManage API Call Failures During Processing**: Log the failure, capture error event for that user, continue with remaining users
+- **Flywheel API Call Failures During Processing**: Log the failure, capture error event for that user, continue with remaining users
+
+### Notification Failures (Log but Don't Fail Gear)
+- **AWS SES Failures**: If consolidated notification email fails to send, log detailed error with full context but allow gear to complete successfully
+- **Template Rendering Errors**: Fall back to generic error template with raw error details, log the rendering failure
+- **Missing Support Staff Emails**: Log warning that no notification was sent, but don't fail the gear
+
+### Timeout Handling
+- **API Call Timeouts**: Set reasonable timeouts for all external API calls (30 seconds max) to prevent gear from hanging indefinitely
+- **Timeout Behavior**: When timeout occurs, treat as API failure (log error, capture event if during user processing, continue or exit based on criticality)
+
+### In-Run Caching
+- **API Response Caching**: Cache API responses within a single gear run to avoid duplicate calls for the same data
+- **Cache Scope**: Cache is per-run only, not persisted across gear executions
+- **Cache Invalidation**: Cache is cleared when gear completes
 
 ### Data Validation Errors
 - **Invalid User Context**: Use available fields, mark missing fields as "unavailable" in notifications
-- **Template Rendering Errors**: Fall back to generic error template, include raw error details
 - **Category Mapping Failures**: Use "Unknown Error" category, include original error details in notification
-
-### Performance Safeguards
-- **Circuit Breaker Pattern**: Disable additional instrumentation if external services are consistently failing
-- **Timeout Handling**: Set reasonable timeouts for all external API calls (30 seconds max)
-- **Batch Size Limits**: Limit error event batching to prevent memory issues (max 50 events per user)
-- **Rate Limiting**: Implement rate limiting for notification sending to prevent email flooding
 
 ## Testing Strategy
 

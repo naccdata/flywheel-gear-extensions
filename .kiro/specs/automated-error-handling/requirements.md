@@ -228,15 +228,15 @@ This specification defines requirements for enhancing the existing pull_director
 9. THE User Event Collector SHALL use the existing AWS SES template system for error notification delivery
 10. THE User Event Collector SHALL follow existing patterns for error handling and logging to maintain code consistency
 
-### Requirement 11: Performance and Reliability
+### Requirement 11: Batch Job Reliability and Error Handling
 
-**User Story:** As a system administrator, I want the error handling system to be performant and reliable, so that it doesn't impact the overall user management process.
+**User Story:** As a system administrator, I want the error handling system to be reliable and fail appropriately for batch job execution, so that failures are clearly logged and the job exits with proper status codes.
 
 #### Acceptance Criteria
 
-1. THE Error Handler SHALL process errors asynchronously to avoid blocking user management workflows
-2. THE Error Handler SHALL implement circuit breaker patterns for external API calls
-3. THE Error Handler SHALL cache API responses to reduce external service load
-4. WHEN external services are unavailable, THE Error Handler SHALL degrade gracefully
-5. THE Error Handler SHALL complete error processing within 30 seconds per user
-6. THE Error Handler SHALL handle up to 100 concurrent user processing errors
+1. WHEN critical external service failures occur (COManage, Flywheel, Parameter Store), THE Error Handler SHALL log detailed error information and exit the gear with a non-zero status code
+2. THE Error Handler SHALL implement reasonable timeouts for all external API calls to prevent the batch job from hanging indefinitely
+3. THE Error Handler SHALL cache API responses within a single gear run to avoid duplicate calls for the same data
+4. WHEN non-critical errors occur during user processing (individual user failures), THE Error Handler SHALL collect error events and continue processing remaining users
+5. WHEN the notification email fails to send, THE Error Handler SHALL log the failure with full details but SHALL NOT fail the entire gear run
+6. THE Error Handler SHALL complete error processing within reasonable time limits (target: 30 seconds per user) to ensure timely batch job completion

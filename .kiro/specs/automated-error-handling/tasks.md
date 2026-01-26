@@ -239,29 +239,30 @@ This implementation plan converts the error handling design into discrete coding
   - Fix any failing tests
   - _Requirements: 6.1-6.6, 8.1-8.10_
 
-- [ ]* 27. Write unit tests for error handling safeguards (TDD)
-  - Test graceful degradation when external APIs fail
-  - Test circuit breaker behavior
-  - Test timeout handling
-  - Test rate limiting and batch size limits
-  - _Requirements: 10.1-10.6_
+- [ ]* 27. Write unit tests for batch job error handling (TDD)
+  - Test proper exit codes when critical external services fail
+  - Test timeout handling for API calls
+  - Test in-run API response caching
+  - Test continued processing when individual user errors occur
+  - _Requirements: 11.1-11.6_
 
-- [ ]* 28. Write property test for API failure handling (TDD)
-  - **Property 3: API Failure Handling**
-  - **Validates: Requirements 1.6**
+- [ ]* 28. Write property test for critical failure handling (TDD)
+  - **Property 3: Critical Failure Handling**
+  - **Validates: Requirements 11.1**
 
-- [ ] 29. Implement error handling and performance safeguards
-  - Add graceful degradation for external service failures
-  - Implement circuit breaker patterns for API calls
-  - Add timeout handling and rate limiting
-  - Add batch size limits and memory management
-  - _Requirements: 10.1-10.6_
+- [ ] 29. Implement batch job error handling and reliability safeguards
+  - Add timeout handling for all external API calls (COManage, Flywheel, Parameter Store)
+  - Implement in-run caching for API responses to avoid duplicate calls
+  - Ensure critical service failures cause gear to exit with non-zero status and detailed logging
+  - Ensure individual user processing errors are collected but don't stop the batch
+  - Ensure notification email failures are logged but don't fail the gear run
+  - _Requirements: 11.1-11.6_
 
-- [ ] 30. Make error handling safeguard tests pass
-  - Run unit tests for error handling safeguards
-  - Run property test for API failure handling
+- [ ] 30. Make batch job error handling tests pass
+  - Run unit tests for batch job error handling
+  - Run property test for critical failure handling
   - Fix any failing tests
-  - _Requirements: 10.1-10.6_
+  - _Requirements: 11.1-11.6_
 
 - [ ] 31. Write integration tests for pull_directory modifications (TDD)
   - Test directory processing with integrated error handling
@@ -356,6 +357,7 @@ The core error handling framework is fully integrated into the user management g
 - Pydantic model testing is limited to custom validators/serializers only
 - Error event creation is separated from failure analysis for clarity and efficiency
 - All modifications integrate error handling as core functionality and maintain backward compatibility
-- Tasks marked with `*` are optional and focus on comprehensive testing of detection mechanisms, notifications, and safeguards
+- Tasks marked with `*` are optional and focus on comprehensive testing of detection mechanisms, notifications, and batch job reliability
 - Core integration and regression testing remains required to ensure system stability
 - Optional tasks can be implemented later if more comprehensive test coverage is needed
+- **Batch Job Design**: This gear runs as a batch job - critical failures should exit with non-zero status, individual user errors should be collected and continue processing
