@@ -2,7 +2,7 @@
     "name": "form-scheduler",
     "label": "Form Scheduler",
     "description": "Queues project files for the submission pipeline",
-    "version": "1.2.0a",
+    "version": "1.2.0b",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-scheduler:1.2.0a"
+            "image": "naccdata/form-scheduler:1.2.0b"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
