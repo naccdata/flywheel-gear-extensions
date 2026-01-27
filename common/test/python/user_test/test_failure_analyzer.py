@@ -77,13 +77,8 @@ class TestFailureAnalyzer:
         assert error_event is not None
         assert error_event.category == EventCategory.DUPLICATE_USER_RECORDS.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert error_event.details["message"] == "User already exists in Flywheel"
-        assert error_event.details["existing_user_id"] == "existing_user_id"
-        assert error_event.details["registry_id"] == "reg123"
-        assert (
-            error_event.details["action_needed"]
-            == "deactivate_duplicate_and_clear_cache"
-        )
+        assert error_event.message == "User already exists in Flywheel"
+        assert error_event.action_needed == "deactivate_duplicate_and_clear_cache"
 
         # Verify proxy.find_user was called with correct registry_id
         mock_environment.proxy.find_user.assert_called_once_with("reg123")
@@ -112,16 +107,7 @@ class TestFailureAnalyzer:
         assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
         assert error_event.user_context.email == "john.doe@example.com"
         assert (
-            error_event.details["message"]
-            == "Insufficient permissions to create user in Flywheel"
-        )
-        assert (
-            error_event.details["flywheel_error"]
-            == "Permission denied: unauthorized access"
-        )
-        assert (
-            error_event.details["action_needed"]
-            == "check_flywheel_service_account_permissions"
+            error_event.message == "Insufficient permissions to create user in Flywheel"
         )
 
     def test_analyze_flywheel_user_creation_failure_unauthorized_error(
@@ -146,9 +132,6 @@ class TestFailureAnalyzer:
         # Verify the error event was created correctly
         assert error_event is not None
         assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
-        assert (
-            error_event.details["flywheel_error"] == "Unauthorized: invalid credentials"
-        )
 
     def test_analyze_flywheel_user_creation_failure_generic_error(
         self, mock_environment, sample_registered_entry
@@ -172,16 +155,9 @@ class TestFailureAnalyzer:
         assert error_event is not None
         assert error_event.category == EventCategory.FLYWHEEL_ERROR.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert (
-            error_event.details["message"]
-            == "Flywheel user creation failed after 3 attempts"
-        )
-        assert error_event.details["error"] == "Network timeout occurred"
-        assert error_event.details["registry_id"] == "reg123"
-        assert (
-            error_event.details["action_needed"]
-            == "check_flywheel_logs_and_service_status"
-        )
+        assert error_event.message == "Flywheel user creation failed after 3 attempts"
+
+        assert error_event.action_needed == "check_flywheel_logs_and_service_status"
 
     def test_analyze_flywheel_user_creation_failure_with_different_user_data(
         self, mock_environment
@@ -217,9 +193,7 @@ class TestFailureAnalyzer:
         assert error_event is not None
         assert error_event.user_context.email == "jane.smith@example.com"
         assert error_event.user_context.name
-        assert error_event.user_context.name.first_name == "Jane"
-        assert error_event.user_context.name.last_name == "Smith"
-        assert error_event.details["registry_id"] == "reg456"
+        assert error_event.user_context.name == "Jane Smith"
 
     def test_analyze_missing_claimed_user_no_person_found(
         self, mock_environment, sample_registered_entry
@@ -240,11 +214,10 @@ class TestFailureAnalyzer:
         assert error_event is not None
         assert error_event.category == EventCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "not found in registry" in error_event.details["message"]
-        assert error_event.details["registry_id"] == "reg123"
+        assert "not found in registry" in error_event.message
+
         assert (
-            error_event.details["action_needed"]
-            == "verify_registry_record_exists_or_was_deleted"
+            error_event.action_needed == "verify_registry_record_exists_or_was_deleted"
         )
 
         # Verify get_from_registry was called with correct email
@@ -370,9 +343,7 @@ class TestFailureAnalyzer:
         assert error_event is not None
         assert error_event.user_context.email == "alice.johnson@example.com"
         assert error_event.user_context.name
-        assert error_event.user_context.name.first_name == "Alice"
-        assert error_event.user_context.name.last_name == "Johnson"
-        assert error_event.details["registry_id"] == "reg789"
+        assert error_event.user_context.name == "Alice Johnson"
 
         # Verify correct email was used for lookup
         mock_environment.get_from_registry.assert_called_once_with(
@@ -398,10 +369,7 @@ class TestFailureAnalyzer:
         # Should still return a generic error event when proxy call fails
         assert error_event is not None
         assert error_event.category == EventCategory.FLYWHEEL_ERROR.value
-        assert (
-            error_event.details["message"]
-            == "Flywheel user creation failed after 3 attempts"
-        )
+        assert error_event.message == "Flywheel user creation failed after 3 attempts"
 
     def test_analyze_missing_claimed_user_registry_exception(
         self, mock_environment, sample_registered_entry
@@ -483,7 +451,7 @@ class TestFailureAnalyzer:
             assert error_event is not None
             assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
             assert (
-                error_event.details["message"]
+                error_event.message
                 == "Insufficient permissions to create user in Flywheel"
             )
 
@@ -524,6 +492,5 @@ class TestFailureAnalyzer:
             assert result is not None
             assert result.user_context.email == "full.context@example.com"
             assert result.user_context.name
-            assert result.user_context.name.first_name == "Full"
-            assert result.user_context.name.last_name == "Context"
+            assert result.user_context.name == "Full Context"
             assert result.user_context.auth_email == "full.auth@example.com"

@@ -6,7 +6,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    field_serializer,
+    field_validator,
+    model_serializer,
+)
 
 from users.user_entry import PersonName, UserEntry
 
@@ -26,24 +35,66 @@ class EventCategory(Enum):
 
     # Error categories
     UNCLAIMED_RECORDS = "Unclaimed Records"
-    INCOMPLETE_CLAIM = "Incomplete Claim"
+    INCOMPLETE_CLAIM = "Incomplete Claims"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
     MISSING_REGISTRY_DATA = "Missing Registry Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
-    FLYWHEEL_ERROR = "Flywheel Error"
+    FLYWHEEL_ERROR = "Flywheel Errors"
+
+    def to_field_name(self) -> str:
+        """Convert category to template field name (snake_case).
+
+        Returns:
+            Snake-case field name for use in templates
+
+        Example:
+            EventCategory.UNCLAIMED_RECORDS.to_field_name() -> "unclaimed_records"
+        """
+        return self.value.lower().replace(" ", "_").replace("/", "_")
 
 
 class UserContext(BaseModel):
     """User context information for events."""
 
     email: str
-    name: Optional[PersonName] = None
+    name: str = "Unknown"
     center_id: Optional[int] = None
     registry_id: Optional[str] = None
     auth_email: Optional[str] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def convert_person_name(cls, value):
+        """Convert PersonName objects to strings.
+
+        This allows PersonName objects to be passed in for backward
+        compatibility, but stores them as strings internally.
+        """
+        if value is None:
+            return "Unknown"
+        # Check if it's a PersonName object
+        if isinstance(value, PersonName):
+            return value.as_str()
+        # If it's already a string, return as-is
+        if isinstance(value, str):
+            return value.strip()
+        # If it's a dict (from deserialization), convert to string
+        if isinstance(value, dict) and "first_name" in value and "last_name" in value:
+            full_name = f"{value['first_name']} {value['last_name']}".strip()
+            return full_name if full_name else "Unknown"
+        return "Unknown"
+
+    @field_serializer("center_id", mode="plain")
+    def serialize_center_id(self, center_id: Optional[int]) -> Optional[str]:
+        """Serialize center_id as a string for templates.
+
+        Templates need string values, so convert the int to string
+        during serialization.
+        """
+        return str(center_id) if center_id is not None else None
 
     @classmethod
     def from_user_entry(cls, entry: UserEntry) -> "UserContext":
@@ -55,7 +106,11 @@ class UserContext(BaseModel):
         Returns:
             UserContext with information from the user entry
         """
-        return cls(email=entry.email, name=entry.name, auth_email=entry.auth_email)
+        return cls(
+            email=entry.email,
+            name=entry.name.as_str() if entry.name else None,
+            auth_email=entry.auth_email,
+        )
 
 
 class UserProcessEvent(BaseModel):
@@ -68,7 +123,8 @@ class UserProcessEvent(BaseModel):
     event_type: EventType
     category: EventCategory
     user_context: UserContext
-    details: Dict[str, Any]
+    message: str
+    action_needed: Optional[str] = None
 
     def to_summary(self) -> str:
         """Convert event to a one-line summary for notifications.
@@ -76,9 +132,30 @@ class UserProcessEvent(BaseModel):
         Returns:
             A formatted summary string
         """
-        message = self.details.get("message", "No details")
         # Since use_enum_values=True, category is already a string
-        return f"{self.category}: {self.user_context.email} - {message}"
+        return f"{self.category}: {self.user_context.email} - {self.message}"
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, timestamp: datetime) -> str:
+        return timestamp.isoformat()
+
+    @field_serializer("category")
+    def serialize_category(self, category: EventCategory) -> str:
+        if isinstance(category, str):
+            return category
+        return category.to_field_name()
+
+    @model_serializer(mode="wrap")
+    def serialize_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> dict[str, Any]:
+        data = handler(self)
+
+        context = data.pop("user_context")
+        for k, v in context.items():
+            data[k] = v
+
+        return data
 
     def is_success(self) -> bool:
         """Check if this is a success event.

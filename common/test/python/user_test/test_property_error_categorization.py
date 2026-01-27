@@ -52,12 +52,6 @@ def test_error_event_categorization(error_event):
         f"one of the predefined EventCategory enum values"
     )
 
-    # Assert - Error event should have all required fields for categorization
-    assert hasattr(error_event, "user_context"), "Error event should have user_context"
-    assert hasattr(error_event, "details"), "Error event should have details"
-    assert hasattr(error_event, "event_id"), "Error event should have event_id"
-    assert hasattr(error_event, "timestamp"), "Error event should have timestamp"
-
     # Assert - User context should have required email field
     assert error_event.user_context is not None, "User context should not be None"
     assert hasattr(error_event.user_context, "email"), "User context should have email"
@@ -67,6 +61,3 @@ def test_error_event_categorization(error_event):
     assert len(error_event.user_context.email) > 0, (
         "User context email should not be empty"
     )
-
-    # Assert - Error details should be a dictionary
-    assert isinstance(error_event.details, dict), "Error details should be a dictionary"

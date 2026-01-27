@@ -61,24 +61,12 @@ def test_user_context_inclusion_in_error_events(error_event):
 
     # Assert - When optional fields are present, they should have valid values
     if error_event.user_context.name is not None:
-        assert hasattr(error_event.user_context.name, "first_name"), (
-            "Name should have first_name"
-        )
-        assert hasattr(error_event.user_context.name, "last_name"), (
-            "Name should have last_name"
-        )
-        assert isinstance(error_event.user_context.name.first_name, str), (
-            "First name should be string"
-        )
-        assert isinstance(error_event.user_context.name.last_name, str), (
-            "Last name should be string"
-        )
-        assert len(error_event.user_context.name.first_name) > 0, (
-            "First name should not be empty"
-        )
-        assert len(error_event.user_context.name.last_name) > 0, (
-            "Last name should not be empty"
-        )
+        assert isinstance(error_event.user_context.name, str), "Name should be a string"
+        assert len(error_event.user_context.name) > 0, "Name should not be empty"
+        assert (
+            " " in error_event.user_context.name
+            or error_event.user_context.name == "Unknown"
+        ), "Name should contain first and last name separated by space"
 
     if error_event.user_context.center_id is not None:
         assert isinstance(error_event.user_context.center_id, int), (
@@ -150,14 +138,8 @@ def test_user_context_preserves_all_available_information(user_context):
 
     # Assert - When fields are provided, they maintain their values and types
     if user_context.name is not None:
-        assert hasattr(user_context.name, "first_name"), "Name should have first_name"
-        assert hasattr(user_context.name, "last_name"), "Name should have last_name"
-        assert isinstance(user_context.name.first_name, str), (
-            "First name should be string"
-        )
-        assert isinstance(user_context.name.last_name, str), (
-            "Last name should be string"
-        )
+        assert isinstance(user_context.name, str), "Name should be a string"
+        assert len(user_context.name) > 0, "Name should not be empty"
 
     if user_context.center_id is not None:
         assert isinstance(user_context.center_id, int), "Center ID should be integer"
@@ -211,21 +193,13 @@ def test_user_context_preserves_all_available_information(user_context):
             "Reconstructed auth_email should match"
         )
 
-        # Handle name comparison (PersonName objects)
-        if user_context.name is not None:
-            assert reconstructed.name is not None, (
-                "Reconstructed name should not be None"
-            )
-            assert reconstructed.name.first_name == user_context.name.first_name, (
-                "Reconstructed first_name should match"
-            )
-            assert reconstructed.name.last_name == user_context.name.last_name, (
-                "Reconstructed last_name should match"
-            )
-        else:
-            assert reconstructed.name is None, (
-                "Reconstructed name should be None when original is None"
-            )
+        # Handle name comparison (now strings with default)
+        assert reconstructed.name is not None, (
+            "Reconstructed name should not be None (has default 'Unknown')"
+        )
+        assert reconstructed.name == user_context.name, (
+            "Reconstructed name should match"
+        )
 
     except Exception as e:
         raise AssertionError(
@@ -251,12 +225,15 @@ def test_user_context_from_user_entry_preserves_information(user_context):
     # Note: We're testing the preservation of information, so we create an entry
     # with known values and verify they're preserved in the UserContext
 
-    # ActiveUserEntry requires a PersonName, so create one if user_context.name is None
-    entry_name = (
-        user_context.name
-        if user_context.name is not None
-        else PersonName(first_name="Test", last_name="User")
-    )
+    # ActiveUserEntry requires a PersonName, so create one from user_context.name
+    if user_context.name is not None:
+        # Parse the string name back into first and last name
+        name_parts = user_context.name.split(" ", 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+        entry_name = PersonName(first_name=first_name, last_name=last_name)
+    else:
+        entry_name = PersonName(first_name="Test", last_name="User")
 
     user_entry = ActiveUserEntry(
         name=entry_name,
@@ -282,20 +259,15 @@ def test_user_context_from_user_entry_preserves_information(user_context):
 
     # Name should be preserved - UserEntry always has a name
     assert created_context.name is not None, "Name should be preserved from user entry"
-    assert created_context.name.first_name == user_entry.name.first_name, (
-        "First name should be preserved"
-    )
-    assert created_context.name.last_name == user_entry.name.last_name, (
-        "Last name should be preserved"
+    expected_name = f"{user_entry.name.first_name} {user_entry.name.last_name}".strip()
+    assert created_context.name == expected_name, (
+        "Name should be preserved as full name string"
     )
 
     # If the original user_context had a name, it should match exactly
     if user_context.name is not None:
-        assert created_context.name.first_name == user_context.name.first_name, (
-            "Original first name should be preserved"
-        )
-        assert created_context.name.last_name == user_context.name.last_name, (
-            "Original last name should be preserved"
+        assert created_context.name == user_context.name, (
+            "Original name should be preserved"
         )
 
     # Assert - UserContext has all required fields

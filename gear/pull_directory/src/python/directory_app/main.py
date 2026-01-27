@@ -47,11 +47,8 @@ def run(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_DATA,
                 user_context=UserContext(email=email),
-                details={
-                    "message": "Directory record validation failed",
-                    "validation_error": str(error),
-                    "action_needed": "check_directory_record_format",
-                },
+                message="Directory record validation failed",
+                action_needed="check_directory_record_format",
             )
             collector.collect(error_event)
             continue
@@ -64,10 +61,8 @@ def run(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
                 user_context=UserContext(email=dir_record.email),
-                details={
-                    "message": "User permissions not approved in directory",
-                    "action_needed": "contact_center_administrator_for_approval",
-                },
+                message="User permissions not approved in directory",
+                action_needed="contact_center_administrator_for_approval",
             )
             collector.collect(error_event)
             continue
@@ -82,10 +77,8 @@ def run(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
                 user_context=UserContext(email=dir_record.email),
-                details={
-                    "message": "Data platform survey is incomplete",
-                    "action_needed": "complete_data_platform_survey",
-                },
+                message="Data platform survey is incomplete",
+                action_needed="complete_data_platform_survey",
             )
             collector.collect(error_event)
             continue

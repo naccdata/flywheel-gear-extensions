@@ -44,10 +44,8 @@ def sample_error_event():
             name=PersonName(first_name="Test", last_name="User"),
             auth_email="auth@example.com",
         ),
-        details={
-            "message": "User not found in registry",
-            "action_needed": "check_registry_status",
-        },
+        message="User not found in registry",
+        action_needed="check_registry_status",
     )
 
 
@@ -69,6 +67,7 @@ class TestConsolidatedNotificationData:
             errors_by_category={"Unclaimed Records": 1},
             error_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            category_details={},
         )
 
         assert data.gear_name == "user_management"
@@ -94,8 +93,8 @@ class TestErrorNotificationGenerator:
         assert len(notification_data.affected_users) == 1
         assert notification_data.affected_users[0] == "test@example.com"
         assert "Unclaimed Records" in notification_data.errors_by_category
-        assert notification_data.unclaimed_records is not None
-        assert len(notification_data.unclaimed_records) == 1
+        assert "Unclaimed Records" in notification_data.category_details
+        assert len(notification_data.category_details["Unclaimed Records"]) == 1
 
     def test_create_notification_data_multiple_categories(
         self, notification_generator, collector
@@ -105,19 +104,19 @@ class TestErrorNotificationGenerator:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="test1@example.com"),
-            details={"message": "Unclaimed record"},
+            message="Unclaimed record",
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="test2@example.com"),
-            details={"message": "Another unclaimed record"},
+            message="Another unclaimed record",
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="test3@example.com"),
-            details={"message": "Incomplete claim"},
+            message="Incomplete claim",
         )
 
         collector.collect(error1)
@@ -131,9 +130,9 @@ class TestErrorNotificationGenerator:
         assert notification_data.total_errors == 3
         assert len(notification_data.affected_users) == 3
         assert notification_data.errors_by_category["Unclaimed Records"] == 2
-        assert notification_data.errors_by_category["Incomplete Claim"] == 1
-        assert len(notification_data.unclaimed_records) == 2
-        assert len(notification_data.incomplete_claims) == 1
+        assert notification_data.errors_by_category["Incomplete Claims"] == 1
+        assert len(notification_data.category_details["Unclaimed Records"]) == 2
+        assert len(notification_data.category_details["Incomplete Claims"]) == 1
 
     def test_send_consolidated_notification(
         self, notification_generator, mock_email_client
@@ -146,6 +145,7 @@ class TestErrorNotificationGenerator:
             errors_by_category={"Unclaimed Records": 1},
             error_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            category_details={},
         )
 
         mock_email_client.send.return_value = "message-id-123"
@@ -168,6 +168,7 @@ class TestErrorNotificationGenerator:
             errors_by_category={"Unclaimed Records": 1},
             error_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            category_details={},
         )
 
         message_id = notification_generator.send_consolidated_notification(

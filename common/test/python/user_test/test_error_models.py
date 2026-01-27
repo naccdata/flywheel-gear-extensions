@@ -3,50 +3,10 @@
 import json
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any
 
 import pytest
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
 from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
-
-
-class TestEventCategory:
-    """Tests for EventCategory enum values."""
-
-    def test_error_category_enum_values(self):
-        """Test that EventCategory enum has all required values."""
-        # Import will be available after implementation
-
-        # Test all required category values exist
-        assert EventCategory.UNCLAIMED_RECORDS.value == "Unclaimed Records"
-        assert EventCategory.INCOMPLETE_CLAIM.value == "Incomplete Claim"
-        assert EventCategory.BAD_ORCID_CLAIMS.value == "Bad ORCID Claims"
-        assert (
-            EventCategory.MISSING_DIRECTORY_PERMISSIONS.value
-            == "Missing Directory Permissions"
-        )
-        assert (
-            EventCategory.INSUFFICIENT_PERMISSIONS.value == "Insufficient Permissions"
-        )
-        assert (
-            EventCategory.DUPLICATE_USER_RECORDS.value == "Duplicate/Wrong User Records"
-        )
-        assert EventCategory.FLYWHEEL_ERROR.value == "Flywheel Error"
-
-    def test_error_category_is_enum(self):
-        """Test that EventCategory is a proper enum."""
-
-        assert issubclass(EventCategory, Enum)
-
-        # Test that we can iterate over all values
-        categories = list(EventCategory)
-        assert len(categories) > 0  # Just verify we have categories
-
-        # Test that each category has a string value
-        for category in categories:
-            assert isinstance(category.value, str)
-            assert len(category.value) > 0
 
 
 class TestUserContext:
@@ -73,8 +33,7 @@ class TestUserContext:
         # Verify the context contains expected data
         assert user_context.email == "john.doe@example.com"
         assert user_context.name is not None
-        assert user_context.name.first_name == "John"
-        assert user_context.name.last_name == "Doe"
+        assert user_context.name == "John Doe"
         assert user_context.auth_email == "john.auth@example.com"
 
     def test_user_context_creation_with_optional_fields(self):
@@ -84,7 +43,7 @@ class TestUserContext:
         user_context = UserContext(email="test@example.com")
 
         assert user_context.email == "test@example.com"
-        assert user_context.name is None
+        assert user_context.name == "Unknown"
         assert user_context.center_id is None
         assert user_context.registry_id is None
         assert user_context.auth_email is None
@@ -102,8 +61,7 @@ class TestUserContext:
 
         assert user_context.email == "test@example.com"
         assert user_context.name is not None
-        assert user_context.name.first_name == "Jane"
-        assert user_context.name.last_name == "Smith"
+        assert user_context.name == "Jane Smith"
         assert user_context.center_id == 456
         assert user_context.registry_id == "reg123"
         assert user_context.auth_email == "jane.auth@example.com"
@@ -122,9 +80,8 @@ class TestUserContext:
         # Test serialization to dict
         context_dict = user_context.model_dump()
         assert context_dict["email"] == "test@example.com"
-        assert context_dict["name"]["first_name"] == "Alice"
-        assert context_dict["name"]["last_name"] == "Johnson"
-        assert context_dict["center_id"] == 789
+        assert context_dict["name"] == "Alice Johnson"
+        assert context_dict["center_id"] == str(789)
         assert context_dict["registry_id"] == "reg456"
         assert context_dict["auth_email"] == "alice.auth@example.com"
 
@@ -132,7 +89,7 @@ class TestUserContext:
         context_json = user_context.model_dump_json()
         parsed_json = json.loads(context_json)
         assert parsed_json["email"] == "test@example.com"
-        assert parsed_json["name"]["first_name"] == "Alice"
+        assert parsed_json["name"] == "Alice Johnson"
 
     def test_user_context_from_registered_user_entry(self):
         """Test UserContext creation from RegisteredUserEntry."""
@@ -156,8 +113,7 @@ class TestUserContext:
         # Verify the context contains expected data
         assert user_context.email == "bob.wilson@example.com"
         assert user_context.name is not None
-        assert user_context.name.first_name == "Bob"
-        assert user_context.name.last_name == "Wilson"
+        assert user_context.name == "Bob Wilson"
         assert user_context.auth_email == "bob.auth@example.com"
 
 
@@ -172,22 +128,18 @@ class TestUserProcessEvent:
             name=PersonName(first_name="Test", last_name="User"),
         )
 
-        details = {
-            "message": "Test error message",
-            "action_needed": "test_action",
-        }
-
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context,
-            details=details,
+            message="Test error message",
+            action_needed="test_action",
         )
 
         # Verify the error event was created correctly
         assert error_event.category == "Unclaimed Records"
         assert error_event.user_context.email == "test@example.com"
-        assert error_event.details["message"] == "Test error message"
+        assert error_event.message == "Test error message"
 
         # Verify auto-generated fields
         assert isinstance(error_event.event_id, str)
@@ -198,16 +150,15 @@ class TestUserProcessEvent:
         """Test UserProcessEvent creation with different categories."""
 
         user_context = UserContext(email="category@example.com")
-        details = {"message": "Category test"}
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=user_context,
-            details=details,
+            message="Category test",
         )
 
-        assert error_event.category == "Incomplete Claim"
+        assert error_event.category == "Incomplete Claims"
 
     def test_error_event_serialization(self):
         """Test UserProcessEvent serialization to dict and JSON."""
@@ -221,14 +172,14 @@ class TestUserProcessEvent:
             event_type=EventType.ERROR,
             category=EventCategory.BAD_ORCID_CLAIMS,
             user_context=user_context,
-            details={"message": "Serialization test"},
+            message="Serialization test",
         )
 
         # Test serialization to dict
         event_dict = error_event.model_dump()
         assert event_dict["category"] == "Bad ORCID Claims"
-        assert event_dict["user_context"]["email"] == "serialize@example.com"
-        assert event_dict["details"]["message"] == "Serialization test"
+        assert event_dict["email"] == "serialize@example.com"
+        assert event_dict["message"] == "Serialization test"
         assert "event_id" in event_dict
         assert "timestamp" in event_dict
 
@@ -236,19 +187,18 @@ class TestUserProcessEvent:
         event_json = error_event.model_dump_json()
         parsed_json = json.loads(event_json)
         assert parsed_json["category"] == "Bad ORCID Claims"
-        assert parsed_json["user_context"]["email"] == "serialize@example.com"
+        assert parsed_json["email"] == "serialize@example.com"
 
     def test_error_event_to_summary(self):
         """Test UserProcessEvent to_summary method."""
 
         user_context = UserContext(email="summary@example.com")
-        details = {"message": "Summary test message"}
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INSUFFICIENT_PERMISSIONS,
             user_context=user_context,
-            details=details,
+            message="Summary test message",
         )
 
         summary = error_event.to_summary()
@@ -258,21 +208,19 @@ class TestUserProcessEvent:
         assert summary == expected
 
     def test_error_event_to_summary_no_message(self):
-        """Test UserProcessEvent to_summary method when no message in
-        details."""
+        """Test UserProcessEvent to_summary method when no message provided."""
 
         user_context = UserContext(email="nomessage@example.com")
-        details = {"action_needed": "some_action"}
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.DUPLICATE_USER_RECORDS,
             user_context=user_context,
-            details=details,
+            message="",
         )
 
         summary = error_event.to_summary()
-        expected = "Duplicate/Wrong User Records: nomessage@example.com - No details"
+        expected = "Duplicate/Wrong User Records: nomessage@example.com - "
         assert summary == expected
 
     def test_error_event_default_values(self):
@@ -285,7 +233,7 @@ class TestUserProcessEvent:
             event_type=EventType.ERROR,
             category=EventCategory.MISSING_DIRECTORY_DATA,
             user_context=user_context,
-            details={"message": "Default test"},
+            message="Default test",
         )
 
         # Verify defaults were applied
@@ -326,7 +274,7 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context,
-            details={"message": "Test error"},
+            message="Test error",
         )
 
         collector.collect(error_event)
@@ -351,13 +299,13 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context1,
-            details={"message": "First error"},
+            message="First error",
         )
         error_event2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=user_context2,
-            details={"message": "Second error"},
+            message="Second error",
         )
 
         collector.collect(error_event1)
@@ -382,19 +330,19 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user1@example.com"),
-            details={"message": "First unclaimed"},
+            message="First unclaimed",
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user2@example.com"),
-            details={"message": "Second unclaimed"},
+            message="Second unclaimed",
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user3@example.com"),
-            details={"message": "Incomplete claim"},
+            message="Incomplete claim",
         )
 
         collector.collect(error1)
@@ -419,13 +367,13 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user1@example.com"),
-            details={"message": "Unclaimed"},
+            message="Unclaimed",
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user2@example.com"),
-            details={"message": "Incomplete claim"},
+            message="Incomplete claim",
         )
 
         collector.collect(error1)
@@ -461,19 +409,19 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user1@example.com"),
-            details={"message": "First"},
+            message="First",
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user2@example.com"),
-            details={"message": "Second"},
+            message="Second",
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user3@example.com"),
-            details={"message": "Incomplete claim"},
+            message="Incomplete claim",
         )
 
         collector.collect(error1)
@@ -483,7 +431,7 @@ class TestUserEventCollector:
         counts = collector.count_by_category()
 
         assert counts["Unclaimed Records"] == 2
-        assert counts["Incomplete Claim"] == 1
+        assert counts["Incomplete Claims"] == 1
         assert len(counts) == 2
 
     def test_collector_get_affected_users(self):
@@ -498,19 +446,19 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user1@example.com"),
-            details={"message": "Error 1"},
+            message="Error 1",
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user2@example.com"),
-            details={"message": "Error 2"},
+            message="Error 2",
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext(email="user1@example.com"),
-            details={"message": "Error 3"},
+            message="Error 3",
         )
 
         collector.collect(error1)
@@ -535,7 +483,7 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context,
-            details={"message": "Test error"},
+            message="Test error",
         )
 
         collector.collect(error_event)
@@ -566,7 +514,7 @@ class TestUserEventCollector:
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context,
-            details={"message": "Test error"},
+            message="Test error",
         )
         collector.collect(error_event)
         assert collector.has_errors()
@@ -583,18 +531,17 @@ class TestCreateUserProcessEvent:
         """Test basic error event creation."""
 
         user_context = UserContext(email="test@example.com")
-        details = {"message": "Test error message", "action_needed": "test_action"}
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=user_context,
-            details=details,
+            message="Test error message",
         )
 
         assert error_event.category == "Unclaimed Records"
         assert error_event.user_context == user_context
-        assert error_event.details == details
+        assert error_event.message == "Test error message"
         assert isinstance(error_event.event_id, str)
         assert len(error_event.event_id) > 0
         assert isinstance(error_event.timestamp, datetime)
@@ -603,12 +550,11 @@ class TestCreateUserProcessEvent:
         """Test creating error events with different categories."""
 
         user_context = UserContext(email="test@example.com")
-        details = {"message": "Test message"}
 
         # Test each category
         categories_to_test = [
             (EventCategory.UNCLAIMED_RECORDS, "Unclaimed Records"),
-            (EventCategory.INCOMPLETE_CLAIM, "Incomplete Claim"),
+            (EventCategory.INCOMPLETE_CLAIM, "Incomplete Claims"),
             (EventCategory.BAD_ORCID_CLAIMS, "Bad ORCID Claims"),
             (
                 EventCategory.MISSING_DIRECTORY_PERMISSIONS,
@@ -621,7 +567,7 @@ class TestCreateUserProcessEvent:
                 EventCategory.DUPLICATE_USER_RECORDS,
                 "Duplicate/Wrong User Records",
             ),
-            (EventCategory.FLYWHEEL_ERROR, "Flywheel Error"),
+            (EventCategory.FLYWHEEL_ERROR, "Flywheel Errors"),
         ]
 
         for category_enum, expected_value in categories_to_test:
@@ -629,64 +575,26 @@ class TestCreateUserProcessEvent:
                 event_type=EventType.ERROR,
                 category=category_enum,
                 user_context=user_context,
-                details=details,
+                message="Test message",
             )
             assert error_event.category == expected_value
-
-    def test_create_error_event_with_complex_details(self):
-        """Test creating error event with complex error details."""
-
-        user_context = UserContext(
-            email="complex@example.com",
-            name=PersonName(first_name="Complex", last_name="User"),
-            center_id=123,
-            registry_id="reg456",
-            auth_email="complex.auth@example.com",
-        )
-
-        complex_details = {
-            "message": "Complex error occurred",
-            "action_needed": "complex_action",
-            "error_code": 500,
-            "retry_count": 3,
-            "additional_info": {
-                "subsystem": "flywheel",
-                "operation": "user_creation",
-                "timestamp": "2024-01-01T12:00:00Z",
-            },
-        }
-
-        error_event = UserProcessEvent(
-            event_type=EventType.ERROR,
-            category=EventCategory.INSUFFICIENT_PERMISSIONS,
-            user_context=user_context,
-            details=complex_details,
-        )
-
-        assert error_event.category == "Insufficient Permissions"
-        assert error_event.user_context.email == "complex@example.com"
-        assert error_event.user_context.center_id == 123
-        assert error_event.details == complex_details
-        assert error_event.details["error_code"] == 500
-        assert error_event.details["additional_info"]["subsystem"] == "flywheel"
 
     def test_create_error_event_with_minimal_details(self):
         """Test creating error event with minimal details."""
 
         user_context = UserContext(email="minimal@example.com")
-        details: dict[str, Any] = {}  # Empty details
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.FLYWHEEL_ERROR,
             user_context=user_context,
-            details=details,
+            message="",
         )
 
-        assert error_event.category == "Flywheel Error"
+        assert error_event.category == "Flywheel Errors"
         assert error_event.user_context.email == "minimal@example.com"
-        assert error_event.details == {}
+        assert error_event.message == ""
 
-        # Test to_summary with empty details
+        # Test to_summary with empty message
         summary = error_event.to_summary()
-        assert "No details" in summary
+        assert "Flywheel Errors" in summary

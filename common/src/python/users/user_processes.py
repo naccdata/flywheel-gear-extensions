@@ -171,13 +171,7 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
             event_type=EventType.SUCCESS,
             category=EventCategory.USER_CREATED,
             user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User successfully created in Flywheel",
-                "registry_id": entry.registry_id,
-                "center_id": str(entry.adcid),
-                "center_name": entry.org_name,
-                "authorizations": [str(auth) for auth in entry.authorizations],
-            },
+            message="User successfully created in Flywheel",
         )
         self.collector.collect(success_event)
 
@@ -473,22 +467,20 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
         self.__notification_client.send_followup_claim_email(entry)
 
         # Create error event for unclaimed user tracking
-        days_unclaimed = None
+        message = "User has not claimed their user registry record"
         if entry.registration_date:
             days_unclaimed = (datetime.now() - entry.registration_date).days
+            message = (
+                "User has not claimed their user registry record "
+                f"({days_unclaimed} days unclaimed)"
+            )
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.UNCLAIMED_RECORDS,
             user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": "User has not claimed their COManage registry account",
-                "registration_date": entry.registration_date.isoformat()
-                if entry.registration_date
-                else None,
-                "days_unclaimed": days_unclaimed,
-                "action_needed": "follow_up_with_user_to_claim_account",
-            },
+            message=message,
+            action_needed="follow_up_with_user_to_claim_account",
         )
         self.collector.collect(error_event)
 
@@ -542,11 +534,8 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_DATA,
                 user_context=UserContext.from_user_entry(entry),
-                details={
-                    "message": "User has no authentication email in directory",
-                    "directory_email": entry.email,
-                    "action_needed": "update_directory_auth_email",
-                },
+                message="User has no authentication email in directory",
+                action_needed="update_directory_auth_email",
             )
             self.collector.collect(error_event)
             return

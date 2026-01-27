@@ -2,11 +2,12 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
+from pydantic import SerializationInfo, SerializerFunctionWrapHandler, model_serializer
 
-from users.event_models import EventCategory, UserEventCollector
+from users.event_models import UserEventCollector
 
 log = logging.getLogger(__name__)
 
@@ -24,17 +25,21 @@ class ConsolidatedNotificationData(BaseTemplateModel):
     errors_by_category: Dict[str, int]
     error_summaries: List[str]
     affected_users: List[str]
+    category_details: Dict[str, List[Dict[str, str]]]
 
-    # Optional fields for specific error categories
-    unclaimed_records: Optional[List[Dict[str, str]]] = None
-    incomplete_claims: Optional[List[Dict[str, str]]] = None
-    bad_orcid_claims: Optional[List[Dict[str, str]]] = None
-    missing_directory_permissions: Optional[List[Dict[str, str]]] = None
-    missing_directory_data: Optional[List[Dict[str, str]]] = None
-    missing_registry_data: Optional[List[Dict[str, str]]] = None
-    insufficient_permissions: Optional[List[Dict[str, str]]] = None
-    duplicate_user_records: Optional[List[Dict[str, str]]] = None
-    flywheel_errors: Optional[List[Dict[str, str]]] = None
+    @model_serializer(mode="wrap")
+    def serialize_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Serialize model, flattening category_details into top-level
+        fields."""
+        data = handler(self)
+
+        # Flatten each category into a top-level snake_case field
+        for k, v in self.category_details.items():
+            data[k] = v
+
+        return data
 
 
 class ErrorNotificationGenerator:
@@ -69,41 +74,13 @@ class ErrorNotificationGenerator:
         # Get errors grouped by category from the collector
         grouped = collector.get_errors_by_category()
 
-        # Create category-specific data
-        category_data = {}
-
-        for category, category_errors in grouped.items():
-            error_list = []
-            for error in category_errors:
-                error_dict = {
-                    "email": error.user_context.email,
-                    "name": (
-                        error.user_context.name.as_str()
-                        if error.user_context.name
-                        else "Unknown"
-                    ),
-                    "message": error.details.get("message", "No details"),
-                    "timestamp": error.timestamp.isoformat(),
-                }
-
-                # Add category-specific fields
-                if error.user_context.registry_id:
-                    error_dict["registry_id"] = error.user_context.registry_id
-                if error.user_context.auth_email:
-                    error_dict["auth_email"] = error.user_context.auth_email
-                if error.user_context.center_id:
-                    error_dict["center_id"] = str(error.user_context.center_id)
-
-                # Add action needed if present
-                action_needed = error.details.get("action_needed")
-                if action_needed:
-                    error_dict["action_needed"] = action_needed
-
-                error_list.append(error_dict)
-
-            # Map category to field name
-            field_name = self._category_to_field_name(category)
-            category_data[field_name] = error_list
+        # Use event's to_template_dict() method for serialization
+        category_details = {
+            category.value: [
+                error.model_dump(exclude_none=True) for error in category_errors
+            ]
+            for category, category_errors in grouped.items()
+        }
 
         # Get all errors as flat list for summaries
         all_errors = collector.get_errors()
@@ -115,32 +92,8 @@ class ErrorNotificationGenerator:
             errors_by_category=collector.count_by_category(),
             error_summaries=[error.to_summary() for error in all_errors],
             affected_users=collector.get_affected_users(),
-            **category_data,
+            category_details=category_details,
         )
-
-    def _category_to_field_name(self, category: EventCategory) -> str:
-        """Convert error category to field name for template data.
-
-        Args:
-            category: The error category
-
-        Returns:
-            Field name for the category in template data
-        """
-        mapping = {
-            EventCategory.UNCLAIMED_RECORDS: "unclaimed_records",
-            EventCategory.INCOMPLETE_CLAIM: "incomplete_claims",
-            EventCategory.BAD_ORCID_CLAIMS: "bad_orcid_claims",
-            EventCategory.MISSING_DIRECTORY_PERMISSIONS: (
-                "missing_directory_permissions"
-            ),
-            EventCategory.MISSING_DIRECTORY_DATA: "missing_directory_data",
-            EventCategory.MISSING_REGISTRY_DATA: "missing_registry_data",
-            EventCategory.INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
-            EventCategory.DUPLICATE_USER_RECORDS: "duplicate_user_records",
-            EventCategory.FLYWHEEL_ERROR: "flywheel_errors",
-        }
-        return mapping.get(category, "unknown_errors")
 
     def send_consolidated_notification(
         self,

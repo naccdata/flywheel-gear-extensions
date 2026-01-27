@@ -46,12 +46,8 @@ class FailureAnalyzer:
                     event_type=EventType.ERROR,
                     category=EventCategory.DUPLICATE_USER_RECORDS,
                     user_context=UserContext.from_user_entry(entry),
-                    details={
-                        "message": "User already exists in Flywheel",
-                        "existing_user_id": existing_user.id,
-                        "registry_id": entry.registry_id,
-                        "action_needed": "deactivate_duplicate_and_clear_cache",
-                    },
+                    message="User already exists in Flywheel",
+                    action_needed="deactivate_duplicate_and_clear_cache",
                 )
 
             # Check if it's a permission issue
@@ -61,13 +57,8 @@ class FailureAnalyzer:
                     event_type=EventType.ERROR,
                     category=EventCategory.INSUFFICIENT_PERMISSIONS,
                     user_context=UserContext.from_user_entry(entry),
-                    details={
-                        "message": (
-                            "Insufficient permissions to create user in Flywheel"
-                        ),
-                        "flywheel_error": str(error),
-                        "action_needed": "check_flywheel_service_account_permissions",
-                    },
+                    message="Insufficient permissions to create user in Flywheel",
+                    action_needed="check_flywheel_service_account_permissions",
                 )
 
             # Generic Flywheel error
@@ -75,12 +66,8 @@ class FailureAnalyzer:
                 event_type=EventType.ERROR,
                 category=EventCategory.FLYWHEEL_ERROR,
                 user_context=UserContext.from_user_entry(entry),
-                details={
-                    "message": "Flywheel user creation failed after 3 attempts",
-                    "error": str(error),
-                    "registry_id": entry.registry_id,
-                    "action_needed": "check_flywheel_logs_and_service_status",
-                },
+                message="Flywheel user creation failed after 3 attempts",
+                action_needed="check_flywheel_logs_and_service_status",
             )
 
         except Exception:
@@ -89,12 +76,8 @@ class FailureAnalyzer:
                 event_type=EventType.ERROR,
                 category=EventCategory.FLYWHEEL_ERROR,
                 user_context=UserContext.from_user_entry(entry),
-                details={
-                    "message": "Flywheel user creation failed after 3 attempts",
-                    "error": str(error),
-                    "registry_id": entry.registry_id,
-                    "action_needed": "check_flywheel_logs_and_service_status",
-                },
+                message="Flywheel user creation failed after 3 attempts",
+                action_needed="check_flywheel_logs_and_service_status",
             )
 
     def analyze_missing_claimed_user(
@@ -159,16 +142,11 @@ class FailureAnalyzer:
             event_type=EventType.ERROR,
             category=EventCategory.MISSING_REGISTRY_DATA,
             user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": (
-                    "Expected claimed user not found in registry by ID, "
-                    "email, or bad claims"
-                ),
-                "registry_id": entry.registry_id,
-                "checked_email": email_to_check,
-                "checked_name": full_name,
-                "action_needed": "verify_registry_record_exists_or_was_deleted",
-            },
+            message=(
+                "Expected claimed user not found in registry by ID, "
+                "email, or bad claims"
+            ),
+            action_needed="verify_registry_record_exists_or_was_deleted",
         )
 
     def detect_incomplete_claim(
@@ -200,26 +178,16 @@ class FailureAnalyzer:
                 event_type=EventType.ERROR,
                 category=EventCategory.BAD_ORCID_CLAIMS,
                 user_context=UserContext.from_user_entry(entry),
-                details={
-                    "message": "User has incomplete claim with ORCID identity provider",
-                    "full_name": entry.name.as_str() if entry.name else "unknown",
-                    "has_orcid_org_identity": True,
-                    "action_needed": (
-                        "delete_bad_record_and_reclaim_with_institutional_idp"
-                    ),
-                },
+                message="User has incomplete claim with ORCID identity provider",
+                action_needed="delete_bad_record_and_reclaim_with_institutional_idp",
             )
 
         return UserProcessEvent(
             event_type=EventType.ERROR,
             category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext.from_user_entry(entry),
-            details={
-                "message": (
-                    "User has incomplete claim (identity provider did not return email)"
-                ),
-                "full_name": entry.name.as_str() if entry.name else "unknown",
-                "has_orcid_org_identity": False,
-                "action_needed": "verify_identity_provider_configuration_and_reclaim",
-            },
+            message=(
+                "User has incomplete claim (identity provider did not return email)"
+            ),
+            action_needed="verify_identity_provider_configuration_and_reclaim",
         )

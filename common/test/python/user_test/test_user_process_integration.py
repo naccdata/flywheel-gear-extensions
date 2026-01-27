@@ -131,7 +131,7 @@ class TestActiveUserProcessIntegration:
         error_event = errors[0]
         assert error_event.category == EventCategory.MISSING_DIRECTORY_DATA.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "no authentication email" in error_event.details["message"]
+        assert "no authentication email" in error_event.message
 
     def test_active_user_process_creates_error_for_bad_claim(
         self, mock_environment, collector, sample_active_entry, caplog
@@ -165,7 +165,7 @@ class TestActiveUserProcessIntegration:
         error_event = errors[0]
         assert error_event.category == EventCategory.BAD_ORCID_CLAIMS.value
         assert error_event.user_context.email == "john.doe@example.com"
-        assert "incomplete claim" in error_event.details["message"]
+        assert "incomplete claim" in error_event.message
 
     def test_active_user_process_no_error_for_missing_creation_date(
         self, mock_environment, collector, sample_active_entry, caplog
@@ -404,7 +404,7 @@ class TestClaimedUserProcessIntegration:
         error_event = errors[0]
         assert error_event.category == EventCategory.INSUFFICIENT_PERMISSIONS.value
         assert error_event.user_context.email == "jane.smith@example.com"
-        assert "Insufficient permissions" in error_event.details["message"]
+        assert "Insufficient permissions" in error_event.message
 
     def test_claimed_user_process_handles_user_not_found_after_creation(
         self,
@@ -550,7 +550,7 @@ class TestUpdateUserProcessIntegration:
         error_event = errors[0]
         assert error_event.category == EventCategory.MISSING_REGISTRY_DATA.value
         assert error_event.user_context.email == "bob.wilson@example.com"
-        assert "not found in registry" in error_event.details["message"]
+        assert "not found in registry" in error_event.message
 
     def test_update_user_process_no_error_for_missing_flywheel_user(
         self,

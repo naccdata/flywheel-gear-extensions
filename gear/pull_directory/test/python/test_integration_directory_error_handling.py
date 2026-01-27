@@ -788,10 +788,8 @@ class TestDirectoryErrorHandlingIntegration:
                 email="test@example.com",
                 name=PersonName(first_name="Test", last_name="User"),
             ),
-            details={
-                "message": "Permissions not approved",
-                "action_needed": "contact_center_administrator",
-            },
+            message="Permissions not approved",
+            action_needed="contact_center_administrator",
         )
 
         collector.collect(error_event)

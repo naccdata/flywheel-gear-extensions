@@ -291,11 +291,11 @@ def error_event_strategy(draw):
 
     category = draw(st.sampled_from(list(EventCategory)))
     user_context = draw(user_context_strategy())
-    details = draw(error_details_strategy())
+    message = draw(st.one_of(st.none(), st.text(min_size=1, max_size=100)))
 
     return UserProcessEvent(
         event_type=EventType.ERROR,
         category=category,
         user_context=user_context,
-        details=details,
+        message=message or "",
     )
