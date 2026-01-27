@@ -13,7 +13,10 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.parameter_store import ParameterError, ParameterStore
+from notifications.email import EmailClient, create_ses_client
 from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from users.error_notifications import ErrorNotificationGenerator
+from users.event_models import UserEventCollector
 from yaml.representer import RepresenterError
 
 from directory_app.main import run
@@ -29,10 +32,16 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         user_filename: str,
         user_report: List[Dict[str, str]],
+        collector: Optional[UserEventCollector] = None,
+        email_source: Optional[str] = None,
+        support_emails: Optional[List[str]] = None,
     ):
         super().__init__(client=client)
         self.__user_filename = user_filename
         self.__user_report = user_report
+        self.__collector = collector if collector is not None else UserEventCollector()
+        self.__email_source = email_source
+        self.__support_emails = support_emails or []
 
     @classmethod
     def create(
@@ -74,9 +83,87 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         if not user_filename:
             raise GearExecutionError("No user file name provided")
 
+        # Create error collector as core functionality
+        collector = UserEventCollector()
+
+        # Get email sender configuration
+        email_source = cls._get_email_source(context, parameter_store)
+
+        # Retrieve optional support emails
+        support_emails = cls._get_support_emails(context, parameter_store)
+
         return DirectoryPullVisitor(
-            client=client, user_filename=user_filename, user_report=user_report
+            client=client,
+            user_filename=user_filename,
+            user_report=user_report,
+            collector=collector,
+            email_source=email_source,
+            support_emails=support_emails,
         )
+
+    @staticmethod
+    def _get_email_source(
+        context: GearToolkitContext, parameter_store: ParameterStore
+    ) -> Optional[str]:
+        """Retrieve email sender configuration from parameter store.
+
+        Args:
+            context: The gear context
+            parameter_store: The parameter store instance
+
+        Returns:
+            Email source address, or None if not configured
+        """
+        sender_path = context.config.get("sender_path", "/prod/notifications/sender")
+        if not sender_path:
+            log.warning("No sender_path configured - notifications will not be sent")
+            return None
+
+        try:
+            sender_params = parameter_store.get_notification_parameters(sender_path)
+            return sender_params["sender"]
+        except ParameterError as error:
+            log.warning(
+                "Failed to load email sender from %s: %s. "
+                "Notifications will not be sent.",
+                sender_path,
+                error,
+            )
+            return None
+
+    @staticmethod
+    def _get_support_emails(
+        context: GearToolkitContext, parameter_store: ParameterStore
+    ) -> list[str]:
+        """Retrieve optional support emails from parameter store.
+
+        Args:
+            context: The gear context
+            parameter_store: The parameter store instance
+
+        Returns:
+            List of support email addresses
+        """
+        support_email_path = context.config.get(
+            "support_emails_path", "/prod/notifications/support_emails"
+        )
+
+        try:
+            support_emails = parameter_store.get_support_emails(support_email_path)
+            log.info(
+                "Loaded %d support email(s) for error notifications",
+                len(support_emails),
+            )
+            return support_emails
+        except ParameterError as error:
+            # Support emails are optional - log warning but don't fail
+            log.warning(
+                "Failed to load support emails from %s: %s. "
+                "Error notifications will not be sent.",
+                support_email_path,
+                error,
+            )
+            return []
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the directory pull gear.
@@ -97,7 +184,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             return
 
         try:
-            yaml_text = run(user_report=self.__user_report)
+            yaml_text = run(user_report=self.__user_report, collector=self.__collector)
         except RepresenterError as error:
             raise GearExecutionError(
                 f"Error: can't create YAML for file{self.__user_filename}: {error}"
@@ -107,6 +194,63 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             self.__user_filename, mode="w", encoding="utf-8"
         ) as out_file:
             out_file.write(yaml_text)
+
+        if not self.__collector.has_errors():
+            log.info("Directory pull completed successfully with no errors")
+            return
+
+        # Log error summary at end of run
+
+        log.info(
+            "Directory pull completed with %d errors across %d users",
+            self.__collector.error_count(),
+            len(self.__collector.get_affected_users()),
+        )
+        log.info("Error breakdown by category:")
+        for category, count in self.__collector.count_by_category().items():
+            log.info("  %s: %d", category, count)
+
+        if not self.__support_emails:
+            log.info("Notifications not configured")
+            return
+        if not self.__email_source:
+            log.warning("Notifications not sent: sender must be configured")
+            return
+
+        log.info(
+            "Sending consolidated error notification for %d error(s)",
+            self.__collector.error_count(),
+        )
+        try:
+            notification_generator = ErrorNotificationGenerator(
+                email_client=EmailClient(
+                    client=create_ses_client(),
+                    source=self.__email_source,
+                ),
+                configuration_set_name="pull-directory-errors",
+            )
+            message_id = notification_generator.send_error_notification(
+                collector=self.__collector,
+                gear_name="pull_directory",
+                support_emails=self.__support_emails,
+            )
+            if message_id:
+                log.info(
+                    "Successfully sent error notification with message ID: %s",
+                    message_id,
+                )
+            else:
+                log.warning(
+                    "Failed to send error notification - no message ID returned"
+                )
+        except Exception as error:
+            # Don't fail the gear run if notification fails
+            log.error(
+                "Failed to send error notification: %s",
+                error,
+                exc_info=True,
+            )
+            raise GearExecutionError(error) from error
 
 
 def main() -> None:
