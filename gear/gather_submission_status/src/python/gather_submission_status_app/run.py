@@ -44,7 +44,6 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         admin_id: str,
         file_input: InputFileWrapper,
         output_filename: str,
-        gear_name: str,
         project_names: List[str],
         modules: set[ModuleName],
         study_id: str,
@@ -55,7 +54,6 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__admin_id = admin_id
         self.__file_input = file_input
         self.__output_filename = output_filename
-        self.__gear_name = gear_name
         self.__project_names = project_names
         self.__modules = modules
         self.__study_id = study_id
@@ -83,20 +81,19 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        output_filename = context.config.get("output_file", "submission-status.csv")
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        project_names = context.config.get("project_names", "").split(",")
-        modules = context.config.get("modules", "").split(",")
+        output_filename = context.config.opts.get("output_file", "submission-status.csv")
+        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        project_names = context.config.opts.get("project_names", "").split(",")
+        modules = context.config.opts.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
         ]
         if unexpected_modules:
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
-        study_id = context.config.get("study_id", "adrc")
-        gear_name = context.manifest.get("name", "gather-submission-status")
+        study_id = context.config.opts.get("study_id", "adrc")
 
-        query_type_arg = context.config.get("query_type", "status")
+        query_type_arg = context.config.opts.get("query_type", "status")
         if query_type_arg not in ["error", "status"]:
             raise GearExecutionError(f"Invalid query_type: {query_type_arg}")
 
@@ -114,7 +111,6 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             file_input=file_input,
             output_filename=output_filename,
             admin_id=admin_id,
-            gear_name=gear_name,
             project_names=project_names,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
@@ -164,8 +160,9 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 data=error_writer.errors().model_dump(by_alias=True),
             )
 
+            gear_name = self.gear_name(context, "gather-submission-status")
             context.metadata.add_file_tags(
-                self.__file_input.file_input, tags=self.__gear_name
+                self.__file_input.file_input, tags=gear_name
             )
 
 

@@ -59,7 +59,7 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         if not project_filepath:
             raise GearExecutionError("No project file provided")
 
-        admin_id = context.config.get("admin_group", "nacc")
+        admin_id = context.config.opts.get("admin_group", "nacc")
 
         return ProjectCreationVisitor(
             admin_id=admin_id, client=client, project_filepath=project_filepath

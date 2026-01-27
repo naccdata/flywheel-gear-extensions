@@ -67,7 +67,7 @@ def save_output(
     if tags or info:
         context.metadata.update_file_metadata(
             file_=outfilename,
-            container_type=context.destination["type"],
+            container_type=context.config.destination["type"],
             tags=tags,
             info=info,
         )

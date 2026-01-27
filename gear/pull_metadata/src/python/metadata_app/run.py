@@ -51,7 +51,7 @@ def main():
             log.error("Expected destination label")
             sys.exit(1)
 
-        apikey_path_prefix = gear_context.config.get(
+        apikey_path_prefix = gear_context.config.opts.get(
             "apikey_path_prefix", "/prod/flywheel/gearbot"
         )
         log.info("Running gearbot with API key from %s/apikey", apikey_path_prefix)
@@ -70,7 +70,7 @@ def main():
             log.error("Gearbot API key does not match host")
             sys.exit(1)
 
-        dry_run = gear_context.config.get("dry_run", False)
+        dry_run = gear_context.config.opts.get("dry_run", False)
         proxy = FlywheelProxy(client=Client(api_key), dry_run=dry_run)
 
         project_map = build_project_map(

@@ -30,7 +30,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         file_input: InputFileWrapper,
-        gear_name: str,
         project_names: list[str],
         info_paths: list[str],
         modules: set[ModuleName],
@@ -38,7 +37,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     ):
         super().__init__(client=client)
         self.__file_input = file_input
-        self.__gear_name = gear_name
         self.__project_names: list[str] = project_names
         self.__info_paths = info_paths
         self.__modules = modules
@@ -65,23 +63,21 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        project_names = context.config.get("project_names", "").split(",")
-        include_derived = context.config.get("include_derived", False)
+        project_names = context.config.opts.get("project_names", "").split(",")
+        include_derived = context.config.opts.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = context.config.get("modules", "").split(",")
+        modules = context.config.opts.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
         ]
         if unexpected_modules:
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
-        study_id = context.config.get("study_id", "adrc")
-        gear_name = context.manifest.get("name", "gather-submission-status")
+        study_id = context.config.opts.get("study_id", "adrc")
 
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
-            gear_name=gear_name,
             project_names=project_names,
             info_paths=info_paths,
             modules={module for module in get_args(ModuleName) if module in modules},
@@ -129,8 +125,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             data=error_writer.errors().model_dump(by_alias=True),
         )
 
+        gear_name = self.gear_name(context, "gather-submission-status")
         context.metadata.add_file_tags(
-            self.__file_input.file_input, tags=self.__gear_name
+            self.__file_input.file_input, tags=gear_name
         )
 
     def __write_output(

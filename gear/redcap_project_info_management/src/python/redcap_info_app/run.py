@@ -46,7 +46,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             raise GearExecutionError("No input file provided")
 
         return REDCapProjectInfoVisitor(
-            admin_id=context.config.get("admin_group", "nacc"),
+            admin_id=context.config.opts.get("admin_group", "nacc"),
             client=client,
             input_filepath=input_file_path,
         )

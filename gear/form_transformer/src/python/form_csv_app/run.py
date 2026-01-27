@@ -131,10 +131,10 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"Failed to find the project with ID {file.parents.project}"
             )
 
-        gear_name = context.manifest.get("name", "form-transformer")
+        gear_name = self.gear_name(context, "form-transformer")
 
         downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", None)
+            context.config.opts.get("downstream_gears", None)
         )
 
         prj_adaptor = ProjectAdaptor(project=project, proxy=proxy)

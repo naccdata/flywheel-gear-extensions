@@ -51,7 +51,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         assert parameter_store, "Parameter store expected"
 
         client = ContextClient.create(context)
-        param_path = context.config.get("parameter_path")
+        param_path = context.config.opts.get("parameter_path")
         if not param_path:
             raise GearExecutionError("No parameter path")
 
@@ -70,7 +70,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
                 f"Failed to pull users from directory: {error.message}"
             ) from error
 
-        user_filename = context.config.get("user_file")
+        user_filename = context.config.opts.get("user_file")
         if not user_filename:
             raise GearExecutionError("No user file name provided")
 
@@ -91,8 +91,8 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             log.info(
                 "Would write user entries to file %s on %s %s",
                 self.__user_filename,
-                context.destination["type"],
-                context.destination["id"],
+                context.config.destination["type"],
+                context.config.destination["id"],
             )
             return
 

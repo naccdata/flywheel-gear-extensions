@@ -17,6 +17,7 @@ from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from fw_gear import GearContext
+from fw_gear.utils.sdk_utils import get_container_from_ref
 from fw_client.client import FWClient
 from inputs.parameter_store import ParameterError, ParameterStore
 
@@ -90,7 +91,7 @@ class ContextClient:
             raise GearExecutionError("Flywheel client required")
 
         return ClientWrapper(
-            client=context.client, dry_run=context.config.get("dry_run", False)
+            client=context.client, dry_run=context.config.opts.get("dry_run", False)
         )
 
 
@@ -123,7 +124,7 @@ class GearBotClient:
                 "Flywheel client required to confirm gearbot access"
             ) from error
 
-        apikey_path_prefix = context.config.get("apikey_path_prefix", None)
+        apikey_path_prefix = context.config.opts.get("apikey_path_prefix", None)
         if not apikey_path_prefix:
             raise GearExecutionError("API key path prefix required")
 
@@ -153,7 +154,7 @@ class InputFileWrapper:
 
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
-        container = context.config.get_container_from_ref(file_hierarchy)
+        container = get_container_from_ref(context.client, file_hierarchy)
         assert isinstance(container, (Acquisition, Subject, Project))
         container = container.reload()
         file = container.get_file(self.filename)
@@ -241,7 +242,7 @@ class InputFileWrapper:
         """
         file_input = context.config.get_input(input_name)
         is_optional = (
-            context.manifest.get("inputs", {})
+            context.manifest.inputs
             .get(input_name, {})
             .get("optional", False)
         )
@@ -433,6 +434,15 @@ class GearExecutionEnvironment(ABC):
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
 
+    @classemthod
+    def gear_name(cls, context: GearContext, default: str) -> str:
+        """Get gear name."""
+        gear_name = context.manifest.name
+        if not gear_name:
+            return default
+
+        return gear_name
+
 
 # TODO: remove type ignore when using python 3.12 or above
 E = TypeVar("E", bound=GearExecutionEnvironment)  # type: ignore
@@ -494,7 +504,7 @@ def get_project_from_destination(
     """Gets parent project from destination container."""
 
     try:
-        destination = context.config.get_destination_container()
+        destination = context.config.opts.get_destination_container()
     except ApiException as error:
         raise GearExecutionError(
             f"Cannot find destination container: {error}"

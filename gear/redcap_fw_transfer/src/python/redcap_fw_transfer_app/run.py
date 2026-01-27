@@ -170,7 +170,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
         )
 
         try:
-            dest_container = context.config.get_destination_container()
+            dest_container = context.config.opts.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"

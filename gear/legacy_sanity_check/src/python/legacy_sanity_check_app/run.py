@@ -76,9 +76,9 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         assert form_configs_input, "missing expected input, form_configs_file"
 
         config = context.config
-        ingest_project_label = config.get("ingest_project_label", "ingest-form")
-        sender_email = config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = config.get("target_emails", "nacc_dev@uw.edu")
+        ingest_project_label = config.inputs.get("ingest_project_label", "ingest-form")
+        sender_email = config.inputs.get("sender_email", "nacchelp@uw.edu")
+        target_emails = config.inputs.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         return LegacySanityCheckVisitor(
@@ -104,7 +104,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
         )
 
-        gear_name = context.manifest.get("name", "legacy-sanity-check")
+        gear_name = self.gear_name(context, "legacy-sanity-check")
 
         form_configs = None
         with open(self.__form_configs_input.filepath, mode="r") as fh:

@@ -86,7 +86,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         try:
-            dest_container: Any = context.config.get_destination_container()
+            dest_container: Any = context.config.opts.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -116,8 +116,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
         )
         assert qc_configs_input, "missing expected input, qc_configs_file"
 
-        check_all = context.config.get("check_all", False)
-        pipeline = context.config.get("pipeline", "submission")
+        check_all = context.config.opts.get("check_all", False)
+        pipeline = context.config.opts.get("pipeline", "submission")
 
         return FormQCCoordinator(
             client=client,
@@ -273,8 +273,10 @@ class FormQCCoordinator(GearExecutionEnvironment):
             gear_context: Flywheel gear context
             input_wrapper: gear input file wrapper
         """
+        gear_name = gear_context.manifest.name
+        if not gear_name:
+            gear_name = "form-qc-coordinator"
 
-        gear_name = gear_context.manifest.get("name", "form-qc-coordinator")
         gear_context.metadata.add_file_tags(
             self.__file_input.file_input, tags=gear_name
         )

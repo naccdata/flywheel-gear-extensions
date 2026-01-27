@@ -68,7 +68,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 "Gear config input_file not specified or not found"
             )
 
-        gear_name = context.manifest.get("name", "form-screening")
+        gear_name = self.gear_name(context, "form-screening")
 
         # We save the formatted file with same name as input file
         # To prevent gear rules running into a loop check whether the file is screened
@@ -91,12 +91,12 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         config_file_path = context.config.get_input_path("scheduler_gear_configs_file")
 
         accepted_modules = parse_string_to_list(
-            context.config.get("accepted_modules", None)
+            context.config.opts.get("accepted_modules", None)
         )
         file_tags = parse_string_to_list(
-            context.config.get("file_tags", None), to_lower=False
+            context.config.opts.get("file_tags", None), to_lower=False
         )
-        format_and_tag = context.config.get("format_and_tag", None)
+        format_and_tag = context.config.opts.get("format_and_tag", None)
 
         if not accepted_modules:
             raise GearExecutionError("No accepted_modules provided")

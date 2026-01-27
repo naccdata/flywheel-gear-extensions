@@ -72,7 +72,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        device_key_prefix = context.config.get("device_key_path_prefix")
+        device_key_prefix = context.config.opts.get("device_key_path_prefix")
         if not device_key_prefix:
             raise GearExecutionError("Device key path prefix required")
 
@@ -82,7 +82,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(error) from error
 
-        hierarchy_labels = context.config.get("hierarchy_labels")
+        hierarchy_labels = context.config.opts.get("hierarchy_labels")
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
 
@@ -91,9 +91,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         except (JSONDecodeError, TypeError, ValueError) as error:
             raise GearExecutionError(f"Failed to load JSON string: {error}") from error
 
-        preserve_case = context.config.get("preserve_case", False)
+        preserve_case = context.config.opts.get("preserve_case", False)
         req_fields = set(
-            parse_string_to_list(context.config.get("required_fields", ""))
+            parse_string_to_list(context.config.opts.get("required_fields", ""))
         )
 
         return CsvToJsonVisitor(
@@ -159,9 +159,10 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 data=error_writer.errors().model_dump(by_alias=True),
             )
 
+            manifest_name = context.manifest.name
             context.metadata.add_file_tags(
                 self.__file_input.file_input,
-                tags=context.manifest.get("name", "csv-subject-splitter"),
+                tags=manifest_name if manifest_name else "csv-subject-splitter",
             )
 
     def __load_template(self, template_list: Dict[str, str]) -> UploadTemplateInfo:

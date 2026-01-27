@@ -131,7 +131,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         assert context, "Gear context required"
 
         admin_group = self.admin_group(
-            admin_id=context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+            admin_id=context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
         )
 
         try:
@@ -145,6 +145,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             ) from error
 
         run(
+            gear_name=self.gear_name(context, "form-qc-checker"),
             client_wrapper=self.client,
             input_wrapper=self.__file_input,
             s3_client=self.__s3_client,

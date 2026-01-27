@@ -60,19 +60,19 @@ class TemplatingVisitor(GearExecutionEnvironment):
         # ViewerApp type used for copying viewer apps from template projects.
         api_key = get_api_key(context)
         client.set_fw_client(FWClient(api_key=api_key, client_name="push-template"))
-        group_id = context.config.get("template_group")
+        group_id = context.config.opts.get("template_group")
         if not group_id:
             raise GearExecutionError('Expected "template_group"')
-        template_label = context.config.get("template_project")
+        template_label = context.config.opts.get("template_project")
         if not template_label:
             raise GearExecutionError('Expected "template_project"')
 
         return TemplatingVisitor(
-            admin_id=context.config.get("admin_group", "nacc"),
+            admin_id=context.config.opts.get("admin_group", "nacc"),
             client=client,
             template_group=group_id,
             template_label=template_label,
-            new_only=context.config.get("new_only", False),
+            new_only=context.config.opts.get("new_only", False),
         )
 
     def run(self, context: GearContext) -> None:

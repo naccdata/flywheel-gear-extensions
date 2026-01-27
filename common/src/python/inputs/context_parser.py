@@ -37,7 +37,7 @@ def get_config(
     Raises:
       ConfigParseError if the key doesn't occur in the context
     """
-    value = gear_context.config.get(key, default)
+    value = gear_context.config.opts.get(key, default)
     if value is None:
         raise ConfigParseError(message=f"No value for {key}")
 

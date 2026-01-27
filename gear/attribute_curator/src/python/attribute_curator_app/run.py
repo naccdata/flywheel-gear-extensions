@@ -72,21 +72,21 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         )
 
         filename_patterns = parse_string_to_list(
-            context.config.get(
+            context.config.opts.get(
                 "filename_patterns", ".*\\.json,.*\\.dicom\\,.*\\.zip,.*\\.nii\\.gz"
             ),
             to_lower=False,
         )
 
-        curation_tag = context.config.get("curation_tag", "attribute-curator")
-        force_curate = context.config.get("force_curate", False)
-        max_num_workers = context.config.get("max_num_workers", 4)
-        ignore_qc = context.config.get("ignore_qc", False)
+        curation_tag = context.config.opts.get("curation_tag", "attribute-curator")
+        force_curate = context.config.opts.get("force_curate", False)
+        max_num_workers = context.config.opts.get("max_num_workers", 4)
+        ignore_qc = context.config.opts.get("ignore_qc", False)
 
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        if context.config.get("debug", False):
+        if context.config.opts.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)
 
         return AttributeCuratorVisitor(

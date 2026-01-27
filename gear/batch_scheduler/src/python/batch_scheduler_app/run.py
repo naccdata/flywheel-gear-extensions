@@ -81,9 +81,9 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
         )
         assert batch_configs_input, "missing expected input, batch_configs_file"
 
-        include_centers = context.config.get("include_centers", None)
-        exclude_centers = context.config.get("exclude_centers", None)
-        exclude_studies = context.config.get("exclude_studies", None)
+        include_centers = context.config.opts.get("include_centers", None)
+        exclude_centers = context.config.opts.get("exclude_centers", None)
+        exclude_studies = context.config.opts.get("exclude_studies", None)
 
         if include_centers and (exclude_centers or exclude_studies):
             raise GearExecutionError(
@@ -109,13 +109,13 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         return BatchSchedulerVisitor(
             client=client,
-            admin_id=context.config.get("admin_group", DefaultValues.NACC_GROUP_ID),
+            admin_id=context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID),
             config_input=batch_configs_input,
             include_centers=include_centers_list,
             exclude_centers=exclude_centers_list,
             exclude_studies=exclude_studies_list,
-            time_interval=context.config.get("time_interval", 7),
-            retry_jobs=context.config.get("retry_jobs", True),
+            time_interval=context.config.opts.get("time_interval", 7),
+            retry_jobs=context.config.opts.get("retry_jobs", True),
         )
 
     def __get_center_ids(self) -> Optional[List[str]]:
@@ -168,8 +168,8 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__config_input.filename}"
             )
 
-        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        sender_email = context.config.opts.get("sender_email", "nacchelp@uw.edu")
+        target_emails = context.config.opts.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         run(
@@ -180,7 +180,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             sender_email=sender_email,
             target_emails=target_emails,
             retry_jobs=self.__retry_jobs,
-            dry_run=context.config.get("dry_run", False),
+            dry_run=context.config.opts.get("dry_run", False),
         )
 
 
