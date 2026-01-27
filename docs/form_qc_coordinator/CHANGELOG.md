@@ -5,6 +5,9 @@ All notable changes to this gear are documented in this file.
 ## Unreleased
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
+## 1.4.2
+* Rebuilt for event logging updates
+
 ## 1.4.1
 * Fixes a bug in updating the visit error log
   

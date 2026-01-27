@@ -135,7 +135,7 @@ def trigger_scheduler_gear(
         inputs=get_scheduler_gear_inputs(
             scheduler_gear=scheduler_gear, project=project
         ),
-        destination=project,
+        destination=project.project,
     )
 
 
