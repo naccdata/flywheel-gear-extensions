@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import ClassVar, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 
@@ -40,24 +40,11 @@ class ConsolidatedNotificationData(BaseTemplateModel):
 
 
 class ErrorNotificationGenerator:
-    """Generates notifications for error events using AWS SES templates."""
-
-    # Template name mapping for each error category
-    CATEGORY_TEMPLATES: ClassVar[Dict[EventCategory, str]] = {
-        EventCategory.UNCLAIMED_RECORDS: "error-unclaimed-records",
-        EventCategory.EMAIL_MISMATCH: "error-email-mismatch",
-        EventCategory.UNVERIFIED_EMAIL: "error-unverified-email",
-        EventCategory.INCOMPLETE_CLAIM: "error-incomplete-claim",
-        EventCategory.BAD_ORCID_CLAIMS: "error-bad-orcid-claims",
-        EventCategory.MISSING_DIRECTORY_PERMISSIONS: (
-            "error-missing-directory-permissions"
-        ),
-        EventCategory.MISSING_DIRECTORY_DATA: "error-missing-directory-data",
-        EventCategory.MISSING_REGISTRY_DATA: "error-missing-registry-data",
-        EventCategory.INSUFFICIENT_PERMISSIONS: "error-insufficient-permissions",
-        EventCategory.DUPLICATE_USER_RECORDS: "error-duplicate-user-records",
-        EventCategory.FLYWHEEL_ERROR: "error-flywheel-error",
-    }
+    """Generates notifications for error events using AWS SES templates.
+    
+    Uses a single consolidated template (error-consolidated) that includes
+    all error categories in one email notification.
+    """
 
     def __init__(self, email_client: EmailClient, configuration_set_name: str):
         """Initialize the error notification generator.
@@ -68,17 +55,6 @@ class ErrorNotificationGenerator:
         """
         self.__email_client = email_client
         self.__configuration_set_name = configuration_set_name
-
-    def select_template(self, category: EventCategory) -> str:
-        """Select the appropriate SES template for an error category.
-
-        Args:
-            category: The error category
-
-        Returns:
-            The SES template name for the category
-        """
-        return self.CATEGORY_TEMPLATES.get(category, "error-generic")
 
     def create_notification_data(
         self, collector: UserEventCollector, gear_name: str

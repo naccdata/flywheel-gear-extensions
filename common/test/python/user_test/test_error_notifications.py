@@ -79,16 +79,6 @@ class TestConsolidatedNotificationData:
 class TestErrorNotificationGenerator:
     """Tests for ErrorNotificationGenerator."""
 
-    def test_select_template(self, notification_generator):
-        """Test template selection for error categories."""
-        template = notification_generator.select_template(
-            EventCategory.UNCLAIMED_RECORDS
-        )
-        assert template == "error-unclaimed-records"
-
-        template = notification_generator.select_template(EventCategory.EMAIL_MISMATCH)
-        assert template == "error-email-mismatch"
-
     def test_create_notification_data(
         self, notification_generator, collector, sample_error_event
     ):
