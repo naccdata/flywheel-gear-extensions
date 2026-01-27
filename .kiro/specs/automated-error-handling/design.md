@@ -140,7 +140,7 @@ Error collection with automatic categorization that integrates directly with exi
 # In gear run.py - gear creates error handling objects as core functionality
 class UserManagementVisitor(GearExecutionEnvironment):
     def run(self, context: GearToolkitContext) -> None:
-        # Create error handling objects as core functionality
+        # Create event collector as core functionality
         collector = UserEventCollector()
             
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
@@ -152,7 +152,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 coid=self.__comanage_coid,
             )
             
-            # Use existing UserProcess with error handling
+            # Use existing UserProcess with event handling
             user_process = UserProcess(
                 environment=UserProcessEnvironment(
                     admin_group=admin_group,
@@ -181,7 +181,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 )
 
 class UserProcess(BaseUserProcess[UserEntry]):
-    """Modified to include error handling as core functionality."""
+    """Modified to include event handling as core functionality."""
     
     def __init__(self, environment: UserProcessEnvironment,
                  collector: UserEventCollector):
@@ -189,7 +189,7 @@ class UserProcess(BaseUserProcess[UserEntry]):
         self._inactive_queue: UserQueue[UserEntry] = UserQueue()
         self._env = environment
         
-        # Error handling components (immutable)
+        # Event handling components (immutable)
         self.__collector = collector
     
     @property
@@ -198,11 +198,11 @@ class UserProcess(BaseUserProcess[UserEntry]):
         return self.__collector
     
     def execute(self, queue: UserQueue[UserEntry]) -> None:
-        """Modified to pass error handling objects to sub-processes."""
+        """Modified to pass event handling objects to sub-processes."""
         log.info("**Processing directory entries")
         queue.apply(self)
 
-        # Pass error handling objects to sub-processes
+        # Pass event handling objects to sub-processes
         ActiveUserProcess(
             self._env, self.collector
         ).execute(self._active_queue)
@@ -212,9 +212,9 @@ class UserProcess(BaseUserProcess[UserEntry]):
 class UserEventCollector:
     """Event collector that accumulates and categorizes events during gear execution.
     
-    The UserEventCollector automatically categorizes events as they are collected,
-    maintaining an internal structure grouped by EventCategory. This allows
-    efficient querying by category and simplifies notification generation.
+    The UserEventCollector collects both success and error events, maintaining them
+    in an internal structure grouped by EventCategory. This allows efficient querying
+    by category and simplifies notification generation.
     """
     
     def __init__(self):
@@ -238,78 +238,138 @@ class UserEventCollector:
         else:
             self._events[event.category].append(event)
     
-    def get_errors(self) -> List[UserProcessEvent]:
-        """Get all collected error events as a flat list.
+    def get_events(self) -> List[UserProcessEvent]:
+        """Get all collected events as a flat list.
         
         Returns:
-            A list of all collected error events
+            A list of all collected events
         """
-        all_errors = []
+        all_events = []
         for event_list in self._events.values():
-            all_errors.extend([e for e in event_list if e.is_error()])
-        return all_errors
+            all_events.extend(event_list)
+        return all_events
     
-    def get_errors_by_category(self) -> Dict[ErrorCategory, List[ErrorEvent]]:
-        """Get errors grouped by category.
+    def get_errors(self) -> List[UserProcessEvent]:
+        """Get all error events.
+        
+        Returns:
+            A list of all error events
+        """
+        return [event for event in self.get_events() if event.is_error()]
+    
+    def get_successes(self) -> List[UserProcessEvent]:
+        """Get all success events.
+        
+        Returns:
+            A list of all success events
+        """
+        return [event for event in self.get_events() if event.is_success()]
+    
+    def get_events_by_category(self) -> Dict[EventCategory, List[UserProcessEvent]]:
+        """Get events grouped by category.
+        
+        Returns:
+            Dictionary mapping event category to list of events
+        """
+        return dict(self._events)
+    
+    def get_errors_by_category(self) -> Dict[EventCategory, List[UserProcessEvent]]:
+        """Get error events grouped by category.
         
         Returns:
             Dictionary mapping error category to list of error events
         """
-        return dict(self._errors)
+        return {
+            category: events
+            for category, events in self._events.items()
+            if events and events[0].is_error()
+        }
     
-    def get_errors_for_category(self, category: ErrorCategory) -> List[ErrorEvent]:
-        """Get all errors for a specific category.
+    def get_events_for_category(self, category: EventCategory) -> List[UserProcessEvent]:
+        """Get all events for a specific category.
         
         Args:
-            category: The error category to retrieve
+            category: The event category to retrieve
             
         Returns:
-            List of error events for the specified category
+            List of events for the specified category
         """
-        return self._errors.get(category, []).copy()
+        return self._events.get(category, []).copy()
     
     def count_by_category(self) -> Dict[str, int]:
-        """Count errors by category.
+        """Count events by category.
         
         Returns:
             Dictionary mapping category name (string) to count
         """
         return {
-            category.value: len(errors) 
-            for category, errors in self._errors.items()
+            category.value: len(events) 
+            for category, events in self._events.items()
         }
     
     def get_affected_users(self) -> List[str]:
-        """Get list of unique user emails affected by errors.
+        """Get list of unique user emails affected by events.
         
         Returns:
             List of unique user email addresses
         """
         users = set()
-        for error_list in self._errors.values():
-            for error in error_list:
-                users.add(error.user_context.email)
+        for event_list in self._events.values():
+            for event in event_list:
+                users.add(event.user_context.email)
         return list(users)
     
     def clear(self) -> None:
-        """Clear all collected errors."""
-        self._errors.clear()
+        """Clear all collected events."""
+        self._events.clear()
     
     def has_errors(self) -> bool:
-        """Check if there are any collected errors.
+        """Check if there are any error events.
         
         Returns:
             True if there are errors, False otherwise
         """
-        return len(self._errors) > 0
+        return len(self.get_errors()) > 0
+    
+    def has_successes(self) -> bool:
+        """Check if there are any success events.
+        
+        Returns:
+            True if there are successes, False otherwise
+        """
+        return len(self.get_successes()) > 0
+    
+    def has_events(self) -> bool:
+        """Check if there are any collected events.
+        
+        Returns:
+            True if there are events, False otherwise
+        """
+        return len(self._events) > 0
     
     def error_count(self) -> int:
-        """Get the total number of collected errors.
+        """Get the total number of error events.
         
         Returns:
             The total number of error events in the collection
         """
-        return sum(len(errors) for errors in self._errors.values())
+        return len(self.get_errors())
+    
+    def success_count(self) -> int:
+        """Get the total number of success events.
+        
+        Returns:
+            The total number of success events in the collection
+        """
+        return len(self.get_successes())
+    
+    def event_count(self) -> int:
+        """Get the total number of collected events.
+        
+        Returns:
+            The total number of events in the collection
+        """
+        return sum(len(events) for events in self._events.values())
 
 
 ```
@@ -344,10 +404,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             log.error("User %s must have authentication email", entry.email)
             
             # Create error event for missing auth email
-            error_event = ErrorEvent(
-                category=ErrorCategory.MISSING_DIRECTORY_PERMISSIONS,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User has no authentication email in directory",
                     "directory_email": entry.email,
                     "action_needed": "update_directory_auth_email"
@@ -384,10 +445,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             log.warning("person record for %s has no creation date", entry.email)
             
             # Create error event for missing creation date
-            error_event = ErrorEvent(
-                category=ErrorCategory.UNCLAIMED_RECORDS,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "Registry record exists but has no creation date",
                     "registry_records": len(person_list),
                     "action_needed": "check_registry_record_status"
@@ -404,10 +466,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                 log.error("User %s has no registry ID", entry.email)
                 
                 # Create error event for missing registry ID
-                error_event = ErrorEvent(
-                    category=ErrorCategory.UNCLAIMED_RECORDS,
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.UNCLAIMED_RECORDS,
                     user_context=UserContext.from_user_entry(entry),
-                    error_details={
+                    details={
                         "message": "User appears claimed but has no registry ID",
                         "claimed_records": len(claimed),
                         "action_needed": "check_registry_id_assignment"
@@ -497,10 +560,11 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             
             # Create error event for missing Flywheel user - this indicates earlier failure
             # Note: This is not actually the failure point, the real failure occurred earlier
-            error_event = ErrorEvent(
-                category=ErrorCategory.UNCLAIMED_RECORDS,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.UNCLAIMED_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User should exist in Flywheel but was not found - indicates earlier creation failure",
                     "registry_id": entry.registry_id,
                     "action_needed": "check_user_creation_process_logs"
@@ -516,10 +580,11 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
             log.error("Registry record does not have email address: %s", entry.registry_id)
             
             # Create error event for missing registry email
-            error_event = ErrorEvent(
-                category=ErrorCategory.UNVERIFIED_EMAIL,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.UNVERIFIED_EMAIL,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "Registry record found but has no email address",
                     "registry_id": entry.registry_id,
                     "action_needed": "check_email_verification_in_comanage"
@@ -530,10 +595,11 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         
         # Check for insufficient permissions based on user entry authorizations
         if not entry.authorizations:
-            error_event = ErrorEvent(
-                category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.INSUFFICIENT_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User entry has no authorizations listed",
                     "registry_id": entry.registry_id,
                     "action_needed": "contact_center_administrator_for_permissions"
@@ -575,7 +641,7 @@ class FailureAnalyzer:
     
     def analyze_flywheel_user_creation_failure(
         self, entry: RegisteredUserEntry, error: FlywheelError
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Analyze why Flywheel user creation failed after 3 attempts.
         
         Checks for:
@@ -588,10 +654,11 @@ class FailureAnalyzer:
         # Check if user already exists (duplicate)
         existing_user = self.env.find_user(entry.registry_id)
         if existing_user:
-            return ErrorEvent(
-                category=ErrorCategory.DUPLICATE_USER_RECORDS,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.DUPLICATE_USER_RECORDS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User already exists in Flywheel",
                     "existing_user_id": existing_user.id,
                     "registry_id": entry.registry_id,
@@ -602,10 +669,11 @@ class FailureAnalyzer:
         # Check if it's a permission issue
         error_str = str(error).lower()
         if "permission" in error_str or "unauthorized" in error_str:
-            return ErrorEvent(
-                category=ErrorCategory.INSUFFICIENT_PERMISSIONS,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.INSUFFICIENT_PERMISSIONS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "Insufficient permissions to create user in Flywheel",
                     "flywheel_error": str(error),
                     "action_needed": "check_flywheel_service_account_permissions"
@@ -613,10 +681,11 @@ class FailureAnalyzer:
             )
         
         # Generic Flywheel error
-        return ErrorEvent(
-            category=ErrorCategory.FLYWHEEL_ERROR,
+        return UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.FLYWHEEL_ERROR,
             user_context=UserContext.from_user_entry(entry),
-            error_details={
+            details={
                 "message": "Flywheel user creation failed after 3 attempts",
                 "error": str(error),
                 "registry_id": entry.registry_id,
@@ -626,7 +695,7 @@ class FailureAnalyzer:
     
     def analyze_missing_claimed_user(
         self, entry: RegisteredUserEntry
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Analyze why we can't find a claimed user by registry_id.
         
         This method is called when find_by_registry_id() returns None for a user
@@ -662,10 +731,11 @@ class FailureAnalyzer:
                 return self.detect_incomplete_claim(entry, bad_claim_persons)
         
         # Not found anywhere
-        return ErrorEvent(
-            category=ErrorCategory.MISSING_REGISTRY_DATA,
+        return UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.MISSING_REGISTRY_DATA,
             user_context=UserContext.from_user_entry(entry),
-            error_details={
+            details={
                 "message": (
                     "Expected claimed user not found in registry by ID, "
                     "email, or bad claims"
@@ -679,7 +749,7 @@ class FailureAnalyzer:
     
     def detect_incomplete_claim(
         self, entry: UserEntry, bad_claim_persons: List[RegistryPerson]
-    ) -> Optional[ErrorEvent]:
+    ) -> Optional[UserProcessEvent]:
         """Detect incomplete claims and identify if ORCID is the identity provider.
         
         An incomplete claim occurs when a user has claimed their account (logged in
@@ -696,7 +766,7 @@ class FailureAnalyzer:
             bad_claim_persons: List of RegistryPerson objects with incomplete claims
             
         Returns:
-            ErrorEvent with category BAD_ORCID_CLAIMS if ORCID detected,
+            UserProcessEvent with category BAD_ORCID_CLAIMS if ORCID detected,
             or INCOMPLETE_CLAIM otherwise
         """
         from users.user_registry import org_name_is
@@ -708,10 +778,11 @@ class FailureAnalyzer:
         )
         
         if has_orcid:
-            return ErrorEvent(
-                category=ErrorCategory.BAD_ORCID_CLAIMS,
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.BAD_ORCID_CLAIMS,
                 user_context=UserContext.from_user_entry(entry),
-                error_details={
+                details={
                     "message": "User has incomplete claim with ORCID identity provider",
                     "full_name": entry.name.as_str() if entry.name else "unknown",
                     "has_orcid_org_identity": True,
@@ -719,11 +790,17 @@ class FailureAnalyzer:
                 }
             )
         
-        return ErrorEvent(
-            category=ErrorCategory.INCOMPLETE_CLAIM,
+        return UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext.from_user_entry(entry),
-            error_details={
+            details={
                 "message": "User has incomplete claim (identity provider did not return email)",
+                "full_name": entry.name.as_str() if entry.name else "unknown",
+                "has_orcid_org_identity": False,
+                "action_needed": "verify_identity_provider_configuration_and_reclaim"
+            }
+        ) did not return email)",
                 "full_name": entry.name.as_str() if entry.name else "unknown",
                 "has_orcid_org_identity": False,
                 "action_needed": "verify_identity_provider_configuration_and_reclaim"
@@ -927,21 +1004,53 @@ class ErrorNotificationGenerator:
 
 ## Data Models
 
-### Error Event Model
+### Event Model
+
+The implementation uses a unified event model that handles both success and error events through a single `UserProcessEvent` class with an `EventType` discriminator. This design provides a consistent API and simplifies event collection.
 
 ```python
-class ErrorEvent(BaseModel):
+class EventType(Enum):
+    """Type of user process event."""
+    SUCCESS = "success"
+    ERROR = "error"
+
+class UserProcessEvent(BaseModel):
+    """Represents an event in the user process system (success or error)."""
+    model_config = ConfigDict(use_enum_values=True)
+    
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=datetime.now)
-    category: ErrorCategory
+    event_type: EventType
+    category: EventCategory
     user_context: UserContext
-    error_details: Dict[str, Any]
+    details: Dict[str, Any]
     
     def to_summary(self) -> str:
         """Convert to a one-line summary for notifications."""
-        return f"{self.category.value}: {self.user_context.email} - {self.error_details.get('message', 'No details')}"
+        return f"{self.category}: {self.user_context.email} - {self.details.get('message', 'No details')}"
+    
+    def is_success(self) -> bool:
+        """Check if this is a success event."""
+        return (
+            self.event_type == EventType.SUCCESS.value
+            if isinstance(self.event_type, str)
+            else self.event_type == EventType.SUCCESS
+        )
+    
+    def is_error(self) -> bool:
+        """Check if this is an error event."""
+        return (
+            self.event_type == EventType.ERROR.value
+            if isinstance(self.event_type, str)
+            else self.event_type == EventType.ERROR
+        )
 
-class ErrorCategory(Enum):
+class EventCategory(Enum):
+    """Enumeration of event categories for user process events."""
+    # Success category
+    USER_CREATED = "User Successfully Created"
+    
+    # Error categories
     UNCLAIMED_RECORDS = "Unclaimed Records"
     EMAIL_MISMATCH = "Authentication Email Mismatch"
     UNVERIFIED_EMAIL = "Unverified Email"
@@ -949,10 +1058,17 @@ class ErrorCategory(Enum):
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
+    MISSING_REGISTRY_DATA = "Missing Registry Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
     FLYWHEEL_ERROR = "Flywheel Error"
 ```
+
+**Design Rationale:**
+- **Unified Model**: Single event class for both successes and errors simplifies the collector API
+- **Type Discriminator**: `EventType` enum allows filtering and type-specific handling
+- **Consistent API**: Same methods and fields across all event types
+- **Extensibility**: Easy to add new event types (e.g., warnings, info) in the future
 
 ### User Context Model
 

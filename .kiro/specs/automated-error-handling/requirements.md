@@ -26,7 +26,7 @@ This specification defines requirements for enhancing the existing pull_director
 
 1. THE Error Capture System SHALL provide a general mechanism for capturing user access issues and mapping them to predefined categories
 2. THE Error Capture System SHALL support both existing failure point detection and additional instrumentation for proactive issue detection
-3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Incomplete Claim, Bad ORCID Claims, Missing Directory Permissions, Missing Directory Data, Insufficient Permissions, Duplicate/Wrong User Records, and Flywheel Error
+3. THE Error Capture System SHALL categorize captured events into predefined categories: Unclaimed Records, Authentication Email Mismatch, Unverified Email, Incomplete Claim, Bad ORCID Claims, Missing Directory Permissions, Missing Directory Data, Missing Registry Data, Insufficient Permissions, Duplicate/Wrong User Records, and Flywheel Error
 4. THE Error Capture System SHALL include relevant user context (email, name, center, registry ID, error details) with each captured event
 5. THE Error Capture System SHALL capture error events without disrupting the normal user processing flow
 6. WHEN API calls to external services fail, THE Error Capture System SHALL log these failures for technical staff but SHALL NOT generate support staff notifications for infrastructure issues
