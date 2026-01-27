@@ -125,7 +125,7 @@ class TestParameterStore:
         # Test with whitespace-only string (should raise error after stripping)
         ssm.put_parameter(Name="/support/whitespace/emails", Type="String", Value="   ")
 
-        with pytest.raises(ParameterError, match="No valid support staff emails found"):
+        with pytest.raises(ParameterError, match="No valid support emails found"):
             store.get_support_emails("/support/whitespace")
 
         # Test with missing parameter (should raise error)
