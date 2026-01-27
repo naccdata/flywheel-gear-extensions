@@ -468,8 +468,29 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
         self.__notification_client = notification_client
 
     def visit(self, entry: ActiveUserEntry) -> None:
-        """Sends a notification email to claim the user."""
+        """Sends a notification email to claim the user and creates error event
+        for tracking."""
         self.__notification_client.send_followup_claim_email(entry)
+
+        # Create error event for unclaimed user tracking
+        days_unclaimed = None
+        if entry.registration_date:
+            days_unclaimed = (datetime.now() - entry.registration_date).days
+
+        error_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext.from_user_entry(entry),
+            details={
+                "message": "User has not claimed their COManage registry account",
+                "registration_date": entry.registration_date.isoformat()
+                if entry.registration_date
+                else None,
+                "days_unclaimed": days_unclaimed,
+                "action_needed": "follow_up_with_user_to_claim_account",
+            },
+        )
+        self.collector.collect(error_event)
 
     def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
         """Applies this process to the queue.
