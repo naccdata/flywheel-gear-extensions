@@ -72,7 +72,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        device_key_prefix = context.config.opts.get("device_key_path_prefix")
+        options = context.config.opts
+
+        device_key_prefix = options.get("device_key_path_prefix")
         if not device_key_prefix:
             raise GearExecutionError("Device key path prefix required")
 
@@ -82,7 +84,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(error) from error
 
-        hierarchy_labels = context.config.opts.get("hierarchy_labels")
+        hierarchy_labels = options.get("hierarchy_labels")
         if not hierarchy_labels:
             raise GearExecutionError("Expecting non-empty label templates")
 
@@ -91,10 +93,8 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         except (JSONDecodeError, TypeError, ValueError) as error:
             raise GearExecutionError(f"Failed to load JSON string: {error}") from error
 
-        preserve_case = context.config.opts.get("preserve_case", False)
-        req_fields = set(
-            parse_string_to_list(context.config.opts.get("required_fields", ""))
-        )
+        preserve_case = options.get("preserve_case", False)
+        req_fields = set(parse_string_to_list(options.get("required_fields", "")))
 
         return CsvToJsonVisitor(
             client=client,

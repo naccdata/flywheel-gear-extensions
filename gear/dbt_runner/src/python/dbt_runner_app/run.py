@@ -57,13 +57,14 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not dbt_project_zip:
             raise GearExecutionError("DBT project zip required")
 
+        options = context.config.opts
         storage_configs = StorageConfigs(
-            storage_label=context.config.opts.get("storage_label", None),
-            source_prefix=context.config.opts.get("source_prefix", None),
-            output_prefix=context.config.opts.get("output_prefix", None),
+            storage_label=options.get("storage_label", None),
+            source_prefix=options.get("source_prefix", None),
+            output_prefix=options.get("output_prefix", None),
         )
 
-        debug = context.config.opts.get("debug", False)
+        debug = options.get("debug", False)
         if debug:
             log.setLevel(logging.DEBUG)
             log.info("Set logging level to DEBUG")

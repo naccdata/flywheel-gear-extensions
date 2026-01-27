@@ -94,13 +94,11 @@ class FormScreeningVisitor(GearExecutionEnvironment):
 
         config_file_path = context.config.get_input_path("scheduler_gear_configs_file")
 
-        accepted_modules = parse_string_to_list(
-            context.config.opts.get("accepted_modules", None)
-        )
-        file_tags = parse_string_to_list(
-            context.config.opts.get("file_tags", None), to_lower=False
-        )
-        format_and_tag = context.config.opts.get("format_and_tag", None)
+        options = context.config.opts
+        accepted_modules = parse_string_to_list(options.get("accepted_modules", None))
+
+        file_tags = parse_string_to_list(options.get("file_tags", None), to_lower=False)
+        format_and_tag = options.get("format_and_tag", None)
 
         if not accepted_modules:
             raise GearExecutionError("No accepted_modules provided")

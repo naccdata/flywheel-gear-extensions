@@ -73,15 +73,14 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         if not file_input:
             raise GearExecutionError("No input file provided")
 
-        target_project = context.config.opts.get("target_project", None)
+        options = context.config.opts
+        target_project = options.get("target_project", None)
         if not target_project:
             raise GearExecutionError("No target project provided")
 
         # for scheduling
-        batch_size = context.config.opts.get("batch_size", 1)
-        downstream_gears = parse_string_to_list(
-            context.config.opts.get("downstream_gears", "")
-        )
+        batch_size = options.get("batch_size", 1)
+        downstream_gears = parse_string_to_list(options.get("downstream_gears", ""))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -99,8 +98,8 @@ class FileDistributionVisitor(GearExecutionEnvironment):
             target_project=target_project,
             batch_size=batch_size,
             downstream_gears=downstream_gears,
-            include=context.config.opts.get("include", None),
-            exclude=context.config.opts.get("exclude", None),
+            include=options.get("include", None),
+            exclude=options.get("exclude", None),
         )
 
     def run(self, context: GearContext) -> None:

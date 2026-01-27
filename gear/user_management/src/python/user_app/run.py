@@ -85,14 +85,16 @@ class UserManagementVisitor(GearExecutionEnvironment):
         if not auth_filepath:
             raise GearExecutionError("No user role file provided")
 
-        comanage_path = context.config.opts.get("comanage_parameter_path")
+        options = context.config.opts
+
+        comanage_path = options.get("comanage_parameter_path")
         if not comanage_path:
             raise GearExecutionError("No CoManage parameter path")
-        sender_path = context.config.opts.get("sender_path")
+        sender_path = options.get("sender_path")
         if not sender_path:
             raise GearExecutionError("No email sender parameter path")
 
-        portal_path = context.config.opts.get("portal_url_path")
+        portal_path = options.get("portal_url_path")
         if not portal_path:
             raise GearExecutionError("No path for portal URL")
 
@@ -103,7 +105,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
-        redcap_path = context.config.opts.get("redcap_parameter_path", "/redcap/aws")
+        redcap_path = options.get("redcap_parameter_path", "/redcap/aws")
         redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
             param_store=parameter_store, base_path=redcap_path
         )  # type: ignore
@@ -111,7 +113,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             raise GearExecutionError("Failed to create REDCap parameter repository")
 
         return UserManagementVisitor(
-            admin_id=context.config.opts.get("admin_group", "nacc"),
+            admin_id=options.get("admin_group", "nacc"),
             client=client,
             user_filepath=user_filepath,
             auth_filepath=auth_filepath,
@@ -123,7 +125,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 password=comanage_parameters["apikey"],
             ),
             redcap_param_repo=redcap_param_repo,
-            notification_mode=context.config.opts.get("notification_mode", "none"),
+            notification_mode=options.get("notification_mode", "none"),
             portal_url=portal_url["url"],
         )
 

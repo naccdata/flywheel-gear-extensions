@@ -86,7 +86,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         try:
-            dest_container: Any = context.config.opts.get_destination_container()
+            dest_container: Any = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -116,8 +116,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         )
         assert qc_configs_input, "missing expected input, qc_configs_file"
 
-        check_all = context.config.opts.get("check_all", False)
-        pipeline = context.config.opts.get("pipeline", "submission")
+        options = context.config.opts
 
         return FormQCCoordinator(
             client=client,
@@ -125,8 +124,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
             form_config_input=form_configs_input,
             qc_config_input=qc_configs_input,
             subject_id=subject_id,
-            pipeline=pipeline,
-            check_all=check_all,
+            pipeline=options.get("pipeline", "submission"),
+            check_all=options.get("check_all", False),
         )
 
     def __parse_json_input(

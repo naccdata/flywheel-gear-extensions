@@ -101,12 +101,13 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             input_name="form_configs_file", context=context
         )
 
-        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.opts.get("database_mode", "prod")
-        direction = context.config.opts.get("direction", "nacc")
-        preserve_case = context.config.opts.get("preserve_case", False)
-        module = context.config.opts.get("module")
-        single_center = context.config.opts.get("single_center", True)
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        mode = options.get("database_mode", "prod")
+        direction = options.get("direction", "nacc")
+        preserve_case = options.get("preserve_case", False)
+        module = options.get("module")
+        single_center = options.get("single_center", True)
         gear_name = GearExecutionEnvironment.gear_name(context, "identifer-lookup")
 
         # Note: form_configs_file is optional for 'nacc' direction
@@ -116,8 +117,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         event_capture = None
         if direction == "nacc" and config_input is not None:
             # Get visit event capture parameters - required when capture is enabled
-            event_environment = context.config.opts.get("event_environment")
-            event_bucket = context.config.opts.get("event_bucket")
+            event_environment = options.get("event_environment")
+            event_bucket = options.get("event_bucket")
 
             if not event_environment or not event_bucket:
                 raise GearExecutionError(

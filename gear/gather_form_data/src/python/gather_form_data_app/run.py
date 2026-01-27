@@ -63,17 +63,18 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        project_names = context.config.opts.get("project_names", "").split(",")
-        include_derived = context.config.opts.get("include_derived", False)
+        options = context.config.opts
+        project_names = options.get("project_names", "").split(",")
+        include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = context.config.opts.get("modules", "").split(",")
+        modules = options.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
         ]
         if unexpected_modules:
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
-        study_id = context.config.opts.get("study_id", "adrc")
+        study_id = options.get("study_id", "adrc")
 
         return GatherFormDataVisitor(
             client=client,

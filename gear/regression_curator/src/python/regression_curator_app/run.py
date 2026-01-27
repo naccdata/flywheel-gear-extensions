@@ -71,23 +71,22 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        s3_qaf_file = context.config.opts.get("s3_qaf_file", None)
-        s3_mqt_file = context.config.opts.get("s3_mqt_file", None)
+        options = context.config.opts
+        s3_qaf_file = options.get("s3_qaf_file", None)
+        s3_mqt_file = options.get("s3_mqt_file", None)
 
         if not s3_qaf_file:
             raise GearExecutionError("QAF file missing")
 
         filename_patterns = parse_string_to_list(
-            context.config.opts.get("filename_patterns", ".*UDS\\.json")
+            options.get("filename_patterns", ".*UDS\\.json")
         )
 
         proxy = client.get_proxy()
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        error_outfile = context.config.opts.get(
-            "error_outfile", "regression_errors.csv"
-        )
+        error_outfile = options.get("error_outfile", "regression_errors.csv")
 
         naccid_blacklist_file = InputFileWrapper.create(
             input_name="naccid_blacklist_file", context=context
@@ -96,7 +95,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             input_name="variable_blacklist_file", context=context
         )
 
-        if context.config.opts.get("debug", False):
+        if options.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)
 
         return RegressionCuratorVisitor(

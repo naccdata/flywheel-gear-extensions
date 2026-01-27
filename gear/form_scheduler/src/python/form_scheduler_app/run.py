@@ -85,12 +85,13 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         )
         assert form_configs_input, "missing expected input, form_configs_file"
 
-        source_email = context.config.opts.get("source_email", "nacchelp@uw.edu")
+        options = context.config.opts
+        source_email = options.get("source_email", "nacchelp@uw.edu")
 
         portal_url = None
         if source_email:
             try:
-                portal_path = context.config.opts.get("portal_url_path", None)
+                portal_path = options.get("portal_url_path", None)
                 if not portal_path:
                     raise GearExecutionError(
                         "No portal URL found, required " + "to send emails"
@@ -99,8 +100,8 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             except ParameterError as error:
                 raise GearExecutionError(f"Parameter error: {error}") from error
 
-        event_bucket_name = context.config.opts.get("event_bucket", "submission-events")
-        event_environment = context.config.opts.get("event_environment", "prod")
+        event_bucket_name = options.get("event_bucket", "submission-events")
+        event_environment = options.get("event_environment", "prod")
 
         try:
             event_bucket = S3BucketInterface.create_from_environment(event_bucket_name)
@@ -123,7 +124,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
     def run(self, context: GearContext) -> None:
         """Runs the Form Scheduler app."""
         try:
-            dest_container: Any = context.config.opts.get_destination_container()
+            dest_container: Any = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"

@@ -66,17 +66,18 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        enroll_project_path = context.config.opts.get("enrollment_project")
+        options = context.config.opts
+        enroll_project_path = options.get("enrollment_project")
         if not enroll_project_path:
             raise GearExecutionError("Missing required gear config enrollment_project")
 
-        ptid = context.config.opts.get("participant_id")
+        ptid = options.get("participant_id")
         if not ptid:
             raise GearExecutionError("Missing required gear config participant_id")
 
-        mode = context.config.opts.get("database_mode", "prod")
-        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        copy_only = context.config.opts.get("copy_only", False)
+        mode = options.get("database_mode", "prod")
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        copy_only = options.get("copy_only", False)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -101,12 +102,12 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             mode=self.__identifiers_mode,
         )
 
+        options = context.config.opts
         admin_group = self.admin_group(admin_id=self.__admin_id)
-        datatypes = parse_string_to_list(
-            context.config.opts.get("datatypes", "form,scan,dicom")
-        )
-        sender_email = context.config.opts.get("sender_email", "nacc_dev@uw.edu")
-        target_emails = context.config.opts.get("target_emails", "nacchelp@uw.edu")
+        datatypes = parse_string_to_list(options.get("datatypes", "form,scan,dicom"))
+
+        sender_email = options.get("sender_email", "nacc_dev@uw.edu")
+        target_emails = options.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         gear_name = self.gear_name(context, "participant-transfer")

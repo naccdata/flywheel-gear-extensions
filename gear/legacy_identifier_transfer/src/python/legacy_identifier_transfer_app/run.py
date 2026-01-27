@@ -122,9 +122,10 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.opts.get("identifiers_mode", "prod")
-        legacy_ingest_label = context.config.opts.get(
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        mode = options.get("identifiers_mode", "prod")
+        legacy_ingest_label = options.get(
             "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL
         )
 
@@ -145,7 +146,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         # Get destination container
         try:
-            dest_container = context.config.opts.get_destination_container()
+            dest_container = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Error getting destination container: {error}"
@@ -216,8 +217,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             ingest_project=project_adaptor, legacy_project=legacy_project
         )
 
-        sender_email = context.config.opts.get("sender_email", "nacchelp@uw.edu")
-        target_emails = context.config.opts.get("target_emails", "nacc_dev@uw.edu")
+        options = context.config.opts
+        sender_email = options.get("sender_email", "nacchelp@uw.edu")
+        target_emails = options.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         run(

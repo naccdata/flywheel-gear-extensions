@@ -67,37 +67,33 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
+        options = context.config.opts
         rxclass_concepts_file = InputFileWrapper.create(
             input_name="rxclass_concepts_file", context=context
         )
 
         filename_patterns = parse_string_to_list(
-            context.config.opts.get(
+            options.get(
                 "filename_patterns", ".*\\.json,.*\\.dicom\\,.*\\.zip,.*\\.nii\\.gz"
             ),
             to_lower=False,
         )
 
-        curation_tag = context.config.opts.get("curation_tag", "attribute-curator")
-        force_curate = context.config.opts.get("force_curate", False)
-        max_num_workers = context.config.opts.get("max_num_workers", 4)
-        ignore_qc = context.config.opts.get("ignore_qc", False)
-
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        if context.config.opts.get("debug", False):
+        if options.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)
 
         return AttributeCuratorVisitor(
             client=client,
             project=project,
             filename_patterns=filename_patterns,
-            curation_tag=curation_tag,
-            force_curate=force_curate,
+            curation_tag=options.get("curation_tag", "attribute-curator"),
+            force_curate=options.get("force_curate", False),
             rxclass_concepts_file=rxclass_concepts_file,
-            max_num_workers=max_num_workers,
-            ignore_qc=ignore_qc,
+            max_num_workers=options.get("max_num_workers", 4),
+            ignore_qc=options.get("ignore_qc", False),
         )
 
     def run(self, context: GearContext) -> None:

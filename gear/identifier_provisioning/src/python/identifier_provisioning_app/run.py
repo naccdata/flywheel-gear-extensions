@@ -56,14 +56,12 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.opts.get("database_mode", "prod")
-
+        options = context.config.opts
         return IdentifierProvisioningVisitor(
             client=client,
-            admin_id=admin_id,
+            admin_id=options.get("admin_group", DefaultValues.NACC_GROUP_ID),
             file_input=file_input,
-            identifiers_mode=mode,
+            identifiers_mode=options.get("database_mode", "prod"),
         )
 
     def run(self, context: GearContext) -> None:

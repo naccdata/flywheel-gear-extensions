@@ -65,13 +65,15 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         center_filepath = context.config.get_input_path("center_file")
         if not center_filepath:
             raise GearExecutionError("No center file provided")
-        admin_id = context.config.opts.get("admin_group", "nacc")
+
+        options = context.config.opts
+        admin_id = options.get("admin_group", "nacc")
 
         return CenterCreationVisitor(
             admin_id=admin_id,
             client=client,
             center_filepath=center_filepath,
-            new_only=context.config.opts.get("new_only", False),
+            new_only=options.get("new_only", False),
         )
 
     def __get_center_list(self, center_file_path: Path) -> CenterList:

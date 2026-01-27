@@ -501,7 +501,7 @@ def get_project_from_destination(
     """Gets parent project from destination container."""
 
     try:
-        destination = context.config.opts.get_destination_container()
+        destination = context.config.get_destination_container()
     except ApiException as error:
         raise GearExecutionError(
             f"Cannot find destination container: {error}"

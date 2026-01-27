@@ -85,23 +85,22 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
 
-        target_project = context.config.opts.get("target_project", None)
-        staging_project_id = context.config.opts.get("staging_project_id", None)
+        options = context.config.opts
+        target_project = options.get("target_project", None)
+        staging_project_id = options.get("staging_project_id", None)
 
         if not target_project and not staging_project_id:
             raise GearExecutionError(
                 "One of target_project or staging_project_id must be provided"
             )
 
-        adcid_key = context.config.opts.get("adcid_key", None)
+        adcid_key = options.get("adcid_key", None)
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
         # for scheduling
-        batch_size = context.config.opts.get("batch_size", 1)
-        downstream_gears = parse_string_to_list(
-            context.config.opts.get("downstream_gears", "")
-        )
+        batch_size = options.get("batch_size", 1)
+        downstream_gears = parse_string_to_list(options.get("downstream_gears", ""))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -134,10 +133,10 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             target_project=target_project,
             staging_project_id=staging_project_id,
             downstream_gears=downstream_gears,
-            include=context.config.opts.get("include", None),
-            exclude=context.config.opts.get("exclude", None),
-            delimiter=context.config.opts.get("delimiter", ","),
-            local_run=context.config.opts.get("local_run", False),
+            include=options.get("include", None),
+            exclude=options.get("exclude", None),
+            delimiter=options.get("delimiter", ","),
+            local_run=options.get("local_run", False),
             email_client=email_client,
         )
 

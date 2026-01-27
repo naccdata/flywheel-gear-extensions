@@ -81,21 +81,20 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        output_filename = context.config.opts.get(
-            "output_file", "submission-status.csv"
-        )
-        admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        project_names = context.config.opts.get("project_names", "").split(",")
-        modules = context.config.opts.get("modules", "").split(",")
+        options = context.config.opts
+        output_filename = options.get("output_file", "submission-status.csv")
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        project_names = options.get("project_names", "").split(",")
+        modules = options.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
         ]
         if unexpected_modules:
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
-        study_id = context.config.opts.get("study_id", "adrc")
+        study_id = options.get("study_id", "adrc")
 
-        query_type_arg = context.config.opts.get("query_type", "status")
+        query_type_arg = options.get("query_type", "status")
         if query_type_arg not in ["error", "status"]:
             raise GearExecutionError(f"Invalid query_type: {query_type_arg}")
 
