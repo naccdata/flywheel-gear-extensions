@@ -91,7 +91,7 @@ class TestParameterStore:
                 param_type=TestParameters, parameter_path="/test/invalid"
             )
 
-    def test_support_staff_emails(self, ssm):
+    def test_support_emails(self, ssm):
         """Test getting support staff emails from parameter store."""
         from inputs.parameter_store import ParameterError, ParameterStore
 

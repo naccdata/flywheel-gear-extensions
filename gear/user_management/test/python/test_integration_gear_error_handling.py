@@ -59,8 +59,8 @@ class MockParameterStore:
             raise ParameterError("Portal URL not found")
         return self.portal_url
 
-    def get_support_staff_emails(self, path: str) -> List[str]:
-        """Mock get_support_staff_emails.
+    def get_support_emails(self, path: str) -> List[str]:
+        """Mock get_support_emails.
 
         This method would be added to the real ParameterStore to support
         retrieving support staff email addresses for error
@@ -161,7 +161,7 @@ class TestGearErrorHandlingIntegration:
             ),
         ):
             # Add support staff emails path to config
-            mock_context.config_dict["support_staff_emails_path"] = "/support/emails"
+            mock_context.config_dict["support_emails_path"] = "/support/emails"
 
             visitor = UserManagementVisitor.create(
                 context=mock_context,  # type: ignore
@@ -314,7 +314,7 @@ class TestGearErrorHandlingIntegration:
         assert not collector.has_errors()
         assert collector.error_count() == 0
 
-    def test_support_staff_emails_configuration(
+    def test_support_emails_configuration(
         self,
         mock_parameter_store: MockParameterStore,
         mock_context: MockGearToolkitContext,
@@ -329,7 +329,7 @@ class TestGearErrorHandlingIntegration:
         """
         # Test with support staff emails configured
         config_with_emails = mock_context.config_dict.copy()
-        config_with_emails["support_staff_emails_path"] = "/support/emails"
+        config_with_emails["support_emails_path"] = "/support/emails"
 
         context_with_emails = MockGearToolkitContext(config=config_with_emails)
 
@@ -349,7 +349,7 @@ class TestGearErrorHandlingIntegration:
 
         # Test without support staff emails configured (should still work)
         config_without_emails = mock_context.config_dict.copy()
-        # Don't include support_staff_emails_path
+        # Don't include support_emails_path
 
         context_without_emails = MockGearToolkitContext(config=config_without_emails)
 
@@ -370,7 +370,7 @@ class TestGearErrorHandlingIntegration:
         # Test with invalid support staff emails path (should log warning but not fail)
         mock_param_store_no_emails = MockParameterStore(support_emails=None)
         config_with_invalid_path = mock_context.config_dict.copy()
-        config_with_invalid_path["support_staff_emails_path"] = "/invalid/path"
+        config_with_invalid_path["support_emails_path"] = "/invalid/path"
 
         context_with_invalid = MockGearToolkitContext(config=config_with_invalid_path)
 
