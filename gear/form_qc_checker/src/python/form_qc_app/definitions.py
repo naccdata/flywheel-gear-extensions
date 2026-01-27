@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 from configs.ingest_configs import ModuleConfigs
+from flywheel.rest import ApiException
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
 from nacc_common.error_models import VisitKeys
 from nacc_common.field_names import FieldNames
@@ -31,6 +33,7 @@ class DefinitionsLoader:
         s3_client: S3BucketInterface,
         error_writer: ErrorWriter,
         module_configs: ModuleConfigs,
+        project: ProjectAdaptor,
         strict: bool = True,
     ):
         """
@@ -39,12 +42,14 @@ class DefinitionsLoader:
             s3_bucket (S3BucketReader): S3 bucket to load rule definitions
             error_writer: error writer object to output error metadata
             module_configs: form ingest configs for the module
+            project: Flywheel project adaptor
             strict (optional): Validation mode, defaults to True
         """
 
         self.__s3_bucket = s3_client
         self.__error_writer = error_writer
         self.__module_configs = module_configs
+        self.__project = project
         self.__strict = strict
 
     def __get_s3_prefix(
@@ -72,8 +77,39 @@ class DefinitionsLoader:
 
         return s3_prefix
 
+    def __load_from_schema_json_file(self, module: str) -> Dict[str, Mapping]:
+        """Load the supplement module schema from project level schema json
+        file.
+
+        Args:
+            module: supplement module label
+
+        Returns:
+            Dict[str, Mapping]: supplement schema if found, else empty schema
+        """
+        schema_files = [
+            f"{module.lower()}-schema.json",
+            f"{module.lower()}-legacy-schema.json",
+        ]
+
+        schema = {}
+        for file in schema_files:
+            try:
+                data = json.loads(self.__project.read_file(file))
+                if "definitions" in data:
+                    schema = data["definitions"]
+                    break
+            except (ApiException, JSONDecodeError) as error:
+                log.info(f"Failed to read schema file {file}: {error}")
+
+        return schema
+
     def __append_supplement_schema(
-        self, *, schema: Dict[str, Mapping], supplement: Dict[str, Mapping]
+        self,
+        *,
+        schema: Dict[str, Mapping],
+        supplement_module: str,
+        supplement_schema: Dict[str, Mapping],
     ):
         """Append supplement schema to the given schema. Only assign the type
         and set nullable to True, any other rules defined in the supplement
@@ -81,16 +117,29 @@ class DefinitionsLoader:
 
         Args:
             schema: schema for input visit data
-            supplement: schema for supplement module visit data
+            supplement_module: supplement module label
+            supplement_schema: schema for supplement module visit data
         """
-        for field in supplement:
+
+        supplement_schema = (
+            supplement_schema
+            if supplement_schema
+            else self.__load_from_schema_json_file(module=supplement_module)
+        )
+
+        for field in supplement_schema:
             if field not in schema:
                 schema[field] = {"nullable": True}
 
-                if supplement[field].get("type"):
-                    schema[field]["type"] = supplement[field][  # type: ignore
-                        "type"
-                    ]
+                datatype = supplement_schema[field].get("type")
+                if datatype:
+                    if isinstance(datatype, list):
+                        datatype = datatype[0]
+
+                    if datatype == "number":
+                        datatype = "float"
+
+                    schema[field]["type"] = datatype  # type: ignore
 
     def load_definition_schemas(
         self,
@@ -140,20 +189,26 @@ class DefinitionsLoader:
 
         # load supplement module schema if a supplement record provided
         # skip optional forms to ensure the type is preserved
-        if supplement_data and supplement_data.get(FieldNames.MODULE):
-            supplement_s3_prefix = self.__get_s3_prefix(
-                module=supplement_data.get(FieldNames.MODULE),  # type: ignore
-                data_record=supplement_data,
-            )
-            try:
-                supplement_schema = self.download_definitions_from_s3(
-                    f"{supplement_s3_prefix}/rules/"
+        if supplement_data:
+            supplement_module = supplement_data.get(FieldNames.MODULE)
+            if supplement_module:
+                supplement_s3_prefix = self.__get_s3_prefix(
+                    module=supplement_module,
+                    data_record=supplement_data,
                 )
+                supplement_schema = {}
+                try:
+                    supplement_schema = self.download_definitions_from_s3(
+                        f"{supplement_s3_prefix}/rules/"
+                    )
+                except DefinitionException as error:
+                    log.warning(error)
+
                 self.__append_supplement_schema(
-                    schema=schema, supplement=supplement_schema
+                    schema=schema,
+                    supplement_module=supplement_module,
+                    supplement_schema=supplement_schema,
                 )
-            except DefinitionException as error:
-                log.warning(error)
 
         return schema, codes_map
 
