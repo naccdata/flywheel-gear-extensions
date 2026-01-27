@@ -27,8 +27,6 @@ class ConsolidatedNotificationData(BaseTemplateModel):
 
     # Optional fields for specific error categories
     unclaimed_records: Optional[List[Dict[str, str]]] = None
-    email_mismatches: Optional[List[Dict[str, str]]] = None
-    unverified_emails: Optional[List[Dict[str, str]]] = None
     incomplete_claims: Optional[List[Dict[str, str]]] = None
     bad_orcid_claims: Optional[List[Dict[str, str]]] = None
     missing_directory_permissions: Optional[List[Dict[str, str]]] = None
@@ -41,9 +39,9 @@ class ConsolidatedNotificationData(BaseTemplateModel):
 
 class ErrorNotificationGenerator:
     """Generates notifications for error events using AWS SES templates.
-    
-    Uses a single consolidated template (error-consolidated) that includes
-    all error categories in one email notification.
+
+    Uses a single consolidated template (error-consolidated) that
+    includes all error categories in one email notification.
     """
 
     def __init__(self, email_client: EmailClient, configuration_set_name: str):
@@ -131,8 +129,6 @@ class ErrorNotificationGenerator:
         """
         mapping = {
             EventCategory.UNCLAIMED_RECORDS: "unclaimed_records",
-            EventCategory.EMAIL_MISMATCH: "email_mismatches",
-            EventCategory.UNVERIFIED_EMAIL: "unverified_emails",
             EventCategory.INCOMPLETE_CLAIM: "incomplete_claims",
             EventCategory.BAD_ORCID_CLAIMS: "bad_orcid_claims",
             EventCategory.MISSING_DIRECTORY_PERMISSIONS: (

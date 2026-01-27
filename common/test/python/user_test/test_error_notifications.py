@@ -115,9 +115,9 @@ class TestErrorNotificationGenerator:
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="test3@example.com"),
-            details={"message": "Email mismatch"},
+            details={"message": "Incomplete claim"},
         )
 
         collector.collect(error1)
@@ -131,11 +131,9 @@ class TestErrorNotificationGenerator:
         assert notification_data.total_errors == 3
         assert len(notification_data.affected_users) == 3
         assert notification_data.errors_by_category["Unclaimed Records"] == 2
-        assert (
-            notification_data.errors_by_category["Authentication Email Mismatch"] == 1
-        )
+        assert notification_data.errors_by_category["Incomplete Claim"] == 1
         assert len(notification_data.unclaimed_records) == 2
-        assert len(notification_data.email_mismatches) == 1
+        assert len(notification_data.incomplete_claims) == 1
 
     def test_send_consolidated_notification(
         self, notification_generator, mock_email_client

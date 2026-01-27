@@ -26,8 +26,6 @@ class EventCategory(Enum):
 
     # Error categories
     UNCLAIMED_RECORDS = "Unclaimed Records"
-    EMAIL_MISMATCH = "Authentication Email Mismatch"
-    UNVERIFIED_EMAIL = "Unverified Email"
     INCOMPLETE_CLAIM = "Incomplete Claim"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"

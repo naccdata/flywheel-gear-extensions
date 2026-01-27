@@ -20,8 +20,7 @@ class TestEventCategory:
 
         # Test all required category values exist
         assert EventCategory.UNCLAIMED_RECORDS.value == "Unclaimed Records"
-        assert EventCategory.EMAIL_MISMATCH.value == "Authentication Email Mismatch"
-        assert EventCategory.UNVERIFIED_EMAIL.value == "Unverified Email"
+        assert EventCategory.INCOMPLETE_CLAIM.value == "Incomplete Claim"
         assert EventCategory.BAD_ORCID_CLAIMS.value == "Bad ORCID Claims"
         assert (
             EventCategory.MISSING_DIRECTORY_PERMISSIONS.value
@@ -203,12 +202,12 @@ class TestUserProcessEvent:
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=user_context,
             details=details,
         )
 
-        assert error_event.category == "Authentication Email Mismatch"
+        assert error_event.category == "Incomplete Claim"
 
     def test_error_event_serialization(self):
         """Test UserProcessEvent serialization to dict and JSON."""
@@ -284,7 +283,7 @@ class TestUserProcessEvent:
         # Create without specifying event_id and timestamp
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.UNVERIFIED_EMAIL,
+            category=EventCategory.MISSING_DIRECTORY_DATA,
             user_context=user_context,
             details={"message": "Default test"},
         )
@@ -356,7 +355,7 @@ class TestUserEventCollector:
         )
         error_event2 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=user_context2,
             details={"message": "Second error"},
         )
@@ -393,9 +392,9 @@ class TestUserEventCollector:
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user3@example.com"),
-            details={"message": "Email mismatch"},
+            details={"message": "Incomplete claim"},
         )
 
         collector.collect(error1)
@@ -406,7 +405,7 @@ class TestUserEventCollector:
 
         assert len(errors_by_category) == 2
         assert len(errors_by_category[EventCategory.UNCLAIMED_RECORDS]) == 2
-        assert len(errors_by_category[EventCategory.EMAIL_MISMATCH]) == 1
+        assert len(errors_by_category[EventCategory.INCOMPLETE_CLAIM]) == 1
 
     def test_collector_get_errors_for_category(self):
         """Test getting errors for a specific category."""
@@ -424,9 +423,9 @@ class TestUserEventCollector:
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user2@example.com"),
-            details={"message": "Mismatch"},
+            details={"message": "Incomplete claim"},
         )
 
         collector.collect(error1)
@@ -438,17 +437,17 @@ class TestUserEventCollector:
         assert len(unclaimed_errors) == 1
         assert unclaimed_errors[0] == error1
 
-        mismatch_errors = collector.get_events_for_category(
-            EventCategory.EMAIL_MISMATCH
+        incomplete_errors = collector.get_events_for_category(
+            EventCategory.INCOMPLETE_CLAIM
         )
-        assert len(mismatch_errors) == 1
-        assert mismatch_errors[0] == error2
+        assert len(incomplete_errors) == 1
+        assert incomplete_errors[0] == error2
 
-        # Test non-existent category
-        flywheel_errors = collector.get_events_for_category(
-            EventCategory.FLYWHEEL_ERROR
+        # Test non-existent category - use a category that exists but has no events
+        missing_data_errors = collector.get_events_for_category(
+            EventCategory.MISSING_DIRECTORY_DATA
         )
-        assert len(flywheel_errors) == 0
+        assert len(missing_data_errors) == 0
 
     def test_collector_count_by_category(self):
         """Test counting errors by category."""
@@ -472,9 +471,9 @@ class TestUserEventCollector:
         )
         error3 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user3@example.com"),
-            details={"message": "Mismatch"},
+            details={"message": "Incomplete claim"},
         )
 
         collector.collect(error1)
@@ -484,7 +483,7 @@ class TestUserEventCollector:
         counts = collector.count_by_category()
 
         assert counts["Unclaimed Records"] == 2
-        assert counts["Authentication Email Mismatch"] == 1
+        assert counts["Incomplete Claim"] == 1
         assert len(counts) == 2
 
     def test_collector_get_affected_users(self):
@@ -503,7 +502,7 @@ class TestUserEventCollector:
         )
         error2 = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.EMAIL_MISMATCH,
+            category=EventCategory.INCOMPLETE_CLAIM,
             user_context=UserContext(email="user2@example.com"),
             details={"message": "Error 2"},
         )
@@ -609,13 +608,14 @@ class TestCreateUserProcessEvent:
         # Test each category
         categories_to_test = [
             (EventCategory.UNCLAIMED_RECORDS, "Unclaimed Records"),
-            (EventCategory.EMAIL_MISMATCH, "Authentication Email Mismatch"),
-            (EventCategory.UNVERIFIED_EMAIL, "Unverified Email"),
+            (EventCategory.INCOMPLETE_CLAIM, "Incomplete Claim"),
             (EventCategory.BAD_ORCID_CLAIMS, "Bad ORCID Claims"),
             (
                 EventCategory.MISSING_DIRECTORY_PERMISSIONS,
                 "Missing Directory Permissions",
             ),
+            (EventCategory.MISSING_DIRECTORY_DATA, "Missing Directory Data"),
+            (EventCategory.MISSING_REGISTRY_DATA, "Missing Registry Data"),
             (EventCategory.INSUFFICIENT_PERMISSIONS, "Insufficient Permissions"),
             (
                 EventCategory.DUPLICATE_USER_RECORDS,
@@ -678,12 +678,12 @@ class TestCreateUserProcessEvent:
 
         error_event = UserProcessEvent(
             event_type=EventType.ERROR,
-            category=EventCategory.UNVERIFIED_EMAIL,
+            category=EventCategory.FLYWHEEL_ERROR,
             user_context=user_context,
             details=details,
         )
 
-        assert error_event.category == "Unverified Email"
+        assert error_event.category == "Flywheel Error"
         assert error_event.user_context.email == "minimal@example.com"
         assert error_event.details == {}
 
