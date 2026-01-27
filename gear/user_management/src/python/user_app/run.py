@@ -24,7 +24,7 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
-from users.error_notifications import ErrorNotificationGenerator
+from users.event_notifications import UserEventNotificationGenerator
 from users.event_models import UserEventCollector
 from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_process_environment import NotificationModeType
@@ -328,14 +328,14 @@ class UserManagementVisitor(GearExecutionEnvironment):
             collector.error_count(),
         )
         try:
-            notification_generator = ErrorNotificationGenerator(
+            notification_generator = UserEventNotificationGenerator(
                 email_client=EmailClient(
                     client=create_ses_client(),
                     source=self.__email_source,
                 ),
                 configuration_set_name="user-management-errors",
             )
-            message_id = notification_generator.send_error_notification(
+            message_id = notification_generator.send_event_notification(
                 collector=collector,
                 gear_name="user_management",
                 support_emails=self.__support_emails,

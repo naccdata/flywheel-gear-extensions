@@ -1,4 +1,4 @@
-from users.error_notifications import ConsolidatedNotificationData
+from users.event_notifications import ConsolidatedNotificationData
 
 
 class TestNotificationSerialization:

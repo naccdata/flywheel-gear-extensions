@@ -21,9 +21,9 @@ class ConsolidatedNotificationData(BaseTemplateModel):
 
     gear_name: str
     execution_timestamp: str
-    total_errors: int
-    errors_by_category: Dict[str, int]
-    error_summaries: List[str]
+    total_events: int
+    events_by_category: Dict[str, int]
+    event_summaries: List[str]
     affected_users: List[str]
     category_details: Dict[str, List[Dict[str, str]]]
 
@@ -42,7 +42,7 @@ class ConsolidatedNotificationData(BaseTemplateModel):
         return data
 
 
-class ErrorNotificationGenerator:
+class UserEventNotificationGenerator:
     """Generates notifications for error events using AWS SES templates.
 
     Uses a single consolidated template (error-consolidated) that
@@ -134,7 +134,7 @@ class ErrorNotificationGenerator:
             )
             return None
 
-    def send_error_notification(
+    def send_event_notification(
         self,
         collector: UserEventCollector,
         gear_name: str,

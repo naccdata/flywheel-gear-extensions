@@ -15,7 +15,7 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterError, ParameterStore
 from notifications.email import EmailClient, create_ses_client
 from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
-from users.error_notifications import ErrorNotificationGenerator
+from users.event_notifications import UserEventNotificationGenerator
 from users.event_models import UserEventCollector
 from yaml.representer import RepresenterError
 
@@ -222,14 +222,14 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             self.__collector.error_count(),
         )
         try:
-            notification_generator = ErrorNotificationGenerator(
+            notification_generator = UserEventNotificationGenerator(
                 email_client=EmailClient(
                     client=create_ses_client(),
                     source=self.__email_source,
                 ),
                 configuration_set_name="pull-directory-errors",
             )
-            message_id = notification_generator.send_error_notification(
+            message_id = notification_generator.send_event_notification(
                 collector=self.__collector,
                 gear_name="pull_directory",
                 support_emails=self.__support_emails,

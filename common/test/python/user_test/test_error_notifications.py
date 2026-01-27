@@ -5,16 +5,16 @@ from unittest.mock import Mock
 
 import pytest
 from notifications.email import EmailClient
-from users.error_notifications import (
-    ConsolidatedNotificationData,
-    ErrorNotificationGenerator,
-)
 from users.event_models import (
     EventCategory,
     EventType,
     UserContext,
     UserEventCollector,
     UserProcessEvent,
+)
+from users.event_notifications import (
+    ConsolidatedNotificationData,
+    UserEventNotificationGenerator,
 )
 from users.user_entry import PersonName
 
@@ -28,7 +28,7 @@ def mock_email_client():
 @pytest.fixture
 def notification_generator(mock_email_client):
     """Create an error notification generator with mock client."""
-    return ErrorNotificationGenerator(
+    return UserEventNotificationGenerator(
         email_client=mock_email_client, configuration_set_name="test-config"
     )
 
@@ -71,7 +71,7 @@ class TestConsolidatedNotificationData:
         )
 
         assert data.gear_name == "user_management"
-        assert data.total_errors == 1
+        assert data.total_events == 1
         assert len(data.affected_users) == 1
 
 
