@@ -12,6 +12,7 @@ published - boolean indicating whether data is to be published
 """
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from fw_gear import GearContext
@@ -34,7 +35,7 @@ log = logging.getLogger(__name__)
 class ProjectCreationVisitor(GearExecutionEnvironment):
     """Defines the project management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: str):
+    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: Path):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__project_filepath = project_filepath
@@ -65,9 +66,9 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
             admin_id=admin_id, client=client, project_filepath=project_filepath
         )
 
-    def __get_study_list(self, project_filepath: str) -> List[StudyModel]:
+    def __get_study_list(self, project_filepath: Path) -> List[StudyModel]:
         try:
-            with open(project_filepath, "r", encoding="utf-8-sig") as stream:
+            with project_filepath.open("r", encoding="utf-8-sig") as stream:
                 project_list = load_all_from_stream(stream)
         except YAMLReadError as error:
             raise GearExecutionError(

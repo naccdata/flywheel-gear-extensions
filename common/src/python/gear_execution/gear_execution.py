@@ -16,9 +16,9 @@ from flywheel.models.project import Project
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
-from fw_gear import GearContext
-from fw_gear.utils.sdk_utils import get_container_from_ref
 from fw_client.client import FWClient
+from fw_gear import GearContext
+from fw_gear.utils.sdk_helpers import get_container_from_ref
 from inputs.parameter_store import ParameterError, ParameterStore
 
 log = logging.getLogger(__name__)
@@ -154,6 +154,7 @@ class InputFileWrapper:
 
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
+        assert context.client
         container = get_container_from_ref(context.client, file_hierarchy)
         assert isinstance(container, (Acquisition, Subject, Project))
         container = container.reload()
@@ -241,11 +242,7 @@ class InputFileWrapper:
           GearExecutionError if there is no input with the name
         """
         file_input = context.config.get_input(input_name)
-        is_optional = (
-            context.manifest.inputs
-            .get(input_name, {})
-            .get("optional", False)
-        )
+        is_optional = context.manifest.inputs.get(input_name, {}).get("optional", False)
 
         if not file_input:
             if is_optional:
@@ -434,7 +431,7 @@ class GearExecutionEnvironment(ABC):
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
 
-    @classemthod
+    @classmethod
     def gear_name(cls, context: GearContext, default: str) -> str:
         """Get gear name."""
         gear_name = context.manifest.name

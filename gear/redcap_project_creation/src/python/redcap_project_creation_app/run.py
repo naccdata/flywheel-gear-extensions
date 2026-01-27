@@ -1,6 +1,7 @@
 """Entry script for REDCap Project Creation."""
 
 import logging
+from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
@@ -63,7 +64,7 @@ def get_xml_templates(
     return xml_templates
 
 
-def validate_input_data(input_file_path: str) -> Optional[StudyREDCapMetadata]:
+def validate_input_data(input_file_path: Path) -> Optional[StudyREDCapMetadata]:
     """Validates the input file.
 
     Args:
@@ -74,7 +75,7 @@ def validate_input_data(input_file_path: str) -> Optional[StudyREDCapMetadata]:
     """
 
     try:
-        with open(input_file_path, "r", encoding="utf-8 ") as input_file:
+        with input_file_path.open("r", encoding="utf-8 ") as input_file:
             input_data = load_from_stream(input_file)
     except YAMLReadError as error:
         log.error("Failed to read the input file - %s", error)

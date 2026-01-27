@@ -109,7 +109,9 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
 
         return BatchSchedulerVisitor(
             client=client,
-            admin_id=context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID),
+            admin_id=context.config.opts.get(
+                "admin_group", DefaultValues.NACC_GROUP_ID
+            ),
             config_input=batch_configs_input,
             include_centers=include_centers_list,
             exclude_centers=exclude_centers_list,

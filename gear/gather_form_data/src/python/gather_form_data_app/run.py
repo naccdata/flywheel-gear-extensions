@@ -126,13 +126,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         )
 
         gear_name = self.gear_name(context, "gather-submission-status")
-        context.metadata.add_file_tags(
-            self.__file_input.file_input, tags=gear_name
-        )
+        context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
-    def __write_output(
-        self, context: GearContext, gatherers: list[ModuleDataGatherer]
-    ):
+    def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):
         """Using the gear context, writes the data content in each gatherer to
         a file named with the study-id and the module of the gatherer.
 

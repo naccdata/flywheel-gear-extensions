@@ -85,7 +85,9 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        error_outfile = context.config.opts.get("error_outfile", "regression_errors.csv")
+        error_outfile = context.config.opts.get(
+            "error_outfile", "regression_errors.csv"
+        )
 
         naccid_blacklist_file = InputFileWrapper.create(
             input_name="naccid_blacklist_file", context=context

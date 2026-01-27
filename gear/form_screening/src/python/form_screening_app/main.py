@@ -148,6 +148,7 @@ def run(
     queue_tags: List[str],
     scheduler_gear: GearInfo,
     format_and_tag: bool,
+    gear_name: str,
 ) -> Optional[ListErrorWriter]:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules, if the suffix does not match, report an error.
@@ -171,6 +172,7 @@ def run(
         scheduler_gear: GearInfo of the scheduler gear to trigger
         format_and_tag: if True format input file and add queue_tags,
                         else check whether the file is already tagged with queue_tags
+        gear_name: The gear name
 
     Returns:
         ListErrorWriter(optional): If file didn't pass screening checks
@@ -258,7 +260,6 @@ def run(
         error_writer.write(empty_file_error())
         return error_writer
 
-    gear_name = context.manifest.get("name", "form-screening")
     queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)

@@ -9,6 +9,7 @@ array of centers:
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from centers.center_info import CenterList
@@ -36,7 +37,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         self,
         admin_id: str,
         client: ClientWrapper,
-        center_filepath: str,
+        center_filepath: Path,
         new_only: bool = False,
     ):
         super().__init__(client=client)
@@ -73,7 +74,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
             new_only=context.config.opts.get("new_only", False),
         )
 
-    def __get_center_list(self, center_file_path: str) -> CenterList:
+    def __get_center_list(self, center_file_path: Path) -> CenterList:
         """Get the centers from the file.
 
         Args:
@@ -82,7 +83,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
           Map of CenterInfo objects to optional list of tags
         """
         try:
-            with open(center_file_path, "r", encoding="utf-8-sig") as center_file:
+            with center_file_path.open("r", encoding="utf-8-sig") as center_file:
                 object_list = load_from_stream(center_file)
         except YAMLReadError as error:
             raise GearExecutionError(

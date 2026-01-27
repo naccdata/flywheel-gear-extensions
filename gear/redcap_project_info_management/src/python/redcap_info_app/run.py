@@ -1,6 +1,7 @@
 """Entry script for REDCap Project Info Management."""
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from centers.center_group import REDCapProjectInput
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 class REDCapProjectInfoVisitor(GearExecutionEnvironment):
     """Visitor for the REDCap Project Info Management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, input_filepath: str):
+    def __init__(self, admin_id: str, client: ClientWrapper, input_filepath: Path):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__input_file_path = input_filepath
@@ -64,7 +65,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
         )
 
     # pylint: disable=no-self-use
-    def __get_project_list(self, input_file_path: str) -> List[REDCapProjectInput]:
+    def __get_project_list(self, input_file_path: Path) -> List[REDCapProjectInput]:
         """Get the REDCap project info objects from the input file.
 
         Args:
@@ -73,7 +74,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             A list of REDCap project info objects.
         """
         try:
-            with open(input_file_path, "r", encoding="utf-8 ") as input_file:
+            with input_file_path.open("r", encoding="utf-8 ") as input_file:
                 object_list = load_from_stream(input_file)
         except YAMLReadError as error:
             raise GearExecutionError(

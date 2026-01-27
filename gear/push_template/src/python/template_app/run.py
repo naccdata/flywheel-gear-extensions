@@ -3,8 +3,8 @@
 import logging
 from typing import Optional
 
-from fw_gear import GearContext
 from fw_client.client import FWClient
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,

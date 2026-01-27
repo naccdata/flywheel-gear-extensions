@@ -1,6 +1,8 @@
 import flywheel
 import typing as t
+
 from dataclasses import dataclass, field
+from flywheel.models.file_output import FileOutput
 from pathlib import Path
 
 
@@ -27,9 +29,7 @@ class File:
         ...
 
     @classmethod
-    def from_sdk(
-        cls, file_: flywheel.models.file_output.FileOutput, context: t.Any
-    ) -> File:
+    def from_sdk(cls, file_: FileOutput, context: t.Any) -> File:
         ...
 
     @property
@@ -41,9 +41,7 @@ class File:
         ...
 
     @staticmethod
-    def download_file_to_temp(
-        file_: flywheel.models.file_output.FileOutput,
-    ) -> Path:
+    def download_file_to_temp(file_: FileOutput) -> Path:
         ...
 
     def __del__(self) -> None:

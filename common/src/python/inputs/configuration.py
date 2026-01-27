@@ -69,9 +69,7 @@ def get_project(
     return project
 
 
-def read_file(
-    *, context: GearContext, source: ProjectAdaptor, key: str
-) -> bytes:
+def read_file(*, context: GearContext, source: ProjectAdaptor, key: str) -> bytes:
     """Read the bytes read from the file from the source directory using the
     key to pull the file name from the context config.
 

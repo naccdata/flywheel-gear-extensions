@@ -81,7 +81,9 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        output_filename = context.config.opts.get("output_file", "submission-status.csv")
+        output_filename = context.config.opts.get(
+            "output_file", "submission-status.csv"
+        )
         admin_id = context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = context.config.opts.get("project_names", "").split(",")
         modules = context.config.opts.get("modules", "").split(",")
@@ -161,9 +163,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             )
 
             gear_name = self.gear_name(context, "gather-submission-status")
-            context.metadata.add_file_tags(
-                self.__file_input.file_input, tags=gear_name
-            )
+            context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
 
 def main():

@@ -1,6 +1,7 @@
 """The run script for the user management gear."""
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from coreapi_client.api.default_api import DefaultApi
@@ -42,8 +43,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self,
         admin_id: str,
         client: ClientWrapper,
-        user_filepath: str,
-        auth_filepath: str,
+        user_filepath: Path,
+        auth_filepath: Path,
         email_source: str,
         comanage_config: Configuration,
         comanage_coid: int,
@@ -168,7 +169,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             except RegistryError as error:
                 raise GearExecutionError(f"User registry error: {error}") from error
 
-    def __get_user_queue(self, user_file_path: str) -> UserQueue[UserEntry]:
+    def __get_user_queue(self, user_file_path: Path) -> UserQueue[UserEntry]:
         """Get the active user objects from the user file.
 
         Args:
@@ -177,7 +178,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             List of user objects
         """
         try:
-            with open(user_file_path, "r", encoding="utf-8-sig") as user_file:
+            with user_file_path.open("r", encoding="utf-8-sig") as user_file:
                 object_list = load_from_stream(user_file)
         except YAMLReadError as error:
             raise GearExecutionError(
@@ -205,7 +206,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
         return user_list
 
-    def __get_auth_map(self, auth_file_path: str) -> AuthMap:
+    def __get_auth_map(self, auth_file_path: Path) -> AuthMap:
         """Get the authorization map from the auth file.
 
         Args:
@@ -214,7 +215,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             The authorization map
         """
         try:
-            with open(auth_file_path, "r", encoding="utf-8-sig") as auth_file:
+            with auth_file_path.open("r", encoding="utf-8-sig") as auth_file:
                 auth_object = load_from_stream(auth_file)
                 auth_map = AuthMap.model_validate(
                     auth_object,

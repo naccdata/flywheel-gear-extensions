@@ -34,6 +34,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         queue_tags: List[str],
         scheduler_gear: GearInfo,
         format_and_tag: bool,
+        gear_name: str,
     ):
         super().__init__(client=client)
 
@@ -42,6 +43,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         self.__queue_tags = queue_tags
         self.__scheduler_gear = scheduler_gear
         self.__format_and_tag = format_and_tag
+        self.__gear_name = gear_name
 
     @classmethod
     def create(
@@ -68,7 +70,9 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 "Gear config input_file not specified or not found"
             )
 
-        gear_name = self.gear_name(context, "form-screening")
+        gear_name = context.manifest.name
+        if not gear_name:
+            gear_name = "form-screening"
 
         # We save the formatted file with same name as input file
         # To prevent gear rules running into a loop check whether the file is screened
@@ -122,6 +126,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=file_tags,
             scheduler_gear=scheduler_gear,
             format_and_tag=format_and_tag,
+            gear_name=gear_name,
         )
 
     def run(self, context: GearContext) -> None:
@@ -135,6 +140,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=self.__queue_tags,
             scheduler_gear=self.__scheduler_gear,
             format_and_tag=self.__format_and_tag,
+            gear_name=self.__gear_name,
         )
 
         if error_writer:
