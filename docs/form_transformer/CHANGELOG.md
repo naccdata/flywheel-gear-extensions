@@ -3,6 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.7.1 (unreleased)
+* Updates to support legacy ingest pipeline
 * Bug fixes and improvements
 * Rebuilt for event logging updates
 
