@@ -205,7 +205,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
     @staticmethod
     def _get_support_emails(
         context: GearToolkitContext, parameter_store: ParameterStore
-    ) -> Optional[List[str]]:
+    ) -> list[str]:
         """Retrieve optional support emails from parameter store.
 
         Args:
@@ -215,9 +215,9 @@ class UserManagementVisitor(GearExecutionEnvironment):
         Returns:
             List of support email addresses, or None if not configured
         """
-        support_email_path = context.config.get("support_emails_path")
-        if not support_email_path:
-            return None
+        support_email_path = context.config.get(
+            "support_emails_path", "/prod/notifications/support_emails"
+        )
 
         try:
             support_emails = parameter_store.get_support_emails(support_email_path)
@@ -234,7 +234,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 support_email_path,
                 error,
             )
-            return None
+            return []
 
     @staticmethod
     def _create_redcap_repository(
@@ -276,12 +276,12 @@ class UserManagementVisitor(GearExecutionEnvironment):
         assert self.__admin_id, "Admin group ID required"
         assert self.__email_source, "Sender email address required"
 
+        collector = UserEventCollector()
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
 
             try:
-                collector = UserEventCollector()
                 run(
                     user_queue=self.__get_user_queue(self.__user_filepath),
                     user_process=UserProcess(
@@ -306,66 +306,65 @@ class UserManagementVisitor(GearExecutionEnvironment):
                         collector=collector,
                     ),
                 )
-
-                # Send consolidated error notification at end of run if there are errors
-                if collector.has_errors() and self.__support_emails:
-                    log.info(
-                        "Sending consolidated error notification for %d error(s)",
-                        collector.error_count(),
-                    )
-                    try:
-                        notification_generator = ErrorNotificationGenerator(
-                            email_client=EmailClient(
-                                client=create_ses_client(),
-                                source=self.__email_source,
-                            ),
-                            configuration_set_name="user-management-errors",
-                        )
-                        message_id = notification_generator.send_error_notification(
-                            collector=collector,
-                            gear_name="user_management",
-                            support_emails=self.__support_emails,
-                        )
-                        if message_id:
-                            log.info(
-                                (
-                                    "Successfully sent error notification with "
-                                    "message ID: %s"
-                                ),
-                                message_id,
-                            )
-                        else:
-                            log.warning(
-                                (
-                                    "Failed to send error notification - "
-                                    "notification system returned no message ID"
-                                )
-                            )
-                    except (
-                        ClientError,
-                        ValidationError,
-                        ValueError,
-                    ) as notification_error:
-                        # Notification failures should not fail the gear run
-                        # Log the error and continue
-                        log.error(
-                            "Failed to send error notification email: %s. "
-                            "Individual errors have been logged. "
-                            "Gear run will continue.",
-                            notification_error,
-                            exc_info=True,
-                        )
-                elif collector.has_errors():
-                    log.warning(
-                        "Errors occurred but no support emails configured. "
-                        "Skipping error notification."
-                    )
-
             except RegistryError as error:
                 # Critical service failure - registry is essential for user management
                 raise GearExecutionError(
                     f"Critical service failure - User registry error: {error}"
                 ) from error
+
+        if not collector.has_errors():
+            log.info("User management completed successfully with no errors")
+            return
+
+        if not self.__support_emails:
+            log.warning(
+                "Errors occurred but no support emails configured. "
+                "Skipping error notification."
+            )
+            return
+
+        log.info(
+            "Sending consolidated error notification for %d error(s)",
+            collector.error_count(),
+        )
+        try:
+            notification_generator = ErrorNotificationGenerator(
+                email_client=EmailClient(
+                    client=create_ses_client(),
+                    source=self.__email_source,
+                ),
+                configuration_set_name="user-management-errors",
+            )
+            message_id = notification_generator.send_error_notification(
+                collector=collector,
+                gear_name="user_management",
+                support_emails=self.__support_emails,
+            )
+            if message_id:
+                log.info(
+                    ("Successfully sent error notification with message ID: %s"),
+                    message_id,
+                )
+            else:
+                log.warning(
+                    (
+                        "Failed to send error notification - "
+                        "notification system returned no message ID"
+                    )
+                )
+        except (
+            ClientError,
+            ValidationError,
+            ValueError,
+        ) as notification_error:
+            log.error(
+                "Failed to send error notification email: %s. "
+                "Individual errors have been logged. "
+                "Gear run will continue.",
+                notification_error,
+                exc_info=True,
+            )
+            raise GearExecutionError(notification_error) from notification_error
 
     def __get_user_queue(self, user_file_path: str) -> UserQueue[UserEntry]:
         """Get the active user objects from the user file.
