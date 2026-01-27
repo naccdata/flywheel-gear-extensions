@@ -15,9 +15,9 @@ class TestNotificationSerialization:
         notification_data = ConsolidatedNotificationData(
             gear_name="test_gear",
             execution_timestamp="2024-01-27T10:30:00",
-            total_errors=2,
-            errors_by_category={"dummy": 2},
-            error_summaries=["dummy summary 1", "dummy summary 2"],
+            total_events=2,
+            events_by_category={"dummy": 2},
+            event_summaries=["dummy summary 1", "dummy summary 2"],
             affected_users=["user1@example.com", "user2@example.com"],
             category_details={
                 "unclaimed_records": [
@@ -45,7 +45,7 @@ class TestNotificationSerialization:
         # Verify top-level structure
         assert template_dict["gear_name"] == "test_gear"
         assert template_dict["execution_timestamp"] == "2024-01-27T10:30:00"
-        assert template_dict["total_errors"] == 2
+        assert template_dict["total_events"] == 2
 
         # Verify category fields exist with snake_case names
         assert "unclaimed_records" in template_dict

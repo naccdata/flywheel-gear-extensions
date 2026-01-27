@@ -63,9 +63,9 @@ class TestConsolidatedNotificationData:
         data = ConsolidatedNotificationData(
             gear_name="user_management",
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=1,
-            errors_by_category={"Unclaimed Records": 1},
-            error_summaries=["Test summary"],
+            total_events=1,
+            events_by_category={"Unclaimed Records": 1},
+            event_summaries=["Test summary"],
             affected_users=["test@example.com"],
             category_details={},
         )
@@ -89,10 +89,10 @@ class TestErrorNotificationGenerator:
         )
 
         assert notification_data.gear_name == "user_management"
-        assert notification_data.total_errors == 1
+        assert notification_data.total_events == 1
         assert len(notification_data.affected_users) == 1
         assert notification_data.affected_users[0] == "test@example.com"
-        assert "Unclaimed Records" in notification_data.errors_by_category
+        assert "Unclaimed Records" in notification_data.events_by_category
         assert "Unclaimed Records" in notification_data.category_details
         assert len(notification_data.category_details["Unclaimed Records"]) == 1
 
@@ -127,10 +127,10 @@ class TestErrorNotificationGenerator:
             collector, "user_management"
         )
 
-        assert notification_data.total_errors == 3
+        assert notification_data.total_events == 3
         assert len(notification_data.affected_users) == 3
-        assert notification_data.errors_by_category["Unclaimed Records"] == 2
-        assert notification_data.errors_by_category["Incomplete Claims"] == 1
+        assert notification_data.events_by_category["Unclaimed Records"] == 2
+        assert notification_data.events_by_category["Incomplete Claims"] == 1
         assert len(notification_data.category_details["Unclaimed Records"]) == 2
         assert len(notification_data.category_details["Incomplete Claims"]) == 1
 
@@ -141,9 +141,9 @@ class TestErrorNotificationGenerator:
         notification_data = ConsolidatedNotificationData(
             gear_name="user_management",
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=1,
-            errors_by_category={"Unclaimed Records": 1},
-            error_summaries=["Test summary"],
+            total_events=1,
+            events_by_category={"Unclaimed Records": 1},
+            event_summaries=["Test summary"],
             affected_users=["test@example.com"],
             category_details={},
         )
@@ -164,9 +164,9 @@ class TestErrorNotificationGenerator:
         notification_data = ConsolidatedNotificationData(
             gear_name="user_management",
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=1,
-            errors_by_category={"Unclaimed Records": 1},
-            error_summaries=["Test summary"],
+            total_events=1,
+            events_by_category={"Unclaimed Records": 1},
+            event_summaries=["Test summary"],
             affected_users=["test@example.com"],
             category_details={},
         )
@@ -189,7 +189,7 @@ class TestErrorNotificationGenerator:
         collector.collect(sample_error_event)
         mock_email_client.send.return_value = "message-id-456"
 
-        message_id = notification_generator.send_error_notification(
+        message_id = notification_generator.send_event_notification(
             collector, "user_management", ["support@example.com"]
         )
 
@@ -200,7 +200,7 @@ class TestErrorNotificationGenerator:
         self, notification_generator, mock_email_client, collector
     ):
         """Test sending notification with no errors."""
-        message_id = notification_generator.send_error_notification(
+        message_id = notification_generator.send_event_notification(
             collector, "user_management", ["support@example.com"]
         )
 

@@ -77,9 +77,9 @@ class UserEventNotificationGenerator:
         # Use event's to_template_dict() method for serialization
         category_details = {
             category.value: [
-                error.model_dump(exclude_none=True) for error in category_errors
+                error.model_dump(exclude_none=True) for error in category_events
             ]
-            for category, category_errors in grouped.items()
+            for category, category_events in grouped.items()
         }
 
         # Get all errors as flat list for summaries
@@ -88,9 +88,9 @@ class UserEventNotificationGenerator:
         return ConsolidatedNotificationData(
             gear_name=gear_name,
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=collector.error_count(),
-            errors_by_category=collector.count_by_category(),
-            error_summaries=[error.to_summary() for error in all_errors],
+            total_events=collector.error_count(),
+            events_by_category=collector.count_by_category(),
+            event_summaries=[error.to_summary() for error in all_errors],
             affected_users=collector.get_affected_users(),
             category_details=category_details,
         )

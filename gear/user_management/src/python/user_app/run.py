@@ -24,8 +24,8 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
-from users.event_notifications import UserEventNotificationGenerator
 from users.event_models import UserEventCollector
+from users.event_notifications import UserEventNotificationGenerator
 from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (

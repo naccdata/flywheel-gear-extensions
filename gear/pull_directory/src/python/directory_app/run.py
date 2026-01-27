@@ -15,8 +15,8 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterError, ParameterStore
 from notifications.email import EmailClient, create_ses_client
 from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
-from users.event_notifications import UserEventNotificationGenerator
 from users.event_models import UserEventCollector
+from users.event_notifications import UserEventNotificationGenerator
 from yaml.representer import RepresenterError
 
 from directory_app.main import run
