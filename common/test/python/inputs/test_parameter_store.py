@@ -105,7 +105,7 @@ class TestParameterStore:
         store = ParameterStore.create_from_environment()
         assert store
 
-        emails = store.get_support_staff_emails("/support/emails")
+        emails = store.get_support_emails("/support/emails")
         assert emails == [
             "support1@example.com",
             "support2@example.com",
@@ -119,15 +119,15 @@ class TestParameterStore:
             Value="single@example.com",
         )
 
-        single_email = store.get_support_staff_emails("/support/single")
+        single_email = store.get_support_emails("/support/single")
         assert single_email == ["single@example.com"]
 
         # Test with whitespace-only string (should raise error after stripping)
         ssm.put_parameter(Name="/support/whitespace/emails", Type="String", Value="   ")
 
         with pytest.raises(ParameterError, match="No valid support staff emails found"):
-            store.get_support_staff_emails("/support/whitespace")
+            store.get_support_emails("/support/whitespace")
 
         # Test with missing parameter (should raise error)
         with pytest.raises(ParameterError):
-            store.get_support_staff_emails("/support/nonexistent")
+            store.get_support_emails("/support/nonexistent")

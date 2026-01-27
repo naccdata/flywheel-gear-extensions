@@ -52,7 +52,7 @@ class URLParameter(TypedDict):
     url: str
 
 
-class SupportStaffEmailsParameter(TypedDict):
+class SupportEmailsParameter(TypedDict):
     """Dictionary type for support staff email addresses."""
 
     emails: str  # Comma-separated list of email addresses
@@ -373,9 +373,9 @@ class ParameterStore:
         """
         return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
 
-    def get_support_staff_emails(self, param_path: str) -> List[str]:
-        """Pulls support staff email addresses from the SSM parameter store at
-        the given path.
+    def get_support_emails(self, param_path: str) -> List[str]:
+        """Pulls support email addresses from the SSM parameter store at the
+        given path.
 
         The parameter should contain a comma-separated list of email addresses
         under the key 'emails'.
@@ -383,20 +383,20 @@ class ParameterStore:
         Args:
           param_path: the path in the parameter store
         Returns:
-          list of support staff email addresses
+          list of support email addresses
         Raises:
           ParameterError if the parameter is missing or invalid
         """
         params = self.get_parameters(
-            param_type=SupportStaffEmailsParameter, parameter_path=param_path
+            param_type=SupportEmailsParameter, parameter_path=param_path
         )
         emails_str = params.get("emails", "")
         if not emails_str:
-            raise ParameterError(f"No support staff emails found at {param_path}")
+            raise ParameterError(f"No support emails found at {param_path}")
 
         # Split by comma and strip whitespace
         emails = [email.strip() for email in emails_str.split(",") if email.strip()]
         if not emails:
-            raise ParameterError(f"No valid support staff emails found at {param_path}")
+            raise ParameterError(f"No valid support emails found at {param_path}")
 
         return emails

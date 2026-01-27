@@ -56,7 +56,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         redcap_param_repo: REDCapParametersRepository,
         portal_url: str,
         notification_mode: NotificationModeType = "date",
-        support_staff_emails: Optional[List[str]] = None,
+        support_emails: Optional[List[str]] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -68,7 +68,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__redcap_param_repo = redcap_param_repo
         self.__notification_mode: NotificationModeType = notification_mode
         self.__portal_url = portal_url
-        self.__support_staff_emails = support_staff_emails or []
+        self.__support_emails = support_emails or []
 
     @classmethod
     def create(
@@ -113,8 +113,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
             parameter_store.get_portal_url, portal_path, "portal URL"
         )
 
-        # Retrieve optional support staff emails
-        support_staff_emails = cls._get_support_staff_emails(context, parameter_store)
+        # Retrieve optional support emails
+        support_emails = cls._get_support_emails(context, parameter_store)
 
         # Create REDCap parameter repository
         redcap_param_repo = cls._create_redcap_repository(context, parameter_store)
@@ -134,7 +134,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             redcap_param_repo=redcap_param_repo,
             notification_mode=context.config.get("notification_mode", "none"),
             portal_url=portal_url["url"],
-            support_staff_emails=support_staff_emails,
+            support_emails=support_emails,
         )
 
     @staticmethod
@@ -203,37 +203,35 @@ class UserManagementVisitor(GearExecutionEnvironment):
         return user_filepath, auth_filepath
 
     @staticmethod
-    def _get_support_staff_emails(
+    def _get_support_emails(
         context: GearToolkitContext, parameter_store: ParameterStore
     ) -> Optional[List[str]]:
-        """Retrieve optional support staff emails from parameter store.
+        """Retrieve optional support emails from parameter store.
 
         Args:
             context: The gear context
             parameter_store: The parameter store instance
 
         Returns:
-            List of support staff email addresses, or None if not configured
+            List of support email addresses, or None if not configured
         """
-        support_staff_path = context.config.get("support_staff_emails_path")
-        if not support_staff_path:
+        support_email_path = context.config.get("support_emails_path")
+        if not support_email_path:
             return None
 
         try:
-            support_staff_emails = parameter_store.get_support_staff_emails(
-                support_staff_path
-            )
+            support_emails = parameter_store.get_support_emails(support_email_path)
             log.info(
-                "Loaded %d support staff email(s) for error notifications",
-                len(support_staff_emails),
+                "Loaded %d support email(s) for error notifications",
+                len(support_emails),
             )
-            return support_staff_emails
+            return support_emails
         except ParameterError as error:
-            # Support staff emails are optional - log warning but don't fail
+            # Support emails are optional - log warning but don't fail
             log.warning(
-                "Failed to load support staff emails from %s: %s. "
+                "Failed to load support emails from %s: %s. "
                 "Error notifications will not be sent.",
-                support_staff_path,
+                support_email_path,
                 error,
             )
             return None
@@ -310,7 +308,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 )
 
                 # Send consolidated error notification at end of run if there are errors
-                if collector.has_errors() and self.__support_staff_emails:
+                if collector.has_errors() and self.__support_emails:
                     log.info(
                         "Sending consolidated error notification for %d error(s)",
                         collector.error_count(),
@@ -326,7 +324,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                         message_id = notification_generator.send_error_notification(
                             collector=collector,
                             gear_name="user_management",
-                            support_emails=self.__support_staff_emails,
+                            support_emails=self.__support_emails,
                         )
                         if message_id:
                             log.info(
@@ -359,7 +357,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                         )
                 elif collector.has_errors():
                     log.warning(
-                        "Errors occurred but no support staff emails configured. "
+                        "Errors occurred but no support emails configured. "
                         "Skipping error notification."
                     )
 

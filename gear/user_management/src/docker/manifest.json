@@ -87,6 +87,12 @@
             "description": "Parameter path for the portal URL",
             "type": "string",
             "default": "/prod/flywheel/portal"
+        },
+        "support_emails_path": {
+            "description": "Parameter path for support staff email addresses (optional)",
+            "type": "string",
+            "default": "/prod/notifications/support_emails",
+            "optional": true
         }
     },
     "command": "/bin/run"
