@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.0-alpha
+
+* Adds automated error notification system with consolidated email notifications to support staff
+* Adds event collection and categorization for directory processing errors
+* Adds support for configurable support email addresses via Parameter Store
+* Adds integration tests for error handling scenarios
+
 ## 2.1.2
 
 * Fixes how authorization for genetic data maps to apoe, so study is set to ncrad.
