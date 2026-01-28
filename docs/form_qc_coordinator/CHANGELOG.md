@@ -7,7 +7,6 @@ All notable changes to this gear are documented in this file.
 * Rebuilt for event logging updates
   
 ## 1.4.1
-* Bug fixes and improvements
 * Fixes a bug in updating the visit error log
   
 ## 1.4.0
