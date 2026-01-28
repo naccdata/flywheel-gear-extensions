@@ -11,14 +11,14 @@ from pydantic import BaseModel, field_validator
 VISIT_PATTERN = re.compile(
     r"^"
     r"(?P<pass2>.+("
-    r"_BDS|_CLS|_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|_COVID|"
+    r"_BDS|_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
     r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
     r")\.json)|"
     r"(?P<pass1>.+(_UDS)\.json)|"
-    r"(?P<pass0>.+(MRI-SUMMARY-DATA.+\.json|"
+    r"(?P<pass0>.+((_CLS|_COVID|MRI-SUMMARY-DATA.+)\.json|"
     r"\.dicom\.zip|\.nii\.gz))"
     r"$"
 )
@@ -52,14 +52,14 @@ class FileModel(BaseModel):
         The pass is determined by matching the file with a regular expression.
 
         Order of curation is indicated by inverse lexicographical ordering on
-        the pass name.
-        This is done to avoid having to maintain the total ordering without
-        having to rename the pass if more constraints are added.
+        the pass name. This is done to avoid having to maintain the total
+        ordering without having to rename the pass if more constraints are added.
 
-        As it is, imaging data must be curated last (as it relies on all UDS visits
-        being known/curated), then UDS, then every other file.
-        Historical APOE must be curated before the NCRAD APOE.
-        As such, there are currently 4 pass categories.
+        pass3: Historic APOE data (which mainly just needs to be done before
+               NCRAD APOE data)
+        pass2: All other data
+        pass1: UDS data
+        pass0: Data that relies on fully curated UDS data
         """
         # need to handle historic apoe separately as it does not work well with regex
         if "historic_apoe_genotype" in self.filename:

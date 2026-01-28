@@ -4,6 +4,8 @@ All notable changes to this gear are documented in this file.
 
 ## 1.1.2 (Unreleased)
 
+* Updates `nacc-attribute-deriver` to `2.1.0`
+    * Reorders COVID/CLS pass to support this
 * Reverts `rxclass_concepts` to being an input file now that Batch Scheduler (`1.2.0+`) can support input files; removes gear's reliancy on the gearbot
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
