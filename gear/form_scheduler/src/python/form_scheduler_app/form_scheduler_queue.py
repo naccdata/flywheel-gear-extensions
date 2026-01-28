@@ -295,6 +295,7 @@ class FinalizationQueueBuilder(PipelineQueueBuilder):
             description="List of finalized visits for the module",
             columns=[
                 ColumnModel(data_key="file.name", label="filename"),
+                ColumnModel(data_key="file.file_id", label="file_id"),
                 ColumnModel(data_key="acquisition.label", label="module"),
             ],
             container="acquisition",
