@@ -5,13 +5,14 @@ from typing import Optional, get_args
 from flywheel.models.file_entry import FileEntry
 
 from nacc_common.error_models import QCStatus, ValidationModel, VisitKeys
-from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     QCReportBaseModel,
     QCTransformerError,
     StatusReportVisitor,
     extract_visit_keys,
 )
+
+ModuleName = str
 
 
 class StatusReportModel(QCReportBaseModel):

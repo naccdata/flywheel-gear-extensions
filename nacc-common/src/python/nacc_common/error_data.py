@@ -2,7 +2,6 @@ from typing import Any, Optional
 
 from flywheel.models.project import Project
 
-from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     ListReportWriter,
     ProjectReportVisitor,
@@ -16,6 +15,8 @@ from nacc_common.visit_submission_status import (
     StatusReportModel,
     status_report_visitor_builder,
 )
+
+ModuleName = str
 
 ERROR_HEADER_NAMES: list[str] = ErrorReportModel.serialized_fieldnames()
 STATUS_HEADER_NAMES: list[str] = list(StatusReportModel.model_fields.keys())
@@ -41,7 +42,7 @@ def get_pipeline_adcid(project: Project) -> Optional[int]:
 
 
 def get_status_data(
-    project: Project, modules: Optional[set[ModuleName]] = None
+    project: Project, modules: Optional[set[str]] = None
 ) -> list[dict[str, Any]]:
     """Returns a list of dictionaries containing QC status data for files in
     the project.
@@ -72,7 +73,7 @@ def get_status_data(
 
 
 def get_error_data(
-    project: Project, modules: Optional[set[ModuleName]] = None
+    project: Project, modules: Optional[set[str]] = None
 ) -> list[dict[str, Any]]:
     """Creates a list of dictionaries, each corresponding to an error in a file
     in the project.
