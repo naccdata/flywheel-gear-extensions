@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.2 (unreleased)
+* Updates to support legacy ingest pipeline
+* Rebuilt for event logging updates
+  
 ## 1.4.1
 * Fixes a bug in updating the visit error log
   

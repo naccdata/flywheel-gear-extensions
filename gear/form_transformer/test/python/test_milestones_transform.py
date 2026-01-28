@@ -3,6 +3,7 @@
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from configs.ingest_configs import FormProjectConfigs
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import SysErrorCodes
 from nacc_common.field_names import FieldNames
@@ -55,8 +56,14 @@ def create_mlst_visitor(
     form_store = MockFormsStore(date_field=date_field)
     project = MockProjectAdaptor(label="mlst-project")
 
+    form_configs = FormProjectConfigs(
+        primary_key=FieldNames.NACCID,
+        accepted_modules=[module.upper()],
+        module_configs={module.upper(): module_configs},
+    )
+
     preprocessor = FormPreprocessor(
-        primary_key="naccid",
+        form_configs=form_configs,
         forms_store=form_store,
         module=module,
         module_configs=module_configs,
