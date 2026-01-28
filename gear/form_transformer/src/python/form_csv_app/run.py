@@ -260,7 +260,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         )
 
         return FormPreprocessor(
-            primary_key=form_configs.primary_key,
+            form_configs=form_configs,
             forms_store=forms_store,
             module=module,
             module_configs=form_configs.module_configs.get(module),  # type: ignore
