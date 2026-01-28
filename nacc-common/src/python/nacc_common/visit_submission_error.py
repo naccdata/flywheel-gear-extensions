@@ -1,6 +1,6 @@
 """Definitions for error reports."""
 
-from typing import Any, get_args
+from typing import Any
 
 from flywheel.models.file_entry import FileEntry
 from pydantic import SerializerFunctionWrapHandler, model_serializer
