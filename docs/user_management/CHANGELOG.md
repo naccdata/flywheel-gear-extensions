@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.2.0-alpha
+
+* Adds automated error notification system with consolidated email notifications to support staff
+* Adds event collection and categorization for user processing errors
+* Adds support for configurable support email addresses via Parameter Store
+* Adds integration tests for error handling scenarios
+
 ## 3.1.1
 
 * Rebuilt for comanage API changes
