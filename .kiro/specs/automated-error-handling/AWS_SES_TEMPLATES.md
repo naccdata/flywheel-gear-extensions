@@ -14,12 +14,14 @@ The automated error handling system sends consolidated error notifications to su
 
 **Template Data Structure:**
 
+The template data uses a **flat structure** where user context fields are at the same level as error details (no nested `user_context` object). This is achieved through Pydantic's custom serialization.
+
 ```json
 {
   "gear_name": "user_management",
   "execution_timestamp": "2026-01-27T15:30:00.000000",
-  "total_errors": 5,
-  "errors_by_category": {
+  "total_events": 5,
+  "events_by_category": {
     "Unclaimed Records": 2,
     "Bad ORCID Claims": 1,
     "Insufficient Permissions": 2
@@ -35,31 +37,38 @@ The automated error handling system sends consolidated error notifications to su
   ],
   "unclaimed_records": [
     {
+      "event_id": "550e8400-e29b-41d4-a716-446655440000",
+      "timestamp": "2026-01-27T15:25:00.000000",
+      "event_type": "error",
+      "category": "unclaimed_records",
+      "message": "Active user not in registry",
       "email": "user@example.com",
       "name": "John Doe",
-      "message": "Active user not in registry",
-      "timestamp": "2026-01-27T15:25:00.000000",
       "auth_email": "john.doe@institution.edu",
       "action_needed": "send_claim_email"
     }
   ],
   "bad_orcid_claims": [
     {
+      "event_id": "550e8400-e29b-41d4-a716-446655440001",
+      "timestamp": "2026-01-27T15:26:00.000000",
+      "event_type": "error",
+      "category": "bad_orcid_claims",
+      "message": "User has incomplete claim with ORCID identity provider",
       "email": "user2@example.com",
       "name": "Jane Smith",
-      "message": "User has incomplete claim with ORCID identity provider",
-      "timestamp": "2026-01-27T15:26:00.000000",
-      "full_name": "Jane Smith",
-      "has_orcid_org_identity": true,
       "action_needed": "delete_bad_record_and_reclaim_with_institutional_idp"
     }
   ],
   "insufficient_permissions": [
     {
+      "event_id": "550e8400-e29b-41d4-a716-446655440002",
+      "timestamp": "2026-01-27T15:27:00.000000",
+      "event_type": "error",
+      "category": "insufficient_permissions",
+      "message": "User entry has no authorizations listed",
       "email": "user3@example.com",
       "name": "Bob Johnson",
-      "message": "User entry has no authorizations listed",
-      "timestamp": "2026-01-27T15:27:00.000000",
       "registry_id": "CO123456",
       "action_needed": "contact_center_administrator_for_permissions"
     }
@@ -67,13 +76,21 @@ The automated error handling system sends consolidated error notifications to su
 }
 ```
 
+**Important Notes on Data Structure:**
+
+1. **Flat Structure**: All error objects have user context fields (email, name, etc.) at the top level, NOT nested under a `user_context` key
+2. **Category Field Names**: Category names are converted to snake_case for field names (e.g., "Bad ORCID Claims" → "bad_orcid_claims")
+3. **Standard Fields**: Each error object includes `event_id`, `timestamp`, `event_type`, `category`, and `message`
+4. **Optional Fields**: Fields like `registry_id`, `auth_email`, `center_id`, and `action_needed` are only included when available
+5. **Serialization**: The flat structure is achieved through Pydantic's `@model_serializer` decorator which flattens nested objects during serialization
+
 **Template Variables Available:**
 
 **Summary Fields:**
 
 - `{{gear_name}}` - Name of the gear that generated errors (e.g., "user_management", "pull_directory")
 - `{{execution_timestamp}}` - ISO timestamp of when the gear ran
-- `{{total_errors}}` - Total number of errors detected
+- `{{total_events}}` - Total number of events (errors) detected
 - `{{affected_users}}` - Array of unique user email addresses affected
 
 **Category Counts:**
@@ -100,12 +117,18 @@ Each category has an optional array field with detailed error information:
 
 **Error Object Structure:**
 
-Each error object in the category arrays contains:
+Each error object in the category arrays contains these fields (all flattened at the top level):
 
-- `email` - User's email address (always present)
-- `name` - User's full name (always present, may be "Unknown")
-- `message` - Human-readable error message (always present)
-- `timestamp` - ISO timestamp when error occurred (always present)
+**Standard Fields (always present):**
+- `event_id` - Unique identifier for the event (UUID string)
+- `timestamp` - ISO timestamp when error occurred
+- `event_type` - Type of event (always "error" for error notifications)
+- `category` - Snake-case category name (e.g., "unclaimed_records", "bad_orcid_claims")
+- `message` - Human-readable error message
+- `email` - User's email address
+- `name` - User's full name (may be "Unknown" if not available)
+
+**Optional Fields (included when available):**
 - `registry_id` - COManage registry ID (optional)
 - `auth_email` - Authentication email address (optional)
 - `center_id` - Center ID number (optional)
@@ -140,7 +163,7 @@ Each error object in the category arrays contains:
     
     <div class="summary">
         <h2>Summary</h2>
-        <p><strong>Total Errors:</strong> {{total_errors}}</p>
+        <p><strong>Total Events:</strong> {{total_events}}</p>
         <p><strong>Affected Users:</strong> {{affected_users.length}}</p>
         
         <h3>Errors by Category</h3>
@@ -395,7 +418,7 @@ Execution Time: {{execution_timestamp}}
 
 SUMMARY
 -------
-Total Errors: {{total_errors}}
+Total Events: {{total_events}}
 Affected Users: {{affected_users.length}}
 
 Errors by Category:
@@ -492,7 +515,7 @@ Create a file named `error-consolidated-template.json`:
 {
   "Template": {
     "TemplateName": "error-consolidated",
-    "SubjectPart": "NACC User Management Errors - {{gear_name}} - {{total_errors}} errors",
+    "SubjectPart": "NACC User Management Errors - {{gear_name}} - {{total_events}} errors",
     "HtmlPart": "[Insert HTML template here]",
     "TextPart": "[Insert text template here]"
   }
@@ -505,7 +528,7 @@ Create a file named `error-consolidated-template.json`:
 2. Go to "Email Templates" in the left sidebar
 3. Click "Create template"
 4. Enter template name: `error-consolidated`
-5. Enter subject: `NACC User Management Errors - {{gear_name}} - {{total_errors}} errors`
+5. Enter subject: `NACC User Management Errors - {{gear_name}} - {{total_events}} errors`
 6. Paste HTML content in HTML part
 7. Paste text content in Text part
 8. Click "Create template"
@@ -520,8 +543,8 @@ Create `test-template-data.json`:
 {
   "gear_name": "user_management",
   "execution_timestamp": "2026-01-27T15:30:00.000000",
-  "total_errors": 2,
-  "errors_by_category": {
+  "total_events": 2,
+  "events_by_category": {
     "Unclaimed Records": 1,
     "Bad ORCID Claims": 1
   },
@@ -532,20 +555,26 @@ Create `test-template-data.json`:
   "affected_users": ["test@example.com", "test2@example.com"],
   "unclaimed_records": [
     {
+      "event_id": "550e8400-e29b-41d4-a716-446655440000",
+      "timestamp": "2026-01-27T15:25:00.000000",
+      "event_type": "error",
+      "category": "unclaimed_records",
+      "message": "Active user not in registry",
       "email": "test@example.com",
       "name": "Test User",
-      "message": "Active user not in registry",
-      "timestamp": "2026-01-27T15:25:00.000000",
       "auth_email": "test@institution.edu",
       "action_needed": "send_claim_email"
     }
   ],
   "bad_orcid_claims": [
     {
+      "event_id": "550e8400-e29b-41d4-a716-446655440001",
+      "timestamp": "2026-01-27T15:26:00.000000",
+      "event_type": "error",
+      "category": "bad_orcid_claims",
+      "message": "User has incomplete claim with ORCID identity provider",
       "email": "test2@example.com",
       "name": "Test User 2",
-      "message": "User has incomplete claim with ORCID identity provider",
-      "timestamp": "2026-01-27T15:26:00.000000",
       "action_needed": "delete_bad_record_and_reclaim_with_institutional_idp"
     }
   ]

@@ -170,11 +170,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
             # Send consolidated notification at end if there are errors
             if collector.has_errors():
                 support_emails = self._get_support_staff_emails()
-                notification_generator = ErrorNotificationGenerator(
+                notification_generator = UserEventNotificationGenerator(
                     email_client=create_ses_client(),
                     configuration_set_name="your-ses-config"
                 )
-                notification_generator.send_error_notification(
+                notification_generator.send_event_notification(
                     collector=collector,
                     gear_name="user_management",
                     support_emails=support_emails
@@ -814,36 +814,22 @@ class FailureAnalyzer:
 
 Notification generation that renders a UserEventCollector into a consolidated email:
 
-**ErrorNotificationGenerator:**
+**UserEventNotificationGenerator:**
 ```python
-class ErrorNotificationGenerator:
+class UserEventNotificationGenerator:
     """Generates notifications for error events using AWS SES templates.
     
-    The ErrorNotificationGenerator is a rendering engine that transforms a
+    The UserEventNotificationGenerator is a rendering engine that transforms a
     UserEventCollector (which contains categorized events) into a formatted
     email notification and sends it to support staff via AWS SES.
     
     Usage Pattern:
-        UserEventCollector → ErrorNotificationGenerator → Email to Support Staff
+        UserEventCollector → UserEventNotificationGenerator → Email to Support Staff
     """
     
-    # Template name mapping for each error category
-    CATEGORY_TEMPLATES: ClassVar[Dict[ErrorCategory, str]] = {
-        ErrorCategory.UNCLAIMED_RECORDS: "error-unclaimed-records",
-        ErrorCategory.EMAIL_MISMATCH: "error-email-mismatch",
-        ErrorCategory.UNVERIFIED_EMAIL: "error-unverified-email",
-        ErrorCategory.INCOMPLETE_CLAIM: "error-incomplete-claim",
-        ErrorCategory.BAD_ORCID_CLAIMS: "error-bad-orcid-claims",
-        ErrorCategory.MISSING_DIRECTORY_PERMISSIONS: "error-missing-directory-permissions",
-        ErrorCategory.MISSING_DIRECTORY_DATA: "error-missing-directory-data",
-        ErrorCategory.MISSING_REGISTRY_DATA: "error-missing-registry-data",
-        ErrorCategory.INSUFFICIENT_PERMISSIONS: "error-insufficient-permissions",
-        ErrorCategory.DUPLICATE_USER_RECORDS: "error-duplicate-user-records",
-        ErrorCategory.FLYWHEEL_ERROR: "error-flywheel-error",
-    }
     
     def __init__(self, email_client: EmailClient, configuration_set_name: str):
-        """Initialize the error notification generator.
+        """Initialize the notification generator.
         
         Args:
             email_client: The EmailClient instance for sending notifications
@@ -852,24 +838,15 @@ class ErrorNotificationGenerator:
         self.__email_client = email_client
         self.__configuration_set_name = configuration_set_name
     
-    def select_template(self, category: ErrorCategory) -> str:
-        """Select the appropriate SES template for an error category.
-        
-        Args:
-            category: The error category
-            
-        Returns:
-            The SES template name for the category
-        """
-        return self.CATEGORY_TEMPLATES.get(category, "error-generic")
-    
     def create_notification_data(
         self, collector: UserEventCollector, gear_name: str
     ) -> ConsolidatedNotificationData:
         """Create template data for consolidated notification.
         
         Transforms the categorized errors from the UserEventCollector into a
-        structured data model ready for email template rendering.
+        structured data model ready for email template rendering. Uses Pydantic's
+        model_dump() to serialize events, leveraging custom serializers to flatten
+        nested structures.
         
         Args:
             collector: The UserEventCollector with categorized errors
@@ -881,41 +858,14 @@ class ErrorNotificationGenerator:
         # Get errors grouped by category from the collector
         grouped = collector.get_errors_by_category()
         
-        # Create category-specific data
-        category_data = {}
-        
-        for category, category_errors in grouped.items():
-            error_list = []
-            for error in category_errors:
-                error_dict = {
-                    "email": error.user_context.email,
-                    "name": (
-                        error.user_context.name.as_str()
-                        if error.user_context.name
-                        else "Unknown"
-                    ),
-                    "message": error.error_details.get("message", "No details"),
-                    "timestamp": error.timestamp.isoformat(),
-                }
-                
-                # Add category-specific fields
-                if error.user_context.registry_id:
-                    error_dict["registry_id"] = error.user_context.registry_id
-                if error.user_context.auth_email:
-                    error_dict["auth_email"] = error.user_context.auth_email
-                if error.user_context.center_id:
-                    error_dict["center_id"] = str(error.user_context.center_id)
-                
-                # Add action needed if present
-                action_needed = error.error_details.get("action_needed")
-                if action_needed:
-                    error_dict["action_needed"] = action_needed
-                
-                error_list.append(error_dict)
-            
-            # Map category to field name
-            field_name = self._category_to_field_name(category)
-            category_data[field_name] = error_list
+        # Use event's model_dump() method for serialization
+        # This leverages Pydantic's custom serializers to flatten user_context
+        category_details = {
+            category.value: [
+                error.model_dump(exclude_none=True) for error in category_events
+            ]
+            for category, category_events in grouped.items()
+        }
         
         # Get all errors as flat list for summaries
         all_errors = collector.get_errors()
@@ -923,11 +873,11 @@ class ErrorNotificationGenerator:
         return ConsolidatedNotificationData(
             gear_name=gear_name,
             execution_timestamp=datetime.now().isoformat(),
-            total_errors=collector.error_count(),
-            errors_by_category=collector.count_by_category(),
-            error_summaries=[error.to_summary() for error in all_errors],
+            total_events=collector.error_count(),
+            events_by_category=collector.count_by_category(),
+            event_summaries=[error.to_summary() for error in all_errors],
             affected_users=collector.get_affected_users(),
-            **category_data,
+            category_details=category_details,
         )
     
     def send_consolidated_notification(
@@ -969,13 +919,13 @@ class ErrorNotificationGenerator:
             )
             return None
     
-    def send_error_notification(
+    def send_event_notification(
         self,
         collector: UserEventCollector,
         gear_name: str,
         support_emails: List[str],
     ) -> Optional[str]:
-        """Send error notification at end of gear run.
+        """Send event notification at end of gear run.
         
         This is the main entry point for sending notifications from gears.
         
@@ -1070,21 +1020,117 @@ class EventCategory(Enum):
 - **Consistent API**: Same methods and fields across all event types
 - **Extensibility**: Easy to add new event types (e.g., warnings, info) in the future
 
+### Serialization Strategy
+
+The notification system uses Pydantic's custom serialization features to transform nested data structures into the flat format required by AWS SES templates.
+
+**Key Serialization Features:**
+
+1. **EventCategory.to_field_name()** - Converts category enum values to snake_case field names:
+```python
+class EventCategory(Enum):
+    BAD_ORCID_CLAIMS = "Bad ORCID Claims"
+    
+    def to_field_name(self) -> str:
+        """Convert category to template field name (snake_case)."""
+        return self.value.lower().replace(" ", "_").replace("/", "_")
+        # Returns: "bad_orcid_claims"
+```
+
+2. **UserProcessEvent Flattening** - Uses `@model_serializer` to flatten `user_context` into top-level fields:
+```python
+class UserProcessEvent(BaseModel):
+    user_context: UserContext
+    message: str
+    # ... other fields
+    
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler, info) -> dict[str, Any]:
+        data = handler(self)
+        # Flatten user_context fields to top level
+        context = data.pop("user_context")
+        for k, v in context.items():
+            data[k] = v
+        return data
+```
+
+This transforms:
+```json
+{"user_context": {"email": "user@example.com", "name": "John"}, "message": "Error"}
+```
+Into:
+```json
+{"email": "user@example.com", "name": "John", "message": "Error"}
+```
+
+3. **ConsolidatedNotificationData Flattening** - Uses `@model_serializer` to flatten `category_details` into top-level category fields:
+```python
+class ConsolidatedNotificationData(BaseTemplateModel):
+    category_details: Dict[str, List[Dict[str, str]]]
+    
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler, info) -> Dict[str, Any]:
+        data = handler(self)
+        # Flatten each category into a top-level snake_case field
+        for k, v in self.category_details.items():
+            data[k] = v
+        return data
+```
+
+4. **UserContext Field Serializers** - Custom serializers for specific fields:
+```python
+class UserContext(BaseModel):
+    center_id: Optional[int] = None
+    name: str = "Unknown"
+    
+    @field_serializer("center_id", mode="plain")
+    def serialize_center_id(self, center_id: Optional[int]) -> Optional[str]:
+        """Convert center_id to string for templates."""
+        return str(center_id) if center_id is not None else None
+    
+    @field_validator("name", mode="before")
+    @classmethod
+    def convert_person_name(cls, value):
+        """Convert PersonName objects to strings."""
+        if isinstance(value, PersonName):
+            return value.as_str()
+        return value if value else "Unknown"
+```
+
+**Benefits of This Approach:**
+- Leverages Pydantic's built-in serialization instead of manual dict building
+- Maintains type safety during development while producing flat output for templates
+- Centralizes serialization logic in model definitions
+- Automatically handles optional fields with `exclude_none=True`
+
 ### User Context Model
 
 ```python
 class UserContext(BaseModel):
     email: str
-    name: Optional[PersonName] = None
+    name: str = "Unknown"
     center_id: Optional[int] = None
     registry_id: Optional[str] = None
     auth_email: Optional[str] = None
+    
+    @field_validator("name", mode="before")
+    @classmethod
+    def convert_person_name(cls, value):
+        """Convert PersonName objects to strings."""
+        if isinstance(value, PersonName):
+            return value.as_str()
+        return value.strip() if isinstance(value, str) else "Unknown"
+    
+    @field_serializer("center_id", mode="plain")
+    def serialize_center_id(self, center_id: Optional[int]) -> Optional[str]:
+        """Serialize center_id as string for templates."""
+        return str(center_id) if center_id is not None else None
     
     @classmethod
     def from_user_entry(cls, entry: UserEntry) -> "UserContext":
         return cls(
             email=entry.email,
-            name=entry.name,
+            name=entry.name.as_str() if entry.name else None,
             auth_email=entry.auth_email
         )
     
@@ -1103,47 +1149,30 @@ class ConsolidatedNotificationData(BaseTemplateModel):
     """Template data for consolidated error notifications sent to support staff.
     
     Extends BaseTemplateModel to work with existing AWS SES template infrastructure.
-    Contains both summary information and category-specific detailed error lists.
+    Uses custom serialization to flatten category_details into top-level fields.
     """
     
     gear_name: str
     execution_timestamp: str
-    total_errors: int
-    errors_by_category: Dict[str, int]
-    error_summaries: List[str]
+    total_events: int
+    events_by_category: Dict[str, int]
+    event_summaries: List[str]
     affected_users: List[str]
+    category_details: Dict[str, List[Dict[str, str]]]
     
-    # Optional fields for specific error categories
-    # Each field contains detailed error information for that category
-    unclaimed_records: Optional[List[Dict[str, str]]] = None
-    email_mismatches: Optional[List[Dict[str, str]]] = None
-    unverified_emails: Optional[List[Dict[str, str]]] = None
-    incomplete_claims: Optional[List[Dict[str, str]]] = None
-    bad_orcid_claims: Optional[List[Dict[str, str]]] = None
-    missing_directory_permissions: Optional[List[Dict[str, str]]] = None
-    missing_directory_data: Optional[List[Dict[str, str]]] = None
-    missing_registry_data: Optional[List[Dict[str, str]]] = None
-    insufficient_permissions: Optional[List[Dict[str, str]]] = None
-    duplicate_user_records: Optional[List[Dict[str, str]]] = None
-    flywheel_errors: Optional[List[Dict[str, str]]] = None
-    
-    def format_for_email(self) -> str:
-        """Format the data for email template."""
-        summary = f"Gear: {self.gear_name}\n"
-        summary += f"Execution Time: {self.execution_timestamp}\n"
-        summary += f"Total Errors: {self.total_errors}\n\n"
-        
-        summary += "Errors by Category:\n"
-        for category, count in self.errors_by_category.items():
-            summary += f"  {category}: {count}\n"
-        
-        summary += f"\nAffected Users: {', '.join(self.affected_users)}\n\n"
-        summary += "Error Details:\n"
-        for error_summary in self.error_summaries:
-            summary += f"  - {error_summary}\n"
-        
-        return summary
+    @model_serializer(mode="wrap")
+    def serialize_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Serialize model, flattening category_details into top-level fields."""
+        data = handler(self)
+        # Flatten each category into a top-level snake_case field
+        for k, v in self.category_details.items():
+            data[k] = v
+        return data
 ```
+
+**Note:** The actual implementation uses `category_details` as a single parameter that gets flattened during serialization, rather than individual optional fields for each category. This approach is cleaner and more maintainable.
 
 ## Correctness Properties
 
