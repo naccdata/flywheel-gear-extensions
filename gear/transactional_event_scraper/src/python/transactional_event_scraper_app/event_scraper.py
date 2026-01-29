@@ -167,8 +167,13 @@ class EventScraper:
         """
         # QC status log files follow the pattern: *_qc-status.log
         # They are stored at the project level
-        log_files = [
-            file for file in self._project.files if file.name.endswith("_qc-status.log")
-        ]
+        # Note: project.files returns file metadata, we need to get proper
+        # FileEntry objects using get_file()
+        log_files = []
+        for file_info in self._project.files:
+            if file_info.name.endswith("_qc-status.log"):
+                file_entry = self._project.get_file(file_info.name)
+                if file_entry:
+                    log_files.append(file_entry)
 
         return log_files
