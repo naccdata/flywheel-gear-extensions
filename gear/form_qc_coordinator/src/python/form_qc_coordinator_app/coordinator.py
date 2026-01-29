@@ -407,9 +407,15 @@ class QCCoordinator:
             columns.append(visitnum_key)
             filters += f",{visitnum_key}={visitnum}"
 
-        filters += (
-            f",file.info.qc.{self.__qc_gear_info.gear_name}.validation.state=PASS"
-        )
+        # filters += (
+        #     f",file.info.qc.{self.__qc_gear_info.gear_name}.validation.state=PASS"
+        # )
+
+        tags = [
+            f"{self.__qc_gear_info.gear_name}-PASS",
+            f"{self.__form_project_configs.legacy_qc_gear}-PASS",
+        ]
+        filters += f",file.tags=|[{','.join(tags)}]"
 
         log.info("Searching for supplement visits matching with %s", filters)
         matching_visits = self.__proxy.get_matching_acquisition_files_info(

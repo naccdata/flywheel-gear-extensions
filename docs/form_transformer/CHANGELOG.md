@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.7.1
+## 1.7.1 (unreleased)
+* Updates to support legacy ingest pipeline
 * Bug fixes and improvements
+* Rebuilt for event logging updates
 
 ## 1.7.0
 * Reprocesses duplicate visit if failed to copy existing QC metadata
