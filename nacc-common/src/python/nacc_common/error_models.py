@@ -134,8 +134,12 @@ class VisitMetadata(VisitKeys):
         if info.mode == "raw":
             return data
 
-        data["visit_date"] = data.pop("date")
-        data["visit_number"] = data.pop("visitnum")
+        # Map field names, handling cases where keys might not exist
+        # (e.g., when exclude_none=True and the value is None)
+        if "date" in data:
+            data["visit_date"] = data.pop("date")
+        if "visitnum" in data:
+            data["visit_number"] = data.pop("visitnum")
         return data
 
 
