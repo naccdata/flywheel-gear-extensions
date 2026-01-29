@@ -253,3 +253,99 @@ def test_visit_metadata_validation_required_fields_property(ptid, date, module):
         # If Pydantic validation fails, the data is definitely invalid
         # This is acceptable for malformed input
         pass
+
+
+def test_visit_metadata_validation_milestone_form_without_visitnum():
+    """Test that milestone forms without visitnum pass validation.
+
+    Milestone forms (MLST) don't have visitnum but should still be valid
+    for event creation as long as ptid, date, and module are present.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
+    """
+    # Create milestone metadata WITHOUT visitnum
+    milestone_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        module="MLST",
+        packet="M",
+        visitnum=None,  # Explicitly None for milestone forms
+    )
+
+    # Should pass validation
+    assert VisitMetadataExtractor.is_valid_for_event(milestone_metadata) is True
+
+    # Verify required fields are present
+    assert milestone_metadata.ptid == "110001"
+    assert milestone_metadata.date == "2024-01-15"
+    assert milestone_metadata.module == "MLST"
+    assert milestone_metadata.packet == "M"
+    assert milestone_metadata.visitnum is None
+
+
+def test_visit_metadata_validation_np_form_without_visitnum():
+    """Test that NP forms without visitnum pass validation.
+
+    NP forms don't have visitnum but should still be valid for event
+    creation as long as ptid, date, and module are present.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
+    """
+    # Create NP metadata WITHOUT visitnum
+    np_metadata = VisitMetadata(
+        ptid="110002",
+        date="2024-02-20",
+        module="NP",
+        packet="N",
+        visitnum=None,  # Explicitly None for NP forms
+    )
+
+    # Should pass validation
+    assert VisitMetadataExtractor.is_valid_for_event(np_metadata) is True
+
+    # Verify required fields are present
+    assert np_metadata.ptid == "110002"
+    assert np_metadata.date == "2024-02-20"
+    assert np_metadata.module == "NP"
+    assert np_metadata.packet == "N"
+    assert np_metadata.visitnum is None
+
+
+def test_visit_metadata_validation_forms_with_and_without_visitnum():
+    """Test that validation works correctly for both forms with and without
+    visitnum.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 6:
+        Visit Metadata Validation**
+      **Validates: Requirements 4.4, 4.5**
+    """
+    # Form WITH visitnum (e.g., UDS)
+    uds_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        module="UDS",
+        visitnum="01",
+        packet="I",
+    )
+    assert VisitMetadataExtractor.is_valid_for_event(uds_metadata) is True
+
+    # Form WITHOUT visitnum (e.g., Milestone)
+    milestone_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        module="MLST",
+        visitnum=None,
+        packet="M",
+    )
+    assert VisitMetadataExtractor.is_valid_for_event(milestone_metadata) is True
+
+    # Both should be valid - visitnum is optional
+    assert uds_metadata.visitnum == "01"
+    assert milestone_metadata.visitnum is None

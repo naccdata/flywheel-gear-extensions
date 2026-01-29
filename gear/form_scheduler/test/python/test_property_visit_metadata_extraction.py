@@ -264,3 +264,129 @@ def test_visit_metadata_extractor_utilities():
 
     invalid_metadata = VisitMetadata(ptid=None, date="2024-01-15", module="UDS")
     assert VisitMetadataExtractor.is_valid_for_event(invalid_metadata) is False
+
+
+def test_visit_metadata_extraction_milestone_form_without_visitnum(event_accumulator):
+    """Test that milestone forms without visitnum can extract valid metadata.
+
+    Milestone forms (MLST) don't have visitnum but should still be valid
+    for event creation as long as ptid, date, and module are present.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+    """
+    # Create milestone form metadata WITHOUT visitnum
+    milestone_metadata = {
+        "ptid": "110001",
+        "visitdate": "2024-01-15",
+        "module": "MLST",
+        "packet": "M",
+        # No visitnum - milestones don't have visit numbers
+    }
+
+    json_file = create_mock_file_entry(
+        "NACC110001_MILESTONE-2024-01-15_MLST.json",
+        {"forms": {"json": milestone_metadata}},
+    )
+
+    # Extract metadata
+    result = event_accumulator._extract_visit_metadata(json_file, None)  # noqa: SLF001
+
+    # Should successfully extract metadata
+    assert result is not None
+    assert result.ptid == "110001"
+    assert result.date == "2024-01-15"
+    assert result.module == "MLST"
+    assert result.packet == "M"
+    assert result.visitnum is None  # visitnum should be None for milestone forms
+
+    # Should be valid for event creation
+    assert VisitMetadataExtractor.is_valid_for_event(result) is True
+
+
+def test_visit_metadata_extraction_np_form_without_visitnum(event_accumulator):
+    """Test that NP forms without visitnum can extract valid metadata.
+
+    NP forms don't have visitnum but should still be valid for event
+    creation as long as ptid, date, and module are present.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+    """
+    # Create NP form metadata WITHOUT visitnum
+    np_metadata = {
+        "ptid": "110002",
+        "visitdate": "2024-02-20",
+        "module": "NP",
+        "packet": "N",
+        # No visitnum - NP forms don't have visit numbers
+    }
+
+    json_file = create_mock_file_entry(
+        "NACC110002_NP-RECORD-2024-02-20_NP.json",
+        {"forms": {"json": np_metadata}},
+    )
+
+    # Extract metadata
+    result = event_accumulator._extract_visit_metadata(json_file, None)  # noqa: SLF001
+
+    # Should successfully extract metadata
+    assert result is not None
+    assert result.ptid == "110002"
+    assert result.date == "2024-02-20"
+    assert result.module == "NP"
+    assert result.packet == "N"
+    assert result.visitnum is None  # visitnum should be None for NP forms
+
+    # Should be valid for event creation
+    assert VisitMetadataExtractor.is_valid_for_event(result) is True
+
+
+def test_visit_metadata_extraction_qc_status_milestone_without_visitnum(
+    event_accumulator,
+):
+    """Test milestone metadata extraction from QC status custom info without
+    visitnum.
+
+      **Feature: form-scheduler-event-logging-refactor,
+    Property 4:
+        Visit Metadata Extraction Priority**
+      **Validates: Requirements 2.3, 2.4, 4.1, 4.2, 4.3**
+    """
+    # Create QC status with milestone metadata WITHOUT visitnum
+    qc_log_file = create_mock_file_entry(
+        "qc-status.json",
+        {
+            "visit": {
+                "ptid": "110003",
+                "date": "2024-03-10",
+                "module": "MLST",
+                "packet": "M",
+                # No visitnum
+            }
+        },
+    )
+
+    json_file = create_mock_file_entry(
+        "NACC110003_MILESTONE-2024-03-10_MLST.json", {"forms": {"json": {}}}
+    )
+
+    # Extract metadata - should use QC status custom info
+    result = event_accumulator._extract_visit_metadata(  # noqa: SLF001
+        json_file, qc_log_file
+    )
+
+    # Should successfully extract from QC status
+    assert result is not None
+    assert result.ptid == "110003"
+    assert result.date == "2024-03-10"
+    assert result.module == "MLST"
+    assert result.packet == "M"
+    assert result.visitnum is None
+
+    # Should be valid for event creation
+    assert VisitMetadataExtractor.is_valid_for_event(result) is True
