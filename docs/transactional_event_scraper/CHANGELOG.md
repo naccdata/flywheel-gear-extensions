@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.0.2
+
+* Fixed file discovery to properly retrieve FileEntry objects instead of file metadata dictionaries
+* Resolved Pydantic validation errors that prevented event extraction
+* Fixed metadata extraction failures that caused all files to be skipped
+
 ## 0.0.1
 
 * Initial version
