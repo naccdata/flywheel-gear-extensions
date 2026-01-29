@@ -50,7 +50,7 @@ class EventGenerator:
         Returns:
             VisitEvent object for submission, or None if creation fails
         """
-        if not self._pipeline_label or not self._pipeline_adcid:
+        if not self._pipeline_label or self._pipeline_adcid is None:
             log.warning(
                 "Cannot create submission event: missing project metadata "
                 "(label=%s, adcid=%s)",
@@ -107,7 +107,7 @@ class EventGenerator:
             log.warning("Cannot create pass-qc event: missing QC completion timestamp")
             return None
 
-        if not self._pipeline_label or not self._pipeline_adcid:
+        if not self._pipeline_label or self._pipeline_adcid is None:
             log.warning(
                 "Cannot create pass-qc event: missing project metadata "
                 "(label=%s, adcid=%s)",
