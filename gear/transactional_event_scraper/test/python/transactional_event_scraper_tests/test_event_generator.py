@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 from nacc_common.error_models import VisitMetadata
-from test_mocks.mock_flywheel import MockFile, MockProjectAdaptor
+from test_mocks.mock_flywheel import MockProjectAdaptor
 from transactional_event_scraper_app.event_generator import EventGenerator
 from transactional_event_scraper_app.models import EventData
 
@@ -52,12 +52,6 @@ def mock_project_no_datatype():
 @pytest.fixture
 def sample_event_data():
     """Create sample EventData for testing."""
-    log_file = MockFile(
-        name="110001_2024-01-15_UDS_z1x.log",
-        created=datetime(2024, 1, 15, 10, 0, 0),
-        modified=datetime(2024, 1, 15, 11, 0, 0),
-    )
-
     visit_metadata = VisitMetadata(
         ptid="110001",
         date="2024-01-15",
@@ -67,7 +61,6 @@ def sample_event_data():
     )
 
     return EventData(
-        log_file=log_file,
         visit_metadata=visit_metadata,
         qc_status="PASS",
         submission_timestamp=datetime(2024, 1, 15, 10, 0, 0),
@@ -199,12 +192,6 @@ def test_event_generator_with_different_study():
         info={"pipeline_adcid": 456},
     )
 
-    log_file = MockFile(
-        name="220002_2024-02-20_FTLD_a1.log",
-        created=datetime(2024, 2, 20, 9, 0, 0),
-        modified=datetime(2024, 2, 20, 10, 0, 0),
-    )
-
     visit_metadata = VisitMetadata(
         ptid="220002",
         date="2024-02-20",
@@ -214,7 +201,6 @@ def test_event_generator_with_different_study():
     )
 
     event_data = EventData(
-        log_file=log_file,
         visit_metadata=visit_metadata,
         qc_status="PASS",
         submission_timestamp=datetime(2024, 2, 20, 9, 0, 0),
@@ -242,12 +228,6 @@ def test_event_generator_with_optional_fields_none():
         info={"pipeline_adcid": 789},
     )
 
-    log_file = MockFile(
-        name="330003_2024-03-30_LBD.log",
-        created=datetime(2024, 3, 30, 14, 0, 0),
-        modified=datetime(2024, 3, 30, 15, 0, 0),
-    )
-
     visit_metadata = VisitMetadata(
         ptid="330003",
         date="2024-03-30",
@@ -257,7 +237,6 @@ def test_event_generator_with_optional_fields_none():
     )
 
     event_data = EventData(
-        log_file=log_file,
         visit_metadata=visit_metadata,
         qc_status="PASS",
         submission_timestamp=datetime(2024, 3, 30, 14, 0, 0),

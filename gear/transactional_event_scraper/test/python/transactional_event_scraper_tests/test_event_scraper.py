@@ -204,7 +204,6 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
         # First call succeeds, second raises exception, third succeeds
         mock_extract.side_effect = [
             EventData(
-                log_file=mock_project.files[0],
                 visit_metadata=VisitMetadata(
                     ptid="110001",
                     date="2024-01-15",
@@ -218,7 +217,6 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
             ),
             Exception("Simulated extraction error"),
             EventData(
-                log_file=mock_project.files[2],
                 visit_metadata=VisitMetadata(
                     ptid="110003",
                     date="2024-01-17",

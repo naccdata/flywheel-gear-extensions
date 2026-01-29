@@ -3,17 +3,13 @@
 from datetime import datetime
 from typing import Optional
 
-from flywheel.models.file_entry import FileEntry
 from nacc_common.error_models import QCStatus, VisitMetadata
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class EventData(BaseModel):
     """Intermediate data structure for extracted event information."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)  # Allow FileEntry
-
-    log_file: FileEntry
     visit_metadata: VisitMetadata
     qc_status: Optional[QCStatus]
     submission_timestamp: datetime
