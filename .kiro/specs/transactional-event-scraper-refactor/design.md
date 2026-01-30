@@ -25,7 +25,7 @@ EventScraper (orchestrator)
 │   ├── extract_event_from_log()
 │   └── EventGenerator.create_submission_event()
 ├── QCEventProcessor (processes JSON files)
-│   ├── VisitMetadataExtractor.from_json_file_metadata()
+│   ├── VisitMetadataExtractor.from_json_file_metadata() [from event_capture.visit_extractor]
 │   ├── find_qc_status_for_json_file()
 │   └── EventGenerator.create_qc_event()
 ├── UnmatchedSubmitEvents (matching data structure)
@@ -263,6 +263,7 @@ class QCEventProcessor:
     ) -> Optional[QCEventData]:
         """Extract QC event data from JSON file."""
         # Extract visit metadata from JSON file (includes packet)
+        # Note: VisitMetadataExtractor is imported from event_capture.visit_extractor
         visit_metadata = VisitMetadataExtractor.from_json_file_metadata(json_file)
         if not visit_metadata:
             return None
