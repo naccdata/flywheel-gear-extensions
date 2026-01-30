@@ -2,15 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.2.2
 
-* Adds event capture for submit events during CSV processing
-* Submit events are logged to S3 for each valid CSV row with required fields
+* Fixes KeyError when processing forms without visitnum column (e.g., Milestones, NP)
+* Updates VisitMetadata serializer to handle missing visitnum and date fields
+* Adds comprehensive tests for CSV processing without visitnum
 
 ## 2.2.0
 
+* Adds event capture for submit events during CSV processing
+* Submit events are logged to S3 for each valid CSV row with required fields
 * Adds event logging
 * Updates to allow distribution projects to run the `nacc` direction
+* Adds enum constraints to `database_mode` and `direction` config parameters for better UI validation
 
 ## 2.1.0
 

@@ -157,6 +157,21 @@ class MockProjectAdaptor(ProjectAdaptor):
         self.__files[filename] = mock_file
         return mock_file
 
+    def get_matching_files(self, query: str) -> List[FileEntry]:
+        """Mock implementation of get_matching_files.
+
+        Supports basic filtering by name pattern for QC status logs.
+        """
+        # Simple implementation: filter by name pattern
+        if "qc-status.log" in query:
+            return [f for f in self.files if f.name.endswith("_qc-status.log")]
+        # Default: return all files
+        return self.files
+
+    def subjects(self):
+        """Return empty list of subjects for testing."""
+        return []
+
     def reload(self, *args, **kwargs):
         return self
 

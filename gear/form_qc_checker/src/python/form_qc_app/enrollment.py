@@ -249,7 +249,7 @@ class CSVFileProcessor(FileProcessor):
             first_row = next(reader)
 
             preprocessor = FormPreprocessor(
-                primary_key=self._pk_field,
+                form_configs=self._form_configs,
                 forms_store=FormsStore(
                     ingest_project=self._project, legacy_project=None
                 ),
