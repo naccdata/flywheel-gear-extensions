@@ -17,17 +17,9 @@
   - Implement get_remaining() method
   - Implement count() method
 
-## 2. Add VisitMetadataExtractor Utilities
+## 2. Create SubmitEventProcessor
 
-- [ ] 2.1 Create visit_metadata_extractor.py module
-  - Copy VisitMetadataExtractor class from form_scheduler
-  - Include from_qc_status_custom_info static method
-  - Include from_json_file_metadata static method
-  - Include is_valid_for_event static method
-
-## 3. Create SubmitEventProcessor
-
-- [ ] 3.1 Create submit_event_processor.py module
+- [x] 2.1 Create submit_event_processor.py module
   - Create SubmitEventProcessor class
   - Implement __init__ with project, event_generator, unmatched_events, date_filter
   - Implement process_qc_logs() method
@@ -35,44 +27,44 @@
   - Implement _discover_qc_logs() method
   - Reuse existing extract_event_from_log from log_file_processor
 
-## 4. Create QCEventProcessor
+## 3. Create QCEventProcessor
 
-- [ ] 4.1 Create qc_event_processor.py module
+- [x] 3.1 Create qc_event_processor.py module
   - Create QCEventProcessor class
   - Implement __init__ with project, event_generator, unmatched_events, event_capture, dry_run, date_filter
 
-- [ ] 4.2 Implement JSON file processing methods
+- [x] 3.2 Implement JSON file processing methods
   - Implement process_json_files() method
   - Implement _process_json_file() method
   - Implement _discover_json_files() method (iterate subjects/sessions/acquisitions)
 
-- [ ] 4.3 Implement QC event extraction methods
+- [x] 3.3 Implement QC event extraction methods
   - Implement _extract_qc_event_data() method
   - Implement _find_qc_status_for_json_file() method (use ErrorLogTemplate)
   - Add ErrorLogTemplate import
 
-- [ ] 4.4 Implement event matching and enrichment methods
+- [x] 3.4 Implement event matching and enrichment methods
   - Implement _enrich_and_push_submit_event() method
   - Implement _push_qc_event() method
   - Add logging for matched/unmatched events
 
-## 5. Update EventGenerator
+## 4. Update EventGenerator
 
-- [ ] 5.1 Add create_qc_event method to event_generator.py
+- [x] 4.1 Add create_qc_event method to event_generator.py
   - Accept QCEventData parameter
   - Create VisitEvent with ACTION_PASS_QC
   - Use qc_completion_timestamp from QCEventData
   - Include packet and visitnum from visit_metadata
 
-## 6. Refactor EventScraper Orchestrator
+## 5. Refactor EventScraper Orchestrator
 
-- [ ] 6.1 Update EventScraper class in event_scraper.py
+- [x] 5.1 Update EventScraper class in event_scraper.py
   - Update __init__ to create UnmatchedSubmitEvents
   - Update __init__ to create SubmitEventProcessor
   - Update __init__ to create QCEventProcessor
   - Remove old _event_generator initialization (move to processors)
 
-- [ ] 6.2 Update scrape_events method
+- [x] 5.2 Update scrape_events method
   - Phase 1: Call submit_processor.process_qc_logs()
   - Log count of unmatched submit events after Phase 1
   - Phase 2: Call qc_processor.process_json_files()
@@ -80,74 +72,82 @@
   - Log sample of unmatched events (first 5)
   - Remove old _process_log_file and related methods
 
-- [ ] 6.3 Remove obsolete methods
+- [x] 5.3 Remove obsolete methods
   - Remove _create_and_capture_submission_event
   - Remove _create_and_capture_pass_qc_event
   - Remove _log_summary
   - Remove _discover_log_files
 
-## 7. Update Imports and Dependencies
+## 6. Update Imports and Dependencies
 
-- [ ] 7.1 Update imports in event_scraper.py
+- [x] 6.1 Update imports in event_scraper.py
   - Add SubmitEventProcessor import
   - Add QCEventProcessor import
   - Add UnmatchedSubmitEvents import
 
-- [ ] 7.2 Update imports in qc_event_processor.py
+- [x] 6.2 Update imports in qc_event_processor.py
   - Add ErrorLogTemplate import
-  - Add VisitMetadataExtractor import
+  - Add VisitMetadataExtractor import from event_capture.visit_extractor
   - Add FileQCModel import
 
-## 8. Remove Obsolete Code
+## 7. Remove Obsolete Code
 
-- [ ] 8.1 Remove ProcessingStatistics model from models.py (no longer needed)
+- [x] 7.1 Remove ProcessingStatistics model from models.py (no longer needed)
 
-- [ ] 8.2 Update main.py if it references ProcessingStatistics
+- [x] 7.2 Update main.py if it references ProcessingStatistics
   - Change return type if needed
   - Update logging
 
-## 9. Sandbox Testing and Validation
+- [x] 7.3 Fix failing tests and type checks
+  - Update test_event_scraper.py to match new refactored implementation
+  - Remove references to ProcessingStatistics return values
+  - Update tests to verify new three-phase workflow
+  - Fix any remaining type check errors
+  - Ensure all tests pass with pants test ::
+  - Ensure all type checks pass with pants check ::
 
-- [ ] 9.1 Deploy to sandbox environment
+## 8. Sandbox Testing and Validation
+
+- [ ] 8.1 Deploy to sandbox environment
   - Build Docker image
   - Deploy to Flywheel sandbox
 
-- [ ] 9.2 Run on test project with known data
+- [ ] 8.2 Run on test project with known data
   - Execute gear on project with QC logs and JSON files
   - Monitor logs for errors
 
-- [ ] 9.3 Validate results
+- [ ] 8.3 Validate results
   - Check logs for Phase 1/2/3 execution
   - Verify submit events have packet information in S3
   - Verify pass-QC events are created
   - Check for unmatched event warnings
   - Verify no duplicate events in S3
 
-- [ ] 9.4 Investigate any issues
+- [ ] 8.4 Investigate any issues
   - Review unmatched event warnings
   - Check if packet information is correctly populated
   - Verify matching logic works correctly
 
-## 10. Optional: Add Minimal Unit Tests (Only if issues found)
+## 9. Optional: Add Minimal Unit Tests (Only if issues found)
 
-- [ ]* 10.1 Add UnmatchedSubmitEvents tests
+- [ ]* 9.1 Add UnmatchedSubmitEvents tests
   - Test add and find_and_remove operations
   - Test that second match returns None
 
-- [ ]* 10.2 Add enrichment tests
+- [ ]* 9.2 Add enrichment tests
   - Test enrichment preserves non-None values
   - Test enrichment fills None values
 
-## 11. Documentation and Cleanup
+## 10. Documentation and Cleanup
 
-- [ ] 11.1 Update module docstrings
+- [ ] 10.1 Update module docstrings
   - Document new modules
   - Update EventScraper docstring
 
-- [ ] 11.2 Add inline comments for complex logic
+- [ ] 10.2 Add inline comments for complex logic
   - Comment matching logic
   - Comment enrichment logic
 
-- [ ] 11.3 Update CHANGELOG if applicable
+- [ ] 10.3 Update CHANGELOG if applicable
   - Document refactoring changes
   - Note new packet information feature
