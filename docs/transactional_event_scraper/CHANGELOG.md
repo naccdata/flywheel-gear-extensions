@@ -2,6 +2,22 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.0
+
+* Major refactoring to support packet information enrichment
+* Implemented three-phase processing workflow:
+  - Phase 1: Process QC status logs to create submit events
+  - Phase 2: Process form JSON files to create QC events and match with submit events
+  - Phase 3: Report unmatched events for investigation
+* Submit events are now enriched with packet information from form JSON files
+* Added event matching logic to correlate submit events with QC events based on ptid, date, and module
+* Improved logging to track unmatched events and potential data loss scenarios
+* Removed ProcessingStatistics model in favor of direct logging
+* Added support for discovering and processing form JSON files from acquisitions
+* Enhanced error handling and resilience for individual file processing failures
+* Updated tests to verify new three-phase workflow
+* All type checks and tests passing
+
 ## 0.0.4
 
 * Removed unused `log_file` field from EventData model

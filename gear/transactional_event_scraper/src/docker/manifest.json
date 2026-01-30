@@ -2,7 +2,7 @@
     "name": "transactional-event-scraper",
     "label": "Transactional Event Scraper",
     "description": "A gear for scraping existing QC status log files to generate historical submission and pass-qc events",
-    "version": "0.0.4",
+    "version": "1.0.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/transactional-event-scraper:0.0.4"
+            "image": "naccdata/transactional-event-scraper:1.0.0"
         },
         "flywheel": {
             "suite": "Utility",

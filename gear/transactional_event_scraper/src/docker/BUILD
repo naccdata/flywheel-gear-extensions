@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/transactional_event_scraper/src/python/transactional_event_scraper_app:bin",
     ],
-    image_tags=["0.0.4", "latest"],
+    image_tags=["1.0.0", "latest"],
 )
