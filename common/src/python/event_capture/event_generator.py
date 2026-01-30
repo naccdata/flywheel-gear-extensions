@@ -3,12 +3,17 @@
 import logging
 from typing import Optional
 
-from event_capture.visit_events import ACTION_PASS_QC, ACTION_SUBMIT, VisitEvent
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
 
-from transactional_event_scraper_app.models import EventData
+from event_capture.models import QCEventData, SubmitEventData
+from event_capture.visit_events import (
+    ACTION_NOT_PASS_QC,
+    ACTION_PASS_QC,
+    ACTION_SUBMIT,
+    VisitEvent,
+)
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +46,9 @@ class EventGenerator:
         except ProjectError as error:
             log.warning("Failed to get pipeline ADCID: %s", error)
 
-    def create_submission_event(self, event_data: EventData) -> Optional[VisitEvent]:
+    def create_submission_event(
+        self, event_data: SubmitEventData
+    ) -> Optional[VisitEvent]:
         """Create a submission event from extracted log data.
 
         Args:
@@ -86,8 +93,8 @@ class EventGenerator:
             log.warning("Failed to create submission event: %s", error)
             return None
 
-    def create_pass_qc_event(self, event_data: EventData) -> Optional[VisitEvent]:
-        """Create a pass-qc event from extracted log data.
+    def create_qc_event(self, event_data: QCEventData) -> Optional[VisitEvent]:
+        """Create a event from extracted log data.
 
         Only creates an event if the QC status is PASS and a completion
         timestamp exists.
@@ -99,18 +106,18 @@ class EventGenerator:
             VisitEvent object for pass-qc, or None if creation fails or not
             applicable
         """
-        # Only create pass-qc events for PASS status
-        if event_data.qc_status != "PASS":
-            return None
+
+        action = (
+            ACTION_PASS_QC if event_data.qc_status == "PASS" else ACTION_NOT_PASS_QC
+        )
 
         if not event_data.qc_completion_timestamp:
-            log.warning("Cannot create pass-qc event: missing QC completion timestamp")
+            log.warning("Cannot create qc event: missing QC completion timestamp")
             return None
 
         if not self._pipeline_label or self._pipeline_adcid is None:
             log.warning(
-                "Cannot create pass-qc event: missing project metadata "
-                "(label=%s, adcid=%s)",
+                "Cannot create qc event: missing project metadata (label=%s, adcid=%s)",
                 self._pipeline_label,
                 self._pipeline_adcid,
             )
@@ -125,7 +132,7 @@ class EventGenerator:
 
         try:
             return VisitEvent(
-                action=ACTION_PASS_QC,
+                action=action,
                 study=self._pipeline_label.study_id,
                 pipeline_adcid=self._pipeline_adcid,
                 project_label=self._project.label,

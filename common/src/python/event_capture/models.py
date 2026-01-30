@@ -3,9 +3,10 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from event_capture.visit_events import VisitEvent
 from nacc_common.error_models import QCStatus, VisitMetadata
 from pydantic import BaseModel, Field
+
+from event_capture.visit_events import VisitEvent
 
 
 class EventMatchKey(BaseModel):
@@ -55,21 +56,21 @@ class EventMatchKey(BaseModel):
         )
 
 
-class QCEventData(BaseModel):
+class EventData(BaseModel):
+    visit_metadata: VisitMetadata
+
+
+class QCEventData(EventData):
     """Data extracted from JSON file for QC event creation."""
 
-    visit_metadata: VisitMetadata  # From JSON file (includes packet)
     qc_status: QCStatus  # From QC status log
     qc_completion_timestamp: datetime  # From QC status log modified time
 
 
-class EventData(BaseModel):
+class SubmitEventData(EventData):
     """Intermediate data structure for extracted event information."""
 
-    visit_metadata: VisitMetadata
-    qc_status: Optional[QCStatus]
     submission_timestamp: datetime
-    qc_completion_timestamp: Optional[datetime]
 
 
 class ProcessingStatistics(BaseModel):
