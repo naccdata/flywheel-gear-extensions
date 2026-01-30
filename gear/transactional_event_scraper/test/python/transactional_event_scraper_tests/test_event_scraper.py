@@ -188,7 +188,7 @@ def test_scrape_events_completion_message_all_matched(mock_project, caplog):
     with patch.object(
         scraper._unmatched_events,
         "get_remaining",
-        return_value=[],  # noqa: SLF001
+        return_value=[],
     ):
         scraper.scrape_events()
 
