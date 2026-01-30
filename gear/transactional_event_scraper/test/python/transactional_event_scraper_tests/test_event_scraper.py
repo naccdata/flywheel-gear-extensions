@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 from event_capture.event_capture import VisitEventCapture
+from event_capture.models import DateRange, SubmitEventData
 from flywheel.models.file_entry import FileEntry
 from nacc_common.error_models import VisitMetadata
 from test_mocks.mock_flywheel import MockFile, MockProjectAdaptor
 from transactional_event_scraper_app.event_scraper import EventScraper
-from transactional_event_scraper_app.models import DateRange, EventData
 
 
 @pytest.fixture
@@ -141,8 +141,8 @@ def test_scrape_events_dry_run(mock_project):
     assert stats.files_processed == 3
     # Should create 3 submission events (one per file)
     assert stats.submission_events_created == 3
-    # Should create 2 pass-qc events (only for PASS status)
-    assert stats.pass_qc_events_created == 2
+    # Should not create QC events (QC events come from event processor, not log files)
+    assert stats.pass_qc_events_created == 0
     assert stats.errors_encountered == 0
     assert stats.skipped_files == 0
 
@@ -155,10 +155,11 @@ def test_scrape_events_with_capture(mock_project, mock_event_capture):
     # Should process 3 log files
     assert stats.files_processed == 3
     assert stats.submission_events_created == 3
-    assert stats.pass_qc_events_created == 2
+    # Should not create QC events (QC events come from event processor, not log files)
+    assert stats.pass_qc_events_created == 0
 
-    # Should have called capture_event 5 times (3 submission + 2 pass-qc)
-    assert mock_event_capture.capture_event.call_count == 5
+    # Should have called capture_event 3 times (3 submission events only)
+    assert mock_event_capture.capture_event.call_count == 3
 
 
 def test_scrape_events_with_date_filter(mock_project):
@@ -171,7 +172,8 @@ def test_scrape_events_with_date_filter(mock_project):
     # Should process 2 log files (Jan 16 and Jan 17)
     assert stats.files_processed == 2
     assert stats.submission_events_created == 2
-    assert stats.pass_qc_events_created == 1
+    # Should not create QC events (QC events come from event processor, not log files)
+    assert stats.pass_qc_events_created == 0
     # Should skip 1 file (Jan 15)
     assert stats.skipped_files == 1
 
@@ -188,7 +190,8 @@ def test_scrape_events_with_date_range(mock_project):
     # Should process 1 log file (Jan 16 only)
     assert stats.files_processed == 1
     assert stats.submission_events_created == 1
-    assert stats.pass_qc_events_created == 0  # Jan 16 file has FAIL status
+    # Should not create QC events (QC events come from event processor, not log files)
+    assert stats.pass_qc_events_created == 0
     # Should skip 2 files (Jan 15 and Jan 17)
     assert stats.skipped_files == 2
 
@@ -203,7 +206,7 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
     ) as mock_extract:
         # First call succeeds, second raises exception, third succeeds
         mock_extract.side_effect = [
-            EventData(
+            SubmitEventData(
                 visit_metadata=VisitMetadata(
                     ptid="110001",
                     date="2024-01-15",
@@ -211,12 +214,10 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
                     module="UDS",
                     packet="z1x",
                 ),
-                qc_status="PASS",
                 submission_timestamp=datetime(2024, 1, 15, 10, 0, 0),
-                qc_completion_timestamp=datetime(2024, 1, 15, 11, 0, 0),
             ),
             Exception("Simulated extraction error"),
-            EventData(
+            SubmitEventData(
                 visit_metadata=VisitMetadata(
                     ptid="110003",
                     date="2024-01-17",
@@ -224,9 +225,7 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
                     module="UDS",
                     packet="z1x",
                 ),
-                qc_status="PASS",
                 submission_timestamp=datetime(2024, 1, 17, 10, 0, 0),
-                qc_completion_timestamp=datetime(2024, 1, 17, 11, 0, 0),
             ),
         ]
 
@@ -237,7 +236,8 @@ def test_scrape_events_error_resilience(mock_project, mock_event_capture):
         assert stats.errors_encountered == 1
         # Should still create events for successful files
         assert stats.submission_events_created == 2
-        assert stats.pass_qc_events_created == 2
+        # Should not create QC events
+        assert stats.pass_qc_events_created == 0
 
 
 def test_scrape_events_extraction_failure(mock_project):
@@ -291,7 +291,7 @@ def test_scrape_events_event_creation_failure(mock_project, mock_event_capture):
         ),
         patch.object(
             scraper._event_generator,  # noqa: SLF001
-            "create_pass_qc_event",
+            "create_qc_event",
             return_value=None,
         ),
     ):

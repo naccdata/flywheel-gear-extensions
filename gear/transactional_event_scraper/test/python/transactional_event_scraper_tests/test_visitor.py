@@ -4,12 +4,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 from event_capture.event_capture import VisitEventCapture
+from event_capture.models import ProcessingStatistics
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterStore
 from s3.s3_bucket import S3BucketInterface
 from transactional_event_scraper_app.config import TransactionalEventScraperConfig
-from transactional_event_scraper_app.models import ProcessingStatistics
 from transactional_event_scraper_app.run import TransactionalEventScraperVisitor
 
 

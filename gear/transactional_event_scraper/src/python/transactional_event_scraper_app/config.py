@@ -4,11 +4,10 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from event_capture.models import DateRange
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from pydantic import BaseModel, Field, ValidationError, field_validator
-
-from transactional_event_scraper_app.models import DateRange
 
 log = logging.getLogger(__name__)
 

@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+from event_capture.models import DateRange
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from pydantic import ValidationError
@@ -10,7 +11,6 @@ from transactional_event_scraper_app.config import (
     TransactionalEventScraperConfig,
     parse_gear_config,
 )
-from transactional_event_scraper_app.models import DateRange
 
 
 class TestTransactionalEventScraperConfig:

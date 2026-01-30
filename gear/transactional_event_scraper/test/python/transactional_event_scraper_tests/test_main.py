@@ -3,9 +3,9 @@
 from unittest.mock import Mock
 
 import pytest
+from event_capture.models import ProcessingStatistics
 from transactional_event_scraper_app.event_scraper import EventScraper
 from transactional_event_scraper_app.main import run
-from transactional_event_scraper_app.models import ProcessingStatistics
 
 
 @pytest.fixture

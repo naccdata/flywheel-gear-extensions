@@ -3,8 +3,8 @@
 from datetime import datetime
 
 import pytest
+from event_capture.models import DateRange, ProcessingStatistics
 from transactional_event_scraper_app.config import TransactionalEventScraperConfig
-from transactional_event_scraper_app.models import DateRange, ProcessingStatistics
 
 
 def test_processing_statistics_creation():

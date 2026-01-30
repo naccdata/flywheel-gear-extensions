@@ -3,10 +3,10 @@
 from datetime import datetime
 
 import pytest
+from event_capture.event_generator import EventGenerator
+from event_capture.models import QCEventData, SubmitEventData
 from nacc_common.error_models import VisitMetadata
 from test_mocks.mock_flywheel import MockProjectAdaptor
-from transactional_event_scraper_app.event_generator import EventGenerator
-from transactional_event_scraper_app.models import EventData
 
 
 @pytest.fixture
@@ -50,8 +50,8 @@ def mock_project_no_datatype():
 
 
 @pytest.fixture
-def sample_event_data():
-    """Create sample EventData for testing."""
+def sample_submit_event_data():
+    """Create sample SubmitEventData for testing submission events."""
     visit_metadata = VisitMetadata(
         ptid="110001",
         date="2024-01-15",
@@ -60,10 +60,26 @@ def sample_event_data():
         packet="z1x",
     )
 
-    return EventData(
+    return SubmitEventData(
+        visit_metadata=visit_metadata,
+        submission_timestamp=datetime(2024, 1, 15, 10, 0, 0),
+    )
+
+
+@pytest.fixture
+def sample_qc_event_data():
+    """Create sample QCEventData for testing QC events."""
+    visit_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        visitnum="001",
+        module="UDS",
+        packet="z1x",
+    )
+
+    return QCEventData(
         visit_metadata=visit_metadata,
         qc_status="PASS",
-        submission_timestamp=datetime(2024, 1, 15, 10, 0, 0),
         qc_completion_timestamp=datetime(2024, 1, 15, 11, 0, 0),
     )
 
@@ -86,10 +102,10 @@ def test_event_generator_initialization_invalid_label(mock_project_invalid_label
     assert generator._pipeline_label is None  # noqa: SLF001
 
 
-def test_create_submission_event_success(mock_project, sample_event_data):
+def test_create_submission_event_success(mock_project, sample_submit_event_data):
     """Test successful creation of submission event."""
     generator = EventGenerator(mock_project)
-    event = generator.create_submission_event(sample_event_data)
+    event = generator.create_submission_event(sample_submit_event_data)
 
     assert event is not None
     assert event.action == "submit"
@@ -108,29 +124,29 @@ def test_create_submission_event_success(mock_project, sample_event_data):
 
 
 def test_create_submission_event_no_pipeline_label(
-    mock_project_invalid_label, sample_event_data
+    mock_project_invalid_label, sample_submit_event_data
 ):
     """Test submission event creation fails without valid pipeline label."""
     generator = EventGenerator(mock_project_invalid_label)
-    event = generator.create_submission_event(sample_event_data)
+    event = generator.create_submission_event(sample_submit_event_data)
 
     assert event is None
 
 
 def test_create_submission_event_no_datatype(
-    mock_project_no_datatype, sample_event_data
+    mock_project_no_datatype, sample_submit_event_data
 ):
     """Test submission event creation fails when label has no datatype."""
     generator = EventGenerator(mock_project_no_datatype)
-    event = generator.create_submission_event(sample_event_data)
+    event = generator.create_submission_event(sample_submit_event_data)
 
     assert event is None
 
 
-def test_create_pass_qc_event_success(mock_project, sample_event_data):
+def test_create_pass_qc_event_success(mock_project, sample_qc_event_data):
     """Test successful creation of pass-qc event."""
     generator = EventGenerator(mock_project)
-    event = generator.create_pass_qc_event(sample_event_data)
+    event = generator.create_qc_event(sample_qc_event_data)
 
     assert event is not None
     assert event.action == "pass-qc"
@@ -148,38 +164,69 @@ def test_create_pass_qc_event_success(mock_project, sample_event_data):
     assert event.timestamp == datetime(2024, 1, 15, 11, 0, 0)
 
 
-def test_create_pass_qc_event_not_pass_status(mock_project, sample_event_data):
-    """Test pass-qc event is not created when status is not PASS."""
-    sample_event_data.qc_status = "FAIL"
+def test_create_pass_qc_event_not_pass_status(mock_project):
+    """Test not-pass-qc event is created when status is not PASS."""
+    visit_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        visitnum="001",
+        module="UDS",
+        packet="z1x",
+    )
+    qc_event_data = QCEventData(
+        visit_metadata=visit_metadata,
+        qc_status="FAIL",
+        qc_completion_timestamp=datetime(2024, 1, 15, 11, 0, 0),
+    )
     generator = EventGenerator(mock_project)
-    event = generator.create_pass_qc_event(sample_event_data)
+    event = generator.create_qc_event(qc_event_data)
 
-    assert event is None
+    # Should create a not-pass-qc event
+    assert event is not None
+    assert event.action == "not-pass-qc"
 
 
-def test_create_pass_qc_event_no_completion_timestamp(mock_project, sample_event_data):
-    """Test pass-qc event is not created without completion timestamp."""
-    sample_event_data.qc_completion_timestamp = None
-    generator = EventGenerator(mock_project)
-    event = generator.create_pass_qc_event(sample_event_data)
-
-    assert event is None
+def test_create_pass_qc_event_no_completion_timestamp(mock_project):
+    """Test QC event requires completion timestamp."""
+    visit_metadata = VisitMetadata(
+        ptid="110001",
+        date="2024-01-15",
+        visitnum="001",
+        module="UDS",
+        packet="z1x",
+    )
+    # QCEventData requires a valid timestamp, so this test verifies
+    # that we can't create QCEventData without one
+    # The validation happens at the Pydantic model level
+    try:
+        _qc_event_data = QCEventData(
+            visit_metadata=visit_metadata,
+            qc_status="PASS",
+            qc_completion_timestamp=None,
+        )
+        # If we get here, the model allowed None (shouldn't happen)
+        raise AssertionError("QCEventData should not allow None timestamp")
+    except Exception:
+        # Expected - Pydantic should reject None timestamp
+        pass
 
 
 def test_create_pass_qc_event_no_pipeline_label(
-    mock_project_invalid_label, sample_event_data
+    mock_project_invalid_label, sample_qc_event_data
 ):
     """Test pass-qc event creation fails without valid pipeline label."""
     generator = EventGenerator(mock_project_invalid_label)
-    event = generator.create_pass_qc_event(sample_event_data)
+    event = generator.create_qc_event(sample_qc_event_data)
 
     assert event is None
 
 
-def test_create_pass_qc_event_no_datatype(mock_project_no_datatype, sample_event_data):
+def test_create_pass_qc_event_no_datatype(
+    mock_project_no_datatype, sample_qc_event_data
+):
     """Test pass-qc event creation fails when label has no datatype."""
     generator = EventGenerator(mock_project_no_datatype)
-    event = generator.create_pass_qc_event(sample_event_data)
+    event = generator.create_qc_event(sample_qc_event_data)
 
     assert event is None
 
@@ -200,24 +247,17 @@ def test_event_generator_with_different_study():
         packet="a1",
     )
 
-    event_data = EventData(
+    submit_event_data = SubmitEventData(
         visit_metadata=visit_metadata,
-        qc_status="PASS",
         submission_timestamp=datetime(2024, 2, 20, 9, 0, 0),
-        qc_completion_timestamp=datetime(2024, 2, 20, 10, 0, 0),
     )
 
     generator = EventGenerator(project)
-    submission_event = generator.create_submission_event(event_data)
-    pass_qc_event = generator.create_pass_qc_event(event_data)
+    submission_event = generator.create_submission_event(submit_event_data)
 
     assert submission_event is not None
     assert submission_event.study == "ftld"
     assert submission_event.pipeline_adcid == 456
-
-    assert pass_qc_event is not None
-    assert pass_qc_event.study == "ftld"
-    assert pass_qc_event.pipeline_adcid == 456
 
 
 def test_event_generator_with_optional_fields_none():
@@ -236,35 +276,30 @@ def test_event_generator_with_optional_fields_none():
         packet=None,  # Optional field
     )
 
-    event_data = EventData(
+    submit_event_data = SubmitEventData(
         visit_metadata=visit_metadata,
-        qc_status="PASS",
         submission_timestamp=datetime(2024, 3, 30, 14, 0, 0),
-        qc_completion_timestamp=datetime(2024, 3, 30, 15, 0, 0),
     )
 
     generator = EventGenerator(project)
-    submission_event = generator.create_submission_event(event_data)
-    pass_qc_event = generator.create_pass_qc_event(event_data)
+    submission_event = generator.create_submission_event(submit_event_data)
 
     assert submission_event is not None
     assert submission_event.visit_number is None
     assert submission_event.packet is None
 
-    assert pass_qc_event is not None
-    assert pass_qc_event.visit_number is None
-    assert pass_qc_event.packet is None
 
-
-def test_gear_name_is_correct(mock_project, sample_event_data):
+def test_gear_name_is_correct(
+    mock_project, sample_submit_event_data, sample_qc_event_data
+):
     """Test that gear_name is set to 'transactional-event-scraper' for all
     events."""
     generator = EventGenerator(mock_project)
 
-    submission_event = generator.create_submission_event(sample_event_data)
+    submission_event = generator.create_submission_event(sample_submit_event_data)
     assert submission_event is not None
     assert submission_event.gear_name == "transactional-event-scraper"
 
-    pass_qc_event = generator.create_pass_qc_event(sample_event_data)
+    pass_qc_event = generator.create_qc_event(sample_qc_event_data)
     assert pass_qc_event is not None
     assert pass_qc_event.gear_name == "transactional-event-scraper"

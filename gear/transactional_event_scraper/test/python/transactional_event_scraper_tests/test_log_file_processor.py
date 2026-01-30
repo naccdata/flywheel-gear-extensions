@@ -2,11 +2,11 @@
 
 from datetime import datetime
 
-from test_mocks.mock_flywheel import MockFile
-from transactional_event_scraper_app.log_file_processor import (
+from event_capture.log_file_processor import (
     _extract_from_filename,
     extract_event_from_log,
 )
+from test_mocks.mock_flywheel import MockFile
 
 
 class TestExtractFromFilename:
@@ -108,9 +108,6 @@ class TestExtractEventFromLog:
         assert event_data.visit_metadata.visitnum == "001"
         assert event_data.visit_metadata.module == "UDS"
         assert event_data.visit_metadata.packet == "z1x"
-        assert event_data.qc_status == "PASS"
-        assert event_data.submission_timestamp == datetime(2024, 1, 15, 10, 0, 0)
-        assert event_data.qc_completion_timestamp == datetime(2024, 1, 15, 11, 0, 0)
 
     def test_extract_from_file_without_visit_metadata(self):
         """Test extraction from file without info.visit (older files).
@@ -141,9 +138,7 @@ class TestExtractEventFromLog:
         # These fields not available from filename
         assert event_data.visit_metadata.visitnum is None
         assert event_data.visit_metadata.packet is None
-        assert event_data.qc_status == "FAIL"
         assert event_data.submission_timestamp == datetime(2024, 2, 20, 9, 0, 0)
-        assert event_data.qc_completion_timestamp is None  # FAIL status
 
     def test_extract_from_file_with_fail_status(self):
         """Test extraction with FAIL QC status."""
@@ -170,9 +165,6 @@ class TestExtractEventFromLog:
         event_data = extract_event_from_log(log_file)
 
         assert event_data is not None
-        assert event_data.qc_status == "FAIL"
-        # FAIL status means no completion timestamp
-        assert event_data.qc_completion_timestamp is None
 
     def test_extract_from_file_invalid_filename_no_metadata(self):
         """Test extraction fails when filename is invalid and no metadata
@@ -219,8 +211,6 @@ class TestExtractEventFromLog:
         assert event_data is not None
         # Should still extract visit metadata
         assert event_data.visit_metadata.ptid == "440004"
-        # FileQCModel returns default status of "PASS" when no QC metadata present
-        assert event_data.qc_status == "PASS"
 
     def test_extract_prioritizes_metadata_over_filename(self):
         """Test that info.visit metadata takes priority over filename

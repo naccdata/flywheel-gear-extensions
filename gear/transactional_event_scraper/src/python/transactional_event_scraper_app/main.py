@@ -2,8 +2,9 @@
 
 import logging
 
+from event_capture.models import ProcessingStatistics
+
 from transactional_event_scraper_app.event_scraper import EventScraper
-from transactional_event_scraper_app.models import ProcessingStatistics
 
 log = logging.getLogger(__name__)
 
