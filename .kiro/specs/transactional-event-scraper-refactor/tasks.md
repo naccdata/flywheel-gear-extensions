@@ -2,15 +2,15 @@
 
 ## 1. Add New Data Models
 
-- [-] 1.1 Create EventMatchKey model in models.py
+- [x] 1.1 Create EventMatchKey model in models.py
   - Add ptid, date, module fields
   - Add from_visit_metadata class method
   - Implement __hash__ and __eq__ for dict key usage
 
-- [ ] 1.2 Create QCEventData model in models.py
+- [x] 1.2 Create QCEventData model in models.py
   - Add visit_metadata, qc_status, qc_completion_timestamp fields
 
-- [ ] 1.3 Create UnmatchedSubmitEvents class in models.py
+- [x] 1.3 Create UnmatchedSubmitEvents class in models.py
   - Implement __init__ with dict storage
   - Implement add(event) method
   - Implement find_and_remove(key) method
