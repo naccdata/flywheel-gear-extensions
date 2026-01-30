@@ -1171,7 +1171,7 @@ class ProjectAdaptor:
         Returns:
           the list of files under this project matching the query
         """
-        parent_query = f"parents.project={self.label}"
+        parent_query = f"parents.project={self.id}"
         finder_query = f"{parent_query},{query}" if query else parent_query
 
         return self.proxy.get_files(finder_query)
