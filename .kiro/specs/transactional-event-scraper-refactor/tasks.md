@@ -108,25 +108,28 @@
 
 ## 8. Sandbox Testing and Validation
 
-- [ ] 8.1 Deploy to sandbox environment
+- [x] 8.1 Deploy to sandbox environment
   - Build Docker image
   - Deploy to Flywheel sandbox
 
-- [ ] 8.2 Run on test project with known data
+- [x] 8.2 Run on test project with known data
   - Execute gear on project with QC logs and JSON files
   - Monitor logs for errors
 
-- [ ] 8.3 Validate results
+- [x] 8.3 Validate results
   - Check logs for Phase 1/2/3 execution
   - Verify submit events have packet information in S3
   - Verify pass-QC events are created
   - Check for unmatched event warnings
   - Verify no duplicate events in S3
+  - **ISSUE FOUND**: All events are unmatched - matching logic is broken
 
-- [ ] 8.4 Investigate any issues
-  - Review unmatched event warnings
-  - Check if packet information is correctly populated
-  - Verify matching logic works correctly
+- [x] 8.4 Fix matching bug
+  - **Root Cause**: EventMatchKey date type mismatch
+  - In UnmatchedSubmitEvents.add(): passing event.visit_date (datetime.date object)
+  - In EventMatchKey.from_visit_metadata(): passing metadata.date (string)
+  - Keys don't match because date types are different
+  - **Fix**: Convert date to string consistently in both places
 
 ## 9. Optional: Add Minimal Unit Tests (Only if issues found)
 
@@ -138,16 +141,22 @@
   - Test enrichment preserves non-None values
   - Test enrichment fills None values
 
+- [x] 9.3 Add EventMatchKey matching tests
+  - Test that submit events and QC events with same ptid/date/module match
+  - Test case-insensitive module matching (UDS vs uds)
+  - Test that keys with different ptid/date/module don't match
+  - Test UnmatchedSubmitEvents.add() and find_and_remove() with matching keys
+
 ## 10. Documentation and Cleanup
 
-- [ ] 10.1 Update module docstrings
+- [x] 10.1 Update module docstrings
   - Document new modules
   - Update EventScraper docstring
 
-- [ ] 10.2 Add inline comments for complex logic
+- [x] 10.2 Add inline comments for complex logic
   - Comment matching logic
   - Comment enrichment logic
 
-- [ ] 10.3 Update CHANGELOG if applicable
+- [x] 10.3 Update CHANGELOG if applicable
   - Document refactoring changes
   - Note new packet information feature
