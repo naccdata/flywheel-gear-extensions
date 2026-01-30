@@ -154,8 +154,8 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
         )
 
         # Run the scraper
-        results = run(scraper=scraper)
-        log.info(f"Scraping completed successfully: {results}")
+        run(scraper=scraper)
+        log.info("Scraping completed successfully")
 
 
 def main():
