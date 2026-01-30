@@ -370,8 +370,9 @@ class FormCurator(Curator):
 
         derived = subject_table.get("derived", {})
 
-        # 4. add associated tags
-        self.handle_tags(subject, scoped_files, derived.get("affiliate", False))
+        # 4. add subject tags
+        affiliate = derived.get("affiliate", False)
+        self.handle_subject_tags(subject, scoped_files, affiliate)
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
         self.back_propagate_scopes(
@@ -384,7 +385,7 @@ class FormCurator(Curator):
 
         # 6. push curation to FW
         for file in processed_files:
-            self.apply_file_curation(file)
+            self.apply_file_curation(file, affiliate)
 
     def subject_level_curation(
         self,
@@ -445,7 +446,7 @@ class FormCurator(Curator):
         return True
 
     @api_retry
-    def handle_tags(
+    def handle_subject_tags(
         self,
         subject: Subject,
         scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
@@ -458,23 +459,16 @@ class FormCurator(Curator):
             processed_files: processed files to potentially tag
             affiliate: whether or not this is an affiliate subject
         """
-        if affiliate:
-            affiliate_tag = FormCurationTags.AFFILIATE
+        affiliate_tag = FormCurationTags.AFFILIATE
+        if affiliate and affiliate_tag not in subject.tags:
             log.debug(f"Tagging affiliate: {subject.label}")
-
-            if affiliate_tag not in subject.tags:
-                subject.add_tag(affiliate_tag)
-
-            # not ideal, but need to also tag all files to get around data model issues
-            # luckily the number of affiliates is relatively small, so this shouldn't
-            # add too many more API calls
-            for _, processed_files in scoped_files.items():
-                for file in processed_files:
-                    if file.tags and affiliate_tag not in file.tags:
-                        file_entry = self.sdk_client.get_file(file.file_id)
-                        file_entry.add_tag(affiliate_tag)
+            subject.add_tag(affiliate_tag)
+        elif not affiliate and affiliate_tag in subject.tags:
+            subject.delete_tag(affiliate_tag)
 
         # add uds-participant tag
+        # once a UDS participant always a participant so don't
+        # really need to delete tags
         uds_tag = FormCurationTags.UDS_PARTICIPANT
         if FormScope.UDS in scoped_files and uds_tag not in subject.tags:
             log.debug(f"Tagging UDS participant: {subject.label}")
@@ -552,7 +546,7 @@ class FormCurator(Curator):
                 file_info[category].update(result[scope])
 
     @api_retry
-    def apply_file_curation(self, file: ProcessedFile) -> None:
+    def apply_file_curation(self, file: ProcessedFile, affiliate: bool) -> None:
         """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived (derived variables) and
@@ -582,3 +576,10 @@ class FormCurator(Curator):
         # add curation tag
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
+
+        # set affiliate status
+        affiliate_tag = FormCurationTags.AFFILIATE
+        if affiliate and affiliate_tag not in file_entry.tags:
+            file_entry.add_tag(affiliate_tag)
+        elif not affiliate and affiliate_tag in file_entry.tags:
+            file_entry.delete_tag(affiliate_tag)
