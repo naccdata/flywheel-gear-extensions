@@ -54,6 +54,14 @@ class EventMatchKey(BaseModel):
         )
 
 
+class QCEventData(BaseModel):
+    """Data extracted from JSON file for QC event creation."""
+
+    visit_metadata: VisitMetadata  # From JSON file (includes packet)
+    qc_status: QCStatus  # From QC status log
+    qc_completion_timestamp: datetime  # From QC status log modified time
+
+
 class EventData(BaseModel):
     """Intermediate data structure for extracted event information."""
 
