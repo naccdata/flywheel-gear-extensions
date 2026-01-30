@@ -5,12 +5,11 @@ import logging
 from typing import Optional
 
 from event_capture.event_capture import VisitEventCapture
+from event_capture.event_generator import EventGenerator
+from event_capture.log_file_processor import extract_event_from_log
+from event_capture.models import DateRange, ProcessingStatistics
 from flywheel import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-
-from transactional_event_scraper_app.event_generator import EventGenerator
-from transactional_event_scraper_app.log_file_processor import extract_event_from_log
-from transactional_event_scraper_app.models import DateRange, ProcessingStatistics
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +128,7 @@ class EventScraper:
             event_data: The extracted event data
             stats: Statistics object to update
         """
-        pass_qc_event = self._event_generator.create_pass_qc_event(event_data)
+        pass_qc_event = self._event_generator.create_qc_event(event_data)
         if not pass_qc_event:
             return
 
