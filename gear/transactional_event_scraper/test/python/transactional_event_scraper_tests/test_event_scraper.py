@@ -186,7 +186,7 @@ def test_scrape_events_completion_message_all_matched(mock_project, caplog):
 
     # Mock get_remaining to return empty list
     with patch.object(
-        scraper._unmatched_events,
+        scraper._unmatched_events,  # noqa: SLF001
         "get_remaining",
         return_value=[],
     ):

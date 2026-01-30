@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from nacc_common.error_models import QCStatus, VisitMetadata
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from event_capture.visit_events import VisitEvent
 
@@ -12,12 +12,27 @@ from event_capture.visit_events import VisitEvent
 class EventMatchKey(BaseModel):
     """Key for matching submit events with QC events.
 
-    Uses only fields guaranteed to be in QC status log filename.
+    Uses only fields guaranteed to be in QC status log filename. Module
+    is automatically normalized to uppercase for case-insensitive
+    matching.
     """
 
     ptid: str
     date: str  # visit date
     module: str
+
+    @field_validator("module")
+    @classmethod
+    def normalize_module(cls, v: str) -> str:
+        """Normalize module to uppercase for case-insensitive matching.
+
+        Args:
+            v: The module value
+
+        Returns:
+            Module normalized to uppercase
+        """
+        return v.upper() if v else ""
 
     @classmethod
     def from_visit_metadata(cls, metadata: VisitMetadata) -> "EventMatchKey":
@@ -39,7 +54,12 @@ class EventMatchKey(BaseModel):
         if not metadata.module:
             raise ValueError("module is required for EventMatchKey")
 
-        return cls(ptid=metadata.ptid, date=metadata.date, module=metadata.module)
+        # Module normalization is handled by field validator
+        return cls(
+            ptid=metadata.ptid,
+            date=metadata.date,
+            module=metadata.module,
+        )
 
     def __hash__(self) -> int:
         """Make EventMatchKey hashable for use as dict key."""
@@ -119,6 +139,7 @@ class UnmatchedSubmitEvents:
         Raises:
             ValueError: If required fields for creating match key are missing
         """
+        # Module normalization is handled by EventMatchKey validator
         key = EventMatchKey(
             ptid=event.ptid, date=event.visit_date, module=event.module or ""
         )
