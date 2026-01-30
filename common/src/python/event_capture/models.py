@@ -73,24 +73,6 @@ class SubmitEventData(EventData):
     submission_timestamp: datetime
 
 
-class ProcessingStatistics(BaseModel):
-    """Statistics from the processing operation."""
-
-    files_processed: int = Field(
-        default=0, ge=0, description="Number of files processed"
-    )
-    submission_events_created: int = Field(
-        default=0, ge=0, description="Number of submission events created"
-    )
-    pass_qc_events_created: int = Field(
-        default=0, ge=0, description="Number of pass-qc events created"
-    )
-    errors_encountered: int = Field(
-        default=0, ge=0, description="Number of errors encountered"
-    )
-    skipped_files: int = Field(default=0, ge=0, description="Number of files skipped")
-
-
 class DateRange(BaseModel):
     """Optional configuration for filtering files by date."""
 
