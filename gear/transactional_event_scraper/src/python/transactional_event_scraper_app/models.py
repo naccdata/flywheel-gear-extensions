@@ -1,8 +1,9 @@
 """Data models for the Transactional Event Scraper."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Dict, List, Optional
 
+from event_capture.visit_events import VisitEvent
 from nacc_common.error_models import QCStatus, VisitMetadata
 from pydantic import BaseModel, Field
 
@@ -112,3 +113,61 @@ class DateRange(BaseModel):
             (self.start_date and file_timestamp < self.start_date)
             or (self.end_date and file_timestamp > self.end_date)
         )
+
+
+class UnmatchedSubmitEvents:
+    """Manages unmatched submit events with efficient lookup by match key.
+
+    This class stores submit events that have not yet been matched with
+    corresponding QC events. Events are keyed by EventMatchKey (ptid,
+    date, module) for efficient O(1) lookup during the matching process.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the unmatched events collection."""
+        self._events: Dict[EventMatchKey, VisitEvent] = {}
+
+    def add(self, event: VisitEvent) -> None:
+        """Add an unmatched submit event to the collection.
+
+        Args:
+            event: The submit event to add
+
+        Raises:
+            ValueError: If required fields for creating match key are missing
+        """
+        key = EventMatchKey(
+            ptid=event.ptid, date=event.visit_date, module=event.module or ""
+        )
+        self._events[key] = event
+
+    def find_and_remove(self, key: EventMatchKey) -> Optional[VisitEvent]:
+        """Find and remove a submit event by match key.
+
+        This method removes the event from the collection, ensuring that
+        subsequent calls with the same key will return None (preventing
+        duplicate matches).
+
+        Args:
+            key: The match key to search for
+
+        Returns:
+            The matched submit event, or None if not found
+        """
+        return self._events.pop(key, None)
+
+    def get_remaining(self) -> List[VisitEvent]:
+        """Get all remaining unmatched submit events.
+
+        Returns:
+            List of all unmatched submit events still in the collection
+        """
+        return list(self._events.values())
+
+    def count(self) -> int:
+        """Get count of unmatched submit events.
+
+        Returns:
+            Number of unmatched submit events in the collection
+        """
+        return len(self._events)
