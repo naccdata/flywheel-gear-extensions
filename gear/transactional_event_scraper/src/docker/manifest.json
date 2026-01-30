@@ -1,0 +1,63 @@
+{
+    "name": "transactional-event-scraper",
+    "label": "Transactional Event Scraper",
+    "description": "A gear for scraping existing QC status log files to generate historical submission and pass-qc events",
+    "version": "1.0.0",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/transactional-event-scraper:1.0.0"
+        },
+        "flywheel": {
+            "suite": "Utility",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to perform a dry run without capturing events",
+            "type": "boolean",
+            "default": false
+        },
+        "event_bucket": {
+            "description": "S3 bucket name for event storage",
+            "type": "string",
+            "default": "nacc-transaction-log"
+        },
+        "event_environment": {
+            "description": "Environment prefix for event storage (prod/dev)",
+            "type": "string",
+            "default": "prod"
+        },
+        "start_date": {
+            "description": "Start date for filtering files (YYYY-MM-DD format)",
+            "type": "string",
+            "optional": true
+        },
+        "end_date": {
+            "description": "End date for filtering files (YYYY-MM-DD format)",
+            "type": "string",
+            "optional": true
+        },
+        "apikey_path_prefix": {
+            "description": "AWS parameter path prefix for API key",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        }
+    },
+    "command": "/bin/run"
+}
