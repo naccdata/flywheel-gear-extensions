@@ -1,4 +1,21 @@
-"""Data models for the Transactional Event Scraper."""
+"""Data models for the Transactional Event Scraper.
+
+This module provides data models used in the transactional event scraping
+process, including:
+
+- EventMatchKey: Key for matching submit events with QC events based on
+  ptid, date, and module
+- EventData: Base class for event data extracted from files
+- QCEventData: Data extracted from JSON files for QC event creation
+- SubmitEventData: Data extracted from QC logs for submit event creation
+- DateRange: Configuration for filtering files by date range
+- UnmatchedSubmitEvents: Collection for managing unmatched submit events
+  with efficient O(1) lookup
+
+The matching process uses EventMatchKey to correlate submit events (from
+QC status logs) with QC events (from form JSON files), enabling enrichment
+of submit events with packet information and other metadata.
+"""
 
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -15,6 +32,19 @@ class EventMatchKey(BaseModel):
     Uses only fields guaranteed to be in QC status log filename. Module
     is automatically normalized to uppercase for case-insensitive
     matching.
+
+    The matching strategy is based on the constraint that QC status log
+    filenames follow a specific pattern that includes ptid, date, and module,
+    but NOT packet or visit number. Therefore, we can only reliably match
+    events using these three fields.
+
+    Example QC log filename: "NACC123456_2024-01-15_UDS_qc-status.log"
+    - ptid: NACC123456
+    - date: 2024-01-15
+    - module: UDS (normalized to uppercase)
+
+    The EventMatchKey is hashable and can be used as a dictionary key for
+    efficient O(1) lookup during the matching process.
     """
 
     ptid: str
@@ -25,6 +55,10 @@ class EventMatchKey(BaseModel):
     @classmethod
     def normalize_module(cls, v: str) -> str:
         """Normalize module to uppercase for case-insensitive matching.
+
+        This ensures that "UDS", "uds", and "Uds" all match the same event.
+        Module names in QC logs and JSON files may have inconsistent casing,
+        so normalization is essential for reliable matching.
 
         Args:
             v: The module value
@@ -37,6 +71,11 @@ class EventMatchKey(BaseModel):
     @classmethod
     def from_visit_metadata(cls, metadata: VisitMetadata) -> "EventMatchKey":
         """Create match key from visit metadata.
+
+        Extracts the matching fields (ptid, date, module) from visit metadata
+        and creates an EventMatchKey. This is used when processing both submit
+        events (from QC logs) and QC events (from JSON files) to create
+        comparable keys for matching.
 
         Args:
             metadata: The visit metadata to extract key fields from
@@ -139,10 +178,15 @@ class UnmatchedSubmitEvents:
         Raises:
             ValueError: If required fields for creating match key are missing
         """
-        # Module normalization is handled by EventMatchKey validator
+        # Create a match key from the submit event's identifying fields.
+        # The key uses ptid, date (as string), and module (normalized to uppercase).
+        # This key will be used for O(1) lookup when matching with QC events.
+        # Module normalization is handled by EventMatchKey validator.
         key = EventMatchKey(
             ptid=event.ptid, date=event.visit_date, module=event.module or ""
         )
+        # Store the event in a dictionary keyed by the match key.
+        # This enables efficient O(1) lookup during the matching phase.
         self._events[key] = event
 
     def find_and_remove(self, key: EventMatchKey) -> Optional[VisitEvent]:
@@ -158,6 +202,11 @@ class UnmatchedSubmitEvents:
         Returns:
             The matched submit event, or None if not found
         """
+        # Use dict.pop() to atomically lookup and remove the event.
+        # This ensures that each submit event can only be matched once,
+        # preventing duplicate event captures even if multiple QC events
+        # have the same match key.
+        # Returns None if the key is not found (no matching submit event).
         return self._events.pop(key, None)
 
     def get_remaining(self) -> List[VisitEvent]:

@@ -224,7 +224,7 @@ class TestUnmatchedSubmitEvents:
         UnmatchedSubmitEvents."""
         unmatched = UnmatchedSubmitEvents()
 
-        # Add event with lowercase module
+        # Add event with lowercase module - will be normalized to uppercase
         event = self._create_test_event("NACC123456", "2024-01-15", "uds")
         unmatched.add(event)
 
@@ -233,7 +233,8 @@ class TestUnmatchedSubmitEvents:
         found_event = unmatched.find_and_remove(key)
 
         assert found_event is not None
-        assert found_event.module == "uds"  # Original case preserved in event
+        # Module is normalized to uppercase in VisitEvent
+        assert found_event.module == "UDS"
 
     def test_multiple_events_can_be_stored(self):
         """Test that multiple events with different keys can be stored."""

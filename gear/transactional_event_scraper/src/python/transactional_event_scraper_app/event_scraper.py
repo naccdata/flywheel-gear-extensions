@@ -1,5 +1,28 @@
-"""EventScraper orchestrator for discovering and processing QC status log files
-and form JSON files."""
+"""EventScraper orchestrator for the Transactional Event Scraper.
+
+This module provides the main orchestrator that coordinates the three-phase
+event scraping workflow:
+
+Phase 1: Process QC status logs to create submit events
+    - Discovers QC status log files at the project level
+    - Extracts submission events with timestamps
+    - Stores events in UnmatchedSubmitEvents collection
+
+Phase 2: Process JSON files to create and match QC events
+    - Discovers form JSON files in acquisitions
+    - Extracts QC event data including packet information
+    - Matches QC events with submit events using EventMatchKey
+    - Enriches matched submit events with packet information
+    - Captures enriched submit events and PASS QC events to S3
+
+Phase 3: Report unmatched submit events
+    - Logs warnings for any submit events that couldn't be matched
+    - Indicates potential data loss or missing JSON files
+
+The EventScraper uses dependency injection to coordinate two specialized
+processors (SubmitEventProcessor and QCEventProcessor) and a shared
+UnmatchedSubmitEvents collection for efficient event matching.
+"""
 
 import logging
 from typing import Optional
@@ -14,7 +37,37 @@ log = logging.getLogger(__name__)
 
 
 class EventScraper:
-    """Main orchestrator that coordinates file discovery and processing."""
+    """Main orchestrator that coordinates the three-phase event scraping
+    workflow.
+
+    The EventScraper is responsible for orchestrating the complete event
+    scraping process, which involves:
+
+    1. Creating and coordinating two specialized processors:
+       - SubmitEventProcessor: Processes QC status logs
+       - QCEventProcessor: Processes JSON files and matches events
+
+    2. Managing shared state through UnmatchedSubmitEvents collection
+
+    3. Executing the three-phase workflow:
+       - Phase 1: Process QC logs to create submit events
+       - Phase 2: Process JSON files to match and enrich events
+       - Phase 3: Report any unmatched submit events
+
+    The orchestrator uses dependency injection to provide shared components
+    (EventGenerator, UnmatchedSubmitEvents) to both processors, ensuring
+    they work with the same data and can coordinate event matching.
+
+    Attributes:
+        _project: Project adaptor for accessing Flywheel project files
+        _event_capture: Event capture for storing events to S3
+        _dry_run: Whether to perform a dry run without capturing events
+        _date_filter: Optional date range for filtering files
+        _event_generator: Shared generator for creating VisitEvent objects
+        _unmatched_events: Shared collection for event matching
+        _submit_processor: Processor for QC status logs
+        _qc_processor: Processor for JSON files
+    """
 
     def __init__(
         self,
@@ -24,6 +77,9 @@ class EventScraper:
         date_filter: Optional[DateRange] = None,
     ) -> None:
         """Initialize the EventScraper.
+
+        Creates the shared components (EventGenerator, UnmatchedSubmitEvents)
+        and initializes both processors with these shared components.
 
         Args:
             project: The project adaptor for accessing project files
@@ -58,11 +114,27 @@ class EventScraper:
         )
 
     def scrape_events(self) -> None:
-        """Execute the scraping process in three phases.
+        """Execute the three-phase event scraping workflow.
 
-        Phase 1: Process QC logs to create submit events Phase 2:
-        Process JSON files to create and match QC events Phase 3: Report
-        unmatched submit events
+        Phase 1: Process QC logs to create submit events
+            - Discovers and processes all QC status log files
+            - Creates submit events and stores them in unmatched collection
+            - Logs count of submit events awaiting enrichment
+
+        Phase 2: Process JSON files to match and enrich events
+            - Discovers and processes all form JSON files
+            - Matches QC events with submit events
+            - Enriches and captures matched events
+            - Logs warnings for unmatched QC events
+
+        Phase 3: Report unmatched submit events
+            - Logs warning if any submit events remain unmatched
+            - Provides sample of unmatched events for investigation
+            - Indicates potential data loss or missing JSON files
+
+        The workflow is designed to be resilient to individual file
+        processing failures - errors are logged but don't stop the
+        overall process.
         """
         log.info("Starting event scraping")
 
