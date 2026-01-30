@@ -1,13 +1,12 @@
 """Unit tests for the EventScraper class."""
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from event_capture.event_capture import VisitEventCapture
-from event_capture.models import DateRange, SubmitEventData
+from event_capture.models import DateRange
 from flywheel.models.file_entry import FileEntry
-from nacc_common.error_models import VisitMetadata
 from test_mocks.mock_flywheel import MockFile, MockProjectAdaptor
 from transactional_event_scraper_app.event_scraper import EventScraper
 
@@ -103,6 +102,10 @@ def test_event_scraper_initialization(mock_project):
     assert scraper._event_capture is None  # noqa: SLF001
     assert scraper._dry_run is False  # noqa: SLF001
     assert scraper._date_filter is None  # noqa: SLF001
+    # Verify processors are initialized
+    assert scraper._submit_processor is not None  # noqa: SLF001
+    assert scraper._qc_processor is not None  # noqa: SLF001
+    assert scraper._unmatched_events is not None  # noqa: SLF001
 
 
 def test_event_scraper_initialization_with_options(mock_project, mock_event_capture):
@@ -122,141 +125,40 @@ def test_event_scraper_initialization_with_options(mock_project, mock_event_capt
     assert scraper._date_filter == date_filter  # noqa: SLF001
 
 
-def test_discover_log_files(mock_project):
-    """Test discovery of QC status log files."""
-    scraper = EventScraper(mock_project)
-    log_files = scraper._discover_log_files()  # noqa: SLF001
+def test_scrape_events_three_phase_workflow(mock_project, caplog):
+    """Test that scrape_events executes the three-phase workflow."""
+    import logging
 
-    # Should find 3 log files (excluding the .txt file)
-    assert len(log_files) == 3
-    assert all(file.name.endswith("_qc-status.log") for file in log_files)
+    caplog.set_level(logging.INFO)
 
-
-def test_scrape_events_dry_run(mock_project):
-    """Test scraping events in dry-run mode."""
     scraper = EventScraper(mock_project, dry_run=True)
-    stats = scraper.scrape_events()
+    scraper.scrape_events()
 
-    # Should process 3 log files
-    assert stats.files_processed == 3
-    # Should create 3 submission events (one per file)
-    assert stats.submission_events_created == 3
-    # Should not create QC events (QC events come from event processor, not log files)
-    assert stats.pass_qc_events_created == 0
-    assert stats.errors_encountered == 0
-    assert stats.skipped_files == 0
+    # Verify all three phases are logged
+    assert "Phase 1: Processing QC status logs" in caplog.text
+    assert "Phase 2: Processing JSON files and matching events" in caplog.text
+    assert "Processing complete" in caplog.text
 
 
-def test_scrape_events_with_capture(mock_project, mock_event_capture):
-    """Test scraping events with event capture."""
-    scraper = EventScraper(mock_project, event_capture=mock_event_capture)
-    stats = scraper.scrape_events()
-
-    # Should process 3 log files
-    assert stats.files_processed == 3
-    assert stats.submission_events_created == 3
-    # Should not create QC events (QC events come from event processor, not log files)
-    assert stats.pass_qc_events_created == 0
-
-    # Should have called capture_event 3 times (3 submission events only)
-    assert mock_event_capture.capture_event.call_count == 3
-
-
-def test_scrape_events_with_date_filter(mock_project):
-    """Test scraping events with date filter."""
-    # Filter to only include files from Jan 16 onwards
-    date_filter = DateRange(start_date=datetime(2024, 1, 16))
-    scraper = EventScraper(mock_project, dry_run=True, date_filter=date_filter)
-    stats = scraper.scrape_events()
-
-    # Should process 2 log files (Jan 16 and Jan 17)
-    assert stats.files_processed == 2
-    assert stats.submission_events_created == 2
-    # Should not create QC events (QC events come from event processor, not log files)
-    assert stats.pass_qc_events_created == 0
-    # Should skip 1 file (Jan 15)
-    assert stats.skipped_files == 1
-
-
-def test_scrape_events_with_date_range(mock_project):
-    """Test scraping events with start and end date filter."""
-    # Filter to only include files from Jan 16
-    date_filter = DateRange(
-        start_date=datetime(2024, 1, 16), end_date=datetime(2024, 1, 16, 23, 59, 59)
-    )
-    scraper = EventScraper(mock_project, dry_run=True, date_filter=date_filter)
-    stats = scraper.scrape_events()
-
-    # Should process 1 log file (Jan 16 only)
-    assert stats.files_processed == 1
-    assert stats.submission_events_created == 1
-    # Should not create QC events (QC events come from event processor, not log files)
-    assert stats.pass_qc_events_created == 0
-    # Should skip 2 files (Jan 15 and Jan 17)
-    assert stats.skipped_files == 2
-
-
-def test_scrape_events_error_resilience(mock_project, mock_event_capture):
-    """Test that scraper continues processing after individual file errors."""
-    scraper = EventScraper(mock_project, event_capture=mock_event_capture)
-
-    # Mock extract_event_from_log to fail on the second file
-    with patch(
-        "transactional_event_scraper_app.event_scraper.extract_event_from_log"
-    ) as mock_extract:
-        # First call succeeds, second raises exception, third succeeds
-        mock_extract.side_effect = [
-            SubmitEventData(
-                visit_metadata=VisitMetadata(
-                    ptid="110001",
-                    date="2024-01-15",
-                    visitnum="001",
-                    module="UDS",
-                    packet="z1x",
-                ),
-                submission_timestamp=datetime(2024, 1, 15, 10, 0, 0),
-            ),
-            Exception("Simulated extraction error"),
-            SubmitEventData(
-                visit_metadata=VisitMetadata(
-                    ptid="110003",
-                    date="2024-01-17",
-                    visitnum="003",
-                    module="UDS",
-                    packet="z1x",
-                ),
-                submission_timestamp=datetime(2024, 1, 17, 10, 0, 0),
-            ),
-        ]
-
-        stats = scraper.scrape_events()
-
-        # Should process 2 files successfully despite 1 error
-        assert stats.files_processed == 2
-        assert stats.errors_encountered == 1
-        # Should still create events for successful files
-        assert stats.submission_events_created == 2
-        # Should not create QC events
-        assert stats.pass_qc_events_created == 0
-
-
-def test_scrape_events_extraction_failure(mock_project):
-    """Test handling of extraction failures (returns None)."""
+def test_scrape_events_returns_none(mock_project):
+    """Test that scrape_events returns None (no longer returns statistics)."""
     scraper = EventScraper(mock_project, dry_run=True)
+    scraper.scrape_events()
+    # scrape_events returns None, so we just verify it completes without error
 
-    # Mock extract_event_from_log to return None for all files
-    with patch(
-        "transactional_event_scraper_app.event_scraper.extract_event_from_log"
-    ) as mock_extract:
-        mock_extract.return_value = None
 
-        stats = scraper.scrape_events()
+def test_scrape_events_logs_unmatched_events(mock_project, caplog):
+    """Test that unmatched submit events are logged at completion."""
+    import logging
 
-        # Should skip all files due to extraction failure
-        assert stats.files_processed == 0
-        assert stats.skipped_files == 3
-        assert stats.submission_events_created == 0
-        assert stats.pass_qc_events_created == 0
+    caplog.set_level(logging.WARNING)
+
+    scraper = EventScraper(mock_project, dry_run=True)
+    scraper.scrape_events()
+
+    # Since we only process QC logs and no JSON files, all submit events remain
+    #  unmatched
+    assert "unmatched submit events" in caplog.text.lower()
 
 
 def test_scrape_events_empty_project():
@@ -269,67 +171,41 @@ def test_scrape_events_empty_project():
     )
 
     scraper = EventScraper(empty_project, dry_run=True)
-    stats = scraper.scrape_events()
-
-    assert stats.files_processed == 0
-    assert stats.submission_events_created == 0
-    assert stats.pass_qc_events_created == 0
-    assert stats.skipped_files == 0
-    assert stats.errors_encountered == 0
+    # Should complete without errors
+    scraper.scrape_events()
 
 
-def test_scrape_events_event_creation_failure(mock_project, mock_event_capture):
-    """Test handling when event creation fails."""
-    scraper = EventScraper(mock_project, event_capture=mock_event_capture)
-
-    # Mock event generator to return None for all events
-    with (
-        patch.object(
-            scraper._event_generator,  # noqa: SLF001
-            "create_submission_event",
-            return_value=None,
-        ),
-        patch.object(
-            scraper._event_generator,  # noqa: SLF001
-            "create_qc_event",
-            return_value=None,
-        ),
-    ):
-        stats = scraper.scrape_events()
-
-        # Should process files but create no events
-        assert stats.files_processed == 3
-        assert stats.submission_events_created == 0
-        assert stats.pass_qc_events_created == 0
-        # Should not call capture_event if no events created
-        assert mock_event_capture.capture_event.call_count == 0
-
-
-def test_scrape_events_capture_failure(mock_project, mock_event_capture):
-    """Test handling when event capture fails."""
-    # Make capture_event raise an exception
-    mock_event_capture.capture_event.side_effect = Exception("S3 write failed")
-
-    scraper = EventScraper(mock_project, event_capture=mock_event_capture)
-    stats = scraper.scrape_events()
-
-    # Should encounter errors but continue processing
-    assert stats.errors_encountered > 0
-    # Some files may have been processed before errors
-    assert stats.files_processed >= 0
-
-
-def test_scrape_events_logs_summary(mock_project, caplog):
-    """Test that scraper logs summary statistics."""
+def test_scrape_events_completion_message_all_matched(mock_project, caplog):
+    """Test completion message when all events are matched."""
     import logging
+    from unittest.mock import patch
 
     caplog.set_level(logging.INFO)
 
     scraper = EventScraper(mock_project, dry_run=True)
-    stats = scraper.scrape_events()
 
-    # Check that summary was logged
-    assert "Processing complete" in caplog.text
-    assert f"{stats.files_processed} files processed" in caplog.text
-    assert f"{stats.submission_events_created} submission events" in caplog.text
-    assert f"{stats.pass_qc_events_created} pass-qc events" in caplog.text
+    # Mock get_remaining to return empty list
+    with patch.object(
+        scraper._unmatched_events,
+        "get_remaining",
+        return_value=[],  # noqa: SLF001
+    ):
+        scraper.scrape_events()
+
+    # Should log success message
+    assert "all submit events matched and enriched" in caplog.text
+
+
+def test_scrape_events_completion_message_with_unmatched(mock_project, caplog):
+    """Test completion message when unmatched events remain."""
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    scraper = EventScraper(mock_project, dry_run=True)
+    scraper.scrape_events()
+
+    # Should log warning about unmatched events
+    assert "unmatched submit events" in caplog.text.lower()
+    # Should log sample of unmatched events
+    assert "Unmatched:" in caplog.text

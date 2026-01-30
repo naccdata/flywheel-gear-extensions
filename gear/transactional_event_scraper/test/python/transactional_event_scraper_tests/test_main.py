@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 
 import pytest
-from event_capture.models import ProcessingStatistics
 from transactional_event_scraper_app.event_scraper import EventScraper
 from transactional_event_scraper_app.main import run
 
@@ -17,20 +16,10 @@ def mock_scraper():
 
 def test_run_success(mock_scraper):
     """Test successful run of the scraper."""
-    expected_stats = ProcessingStatistics(
-        files_processed=5,
-        submission_events_created=5,
-        pass_qc_events_created=3,
-        errors_encountered=0,
-        skipped_files=0,
-    )
-    mock_scraper.scrape_events.return_value = expected_stats
+    mock_scraper.scrape_events.return_value = None
 
     # Run the scraper
-    result = run(scraper=mock_scraper)
-
-    # Verify result
-    assert result == expected_stats
+    run(scraper=mock_scraper)
 
     # Verify scrape_events was called
     mock_scraper.scrape_events.assert_called_once()
@@ -71,8 +60,7 @@ def test_run_logs_project_info(mock_scraper, caplog):
 
     caplog.set_level(logging.INFO)
 
-    expected_stats = ProcessingStatistics()
-    mock_scraper.scrape_events.return_value = expected_stats
+    mock_scraper.scrape_events.return_value = None
 
     # Run the scraper
     run(scraper=mock_scraper)

@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from event_capture.event_capture import VisitEventCapture
-from event_capture.models import ProcessingStatistics
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterStore
@@ -272,14 +271,7 @@ def test_visitor_run_success(mock_run, mock_config):
 
     mock_client = Mock()
     mock_event_capture = Mock(spec=VisitEventCapture)
-    expected_stats = ProcessingStatistics(
-        files_processed=5,
-        submission_events_created=5,
-        pass_qc_events_created=3,
-        errors_encountered=0,
-        skipped_files=0,
-    )
-    mock_run.return_value = expected_stats
+    mock_run.return_value = None
 
     # Setup context
     mock_context = Mock(spec=GearToolkitContext)
@@ -324,7 +316,7 @@ def test_visitor_run_with_date_filters(mock_run):
     )
     mock_client = Mock()
     mock_event_capture = Mock(spec=VisitEventCapture)
-    mock_run.return_value = ProcessingStatistics()
+    mock_run.return_value = None
 
     # Setup context
     mock_context = Mock(spec=GearToolkitContext)
@@ -400,13 +392,7 @@ def test_visitor_run_dry_run_mode(mock_run):
         apikey_path_prefix="/test/path",
     )
     mock_client = Mock()
-    mock_run.return_value = ProcessingStatistics(
-        files_processed=5,
-        submission_events_created=5,
-        pass_qc_events_created=3,
-        errors_encountered=0,
-        skipped_files=0,
-    )
+    mock_run.return_value = None
 
     # Setup context
     mock_context = Mock(spec=GearToolkitContext)

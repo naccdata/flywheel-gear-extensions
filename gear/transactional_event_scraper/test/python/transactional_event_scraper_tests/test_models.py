@@ -3,34 +3,8 @@
 from datetime import datetime
 
 import pytest
-from event_capture.models import DateRange, ProcessingStatistics
+from event_capture.models import DateRange
 from transactional_event_scraper_app.config import TransactionalEventScraperConfig
-
-
-def test_processing_statistics_creation():
-    """Test ProcessingStatistics model creation."""
-    results = ProcessingStatistics()
-    assert results.files_processed == 0
-    assert results.submission_events_created == 0
-    assert results.pass_qc_events_created == 0
-    assert results.errors_encountered == 0
-    assert results.skipped_files == 0
-
-
-def test_processing_statistics_with_values():
-    """Test ProcessingStatistics model with values."""
-    results = ProcessingStatistics(
-        files_processed=10,
-        submission_events_created=8,
-        pass_qc_events_created=5,
-        errors_encountered=2,
-        skipped_files=1,
-    )
-    assert results.files_processed == 10
-    assert results.submission_events_created == 8
-    assert results.pass_qc_events_created == 5
-    assert results.errors_encountered == 2
-    assert results.skipped_files == 1
 
 
 def test_date_range_includes_file():
