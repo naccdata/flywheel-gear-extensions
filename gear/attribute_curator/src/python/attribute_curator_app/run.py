@@ -4,6 +4,7 @@ import logging
 from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
+from curator.scheduling_models import FileModel
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -19,7 +20,8 @@ from inputs.parameter_store import ParameterStore
 from rxnav.rxnav_connection import load_rxclass_concepts_from_file
 from utils.utils import parse_string_to_list
 
-from attribute_curator_app.main import run
+from .form_curator import FormCurator
+from .main import run
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +34,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         project: ProjectAdaptor,
         filename_patterns: List[str],
+        include_subjects: List[str],
+        exclude_subjects: List[str],
         curation_tag: str,
         force_curate: bool = False,
         rxclass_concepts_file: Optional[InputFileWrapper] = None,
@@ -41,6 +45,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         super().__init__(client=client)
         self.__project = project
         self.__filename_patterns = filename_patterns
+        self.__include_subjects = include_subjects
+        self.__exclude_subjects = exclude_subjects
         self.__curation_tag = curation_tag
         self.__force_curate = force_curate
         self.__rxclass_concepts_file = rxclass_concepts_file
@@ -79,6 +85,16 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             to_lower=False,
         )
 
+        include_subjects = parse_string_to_list(
+            options.get("include_subjects", ""), to_lower=False
+        )
+        exclude_subjects = parse_string_to_list(
+            options.get("exclude_subjects", ""), to_lower=False
+        )
+
+        if include_subjects and exclude_subjects:
+            raise GearExecutionError("Cannot define both include and exclude lists")
+
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
@@ -89,6 +105,8 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             client=client,
             project=project,
             filename_patterns=filename_patterns,
+            include_subjects=include_subjects,
+            exclude_subjects=exclude_subjects,
             curation_tag=options.get("curation_tag", "attribute-curator"),
             force_curate=options.get("force_curate", False),
             rxclass_concepts_file=rxclass_concepts_file,
@@ -106,22 +124,29 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             ) as fh:
                 rxclass_concepts = load_rxclass_concepts_from_file(fh)
 
+        dataview = FileModel.create_dataview(self.__filename_patterns)
+        curator = FormCurator(
+            dataview=dataview,
+            curation_tag=self.__curation_tag,
+            force_curate=self.__force_curate,
+            rxclass_concepts=rxclass_concepts,
+            ignore_qc=self.__ignore_qc,
+        )
+
         try:
-            scheduler = ProjectCurationScheduler.create(
+            scheduler = ProjectCurationScheduler(
                 project=self.__project,
-                filename_patterns=self.__filename_patterns,
+                include_subjects=self.__include_subjects,
+                exclude_subjects=self.__exclude_subjects,
             )
         except ProjectCurationError as error:
             raise GearExecutionError(error) from error
 
         run(
             context=context,
+            curator=curator,
             scheduler=scheduler,
-            curation_tag=self.__curation_tag,
-            force_curate=self.__force_curate,
             max_num_workers=self.__max_num_workers,
-            rxclass_concepts=rxclass_concepts,
-            ignore_qc=self.__ignore_qc,
         )
 
 

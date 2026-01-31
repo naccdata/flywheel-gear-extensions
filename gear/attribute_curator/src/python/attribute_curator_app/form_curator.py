@@ -7,7 +7,8 @@ from multiprocessing.managers import ListProxy
 from typing import Any, Dict, List, MutableMapping, Optional
 
 from curator.curator import Curator, ProjectCurationError
-from curator.scheduling_models import ProcessedFile, generate_curation_failure
+from curator.scheduling_models import FileModel, generate_curation_failure
+from flywheel import DataView
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from nacc_attribute_deriver.attribute_deriver import (
@@ -48,12 +49,15 @@ class FormCurator(Curator):
 
     def __init__(
         self,
+        dataview: DataView,
         curation_tag: str,
         force_curate: bool = False,
         rxclass_concepts: Optional[MutableMapping] = None,
         ignore_qc: bool = False,
     ) -> None:
-        super().__init__(curation_tag=curation_tag, force_curate=force_curate)
+        super().__init__(
+            dataview=dataview, curation_tag=curation_tag, force_curate=force_curate
+        )
         version = importlib.metadata.version("nacc_attribute_deriver")
         log.info(f"Running nacc-attribute-deriver version {version}")
 
@@ -204,7 +208,7 @@ class FormCurator(Curator):
         table[location] = data
 
     def prepare_table(
-        self, file_entry: FileEntry, table: SymbolTable, scope: ScopeLiterals
+        self, filename: str, table: SymbolTable, scope: ScopeLiterals
     ) -> None:
         """Prepare the table with working metadata for curation work.
 
@@ -214,7 +218,7 @@ class FormCurator(Curator):
         work.
         """
         # for derived work, also provide filename (namely needed for MP).
-        self.__set_working_metadata(table, "_filename", file_entry.name)
+        self.__set_working_metadata(table, "_filename", filename)
 
         # For UDS A4 derived work, store the RxClass information under _rxclass
         if scope == FormScope.UDS and self.__rxclass:
@@ -239,24 +243,26 @@ class FormCurator(Curator):
                 copy.deepcopy(table["file.info.forms.json"]),
             )
 
-    def __handle_failed_file(self, file_entry: FileEntry, reason: str) -> None:
+    def __handle_failed_file(self, file_model: FileModel, reason: str) -> None:
         """Handle when a file fails curation. Needs to both remove the curation
         tag and add it to the failed files.
 
         Args:
-            file_entry: The file that failed
+            file_model: The file that failed
             reason: The reason why the file failed
         """
         # remove tag if in file_entry
-        if self.curation_tag in file_entry.tags:
+        if self.curation_tag in file_model.file_tags:
+            file_entry = self.sdk_client.get_file(file_model.file_id)
             file_entry.delete_tag(self.curation_tag)
+            file_model.file_tags.remove(self.curation_tag)
 
-        self.__failed_files.append(generate_curation_failure(file_entry, reason))
+        self.__failed_files.append(generate_curation_failure(file_model, reason))
 
     def execute(
         self,
         subject: Subject,
-        file_entry: FileEntry,
+        file_model: FileModel,
         table: SymbolTable,
         scope: ScopeLiterals,
     ) -> bool:
@@ -265,24 +271,25 @@ class FormCurator(Curator):
 
         Args:
             subject: Subject the file belongs to
-            file_entry: FileEntry of file being curated
+            file_model: FileModel of file being curated
             table: SymbolTable containing file/subject metadata.
             scope: The scope of the file being curated
         """
+        filename = file_model.filename
         # due to issues with soft copy we should double
         # check this file actually passed QC
         if not self.__ignore_qc and not self.check_qc(table, scope):
-            log.error(f"File {file_entry.name} did not pass QC; skipping")
-            self.__handle_failed_file(file_entry, "failed_qc")
+            log.error(f"File {filename} did not pass QC; skipping")
+            self.__handle_failed_file(file_model, "failed_qc")
             return False
 
         try:
-            self.prepare_table(file_entry, table, scope)
+            self.prepare_table(filename, table, scope)
             self.__attribute_deriver.curate(table, scope)
             self.__file_missingness.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
-            log.error(f"Failed to curate {file_entry.name}: {e}")
-            self.__handle_failed_file(file_entry, str(e))
+            log.error(f"Failed to curate {filename}: {e}")
+            self.__handle_failed_file(file_model, str(e))
             return False
 
         # keep track of the last succesful curation
@@ -324,7 +331,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[ProcessedFile],
+        processed_files: List[FileModel],
     ) -> None:
         """Run post-curating on the entire subject.
 
@@ -339,13 +346,13 @@ class FormCurator(Curator):
             subject: Subject to post-process
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
-            processed_files: Dict of FileEntry to file info that was processed
+            processed_files: List of FileModels that were successfully processed
         """
         if not processed_files:
             return
 
         # hash the processed files by scope
-        scoped_files: Dict[ScopeLiterals, List[ProcessedFile]] = {}
+        scoped_files: Dict[ScopeLiterals, List[FileModel]] = {}
         for file in processed_files:
             scope = file.scope
             if not scope:  # sanity check
@@ -355,8 +362,10 @@ class FormCurator(Curator):
 
             scoped_files[scope].append(file)
 
+        curated_scopes = list(scoped_files.keys())
+
         # 1/2: subject-level curations - return if this fails
-        if not self.subject_level_curation(subject, subject_table, scoped_files):
+        if not self.subject_level_curation(subject, subject_table, curated_scopes):
             log.debug(
                 f"Failed subject level curation for {subject.label}, "
                 + "will not apply curation"
@@ -372,7 +381,7 @@ class FormCurator(Curator):
 
         # 4. add subject tags
         affiliate = derived.get("affiliate", False)
-        self.handle_subject_tags(subject, scoped_files, affiliate)
+        self.handle_subject_tags(subject, curated_scopes, affiliate)
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
         self.back_propagate_scopes(
@@ -391,7 +400,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
+        curated_scopes: List[ScopeLiterals],
     ) -> bool:
         """
         1. Cross-module derived variables need to be done at the end
@@ -426,7 +435,7 @@ class FormCurator(Curator):
         # 2. run subject-level missingness curation
         for scope in typing.get_args(ScopeLiterals):
             # means it was curated at some point, so no need to handle
-            if scope in scoped_files:
+            if scope in curated_scopes:
                 continue
 
             try:
@@ -449,7 +458,7 @@ class FormCurator(Curator):
     def handle_subject_tags(
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
+        curated_scopes: List[ScopeLiterals],
         affiliate: bool,
     ) -> None:
         """Handle curation tags.
@@ -470,14 +479,14 @@ class FormCurator(Curator):
         # once a UDS participant always a participant so don't
         # really need to delete tags
         uds_tag = FormCurationTags.UDS_PARTICIPANT
-        if FormScope.UDS in scoped_files and uds_tag not in subject.tags:
+        if FormScope.UDS in curated_scopes and uds_tag not in subject.tags:
             log.debug(f"Tagging UDS participant: {subject.label}")
             subject.add_tag(uds_tag)
 
     def back_propagate_scopes(  # noqa: C901
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, List[ProcessedFile]],
+        scoped_files: Dict[ScopeLiterals, List[FileModel]],
         category: str,
         scope_reference: Dict[str, List[str]],
         cs_variables: Dict[str, Any] | None,
@@ -536,7 +545,7 @@ class FormCurator(Curator):
                 if not file_info:
                     raise ProjectCurationError(
                         f"Cannot back-propogate {category} variables for "
-                        + f"scope {scope}; processed file {file.name} "
+                        + f"scope {scope}; processed file {file.filename} "
                         + "missing file_info"
                     )
 
@@ -546,27 +555,25 @@ class FormCurator(Curator):
                 file_info[category].update(result[scope])
 
     @api_retry
-    def apply_file_curation(self, file: ProcessedFile, affiliate: bool) -> None:
+    def apply_file_curation(self, file: FileModel, affiliate: bool) -> None:
         """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived (derived variables) and
         file.info.resolved (resolved raw + missingness data) and pushes
         back to flywheel.
         """
-        log.debug(f"Applying file curation to {file.name}")
-
-        file_entry = self.sdk_client.get_file(file.file_id)
-        file_info = file.file_info
-
-        if not file_info:
+        log.debug(f"Applying file curation to {file.filename}")
+        if not file.file_info:
             raise ProjectCurationError(
                 "Cannot apply file curation to FW; processed file missing file_info"
             )
 
+        file_entry = self.sdk_client.get_file(file.file_id)
+
         # collect metadata into a single API call
         updated_info = {}
         for curation_type in ["derived", "resolved"]:
-            curated_file_info = file_info.get(curation_type)
+            curated_file_info = file.file_info.get(curation_type)
             if curated_file_info:
                 updated_info.update({curation_type: curated_file_info})
 
