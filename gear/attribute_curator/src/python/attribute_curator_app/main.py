@@ -2,7 +2,6 @@
 
 import csv
 import logging
-from typing import MutableMapping, Optional
 
 from curator.scheduling import ProjectCurationScheduler
 from fw_gear import GearContext
@@ -31,11 +30,7 @@ def run(
         ignore_qc: Whether or not to ignore QC failures, e.g. will curate
             files regardless of QC status
     """
-    scheduler.apply(
-        curator=curator,
-        context=context,
-        max_num_workers=max_num_workers
-    )
+    scheduler.apply(curator=curator, context=context, max_num_workers=max_num_workers)
 
     if curator.failed_files:
         failed_files = list(curator.failed_files)

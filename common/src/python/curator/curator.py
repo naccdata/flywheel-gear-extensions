@@ -1,13 +1,11 @@
 """Defines a base abstract curator for scheduling."""
 
 import logging
-import re
 from abc import ABC, abstractmethod
 from codecs import StreamReader
 from typing import List, Optional
 
 from flywheel import Client, DataView
-from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
 from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
@@ -127,7 +125,9 @@ class Curator(ABC):
 
         scope = file_model.scope
         if not scope:
-            log.warning("could not determine scope for %s, skipping", file_model.filename)
+            log.warning(
+                "could not determine scope for %s, skipping", file_model.filename
+            )
             return True
 
         table = self.get_table(subject, subject_table, file_model)

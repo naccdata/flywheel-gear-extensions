@@ -6,10 +6,14 @@ from typing import Any, Dict, List, Literal, Optional
 
 from data.dataview import ColumnModel, make_builder
 from flywheel import DataView
-from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
-
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 VISIT_PATTERN = re.compile(
     r"^"
@@ -82,9 +86,12 @@ class FileModel(BaseModel):
     scope: Optional[str] = Field(default=None, init=False)
 
     @classmethod
-    def __check_date(cls, value: Optional[str]) -> Optional[date]:
+    def __check_date(cls, value: Optional[str | date]) -> Optional[date]:
         if not value:
             return None
+
+        if isinstance(value, date):
+            return value
 
         try:
             return datetime.fromisoformat(value).date()
@@ -94,7 +101,7 @@ class FileModel(BaseModel):
         return None
 
     @field_validator("modified_date", mode="before")
-    def datetime_to_date(cls, value: str) -> date:
+    def datetime_to_date(cls, value: str | date) -> date:
         result = cls.__check_date(value)
         if not result:
             raise ValidationError("modified date not found")
@@ -106,13 +113,14 @@ class FileModel(BaseModel):
         """Set the dates that come from file.info."""
         form_data = self.file_info.get("forms", {}).get("json", {})
         raw_data = self.file_info.get("raw", {})
+        dicom_data = self.file_info.get("header", {}).get("dicom", {})
 
         self.visit_date = self.__check_date(form_data.get("visitdate"))
         self.study_date = self.__check_date(raw_data.get("study_date"))
         self.scan_date = self.__check_date(raw_data.get("scan_date"))
         self.scandate = self.__check_date(raw_data.get("scandate"))
         self.scandt = self.__check_date(raw_data.get("scandt"))
-        self.scandt = self.__check_date(raw_data.get("scandt"))
+        self.img_study_date = self.__check_date(dicom_data.get("StudyDate"))
 
         return self
 

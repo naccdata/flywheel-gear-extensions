@@ -4,7 +4,7 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Dict, List
+from typing import List
 
 from curator.curator import Curator, ProjectCurationError
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -61,6 +61,7 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
         heap.push(file_info)
 
     return heap
+
 
 def curate_subject(subject_id: str) -> None:
     """Defines a task function for curating the files captured in the heap.
@@ -153,7 +154,10 @@ class ProjectCurationScheduler:
             ),
         ) as pool:
             for subject in self.__project.project.subjects.iter():
-                if self.__include_subjects and subject.label not in self.__include_subjects:
+                if (
+                    self.__include_subjects
+                    and subject.label not in self.__include_subjects
+                ):
                     continue
                 if self.__exclude_subjects and subject.label in self.__exclude_subjects:
                     continue
@@ -162,9 +166,7 @@ class ProjectCurationScheduler:
                 results.append(
                     pool.apply_async(
                         curate_subject,
-                        (
-                            subject.id,
-                        ),
+                        (subject.id,),
                     )
                 )
 

@@ -55,7 +55,9 @@ class FormCurator(Curator):
         rxclass_concepts: Optional[MutableMapping] = None,
         ignore_qc: bool = False,
     ) -> None:
-        super().__init__(dataview=dataview, curation_tag=curation_tag, force_curate=force_curate)
+        super().__init__(
+            dataview=dataview, curation_tag=curation_tag, force_curate=force_curate
+        )
         version = importlib.metadata.version("nacc_attribute_deriver")
         log.info(f"Running nacc-attribute-deriver version {version}")
 
