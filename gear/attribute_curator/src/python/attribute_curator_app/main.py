@@ -14,12 +14,9 @@ log = logging.getLogger(__name__)
 
 def run(
     context: GearContext,
+    curator: FormCurator,
     scheduler: ProjectCurationScheduler,
-    curation_tag: str,
-    force_curate: bool = False,
     max_num_workers: int = 4,
-    rxclass_concepts: Optional[MutableMapping] = None,
-    ignore_qc: bool = False,
 ) -> None:
     """Runs the Attribute Curator process.
 
@@ -34,14 +31,11 @@ def run(
         ignore_qc: Whether or not to ignore QC failures, e.g. will curate
             files regardless of QC status
     """
-    curator = FormCurator(
-        curation_tag=curation_tag,
-        force_curate=force_curate,
-        rxclass_concepts=rxclass_concepts,
-        ignore_qc=ignore_qc,
+    scheduler.apply(
+        curator=curator,
+        context=context,
+        max_num_workers=max_num_workers
     )
-
-    scheduler.apply(curator=curator, context=context, max_num_workers=max_num_workers)
 
     if curator.failed_files:
         failed_files = list(curator.failed_files)
