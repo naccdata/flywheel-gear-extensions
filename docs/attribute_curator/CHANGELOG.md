@@ -6,11 +6,11 @@ All notable changes to this gear are documented in this file.
 
 * Updates `nacc-attribute-deriver` to `2.1.0`
     * Reorders COVID/CLS pass to support this
-* Significant optimiztion through refactoring when and how dataviews are used
+* Optimized through significant refactoring of when and how dataviews are used
     * Instead of creating a heap upfront, iterate over the subjects and run the dataview per subject to **include the file.info data**
         * Ultimately this significantly reduces the API calls, since we no longer have to reload every single file just to get `file.info` (at the cost of more dataview creations; but number of subjects is far less than number of files)
-            * As a benchmark, the test center went from taking ~2 hours to curate to ~1 hour
-        * Reason we don't just query for `file.info` upfront is that it would likely result in memory issues
+            * As a benchmark, the test center went from taking ~2 hours 6 minutes to ~1 hour 20 minutes for curation
+        * Reason we don't just query for `file.info` upfront is that it would likely result in memory issues (`file.info` is very large)
         * The only thing lost from iterating over the data this way is that we will not know how subjects/files we are curating over at the beginning, and it is a little slower when only curating a select few subjects since it now iterates over the entire project no matter what (but it is relatively fast to just skip over everything, and in production we will almost always curate all subjects) 
 * Untags previously affiliated subjects if their status changes
 * Reverts `rxclass_concepts` to being an input file now that Batch Scheduler (`1.2.0+`) can support input files; removes gear's reliancy on the gearbot
