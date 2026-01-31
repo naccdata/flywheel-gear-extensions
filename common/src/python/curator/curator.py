@@ -52,10 +52,6 @@ class Curator(ABC):
     def force_curate(self) -> bool:
         return self.__force_curate
 
-    def read_dataview(self, subject_id: str) -> StreamReader:
-        """Read the dataview on the given subject."""
-        return self.sdk_client.read_view_data(self.__dataview, subject_id)
-
     def set_client(self, context: GearContext) -> None:
         """Set the SDK client. For multiprocessing, this client must be
         separate per process, so expected to be set at the worker instantiation
@@ -65,6 +61,11 @@ class Curator(ABC):
             context: Context to set client from
         """
         self.__sdk_client = context.get_client()
+
+    @api_retry
+    def read_dataview(self, subject_id: str) -> StreamReader:
+        """Read the dataview on the given subject."""
+        return self.sdk_client.read_view_data(self.__dataview, subject_id)
 
     @api_retry
     def get_subject(self, subject_id: str) -> Subject:

@@ -104,7 +104,7 @@ class FileModel(BaseModel):
     @model_validator(mode="after")
     def set_dates(self) -> "FileModel":
         """Set the dates that come from file.info."""
-        form_data = self.file_info.get("json", {})
+        form_data = self.file_info.get("forms", {}).get("json", {})
         raw_data = self.file_info.get("raw", {})
 
         self.visit_date = self.__check_date(form_data.get("visitdate"))
