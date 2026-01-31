@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/attribute_curator/src/python/attribute_curator_app:bin",
     ],
-    image_tags=["1.2.0a", "latest"],
+    image_tags=["1.2.0", "latest"],
 )

@@ -9,7 +9,7 @@ All notable changes to this gear are documented in this file.
 * Optimized through significant refactoring of when and how dataviews are used
     * Instead of creating a heap upfront, iterate over the subjects and run the dataview per subject to **include the file.info data**
         * Significnatly reduces the API calls since we no longer have to reload every single file to get `file.info` (at the cost of more dataviews, but number of subjects is far less than number of files)
-            * As a benchmark, the test center went from taking ~2 hours 6 minutes to ~1 hour 20 minutes for curation
+            * As a benchmark, the test center went from taking ~2 hours to ~1 hour 20 minutes for curation
         * Reason we don't just query for `file.info` upfront is that it would likely result in memory issues due to size of `file.info`
         * Only loss is we no longer know how many subjects/files we are curating over at the beginning, and is a little slower when only curating a select few subjects since it now iterates over the entire project no matter what (but it is relatively fast to just skip over everything, and in production we will almost always curate all subjects) 
 * Untags previously affiliated subjects if their status changes
