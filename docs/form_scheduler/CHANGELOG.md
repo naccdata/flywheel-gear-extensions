@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.2
+* Rebuilt for ingest config updates
+  
 ## 1.2.1
 
 * Fixes event logging for forms without visitnum (milestone/NP forms)

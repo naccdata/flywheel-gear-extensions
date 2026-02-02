@@ -4,10 +4,10 @@
         "UDS",
         "FTLD",
         "LBD",
-        "MLST",
-        "NP",
         "BDS",
-        "CLS"
+        "CLS",
+        "MLST",
+        "NP"
     ],
     "legacy_project_label": "retrospective-form",
     "module_configs": {
@@ -101,7 +101,8 @@
                 "ivp",
                 "udsv4-ivp",
                 "visit-conflict"
-            ]
+            ],
+            "longitudinal": true
         },
         "LBD": {
             "hierarchy_labels": {
@@ -168,7 +169,8 @@
                 "ivp",
                 "visit-conflict",
                 "supplement-module"
-            ]
+            ],
+            "longitudinal": true
         },
         "FTLD": {
             "hierarchy_labels": {
@@ -238,7 +240,8 @@
                 "ivp",
                 "visit-conflict",
                 "supplement-module"
-            ]
+            ],
+            "longitudinal": true
         },
         "MLST": {
             "hierarchy_labels": {
@@ -275,7 +278,8 @@
                 "version",
                 "packet",
                 "clinical-forms"
-            ]
+            ],
+            "longitudinal": false
         },
         "NP": {
             "hierarchy_labels": {
@@ -318,8 +322,10 @@
                 "version",
                 "packet",
                 "clinical-forms",
-                "np-mlst-restrictions"
-            ]
+                "np-mlst-restrictions",
+                "np-uds-restrictions"
+            ],
+            "longitudinal": false
         },
         "BDS": {
             "hierarchy_labels": {
@@ -351,7 +357,8 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version"
-            ]
+            ],
+            "longitudinal": false
         },
         "CLS": {
             "hierarchy_labels": {
@@ -381,10 +388,17 @@
                 "3.0"
             ],
             "date_field": "visitdate",
+            "supplement_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "exact_match": false
+            },
             "preprocess_checks": [
                 "duplicate-record",
-                "version"
-            ]
+                "version",
+                "supplement-module"
+            ],
+            "longitudinal": false
         }
     }
 }
