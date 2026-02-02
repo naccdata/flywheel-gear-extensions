@@ -2,9 +2,13 @@
 
 ## Introduction
 
-This specification defines the Image Identifier Lookup gear, which performs NACCID lookups for DICOM images uploaded to the NACC Data Platform. The gear runs on a single image file as input. Unlike the CSV-based identifier lookup gear where one lookup is performed per row, this gear performs one lookup per file (the file is the unit of data). The gear uses the PatientID DICOM tag (stored in subject.label) to look up the corresponding NACCID and store it in subject metadata. The gear creates QC status logs for tracking and uses transactional event capture to log submission events.
+This specification defines the Image Identifier Lookup gear, which performs NACCID lookups for DICOM images uploaded to the NACC Data Platform. The gear runs on a single image file as input, performing one lookup per file (the file is the unit of data). The gear uses the PatientID DICOM tag (stored in subject.label) to look up the corresponding NACCID and store it in subject metadata. The gear creates QC status logs for tracking and uses transactional event capture to log submission events.
 
 This implementation will modify the existing template code in `gear/image_identifier_lookup` and should maximize reuse of existing code from the `common/` package and other gears, particularly the identifier lookup gear and form processing gears that implement QC status logging and event capture.
+
+### Context
+
+This gear follows similar patterns to the `identifier_lookup` gear, which performs identifier lookups for CSV files. The key architectural difference is the unit of processing: this gear processes one image file per execution (one file = one lookup), while the CSV-based gear processes multiple participant records in a single file (one row = one lookup).
 
 ## Glossary
 
