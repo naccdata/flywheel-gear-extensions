@@ -23,7 +23,6 @@ This implementation will modify the existing template code in `gear/image_identi
 - **Modality**: DICOM tag (0008,0060) describing the imaging modality (e.g., MR, CT, PET)
 - **ImageVisitMetadata**: Base metadata class for image visit information, extending from a generalized visit metadata structure
 - **pydicom**: Python package for reading and parsing DICOM files
-- **fw-file**: Flywheel utility package for file operations (alternative to pydicom)
 
 ## Requirements
 
@@ -37,7 +36,7 @@ This implementation will modify the existing template code in `gear/image_identi
 2. WHEN retrieving the PTID, THE Image_Identifier_Lookup_Gear SHALL first attempt to retrieve the parent subject for the input image file
 3. WHEN the subject exists and subject.label is set (not empty), THE Image_Identifier_Lookup_Gear SHALL use subject.label as the PTID
 4. WHEN the subject.label is empty or missing, THE Image_Identifier_Lookup_Gear SHALL read the PatientID tag (0010,0020) from the DICOM file header as a fallback
-5. WHEN reading the DICOM file header, THE Image_Identifier_Lookup_Gear SHALL use pydicom (or fw-file as an alternative) to parse the DICOM file
+5. WHEN reading the DICOM file header, THE Image_Identifier_Lookup_Gear SHALL use pydicom to parse the DICOM file
 6. WHEN both subject.label and the DICOM PatientID tag are empty or missing, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
 7. WHEN the gear performs identifier lookup, THE Image_Identifier_Lookup_Gear SHALL perform exactly one lookup for the file (the file is the unit of data)
 8. WHEN the input file is not a valid DICOM file and subject.label is not set, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
