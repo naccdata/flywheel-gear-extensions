@@ -94,8 +94,13 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             curr_visit = sorted(self._visits_info.visits, key=lambda d: d.visitdate)[0]
             cutoff = curr_visit.visitdate
 
+        search_operator = ">=" if self._module_configs.longitudinal else "="
+
         visits_list = self._visits_lookup_helper.find_visits_for_module(
-            module=self._module, module_configs=self._module_configs, cutoff_date=cutoff
+            module=self._module,
+            module_configs=self._module_configs,
+            cutoff_date=cutoff,
+            search_op=search_operator,
         )
         if not visits_list:
             # This cannot happen,
@@ -209,7 +214,9 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
 
         self.__process_dependent_modules()
-        self.__process_subsequent_visits()
+
+        if self._module_configs.longitudinal:
+            self.__process_subsequent_visits()
 
 
 def create_pipeline_processor(
