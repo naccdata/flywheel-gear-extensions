@@ -4,19 +4,24 @@
 
 This specification defines the Image Identifier Lookup gear, which performs NACCID lookups for DICOM images uploaded to the NACC Data Platform. The gear runs on a single image file as input. Unlike the CSV-based identifier lookup gear where one lookup is performed per row, this gear performs one lookup per file (the file is the unit of data). The gear uses the PatientID DICOM tag (stored in subject.label) to look up the corresponding NACCID and store it in subject metadata. The gear creates QC status logs for tracking and uses transactional event capture to log submission events.
 
+This implementation will modify the existing template code in `gear/image_identifier_lookup` and should maximize reuse of existing code from the `common/` package and other gears, particularly the identifier lookup gear and form processing gears that implement QC status logging and event capture.
+
 ## Glossary
 
 - **Image_Identifier_Lookup_Gear**: Flywheel gear that performs NACCID lookups for DICOM images
 - **PatientID**: DICOM tag (0010,0020) containing the patient identifier, typically stored in subject.label on upload
 - **PTID**: Participant ID used for identifier lookup, obtained from subject.label or DICOM PatientID tag
-- **NACCID**: National Alzheimer's Coordinating Center identifier for participants
-- **ADCID**: Alzheimer's Disease Research Center identifier
+- **NACCID**: NACC identifier for participants
+- **ADCID**: ADRC identifier
 - **Pipeline_ADCID**: The ADCID associated with a pipeline project, stored in project metadata
 - **Subject**: Flywheel subject container representing a participant
 - **QC_Status_Log**: Project-level error log file tracking QC status for the lookup operation
 - **Visit_Event**: Event object representing the image submission activity
 - **Event_Capture**: Shared utility for logging events to S3 transaction log
 - **Identifiers_Repository**: Service for looking up identifier mappings (PTID/ADCID to NACCID)
+- **AcquisitionDate**: DICOM tag (0008,0022) containing the date the image was acquired
+- **Modality**: DICOM tag (0008,0060) describing the imaging modality (e.g., MR, CT, PET)
+- **ImageVisitMetadata**: Base metadata class for image visit information, extending from a generalized visit metadata structure
 - **pydicom**: Python package for reading and parsing DICOM files
 - **fw-file**: Flywheel utility package for file operations (alternative to pydicom)
 
@@ -79,24 +84,28 @@ This specification defines the Image Identifier Lookup gear, which performs NACC
 #### Acceptance Criteria
 
 1. WHEN processing the input image file, THE Image_Identifier_Lookup_Gear SHALL create a QC status log file at the project level
-2. WHEN creating the QC status log filename, THE Image_Identifier_Lookup_Gear SHALL use the ErrorLogTemplate pattern with PTID, visit date, and module information
+2. WHEN creating the QC status log filename, THE Image_Identifier_Lookup_Gear SHALL use a naming pattern with PTID, AcquisitionDate, and modality (e.g., "{PTID}_{AcquisitionDate}_{modality}_qc.json")
 3. WHEN the identifier lookup succeeds, THE Image_Identifier_Lookup_Gear SHALL update the QC status log with PASS status
 4. WHEN the identifier lookup fails, THE Image_Identifier_Lookup_Gear SHALL update the QC status log with FAIL status and error details
 5. WHEN QC status log creation fails, THE Image_Identifier_Lookup_Gear SHALL log the error but continue processing
-6. WHEN updating the QC status log, THE Image_Identifier_Lookup_Gear SHALL use the QCStatusLogManager with appropriate visit metadata
-7. WHEN creating the initial QC status log, THE Image_Identifier_Lookup_Gear SHALL add visit metadata to the log file using FileVisitAnnotator
+6. WHEN updating the QC status log, THE Image_Identifier_Lookup_Gear SHALL use the QCStatusLogManager with appropriate ImageVisitMetadata
+7. WHEN creating the initial QC status log, THE Image_Identifier_Lookup_Gear SHALL add visit metadata to the log file using FileVisitAnnotator with ImageVisitMetadata structure
 
 ### Requirement 6: Visit Metadata Extraction
 
-**User Story:** As a data platform administrator, I want visit information to be extracted from the image metadata, so that QC logs and events can be properly associated with visits.
+**User Story:** As a data platform administrator, I want visit information to be extracted from the DICOM metadata, so that QC logs and events can be properly associated with imaging visits.
 
 #### Acceptance Criteria
 
-1. WHEN extracting visit information, THE Image_Identifier_Lookup_Gear SHALL use PTID from subject.label or DICOM PatientID tag
-2. WHEN extracting visit date, THE Image_Identifier_Lookup_Gear SHALL use the acquisition date from the DICOM metadata (or file creation date as fallback)
-3. WHEN extracting module information, THE Image_Identifier_Lookup_Gear SHALL use a configurable module name from gear configuration
-4. WHEN module is not configured, THE Image_Identifier_Lookup_Gear SHALL use "SCAN" as the default module
-5. WHEN visit information is incomplete, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
+1. WHEN extracting visit information, THE Image_Identifier_Lookup_Gear SHALL use PTID from subject.label or DICOM PatientID tag (0010,0020)
+2. WHEN extracting visit date, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate tag (0008,0022) as the primary source
+3. WHEN AcquisitionDate is not available, THE Image_Identifier_Lookup_Gear SHALL use the DICOM StudyDate tag (0008,0020) as a fallback
+4. WHEN neither AcquisitionDate nor StudyDate is available, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
+5. WHEN extracting modality information, THE Image_Identifier_Lookup_Gear SHALL use the DICOM Modality tag (0008,0060) from the image metadata
+6. WHEN Modality tag is not available, THE Image_Identifier_Lookup_Gear SHALL use a configurable default modality from gear configuration
+7. WHEN no modality is configured and the DICOM tag is missing, THE Image_Identifier_Lookup_Gear SHALL use "UNKNOWN" as the default modality
+8. WHEN visit information is incomplete (missing PTID or date), THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
+9. WHEN creating visit metadata structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata class that extends from a base visit metadata class to support future datatype extensions
 
 ### Requirement 7: Transactional Event Capture
 
@@ -105,12 +114,14 @@ This specification defines the Image Identifier Lookup gear, which performs NACC
 #### Acceptance Criteria
 
 1. WHEN the Image_Identifier_Lookup_Gear processes the input image file, THE Image_Identifier_Lookup_Gear SHALL create a submission event using VisitEventCapture
-2. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL use the file creation timestamp as the event timestamp
-3. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and visit information
+2. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate (or StudyDate as fallback) as the event timestamp
+3. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and ImageVisitMetadata (PTID, date, modality)
 4. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL set the action to "submit" and datatype to "image"
-5. WHEN event capture is not configured, THE Image_Identifier_Lookup_Gear SHALL skip event logging and continue processing
-6. WHEN event capture fails, THE Image_Identifier_Lookup_Gear SHALL log the error but not fail the entire operation
-7. WHEN the S3 bucket for event capture is not accessible, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
+5. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields such as packet (not applicable to images)
+6. WHEN event capture is not configured, THE Image_Identifier_Lookup_Gear SHALL skip event logging and continue processing
+7. WHEN event capture fails, THE Image_Identifier_Lookup_Gear SHALL log the error but not fail the entire operation
+8. WHEN the S3 bucket for event capture is not accessible, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
+9. WHEN creating event structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata that extends from a base visit metadata class to ensure compatibility with the generalized event capture system
 
 ### Requirement 8: Error Handling and Reporting
 
@@ -132,14 +143,28 @@ This specification defines the Image Identifier Lookup gear, which performs NACC
 
 1. THE Image_Identifier_Lookup_Gear SHALL accept a "database_mode" configuration parameter (prod/dev) for identifier repository selection
 2. THE Image_Identifier_Lookup_Gear SHALL accept a "naccid_field_name" configuration parameter for the subject metadata field name (default: "naccid")
-3. THE Image_Identifier_Lookup_Gear SHALL accept a "module" configuration parameter for visit module identification (default: "SCAN")
+3. THE Image_Identifier_Lookup_Gear SHALL accept a "default_modality" configuration parameter for use when DICOM Modality tag is missing (default: "UNKNOWN")
 4. THE Image_Identifier_Lookup_Gear SHALL accept an "event_environment" configuration parameter for event capture environment prefix
 5. THE Image_Identifier_Lookup_Gear SHALL accept an "event_bucket" configuration parameter for S3 bucket name for event storage
 6. THE Image_Identifier_Lookup_Gear SHALL accept an "admin_group" configuration parameter for the NACC admin group ID (default: "nacc")
 7. WHEN event_environment and event_bucket are both provided, THE Image_Identifier_Lookup_Gear SHALL enable event capture
 8. WHEN either event_environment or event_bucket is missing, THE Image_Identifier_Lookup_Gear SHALL disable event capture
 
-### Requirement 10: Idempotency and Skip Logic
+### Requirement 10: Generalized Metadata Architecture
+
+**User Story:** As a developer, I want a generalized metadata architecture that supports multiple datatypes, so that the system can be extended to support future data types beyond forms and images.
+
+#### Acceptance Criteria
+
+1. THE Image_Identifier_Lookup_Gear SHALL use a base VisitMetadata class that defines common fields across all datatypes (PTID, date)
+2. THE Image_Identifier_Lookup_Gear SHALL implement ImageVisitMetadata as a datatype-specific subclass of the base VisitMetadata class
+3. WHEN ImageVisitMetadata is defined, THE Image_Identifier_Lookup_Gear SHALL include image-specific fields (modality) in addition to base fields
+4. THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields (packet, module) in ImageVisitMetadata
+5. WHEN passing metadata to shared utilities (QCStatusLogManager, FileVisitAnnotator, VisitEventCapture), THE Image_Identifier_Lookup_Gear SHALL use the ImageVisitMetadata subclass
+6. WHEN shared utilities process metadata, THE Image_Identifier_Lookup_Gear SHALL ensure they can handle both base VisitMetadata and datatype-specific subclasses polymorphically
+7. THE Image_Identifier_Lookup_Gear SHALL design the metadata architecture to allow future addition of new datatype-specific subclasses (e.g., GenomicVisitMetadata, BiospecimenVisitMetadata) without modifying existing code
+
+### Requirement 11: Idempotency and Skip Logic
 
 **User Story:** As a data platform administrator, I want the gear to handle re-runs gracefully, so that processing the same image file multiple times does not cause errors or duplicate work.
 
@@ -150,3 +175,20 @@ This specification defines the Image Identifier Lookup gear, which performs NACC
 3. WHEN skipping due to existing NACCID, THE Image_Identifier_Lookup_Gear SHALL still capture the submission event (if event capture is enabled)
 4. WHEN the NACCID field exists with a different value, THE Image_Identifier_Lookup_Gear SHALL treat this as an error condition
 5. WHEN the gear has already been run on the input file (indicated by gear tag), THE Image_Identifier_Lookup_Gear SHALL still process the file to ensure consistency
+
+### Requirement 12: Code Reuse and Refactoring
+
+**User Story:** As a developer, I want to maximize reuse of existing code and refactor shared functionality into common packages, so that the codebase remains maintainable and consistent across gears.
+
+#### Acceptance Criteria
+
+1. WHEN implementing the Image_Identifier_Lookup_Gear, THE Image_Identifier_Lookup_Gear SHALL reuse existing code from the `common/` package wherever possible
+2. WHEN implementing identifier lookup functionality, THE Image_Identifier_Lookup_Gear SHALL reuse the IdentifiersLambdaRepository and related classes from the identifier lookup gear
+3. WHEN implementing QC status logging, THE Image_Identifier_Lookup_Gear SHALL reuse QCStatusLogManager, FileVisitAnnotator, and related utilities from existing gears
+4. WHEN implementing event capture, THE Image_Identifier_Lookup_Gear SHALL reuse VisitEventCapture, VisitEventLogger, and related utilities from existing gears
+5. WHEN implementing Flywheel interactions, THE Image_Identifier_Lookup_Gear SHALL reuse ProjectAdaptor, SubjectAdaptor, and other adaptor classes from the `common/` package
+6. WHEN shared functionality is found in gear-specific directories, THE Image_Identifier_Lookup_Gear MAY refactor it into the `common/` package if it benefits multiple gears
+7. WHEN refactoring code from gear directories to common packages, THE Image_Identifier_Lookup_Gear SHALL ensure no existing functionality breaks by running all affected tests
+8. WHEN creating new abstractions (e.g., ImageVisitMetadata), THE Image_Identifier_Lookup_Gear SHALL place them in appropriate common package modules for reuse by future gears
+9. WHEN modifying existing shared utilities to support images, THE Image_Identifier_Lookup_Gear SHALL maintain backward compatibility with form-based usage
+10. THE Image_Identifier_Lookup_Gear SHALL modify the existing template code in `gear/image_identifier_lookup` rather than creating a new gear from scratch
