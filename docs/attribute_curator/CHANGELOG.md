@@ -2,7 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.0 (Unreleased)
+## 1.2.1
+
+* Updates `nacc-attribute-deriver` to `2.1.1` which mainly updates how V1 drugs are handled
+
+## 1.2.0
 
 * Updates `nacc-attribute-deriver` to `2.1.0`
     * Reorders COVID/CLS pass to support this
