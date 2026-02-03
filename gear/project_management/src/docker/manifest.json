@@ -2,7 +2,7 @@
     "name": "project-management",
     "label": "Project management",
     "description": "Creates and updates projects from project YAML file",
-    "version": "2.1.9",
+    "version": "2.1.10",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/project-management:2.1.9"
+            "image": "naccdata/project-management:2.1.10"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

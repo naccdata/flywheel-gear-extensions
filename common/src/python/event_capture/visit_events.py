@@ -14,8 +14,7 @@ from typing import Literal, Optional, Self
 
 from identifiers.model import PTID_PATTERN
 from keys.types import DatatypeNameType
-from nacc_common.module_types import ModuleName
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
 
@@ -37,9 +36,25 @@ class VisitEvent(BaseModel):
     visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     visit_number: Optional[str] = None
     datatype: DatatypeNameType
-    module: Optional[ModuleName] = None
+    module: Optional[str] = None
     packet: Optional[str] = None
     timestamp: datetime
+
+    @field_validator("module")
+    @classmethod
+    def normalize_module(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize module to uppercase for canonical storage and matching.
+
+        This ensures consistency with EventMatchKey matching logic and
+        provides case-insensitive module handling throughout the system.
+
+        Args:
+            v: The module value
+
+        Returns:
+            Module normalized to uppercase, or None if input is None
+        """
+        return v.upper() if v else v
 
     # TODO: do we need validation for packet?
     @model_validator(mode="after")

@@ -42,7 +42,6 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,
-    previous_visit_failed_error,
     system_error,
 )
 from pydantic import ValidationError
@@ -407,9 +406,15 @@ class QCCoordinator:
             columns.append(visitnum_key)
             filters += f",{visitnum_key}={visitnum}"
 
-        filters += (
-            f",file.info.qc.{self.__qc_gear_info.gear_name}.validation.state=PASS"
-        )
+        # filters += (
+        #     f",file.info.qc.{self.__qc_gear_info.gear_name}.validation.state=PASS"
+        # )
+
+        tags = [
+            f"{self.__qc_gear_info.gear_name}-PASS",
+            f"{self.__form_project_configs.legacy_qc_gear}-PASS",
+        ]
+        filters += f",file.tags=|[{','.join(tags)}]"
 
         log.info("Searching for supplement visits matching with %s", filters)
         matching_visits = self.__proxy.get_matching_acquisition_files_info(
@@ -471,67 +476,6 @@ class QCCoordinator:
         )
 
         self.__reset_dependent_modules_qc_status(visitdate=visitdate, visitnum=visitnum)
-
-    def __update_remaining_visits_metadata(
-        self,
-        *,
-        remaining_visits: deque,
-        failed_visit: str,
-        ptid_key: str,
-        date_col_key: str,
-        visitnum_key: str,
-        naccid_key: str,
-    ):
-        """Update error metadata in the visit files that were not processed due
-        to a failure of a previous visit.
-
-        Args:
-            remaining_visits: visits that were not processed
-            failed_visit: name of the failed visit
-            ptid_key: ptid field location in file.info
-            date_col_key: date field location in file.info
-            visitnum_key: visitnum field location in file.info
-            naccid_key: naccid field location in file.info
-        """
-        log.info(
-            "Visit %s failed, there are %s subsequent visits for this participant.",
-            failed_visit,
-            len(remaining_visits),
-        )
-        log.info("Adding error metadata to respective visit files")
-
-        while len(remaining_visits) > 0:
-            visit = remaining_visits.popleft()
-            file_id = visit["file.file_id"]
-            visitdate = visit[date_col_key]
-            ptid = visit[ptid_key]
-
-            try:
-                visit_file = self.__proxy.get_file(file_id)
-            except ApiException as error:
-                log.warning(
-                    "Failed to retrieve file %s - %s", visit["file.name"], error
-                )
-                log.warning(
-                    "Error metadata not updated for visit %s", visit["file.name"]
-                )
-                continue
-            error_obj = previous_visit_failed_error(
-                prev_visit=failed_visit,
-                visit_keys=VisitKeys(
-                    ptid=ptid,
-                    visitnum=visit.get(visitnum_key),
-                    date=visitdate,
-                    naccid=visit.get(naccid_key),
-                ),
-            )
-            self.__update_qc_error_metadata(
-                visit_file=visit_file,
-                error_obj=error_obj,
-                ptid=ptid,
-                visitdate=visitdate,
-                status="FAIL",
-            )
 
     def __is_outdated_trigger(self, visit: Dict[str, str]) -> bool:
         """If triggered from finalization workflow, check whether the module

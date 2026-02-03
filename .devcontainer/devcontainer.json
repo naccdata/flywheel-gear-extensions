@@ -1,11 +1,12 @@
 {
     "name": "Python 3",
-    "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
-    // Features to add to the dev container. More info: https://containers.dev/features.
-    // "features": {},
-    // Use 'forwardPorts' to make a list of ports inside the container available locally.
-    // "forwardPorts": [],
-    // Use 'postCreateCommand' to run commands after the container is created.
+
+    // need to build manually due to yarn gpg issue described in
+    // https://github.com/devcontainers/features/issues/1543
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+
     "postCreateCommand": "bash ./.devcontainer/post_create_command.sh ${containerWorkspaceFolder}",
     // "postStartCommand": "",
     "features": {
