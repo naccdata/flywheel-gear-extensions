@@ -116,15 +116,16 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 
 #### Acceptance Criteria
 
-1. WHEN the Image_Identifier_Lookup_Gear processes the input image file, THE Image_Identifier_Lookup_Gear SHALL create a submission event using VisitEventCapture
-2. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate (or StudyDate as fallback) as the event timestamp
-3. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and ImageVisitMetadata (PTID, date, modality)
-4. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL set the action to "submit" and datatype to "image"
-5. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields such as packet (not applicable to images)
-6. WHEN event capture is not configured, THE Image_Identifier_Lookup_Gear SHALL skip event logging and continue processing
-7. WHEN event capture fails, THE Image_Identifier_Lookup_Gear SHALL log the error but not fail the entire operation
-8. WHEN the S3 bucket for event capture is not accessible, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
-9. WHEN creating event structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata that extends from a base visit metadata class to ensure compatibility with the generalized event capture system
+1. WHEN the Image_Identifier_Lookup_Gear initializes, THE Image_Identifier_Lookup_Gear SHALL require both event_environment and event_bucket configuration parameters
+2. WHEN either event_environment or event_bucket is missing, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
+3. WHEN the S3 bucket for event capture is not accessible, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
+4. WHEN the Image_Identifier_Lookup_Gear processes the input image file, THE Image_Identifier_Lookup_Gear SHALL create a submission event using VisitEventCapture
+5. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate (or StudyDate as fallback) as the event timestamp
+6. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and ImageVisitMetadata (PTID, date, modality)
+7. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL set the action to "submit" and datatype to "image"
+8. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields such as packet (not applicable to images)
+9. WHEN event capture fails during processing, THE Image_Identifier_Lookup_Gear SHALL log the error but not fail the entire operation
+10. WHEN creating event structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata that extends from a base visit metadata class to ensure compatibility with the generalized event capture system
 
 ### Requirement 8: Error Handling and Reporting
 
@@ -147,11 +148,10 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 1. THE Image_Identifier_Lookup_Gear SHALL accept a "database_mode" configuration parameter (prod/dev) for identifier repository selection
 2. THE Image_Identifier_Lookup_Gear SHALL accept a "naccid_field_name" configuration parameter for the subject metadata field name (default: "naccid")
 3. THE Image_Identifier_Lookup_Gear SHALL accept a "default_modality" configuration parameter for use when DICOM Modality tag is missing (default: "UNKNOWN")
-4. THE Image_Identifier_Lookup_Gear SHALL accept an "event_environment" configuration parameter for event capture environment prefix
-5. THE Image_Identifier_Lookup_Gear SHALL accept an "event_bucket" configuration parameter for S3 bucket name for event storage
+4. THE Image_Identifier_Lookup_Gear SHALL require an "event_environment" configuration parameter for event capture environment prefix
+5. THE Image_Identifier_Lookup_Gear SHALL require an "event_bucket" configuration parameter for S3 bucket name for event storage
 6. THE Image_Identifier_Lookup_Gear SHALL accept an "admin_group" configuration parameter for the NACC admin group ID (default: "nacc")
-7. WHEN event_environment and event_bucket are both provided, THE Image_Identifier_Lookup_Gear SHALL enable event capture
-8. WHEN either event_environment or event_bucket is missing, THE Image_Identifier_Lookup_Gear SHALL disable event capture
+7. WHEN either event_environment or event_bucket is missing, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
 
 ### Requirement 10: Generalized Metadata Architecture
 
@@ -175,7 +175,7 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 
 1. WHEN the NACCID field already exists in subject.info with the correct value, THE Image_Identifier_Lookup_Gear SHALL skip the lookup and update operations
 2. WHEN skipping due to existing NACCID, THE Image_Identifier_Lookup_Gear SHALL still create/update the QC status log with PASS status
-3. WHEN skipping due to existing NACCID, THE Image_Identifier_Lookup_Gear SHALL still capture the submission event (if event capture is enabled)
+3. WHEN skipping due to existing NACCID, THE Image_Identifier_Lookup_Gear SHALL still capture the submission event
 4. WHEN the NACCID field exists with a different value, THE Image_Identifier_Lookup_Gear SHALL treat this as an error condition
 5. WHEN the gear has already been run on the input file (indicated by gear tag), THE Image_Identifier_Lookup_Gear SHALL still process the file to ensure consistency
 
