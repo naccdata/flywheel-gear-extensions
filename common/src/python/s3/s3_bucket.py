@@ -1,16 +1,29 @@
 """Utilities for using S3 client."""
 
+import fnmatch
 import logging
+import re
 from io import StringIO
-from typing import Any, Dict, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from inputs.environment import get_environment_variable
 from inputs.parameter_store import S3Parameters
 from keys.keys import DefaultValues
 
 log = logging.getLogger(__name__)
+
+S3_PATH_RE = re.compile(
+    r"^(?P<bucket>[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?)/"
+    r"(?P<key>[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$"
+)
+
+
+class S3InterfaceError(Exception):
+    pass
 
 
 class S3BucketInterface:
@@ -26,6 +39,12 @@ class S3BucketInterface:
         Returns:
           the object for the client and bucket
         """
+        # ensure the bucket exists
+        try:
+            boto_client.head_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            raise S3InterfaceError(f"Bucket {bucket_name} does not exist: {e}") from e
+
         self.__client = boto_client
         self.__bucket = bucket_name
 
@@ -56,6 +75,37 @@ class S3BucketInterface:
         """
         self.__client.put_object(Bucket=self.__bucket, Key=filename, Body=contents)
 
+    def upload_file(
+        self, local_file: Path, output_prefix: str, relative_path: Optional[str] = None
+    ) -> None:
+        """Upload a single file to the S3 bucket.
+
+        Args:
+            local_file: Local file path to upload
+            output_prefix: Path prefix in storage where file will be written
+            relative_path: Optional relative path to preserve subdirectory structure.
+                         If not provided, uses just the filename.
+        """
+        if not local_file.exists() or not local_file.is_file():
+            raise S3InterfaceError(
+                f"{local_file} does not exist or is not a file; cannot upload"
+            )
+
+        # Use relative path if provided, otherwise just the filename
+        file_path = relative_path if relative_path else local_file.name
+        remote_path = f"{output_prefix}/{file_path}"
+
+        log.debug(f"Uploading {file_path} to {remote_path}")
+
+        try:
+            self.__client.upload_file(
+                Filename=str(local_file), Bucket=self.__bucket, Key=remote_path
+            )
+        except Exception as e:
+            raise S3InterfaceError(
+                f"Failed to upload '{local_file}' to {self.__bucket}/{remote_path}: {e}"
+            ) from e
+
     def read_data(self, filename: str) -> StringIO:
         """Reads the file object from S3 with bucket name and file name.
 
@@ -66,7 +116,7 @@ class S3BucketInterface:
         file_obj = self.get_file_object(filename)
         return StringIO(file_obj["Body"].read().decode("utf-8"))
 
-    def read_directory(self, prefix: str) -> dict[str, dict]:
+    def read_directory(self, prefix: str) -> Dict[str, Dict]:
         """Retrieve all file objects from the directory specified by the prefix
         within the S3 bucket.
 
@@ -93,6 +143,83 @@ class S3BucketInterface:
                         file_objects[s3_obj_info["Key"]] = s3_obj
 
         return file_objects
+
+    def list_directory(self, prefix: str, glob: Optional[str] = None) -> List[str]:
+        """Lists the directory.
+
+        Args:
+            prefix: directory prefix within bucket
+            glob: Glob to filter by, if specified
+        Returns:
+            List of found files
+        """
+        found_keys = []
+        paginator = self.__client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+        for page in pages:
+            if "Contents" not in page:
+                continue
+
+            for s3_obj_info in page["Contents"]:
+                key = s3_obj_info["Key"]
+
+                # skip paths ending in /
+                if not key.endswith("/"):
+                    # skip path if it does not match the glob
+                    if glob and not fnmatch.fnmatch(key, glob):
+                        continue
+
+                    found_keys.append(key)
+
+        with_glob_str = f" with glob '{glob}'" if glob else ""
+        if not found_keys:
+            log.warning(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
+        else:
+            log.info(
+                f"Found {len(found_keys)} under {self.__bucket}/{prefix}{with_glob_str}"
+            )
+
+        return found_keys
+
+    def download_file(self, key: str, target_path: Path) -> None:
+        """Downloads file to specified location.
+
+        Args:
+            key: Key within bucket of file to download
+            target_path: Target location to download file to
+        """
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            self.__client.download_file(self.__bucket, key, target_path)
+        except Exception as e:
+            raise S3InterfaceError(
+                f"Failed to download {self.__bucket}/{key}: {e}"
+            ) from e
+
+    def download_files(
+        self, prefix: str, target_dir: Path, glob: Optional[str] = None
+    ) -> None:
+        """Download files from the prefix to the target directory. Preserves S3
+        hierarchy under prefix.
+
+        Args:
+            prefix: Prefix within bucket to download files from
+            target_dir: Target directory to download files to
+            glob: Glob to filter by, if specified
+        """
+        # read directory and filter based on the glob
+        found_files = self.list_directory(prefix, glob)
+
+        if not found_files:
+            return
+
+        # download files; this may be inefficient if downloading a lot of files
+        # since it's done one by one
+        for key in found_files:
+            # create relative path to preserve S3 hierarchy
+            relative_path = Path(key).relative_to(prefix)
+            self.download_file(key, target_dir / relative_path)
 
     @classmethod
     def create_from(cls, parameters: S3Parameters) -> Optional["S3BucketInterface"]:
@@ -142,18 +269,20 @@ class S3BucketInterface:
         return S3BucketInterface(boto_client=client, bucket_name=s3bucket)
 
     @classmethod
-    def parse_bucket_and_key(self, s3_uri: str) -> Tuple[str, str | None]:
+    def parse_bucket_and_key(self, s3_uri: str) -> Tuple[str, str]:
         """Parses the bucket and key from an S3 URI.
 
         Args:
             s3_uri: S3 URI to parse
         Returns:
-            bucket, key. Bucket is always expected, key not always
+            bucket and key, if found, None othewise
         """
-        stripped_s3_file = s3_uri.strip().replace("s3://", "")
-        s3_parts = stripped_s3_file.split("/")
+        stripped_s3_file = s3_uri.strip().replace("s3://", "").rstrip("/")
+        if not stripped_s3_file:
+            raise S3InterfaceError(f"{s3_uri} not a valid S3 path")
 
-        if len(s3_parts) < 2:
-            return s3_parts[0], None
+        match = S3_PATH_RE.fullmatch(stripped_s3_file)
+        if not match:
+            raise S3InterfaceError(f"{s3_uri} not a valid S3 path")
 
-        return s3_parts[0], "/".join(s3_parts[1:])
+        return (match.group("bucket"), match.group("key"))
