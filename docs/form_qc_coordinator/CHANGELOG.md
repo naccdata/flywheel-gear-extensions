@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.4.2 (unreleased)
+## 1.4.2
 * Updates to support legacy ingest pipeline
+* Evaluates subsequent visits only for longitudinal modules
 * Rebuilt for event logging updates
   
 ## 1.4.1

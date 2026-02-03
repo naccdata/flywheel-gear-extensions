@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.6 (unreleased)
+## 1.2.6
 * Bug fixes and improvements
 * Rebuilt for event logging updates
 

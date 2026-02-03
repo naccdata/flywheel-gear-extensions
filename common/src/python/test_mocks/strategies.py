@@ -34,12 +34,22 @@ def ptid_strategy(draw) -> str:
 
 @st.composite
 def visit_metadata_strategy(draw) -> VisitMetadata:
-    """Generate random VisitMetadata for testing."""
+    """Generate random VisitMetadata for testing.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
     ptid = draw(
         st.text(
             min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         )
     )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     # Generate dates with 4-digit years to match VisitEvent validation pattern
     date = draw(
         st.dates(
@@ -62,12 +72,22 @@ def visit_metadata_strategy(draw) -> VisitMetadata:
 
 @st.composite
 def json_file_strategy(draw) -> dict[str, Any]:
-    """Generate random JSON file data for testing."""
+    """Generate random JSON file data for testing.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
     ptid = draw(
         st.text(
             min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         )
     )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     # Generate dates with 4-digit years to match VisitEvent validation pattern
     visitdate = draw(
         st.dates(
@@ -121,15 +141,26 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate valid VisitMetadata with all required fields."""
+    """Generate valid VisitMetadata with all required fields.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
+    ptid = draw(
+        st.text(
+            min_size=1,
+            max_size=10,
+            alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
+        )
+    )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     return {
-        "ptid": draw(
-            st.text(
-                min_size=1,
-                max_size=10,
-                alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
-            )
-        ),
+        "ptid": ptid,
         "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "visitnum": draw(
