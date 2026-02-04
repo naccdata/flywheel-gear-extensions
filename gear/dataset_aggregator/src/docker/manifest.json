@@ -36,6 +36,11 @@
             "description": "S3 path of where aggregated results should be written to.",
             "type": "string"
         },
+        "identifiers_mode": {
+            "description": "Whether to retrieve identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
         "dry_run": {
             "description": "Whether to do a dry run",
             "type": "boolean",

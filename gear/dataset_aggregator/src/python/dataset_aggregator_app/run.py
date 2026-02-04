@@ -12,6 +12,7 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
+from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from pydantic import ValidationError
 from storage.dataset import (
@@ -33,10 +34,12 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         target_project: str,
         output_uri: str,
+        identifiers_mode: IdentifiersMode,
     ):
         super().__init__(client=client)
         self.__target_project = target_project
         self.__output_uri = output_uri
+        self.__identifiers_mode = identifiers_mode
 
     @classmethod
     def create(
@@ -65,10 +68,15 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         if not output_uri:
             raise GearExecutionError("output_uri required")
 
+        identifiers_mode = context.config.get("identifiers_mode", "prod")
+        if identifiers_mode not in ["dev", "prod"]:
+            raise GearExecutionError(f"invalid identifiers mode: {identifiers_mode}")
+
         return DatasetAggregatorVisitor(
             client=client,
             target_project=target_project,
             output_uri=output_uri,
+            identifiers_mode=identifiers_mode,
         )
 
     def __group_datasets(self, center_ids: List[str]) -> List[AggregateDataset]:
@@ -134,6 +142,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             context=context,
             grouped_datasets=grouped_datasets,
             output_uri=self.__output_uri,
+            identifiers_mode=self.__identifiers_mode,
             dry_run=self.client.dry_run,
         )
 

@@ -5,8 +5,11 @@ from pathlib import Path
 from typing import List
 
 from flywheel_gear_toolkit import GearToolkitContext
+from identifiers.model import IdentifiersMode
 from s3.s3_bucket import S3BucketInterface
 from storage.dataset import AggregateDataset
+
+from .transfers_handler import check_for_transfers
 
 log = logging.getLogger(__name__)
 
@@ -16,16 +19,17 @@ def run(
     context: GearToolkitContext,
     grouped_datasets: List[AggregateDataset],
     output_uri: str,
+    identifiers_mode: IdentifiersMode,
     dry_run: bool = False,
 ):
     """Runs the Dataset Aggregator process.
 
     Args:
         context: the gear context
-        source_prefixes: Source prefixes, mapped
-            by bucket to center to latest version prefix
+        grouped_datasets: Grouped datasets to aggregate
         output_uri: Output S3 URI to write aggregated results
             to
+        identifiers_mode: Mode for identifiers repository
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
     """
@@ -49,6 +53,10 @@ def run(
     finally:
         for writer in table_writers.values():
             writer.close()
+
+    # check for duplicates
+    log.info("Checking transfer duplicates")
+    check_for_transfers(aggregate_dir, identifiers_mode)
 
     # write results to S3
     if dry_run:
