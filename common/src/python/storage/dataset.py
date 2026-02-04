@@ -95,8 +95,8 @@ class AggregateDataset(ABC):
                 dataset.prefix, glob=f"*{target_path}"
             )
 
-            for file in found_descriptions:
-                with self.__s3_interface.read_data(file) as fh:
+            for filepath in found_descriptions:
+                with self.__s3_interface.read_data(filepath) as fh:
                     description = json.load(fh)
 
                     created = datetime.strptime(
@@ -104,10 +104,10 @@ class AggregateDataset(ABC):
                     )
                     if not latest_creation or latest_creation < created:
                         latest_creation = created
-                        latest_dataset = file.path
+                        latest_dataset = filepath
 
         except Exception as e:
-            raise FWDatasetError(f"Failed to inspect '{file.path}': {e}") from e
+            raise FWDatasetError(f"Failed to inspect '{filepath}': {e}") from e
 
         if latest_dataset:
             # remove target_path suffix to get prefix of version itself
