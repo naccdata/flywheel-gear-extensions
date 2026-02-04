@@ -120,6 +120,7 @@ Each category has an optional array field with detailed error information:
 Each error object in the category arrays contains these fields (all flattened at the top level):
 
 **Standard Fields (always present):**
+
 - `event_id` - Unique identifier for the event (UUID string)
 - `timestamp` - ISO timestamp when error occurred
 - `event_type` - Type of event (always "error" for error notifications)
@@ -129,6 +130,7 @@ Each error object in the category arrays contains these fields (all flattened at
 - `name` - User's full name (may be "Unknown" if not available)
 
 **Optional Fields (included when available):**
+
 - `registry_id` - COManage registry ID (optional)
 - `auth_email` - Authentication email address (optional)
 - `center_id` - Center ID number (optional)
@@ -229,46 +231,6 @@ Each error object in the category arrays contains these fields (all flattened at
         {{#each incomplete_claims}}
         <div class="error-item">
             <p><strong>User:</strong> {{name}} ({{email}})</p>
-            <p><strong>Message:</strong> {{message}}</p>
-            <p><strong>Time:</strong> {{timestamp}}</p>
-            {{#if action_needed}}
-            <p class="action-needed">Action: {{action_needed}}</p>
-            {{/if}}
-        </div>
-        {{/each}}
-    </div>
-    {{/if}}
-    
-    {{#if email_mismatches}}
-    <div class="error-category">
-        <h2>Authentication Email Mismatches ({{email_mismatches.length}})</h2>
-        <p><strong>Issue:</strong> Directory email does not match COManage authentication email.</p>
-        <p><strong>Action:</strong> Update directory with correct authentication email.</p>
-        
-        {{#each email_mismatches}}
-        <div class="error-item">
-            <p><strong>User:</strong> {{name}} ({{email}})</p>
-            <p><strong>Auth Email:</strong> {{auth_email}}</p>
-            <p><strong>Message:</strong> {{message}}</p>
-            <p><strong>Time:</strong> {{timestamp}}</p>
-            {{#if action_needed}}
-            <p class="action-needed">Action: {{action_needed}}</p>
-            {{/if}}
-        </div>
-        {{/each}}
-    </div>
-    {{/if}}
-    
-    {{#if unverified_emails}}
-    <div class="error-category">
-        <h2>Unverified Emails ({{unverified_emails.length}})</h2>
-        <p><strong>Issue:</strong> User's email address is not verified in COManage.</p>
-        <p><strong>Action:</strong> Contact institutional IT support to verify email address.</p>
-        
-        {{#each unverified_emails}}
-        <div class="error-item">
-            <p><strong>User:</strong> {{name}} ({{email}})</p>
-            <p><strong>Registry ID:</strong> {{registry_id}}</p>
             <p><strong>Message:</strong> {{message}}</p>
             <p><strong>Time:</strong> {{timestamp}}</p>
             {{#if action_needed}}
@@ -651,4 +613,3 @@ aws ses send-templated-email \
 2. Test with sample data
 3. Verify support staff email addresses are configured in Parameter Store
 4. Deploy and monitor
-
