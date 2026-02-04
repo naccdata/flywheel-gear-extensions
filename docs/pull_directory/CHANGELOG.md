@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.2.0-alpha
+## 2.2.0
 
 * Adds automated error notification system with consolidated email notifications to support staff
 * Adds event collection and categorization for directory processing errors
