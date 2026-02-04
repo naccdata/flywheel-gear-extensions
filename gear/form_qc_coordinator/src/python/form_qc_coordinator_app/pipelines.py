@@ -88,14 +88,27 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             GearExecutionError: If errors occur during QC process
         """
 
-        if self._check_all:
-            cutoff = None
-        else:
-            curr_visit = sorted(self._visits_info.visits, key=lambda d: d.visitdate)[0]
-            cutoff = curr_visit.visitdate
+        cutoff = None
+        search_operator = ">="
+
+        if not self._check_all:
+            sorted_visits = sorted(self._visits_info.visits, key=lambda d: d.visitdate)
+            cutoff = sorted_visits[0].visitdate
+
+            # If module is not longitudinal no need to evaluate all subsequent visits
+            # set search operator to only look for specified visits
+            if not self._module_configs.longitudinal:
+                search_operator = "="
+
+                if len(sorted_visits) > 1:
+                    cutoff = ",".join([d.visitdate for d in sorted_visits])
+                    search_operator = DefaultValues.FW_SEARCH_OR
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
-            module=self._module, module_configs=self._module_configs, cutoff_date=cutoff
+            module=self._module,
+            module_configs=self._module_configs,
+            cutoff_date=cutoff,
+            search_op=search_operator,
         )
         if not visits_list:
             # This cannot happen,
@@ -209,7 +222,9 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
 
         self.__process_dependent_modules()
-        self.__process_subsequent_visits()
+
+        if self._module_configs.longitudinal:
+            self.__process_subsequent_visits()
 
 
 def create_pipeline_processor(

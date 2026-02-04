@@ -180,6 +180,7 @@ class ModuleConfigs(BaseModel):
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
+    longitudinal: Optional[bool] = True
 
     @model_validator(mode="after")
     def validate_preprocess_checks(self) -> "ModuleConfigs":
