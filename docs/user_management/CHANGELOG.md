@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.3.0
+
+* Adds automatic notification batching to handle large error notifications
+* Splits notifications exceeding AWS SES 256 KB limit into multiple emails
+* Adds batch indicators (e.g., "batch 1/3") to batched notifications
+* Prevents notification failures when processing many users with errors
+
 ## 3.2.2
 
 * Fixes email notification template to display affected user count and list
