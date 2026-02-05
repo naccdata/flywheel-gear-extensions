@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 from pydantic import SerializationInfo, SerializerFunctionWrapHandler, model_serializer
-
 from users.event_models import UserEventCollector
 
 log = logging.getLogger(__name__)
@@ -25,6 +24,7 @@ class ConsolidatedNotificationData(BaseTemplateModel):
     events_by_category: Dict[str, int]
     event_summaries: List[str]
     affected_users: List[str]
+    affected_users_count: int
     category_details: Dict[str, List[Dict[str, str]]]
 
     @model_serializer(mode="wrap")
@@ -84,6 +84,7 @@ class UserEventNotificationGenerator:
 
         # Get all errors as flat list for summaries
         all_errors = collector.get_errors()
+        affected_users = collector.get_affected_users()
 
         return ConsolidatedNotificationData(
             gear_name=gear_name,
@@ -91,7 +92,8 @@ class UserEventNotificationGenerator:
             total_events=collector.error_count(),
             events_by_category=collector.count_by_category(),
             event_summaries=[error.to_summary() for error in all_errors],
-            affected_users=collector.get_affected_users(),
+            affected_users=affected_users,
+            affected_users_count=len(affected_users),
             category_details=category_details,
         )
 
