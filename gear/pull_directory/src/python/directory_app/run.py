@@ -86,84 +86,46 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         # Create error collector as core functionality
         collector = UserEventCollector()
 
-        # Get email sender configuration
-        email_source = cls._get_email_source(context, parameter_store)
+        # Get notification configuration (required)
+        notifications_path = context.config.get(
+            "notifications_path", "/prod/notifications"
+        )
+        if not notifications_path:
+            raise GearExecutionError("No notifications parameter path")
 
-        # Retrieve optional support emails
-        support_emails = cls._get_support_emails(context, parameter_store)
+        try:
+            notification_params = parameter_store.get_notification_parameters(
+                notifications_path
+            )
+        except ParameterError as error:
+            raise GearExecutionError(
+                f"Failed to load notification configuration: {error}"
+            ) from error
 
         return DirectoryPullVisitor(
             client=client,
             user_filename=user_filename,
             user_report=user_report,
             collector=collector,
-            email_source=email_source,
-            support_emails=support_emails,
+            email_source=notification_params["sender"],
+            support_emails=cls._parse_support_emails(
+                notification_params["support_emails"]
+            ),
         )
 
     @staticmethod
-    def _get_email_source(
-        context: GearToolkitContext, parameter_store: ParameterStore
-    ) -> Optional[str]:
-        """Retrieve email sender configuration from parameter store.
+    def _parse_support_emails(emails_str: str) -> list[str]:
+        """Parse comma-separated email addresses.
 
         Args:
-            context: The gear context
-            parameter_store: The parameter store instance
+            emails_str: Comma-separated email addresses
 
         Returns:
-            Email source address, or None if not configured
+            List of email addresses
         """
-        sender_path = context.config.get("sender_path", "/prod/notifications/sender")
-        if not sender_path:
-            log.warning("No sender_path configured - notifications will not be sent")
-            return None
-
-        try:
-            sender_params = parameter_store.get_notification_parameters(sender_path)
-            return sender_params["sender"]
-        except ParameterError as error:
-            log.warning(
-                "Failed to load email sender from %s: %s. "
-                "Notifications will not be sent.",
-                sender_path,
-                error,
-            )
-            return None
-
-    @staticmethod
-    def _get_support_emails(
-        context: GearToolkitContext, parameter_store: ParameterStore
-    ) -> list[str]:
-        """Retrieve optional support emails from parameter store.
-
-        Args:
-            context: The gear context
-            parameter_store: The parameter store instance
-
-        Returns:
-            List of support email addresses
-        """
-        support_email_path = context.config.get(
-            "support_emails_path", "/prod/notifications/support_emails"
-        )
-
-        try:
-            support_emails = parameter_store.get_support_emails(support_email_path)
-            log.info(
-                "Loaded %d support email(s) for error notifications",
-                len(support_emails),
-            )
-            return support_emails
-        except ParameterError as error:
-            # Support emails are optional - log warning but don't fail
-            log.warning(
-                "Failed to load support emails from %s: %s. "
-                "Error notifications will not be sent.",
-                support_email_path,
-                error,
-            )
+        if not emails_str:
             return []
+        return [email.strip() for email in emails_str.split(",") if email.strip()]
 
     def run(self, context: GearToolkitContext) -> None:
         """Runs the directory pull gear.

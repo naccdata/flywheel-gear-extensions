@@ -56,7 +56,11 @@ class MockParameterStore:
         """Mock get_notification_parameters."""
         if not self.sender_params:
             raise ParameterError("Notification parameters not found")
-        return self.sender_params
+        # Return both sender and support_emails
+        return {
+            "sender": self.sender_params.get("sender", "noreply@example.com"),
+            "support_emails": ",".join(self.support_emails),
+        }
 
 
 class MockGearToolkitContext:
