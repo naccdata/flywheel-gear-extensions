@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.2
+
+* Fixes email notification template to display affected user count and list
+* Adds `affected_users_count` field to notification data model
+* Updates AWS SES template documentation with correct variable names
+* Adds section to list individual affected user emails in notifications
+
 ## 2.2.1
 
 * Consolidates notification parameter configuration to use single path `/prod/notifications`
