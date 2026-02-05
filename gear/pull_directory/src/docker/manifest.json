@@ -43,15 +43,10 @@
             "type": "string",
             "default": "/prod/flywheel/gearbot/naccdirectory"
         },
-        "sender_path": {
-            "description": "Parameter path for sender of email notifications",
+        "notifications_path": {
+            "description": "Parameter path for notification configuration (sender and support emails)",
             "type": "string",
-            "default": "/prod/notifications/sender"
-        },
-        "support_emails_path": {
-            "description": "Parameter path for support email addresses (optional)",
-            "type": "string",
-            "default": "/prod/notifications/support_emails"
+            "default": "/prod/notifications"
         }
     },
     "command": "/bin/run"
