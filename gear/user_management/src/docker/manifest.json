@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/user-management:3.2.0-alpha"
+            "image": "naccdata/user-management:3.2.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
