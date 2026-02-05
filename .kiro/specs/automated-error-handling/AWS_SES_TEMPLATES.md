@@ -166,7 +166,7 @@ Each error object in the category arrays contains these fields (all flattened at
     <div class="summary">
         <h2>Summary</h2>
         <p><strong>Total Events:</strong> {{total_events}}</p>
-        <p><strong>Affected Users:</strong> {{affected_users.length}}</p>
+        <p><strong>Affected Users:</strong> {{affected_users_count}}</p>
         
         <h3>Errors by Category</h3>
         <table>
@@ -181,6 +181,13 @@ Each error object in the category arrays contains these fields (all flattened at
             </tr>
             {{/each}}
         </table>
+        
+        <h3>Affected User Emails</h3>
+        <ul>
+        {{#each affected_users}}
+            <li>{{this}}</li>
+        {{/each}}
+        </ul>
     </div>
     
     {{#if unclaimed_records}}
@@ -381,7 +388,12 @@ Execution Time: {{execution_timestamp}}
 SUMMARY
 -------
 Total Events: {{total_events}}
-Affected Users: {{affected_users.length}}
+Affected Users: {{affected_users_count}}
+
+Affected User Emails:
+{{#each affected_users}}
+- {{this}}
+{{/each}}
 
 Errors by Category:
 {{#each errors_by_category}}
