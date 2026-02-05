@@ -24,6 +24,7 @@ requests-oauthlib>=2.0.0
 setuptools>=68.2.2,<81.0.0
 typing-extensions>=4.8.0 # only needed for python < 3.12
 types-PyYAML>=6.0.12
+types-pytz
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
