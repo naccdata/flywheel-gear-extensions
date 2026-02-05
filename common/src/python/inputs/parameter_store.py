@@ -40,10 +40,16 @@ class CoManageParameters(TypedDict):
     coid: str
 
 
-class NotificationParameters(TypedDict):
-    """Dictionary type for email sender."""
+class NotificationParameters(TypedDict, total=False):
+    """Dictionary type for email notification configuration.
+
+    Attributes:
+        sender: Email address to use as sender (required)
+        support_emails: Comma-separated list of support email addresses (optional)
+    """
 
     sender: str
+    support_emails: str
 
 
 class URLParameter(TypedDict):
