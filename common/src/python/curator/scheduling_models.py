@@ -7,6 +7,10 @@ from typing import Any, Dict, List, Literal, Optional
 from data.dataview import ColumnModel, make_builder
 from flywheel import DataView
 from flywheel.models.subject import Subject
+from nacc_attribute_deriver.utils.scope import (
+    FormScope,
+    ScopeLiterals,
+)
 from pydantic import (
     BaseModel,
     Field,
@@ -72,10 +76,11 @@ class FileModel(BaseModel):
     file_id: str
     file_info: Dict[str, Any]
     file_tags: List[str]
+    session_id: str
     modified_date: date
 
     # determined from file_info
-    visit_date: Optional[date] = Field(default=None, init=False)
+    visitdate: Optional[date] = Field(default=None, init=False)
     study_date: Optional[date] = Field(default=None, init=False)
     scan_date: Optional[date] = Field(default=None, init=False)
     scandate: Optional[date] = Field(default=None, init=False)
@@ -83,7 +88,10 @@ class FileModel(BaseModel):
     img_study_date: Optional[date] = Field(default=None, init=False)
 
     # determined from filename
-    scope: Optional[str] = Field(default=None, init=False)
+    scope: Optional[ScopeLiterals] = Field(default=None, init=False)
+
+    # updated if there is a corresponding UDS visit with the same session
+    uds_visitdate: Optional[date] = Field(default=None, init=False)
 
     @classmethod
     def __check_date(cls, value: Optional[str | date]) -> Optional[date]:
@@ -115,7 +123,7 @@ class FileModel(BaseModel):
         raw_data = self.file_info.get("raw", {})
         dicom_data = self.file_info.get("header", {}).get("dicom", {})
 
-        self.visit_date = self.__check_date(form_data.get("visitdate"))
+        self.visitdate = self.__check_date(form_data.get("visitdate"))
         self.study_date = self.__check_date(raw_data.get("study_date"))
         self.scan_date = self.__check_date(raw_data.get("scan_date"))
         self.scandate = self.__check_date(raw_data.get("scandate"))
@@ -186,8 +194,8 @@ class FileModel(BaseModel):
         Returns:
           the date to be used to compare this file for ordering
         """
-        if self.visit_date:
-            return self.visit_date
+        if self.visitdate:
+            return self.visitdate
         if self.study_date:
             return self.study_date
         if self.scan_date:
@@ -198,6 +206,8 @@ class FileModel(BaseModel):
             return self.scandt
         if self.img_study_date:
             return self.img_study_date
+        if self.uds_visitdate:
+            return self.uds_visitdate
         if self.modified_date:
             return self.modified_date
 
@@ -242,6 +252,7 @@ class FileModel(BaseModel):
                 ColumnModel(data_key="file.tags", label="file_tags"),
                 ColumnModel(data_key="file.info", label="file_info"),
                 ColumnModel(data_key="file.modified", label="modified_date"),
+                ColumnModel(data_key="file.parents.session", label="session_id"),
             ],
             container="acquisition",
             missing_data_strategy="none",
@@ -257,6 +268,7 @@ class ViewResponseModel(BaseModel):
     """Defines the data model for a dataview response."""
 
     data: List[FileModel]
+    invalid_visits: Optional[List[FileModel]] = Field(default=None, init=False)
 
     @field_validator("data", mode="before")
     def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -269,6 +281,50 @@ class ViewResponseModel(BaseModel):
             Trimmed data
         """
         return [row for row in data if any(x is not None for x in row.values())]
+
+    @model_validator(mode="after")
+    def sanitize_data(self) -> "ViewResponseModel":
+        """Remove duplicates, e.g. two forms with the same visitdate in the
+        same scope, which isn't allowed to happen, then link files with a
+        corresponding UDS session."""
+        counts: Dict[ScopeLiterals, Dict[date, int]] = {}
+        uds_sessions: Dict[str, date] = {}
+
+        for file in self.data:
+            if file.visitdate:
+                scope = file.scope
+                visitdate = file.visitdate
+
+                if scope not in counts:
+                    counts[scope] = {}
+
+                current_count = counts[scope].get(visitdate, 0)
+                counts[scope][visitdate] = current_count + 1
+
+                if scope == FormScope.UDS:
+                    uds_sessions[file.session_id] = visitdate
+
+        # collapse to visitdates where count is > 2
+        conflicting_visits = {}
+        for scope, scope_counts in counts.items():
+            conflicting_visits[scope] = [
+                visitdate for visitdate, count in scope_counts.items() if count > 1
+            ]
+
+        # move any where count > 1 to invalid visits
+        filtered_data = []
+        for file in self.data:
+            if file.visitdate not in conflicting_visits.get(file.scope, []):
+                file.uds_visitdate = uds_sessions.get(file.session_id, None)
+                filtered_data.append(file)
+            else:
+                if self.invalid_visits is None:
+                    self.invalid_visits = []
+
+                self.invalid_visits.append(file)
+
+        self.data = filtered_data
+        return self
 
 
 def generate_curation_failure(

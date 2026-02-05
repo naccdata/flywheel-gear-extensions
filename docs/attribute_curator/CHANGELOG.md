@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.2
+
+* Updates `nacc-attribute-deriver` to `2.1.2` which mainly changes where the deriver gets the MEDS visitdate
+* Updates to drop and report error when two forms in the same scope have the same visitdate
+* Adds `_uds_visitdate` to table for scopes in the same session as an UDS visit
+
 ## 1.2.1
 
 * Updates `nacc-attribute-deriver` to `2.1.1` which mainly updates how V1 drugs are handled

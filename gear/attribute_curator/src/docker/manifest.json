@@ -2,7 +2,7 @@
     "name": "attribute-curator",
     "label": "Attribute Curator",
     "description": "Curation of derived data for MQT project",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/attribute-curator:1.2.1"
+            "image": "naccdata/attribute-curator:1.2.2"
         },
         "flywheel": {
             "suite": "Curation",

@@ -1,25 +1,27 @@
 """Tests curator.scheduling."""
 
 from datetime import date
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from curator.scheduling_models import FileModel
+from curator.scheduling_models import FileModel, ViewResponseModel
+from nacc_attribute_deriver.utils.scope import FormScope
 
 
 def fm(
     filename: str,
-    visit_date: Optional[str] = None,
+    visitdate: Optional[str] = None,
     study_date: Optional[str] = None,
     scan_date: Optional[str] = None,
     scandate: Optional[str] = None,
     scandt: Optional[str] = None,
     img_study_date: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> FileModel:
     """Generates a file model for testing, may need to specify dates."""
     file_info = {
         "forms": {
             "json": {
-                "visitdate": visit_date,
+                "visitdate": visitdate,
             }
         },
         "raw": {
@@ -37,6 +39,7 @@ def fm(
         file_info=file_info,
         file_tags=[],
         modified_date=date.today(),
+        session_id=session_id if session_id else "dummy-session",
     )
 
 
@@ -48,14 +51,14 @@ class TestFileModel:
         """Test dates are set correctly."""
         file_model = fm(
             "NACCXXX_FORMS-VISIT-1_UDS.json",
-            visit_date="1990-01-01",
+            visitdate="1990-01-01",
             study_date="1991-02-02",
             scan_date="1992-03-03",
             scandate="1993-04-04",
             scandt="1994-05-05",
             img_study_date="1995-06-06",
         )
-        assert file_model.visit_date == date(1990, 1, 1)
+        assert file_model.visitdate == date(1990, 1, 1)
         assert file_model.study_date == date(1991, 2, 2)
         assert file_model.scan_date == date(1992, 3, 3)
         assert file_model.scandate == date(1993, 4, 4)
@@ -198,3 +201,131 @@ class TestDetermineScope:
         """Test unknown/invalid files."""
         assert fm("invalid.json").scope is None
         assert fm("UDS_extra.json").scope is None
+
+
+def raw_fm(filename: str, **kwargs) -> Dict[str, Any]:
+    """Create the raw file model so it can be processed by the
+    ViewResponseModel."""
+    file_model = fm(filename=filename, **kwargs)
+    return {
+        "filename": file_model.filename,
+        "file_id": file_model.file_id,
+        "file_info": file_model.file_info,
+        "file_tags": file_model.file_tags,
+        "modified_date": file_model.modified_date,
+        "session_id": file_model.session_id,
+    }
+
+
+class TestViewResponseModel:
+    def test_remove_duplicates(self):
+        """Test duplicate visitdates are removed as expected."""
+        # visit 2/3 have the same visitdates
+        file_models = [
+            raw_fm("NACCXXX_FORMS-VISIT-1_UDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-2_UDS.json", visitdate="2002-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-3_UDS.json", visitdate="2002-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-4_UDS.json", visitdate="2004-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-5_UDS.json", visitdate="2005-01-01"),
+        ]
+
+        response_model = ViewResponseModel(data=file_models)
+        assert len(response_model.data) == 3
+        assert response_model.invalid_visits and len(response_model.invalid_visits) == 2
+
+        removed_files = [
+            "NACCXXX_FORMS-VISIT-2_UDS.json",
+            "NACCXXX_FORMS-VISIT-3_UDS.json",
+        ]
+        for file in response_model.data:
+            assert file.filename not in removed_files
+        for file in response_model.invalid_visits:
+            assert file.filename in removed_files
+
+    def test_same_visidates_different_scopes(self):
+        """Test visits have same date but belong to different scopes.
+
+        Also check
+        """
+        file_models = [
+            raw_fm("NACCXXX_FORMS-VISIT-1_UDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_MEDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_LBD.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_FTLD.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_CLS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_MDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_NP.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_CSF.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_BDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_MLST.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_COVID.json", visitdate="2001-01-01"),
+        ]
+
+        response_model = ViewResponseModel(data=file_models)
+        assert len(response_model.data) == 11
+        assert response_model.invalid_visits is None
+
+        unique_scopes = set()
+        for file in response_model.data:
+            assert str(file.visitdate) == "2001-01-01"
+            unique_scopes.add(file.scope)
+
+        assert len(unique_scopes) == 11
+
+    def test_uds_sessionn(self):
+        """Test certain files are associated with an uds session."""
+        file_models = [
+            # files expected to be associated with an uds session. In theory they
+            # will all  have the same visitdate, but for sake of testing pretend
+            # they're not; for MEDS in particular it does not have a specific visitdate,
+            # only the formdate, which may not correspond
+            raw_fm(
+                "NACCXXX_FORMS-VISIT-1_UDS.json",
+                visitdate="1990-01-01",
+                session_id="uds-session",
+            ),
+            raw_fm(
+                "NACCXXX_FORMS-VISIT-1_MEDS.json",
+                visitdate="1991-01-01",
+                session_id="uds-session",
+            ),
+            raw_fm(
+                "NACCXXX_FORMS-VISIT-1_LBD.json",
+                visitdate="1992-01-01",
+                session_id="uds-session",
+            ),
+            raw_fm(
+                "NACCXXX_FORMS-VISIT-1_FTLD.json",
+                visitdate="1993-01-01",
+                session_id="uds-session",
+            ),
+            # files not expected to be associated with an UDS session
+            raw_fm("NACCXXX_FORMS-VISIT-1_CLS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_MDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_NP.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_CSF.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_BDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_MLST.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_FORMS-VISIT-1_COVID.json", visitdate="2001-01-01"),
+        ]
+
+        response_model = ViewResponseModel(data=file_models)
+        assert len(response_model.data) == 11
+        assert response_model.invalid_visits is None
+
+        for file in response_model.data:
+            if file.scope in [
+                FormScope.UDS,
+                FormScope.MEDS,
+                FormScope.LBD,
+                FormScope.FTLD,
+            ]:
+                assert str(file.uds_visitdate) == "1990-01-01"
+
+                # make sure visitdates are retained
+                if file.scope != FormScope.UDS:
+                    assert str(file.visitdate) != "1990-01-01"
+                else:
+                    assert str(file.visitdate) == "1990-01-01"
+            else:
+                assert file.uds_visitdate is None

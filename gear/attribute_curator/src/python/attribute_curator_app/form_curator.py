@@ -208,7 +208,10 @@ class FormCurator(Curator):
         table[location] = data
 
     def prepare_table(
-        self, filename: str, table: SymbolTable, scope: ScopeLiterals
+        self,
+        file_model: FileModel,
+        table: SymbolTable,
+        scope: ScopeLiterals,
     ) -> None:
         """Prepare the table with working metadata for curation work.
 
@@ -218,7 +221,14 @@ class FormCurator(Curator):
         work.
         """
         # for derived work, also provide filename (namely needed for MP).
-        self.__set_working_metadata(table, "_filename", filename)
+        self.__set_working_metadata(table, "_filename", file_model.filename)
+
+        # if the file belongs to the same session as an UDS visit, add the UDS visitdate
+        # (mainly needed for MEDS)
+        if file_model.uds_visitdate:
+            self.__set_working_metadata(
+                table, "_uds_visitdate", str(file_model.uds_visitdate)
+            )
 
         # For UDS A4 derived work, store the RxClass information under _rxclass
         if scope == FormScope.UDS and self.__rxclass:
@@ -284,7 +294,7 @@ class FormCurator(Curator):
             return False
 
         try:
-            self.prepare_table(filename, table, scope)
+            self.prepare_table(file_model, table, scope)
             self.__attribute_deriver.curate(table, scope)
             self.__file_missingness.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
