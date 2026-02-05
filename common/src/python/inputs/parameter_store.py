@@ -1,7 +1,7 @@
 """Module for getting proxy object for AWS SSM parameter store object."""
 
 import logging
-from typing import Dict, Mapping, Optional
+from typing import Dict, List, Mapping, Optional
 
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
@@ -41,15 +41,27 @@ class CoManageParameters(TypedDict):
 
 
 class NotificationParameters(TypedDict):
-    """Dictionary type for email sender."""
+    """Dictionary type for email notification configuration.
+
+    Attributes:
+        sender: Email address to use as sender
+        support_emails: Comma-separated list of support email addresses
+    """
 
     sender: str
+    support_emails: str
 
 
 class URLParameter(TypedDict):
     """Dictionary type for url parameter."""
 
     url: str
+
+
+class SupportEmailsParameter(TypedDict):
+    """Dictionary type for support staff email addresses."""
+
+    emails: str  # Comma-separated list of email addresses
 
 
 class ParameterError(Exception):
@@ -366,3 +378,31 @@ class ParameterStore:
           ParameterError if the parameter is missing
         """
         return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
+
+    def get_support_emails(self, param_path: str) -> List[str]:
+        """Pulls support email addresses from the SSM parameter store at the
+        given path.
+
+        The parameter should contain a comma-separated list of email addresses
+        under the key 'emails'.
+
+        Args:
+          param_path: the path in the parameter store
+        Returns:
+          list of support email addresses
+        Raises:
+          ParameterError if the parameter is missing or invalid
+        """
+        params = self.get_parameters(
+            param_type=SupportEmailsParameter, parameter_path=param_path
+        )
+        emails_str = params.get("emails", "")
+        if not emails_str:
+            raise ParameterError(f"No support emails found at {param_path}")
+
+        # Split by comma and strip whitespace
+        emails = [email.strip() for email in emails_str.split(",") if email.strip()]
+        if not emails:
+            raise ParameterError(f"No valid support emails found at {param_path}")
+
+        return emails

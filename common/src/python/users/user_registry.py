@@ -19,10 +19,47 @@ from coreapi_client.models.org_identity import OrgIdentity
 from pydantic import ValidationError
 
 
+def org_name_is(name: str) -> Callable[[OrgIdentity], bool]:
+    """Creates a predicate function for testing organizational identity name.
+
+    Args:
+      name: the organization name to match (case-insensitive)
+    Returns:
+      a predicate function that returns True if org identity has matching name
+    """
+
+    def predicate(org_identity: OrgIdentity) -> bool:
+        return org_identity.o is not None and org_identity.o.upper() == name.upper()
+
+    return predicate
+
+
 class RegistryPerson:
     """Wrapper for COManage CoPersonMessage object.
 
-    Enables predicates needed for processing.
+    Provides convenient access to person attributes from COManage including
+    emails, names, identifiers, and status information. The class implements
+    a priority-based email selection strategy and provides filtering methods
+    for multi-valued attributes.
+
+    Key Concepts:
+        - **Active Person**: A person with CoPerson status="A" (active)
+        - **Claimed Account**: An active person with a verified email AND an
+          oidcsub identifier from cilogon.org (indicating they have logged in)
+        - **Primary Email**: The highest priority email selected from:
+          organizational → official → verified → any → None
+        - **Organizational Email**: Email from a claimed organizational identity
+        - **Official Email**: Email with type="official"
+        - **Verified Email**: Email with verified=True
+
+    Email Selection:
+        The email_address property returns a single email using priority logic,
+        while email_addresses returns all emails. Use email_address for the
+        "best" email to contact a person, and email_addresses when you need
+        to see all available emails.
+
+    Attributes are read-only and computed on-demand from the underlying
+    CoPersonMessage object.
     """
 
     def __init__(self, coperson_message: CoPersonMessage) -> None:
@@ -80,6 +117,18 @@ class RegistryPerson:
 
     @property
     def email_addresses(self) -> List[EmailAddress]:
+        """Returns all email addresses for this person.
+
+        This property provides access to the complete list of email addresses
+        from COManage, regardless of type or verification status. Use this
+        when you need to see all available emails.
+
+        For selecting a single "best" email to use, see the email_address
+        property which implements priority-based selection.
+
+        Returns:
+          List of all EmailAddress objects. Empty list if no emails exist.
+        """
         if not self.__coperson_message.email_address:
             return []
 
@@ -87,16 +136,45 @@ class RegistryPerson:
 
     @property
     def email_address(self) -> Optional[EmailAddress]:
-        """Returns an email address for this coperson.
+        """Returns the primary email address for this person.
+
+        Implements a priority-based selection strategy to choose the "best"
+        email address from all available emails. This is the recommended
+        property to use when you need a single email to contact a person.
+
+        Priority Hierarchy:
+          1. Organizational email (from claimed OrgIdentity) - most authoritative
+          2. Official email (type="official") - designated by administrators
+          3. Verified email (verified=True) - confirmed by the user
+          4. Any email (first available) - fallback option
+          5. None (no emails exist)
+
+        The priority ensures we prefer emails that are more authoritative and
+        verified over arbitrary email addresses.
+
+        For access to all emails without priority filtering, use the
+        email_addresses property instead.
 
         Returns:
-          An email if one exists. None, otherwise.
+          The highest priority EmailAddress if one exists. None if no emails.
         """
+        # Priority 1: Organizational email
         if self.organization_email_addresses:
             return self.organization_email_addresses[0]
+
+        # Priority 2: Official email
+        if self.official_email_addresses:
+            return self.official_email_addresses[0]
+
+        # Priority 3: Verified email
+        if self.verified_email_addresses:
+            return self.verified_email_addresses[0]
+
+        # Priority 4: Any email
         if self.__coperson_message.email_address:
             return self.__coperson_message.email_address[0]
 
+        # Priority 5: None
         return None
 
     @property
@@ -136,8 +214,14 @@ class RegistryPerson:
     def is_active(self) -> bool:
         """Indicates whether the CoPerson record is active.
 
+        A person is considered active if their CoPerson status is "A" (active).
+        Inactive persons may have status "D" (deleted), "S" (suspended), or
+        other non-active statuses.
+
+        Active status is one of the requirements for a claimed account.
+
         Returns:
-          True if the CoPerson record is active. False, otherwise.
+          True if the CoPerson status is "A" (active). False otherwise.
         """
         if self.__coperson_message.co_person is None:
             return False
@@ -166,19 +250,54 @@ class RegistryPerson:
             if predicate(identifier)
         ]
 
+    def org_identities(
+        self, predicate: Callable[[OrgIdentity], bool] = lambda x: True
+    ) -> List[OrgIdentity]:
+        """Returns the list of organizational identities for this CoPerson.
+
+        If a predicate is given, returns the org identities satisfying the predicate.
+        Default predicate includes all org identities.
+
+        Args:
+          predicate: a function indicating org identities to include
+        Returns:
+          the list of org identities satisfying the predicate
+        """
+        if self.__coperson_message.org_identity is None:
+            return []
+
+        return [
+            org_identity
+            for org_identity in self.__coperson_message.org_identity
+            if predicate(org_identity)
+        ]
+
     def is_claimed(self) -> bool:
         """Indicates whether the CoPerson record is claimed.
 
-        The record is claimed if there is an OrgIdentity that has an
-        Identifier with type "oidcsub" and login True.
+        A claimed account represents a person who has successfully logged in
+        and verified their identity. This is determined by checking three
+        conditions that must ALL be true:
+
+        1. **Active Status**: The person must be active (status="A")
+        2. **Verified Email**: Must have at least one verified email address
+        3. **OIDC Identifier**: Must have an oidcsub identifier from cilogon.org
+
+        The oidcsub identifier is created when a user logs in through the
+        identity provider (CILogon), indicating they have claimed their account.
+        The verified email requirement ensures we can reliably contact them.
+
+        Use this method to distinguish between:
+        - Provisioned accounts (created but never logged in)
+        - Claimed accounts (user has logged in and verified)
 
         Returns:
-          True if the record has been claimed. False, otherwise.
+          True if all three conditions are met. False otherwise.
         """
         if not self.is_active():
             return False
 
-        if self.email_address is None:
+        if not self.verified_email_addresses:
             return False
 
         identifiers = self.identifiers(
@@ -208,7 +327,20 @@ class RegistryPerson:
 
     @property
     def organization_email_addresses(self) -> List[EmailAddress]:
-        """Returns the email from the first organizational identity."""
+        """Returns emails from the claimed organizational identity.
+
+        Organizational emails are associated with a claimed OrgIdentity,
+        which represents the person's affiliation with an organization.
+        These are considered the most authoritative emails.
+
+        An organizational identity is "claimed" if it has an oidcsub
+        identifier with login=True, indicating the user logged in using
+        that organizational identity.
+
+        Returns:
+          List of EmailAddress objects from the claimed org identity.
+          Empty list if no claimed org identity or no emails in it.
+        """
         org_identity = self.__get_claim_org()
         if not org_identity:
             return []
@@ -216,6 +348,30 @@ class RegistryPerson:
             return []
 
         return org_identity.email_address
+
+    @property
+    def official_email_addresses(self) -> List[EmailAddress]:
+        """Returns all emails with type='official'.
+
+        Filters the email addresses to return only those marked as official.
+        Preserves the order from COManage.
+
+        Returns:
+          List of official email addresses. Empty list if no official emails exist.
+        """
+        return [addr for addr in self.email_addresses if addr.type == "official"]
+
+    @property
+    def verified_email_addresses(self) -> List[EmailAddress]:
+        """Returns all emails with verified=True.
+
+        Filters the email addresses to return only those marked as verified.
+        Preserves the order from COManage.
+
+        Returns:
+          List of verified email addresses. Empty list if no verified emails exist.
+        """
+        return [addr for addr in self.email_addresses if addr.verified]
 
     def registry_id(self) -> Optional[str]:
         """Returns the registry ID for the person.
@@ -311,6 +467,20 @@ class UserRegistry:
             self.__list()
 
         return name in self.__bad_claims
+
+    def get_bad_claim(self, name: str) -> List[RegistryPerson]:
+        """Returns the list of RegistryPerson objects with incomplete claims
+        for the given name.
+
+        Args:
+          name: the registry person name
+        Returns:
+          the list of RegistryPerson objects with incomplete claims, empty list if none
+        """
+        if not self.__registry_map:
+            self.__list()
+
+        return self.__bad_claims.get(name, [])
 
     def __list(self) -> None:
         """Returns the dictionary of RegistryPerson objects for records in the
