@@ -11,7 +11,7 @@ Note: These are simplified integration tests that focus on verifying the
 integration points rather than full end-to-end execution.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -27,9 +27,8 @@ class MockParameterStore:
     def __init__(
         self,
         comanage_params: Optional[Dict] = None,
-        sender_params: Optional[Dict] = None,
+        notification_params: Optional[Dict] = None,
         portal_url: Optional[Dict] = None,
-        support_emails: Optional[List[str]] = None,
     ):
         self.comanage_params = comanage_params or {
             "host": "https://comanage.test",
@@ -37,9 +36,11 @@ class MockParameterStore:
             "apikey": "test_key",
             "coid": "123",
         }
-        self.sender_params = sender_params or {"sender": "test@example.com"}
+        self.notification_params = notification_params or {
+            "sender": "test@example.com",
+            "support_emails": "support@example.com",
+        }
         self.portal_url = portal_url or {"url": "https://portal.test"}
-        self.support_emails = support_emails or ["support@example.com"]
 
     def get_comanage_parameters(self, path: str):
         """Mock get_comanage_parameters."""
@@ -49,26 +50,15 @@ class MockParameterStore:
 
     def get_notification_parameters(self, path: str):
         """Mock get_notification_parameters."""
-        if not self.sender_params:
+        if not self.notification_params:
             raise ParameterError("Notification parameters not found")
-        return self.sender_params
+        return self.notification_params
 
     def get_portal_url(self, path: str):
         """Mock get_portal_url."""
         if not self.portal_url:
             raise ParameterError("Portal URL not found")
         return self.portal_url
-
-    def get_support_emails(self, path: str) -> List[str]:
-        """Mock get_support_emails.
-
-        This method would be added to the real ParameterStore to support
-        retrieving support staff email addresses for error
-        notifications.
-        """
-        if not self.support_emails:
-            raise ParameterError("Support staff emails not found")
-        return self.support_emails
 
     def get_all_redcap_parameters_at_path(
         self, base_path: str, prefix: Optional[str] = None
@@ -100,7 +90,7 @@ class MockGearToolkitContext:
         self.config_dict = config or {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",
-            "sender_path": "/email/sender",
+            "notifications_path": "/notifications/test",
             "portal_url_path": "/portal/url",
             "redcap_parameter_path": "/redcap/aws",
             "notification_mode": "date",
@@ -151,7 +141,7 @@ class TestGearErrorHandlingIntegration:
         This test verifies:
         - Visitor can be created with all required parameters
         - Error handling infrastructure is available
-        - Support staff emails are loaded from parameter store
+        - Support staff emails are loaded from notification parameters
         """
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -160,9 +150,6 @@ class TestGearErrorHandlingIntegration:
                 return_value=MockREDCapParametersRepository(),
             ),
         ):
-            # Add support staff emails path to config
-            mock_context.config_dict["support_emails_path"] = "/support/emails"
-
             visitor = UserManagementVisitor.create(
                 context=mock_context,  # type: ignore
                 parameter_store=mock_parameter_store,  # type: ignore
@@ -189,7 +176,7 @@ class TestGearErrorHandlingIntegration:
         minimal_config = {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",
-            "sender_path": "/email/sender",
+            "notifications_path": "/notifications/test",
             "portal_url_path": "/portal/url",
         }
 
@@ -242,7 +229,7 @@ class TestGearErrorHandlingIntegration:
         # Test missing comanage_parameter_path
         config_no_comanage = {
             "admin_group": "nacc",
-            "sender_path": "/email/sender",
+            "notifications_path": "/notifications/test",
             "portal_url_path": "/portal/url",
         }
 
@@ -257,21 +244,23 @@ class TestGearErrorHandlingIntegration:
                 parameter_store=mock_parameter_store,  # type: ignore
             )
 
-        # Test missing sender_path
-        config_no_sender = {
+        # Test missing notifications_path
+        config_no_notifications = {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",
             "portal_url_path": "/portal/url",
         }
 
-        context_no_sender = MockGearToolkitContext(config=config_no_sender)
+        context_no_notifications = MockGearToolkitContext(
+            config=config_no_notifications
+        )
 
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
-            pytest.raises(GearExecutionError, match="email sender parameter path"),
+            pytest.raises(GearExecutionError, match="notifications parameter path"),
         ):
             UserManagementVisitor.create(
-                context=context_no_sender,  # type: ignore
+                context=context_no_notifications,  # type: ignore
                 parameter_store=mock_parameter_store,  # type: ignore
             )
 
@@ -279,7 +268,7 @@ class TestGearErrorHandlingIntegration:
         config_no_portal = {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",
-            "sender_path": "/email/sender",
+            "notifications_path": "/notifications/test",
         }
 
         context_no_portal = MockGearToolkitContext(config=config_no_portal)
@@ -323,16 +312,10 @@ class TestGearErrorHandlingIntegration:
         """Test support staff email configuration via Parameter Store.
 
         This test verifies:
-        - Support staff emails can be loaded from Parameter Store
-        - Gear handles missing support staff email configuration gracefully
-        - Gear logs appropriate warnings when emails are not configured
+        - Support staff emails can be loaded from notification parameters
+        - Both sender and support_emails are required fields
         """
         # Test with support staff emails configured
-        config_with_emails = mock_context.config_dict.copy()
-        config_with_emails["support_emails_path"] = "/support/emails"
-
-        context_with_emails = MockGearToolkitContext(config=config_with_emails)
-
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
             patch(
@@ -341,50 +324,8 @@ class TestGearErrorHandlingIntegration:
             ),
         ):
             visitor = UserManagementVisitor.create(
-                context=context_with_emails,  # type: ignore
+                context=mock_context,  # type: ignore
                 parameter_store=mock_parameter_store,  # type: ignore
-            )
-
-            assert visitor is not None
-
-        # Test without support staff emails configured (should still work)
-        config_without_emails = mock_context.config_dict.copy()
-        # Don't include support_emails_path
-
-        context_without_emails = MockGearToolkitContext(config=config_without_emails)
-
-        with (
-            patch("user_app.run.GearBotClient.create", return_value=mock_client),
-            patch(
-                "user_app.run.REDCapParametersRepository.create_from_parameterstore",
-                return_value=MockREDCapParametersRepository(),
-            ),
-        ):
-            visitor = UserManagementVisitor.create(
-                context=context_without_emails,  # type: ignore
-                parameter_store=mock_parameter_store,  # type: ignore
-            )
-
-            assert visitor is not None
-
-        # Test with invalid support staff emails path (should log warning but not fail)
-        mock_param_store_no_emails = MockParameterStore(support_emails=None)
-        config_with_invalid_path = mock_context.config_dict.copy()
-        config_with_invalid_path["support_emails_path"] = "/invalid/path"
-
-        context_with_invalid = MockGearToolkitContext(config=config_with_invalid_path)
-
-        with (
-            patch("user_app.run.GearBotClient.create", return_value=mock_client),
-            patch(
-                "user_app.run.REDCapParametersRepository.create_from_parameterstore",
-                return_value=MockREDCapParametersRepository(),
-            ),
-        ):
-            # Should not raise error, just log warning
-            visitor = UserManagementVisitor.create(
-                context=context_with_invalid,  # type: ignore
-                parameter_store=mock_param_store_no_emails,  # type: ignore
             )
 
             assert visitor is not None

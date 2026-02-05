@@ -68,10 +68,10 @@
             "type": "string",
             "default": "/prod/comanage/api"
         },
-        "sender_path": {
-            "description": "Parameter path for sender of email notifications",
+        "notifications_path": {
+            "description": "Parameter path for notification configuration (sender and support emails)",
             "type": "string",
-            "default": "/prod/notifications/sender"
+            "default": "/prod/notifications"
         },
         "notification_mode": {
             "description": "Mode for reminder notifications: date, force, none",
@@ -87,11 +87,6 @@
             "description": "Parameter path for the portal URL",
             "type": "string",
             "default": "/prod/flywheel/portal"
-        },
-        "support_emails_path": {
-            "description": "Parameter path for support staff email addresses (optional)",
-            "type": "string",
-            "default": "/prod/notifications/support_emails"
         }
     },
     "command": "/bin/run"

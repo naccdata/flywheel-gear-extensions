@@ -92,8 +92,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         comanage_path = cls._require_config(
             context, "comanage_parameter_path", "CoManage parameter path"
         )
-        sender_path = cls._require_config(
-            context, "sender_path", "email sender parameter path"
+        notifications_path = cls._require_config(
+            context, "notifications_path", "notifications parameter path"
         )
         portal_path = cls._require_config(
             context, "portal_url_path", "path for portal URL"
@@ -104,17 +104,19 @@ class UserManagementVisitor(GearExecutionEnvironment):
             comanage_path,
             "COManage configuration",
         )
-        sender_parameters = cls._get_parameters(
+        notification_params = cls._get_parameters(
             parameter_store.get_notification_parameters,
-            sender_path,
-            "email sender configuration",
+            notifications_path,
+            "notification configuration",
         )
         portal_url = cls._get_parameters(
             parameter_store.get_portal_url, portal_path, "portal URL"
         )
 
-        # Retrieve optional support emails
-        support_emails = cls._get_support_emails(context, parameter_store)
+        # Parse support emails from notification parameters
+        support_emails = cls._parse_support_emails(
+            notification_params["support_emails"]
+        )
 
         # Create REDCap parameter repository
         redcap_param_repo = cls._create_redcap_repository(context, parameter_store)
@@ -124,7 +126,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             client=client,
             user_filepath=user_filepath,
             auth_filepath=auth_filepath,
-            email_source=sender_parameters["sender"],
+            email_source=notification_params["sender"],
             comanage_coid=int(comanage_parameters["coid"]),
             comanage_config=Configuration(
                 host=comanage_parameters["host"],
@@ -203,38 +205,18 @@ class UserManagementVisitor(GearExecutionEnvironment):
         return user_filepath, auth_filepath
 
     @staticmethod
-    def _get_support_emails(
-        context: GearToolkitContext, parameter_store: ParameterStore
-    ) -> list[str]:
-        """Retrieve optional support emails from parameter store.
+    def _parse_support_emails(emails_str: str) -> list[str]:
+        """Parse comma-separated email addresses.
 
         Args:
-            context: The gear context
-            parameter_store: The parameter store instance
+            emails_str: Comma-separated email addresses
 
         Returns:
-            List of support email addresses, or None if not configured
+            List of email addresses
         """
-        support_email_path = context.config.get(
-            "support_emails_path", "/prod/notifications/support_emails"
-        )
-
-        try:
-            support_emails = parameter_store.get_support_emails(support_email_path)
-            log.info(
-                "Loaded %d support email(s) for error notifications",
-                len(support_emails),
-            )
-            return support_emails
-        except ParameterError as error:
-            # Support emails are optional - log warning but don't fail
-            log.warning(
-                "Failed to load support emails from %s: %s. "
-                "Error notifications will not be sent.",
-                support_email_path,
-                error,
-            )
+        if not emails_str:
             return []
+        return [email.strip() for email in emails_str.split(",") if email.strip()]
 
     @staticmethod
     def _create_redcap_repository(
