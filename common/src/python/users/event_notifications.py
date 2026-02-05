@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 from pydantic import SerializationInfo, SerializerFunctionWrapHandler, model_serializer
+
 from users.event_models import UserEventCollector
 
 log = logging.getLogger(__name__)

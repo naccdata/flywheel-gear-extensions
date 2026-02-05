@@ -67,6 +67,7 @@ class TestConsolidatedNotificationData:
             events_by_category={"Unclaimed Records": 1},
             event_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            affected_users_count=1,
             category_details={},
         )
 
@@ -145,6 +146,7 @@ class TestErrorNotificationGenerator:
             events_by_category={"Unclaimed Records": 1},
             event_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            affected_users_count=1,
             category_details={},
         )
 
@@ -168,6 +170,7 @@ class TestErrorNotificationGenerator:
             events_by_category={"Unclaimed Records": 1},
             event_summaries=["Test summary"],
             affected_users=["test@example.com"],
+            affected_users_count=1,
             category_details={},
         )
 

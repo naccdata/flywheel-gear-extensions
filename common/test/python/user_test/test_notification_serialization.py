@@ -19,6 +19,7 @@ class TestNotificationSerialization:
             events_by_category={"dummy": 2},
             event_summaries=["dummy summary 1", "dummy summary 2"],
             affected_users=["user1@example.com", "user2@example.com"],
+            affected_users_count=2,
             category_details={
                 "unclaimed_records": [
                     {
