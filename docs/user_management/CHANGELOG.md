@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.2.1
+
+* Consolidates notification parameter configuration to use single path `/prod/notifications`
+* Updates `NotificationParameters` to include both `sender` and `support_emails` as required fields
+* Renames `sender_path` parameter to `notifications_path` in manifest
+* Removes redundant `support_emails_path` parameter
+
 ## 3.2.0
 
 * Adds automated error notification system with consolidated email notifications to support staff
