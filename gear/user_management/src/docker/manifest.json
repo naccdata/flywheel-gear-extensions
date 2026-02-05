@@ -2,7 +2,7 @@
     "name": "user-management",
     "label": "User Management",
     "description": "Creates and updates user and user roles",
-    "version": "3.2.1",
+    "version": "3.2.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/user-management:3.2.1"
+            "image": "naccdata/user-management:3.2.2"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
