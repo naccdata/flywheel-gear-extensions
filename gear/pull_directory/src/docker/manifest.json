@@ -2,7 +2,7 @@
     "name": "pull-directory",
     "label": "Pull Directory",
     "description": "Pull user information from NACC directory and save to admin project",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/pull-directory:2.2.0"
+            "image": "naccdata/pull-directory:2.2.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
