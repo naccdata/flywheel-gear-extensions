@@ -9,7 +9,7 @@ from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import PreprocessingChecks
+from keys.keys import DefaultValues, PreprocessingChecks
 from nacc_common.field_names import FieldNames
 from pydantic import (
     BaseModel,
@@ -180,6 +180,7 @@ class ModuleConfigs(BaseModel):
     optional_forms: Optional[OptionalFormsConfigs] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
+    longitudinal: Optional[bool] = True
 
     @model_validator(mode="after")
     def validate_preprocess_checks(self) -> "ModuleConfigs":
@@ -200,8 +201,10 @@ class ModuleConfigs(BaseModel):
 class FormProjectConfigs(BaseModel):
     primary_key: str
     accepted_modules: List[str]
-    legacy_project_label: Optional[str] = None
     module_configs: Dict[str, ModuleConfigs]
+    legacy_project_label: Optional[str] = None
+    qc_gear: Optional[str] = DefaultValues.QC_GEAR
+    legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
 
     def get_module_dependencies(self, module: str) -> Optional[List[str]]:
         """Get the list of dependent modules for a given module.

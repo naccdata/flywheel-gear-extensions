@@ -6,6 +6,8 @@ All notable changes to this gear are documented in this file.
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
 ## 1.4.2
+* Updates to support legacy ingest pipeline
+* Evaluates subsequent visits only for longitudinal modules
 * Rebuilt for event logging updates
 
 ## 1.4.1

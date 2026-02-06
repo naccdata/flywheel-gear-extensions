@@ -6,7 +6,6 @@ from typing import TextIO
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from inputs.csv_reader import read_csv
-from nacc_common.module_types import ModuleName
 from nacc_common.qc_report import (
     DictReportWriter,
     FileQCReportVisitorBuilder,
@@ -14,6 +13,8 @@ from nacc_common.qc_report import (
     WriterTableVisitor,
 )
 from outputs.error_writer import ErrorWriter
+
+ModuleName = str
 
 log = logging.getLogger(__name__)
 

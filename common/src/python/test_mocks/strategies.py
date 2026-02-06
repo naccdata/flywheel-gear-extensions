@@ -34,12 +34,22 @@ def ptid_strategy(draw) -> str:
 
 @st.composite
 def visit_metadata_strategy(draw) -> VisitMetadata:
-    """Generate random VisitMetadata for testing."""
+    """Generate random VisitMetadata for testing.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
     ptid = draw(
         st.text(
             min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         )
     )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     # Generate dates with 4-digit years to match VisitEvent validation pattern
     date = draw(
         st.dates(
@@ -62,12 +72,22 @@ def visit_metadata_strategy(draw) -> VisitMetadata:
 
 @st.composite
 def json_file_strategy(draw) -> dict[str, Any]:
-    """Generate random JSON file data for testing."""
+    """Generate random JSON file data for testing.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
     ptid = draw(
         st.text(
             min_size=1, max_size=10, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         )
     )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     # Generate dates with 4-digit years to match VisitEvent validation pattern
     visitdate = draw(
         st.dates(
@@ -121,15 +141,26 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate valid VisitMetadata with all required fields."""
+    """Generate valid VisitMetadata with all required fields.
+
+    PTIDs must not be all zeros or empty after stripping leading zeros.
+    """
+    # Generate PTID that won't be all zeros
+    ptid = draw(
+        st.text(
+            min_size=1,
+            max_size=10,
+            alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
+        )
+    )
+
+    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
+    if ptid.strip("0") == "":
+        # Replace with a valid PTID containing at least one non-zero character
+        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
+
     return {
-        "ptid": draw(
-            st.text(
-                min_size=1,
-                max_size=10,
-                alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
-            )
-        ),
+        "ptid": ptid,
         "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "visitnum": draw(
@@ -212,3 +243,90 @@ simple_ptid_strategy = st.text(
 
 # Visit number strategies
 visitnum_strategy = st.text(min_size=1, max_size=3, alphabet="0123456789")
+
+
+@st.composite
+def user_context_strategy(draw):
+    """Generate random UserContext for testing."""
+    from users.event_models import UserContext
+    from users.user_entry import PersonName
+
+    email = draw(st.emails())
+    name = draw(
+        st.one_of(
+            st.none(),
+            st.builds(
+                PersonName,
+                first_name=st.text(
+                    min_size=1,
+                    max_size=20,
+                    alphabet=st.characters(whitelist_categories=["Lu", "Ll"]),
+                ),
+                last_name=st.text(
+                    min_size=1,
+                    max_size=20,
+                    alphabet=st.characters(whitelist_categories=["Lu", "Ll"]),
+                ),
+            ),
+        )
+    )
+    center_id = draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999)))
+    registry_id = draw(st.one_of(st.none(), st.text(min_size=1, max_size=20)))
+    auth_email = draw(st.one_of(st.none(), st.emails()))
+
+    return UserContext(
+        email=email,
+        name=name,
+        center_id=center_id,
+        registry_id=registry_id,
+        auth_email=auth_email,
+    )
+
+
+@st.composite
+def error_details_strategy(draw):
+    """Generate random error details dictionary for testing."""
+    message = draw(st.one_of(st.none(), st.text(min_size=1, max_size=100)))
+    action_needed = draw(st.one_of(st.none(), st.text(min_size=1, max_size=50)))
+
+    details = {}
+    if message is not None:
+        details["message"] = message
+    if action_needed is not None:
+        details["action_needed"] = action_needed
+
+    # Add some additional random fields
+    additional_fields = draw(
+        st.dictionaries(
+            keys=st.text(
+                min_size=1,
+                max_size=20,
+                alphabet=st.characters(whitelist_categories=["Lu", "Ll", "Nd"]),
+            ),
+            values=st.one_of(
+                st.text(min_size=1, max_size=50), st.integers(), st.booleans()
+            ),
+            min_size=0,
+            max_size=3,
+        )
+    )
+    details.update(additional_fields)
+
+    return details
+
+
+@st.composite
+def error_event_strategy(draw):
+    """Generate random UserProcessEvent for testing."""
+    from users.event_models import EventCategory, EventType, UserProcessEvent
+
+    category = draw(st.sampled_from(list(EventCategory)))
+    user_context = draw(user_context_strategy())
+    message = draw(st.one_of(st.none(), st.text(min_size=1, max_size=100)))
+
+    return UserProcessEvent(
+        event_type=EventType.ERROR,
+        category=category,
+        user_context=user_context,
+        message=message or "",
+    )

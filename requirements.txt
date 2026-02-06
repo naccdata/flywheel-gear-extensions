@@ -23,6 +23,7 @@ requests>=2.18.4
 requests-oauthlib>=2.0.0
 setuptools>=68.3.0
 types-PyYAML>=6.0.12
+types-pytz
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1

@@ -205,6 +205,7 @@ def run(  # noqa: C901
         s3_client=s3_client,
         error_writer=error_writer,
         module_configs=module_configs,
+        project=project_adaptor,
         strict=strict,
     )
 
@@ -287,7 +288,7 @@ def run(  # noqa: C901
     )
 
     try:
-        qual_check = QualityCheck(pk_field, schema, strict, datastore)
+        qual_check = QualityCheck(pk_field, schema, strict, datastore)  # type: ignore
     except QualityCheckException as error:
         raise GearExecutionError(f"Failed to initialize QC module: {error}") from error
 

@@ -10,7 +10,7 @@ of time.
 import copy
 from typing import Any, Dict, List, Optional, Tuple
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormsStore
 from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
 from nacc_common.field_names import FieldNames
@@ -94,8 +94,13 @@ class TestFormPreprocessor:
             fw_path="dummy/dummy",
         )
 
-        processor = FormPreprocessor(
+        form_configs = FormProjectConfigs(
             primary_key=FieldNames.NACCID,
+            accepted_modules=[module.upper()],
+            module_configs={module.upper(): module_configs},
+        )
+        processor = FormPreprocessor(
+            form_configs=form_configs,
             forms_store=forms_store,
             module=module,
             module_configs=module_configs,

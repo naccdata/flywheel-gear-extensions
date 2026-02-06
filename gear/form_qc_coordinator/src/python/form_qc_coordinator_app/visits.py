@@ -5,7 +5,7 @@ from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, VisitInfo
 from gear_execution.gear_execution import GearExecutionError
-from keys.keys import MetadataKeys
+from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 
 log = logging.getLogger(__name__)
@@ -100,6 +100,10 @@ class VisitsLookupHelper:
         filters = f"acquisition.label={module}"
 
         if cutoff_date:
+            # if OR operator is used, assumes cutoff date is a comma separated list
+            if search_op == DefaultValues.FW_SEARCH_OR:
+                cutoff_date = f"[{cutoff_date.replace(', ', ',')}]"
+
             filters += f",{date_col_key}{search_op}{cutoff_date}"
 
         return self.__proxy.get_matching_acquisition_files_info(

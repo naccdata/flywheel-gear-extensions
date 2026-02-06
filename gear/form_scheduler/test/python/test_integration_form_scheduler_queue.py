@@ -111,7 +111,7 @@ def create_mock_json_file_for_queue(
     name: str,
     ptid: str,
     visitdate: str,
-    visitnum: str,
+    visitnum: Optional[str],
     module: str,
     packet: str,
     parent_id: str = "acquisition-123",
@@ -123,7 +123,7 @@ def create_mock_json_file_for_queue(
         name: File name
         ptid: Participant ID
         visitdate: Visit date
-        visitnum: Visit number
+        visitnum: Visit number (None for forms without visits like MLST, NP)
         module: Module name
         packet: Packet identifier
         parent_id: Parent acquisition ID
@@ -137,12 +137,15 @@ def create_mock_json_file_for_queue(
             "json": {
                 "ptid": ptid,
                 "visitdate": visitdate,
-                "visitnum": visitnum,
                 "module": module,
                 "packet": packet,
             }
         }
     }
+
+    # Only include visitnum if provided (milestone and NP forms don't have it)
+    if visitnum is not None:
+        forms_metadata["forms"]["json"]["visitnum"] = visitnum
 
     file = MockFileForQueue(
         name=name,
@@ -748,3 +751,286 @@ class TestFormSchedulerQueueIntegration:
         assert event_2.action == "pass-qc"
         assert event_2.module == "FTLD"
         assert event_2.visit_date == "2025-02-15"
+
+    def test_form_scheduler_queue_milestone_form_without_visitnum(
+        self,
+        mock_proxy: MockFlywheelProxy,
+        mock_event_capture: MockVisitEventCapture,
+        finalization_pipeline_config: PipelineConfigs,
+    ) -> None:
+        """Test FormSchedulerQueue with milestone form that has no visitnum.
+
+        Milestone forms (MLST) don't have visitnum but should still log
+        events successfully as long as ptid, date, and module are
+        present.
+        """
+        # Update pipeline config to include MLST module
+        finalization_pipeline_config.pipelines[0].modules.append("MLST")
+
+        # Create milestone JSON file WITHOUT visitnum
+        json_file = create_mock_json_file_for_queue(
+            name="NACC100005_MILESTONE-2025-04-15_MLST.json",
+            ptid="adrc1005",
+            visitdate="2025-04-15",
+            visitnum=None,  # Milestone forms don't have visitnum
+            module="MLST",
+            packet="M",
+            tags=["finalized"],
+        )
+
+        # Create visit metadata for QC status WITHOUT visitnum
+        visit_metadata = VisitMetadata(
+            ptid="adrc1005",
+            date="2025-04-15",
+            visitnum=None,  # No visitnum for milestone
+            module="MLST",
+            packet="M",
+        )
+
+        # Create QC-status file with PASS status
+        qc_file = create_mock_qc_status_file_for_queue(
+            ptid="adrc1005",
+            date="2025-04-15",
+            module="mlst",
+            qc_status=QC_STATUS_PASS,
+            visit_metadata=visit_metadata,
+            modified=datetime(2025, 4, 15, 14, 0, 0),
+        )
+
+        # Create mock project with both files
+        project = MockProjectAdaptorForQueue(
+            label="ingest-form-alpha",
+            project_id="project-123",
+            files=[qc_file],
+        )
+
+        # Add acquisition container to proxy
+        mock_acquisition = MagicMock()
+        mock_acquisition.id = "acquisition-123"
+        mock_proxy.add_container("acquisition-123", mock_acquisition)
+
+        # Create FormSchedulerQueue
+        form_scheduler = FormSchedulerQueue(
+            proxy=mock_proxy,
+            project=project,
+            pipeline_configs=finalization_pipeline_config,
+            event_capture=mock_event_capture,
+            email_client=None,
+            portal_url=None,
+        )
+
+        # Mock the gear triggering and job polling
+        with (
+            patch(
+                "form_scheduler_app.form_scheduler_queue.trigger_gear"
+            ) as mock_trigger,
+            patch("form_scheduler_app.form_scheduler_queue.JobPoll.wait_for_pipeline"),
+            patch.object(project, "read_dataview") as mock_dataview,
+        ):
+            # Mock dataview to return our milestone JSON file
+            class MockDataviewResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    pass
+
+                def read(self):
+                    return json.dumps(
+                        {
+                            "data": [
+                                {
+                                    "filename": json_file.name,
+                                    "file_id": "file-id-mlst",
+                                    "module": "MLST",
+                                }
+                            ]
+                        }
+                    ).encode()
+
+            mock_dataview.return_value = MockDataviewResponse()
+
+            # Mock project methods
+            def mock_get_file_by_id(file_id):
+                if file_id == "file-id-mlst":
+                    return json_file
+                return None
+
+            def mock_get_file(filename):
+                if filename == qc_file.name:
+                    return qc_file
+                return None
+
+            with (
+                patch.object(
+                    project, "get_file_by_id", side_effect=mock_get_file_by_id
+                ),
+                patch.object(project, "get_file", side_effect=mock_get_file),
+            ):
+                # Queue files for finalization pipeline
+                file_count = form_scheduler.queue_files_for_pipeline(
+                    finalization_pipeline_config.pipelines[0]
+                )
+                assert file_count == 1
+
+                # Process pipeline queues (this should trigger event logging)
+                form_scheduler.process_pipeline_queues()
+
+        # Verify that gear was triggered
+        mock_trigger.assert_called_once()
+
+        # Verify that event was logged for milestone form
+        assert len(mock_event_capture.logged_events) == 1
+
+        event = mock_event_capture.logged_events[0]
+
+        # Verify event details - visitnum should be None
+        assert event.action == "pass-qc"
+        assert event.gear_name == "form-scheduler"
+        assert event.ptid == "adrc1005"
+        assert event.visit_date == "2025-04-15"
+        assert event.visit_number is None  # No visitnum for milestone forms
+        assert event.module == "MLST"
+        assert event.packet == "M"
+        assert event.study == "alpha"
+
+    def test_form_scheduler_queue_np_form_without_visitnum(
+        self,
+        mock_proxy: MockFlywheelProxy,
+        mock_event_capture: MockVisitEventCapture,
+        finalization_pipeline_config: PipelineConfigs,
+    ) -> None:
+        """Test FormSchedulerQueue with NP form that has no visitnum.
+
+        NP forms don't have visitnum but should still log events
+        successfully as long as ptid, date, and module are present.
+        """
+        # Update pipeline config to include NP module
+        finalization_pipeline_config.pipelines[0].modules.append("NP")
+
+        # Create NP JSON file WITHOUT visitnum
+        json_file = create_mock_json_file_for_queue(
+            name="NACC100006_NP-RECORD-2025-05-20_NP.json",
+            ptid="adrc1006",
+            visitdate="2025-05-20",
+            visitnum=None,  # NP forms don't have visitnum
+            module="NP",
+            packet="N",
+            tags=["finalized"],
+        )
+
+        # Create visit metadata for QC status WITHOUT visitnum
+        visit_metadata = VisitMetadata(
+            ptid="adrc1006",
+            date="2025-05-20",
+            visitnum=None,  # No visitnum for NP
+            module="NP",
+            packet="N",
+        )
+
+        # Create QC-status file with PASS status
+        qc_file = create_mock_qc_status_file_for_queue(
+            ptid="adrc1006",
+            date="2025-05-20",
+            module="np",
+            qc_status=QC_STATUS_PASS,
+            visit_metadata=visit_metadata,
+            modified=datetime(2025, 5, 20, 16, 30, 0),
+        )
+
+        # Create mock project with both files
+        project = MockProjectAdaptorForQueue(
+            label="ingest-form-alpha",
+            project_id="project-123",
+            files=[qc_file],
+        )
+
+        # Add acquisition container to proxy
+        mock_acquisition = MagicMock()
+        mock_acquisition.id = "acquisition-123"
+        mock_proxy.add_container("acquisition-123", mock_acquisition)
+
+        # Create FormSchedulerQueue
+        form_scheduler = FormSchedulerQueue(
+            proxy=mock_proxy,
+            project=project,
+            pipeline_configs=finalization_pipeline_config,
+            event_capture=mock_event_capture,
+            email_client=None,
+            portal_url=None,
+        )
+
+        # Mock the gear triggering and job polling
+        with (
+            patch(
+                "form_scheduler_app.form_scheduler_queue.trigger_gear"
+            ) as mock_trigger,
+            patch("form_scheduler_app.form_scheduler_queue.JobPoll.wait_for_pipeline"),
+            patch.object(project, "read_dataview") as mock_dataview,
+        ):
+            # Mock dataview to return our NP JSON file
+            class MockDataviewResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    pass
+
+                def read(self):
+                    return json.dumps(
+                        {
+                            "data": [
+                                {
+                                    "filename": json_file.name,
+                                    "file_id": "file-id-np",
+                                    "module": "NP",
+                                }
+                            ]
+                        }
+                    ).encode()
+
+            mock_dataview.return_value = MockDataviewResponse()
+
+            # Mock project methods
+            def mock_get_file_by_id(file_id):
+                if file_id == "file-id-np":
+                    return json_file
+                return None
+
+            def mock_get_file(filename):
+                if filename == qc_file.name:
+                    return qc_file
+                return None
+
+            with (
+                patch.object(
+                    project, "get_file_by_id", side_effect=mock_get_file_by_id
+                ),
+                patch.object(project, "get_file", side_effect=mock_get_file),
+            ):
+                # Queue files for finalization pipeline
+                file_count = form_scheduler.queue_files_for_pipeline(
+                    finalization_pipeline_config.pipelines[0]
+                )
+                assert file_count == 1
+
+                # Process pipeline queues (this should trigger event logging)
+                form_scheduler.process_pipeline_queues()
+
+        # Verify that gear was triggered
+        mock_trigger.assert_called_once()
+
+        # Verify that event was logged for NP form
+        assert len(mock_event_capture.logged_events) == 1
+
+        event = mock_event_capture.logged_events[0]
+
+        # Verify event details - visitnum should be None
+        assert event.action == "pass-qc"
+        assert event.gear_name == "form-scheduler"
+        assert event.ptid == "adrc1006"
+        assert event.visit_date == "2025-05-20"
+        assert event.visit_number is None  # No visitnum for NP forms
+        assert event.module == "NP"
+        assert event.packet == "N"
+        assert event.study == "alpha"
