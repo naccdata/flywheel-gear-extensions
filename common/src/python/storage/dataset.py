@@ -37,8 +37,8 @@ class FWDataset(BaseModel):
 
     @root_validator(pre=True)
     def storage_label_alias(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """storage_label can also be storage, seems to depend on when the
-        dataset was made."""
+        """storage_label can also be label, seems to depend on when the dataset
+        was made."""
         if "storage_label" not in values and "label" in values:
             values["storage_label"] = values.pop("label")
         return values
@@ -150,7 +150,7 @@ class AggregateDataset(ABC):
                     if not latest_creation or latest_creation < created:
                         latest_creation = created
                         latest_dataset = filepath
-                        tables = description["tables"].keys()
+                        tables = list(description["tables"].keys())
 
         except Exception as e:
             raise FWDatasetError(f"Failed to inspect '{filepath}': {e}") from e
@@ -174,7 +174,6 @@ class AggregateDataset(ABC):
         table: str,
         aggregate_dir: Path,
         file_prefix: str = "aggregate_",
-        batch_size: int = 100_000,
     ) -> Path:
         """Abstract method to handle the download and aggregation step for a
         single table."""
@@ -190,7 +189,6 @@ class ParquetAggregateDataset(AggregateDataset):
         table: str,
         aggregate_dir: Path,
         file_prefix: str = "aggregate_",
-        batch_size: int = 100_000,
     ) -> Path:
         """Download and write the specified table into the open table writer.
         Assumes under tables/ directory, and contains parquets.
@@ -200,7 +198,6 @@ class ParquetAggregateDataset(AggregateDataset):
             aggregate_dir: Target directory to write aggregate results to
             file_prefix: Prefix to give the resulting aggregate file.
                 The table name will be appended to it.
-            batch_size: batch size for streaming data
 
         Returns:
             Path to the aggregate file
