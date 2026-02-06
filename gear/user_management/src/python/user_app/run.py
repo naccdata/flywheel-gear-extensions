@@ -1,6 +1,7 @@
 """The run script for the user management gear."""
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from botocore.exceptions import ClientError
@@ -48,8 +49,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self,
         admin_id: str,
         client: ClientWrapper,
-        user_filepath: str,
-        auth_filepath: str,
+        user_filepath: Path,
+        auth_filepath: Path,
         email_source: str,
         comanage_config: Configuration,
         comanage_coid: int,
@@ -122,7 +123,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         redcap_param_repo = cls._create_redcap_repository(context, parameter_store)
 
         return UserManagementVisitor(
-            admin_id=context.config.get("admin_group", "nacc"),
+            admin_id=context.config.opts.get("admin_group", "nacc"),
             client=client,
             user_filepath=user_filepath,
             auth_filepath=auth_filepath,
@@ -134,7 +135,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 password=comanage_parameters["apikey"],
             ),
             redcap_param_repo=redcap_param_repo,
-            notification_mode=context.config.get("notification_mode", "none"),
+            notification_mode=context.config.opts.get("notification_mode", "none"),
             portal_url=portal_url["url"],
             support_emails=support_emails,
         )
@@ -154,7 +155,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         Raises:
             GearExecutionError: If the configuration value is missing
         """
-        value = context.config.get(key)
+        value = context.config.opts.get(key)
         if not value:
             raise GearExecutionError(f"No {description}")
         return value
@@ -182,7 +183,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             ) from error
 
     @staticmethod
-    def _get_input_filepaths(context: GearContext) -> tuple[str, str]:
+    def _get_input_filepaths(context: GearContext) -> tuple[Path, Path]:
         """Validate and retrieve input file paths from context.
 
         Args:
@@ -194,11 +195,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
         Raises:
             GearExecutionError: If required file paths are missing
         """
-        user_filepath = context.get_input_path("user_file")
+        user_filepath = context.config.get_input_path("user_file")
         if not user_filepath:
             raise GearExecutionError("No user directory file provided")
 
-        auth_filepath = context.get_input_path("auth_file")
+        auth_filepath = context.config.get_input_path("auth_file")
         if not auth_filepath:
             raise GearExecutionError("No user role file provided")
 
@@ -234,7 +235,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         Raises:
             GearExecutionError: If repository creation fails
         """
-        redcap_path = context.config.get("redcap_parameter_path", "/redcap/aws")
+        redcap_path = context.config.opts.get("redcap_parameter_path", "/redcap/aws")
         try:
             redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
                 param_store=parameter_store, base_path=redcap_path
@@ -348,7 +349,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             )
             raise GearExecutionError(notification_error) from notification_error
 
-    def __get_user_queue(self, user_file_path: str) -> UserQueue[UserEntry]:
+    def __get_user_queue(self, user_file_path: Path) -> UserQueue[UserEntry]:
         """Get the active user objects from the user file.
 
         Args:
@@ -385,7 +386,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
         return user_list
 
-    def __get_auth_map(self, auth_file_path: str) -> AuthMap:
+    def __get_auth_map(self, auth_file_path: Path) -> AuthMap:
         """Get the authorization map from the auth file.
 
         Args:

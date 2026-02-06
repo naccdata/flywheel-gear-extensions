@@ -87,7 +87,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         collector = UserEventCollector()
 
         # Get notification configuration (required)
-        notifications_path = context.config.get(
+        notifications_path = context.config.opts.get(
             "notifications_path", "/prod/notifications"
         )
         if not notifications_path:

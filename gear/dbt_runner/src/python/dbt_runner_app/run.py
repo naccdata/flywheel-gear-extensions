@@ -66,15 +66,15 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not dbt_project_zip:
             raise GearExecutionError("DBT project zip required")
 
-        source_prefixes = context.config.get("source_prefixes", None)
-        output_prefix = context.config.get("output_prefix", None)
+        source_prefixes = context.config.opts.get("source_prefixes", None)
+        output_prefix = context.config.opts.get("output_prefix", None)
 
         if not source_prefixes:
             raise GearExecutionError("source_prefix required")
         if not output_prefix:
             raise GearExecutionError("output_prefix required")
 
-        debug = context.config.get("debug", False)
+        debug = context.config.opts.get("debug", False)
         if debug:
             log.setLevel(logging.DEBUG)
             log.info("Set logging level to DEBUG")
