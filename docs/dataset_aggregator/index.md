@@ -2,7 +2,10 @@
 
 Aggregates most recent FW datasets across centers. Removes duplicates caused by transferred participants.
 
-Results get written to `{output_prefix}/{timestamp}`, e.g. `my-bucket/target-prefix/`
+Results get written to `{output_prefix}/%Y%m%d-%H%M%S` for each table, e.g.
+
+* `my-bucket/target-prefix/20260206-100129`
+* `my-bucket/target-prefix/20260206-100129/my-table/aggregate_result.parquet` for a specific table
 
 ## Workflow
 
@@ -17,10 +20,10 @@ Then for each grouping, perform the download aggregation per table.
 For each table:
 
 1. Stream and append each center's data for that table (if it exists) into an open file handler.
-2. Inspect the aggregated tables for transfer duplicates
+2. Inspect the aggregated table for transfer duplicates
     1. If detected, find the current ADCID for all all transfer duplicates by querying the Identifiers API by NACCID
     2. Remove rows corresponding to the old ADCID
-5. Upload the aggregated table to S3; note the current timestamp will be appended to the output prefix as `/%Y%m%d-%H%M%S`
+5. Upload the aggregated table to S3. The current timestamp will be appended to the output prefix as `{output_prefix}/%Y%m%d-%H%M%S`
 
 
 ## Assumptions
@@ -34,8 +37,8 @@ dataset
     bucket: bucket
     prefix: prefix
     storage_id: registered FW storage ID
-    storage_label: registered FW storage label
-    type: storage type (usually S3)
+    storage_label: registered FW storage label. in some new ETLs this is changed to just `label`
+    type: storage type (must be S3)
 ```
 
 Additionally, it assumes all datasets belong to the same bucket, and that the files can be cleanly merged without conflict.
@@ -44,6 +47,6 @@ In terms of the FW dataset itself, it assumes there is only one parquet per tabl
 
 ## Other Notes
 
-Flywheel does have its own library (`fw-dataset`) to access and work with FW datasets. However at the time of writing this package causes multiple versioning conflicts with our current repo, and it was also restricting all read/writes to external storages defined within Flywheel (as opposed to any S3 location).
+Flywheel does have its own library (`fw-dataset`) to access and work with FW datasets. However at the time of writing this package causes multiple versioning conflicts with our current repo, and it was also restricting all read/writes to external storages defined within Flywheel (as opposed to any S3 location, which is more a problem on the output side since we need to write to non-FW storage locations).
 
-As such, we are instead using a combination of our own `AggregateDataset` and `S3BucketInterface` classes.
+As such, we are using a combination of our own `AggregateDataset` and `S3BucketInterface` classes instead.
