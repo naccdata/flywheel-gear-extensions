@@ -2,7 +2,7 @@
     "name": "pull-directory",
     "label": "Pull Directory",
     "description": "Pull user information from NACC directory and save to admin project",
-    "version": "2.1.2",
+    "version": "2.3.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/pull-directory:2.1.2"
+            "image": "naccdata/pull-directory:2.3.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -42,6 +42,11 @@
             "description": "Parameter path for NACC directory",
             "type": "string",
             "default": "/prod/flywheel/gearbot/naccdirectory"
+        },
+        "notifications_path": {
+            "description": "Parameter path for notification configuration (sender and support emails)",
+            "type": "string",
+            "default": "/prod/notifications"
         }
     },
     "command": "/bin/run"

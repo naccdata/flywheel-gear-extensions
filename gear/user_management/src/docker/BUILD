@@ -4,5 +4,5 @@ docker_image(
     name="user-management",
     source="Dockerfile",
     dependencies=[":manifest", "gear/user_management/src/python/user_app:bin"],
-    image_tags=["3.1.1", "latest"],
+    image_tags=["3.3.0", "latest"],
 )

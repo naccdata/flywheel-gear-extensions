@@ -2,6 +2,34 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.3.0
+
+* Adds automatic notification batching to handle large error notifications
+* Splits notifications exceeding AWS SES 256 KB limit into multiple emails
+* Adds batch indicators (e.g., "batch 1/3") to batched notifications
+* Prevents notification failures when processing many directory entries with errors
+
+## 2.2.2
+
+* Fixes email notification template to display affected user count and list
+* Adds `affected_users_count` field to notification data model
+* Updates AWS SES template documentation with correct variable names
+* Adds section to list individual affected user emails in notifications
+
+## 2.2.1
+
+* Consolidates notification parameter configuration to use single path `/prod/notifications`
+* Updates `NotificationParameters` to include both `sender` and `support_emails` as required fields
+* Renames `sender_path` parameter to `notifications_path` in manifest
+* Removes redundant `support_emails_path` parameter
+
+## 2.2.0
+
+* Adds automated error notification system with consolidated email notifications to support staff
+* Adds event collection and categorization for directory processing errors
+* Adds support for configurable support email addresses via Parameter Store
+* Adds integration tests for error handling scenarios
+
 ## 2.1.2
 
 * Fixes how authorization for genetic data maps to apoe, so study is set to ncrad.
