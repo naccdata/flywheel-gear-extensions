@@ -6,7 +6,7 @@ from multiprocessing.pool import Pool
 import os
 from typing import List
 
-from curator.curator import Curator
+from curator.curator import Curator, ProjectCurationError
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel.models.subject import Subject
 from fw_gear import GearContext
@@ -41,22 +41,34 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
     global curator
     assert curator, "curator object expected"
 
-    heap = MinHeap[FileModel]()
     with curator.read_dataview(subject.id) as response:
         response_data = response.read()
         try:
             response_model = ViewResponseModel.model_validate_json(response_data)
         except ValidationError as error:
-            curator.add_curation_failure(subject, str(error))
-            return heap
+            raise ProjectCurationError(
+                f"Error curating subject {subject.label}: {error}"
+            ) from error
+
+    # associate UDS sessions; fail whole subject if a duplicate session is found
+    heap = MinHeap[FileModel]()
+    try:
+        response_model.associate_uds_session()
+    except ValueError as error:
+        log.warning(f"{subject.label}: {error}")
+        # clear out curation tags on all files
+        for file_model in response_model.data:
+            curator.clear_curation_tag(file_model)
+
+        return heap
 
     log.debug("Curating %s files in for %s", len(response_model.data), subject.label)
-    for file_info in response_model.data:
-        if not file_info.visit_pass:
-            log.warning("ignoring unexpected file %s", file_info.filename)
+    for file_model in response_model.data:
+        if not file_model.visit_pass:
+            log.warning("ignoring unexpected file %s", file_model.filename)
             continue
 
-        heap.push(file_info)
+        heap.push(file_model)
 
     return heap
 

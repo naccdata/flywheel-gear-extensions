@@ -245,22 +245,6 @@ class FormCurator(Curator):
                 copy.deepcopy(table["file.info.forms.json"]),
             )
 
-    def __handle_failed_file(self, file_model: FileModel, reason: str) -> None:
-        """Handle when a file fails curation. Needs to both remove the curation
-        tag and add it to the failed files.
-
-        Args:
-            file_model: The file that failed
-            reason: The reason why the file failed
-        """
-        # remove tag if in file_entry
-        if self.curation_tag in file_model.file_tags:
-            file_entry = self.sdk_client.get_file(file_model.file_id)
-            file_entry.delete_tag(self.curation_tag)
-            file_model.file_tags.remove(self.curation_tag)
-
-        self.add_curation_failure(file_model, reason)
-
     def execute(
         self,
         subject: Subject,
@@ -282,7 +266,7 @@ class FormCurator(Curator):
         # check this file actually passed QC
         if not self.__ignore_qc and not self.check_qc(table, scope):
             log.error(f"File {filename} did not pass QC; skipping")
-            self.__handle_failed_file(file_model, "failed_qc")
+            self.handle_curation_failure(file_model, "failed_qc")
             return False
 
         try:
@@ -291,7 +275,7 @@ class FormCurator(Curator):
             self.__file_missingness.curate(table, scope)
         except (AttributeDeriverError, MissingRequiredError, ProjectCurationError) as e:
             log.error(f"Failed to curate {filename}: {e}")
-            self.__handle_failed_file(file_model, str(e))
+            self.handle_curation_failure(file_model, str(e))
             return False
 
         # keep track of the last succesful curation
@@ -431,7 +415,7 @@ class FormCurator(Curator):
                 + f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}"
             )
 
-            self.add_curation_failure(subject, str(e))
+            self.handle_curation_failure(subject, str(e))
             return False
 
         # 2. run subject-level missingness curation
@@ -451,7 +435,7 @@ class FormCurator(Curator):
                     "Failed to apply subject-level missingness to "
                     + f"{subject.label} on scope {scope.value}: {e}"
                 )
-                self.add_curation_failure(subject, str(e))
+                self.handle_curation_failure(subject, str(e))
                 return False
 
         return True

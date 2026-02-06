@@ -285,13 +285,18 @@ class ViewResponseModel(BaseModel):
         """
         return [row for row in data if any(x is not None for x in row.values())]
 
-    @model_validator(mode="after")
-    def associate_uds_session(self) -> "ViewResponseModel":
+    def associate_uds_session(self) -> None:
         """Link all files belonging to a single UDS session and setting the
         uds_visitdate parameter.
 
         Mainly done to associate the MEDS file, which may not have the
-        same form date as the UDS visit.
+        same form date as the UDS visit. This is also a way to detect
+        duplicate sessions that can result from new updates changing
+        the session visit number.
+
+        The reason we call this directly instead of having it automatically
+        run after model creation is because we do still want to know what
+        files were pulled; if we fail on validation we lose that information.
         """
         # get UDS sessions; there should be exactly one per vistdate,
         # so sanity check that as well
@@ -313,5 +318,3 @@ class ViewResponseModel(BaseModel):
             uds_visitdate = uds_sessions.get(file.session_id)
             if uds_visitdate:
                 file.set_uds_visitdate(uds_visitdate)
-
-        return self

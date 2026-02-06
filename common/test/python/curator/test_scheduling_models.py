@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 import pytest
 from curator.scheduling_models import FileModel, ViewResponseModel
 from nacc_attribute_deriver.utils.scope import FormScope
-from pydantic import ValidationError
 
 
 def fm(
@@ -226,8 +225,9 @@ class TestViewResponseModel:
             raw_fm("NACCXXX_FORMS-VISIT-5_UDS.json", visitdate="2005-01-01"),
         ]
 
-        with pytest.raises(ValidationError) as e:
-            ViewResponseModel(data=file_models)
+        response_model = ViewResponseModel(data=file_models)
+        with pytest.raises(ValueError) as e:
+            response_model.associate_uds_session()
 
         assert "Multiple UDS sessions defined for visitdate 2002-01-01" in str(e.value)
 
@@ -298,6 +298,7 @@ class TestViewResponseModel:
         ]
 
         response_model = ViewResponseModel(data=file_models)
+        response_model.associate_uds_session()
         assert len(response_model.data) == 11
 
         for file in response_model.data:

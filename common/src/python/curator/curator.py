@@ -68,7 +68,9 @@ class Curator(ABC):
         """
         self.__sdk_client = context.get_client()
 
-    def add_curation_failure(self, container: Subject | FileModel, reason: str) -> None:
+    def handle_curation_failure(
+        self, container: Subject | FileModel, reason: str
+    ) -> None:
         """Creates a curation failure dict from either a Subject or FileModel.
 
         Needs to be picklelable.
@@ -79,10 +81,20 @@ class Curator(ABC):
                 "id": container.file_id,
                 "reason": reason,
             }
+
+            self.clear_curation_tag(container)
         else:
             error = {"name": container.label, "id": container.id, "reason": reason}  # type: ignore
 
         self.__failed_files.append(error)
+
+    @api_retry
+    def clear_curation_tag(self, file_model: FileModel) -> None:
+        """Clear the curation tag, if it exists."""
+        if self.curation_tag in file_model.file_tags:
+            file_entry = self.sdk_client.get_file(file_model.file_id)
+            file_entry.delete_tag(self.curation_tag)
+            file_model.file_tags.remove(self.curation_tag)
 
     @api_retry
     def read_dataview(self, subject_id: str) -> StreamReader:
