@@ -2,11 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.2
+## 1.3.0
 
 * Updates `nacc-attribute-deriver` to `2.1.2` which mainly changes where the deriver gets the MEDS visitdate
 * Updates to drop and report error when two forms in the same scope have the same visitdate
 * Adds `_uds_visitdate` to table for scopes in the same session as an UDS visit
+* Refactors scheduling models to separate raw data model dumping and post-computation for dates/scopes/etc.
 
 ## 1.2.1
 

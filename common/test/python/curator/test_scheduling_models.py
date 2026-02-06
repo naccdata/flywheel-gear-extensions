@@ -3,8 +3,10 @@
 from datetime import date
 from typing import Any, Dict, Optional
 
+import pytest
 from curator.scheduling_models import FileModel, ViewResponseModel
 from nacc_attribute_deriver.utils.scope import FormScope
+from pydantic import ValidationError
 
 
 def fm(
@@ -58,12 +60,8 @@ class TestFileModel:
             scandt="1994-05-05",
             img_study_date="1995-06-06",
         )
-        assert file_model.visitdate == date(1990, 1, 1)
-        assert file_model.study_date == date(1991, 2, 2)
-        assert file_model.scan_date == date(1992, 3, 3)
-        assert file_model.scandate == date(1993, 4, 4)
-        assert file_model.scandt == date(1994, 5, 5)
-        assert file_model.img_study_date == date(1995, 6, 6)
+        # picks the first one
+        assert file_model.file_date == date(1990, 1, 1)
 
     def test_visit_pass(self):
         """Test the visit_pass property works as expected."""
@@ -218,9 +216,8 @@ def raw_fm(filename: str, **kwargs) -> Dict[str, Any]:
 
 
 class TestViewResponseModel:
-    def test_remove_duplicates(self):
-        """Test duplicate visitdates are removed as expected."""
-        # visit 2/3 have the same visitdates
+    def test_duplicates_raise_error(self):
+        """Test duplicate raise a validation error."""
         file_models = [
             raw_fm("NACCXXX_FORMS-VISIT-1_UDS.json", visitdate="2001-01-01"),
             raw_fm("NACCXXX_FORMS-VISIT-2_UDS.json", visitdate="2002-01-01"),
@@ -229,18 +226,10 @@ class TestViewResponseModel:
             raw_fm("NACCXXX_FORMS-VISIT-5_UDS.json", visitdate="2005-01-01"),
         ]
 
-        response_model = ViewResponseModel(data=file_models)
-        assert len(response_model.data) == 3
-        assert response_model.invalid_visits and len(response_model.invalid_visits) == 2
+        with pytest.raises(ValidationError) as e:
+            ViewResponseModel(data=file_models)
 
-        removed_files = [
-            "NACCXXX_FORMS-VISIT-2_UDS.json",
-            "NACCXXX_FORMS-VISIT-3_UDS.json",
-        ]
-        for file in response_model.data:
-            assert file.filename not in removed_files
-        for file in response_model.invalid_visits:
-            assert file.filename in removed_files
+        assert "Multiple UDS sessions defined for visitdate 2002-01-01" in str(e.value)
 
     def test_same_visidates_different_scopes(self):
         """Test visits have same date but belong to different scopes.
@@ -263,11 +252,10 @@ class TestViewResponseModel:
 
         response_model = ViewResponseModel(data=file_models)
         assert len(response_model.data) == 11
-        assert response_model.invalid_visits is None
 
         unique_scopes = set()
         for file in response_model.data:
-            assert str(file.visitdate) == "2001-01-01"
+            assert str(file.file_date) == "2001-01-01"
             unique_scopes.add(file.scope)
 
         assert len(unique_scopes) == 11
@@ -276,7 +264,7 @@ class TestViewResponseModel:
         """Test certain files are associated with an uds session."""
         file_models = [
             # files expected to be associated with an uds session. In theory they
-            # will all  have the same visitdate, but for sake of testing pretend
+            # will all have the same visitdate, but for sake of testing pretend
             # they're not; for MEDS in particular it does not have a specific visitdate,
             # only the formdate, which may not correspond
             raw_fm(
@@ -311,7 +299,6 @@ class TestViewResponseModel:
 
         response_model = ViewResponseModel(data=file_models)
         assert len(response_model.data) == 11
-        assert response_model.invalid_visits is None
 
         for file in response_model.data:
             if file.scope in [
@@ -320,12 +307,12 @@ class TestViewResponseModel:
                 FormScope.LBD,
                 FormScope.FTLD,
             ]:
-                assert str(file.uds_visitdate) == "1990-01-01"
+                assert file.uds_visitdate == "1990-01-01"
 
-                # make sure visitdates are retained
+                # make sure file_date are retained
                 if file.scope != FormScope.UDS:
-                    assert str(file.visitdate) != "1990-01-01"
+                    assert str(file.file_date) != "1990-01-01"
                 else:
-                    assert str(file.visitdate) == "1990-01-01"
+                    assert str(file.file_date) == "1990-01-01"
             else:
                 assert file.uds_visitdate is None

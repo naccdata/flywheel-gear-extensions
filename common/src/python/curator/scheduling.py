@@ -6,7 +6,7 @@ from multiprocessing.pool import Pool
 import os
 from typing import List
 
-from curator.curator import Curator, ProjectCurationError
+from curator.curator import Curator
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel.models.subject import Subject
 from fw_gear import GearContext
@@ -41,18 +41,16 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
     global curator
     assert curator, "curator object expected"
 
+    heap = MinHeap[FileModel]()
     with curator.read_dataview(subject.id) as response:
         response_data = response.read()
         try:
             response_model = ViewResponseModel.model_validate_json(response_data)
         except ValidationError as error:
-            raise ProjectCurationError(
-                f"Error curating subject {subject.label}: {error}"
-            ) from error
+            curator.add_curation_failure(subject, str(error))
+            return heap
 
     log.debug("Curating %s files in for %s", len(response_model.data), subject.label)
-
-    heap = MinHeap[FileModel]()
     for file_info in response_model.data:
         if not file_info.visit_pass:
             log.warning("ignoring unexpected file %s", file_info.filename)

@@ -6,18 +6,19 @@ from typing import Any, Dict, List, Literal, Optional
 
 from data.dataview import ColumnModel, make_builder
 from flywheel import DataView
-from flywheel.models.subject import Subject
 from nacc_attribute_deriver.utils.scope import (
     FormScope,
     ScopeLiterals,
 )
 from pydantic import (
     BaseModel,
-    Field,
-    ValidationError,
+    PrivateAttr,
     field_validator,
     model_validator,
 )
+
+ALL_FORM_SCOPES = frozenset(e.value for e in FormScope)
+VISIT_PASS_LITERALS = Literal["pass0", "pass1", "pass2", "pass3"]
 
 VISIT_PATTERN = re.compile(
     r"^"
@@ -66,12 +67,10 @@ SCOPE_PATTERN = re.compile(
 
 
 class FileModel(BaseModel):
-    """Defines data model for columns returned from the project form curator
-    data model.
+    """Defines the data model for columns returned from the project form
+    curator data view execution, plus some computed fields."""
 
-    Objects are ordered by order date.
-    """
-
+    # from data view execution
     filename: str
     file_id: str
     file_info: Dict[str, Any]
@@ -79,19 +78,55 @@ class FileModel(BaseModel):
     session_id: str
     modified_date: date
 
-    # determined from file_info
-    visitdate: Optional[date] = Field(default=None, init=False)
-    study_date: Optional[date] = Field(default=None, init=False)
-    scan_date: Optional[date] = Field(default=None, init=False)
-    scandate: Optional[date] = Field(default=None, init=False)
-    scandt: Optional[date] = Field(default=None, init=False)
-    img_study_date: Optional[date] = Field(default=None, init=False)
+    # private attributes to be computed
+    _file_date: Optional[date] = PrivateAttr(default=None)
+    _scope: Optional[ScopeLiterals] = PrivateAttr(default=None)
+    _visit_pass: Optional[VISIT_PASS_LITERALS] = PrivateAttr(default=None)
+    _uds_visitdate: Optional[str] = PrivateAttr(default=None)
 
-    # determined from filename
-    scope: Optional[ScopeLiterals] = Field(default=None, init=False)
+    @property
+    def file_date(self) -> date:
+        if not self._file_date:
+            raise ValueError(
+                f"file {self.filename} {self.file_id} has no associated date"
+            )
 
-    # updated if there is a corresponding UDS visit with the same session
-    uds_visitdate: Optional[date] = Field(default=None, init=False)
+        return self._file_date
+
+    @property
+    def scope(self) -> Optional[ScopeLiterals]:
+        return self._scope
+
+    @property
+    def visit_pass(self) -> Optional[VISIT_PASS_LITERALS]:
+        return self._visit_pass
+
+    @property
+    def uds_visitdate(self) -> Optional[str]:
+        return self._uds_visitdate
+
+    @classmethod
+    def create_dataview(cls, filename_patterns: List[str]) -> DataView:
+        """Create DataView corresponding to FileModels."""
+        builder = make_builder(
+            label="Curation DataView",
+            description="Curation DataView for FileModels",
+            columns=[
+                ColumnModel(data_key="file.name", label="filename"),
+                ColumnModel(data_key="file.file_id", label="file_id"),
+                ColumnModel(data_key="file.tags", label="file_tags"),
+                ColumnModel(data_key="file.info", label="file_info"),
+                ColumnModel(data_key="file.modified", label="modified_date"),
+                ColumnModel(data_key="file.parents.session", label="session_id"),
+            ],
+            container="acquisition",
+            missing_data_strategy="none",
+        )
+        if filename_patterns:
+            builder.file_filter(value="|".join(filename_patterns), regex=True)
+            builder.file_container("acquisition")
+
+        return builder.build()
 
     @classmethod
     def __check_date(cls, value: Optional[str | date]) -> Optional[date]:
@@ -112,48 +147,63 @@ class FileModel(BaseModel):
     def datetime_to_date(cls, value: str | date) -> date:
         result = cls.__check_date(value)
         if not result:
-            raise ValidationError("modified date not found")
+            raise ValueError("modified date not found")
 
         return result
 
     @model_validator(mode="after")
-    def set_dates(self) -> "FileModel":
-        """Set the dates that come from file.info."""
-        form_data = self.file_info.get("forms", {}).get("json", {})
-        raw_data = self.file_info.get("raw", {})
-        dicom_data = self.file_info.get("header", {}).get("dicom", {})
-
-        self.visitdate = self.__check_date(form_data.get("visitdate"))
-        self.study_date = self.__check_date(raw_data.get("study_date"))
-        self.scan_date = self.__check_date(raw_data.get("scan_date"))
-        self.scandate = self.__check_date(raw_data.get("scandate"))
-        self.scandt = self.__check_date(raw_data.get("scandt"))
-        self.img_study_date = self.__check_date(dicom_data.get("StudyDate"))
+    def compute_values(self) -> "FileModel":
+        """Compute values that need to be derived from other fields."""
+        self._file_date = self.__determine_file_date()
+        self._scope = self.__determine_scope()
+        self._visit_pass = self.__determine_visit_pass()
 
         return self
 
-    @model_validator(mode="after")
-    def determine_scope(self) -> "FileModel":
+    def __determine_scope(self) -> Optional[ScopeLiterals]:
         """Determine the file's scope."""
         if "historic_apoe_genotype" in self.filename:
-            self.scope = "historic_apoe"
-            return self
+            return "historic_apoe"
 
         match = SCOPE_PATTERN.match(self.filename)
         if not match:
-            self.scope = None
-            return self
+            return None
 
         groups = match.groupdict()
         names = {key for key in groups if groups.get(key) is not None}
         if len(names) != 1:
-            raise ValidationError(f"error matching file name {self.filename} to scope")
+            raise ValueError(f"error matching file name {self.filename} to scope")
 
-        self.scope = names.pop()  # type: ignore
-        return self
+        return names.pop()  # type: ignore
 
-    @property
-    def visit_pass(self) -> Optional[Literal["pass0", "pass1", "pass2", "pass3"]]:
+    def __determine_file_date(self) -> date:
+        """Determine the file/form date that best represents this file.
+
+        First check known form dates, then known imaging dates, then
+        default to the modified date.
+        """
+        form_data = self.file_info.get("forms", {}).get("json", {})
+        for field in ["visitdate"]:
+            form_date = self.__check_date(form_data.get(field))
+            if form_date:
+                return form_date
+
+        raw_data = self.file_info.get("raw", {})
+        for field in ["study_date", "scan_date", "scandate", "scandt"]:
+            raw_date = self.__check_date(raw_data.get(field))
+            if raw_date:
+                return raw_date
+
+        dicom_data = self.file_info.get("header", {}).get("dicom", {})
+        for field in ["StudyDate"]:
+            dicom_date = self.__check_date(dicom_data.get(field))
+            if dicom_date:
+                return dicom_date
+
+        # default is just the file's actual upload/modified date
+        return self.modified_date
+
+    def __determine_visit_pass(self) -> Optional[VISIT_PASS_LITERALS]:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -185,33 +235,9 @@ class FileModel(BaseModel):
 
         return names.pop()  # type: ignore
 
-    @property
-    def order_date(self) -> date:
-        """Returns the date to be used for ordering this file.
-
-        Checks for form visit date, then scan date, and then file modification date.
-
-        Returns:
-          the date to be used to compare this file for ordering
-        """
-        if self.visitdate:
-            return self.visitdate
-        if self.study_date:
-            return self.study_date
-        if self.scan_date:
-            return self.scan_date
-        if self.scandate:
-            return self.scandate
-        if self.scandt:
-            return self.scandt
-        if self.img_study_date:
-            return self.img_study_date
-        if self.uds_visitdate:
-            return self.uds_visitdate
-        if self.modified_date:
-            return self.modified_date
-
-        raise ValueError(f"file {self.filename} {self.file_id} has no associated date")
+    def set_uds_visitdate(self, uds_visitdate: str) -> None:
+        """Set the UDS visitdate."""
+        self._uds_visitdate = uds_visitdate
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, FileModel):
@@ -238,37 +264,14 @@ class FileModel(BaseModel):
         if self.visit_pass < other.visit_pass:
             return False
 
-        return self.order_date < other.order_date
-
-    @classmethod
-    def create_dataview(cls, filename_patterns: List[str]) -> DataView:
-        """Create DataView corresponding to FileModels."""
-        builder = make_builder(
-            label="Curation DataView",
-            description="Curation DataView for FileModels",
-            columns=[
-                ColumnModel(data_key="file.name", label="filename"),
-                ColumnModel(data_key="file.file_id", label="file_id"),
-                ColumnModel(data_key="file.tags", label="file_tags"),
-                ColumnModel(data_key="file.info", label="file_info"),
-                ColumnModel(data_key="file.modified", label="modified_date"),
-                ColumnModel(data_key="file.parents.session", label="session_id"),
-            ],
-            container="acquisition",
-            missing_data_strategy="none",
-        )
-        if filename_patterns:
-            builder.file_filter(value="|".join(filename_patterns), regex=True)
-            builder.file_container("acquisition")
-
-        return builder.build()
+        return self.file_date < other.file_date
 
 
 class ViewResponseModel(BaseModel):
-    """Defines the data model for a dataview response."""
+    """Defines the data model for a dataview response, and handles sanitizing
+    the data."""
 
     data: List[FileModel]
-    invalid_visits: Optional[List[FileModel]] = Field(default=None, init=False)
 
     @field_validator("data", mode="before")
     def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -283,55 +286,32 @@ class ViewResponseModel(BaseModel):
         return [row for row in data if any(x is not None for x in row.values())]
 
     @model_validator(mode="after")
-    def sanitize_data(self) -> "ViewResponseModel":
-        """Remove duplicates, e.g. two forms with the same visitdate in the
-        same scope, which isn't allowed to happen, then link files with a
-        corresponding UDS session."""
-        counts: Dict[ScopeLiterals, Dict[date, int]] = {}
-        uds_sessions: Dict[str, date] = {}
+    def associate_uds_session(self) -> "ViewResponseModel":
+        """Link all files belonging to a single UDS session and setting the
+        uds_visitdate parameter.
 
+        Mainly done to associate the MEDS file, which may not have the
+        same form date as the UDS visit.
+        """
+        # get UDS sessions; there should be exactly one per vistdate,
+        # so sanity check that as well
+        uds_sessions: Dict[str, str] = {}
+        found_visitdates = set()
         for file in self.data:
-            if file.visitdate:
-                scope = file.scope
-                visitdate = file.visitdate
+            if file.scope == FormScope.UDS:
+                visitdate = str(file.file_date)
+                if visitdate in found_visitdates:
+                    raise ValueError(
+                        f"Multiple UDS sessions defined for visitdate {visitdate}"
+                    )
 
-                if scope not in counts:
-                    counts[scope] = {}
+                uds_sessions[file.session_id] = visitdate
+                found_visitdates.add(visitdate)
 
-                current_count = counts[scope].get(visitdate, 0)
-                counts[scope][visitdate] = current_count + 1
-
-                if scope == FormScope.UDS:
-                    uds_sessions[file.session_id] = visitdate
-
-        # collapse to visitdates where count is > 2
-        conflicting_visits = {}
-        for scope, scope_counts in counts.items():
-            conflicting_visits[scope] = [
-                visitdate for visitdate, count in scope_counts.items() if count > 1
-            ]
-
-        # move any where count > 1 to invalid visits
-        filtered_data = []
+        # link the UDS visitdate to each associated file in the same session
         for file in self.data:
-            if file.visitdate not in conflicting_visits.get(file.scope, []):
-                file.uds_visitdate = uds_sessions.get(file.session_id, None)
-                filtered_data.append(file)
-            else:
-                if self.invalid_visits is None:
-                    self.invalid_visits = []
+            uds_visitdate = uds_sessions.get(file.session_id)
+            if uds_visitdate:
+                file.set_uds_visitdate(uds_visitdate)
 
-                self.invalid_visits.append(file)
-
-        self.data = filtered_data
         return self
-
-
-def generate_curation_failure(
-    container: Subject | FileModel, reason: str
-) -> Dict[str, str]:
-    """Creates a curation failure dict from either a subject or file."""
-    if isinstance(container, FileModel):
-        return {"name": container.filename, "id": container.file_id, "reason": reason}
-
-    return {"name": container.label, "id": container.id, "reason": reason}  # type: ignore

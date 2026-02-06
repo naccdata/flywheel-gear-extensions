@@ -2,12 +2,10 @@ import copy
 import importlib.metadata
 import logging
 import typing as typing
-from multiprocessing import Manager
-from multiprocessing.managers import ListProxy
 from typing import Any, Dict, List, MutableMapping, Optional
 
 from curator.curator import Curator, ProjectCurationError
-from curator.scheduling_models import FileModel, generate_curation_failure
+from curator.scheduling_models import FileModel
 from flywheel import DataView
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -70,8 +68,6 @@ class FormCurator(Curator):
         self.__prev_record = None
         self.__prev_scope = None
 
-        self.__failed_files = Manager().list()
-
         # get expected cross-sectional derived variables by scope
         self.__scoped_variables = {
             scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
@@ -128,10 +124,6 @@ class FormCurator(Curator):
             for x in attributes
             if x.startswith(parent_location)
         ]
-
-    @property
-    def failed_files(self) -> ListProxy:
-        return self.__failed_files
 
     def get_table(
         self, subject: Subject, subject_table: SymbolTable, file_entry: FileEntry
@@ -267,7 +259,7 @@ class FormCurator(Curator):
             file_entry.delete_tag(self.curation_tag)
             file_model.file_tags.remove(self.curation_tag)
 
-        self.__failed_files.append(generate_curation_failure(file_model, reason))
+        self.add_curation_failure(file_model, reason)
 
     def execute(
         self,
@@ -439,7 +431,7 @@ class FormCurator(Curator):
                 + f"{subject.label} on scope {FormScope.CROSS_MODULE.value}: {e}"
             )
 
-            self.__failed_files.append(generate_curation_failure(subject, str(e)))
+            self.add_curation_failure(subject, str(e))
             return False
 
         # 2. run subject-level missingness curation
@@ -459,7 +451,7 @@ class FormCurator(Curator):
                     "Failed to apply subject-level missingness to "
                     + f"{subject.label} on scope {scope.value}: {e}"
                 )
-                self.__failed_files.append(generate_curation_failure(subject, str(e)))
+                self.add_curation_failure(subject, str(e))
                 return False
 
         return True

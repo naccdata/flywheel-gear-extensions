@@ -3,6 +3,8 @@
 import logging
 from abc import ABC, abstractmethod
 from codecs import StreamReader
+from multiprocessing import Manager
+from multiprocessing.managers import ListProxy
 from typing import List, Optional
 
 from flywheel import Client, DataView
@@ -35,6 +37,8 @@ class Curator(ABC):
         self.__force_curate = force_curate
         self.__sdk_client: Client | None = None
 
+        self.__failed_files = Manager().list()
+
     @property
     def sdk_client(self) -> Client:
         if not self.__sdk_client:
@@ -50,6 +54,10 @@ class Curator(ABC):
     def force_curate(self) -> bool:
         return self.__force_curate
 
+    @property
+    def failed_files(self) -> ListProxy:
+        return self.__failed_files
+
     def set_client(self, context: GearContext) -> None:
         """Set the SDK client. For multiprocessing, this client must be
         separate per process, so expected to be set at the worker instantiation
@@ -59,6 +67,22 @@ class Curator(ABC):
             context: Context to set client from
         """
         self.__sdk_client = context.get_client()
+
+    def add_curation_failure(self, container: Subject | FileModel, reason: str) -> None:
+        """Creates a curation failure dict from either a Subject or FileModel.
+
+        Needs to be picklelable.
+        """
+        if isinstance(container, FileModel):
+            error = {
+                "name": container.filename,
+                "id": container.file_id,
+                "reason": reason,
+            }
+        else:
+            error = {"name": container.label, "id": container.id, "reason": reason}  # type: ignore
+
+        self.__failed_files.append(error)
 
     @api_retry
     def read_dataview(self, subject_id: str) -> StreamReader:
