@@ -220,7 +220,8 @@ class S3BucketInterface:
             log.warning(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
         else:
             log.info(
-                f"Found {len(found_keys)} files under {self.__bucket}/{prefix}{with_glob_str}"
+                f"Found {len(found_keys)} files under {self.__bucket}/"
+                + f"{prefix}{with_glob_str}"
             )
 
         return found_keys

@@ -80,19 +80,18 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             identifiers_mode=identifiers_mode,
         )
 
-    def __group_datasets(self, center_ids: List[str]) -> List[AggregateDataset]:
+    def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
         """Get datasets for each center ID by looking up which centers have the
-        specified target project and dataset metadata. Then group by common
-        buckets.
+        specified target project and dataset metadata.
 
         Args:
             center_ids: List of center IDs to aggregate
         Returns:
-            List of AggregateDataset, which contain all datasets for a specific
-                bucket
+            AggregateDataset, which has collected all found datasets
         """
         log.info(f"Looking up dataset metadata for {self.__target_project} projects...")
-        grouped_datasets: Dict[str, Dict[str, FWDataset]] = {}
+        datasets: Dict[str, FWDataset] = {}
+        bucket = None
 
         for center in center_ids:
             try:
@@ -109,48 +108,49 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
                 dataset_metadata = project.info.get("dataset", {})
                 if not dataset_metadata:
                     log.warning(
-                        f"dataset metadata not defined for {center}/{self.__target_project}"
+                        "dataset metadata not defined for "
+                        + f"{center}/{self.__target_project}"
                     )
                     continue
 
                 dataset = FWDataset(**dataset_metadata)
             except (ApiException, ValidationError) as e:
                 raise GearExecutionError(
-                    f"failed to parse dataset metadata for {center}/{self.__target_project}: {e}"
+                    "failed to parse dataset metadata for "
+                    + f"{center}/{self.__target_project}: {e}"
                 ) from e
 
             log.info(f"found dataset metadata for {center}/{self.__target_project}")
+            if not bucket:
+                bucket = dataset.bucket
 
-            if dataset.bucket not in grouped_datasets:
-                grouped_datasets[dataset.bucket] = {}
+            if bucket != dataset.bucket:
+                raise GearExecutionError(
+                    f"Multiple buckets found ({bucket} and {dataset.bucket}); "
+                    + "cannot aggregate"
+                )
 
-            grouped_datasets[dataset.bucket][center] = dataset
+            datasets[center] = dataset
 
-        if not grouped_datasets:
+        if not datasets or not bucket:
             raise GearExecutionError(
                 f"No datasets found in centers for project {self.__target_project}"
             )
 
-        results: List[AggregateDataset] = []
-        for bucket, datasets in grouped_datasets.items():
-            results.append(
-                ParquetAggregateDataset(
-                    bucket=bucket,
-                    project=self.__target_project,
-                    datasets=datasets,
-                )
-            )
-            # TODO: can support other filetypes like csv/json?
-
-        return results
+        # TODO: can support other filetypes like csv/json?
+        return ParquetAggregateDataset(
+            bucket=bucket,
+            project=self.__target_project,
+            datasets=datasets,
+        )
 
     def run(self, context: GearToolkitContext) -> None:
-        grouped_datasets = self.__group_datasets(self.get_center_ids(context))
+        aggregate = self.__group_datasets(self.get_center_ids(context))
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         run(
             context=context,
-            grouped_datasets=grouped_datasets,
+            aggregate=aggregate,
             output_uri=f"{self.__output_uri}/{timestamp}",
             identifiers_mode=self.__identifiers_mode,
             dry_run=self.client.dry_run,

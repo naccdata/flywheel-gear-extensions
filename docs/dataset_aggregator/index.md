@@ -8,18 +8,19 @@ Results get written to `{output_prefix}/{timestamp}`, e.g. `my-bucket/target-pre
 
 1. Look up the target project for each center in the center mapping
 2. Grab the dataset information defined in `project.info.dataset`
-3. Group the found datasets by bucket; it is generally assumed all datasets live in the same bucket, but this is done to handle the case they aren't.
+3. Find the latest version and tables of each dataset. This is done by querying and inspecting all the `dataset_description.json` files from each version and keeping track of the latest one.
 
-Then for each grouping, perform the download aggregation:
+Then for each grouping, perform the download aggregation per table.
 
-1. Find the latest version of each dataset; this is done by querying and inspecting all the `dataset_description.json` files from each version
-2. Iterating over the latest versions, download and aggregate each table into an open file handler. When a table is encountered for the first time, a new file handler is opened for it.
-    1. Once a center has been aggregated, its data is cleaned up immediately to free up disk space
-3. Once all datasets have been downloaded, close the file handlers
-4. Inspect the aggregated tables for transfer duplicates
+> Note we perform an entire `download -> aggregate -> clean -> upload` loop once per table. This is due to the fact that the resulting parquets tend to be exceptionally large, and at the cost of some efficiency it's better to process each table one at a time and clean up as we go instead of trying to process all of them at once, otherwise you risk OOMs. In general much of this code was written to prioritize memory over efficiency.
+
+For each table:
+
+1. Stream and append each center's data for that table (if it exists) into an open file handler.
+2. Inspect the aggregated tables for transfer duplicates
     1. If detected, find the current ADCID for all all transfer duplicates by querying the Identifiers API by NACCID
     2. Remove rows corresponding to the old ADCID
-5. Upload final tables to S3; the current timestamp will be appended to the output prefix as `/%Y%m%d-%H%M%S`
+5. Upload the aggregated table to S3; note the current timestamp will be appended to the output prefix as `/%Y%m%d-%H%M%S`
 
 
 ## Assumptions
@@ -37,7 +38,9 @@ dataset
     type: storage type (usually S3)
 ```
 
-Additionally, it assumes the nature of the files it is aggregating are compatible. For example, one project's UDS parquet table should be able to merge with another center's UDS parquet table without conflicts.
+Additionally, it assumes all datasets belong to the same bucket, and that the files can be cleanly merged without conflict.
+
+In terms of the FW dataset itself, it assumes there is only one parquet per table.
 
 ## Other Notes
 

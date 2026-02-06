@@ -1,18 +1,13 @@
-"""Models to handle FW's datasets.
-
-FW has its own fw-dataset library; however this library causes a lot of
-package versioning conflicts and is also a bit overkill for what we
-generally need, so using our own version here.
-"""
+"""Models to handle FW's datasets."""
 
 import json
 import logging
-import shutil
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 from pydantic import BaseModel, root_validator
 from s3.s3_bucket import S3BucketInterface
@@ -44,8 +39,8 @@ class FWDataset(BaseModel):
     def storage_label_alias(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """storage_label can also be storage, seems to depend on when the
         dataset was made."""
-        if 'storage_label' not in values and 'label' in values:
-            values['storage_label'] = values.pop('label')
+        if "storage_label" not in values and "label" in values:
+            values["storage_label"] = values.pop("label")
         return values
 
 
@@ -71,10 +66,12 @@ class AggregateDataset(ABC):
 
         self.__bucket = bucket
         self.__project = project
-        self.__datasets = datasets
 
         # make interface for the bucket
         self.__s3_interface = S3BucketInterface.create_from_environment(bucket)
+
+        # get latest versions and tables
+        self.__latest_versions, self.__tables = self.__get_latest_versions(datasets)
 
     @property
     def bucket(self) -> str:
@@ -84,13 +81,44 @@ class AggregateDataset(ABC):
     def s3_interface(self) -> S3BucketInterface:
         return self.__s3_interface
 
-    def get_latest_version(self, dataset: FWDataset) -> Optional[str]:
-        """Get latest dataset version under the specified dataset.
+    @property
+    def tables(self) -> Set[str]:
+        return self.__tables
+
+    def __get_latest_versions(
+        self, datasets: Dict[str, FWDataset]
+    ) -> Tuple[Dict[str, str], Set[str]]:
+        """Get latest versions and all tables for all datasets.
+
+        Returns:
+            Mapping of keys to their most recent datasets and a list
+                of all possible tables
+        """
+        log.info(f"Grabbing latest datasets under {self.bucket}...")
+        latest_versions: Dict[str, str] = {}
+        all_tables = set()
+
+        for center, dataset in datasets.items():
+            prefix, tables = self.get_latest_version(dataset)
+            if not prefix:
+                log.warning(f"No latest dataset found for {center}/{self.__project}")
+                continue
+
+            latest_versions[center] = prefix
+            if tables:
+                all_tables.update(tables)
+
+        return latest_versions, all_tables
+
+    def get_latest_version(
+        self, dataset: FWDataset
+    ) -> Tuple[Optional[str], Optional[List[str]]]:
+        """Get latest dataset version and tables under the specified dataset.
 
         Args:
             dataset: FWDataset to find latest version for
         Returns:
-            Prefix of the latest dataset version, if found
+            Prefix of the latest dataset version and its tables, if found
         """
         if dataset.bucket != self.bucket:
             raise FWDatasetError(
@@ -100,6 +128,7 @@ class AggregateDataset(ABC):
         target_path = "/provenance/dataset_description.json"
         latest_creation = None
         latest_dataset = None
+        tables = None
 
         try:
             # iterate over the description JSONs to get the creation dates
@@ -117,43 +146,34 @@ class AggregateDataset(ABC):
                     if not latest_creation or latest_creation < created:
                         latest_creation = created
                         latest_dataset = filepath
+                        tables = description["tables"].keys()
 
         except Exception as e:
             raise FWDatasetError(f"Failed to inspect '{filepath}': {e}") from e
 
         if latest_dataset:
+            # if no tables, not worth keeping track of
+            if not tables:
+                return None, None
+
             # remove target_path suffix to get prefix of version itself
             latest_dataset = latest_dataset.removesuffix(target_path)
-            log.info(f"Found latest dataset: {latest_dataset}")
+            log.info(
+                f"Found latest dataset: {latest_dataset} with {len(tables)} tables"
+            )
 
-        return latest_dataset
-
-    def get_latest_versions(self) -> Dict[str, str]:
-        """Get latest versions for all datasets.
-
-        Returns:
-            Mapping of keys to their most recent datasets
-        """
-        latest_versions: Dict[str, str] = {}
-
-        for center, dataset in self.__datasets.items():
-            prefix = self.get_latest_version(dataset)
-            if not prefix:
-                log.warning(f"No latest dataset found for {center}/{self.__project}")
-                continue
-
-            latest_versions[center] = prefix
-
-        return latest_versions
+        return latest_dataset, tables
 
     @abstractmethod
-    def download_and_aggregate(
+    def aggregate_table(
         self,
+        table: str,
         aggregate_dir: Path,
-        tmp_dir: Path,
-        writers: Dict[str, Any],
-    ) -> None:
-        """Abstract method to handle the download and aggregation step."""
+        file_prefix: str = "aggregate_",
+        batch_size: int = 100_000,
+    ) -> Path:
+        """Abstract method to handle the download and aggregation step for a
+        single table."""
         pass
 
 
@@ -161,60 +181,67 @@ class ParquetAggregateDataset(AggregateDataset):
     """Class to handle specifically downloading table parquets from
     datasets."""
 
-    def download_and_aggregate(
+    def aggregate_table(
         self,
+        table: str,
         aggregate_dir: Path,
-        tmp_dir: Path,
-        writers: Dict[str, Any],
-    ) -> None:
-        """Download and write into the open table writers. Assumes under
-        tables/ directory, and contains parquets.
+        file_prefix: str = "aggregate_",
+        batch_size: int = 100_000,
+    ) -> Path:
+        """Download and write the specified table into the open table writer.
+        Assumes under tables/ directory, and contains parquets.
 
         Args:
+            table: specific table to aggregate
             aggregate_dir: Target directory to write aggregate results to
-            tmp_dir: Tmp directory to write working results to
-            writers: mapping of table to ParquetWriter writer handlers to
-                append results into
+            file_prefix: Prefix to give the resulting aggregate file.
+                The table name will be appended to it.
+            batch_size: batch size for streaming data
+
+        Returns:
+            Path to the aggregate file
         """
-        log.info(f"Grabbing latest datasets under {self.bucket}...")
-        latest_versions = self.get_latest_versions()
+        if table not in self.__tables:
+            raise FWDatasetError(f"Table is not defined in datasets {table}")
 
-        log.info(f"Downloading from {self.bucket} for {len(latest_versions)} centers")
+        log.info(
+            f"Aggregating table {table} from {self.bucket} for "
+            + f"{len(self.__latest_versions)} centers"
+        )
 
-        for center, prefix in latest_versions.items():
-            log.info(f"Downloading data for {center}...")
+        # create file handler
+        aggregate_table_dir = aggregate_dir / "tables" / table
+        aggregate_table_dir.mkdir(parents=True, exist_ok=True)
+        outfile = aggregate_table_dir / f"{file_prefix}{table}"
+        writer = pq.ParquetWriter(outfile)
 
-            center_dir = tmp_dir / center
-            tables_dir = center_dir / "tables"
+        try:
+            for center, prefix in self.__latest_versions.items():
+                log.debug(f"Downloading data for {center}...")
 
-            self.s3_interface.download_files(
-                f"{prefix}/tables", tables_dir, glob="*.parquet"
-            )
+                # assuming there is at most exactly one parquet for the table
+                s3_files = self.s3_interface.list_directory(
+                    f"{prefix}/tables/{table}", glob="*.parquet"
+                )
 
-            for table in tables_dir.iterdir():
-                if not table.is_dir():
+                if not s3_files:
                     continue
 
-                # assuming there is exactly one parquet for the table
-                parquet_files = list(table.glob("*.parquet"))
-                if len(parquet_files) != 1:
+                if len(s3_files) != 1:
                     raise FWDatasetError(
                         "Did not find exactly one parquet file for table "
-                        + f"{table.name}"
+                        + f"{table} for center {center}"
                     )
 
-                data = pq.read_table(parquet_files[0])
+                body_stream = self.s3_interface.get_file_object(s3_files[0])["Body"]
+                parquet_file = pq.ParquetFile(body_stream)
 
-                if table.name not in writers:
-                    aggregate_table_dir = aggregate_dir / "tables" / table.name
-                    aggregate_table_dir.mkdir(parents=True, exist_ok=True)
+                # stream in batches
+                for batch in parquet_file.iter_batches(batch_size=batch_size):
+                    data = pa.Table.from_batches([batch])
+                    writer.write_table(data)
+        finally:
+            writer.close()
 
-                    writers[table.name] = pq.ParquetWriter(
-                        aggregate_table_dir / f"aggregate_{table.name}.parquet",
-                        data.schema,
-                    )
-
-                writers[table.name].write_table(data)
-
-            # clean up each center once done with it
-            shutil.rmtree(center_dir)
+        log.info(f"Successfully aggregated table {table}")
+        return outfile
