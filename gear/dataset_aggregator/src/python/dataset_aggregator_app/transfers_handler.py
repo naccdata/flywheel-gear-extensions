@@ -81,15 +81,16 @@ class TransferDuplicateHandler:
         # from the original aggregate file
         parquet_file = pq.ParquetFile(aggregate_file)
         tmp_file = aggregate_file.with_suffix(".tmp.parquet")
-        writer = pq.ParquetWriter(tmp_file, parquet_file.schema)
+        schema = parquet_file.schema.to_arrow_schema()
+        writer = pq.ParquetWriter(tmp_file, schema)
 
         keys = pa.array(
             correct_mapping.keys(),
-            type=parquet_file.schema.field(FieldNames.NACCID).type,
+            type=schema.field(FieldNames.NACCID).type,
         )
         values = pa.array(
             correct_mapping.values(),
-            type=parquet_file.schema.field(FieldNames.ADCID).type,
+            type=schema.field(FieldNames.ADCID).type,
         )
 
         try:
@@ -134,7 +135,7 @@ class TransferDuplicateHandler:
             return
 
         log.info(
-            f"{len(duplicate_naccids)} duplicates found for {aggregate_file}, resolving"
+            f"{len(duplicate_naccids)} duplicates found in {aggregate_file}, resolving"
         )
 
         # query NACCIDs and get the current ADCID

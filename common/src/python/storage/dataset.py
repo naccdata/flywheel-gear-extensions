@@ -1,5 +1,6 @@
 """Models to handle FW's datasets."""
 
+import io
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -7,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
-import pyarrow as pa
 import pyarrow.parquet as pq
 from pydantic import BaseModel, root_validator
 from s3.s3_bucket import S3BucketInterface
@@ -80,6 +80,10 @@ class AggregateDataset(ABC):
     @property
     def s3_interface(self) -> S3BucketInterface:
         return self.__s3_interface
+
+    @property
+    def latest_versions(self) -> Dict[str, str]:
+        return self.__latest_versions
 
     @property
     def tables(self) -> Set[str]:
@@ -201,22 +205,22 @@ class ParquetAggregateDataset(AggregateDataset):
         Returns:
             Path to the aggregate file
         """
-        if table not in self.__tables:
+        if table not in self.tables:
             raise FWDatasetError(f"Table is not defined in datasets {table}")
 
         log.info(
             f"Aggregating table {table} from {self.bucket} for "
-            + f"{len(self.__latest_versions)} centers"
+            + f"{len(self.latest_versions)} centers..."
         )
 
         # create file handler
         aggregate_table_dir = aggregate_dir / "tables" / table
         aggregate_table_dir.mkdir(parents=True, exist_ok=True)
-        outfile = aggregate_table_dir / f"{file_prefix}{table}"
-        writer = pq.ParquetWriter(outfile)
+        outfile = aggregate_table_dir / f"{file_prefix}{table}.parquet"
+        writer = None
 
         try:
-            for center, prefix in self.__latest_versions.items():
+            for center, prefix in self.latest_versions.items():
                 log.debug(f"Downloading data for {center}...")
 
                 # assuming there is at most exactly one parquet for the table
@@ -233,15 +237,18 @@ class ParquetAggregateDataset(AggregateDataset):
                         + f"{table} for center {center}"
                     )
 
-                body_stream = self.s3_interface.get_file_object(s3_files[0])["Body"]
-                parquet_file = pq.ParquetFile(body_stream)
+                # tried using pyarrow's s3filesystem at first for streaming
+                # but it was incredibly slow; for now the center-specific files
+                # are small enough it is probably okay to just load into memory
+                body = self.s3_interface.get_file_object(s3_files[0])["Body"]
+                data = pq.read_table(io.BytesIO(body.read()))
+                if not writer:
+                    writer = pq.ParquetWriter(outfile, schema=data.schema)
 
-                # stream in batches
-                for batch in parquet_file.iter_batches(batch_size=batch_size):
-                    data = pa.Table.from_batches([batch])
-                    writer.write_table(data)
+                writer.write_table(data)
         finally:
-            writer.close()
+            if writer:
+                writer.close()
 
         log.info(f"Successfully aggregated table {table}")
         return outfile

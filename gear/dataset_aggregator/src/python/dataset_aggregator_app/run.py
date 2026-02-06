@@ -98,8 +98,8 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
                 project = self.proxy.lookup(f"{center}/{self.__target_project}")
             except ApiException:
                 log.warning(
-                    f"No {self.__target_project} project found for "
-                    + f"center {center}, skipping"
+                    f"No {self.__target_project} project found for {center}, "
+                    + "skipping"
                 )
                 continue
 

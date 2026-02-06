@@ -217,9 +217,9 @@ class S3BucketInterface:
 
         with_glob_str = f" with glob '{glob}'" if glob else ""
         if not found_keys:
-            log.warning(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
+            log.debug(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
         else:
-            log.info(
+            log.debug(
                 f"Found {len(found_keys)} files under {self.__bucket}/"
                 + f"{prefix}{with_glob_str}"
             )

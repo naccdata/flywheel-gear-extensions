@@ -61,8 +61,11 @@ def run(
 
         # write results to S3
         if dry_run:
-            log.info(f"DRY RUN: would have uploaded aggregate results to {output_uri}")
+            log.info(
+                f"DRY RUN: would have uploaded aggregate results to {prefix}/{table}"
+            )
             continue
 
-        s3_output_interface.upload_file(aggregate_file, prefix)  # type: ignore
+        log.info(f"Uploading results to {prefix}/{table}")
+        s3_output_interface.upload_file(aggregate_file, f"{prefix}/{table}")  # type: ignore
         os.remove(aggregate_file)
