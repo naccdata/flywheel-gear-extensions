@@ -139,7 +139,7 @@ Error collection with automatic categorization that integrates directly with exi
 ```python
 # In gear run.py - gear creates error handling objects as core functionality
 class UserManagementVisitor(GearExecutionEnvironment):
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         # Create event collector as core functionality
         collector = UserEventCollector()
             
