@@ -88,7 +88,7 @@ class S3BucketInterface:
             output_prefix: Path prefix under bucket where results will be written
             exclude_patterns: Optional list of glob patterns to exclude from upload
         """
-        log.info(f"Uploading results to: {output_prefix}")
+        log.info(f"Uploading results to: {self.__bucket}/{output_prefix}")
 
         if not local_dir.exists():
             raise S3InterfaceError(f"Local directory does not exist: {local_dir}")
@@ -220,7 +220,7 @@ class S3BucketInterface:
             log.warning(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
         else:
             log.info(
-                f"Found {len(found_keys)} under {self.__bucket}/{prefix}{with_glob_str}"
+                f"Found {len(found_keys)} files under {self.__bucket}/{prefix}{with_glob_str}"
             )
 
         return found_keys

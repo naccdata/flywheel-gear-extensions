@@ -50,6 +50,21 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "include_centers": {
+            "description": "Comma separated list of centers to include in batch run",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_centers": {
+            "description": "Comma separated list of centers to exclude from batch run",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_studies": {
+            "description": "Comma separated list of study suffixes to exclude from batch run",
+            "type": "string",
+            "optional": true
         }
     },
     "command": "/bin/run"

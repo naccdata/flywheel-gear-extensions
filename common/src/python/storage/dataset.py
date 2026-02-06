@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 import pyarrow.parquet as pq
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
@@ -39,6 +39,14 @@ class FWDataset(BaseModel):
     def full_uri(self) -> str:
         """Return the full S3 URI."""
         return f"{self.bucket}/{self.prefix}"
+
+    @root_validator(pre=True)
+    def storage_label_alias(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """storage_label can also be storage, seems to depend on when the
+        dataset was made."""
+        if 'storage_label' not in values and 'label' in values:
+            values['storage_label'] = values.pop('label')
+        return values
 
 
 class AggregateDataset(ABC):
@@ -71,6 +79,10 @@ class AggregateDataset(ABC):
     @property
     def bucket(self) -> str:
         return self.__bucket
+
+    @property
+    def s3_interface(self) -> S3BucketInterface:
+        return self.__s3_interface
 
     def get_latest_version(self, dataset: FWDataset) -> Optional[str]:
         """Get latest dataset version under the specified dataset.
@@ -175,7 +187,7 @@ class ParquetAggregateDataset(AggregateDataset):
             center_dir = tmp_dir / center
             tables_dir = center_dir / "tables"
 
-            self.__s3_interface.download_files(
+            self.s3_interface.download_files(
                 f"{prefix}/tables", tables_dir, glob="*.parquet"
             )
 

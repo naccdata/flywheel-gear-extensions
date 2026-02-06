@@ -28,22 +28,20 @@ def find_duplicated_naccids(table: pa.Table) -> Optional[List[str]]:
     required_headers = {FieldNames.ADCID, FieldNames.NACCID}
     missing = required_headers - set(table.schema.names)
     if missing:
-        log.warning(f"Missing required headers, skipping: {missing}")
+        log.warning(f"Missing required headers, skipping duplicate check: {missing}")
         return None
 
-    key_pairs = pc.make_struct(table[FieldNames.ADCID], table[FieldNames.NACCID])
-    pair_counts = pc.value_counts(key_pairs)
-
-    pair_table = pa.Table.from_struct_array(pair_counts["values"])
-    by_naccid = pair_table.group_by(FieldNames.NACCID).aggregate(
+    # group by distinct adcid/naccid pairs
+    by_naccid = table.group_by(FieldNames.NACCID).aggregate(
         [(FieldNames.ADCID, "count_distinct")]
     )
 
-    results = by_naccid.filter(pc.field(f"{FieldNames.ADCID}_count_distinct") > 1)[
-        FieldNames.NACCID
-    ]
+    # get NACCIDs that have more than one ADCID
+    duplicated = by_naccid.filter(
+        pc.field(f"{FieldNames.ADCID}_count_distinct") > 1
+    )[FieldNames.NACCID]
 
-    return results if results else None
+    return duplicated.to_pylist() if len(duplicated) > 0 else None
 
 
 def clean_table(
@@ -58,25 +56,32 @@ def clean_table(
             ADCIDs attached to this NACCID will have the
             row dropped
     """
+    # get adcid/naccid columns
+    adcid_col = table[FieldNames.ADCID]
+    naccid_col = table[FieldNames.NACCID]
 
-    correct_adcid_key = f"{FieldNames.ADCID}_correct"
-    correction_table = pa.Table.from_pydict(
-        {
-            FieldNames.NACCID: list(correct_mapping.keys()),
-            correct_adcid_key: list(correct_mapping.values()),
-        }
+    keys = pa.array(
+        correct_mapping.keys(),
+        type=table.schema.field(FieldNames.NACCID).type
+    )
+    values = pa.array(
+        correct_mapping.values(),
+        type=table.schema.field(FieldNames.ADCID).type
     )
 
-    # join the corrections in and filter out bad rows
-    annotated = table.join(
-        correction_table, keys=FieldNames.NACCID, join_type="left_outer"
-    )
+    # apply corrected values over relevant indexes
+    in_mapping = pc.is_in(naccid, keys)
+    idx = pc.index_in(naccid, keys)
+    correct_adcid = pc.take(values, idx)
+
+    # build the mask to only keep corrected ADCID/NACCID
+    # pairings and those that didn't need fixing
     keep_mask = pc.or_(
-        pc.is_null(annotated[correct_adcid_key]),
-        pc.equal(annotated[FieldNames.ADCID], annotated[correct_adcid_key]),
+        pc.invert(in_mapping),
+        pc.is_in(adcid, correct_adcid)
     )
+    cleaned_table = table.filter(keep_mask)
 
-    cleaned_table = annotated.filter(keep_mask).remove_column(correct_adcid_key)
     pq.write_table(cleaned_table, output_file)
 
 
@@ -89,11 +94,12 @@ def check_for_transfers(aggregate_dir: Path, identifiers_mode: IdentifiersMode) 
         aggregate_dir: Directory containing aggregate parquets to clean
         identifiers_mode: Mode for identifiers repository
     """
+    log.info(f"Checking for transfer duplicates...")
+
     # only instantiate identifiers repo when absolutely needed
     identifiers_repo: Optional[IdentifiersLambdaRepository] = None
 
     for file in aggregate_dir.rglob("*.parquet"):
-        log.info(f"Checking {file} for transfer duplicates...")
         table = pq.read_table(file)
 
         duplicate_naccids = find_duplicated_naccids(table)
@@ -101,7 +107,7 @@ def check_for_transfers(aggregate_dir: Path, identifiers_mode: IdentifiersMode) 
             continue
 
         log.info(
-            f"{len(duplicate_naccids)} duplicates found for {file}, " + "cleaning up"
+            f"{len(duplicate_naccids)} duplicates found for {file}, resolving"
         )
 
         if not identifiers_repo:

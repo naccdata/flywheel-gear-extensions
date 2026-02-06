@@ -43,6 +43,12 @@ def run(
     aggregate_dir.mkdir(parents=True, exist_ok=True)
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
+    s3_interface = None
+    if not dry_run:
+        # make sure we have access to the output location first
+        bucket, prefix = S3BucketInterface.parse_bucket_and_key(output_uri)
+        s3_interface = S3BucketInterface.create_from_environment(bucket)
+
     try:
         for aggregate in grouped_datasets:
             aggregate.download_and_aggregate(
@@ -54,8 +60,10 @@ def run(
         for writer in table_writers.values():
             writer.close()
 
+    log.info("Successfully aggregated centers")
+
     # check for duplicates
-    log.info("Checking transfer duplicates")
+    log.info("Checking transfer duplicates...")
     check_for_transfers(aggregate_dir, identifiers_mode)
 
     # write results to S3
@@ -63,6 +71,4 @@ def run(
         log.info(f"DRY RUN: would have uploaded aggregate results to {output_uri}")
         return
 
-    bucket, prefix = S3BucketInterface.parse_bucket_and_key(output_uri)
-    s3_interface = S3BucketInterface.create_from_environment(bucket)
     s3_interface.upload_directory(aggregate_dir, prefix)

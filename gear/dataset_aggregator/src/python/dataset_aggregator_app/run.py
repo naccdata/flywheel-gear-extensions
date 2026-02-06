@@ -1,6 +1,7 @@
 """Entry script for Dataset Aggregator."""
 
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from flywheel.rest import ApiException
@@ -75,7 +76,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         return DatasetAggregatorVisitor(
             client=client,
             target_project=target_project,
-            output_uri=output_uri,
+            output_uri=output_uri.rstrip("/"),
             identifiers_mode=identifiers_mode,
         )
 
@@ -105,12 +106,20 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
 
             try:
                 project = project.reload()
-                dataset = FWDataset(**project.info.get("dataset", {}))
-            except (ApiException, ValidationError):
-                log.error(
-                    f"dataset metadata not defined for {center}/{self.__target_project}"
-                )
-                continue
+                dataset_metadata = project.info.get("dataset", {})
+                if not dataset_metadata:
+                    log.warning(
+                        f"dataset metadata not defined for {center}/{self.__target_project}"
+                    )
+                    continue
+
+                dataset = FWDataset(**dataset_metadata)
+            except (ApiException, ValidationError) as e:
+                raise GearExecutionError(
+                    f"failed to parse dataset metadata for {center}/{self.__target_project}: {e}"
+                ) from e
+
+            log.info(f"found dataset metadata for {center}/{self.__target_project}")
 
             if dataset.bucket not in grouped_datasets:
                 grouped_datasets[dataset.bucket] = {}
@@ -137,11 +146,12 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearToolkitContext) -> None:
         grouped_datasets = self.__group_datasets(self.get_center_ids(context))
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         run(
             context=context,
             grouped_datasets=grouped_datasets,
-            output_uri=self.__output_uri,
+            output_uri=f"{self.__output_uri}/{timestamp}",
             identifiers_mode=self.__identifiers_mode,
             dry_run=self.client.dry_run,
         )
