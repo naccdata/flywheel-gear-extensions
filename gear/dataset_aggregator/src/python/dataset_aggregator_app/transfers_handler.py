@@ -70,15 +70,15 @@ def clean_table(
     )
 
     # apply corrected values over relevant indexes
-    in_mapping = pc.is_in(naccid, keys)
-    idx = pc.index_in(naccid, keys)
+    in_mapping = pc.is_in(naccid_col, keys)
+    idx = pc.index_in(naccid_col, keys)
     correct_adcid = pc.take(values, idx)
 
     # build the mask to only keep corrected ADCID/NACCID
     # pairings and those that didn't need fixing
     keep_mask = pc.or_(
         pc.invert(in_mapping),
-        pc.is_in(adcid, correct_adcid)
+        pc.is_in(adcid_col, correct_adcid)
     )
     cleaned_table = table.filter(keep_mask)
 
