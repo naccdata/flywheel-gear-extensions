@@ -8,7 +8,7 @@ from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -55,7 +55,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "RegressionCuratorVisitor":
         """Creates a Regression Curator execution visitor.
@@ -71,21 +71,22 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        s3_qaf_file = context.config.get("s3_qaf_file", None)
-        s3_mqt_file = context.config.get("s3_mqt_file", None)
+        options = context.config.opts
+        s3_qaf_file = options.get("s3_qaf_file", None)
+        s3_mqt_file = options.get("s3_mqt_file", None)
 
         if not s3_qaf_file:
             raise GearExecutionError("QAF file missing")
 
         filename_patterns = parse_string_to_list(
-            context.config.get("filename_patterns", ".*UDS\\.json")
+            options.get("filename_patterns", ".*UDS\\.json")
         )
 
         proxy = client.get_proxy()
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        error_outfile = context.config.get("error_outfile", "regression_errors.csv")
+        error_outfile = options.get("error_outfile", "regression_errors.csv")
 
         naccid_blacklist_file = InputFileWrapper.create(
             input_name="naccid_blacklist_file", context=context
@@ -94,7 +95,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             input_name="variable_blacklist_file", context=context
         )
 
-        if context.config.get("debug", False):
+        if options.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)
 
         return RegressionCuratorVisitor(
@@ -108,7 +109,7 @@ class RegressionCuratorVisitor(GearExecutionEnvironment):
             variable_blacklist_file=variable_blacklist_file,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         try:
             fw_path = self.proxy.get_lookup_path(self.__project.project)
         except ApiException as error:

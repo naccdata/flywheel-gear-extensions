@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Dict, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -44,7 +44,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "DBTRunnerVisitor":
         """Creates a DBT Runner execution visitor.
@@ -66,15 +66,15 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not dbt_project_zip:
             raise GearExecutionError("DBT project zip required")
 
-        source_prefixes = context.config.get("source_prefixes", None)
-        output_prefix = context.config.get("output_prefix", None)
+        source_prefixes = context.config.opts.get("source_prefixes", None)
+        output_prefix = context.config.opts.get("output_prefix", None)
 
         if not source_prefixes:
             raise GearExecutionError("source_prefix required")
         if not output_prefix:
             raise GearExecutionError("output_prefix required")
 
-        debug = context.config.get("debug", False)
+        debug = context.config.opts.get("debug", False)
         if debug:
             log.setLevel(logging.DEBUG)
             log.info("Set logging level to DEBUG")
@@ -144,7 +144,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
 
         return results
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         # load the source prefixes
         parsed_source_prefixes = self.__load_source_prefixes(self.__source_prefixes)
 

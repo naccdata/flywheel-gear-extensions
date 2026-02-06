@@ -16,8 +16,9 @@ from flywheel.models.project import Project
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
-from flywheel_gear_toolkit import GearToolkitContext
 from fw_client.client import FWClient
+from fw_gear import GearContext
+from fw_gear.utils.sdk_helpers import get_container_from_ref
 from inputs.parameter_store import ParameterError, ParameterStore
 
 log = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class ContextClient:
     context client."""
 
     @classmethod
-    def create(cls, context: GearToolkitContext) -> ClientWrapper:
+    def create(cls, context: GearContext) -> ClientWrapper:
         """Creates a ContextClient object from the context object.
 
         Args:
@@ -90,7 +91,7 @@ class ContextClient:
             raise GearExecutionError("Flywheel client required")
 
         return ClientWrapper(
-            client=context.client, dry_run=context.config.get("dry_run", False)
+            client=context.client, dry_run=context.config.opts.get("dry_run", False)
         )
 
 
@@ -101,7 +102,7 @@ class GearBotClient:
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> ClientWrapper:
         """Creates a GearBotClient wrapper object from the context and
         parameter store.
@@ -123,7 +124,7 @@ class GearBotClient:
                 "Flywheel client required to confirm gearbot access"
             ) from error
 
-        apikey_path_prefix = context.config.get("apikey_path_prefix", None)
+        apikey_path_prefix = context.config.opts.get("apikey_path_prefix", None)
         if not apikey_path_prefix:
             raise GearExecutionError("API key path prefix required")
 
@@ -147,13 +148,14 @@ class InputFileWrapper:
         self.file_input = file_input
         self.__file_entry: Optional[FileEntry] = None
 
-    def file_entry(self, context: GearToolkitContext) -> FileEntry:
+    def file_entry(self, context: GearContext) -> FileEntry:
         if self.__file_entry is not None:
             return self.__file_entry
 
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
-        container = context.get_container_from_ref(file_hierarchy)
+        assert context.client
+        container = get_container_from_ref(context.client, file_hierarchy)
         assert isinstance(container, (Acquisition, Subject, Project))
         container = container.reload()
         file = container.get_file(self.filename)
@@ -225,7 +227,7 @@ class InputFileWrapper:
 
     @classmethod
     def create(
-        cls, input_name: str, context: GearToolkitContext
+        cls, input_name: str, context: GearContext
     ) -> Optional["InputFileWrapper"]:
         """Creates the named InputFile.
 
@@ -239,12 +241,8 @@ class InputFileWrapper:
         Raises:
           GearExecutionError if there is no input with the name
         """
-        file_input = context.get_input(input_name)
-        is_optional = (
-            context.manifest.get("inputs", {})
-            .get(input_name, {})
-            .get("optional", False)
-        )
+        file_input = context.config.get_input(input_name)
+        is_optional = context.manifest.inputs.get(input_name, {}).get("optional", False)
 
         if not file_input:
             if is_optional:
@@ -388,7 +386,7 @@ class GearExecutionEnvironment(ABC):
         return self.__client.get_proxy()
 
     @abstractmethod
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the gear after initialization by visit methods.
 
         Note: expects both visit_context and visit_parameter_store to be called
@@ -400,7 +398,7 @@ class GearExecutionEnvironment(ABC):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "GearExecutionEnvironment":
         """Creates an execution environment object from the context and
         parameter store.
@@ -415,11 +413,11 @@ class GearExecutionEnvironment(ABC):
         """
         raise GearExecutionError("Not implemented")
 
-    def get_job_id(self, context: GearToolkitContext, gear_name: str) -> Optional[str]:
+    def get_job_id(self, context: GearContext, gear_name: str) -> Optional[str]:
         """Return the ID of the gear job.
 
         Args:
-            context: GearToolkitContext to look up the Job ID
+            context: GearContext to look up the Job ID
             gear_name: Gear name
 
         Returns:
@@ -432,6 +430,15 @@ class GearExecutionEnvironment(ABC):
 
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
+
+    @classmethod
+    def gear_name(cls, context: GearContext, default: str) -> str:
+        """Get gear name."""
+        gear_name = context.manifest.name
+        if not gear_name:
+            return default
+
+        return gear_name
 
 
 # TODO: remove type ignore when using python 3.12 or above
@@ -476,7 +483,7 @@ class GearEngine:
             gear_type: The type of the gear execution environment.
         """
         try:
-            with GearToolkitContext() as context:
+            with GearContext() as context:
                 context.init_logging()
                 context.log_config()
                 visitor = gear_type.create(
@@ -489,12 +496,12 @@ class GearEngine:
 
 
 def get_project_from_destination(
-    context: GearToolkitContext, proxy: FlywheelProxy
+    context: GearContext, proxy: FlywheelProxy
 ) -> flywheel.Project:
     """Gets parent project from destination container."""
 
     try:
-        destination = context.get_destination_container()
+        destination = context.config.get_destination_container()
     except ApiException as error:
         raise GearExecutionError(
             f"Cannot find destination container: {error}"

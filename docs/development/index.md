@@ -177,15 +177,15 @@ This setting is Docker Desktop under Settings/General/Virtual Machine Options.
 If you are building/running on macOS with an Apple Silicon chip, building a docker image with the correct architecture is a bit more involved. The following was added to the root BUILD file to support this, so should also handle all the gear builds, but you can update/change how its done for your specific gear.
 
 ```
-file(name="linux_x86_py311", source="linux_x86_py311.json")
+file(name="linux_x86_py312", source="linux_x86_py312.json")
 
 __defaults__({
-  pex_binary: dict(complete_platforms=["//:linux_x86_py311"]),
+  pex_binary: dict(complete_platforms=["//:linux_x86_py312"]),
   docker_image: dict(build_platform=["linux/amd64"]),
 })
 ```
 
-`docker_image`'s `build_platform` [sets the target platform(s) for the docker image](https://www.pantsbuild.org/dev/reference/targets/docker_image#build_platform), whereas `pex_binary`'s `complete_platforms` similarly [specifies the platforms the built PEX should be compatible with](https://www.pantsbuild.org/stable/reference/targets/pex_binary#complete_platforms). The latter pulls from the `linux_x86_py311.json` file living in the root of the repo, which is pulled into the root's BUILD file.
+`docker_image`'s `build_platform` [sets the target platform(s) for the docker image](https://www.pantsbuild.org/dev/reference/targets/docker_image#build_platform), whereas `pex_binary`'s `complete_platforms` similarly [specifies the platforms the built PEX should be compatible with](https://www.pantsbuild.org/stable/reference/targets/pex_binary#complete_platforms). The latter pulls from the `linux_x86_py312.json` file living in the root of the repo, which is pulled into the root's BUILD file.
 
 ### Publishing a gear
 

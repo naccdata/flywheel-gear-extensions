@@ -18,7 +18,7 @@ from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -80,7 +80,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "IdentifierLookupVisitor":
         """Creates an identifier lookup execution visitor.
 
@@ -101,13 +101,14 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             input_name="form_configs_file", context=context
         )
 
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.get("database_mode", "prod")
-        direction = context.config.get("direction", "nacc")
-        preserve_case = context.config.get("preserve_case", False)
-        gear_name = context.manifest.get("name", "identifier-lookup")
-        module = context.config.get("module")
-        single_center = context.config.get("single_center", True)
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        mode = options.get("database_mode", "prod")
+        direction = options.get("direction", "nacc")
+        preserve_case = options.get("preserve_case", False)
+        module = options.get("module")
+        single_center = options.get("single_center", True)
+        gear_name = GearExecutionEnvironment.gear_name(context, "identifer-lookup")
 
         # Note: form_configs_file is optional for 'nacc' direction
         # When not provided, only basic identifier lookup will be performed
@@ -116,8 +117,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         event_capture = None
         if direction == "nacc" and config_input is not None:
             # Get visit event capture parameters - required when capture is enabled
-            event_environment = context.config.get("event_environment")
-            event_bucket = context.config.get("event_bucket")
+            event_environment = options.get("event_environment")
+            event_bucket = options.get("event_bucket")
 
             if not event_environment or not event_bucket:
                 raise GearExecutionError(
@@ -325,7 +326,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             error_writer=error_writer,
         )
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the identifier lookup app.
 
         Args:

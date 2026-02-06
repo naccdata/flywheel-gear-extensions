@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     InputFileWrapper,
 )
@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    context: GearToolkitContext,
+    context: GearContext,
     dbt_project_zip: InputFileWrapper,
     source_prefixes: Dict[str, Dict[str, str]],
     output_prefix: str,

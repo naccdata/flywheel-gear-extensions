@@ -7,7 +7,7 @@ from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit.context.context import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -47,7 +47,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormCSVtoJSONTransformer":
         """Creates a gear execution object.
@@ -86,7 +86,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             transform_input=transform_input,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV to JSON Transformer app.
 
         Args:
@@ -131,10 +131,10 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"Failed to find the project with ID {file.parents.project}"
             )
 
-        gear_name = context.manifest.get("name", "form-transformer")
+        gear_name = self.gear_name(context, "form-transformer")
 
         downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", None)
+            context.config.opts.get("downstream_gears", None)
         )
 
         prj_adaptor = ProjectAdaptor(project=project, proxy=proxy)

@@ -15,6 +15,7 @@ All notable changes to this gear are documented in this file.
 * Adds event capture for pass-qc events during finalization queue processing
 * Pass-QC events are logged to S3 for visits that successfully complete all QC checks
 * Uses QC status log files to determine pass/fail status
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
 ## 1.1.2
 

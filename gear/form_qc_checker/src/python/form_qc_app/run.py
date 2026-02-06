@@ -4,7 +4,7 @@ import logging
 import sys
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -60,7 +60,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "FormQCCheckerVisitor":
         """Creates a form-qc-checker execution visitor.
 
@@ -121,7 +121,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             supplement_input=supplement_input,
         )
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the form-qc-checker app.
 
         Args:
@@ -131,7 +131,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         assert context, "Gear context required"
 
         admin_group = self.admin_group(
-            admin_id=context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+            admin_id=context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
         )
 
         try:
@@ -145,6 +145,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             ) from error
 
         run(
+            gear_name=self.gear_name(context, "form-qc-checker"),
             client_wrapper=self.client,
             input_wrapper=self.__file_input,
             s3_client=self.__s3_client,

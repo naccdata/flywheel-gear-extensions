@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, get_args
 
 from data_requests.data_request import DataRequestVisitor, ModuleDataGatherer
-from flywheel_gear_toolkit.context.context import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -31,7 +31,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         file_input: InputFileWrapper,
-        gear_name: str,
         project_names: list[str],
         info_paths: list[str],
         modules: set[ModuleName],
@@ -39,7 +38,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     ):
         super().__init__(client=client)
         self.__file_input = file_input
-        self.__gear_name = gear_name
         self.__project_names: list[str] = project_names
         self.__info_paths = info_paths
         self.__modules = modules
@@ -48,7 +46,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "GatherFormDataVisitor":
         """Creates a Gather Form Data execution visitor.
@@ -66,30 +64,29 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
 
-        project_names = context.config.get("project_names", "").split(",")
-        include_derived = context.config.get("include_derived", False)
+        options = context.config.opts
+        project_names = options.get("project_names", "").split(",")
+        include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = context.config.get("modules", "").split(",")
+        modules = options.get("modules", "").split(",")
         unexpected_modules = [
             module for module in modules if module not in get_args(ModuleName)
         ]
         if unexpected_modules:
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
-        study_id = context.config.get("study_id", "adrc")
-        gear_name = context.manifest.get("name", "gather-submission-status")
+        study_id = options.get("study_id", "adrc")
 
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
-            gear_name=gear_name,
             project_names=project_names,
             info_paths=info_paths,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         data_gatherers: list[ModuleDataGatherer] = []
         for module_name in self.__modules:
             data_gatherers.append(
@@ -130,13 +127,10 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             data=error_writer.errors().model_dump(by_alias=True),
         )
 
-        context.metadata.add_file_tags(
-            self.__file_input.file_input, tags=self.__gear_name
-        )
+        gear_name = self.gear_name(context, "gather-submission-status")
+        context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
-    def __write_output(
-        self, context: GearToolkitContext, gatherers: list[ModuleDataGatherer]
-    ):
+    def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):
         """Using the gear context, writes the data content in each gatherer to
         a file named with the study-id and the module of the gatherer.
 

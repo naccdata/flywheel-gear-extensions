@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -50,7 +50,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "AttributeCuratorVisitor":
         """Creates a UDS Curator execution visitor.
@@ -67,40 +67,36 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         client = ContextClient.create(context=context)
         proxy = client.get_proxy()
 
+        options = context.config.opts
         rxclass_concepts_file = InputFileWrapper.create(
             input_name="rxclass_concepts_file", context=context
         )
 
         filename_patterns = parse_string_to_list(
-            context.config.get(
+            options.get(
                 "filename_patterns", ".*\\.json,.*\\.dicom\\,.*\\.zip,.*\\.nii\\.gz"
             ),
             to_lower=False,
         )
 
-        curation_tag = context.config.get("curation_tag", "attribute-curator")
-        force_curate = context.config.get("force_curate", False)
-        max_num_workers = context.config.get("max_num_workers", 4)
-        ignore_qc = context.config.get("ignore_qc", False)
-
         fw_project = get_project_from_destination(context=context, proxy=proxy)
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
-        if context.config.get("debug", False):
+        if options.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)
 
         return AttributeCuratorVisitor(
             client=client,
             project=project,
             filename_patterns=filename_patterns,
-            curation_tag=curation_tag,
-            force_curate=force_curate,
+            curation_tag=options.get("curation_tag", "attribute-curator"),
+            force_curate=options.get("force_curate", False),
             rxclass_concepts_file=rxclass_concepts_file,
-            max_num_workers=max_num_workers,
-            ignore_qc=ignore_qc,
+            max_num_workers=options.get("max_num_workers", 4),
+            ignore_qc=options.get("ignore_qc", False),
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
 
         rxclass_concepts = None

@@ -9,10 +9,11 @@ array of centers:
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from centers.center_info import CenterList
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -36,7 +37,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         self,
         admin_id: str,
         client: ClientWrapper,
-        center_filepath: str,
+        center_filepath: Path,
         new_only: bool = False,
     ):
         super().__init__(client=client)
@@ -47,7 +48,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "CenterCreationVisitor":
         """Creates a center creation execution visitor.
@@ -61,19 +62,21 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         """
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        center_filepath = context.get_input_path("center_file")
+        center_filepath = context.config.get_input_path("center_file")
         if not center_filepath:
             raise GearExecutionError("No center file provided")
-        admin_id = context.config.get("admin_group", "nacc")
+
+        options = context.config.opts
+        admin_id = options.get("admin_group", "nacc")
 
         return CenterCreationVisitor(
             admin_id=admin_id,
             client=client,
             center_filepath=center_filepath,
-            new_only=context.config.get("new_only", False),
+            new_only=options.get("new_only", False),
         )
 
-    def __get_center_list(self, center_file_path: str) -> CenterList:
+    def __get_center_list(self, center_file_path: Path) -> CenterList:
         """Get the centers from the file.
 
         Args:
@@ -82,7 +85,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
           Map of CenterInfo objects to optional list of tags
         """
         try:
-            with open(center_file_path, "r", encoding="utf-8-sig") as center_file:
+            with center_file_path.open("r", encoding="utf-8-sig") as center_file:
                 object_list = load_from_stream(center_file)
         except YAMLReadError as error:
             raise GearExecutionError(
@@ -96,7 +99,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
         except ValidationError as error:
             raise GearExecutionError(f"Error in center file: {error}") from error
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Executes the gear.
 
         Args:

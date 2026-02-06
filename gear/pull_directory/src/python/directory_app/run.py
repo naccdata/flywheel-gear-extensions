@@ -4,7 +4,7 @@ user management gear."""
 import logging
 from typing import Dict, List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -45,7 +45,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "DirectoryPullVisitor":
         """Creates directory pull execution visitor.
 
@@ -60,7 +60,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         assert parameter_store, "Parameter store expected"
 
         client = ContextClient.create(context)
-        param_path = context.config.get("parameter_path")
+        param_path = context.config.opts.get("parameter_path")
         if not param_path:
             raise GearExecutionError("No parameter path")
 
@@ -79,7 +79,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
                 f"Failed to pull users from directory: {error.message}"
             ) from error
 
-        user_filename = context.config.get("user_file")
+        user_filename = context.config.opts.get("user_file")
         if not user_filename:
             raise GearExecutionError("No user file name provided")
 
@@ -87,7 +87,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         collector = UserEventCollector()
 
         # Get notification configuration (required)
-        notifications_path = context.config.get(
+        notifications_path = context.config.opts.get(
             "notifications_path", "/prod/notifications"
         )
         if not notifications_path:
@@ -127,7 +127,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             return []
         return [email.strip() for email in emails_str.split(",") if email.strip()]
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the directory pull gear.
 
         Args:
@@ -140,8 +140,8 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             log.info(
                 "Would write user entries to file %s on %s %s",
                 self.__user_filename,
-                context.destination["type"],
-                context.destination["id"],
+                context.config.destination["type"],
+                context.config.destination["id"],
             )
             return
 

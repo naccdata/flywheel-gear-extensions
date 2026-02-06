@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -68,7 +68,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "CSVCenterSplitterVisitor":
         """Creates a gear execution object.
@@ -85,23 +85,22 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
 
-        target_project = context.config.get("target_project", None)
-        staging_project_id = context.config.get("staging_project_id", None)
+        options = context.config.opts
+        target_project = options.get("target_project", None)
+        staging_project_id = options.get("staging_project_id", None)
 
         if not target_project and not staging_project_id:
             raise GearExecutionError(
                 "One of target_project or staging_project_id must be provided"
             )
 
-        adcid_key = context.config.get("adcid_key", None)
+        adcid_key = options.get("adcid_key", None)
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
         # for scheduling
-        batch_size = context.config.get("batch_size", 1)
-        downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", "")
-        )
+        batch_size = options.get("batch_size", 1)
+        downstream_gears = parse_string_to_list(options.get("downstream_gears", ""))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -134,14 +133,14 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             target_project=target_project,
             staging_project_id=staging_project_id,
             downstream_gears=downstream_gears,
-            include=context.config.get("include", None),
-            exclude=context.config.get("exclude", None),
-            delimiter=context.config.get("delimiter", ","),
-            local_run=context.config.get("local_run", False),
+            include=options.get("include", None),
+            exclude=options.get("exclude", None),
+            delimiter=options.get("delimiter", ","),
+            local_run=options.get("local_run", False),
             email_client=email_client,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV Center Splitter app."""
         # if local run, give dummy container for local file, otherwise
         # grab from project

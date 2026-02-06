@@ -11,7 +11,7 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     VisitInfo,
 )
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -69,7 +69,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormQCCoordinator":
         """Creates a gear execution object, loads gear context.
@@ -86,7 +86,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         try:
-            dest_container: Any = context.get_destination_container()
+            dest_container: Any = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -116,8 +116,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         )
         assert qc_configs_input, "missing expected input, qc_configs_file"
 
-        check_all = context.config.get("check_all", False)
-        pipeline = context.config.get("pipeline", "submission")
+        options = context.config.opts
 
         return FormQCCoordinator(
             client=client,
@@ -125,8 +124,8 @@ class FormQCCoordinator(GearExecutionEnvironment):
             form_config_input=form_configs_input,
             qc_config_input=qc_configs_input,
             subject_id=subject_id,
-            pipeline=pipeline,
-            check_all=check_all,
+            pipeline=options.get("pipeline", "submission"),
+            check_all=options.get("check_all", False),
         )
 
     def __parse_json_input(
@@ -266,20 +265,22 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         return self.__parse_yaml_input(subject)
 
-    def __update_input_file_tags(self, gear_context: GearToolkitContext):
+    def __update_input_file_tags(self, gear_context: GearContext):
         """Add gear tag to input file.
 
         Args:
             gear_context: Flywheel gear context
             input_wrapper: gear input file wrapper
         """
+        gear_name = gear_context.manifest.name
+        if not gear_name:
+            gear_name = "form-qc-coordinator"
 
-        gear_name = gear_context.manifest.get("name", "form-qc-coordinator")
         gear_context.metadata.add_file_tags(
             self.__file_input.file_input, tags=gear_name
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Validates input files, runs the form-qc-coordinator app.
 
         Args:

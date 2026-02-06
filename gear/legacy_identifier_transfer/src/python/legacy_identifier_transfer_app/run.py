@@ -7,7 +7,7 @@ from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -106,7 +106,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "LegacyIdentifierTransferVisitor":
         """Creates a legacy naccid transfer execution visitor.
 
@@ -122,9 +122,10 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.get("identifiers_mode", "prod")
-        legacy_ingest_label = context.config.get(
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        mode = options.get("identifiers_mode", "prod")
+        legacy_ingest_label = options.get(
             "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL
         )
 
@@ -135,7 +136,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             legacy_ingest_label=legacy_ingest_label,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the legacy NACCID transfer gear.
 
         Args: context: The gear execution context
@@ -145,7 +146,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
         # Get destination container
         try:
-            dest_container = context.get_destination_container()
+            dest_container = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Error getting destination container: {error}"
@@ -216,8 +217,9 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
             ingest_project=project_adaptor, legacy_project=legacy_project
         )
 
-        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        options = context.config.opts
+        sender_email = options.get("sender_email", "nacchelp@uw.edu")
+        target_emails = options.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         run(
