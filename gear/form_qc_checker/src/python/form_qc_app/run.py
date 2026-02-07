@@ -5,7 +5,6 @@ import sys
 from typing import Optional
 
 from configs.ingest_configs import load_form_ingest_configurations
-from flywheel_gear_toolkit import GearToolkitContext
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
