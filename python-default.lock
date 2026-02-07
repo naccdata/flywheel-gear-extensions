@@ -19,7 +19,7 @@
 //     "fw-utils>=3",
 //     "hypothesis>=6.0.0",
 //     "moto[s3,ses,ssm]==5.1.14",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.1/nacc_attribute_deriver-2.1.1-py3-none-any.whl",
+//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -2427,8 +2427,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "02e045a9b7f47b4790b91323dd9123867063a1a24b76ee0c24a1583e81dea691",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.1/nacc_attribute_deriver-2.1.1-py3-none-any.whl"
+              "hash": "a4c5c3cc42ba2b1c7d2d0519c7942ef820acd542ecee96d20e7e572d65aa9b38",
+              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2436,7 +2436,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.12.*",
-          "version": "2.1.1"
+          "version": "2.1.2"
         },
         {
           "artifacts": [
@@ -3878,7 +3878,7 @@
     "fw-utils>=3",
     "hypothesis>=6.0.0",
     "moto[s3,ses,ssm]==5.1.14",
-    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.1/nacc_attribute_deriver-2.1.1-py3-none-any.whl",
+    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl",
     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
     "natsort",
     "pandas-stubs>=2.0.3",

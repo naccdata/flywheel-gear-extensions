@@ -55,5 +55,4 @@ Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordi
   24. [redcap_fw_transfer](redcap_fw_transfer/index.md)
   25. [redcap_project_creation](redcap_project_creation/index.md)
   26. [redcap_project_info_management](redcap_project_info_management/index.md)
-  27. [regression_curator](regression_curator/index.md)
   28. [user_management](user_management/index.md)

@@ -249,7 +249,8 @@ class FileModel(BaseModel):
         """Order the objects by order class and date.
 
         First, use inverse order on order-class: if the class is greater
-        than, the object is less than. Second, order by date.
+        than, the object is less than. Second, group by the file's
+        scope. Finally, group by date.
         """
         if not isinstance(other, FileModel):
             return False
@@ -258,11 +259,20 @@ class FileModel(BaseModel):
                 f"Cannot compare values {self.visit_pass} with {other.visit_pass}"
             )
 
+        # First, group by visitpass
         # Note: this inverts the order on the order_class
         if self.visit_pass > other.visit_pass:
             return True
         if self.visit_pass < other.visit_pass:
             return False
+
+        # Next, group by scope
+        if self.scope != other.scope and self.scope and other.scope:
+            return self.scope < other.scope
+
+        # Finally, group by relative dates
+        if self.uds_visitdate and other.uds_visitdate:
+            return self.uds_visitdate < other.uds_visitdate
 
         return self.file_date < other.file_date
 

@@ -37,7 +37,7 @@ This is a Pants-managed monorepo with multiple packages and gears organized by f
     - `form_qc_checker/`, `form_scheduler/`, `form_transformer/` - Form processing
     - `identifier_lookup/`, `identifier_provisioning/` - Identifier management
     - `csv_center_splitter/`, `csv_subject_splitter/` - CSV processing
-    - `attribute_curator/`, `regression_curator/` - Data curation
+    - `attribute_curator/` - Data curation
 
 ### Configuration & Build
 

@@ -4,14 +4,14 @@ All notable changes to this gear are documented in this file.
 
 ## 1.3.0
 
-* Updates `nacc-attribute-deriver` to `2.1.2` which mainly changes where the deriver gets the MEDS visitdate
+* Updates `nacc-attribute-deriver` to `2.1.2` which updates how the drugs list is mapped
+    * Adds `_uds_visitdate` to table for scopes in the same session as an UDS visit to support this
 * Updates to report an error when two forms in the same scope have the same visitdate; fails the whole subject
-* Adds `_uds_visitdate` to table for scopes in the same session as an UDS visit
 * Refactors scheduling models
 
 ## 1.2.1
 
-* Updates `nacc-attribute-deriver` to `2.1.1` which mainly updates how V1 drugs are handled
+* Updates `nacc-attribute-deriver` to `2.1.1` which updates how V1 drugs are handled
 
 ## 1.2.0
 
