@@ -6,6 +6,12 @@ All notable changes to this gear are documented in this file.
 
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
+## 2.2.2
+
+* Fixes KeyError when processing forms without visitnum column (e.g., Milestones, NP)
+* Updates VisitMetadata serializer to handle missing visitnum and date fields
+* Adds comprehensive tests for CSV processing without visitnum
+
 ## 2.2.0
 
 * Adds event capture for submit events during CSV processing

@@ -90,3 +90,44 @@ class TestParameterStore:
             store.get_parameters(
                 param_type=TestParameters, parameter_path="/test/invalid"
             )
+
+    def test_support_emails(self, ssm):
+        """Test getting support staff emails from parameter store."""
+        from inputs.parameter_store import ParameterError, ParameterStore
+
+        # Test with valid comma-separated emails
+        ssm.put_parameter(
+            Name="/support/emails/emails",
+            Type="String",
+            Value="support1@example.com, support2@example.com, support3@example.com",
+        )
+
+        store = ParameterStore.create_from_environment()
+        assert store
+
+        emails = store.get_support_emails("/support/emails")
+        assert emails == [
+            "support1@example.com",
+            "support2@example.com",
+            "support3@example.com",
+        ]
+
+        # Test with single email
+        ssm.put_parameter(
+            Name="/support/single/emails",
+            Type="String",
+            Value="single@example.com",
+        )
+
+        single_email = store.get_support_emails("/support/single")
+        assert single_email == ["single@example.com"]
+
+        # Test with whitespace-only string (should raise error after stripping)
+        ssm.put_parameter(Name="/support/whitespace/emails", Type="String", Value="   ")
+
+        with pytest.raises(ParameterError, match="No valid support emails found"):
+            store.get_support_emails("/support/whitespace")
+
+        # Test with missing parameter (should raise error)
+        with pytest.raises(ParameterError):
+            store.get_support_emails("/support/nonexistent")

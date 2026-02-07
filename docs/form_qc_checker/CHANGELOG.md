@@ -4,6 +4,9 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+* Updates to support legacy ingest pipeline
+* Rebuilt for ingest config updates
+* Rebuilt for event logging updates
 
 ## 1.7.2
 * Updates `__get_initial_visit` in the datastore to remove the current packet from `ivp_codes` to handle I4 plausibility checks needing to explicitly check the retrospective IVP packet

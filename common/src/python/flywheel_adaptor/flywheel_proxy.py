@@ -1159,6 +1159,23 @@ class ProjectAdaptor:
         # TODO: should return None if not in this project
         return self.proxy.get_file(file_id)
 
+    def get_matching_files(self, query: str) -> List[FileEntry]:
+        """Returns the files in this project matching the query.
+
+        Use "parent_ref.type=project" for project files, and
+        use "parent_ref.type=acquisition" for acquisition files.
+        Otherwise, use FileEntry attributes to refine the list.
+
+        Args:
+          query: a finder query
+        Returns:
+          the list of files under this project matching the query
+        """
+        parent_query = f"parents.project={self.id}"
+        finder_query = f"{parent_query},{query}" if query else parent_query
+
+        return self.proxy.get_files(finder_query)
+
     def reload(self) -> Self:
         """Forces a reload on the project."""
         self._project = self._project.reload()

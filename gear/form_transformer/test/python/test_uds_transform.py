@@ -4,6 +4,7 @@ checks."""
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, SysErrorCodes
@@ -64,8 +65,14 @@ def create_uds_visitor(
     form_store = MockFormsStore(date_field=DATE_FIELD)
     project = MockProjectAdaptor(label="uds-project")
 
+    form_configs = FormProjectConfigs(
+        primary_key=FieldNames.NACCID,
+        accepted_modules=["UDS"],
+        module_configs={"UDS": module_configs},
+    )
+
     preprocessor = FormPreprocessor(
-        primary_key="naccid",
+        form_configs=form_configs,
         forms_store=form_store,
         module=DefaultValues.UDS_MODULE,
         module_configs=module_configs,

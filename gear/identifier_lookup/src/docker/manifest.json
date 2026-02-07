@@ -2,7 +2,7 @@
     "name": "identifier-lookup",
     "label": "Identifier Lookup",
     "description": "Gear to look up participant identifiers for incoming data and capture visit events when QC logging is enabled",
-    "version": "2.2.0",
+    "version": "2.2.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/identifier-lookup:2.2.0"
+            "image": "naccdata/identifier-lookup:2.2.2"
         },
         "flywheel": {
             "suite": "NACC Data Gears",

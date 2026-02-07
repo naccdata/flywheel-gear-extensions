@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import (
+    FormProjectConfigs,
     ModuleConfigs,
     SupplementModuleConfigs,
 )
@@ -39,19 +40,21 @@ class FormPreprocessor:
 
     def __init__(
         self,
-        primary_key: str,
+        form_configs: FormProjectConfigs,
         forms_store: FormsStore,
         module: str,
         module_configs: ModuleConfigs,
         error_writer: ErrorWriter,
     ) -> None:
-        self.__primary_key = primary_key
+        self.__primary_key = form_configs.primary_key
         self.__forms_store = forms_store
         self.__module = module
         self.__module_configs = module_configs
         self.__error_handler = FormPreprocessorErrorHandler(
             module=module, module_configs=module_configs, error_writer=error_writer
         )
+        self.__qc_gear = form_configs.qc_gear
+        self.__legacy_qc_gear = form_configs.legacy_qc_gear
 
         # Dispatcher mapping pre-processing checks to their corresponding handlers
         # Checks should be added in the order they need to be evaluated
@@ -731,7 +734,7 @@ class FormPreprocessor:
             extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM]
             if supplement_module.exact_match
             else None,
-            qc_gear=DefaultValues.QC_GEAR if qc_passed else None,
+            qc_gear=self.__qc_gear if qc_passed else None,
         )
 
         if not supplement_visits and not supplement_module.exact_match:
@@ -742,7 +745,7 @@ class FormPreprocessor:
                 search_col=supplement_module.date_field,
                 search_val=input_record[module_configs.date_field],
                 search_op="<=",
-                qc_gear=DefaultValues.LEGACY_QC_GEAR if qc_passed else None,
+                qc_gear=self.__legacy_qc_gear if qc_passed else None,
             )
 
         return supplement_visits
@@ -1078,7 +1081,7 @@ class FormPreprocessor:
             search_col=FieldNames.DATE_COLUMN,
             extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM],
             find_all=True,
-            qc_gear=DefaultValues.QC_GEAR,
+            qc_gear=self.__qc_gear,
         )
 
         if not uds_visits:
@@ -1089,7 +1092,7 @@ class FormPreprocessor:
                 search_col=FieldNames.DATE_COLUMN,
                 extra_columns=[FieldNames.PACKET, FieldNames.VISITNUM],
                 find_all=True,
-                qc_gear=DefaultValues.LEGACY_QC_GEAR,
+                qc_gear=self.__legacy_qc_gear,
             )
 
         # checks not applicable if no UDS visits
@@ -1166,7 +1169,7 @@ class FormPreprocessor:
             search_col=FieldNames.DATE_COLUMN,
             find_all=True,
             extra_columns=mlst_fields,
-            qc_gear=DefaultValues.QC_GEAR,
+            qc_gear=self.__qc_gear,
         )
 
         # try legacy if not found
@@ -1178,7 +1181,7 @@ class FormPreprocessor:
                 search_col=FieldNames.DATE_COLUMN,
                 find_all=True,
                 extra_columns=mlst_fields,
-                qc_gear=DefaultValues.LEGACY_QC_GEAR,
+                qc_gear=self.__legacy_qc_gear,
             )
 
         # if no MLST forms, fails

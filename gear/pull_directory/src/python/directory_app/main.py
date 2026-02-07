@@ -1,23 +1,35 @@
 """Module for handling user data from directory."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import ValidationError
+from users.event_models import (
+    EventCategory,
+    EventType,
+    UserContext,
+    UserEventCollector,
+    UserProcessEvent,
+)
 from users.nacc_directory import DirectoryAuthorizations
 from users.user_entry import UserEntryList
 
 log = logging.getLogger(__name__)
 
 
-def run(*, user_report: List[Dict[str, Any]]) -> str:
+def run(
+    *, user_report: List[Dict[str, Any]], collector: Optional[UserEventCollector] = None
+) -> str:
     """Converts user report records to UserDirectoryEntry and saves as list of
     dictionary objects to the project.
 
     Args:
       user_report: user report records
+      collector: optional event collector for error tracking
     """
+    if collector is None:
+        collector = UserEventCollector()
 
     user_list = UserEntryList([])
     user_emails = set()
@@ -28,15 +40,47 @@ def run(*, user_report: List[Dict[str, Any]]) -> str:
             )
         except ValidationError as error:
             log.error("Error loading user record: %s", error)
+
+            # Create error event for validation failure
+            email = user_record.get("email", "unknown")
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_DATA,
+                user_context=UserContext(email=email),
+                message="Directory record validation failed",
+                action_needed="check_directory_record_format",
+            )
+            collector.collect(error_event)
             continue
 
         if not dir_record.permissions_approval:
             log.warning("Ignoring %s: Permissions not approved", dir_record.email)
+
+            # Create error event for missing permissions approval
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
+                user_context=UserContext(email=dir_record.email),
+                message="User permissions not approved in directory",
+                action_needed="contact_center_administrator_for_approval",
+            )
+            collector.collect(error_event)
             continue
+
         if not dir_record.complete:
             log.warning(
                 "Ignoring %s: Data platform survey is incomplete", dir_record.email
             )
+
+            # Create error event for incomplete survey
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
+                user_context=UserContext(email=dir_record.email),
+                message="Data platform survey is incomplete",
+                action_needed="complete_data_platform_survey",
+            )
+            collector.collect(error_event)
             continue
 
         entry = dir_record.to_user_entry()

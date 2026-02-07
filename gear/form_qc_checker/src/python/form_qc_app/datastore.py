@@ -205,7 +205,7 @@ class DatastoreHelper(Datastore):
             search_col=self.orderby,
             search_val=orderby_value,
             search_op="<",
-            qc_gear=DefaultValues.QC_GEAR,
+            qc_gear=self.__form_configs.qc_gear,
         )
 
         if prev_visits:
@@ -240,7 +240,7 @@ class DatastoreHelper(Datastore):
             search_col=legacy_date,
             search_val=orderby_value,
             search_op="<",
-            qc_gear=DefaultValues.LEGACY_QC_GEAR,
+            qc_gear=self.__form_configs.legacy_qc_gear,
         )
 
         if not legacy_visits:
@@ -292,7 +292,7 @@ class DatastoreHelper(Datastore):
             search_col=FieldNames.PACKET,
             search_val=ivp_codes,
             search_op=DefaultValues.FW_SEARCH_OR,
-            qc_gear=DefaultValues.QC_GEAR,
+            qc_gear=self.__form_configs.qc_gear,
             extra_columns=[date_field],
         )
 
@@ -309,7 +309,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.LEGACY_QC_GEAR,
+                qc_gear=self.__form_configs.legacy_qc_gear,
                 extra_columns=[date_field],
             )
 
@@ -350,7 +350,7 @@ class DatastoreHelper(Datastore):
             search_col=FieldNames.PACKET,
             search_val=ivp_codes,
             search_op=DefaultValues.FW_SEARCH_OR,
-            qc_gear=DefaultValues.QC_GEAR,
+            qc_gear=self.__form_configs.qc_gear,
             extra_columns=[date_field],
         )
 
@@ -367,7 +367,7 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=DefaultValues.LEGACY_QC_GEAR,
+                qc_gear=self.__form_configs.legacy_qc_gear,
                 extra_columns=[date_field],
             )
 

@@ -21,14 +21,8 @@ def run(
 
     Args:
         context: gear context
-        scheduler: Schedules the files to be curated
-        curation_tag: Tag to apply to curated files
-        force_curate: Curate file even if it's already been curated
+        curator: The Curator object that will perform curation
         max_num_workers: Max number of workers to use
-        rxclass_concepts: RxClass concepts - uses this instead of querying
-            RxNav if provided
-        ignore_qc: Whether or not to ignore QC failures, e.g. will curate
-            files regardless of QC status
     """
     scheduler.apply(curator=curator, context=context, max_num_workers=max_num_workers)
 

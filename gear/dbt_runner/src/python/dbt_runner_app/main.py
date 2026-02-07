@@ -2,16 +2,13 @@
 
 import logging
 from pathlib import Path
+from typing import Dict
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
-    ClientWrapper,
-    GearExecutionError,
     InputFileWrapper,
 )
-from inputs.context_parser import get_api_key
-from pydantic import BaseModel, ValidationError, field_validator
-from storage.storage import StorageManager
+from s3.s3_bucket import S3BucketInterface
 
 from .dbt_runner import DBTRunner
 from .validation import validate_dbt_project, validate_source_data
@@ -19,39 +16,31 @@ from .validation import validate_dbt_project, validate_source_data
 log = logging.getLogger(__name__)
 
 
-class StorageConfigs(BaseModel):
-    """Model to keep track of DBT storage configs."""
-
-    storage_label: str
-    source_prefix: str
-    output_prefix: str
-
-    @field_validator("source_prefix", "output_prefix")
-    @classmethod
-    def validate_prefix(cls, v: str) -> str:
-        """Ensure prefixes have no trailing backslash."""
-        v = v.rstrip("/")
-        if not v:
-            raise ValidationError("Prefix cannot be empty")
-
-        return v
-
-
 def run(
     *,
     context: GearContext,
-    client: ClientWrapper,
     dbt_project_zip: InputFileWrapper,
-    storage_configs: StorageConfigs,
+    source_prefixes: Dict[str, Dict[str, str]],
+    output_prefix: str,
+    dry_run: bool = True,
+    debug: bool = False,
 ) -> None:
     """Runs the DBT Runner process.
 
     Args:
         context: the gear context
-        client: the FW client wrapper
         dbt_project_zip: the DBT project zip
-        storage_configs: the external storage configs
+        source_prefixes: the table to source prefix mappings,
+            grouped by bucket
+        output_prefix: The output prefix
+        dry_run: whether or not this is a dry run
+        debug: whether or not to run in debug mode
     """
+    # parse out the output prefix bucket/key and create its
+    # S3 interface
+    output_bucket, output_key = S3BucketInterface.parse_bucket_and_key(output_prefix)
+    output_s3_interface = S3BucketInterface.create_from_environment(output_bucket)
+
     log.info("=" * 80)
     log.info("dbt Runner Gear - Starting execution")
     log.info("=" * 80)
@@ -66,21 +55,25 @@ def run(
     project_root = validate_dbt_project(dbt_project_zip, dbt_extract_dir)
     log.info(f"dbt project root: {project_root}")
 
-    # Step 2: Initialize storage manager and verify access
-    log.info("[2/6] Initializing storage client")
+    # Step 2: Initialize S3 storage client and verify access
+    log.info("[2/6] Downloading source prefixes from S3")
+    for bucket, prefixes in source_prefixes.items():
+        # create client from bucket and environment
+        # if same as output interface, just use that
+        if bucket == output_bucket:
+            s3_interface = output_s3_interface
+        else:
+            s3_interface = S3BucketInterface.create_from_environment(bucket)
 
-    api_key = get_api_key(context)
-    if not api_key:
-        raise GearExecutionError("API key not found")
+        # download .parquet files under the specified
+        # prefixes under this bucket to the specified tables
+        for table, prefix in prefixes.items():
+            s3_interface.download_files(
+                prefix, source_data_dir / table, glob="*.parquet"
+            )
 
-    storage_manager = StorageManager(api_key, storage_configs.storage_label)
-    storage_manager.verify_access(storage_configs.source_prefix)
-
-    # Step 3: Download source dataset
-    log.info("[3/6] Downloading source dataset from external storage")
-    storage_manager.download_dataset(storage_configs.source_prefix, source_data_dir)
-
-    # Validate source data structure
+    log.info("[3/6] Validating source data structure")
+    # Step 3: Validate source data structure
     validate_source_data(source_data_dir)
 
     # Step 4: Run dbt
@@ -88,15 +81,19 @@ def run(
     log.info("[4/6] Executing dbt run")
     dbt_runner.run()
 
-    # Step 5: Upload results to external storage
-    log.info("[5/6] Uploading results to external storage")
-    dbt_runner.upload_external_model_outputs(
-        storage_manager, storage_configs.output_prefix
-    )
+    if dry_run:
+        log.info("[5/6] DRY RUN: skipping uploading results to S3")
+    else:
+        # Step 5: Upload results to S3
+        log.info("[5/6] Uploading results to S3")
+        dbt_runner.upload_external_model_outputs(output_s3_interface, output_key)
 
-    # Step 6: Save dbt artifacts as gear outputs
-    log.info("[6/6] Saving dbt artifacts")
-    dbt_runner.save_dbt_artifacts(Path(context.output_dir))
+    if not debug:
+        log.info("[6/6] Not debugging; skipping saving dbt artifacts")
+    else:
+        # Step 6: Save dbt artifacts as gear outputs
+        log.info("[6/6] Saving dbt artifacts")
+        dbt_runner.save_dbt_artifacts(Path(context.output_dir))
 
     log.info("\n" + "=" * 80)
     log.info("dbt Runner Gear - Completed successfully")
