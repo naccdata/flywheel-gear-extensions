@@ -1,0 +1,14 @@
+{
+    "config": {
+        "identifiers_mode": "prod",
+        "dry_run": false,
+        "apikey_path_prefix": "/prod/flywheel/gearbot"
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "key": "naccdata.flywheel.io:djEEODLuUY5cv0Cpc2r38B3wdV1Ya1AS_xYDtl3QjxZwEQk3nS9DC5uwg"
+        }
+    },
+    "destination": {}
+}

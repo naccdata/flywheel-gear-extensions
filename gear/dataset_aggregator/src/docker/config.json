@@ -1,0 +1,21 @@
+{
+    "config": {
+        "identifiers_mode": "prod",
+        "dry_run": true,
+        "apikey_path_prefix": "/prod/flywheel/gearbot",
+        "target_project": "accepted",
+        "output_uri": "nacc-reporting/emily-tmp/dataset-aggregation",
+        "exclude_centers": "sample-center,allftd",
+        "exclude_studies": "dlb,dvcid,leads,ftld,zhtranslation"
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key",
+            "key": "flywheel.naccdata.org:djE1Z0O8dC17s9xVKRV8Tx-qtUj0EavE8iYjdFmKfIYeP3Eh9i1sBZBkQ"
+        }
+    },
+    "destination": {
+        "id": "65cb995ba38eeda7fbc0c042",
+        "type": "project"
+    }
+}

@@ -36,4 +36,4 @@ def run(
             writer.writeheader()
             writer.writerows(failed_files)
 
-        log.error(f"Failed to curate {len(failed_files)} files, see error logs")
+        log.error(f"{len(failed_files)} curation errors, see logs")
