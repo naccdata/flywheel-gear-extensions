@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -46,7 +46,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "BatchSchedulerVisitor":
         """Creates a batch scheduler execution visitor.
@@ -96,8 +96,9 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
                 f"{self.__config_input.filename}"
             )
 
-        sender_email = context.config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = context.config.get("target_emails", "nacc_dev@uw.edu")
+        options = context.config.opts
+        sender_email = options.get("sender_email", "nacchelp@uw.edu")
+        target_emails = options.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         run(
@@ -108,7 +109,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
             sender_email=sender_email,
             target_emails=target_emails,
             retry_jobs=self.__retry_jobs,
-            dry_run=context.config.get("dry_run", False),
+            dry_run=options.get("dry_run", False),
         )
 
 

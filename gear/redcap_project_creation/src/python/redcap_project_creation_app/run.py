@@ -1,6 +1,7 @@
 """Entry script for REDCap Project Creation."""
 
 import logging
+from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
@@ -13,7 +14,7 @@ from centers.center_group import (
 )
 from flywheel import Project
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -63,7 +64,7 @@ def get_xml_templates(
     return xml_templates
 
 
-def validate_input_data(input_file_path: str) -> Optional[StudyREDCapMetadata]:
+def validate_input_data(input_file_path: Path) -> Optional[StudyREDCapMetadata]:
     """Validates the input file.
 
     Args:
@@ -74,7 +75,7 @@ def validate_input_data(input_file_path: str) -> Optional[StudyREDCapMetadata]:
     """
 
     try:
-        with open(input_file_path, "r", encoding="utf-8 ") as input_file:
+        with input_file_path.open("r", encoding="utf-8 ") as input_file:
             input_data = load_from_stream(input_file)
     except YAMLReadError as error:
         log.error("Failed to read the input file - %s", error)
@@ -99,7 +100,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "REDCapProjectCreation":
         """Creates a gear execution object.
@@ -126,7 +127,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
 
     def __write_out_file(  # noqa: C901
         self,
-        context: GearToolkitContext,
+        context: GearContext,
         admin_group_id: str,
         study_id: str,
         filename: str,
@@ -220,7 +221,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
                 out_file.write(yaml_text)
 
     # pylint: disable = (too-many-locals)
-    def run(self, context: GearToolkitContext) -> None:  # noqa: C901
+    def run(self, context: GearContext) -> None:  # noqa: C901
         """Invoke the redcap project creation app.
 
         Args:
@@ -229,7 +230,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
         Raises:
             GearExecutionError if errors occur while creating the projects
         """
-        input_file_path = context.get_input_path("input_file")
+        input_file_path = context.config.get_input_path("input_file")
         if not input_file_path:
             raise GearExecutionError("No input file provided")
 

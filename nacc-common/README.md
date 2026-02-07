@@ -55,7 +55,7 @@ will then build sdist and wheel distributions in the `dist` directory.
 
 ### Installing a distribution
 
-The built wheel can be installed into a Python environment using pip. It is recommended to use a virtual environment or Docker image as opposed to your machine's local environment, especially if you are running something other than Python 3.11 as required by these demos.
+The built wheel can be installed into a Python environment using pip. It is recommended to use a virtual environment or Docker image as opposed to your machine's local environment, especially if you are running something other than Python 3.12 as required by these demos.
 
 ```bash
 # replace <version> with the version that was built

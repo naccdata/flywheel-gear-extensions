@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -54,7 +54,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FileDistributionVisitor":
         """Creates a File Distribution execution visitor.
@@ -73,15 +73,14 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         if not file_input:
             raise GearExecutionError("No input file provided")
 
-        target_project = context.config.get("target_project", None)
+        options = context.config.opts
+        target_project = options.get("target_project", None)
         if not target_project:
             raise GearExecutionError("No target project provided")
 
         # for scheduling
-        batch_size = context.config.get("batch_size", 1)
-        downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", "")
-        )
+        batch_size = options.get("batch_size", 1)
+        downstream_gears = parse_string_to_list(options.get("downstream_gears", ""))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -99,11 +98,11 @@ class FileDistributionVisitor(GearExecutionEnvironment):
             target_project=target_project,
             batch_size=batch_size,
             downstream_gears=downstream_gears,
-            include=context.config.get("include", None),
-            exclude=context.config.get("exclude", None),
+            include=options.get("include", None),
+            exclude=options.get("exclude", None),
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the File Distribution app."""
         file_id = self.__file_input.file_id
         try:

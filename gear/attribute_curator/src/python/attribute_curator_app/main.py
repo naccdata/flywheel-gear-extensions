@@ -5,7 +5,7 @@ import logging
 from typing import MutableMapping, Optional
 
 from curator.scheduling import ProjectCurationScheduler
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 
 from .form_curator import FormCurator
 
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 def run(
-    context: GearToolkitContext,
+    context: GearContext,
     scheduler: ProjectCurationScheduler,
     curation_tag: str,
     force_curate: bool = False,

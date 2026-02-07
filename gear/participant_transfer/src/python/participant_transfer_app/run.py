@@ -4,7 +4,7 @@ import logging
 from typing import List, Optional
 
 from enrollment.enrollment_project import EnrollmentProject
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -48,7 +48,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "ParticipantTransferVisitor":
         """Creates a Manage Participant Transfer execution visitor.
@@ -66,17 +66,18 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        enroll_project_path = context.config.get("enrollment_project")
+        options = context.config.opts
+        enroll_project_path = options.get("enrollment_project")
         if not enroll_project_path:
             raise GearExecutionError("Missing required gear config enrollment_project")
 
-        ptid = context.config.get("participant_id")
+        ptid = options.get("participant_id")
         if not ptid:
             raise GearExecutionError("Missing required gear config participant_id")
 
-        mode = context.config.get("database_mode", "prod")
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        copy_only = context.config.get("copy_only", False)
+        mode = options.get("database_mode", "prod")
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        copy_only = options.get("copy_only", False)
 
         return ParticipantTransferVisitor(
             client=client,
@@ -87,7 +88,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             copy_only=copy_only,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         project = self.proxy.lookup(self.__enroll_project_path)
         if not project:
             raise GearExecutionError(
@@ -101,15 +102,15 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             mode=self.__identifiers_mode,
         )
 
+        options = context.config.opts
         admin_group = self.admin_group(admin_id=self.__admin_id)
-        datatypes = parse_string_to_list(
-            context.config.get("datatypes", "form,scan,dicom")
-        )
-        sender_email = context.config.get("sender_email", "nacc_dev@uw.edu")
-        target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
+        datatypes = parse_string_to_list(options.get("datatypes", "form,scan,dicom"))
+
+        sender_email = options.get("sender_email", "nacc_dev@uw.edu")
+        target_emails = options.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
-        gear_name = context.manifest.get("name", "participant-transfer")
+        gear_name = self.gear_name(context, "participant-transfer")
         job_id = self.get_job_id(context=context, gear_name=gear_name)
         try:
             success = run(

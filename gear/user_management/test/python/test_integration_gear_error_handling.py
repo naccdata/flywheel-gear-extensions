@@ -76,8 +76,8 @@ class MockREDCapParametersRepository:
         return cls()
 
 
-class MockGearToolkitContext:
-    """Mock GearToolkitContext for testing."""
+class MockGearContext:
+    """Mock GearContext for testing."""
 
     def __init__(
         self,
@@ -87,7 +87,7 @@ class MockGearToolkitContext:
     ):
         self.user_file_path = user_file_path or "/tmp/users.yaml"
         self.auth_file_path = auth_file_path or "/tmp/auth.yaml"
-        self.config_dict = config or {
+        self.config_opts = config or {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",
             "notifications_path": "/notifications/test",
@@ -95,9 +95,13 @@ class MockGearToolkitContext:
             "redcap_parameter_path": "/redcap/aws",
             "notification_mode": "date",
         }
+        # Mock the Config object structure from fw_gear
+        self._config = Mock()
+        self._config.opts = self.config_opts
+        self._config.get_input_path = self._get_input_path
 
-    def get_input_path(self, input_name: str) -> Optional[str]:
-        """Mock get_input_path."""
+    def _get_input_path(self, input_name: str) -> Optional[str]:
+        """Mock get_input_path for the config object."""
         if input_name == "user_file":
             return self.user_file_path
         elif input_name == "auth_file":
@@ -106,8 +110,8 @@ class MockGearToolkitContext:
 
     @property
     def config(self):
-        """Mock config property."""
-        return self.config_dict
+        """Mock config property that returns a Config object."""
+        return self._config
 
 
 class TestGearErrorHandlingIntegration:
@@ -119,9 +123,9 @@ class TestGearErrorHandlingIntegration:
         return MockParameterStore()
 
     @pytest.fixture
-    def mock_context(self) -> MockGearToolkitContext:
+    def mock_context(self) -> MockGearContext:
         """Create mock gear context."""
-        return MockGearToolkitContext()
+        return MockGearContext()
 
     @pytest.fixture
     def mock_client(self) -> ClientWrapper:
@@ -133,7 +137,7 @@ class TestGearErrorHandlingIntegration:
     def test_visitor_creation_with_error_handling_support(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
     ) -> None:
         """Test that visitor is created with error handling support.
@@ -180,7 +184,7 @@ class TestGearErrorHandlingIntegration:
             "portal_url_path": "/portal/url",
         }
 
-        minimal_context = MockGearToolkitContext(config=minimal_config)
+        minimal_context = MockGearContext(config=minimal_config)
 
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -201,7 +205,7 @@ class TestGearErrorHandlingIntegration:
             config_with_mode = minimal_config.copy()
             config_with_mode["notification_mode"] = mode
 
-            context_with_mode = MockGearToolkitContext(config=config_with_mode)
+            context_with_mode = MockGearContext(config=config_with_mode)
 
             with (
                 patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -233,7 +237,7 @@ class TestGearErrorHandlingIntegration:
             "portal_url_path": "/portal/url",
         }
 
-        context_no_comanage = MockGearToolkitContext(config=config_no_comanage)
+        context_no_comanage = MockGearContext(config=config_no_comanage)
 
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -251,9 +255,7 @@ class TestGearErrorHandlingIntegration:
             "portal_url_path": "/portal/url",
         }
 
-        context_no_notifications = MockGearToolkitContext(
-            config=config_no_notifications
-        )
+        context_no_notifications = MockGearContext(config=config_no_notifications)
 
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -271,7 +273,7 @@ class TestGearErrorHandlingIntegration:
             "notifications_path": "/notifications/test",
         }
 
-        context_no_portal = MockGearToolkitContext(config=config_no_portal)
+        context_no_portal = MockGearContext(config=config_no_portal)
 
         with (
             patch("user_app.run.GearBotClient.create", return_value=mock_client),
@@ -306,7 +308,7 @@ class TestGearErrorHandlingIntegration:
     def test_support_emails_configuration(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
     ) -> None:
         """Test support staff email configuration via Parameter Store.

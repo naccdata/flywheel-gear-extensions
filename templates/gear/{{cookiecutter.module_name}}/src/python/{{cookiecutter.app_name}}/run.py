@@ -4,7 +4,7 @@ import logging
 
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -27,7 +27,7 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None
     ) -> '{{cookiecutter.class_name}}Visitor':
         """Creates a {{cookiecutter.gear_name}} execution visitor.
@@ -45,7 +45,7 @@ class {{cookiecutter.class_name}}Visitor(GearExecutionEnvironment):
 
         return {{cookiecutter.class_name}}Visitor(client=client)
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         run(proxy=self.proxy)
 
 

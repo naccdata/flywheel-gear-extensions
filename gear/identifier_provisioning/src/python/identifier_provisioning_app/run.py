@@ -6,7 +6,7 @@ from typing import Optional
 
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -48,7 +48,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "IdentifierProvisioningVisitor":
         assert parameter_store, "Parameter store expected"
 
@@ -56,17 +56,15 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing expected input"
 
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        mode = context.config.get("database_mode", "prod")
-
+        options = context.config.opts
         return IdentifierProvisioningVisitor(
             client=client,
-            admin_id=admin_id,
+            admin_id=options.get("admin_group", DefaultValues.NACC_GROUP_ID),
             file_input=file_input,
-            identifiers_mode=mode,
+            identifiers_mode=options.get("database_mode", "prod"),
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the identifier provisioning app.
 
         Args:
@@ -76,7 +74,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         assert context, "Gear context required"
 
         file_suffix = self.__file_input.get_module_name_from_file_suffix()
-        enroll_module: str = context.config.get(
+        enroll_module: str = context.config.opts.get(
             "enrollment_module", DefaultValues.ENROLLMENT_MODULE
         ).lower()
         if not file_suffix or file_suffix.lower() != enroll_module:
@@ -106,15 +104,15 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         submitter = get_submitter(file=file, proxy=self.proxy)
 
         input_path = Path(self.__file_input.filepath)
-        gear_name = context.manifest.get("name", "identifier-provisioning")
+        gear_name = self.gear_name(context, "identifier-provisioning")
 
         error_writer = ListErrorWriter(
             container_id=self.__file_input.file_id,
             fw_path=self.proxy.get_lookup_path(file),
         )
 
-        sender_email = context.config.get("sender_email", "nacc_dev@uw.edu")
-        target_emails = context.config.get("target_emails", "nacchelp@uw.edu")
+        sender_email = context.config.opts.get("sender_email", "nacc_dev@uw.edu")
+        target_emails = context.config.opts.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:

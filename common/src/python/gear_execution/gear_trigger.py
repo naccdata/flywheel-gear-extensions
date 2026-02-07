@@ -3,6 +3,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
+from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
@@ -86,7 +87,7 @@ class GearInfo(BaseModel):
 
     @classmethod
     def load_from_file(
-        cls, configs_file_path: str, configs_class=GearConfigs
+        cls, configs_file_path: str | Path, configs_class=GearConfigs
     ) -> Optional[Any]:
         """Load GearInfo from configs file.
 
@@ -98,7 +99,9 @@ class GearInfo(BaseModel):
         """
         configs_data = {}
         try:
-            with open(configs_file_path, mode="r", encoding="utf-8-sig") as file_obj:
+            with Path(configs_file_path).open(
+                mode="r", encoding="utf-8-sig"
+            ) as file_obj:
                 configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error(

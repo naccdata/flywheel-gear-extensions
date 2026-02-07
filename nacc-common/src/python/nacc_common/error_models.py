@@ -347,7 +347,7 @@ class FileQCModel(BaseModel):
     """Model for the FW Job QC object at file.info.
 
     Object at file.info is created by
-    GearToolkitContext.metadata.add_qc_result.
+    GearContext.metadata.add_qc_result.
     """
 
     qc: Dict[str, GearQCModel]

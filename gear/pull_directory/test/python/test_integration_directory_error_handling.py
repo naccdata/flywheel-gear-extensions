@@ -63,8 +63,8 @@ class MockParameterStore:
         }
 
 
-class MockGearToolkitContext:
-    """Mock GearToolkitContext for testing."""
+class MockGearContext:
+    """Mock GearContext for testing."""
 
     def __init__(
         self,
@@ -73,7 +73,7 @@ class MockGearToolkitContext:
         destination: Optional[Dict] = None,
     ):
         self.user_filename = user_filename or "users.yaml"
-        self.config_dict = config or {
+        self.config_opts = config or {
             "parameter_path": "/directory/test",
             "user_file": "users.yaml",
         }
@@ -81,16 +81,15 @@ class MockGearToolkitContext:
         self.output_content = None
         # Add client attribute for ContextClient.create() - use a mock object
         self.client = Mock()
+        # Mock the Config object structure from fw_gear
+        self._config = Mock()
+        self._config.opts = self.config_opts
+        self._config.destination = self.destination_dict
 
     @property
     def config(self):
-        """Mock config property."""
-        return self.config_dict
-
-    @property
-    def destination(self):
-        """Mock destination property."""
-        return self.destination_dict
+        """Mock config property that returns a Config object."""
+        return self._config
 
     def open_output(self, filename: str, mode: str = "w", encoding: str = "utf-8"):
         """Mock open_output context manager."""
@@ -120,9 +119,9 @@ class TestDirectoryErrorHandlingIntegration:
         return MockParameterStore()
 
     @pytest.fixture
-    def mock_context(self) -> MockGearToolkitContext:
+    def mock_context(self) -> MockGearContext:
         """Create mock gear context."""
-        return MockGearToolkitContext()
+        return MockGearContext()
 
     @pytest.fixture
     def mock_client(self) -> ClientWrapper:
@@ -279,7 +278,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_directory_processing_with_valid_records(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         valid_user_record: Dict[str, Any],
     ) -> None:
         """Test directory processing with valid user records.
@@ -303,7 +302,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_error_capture_for_unapproved_permissions(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         unapproved_permissions_record: Dict[str, Any],
         caplog,
     ) -> None:
@@ -346,7 +345,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_error_capture_for_incomplete_survey(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         incomplete_survey_record: Dict[str, Any],
         caplog,
     ) -> None:
@@ -389,7 +388,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_error_capture_for_validation_failures(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         invalid_record: Dict[str, Any],
         caplog,
     ) -> None:
@@ -430,7 +429,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_mixed_records_processing(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         valid_user_record: Dict[str, Any],
         unapproved_permissions_record: Dict[str, Any],
         incomplete_survey_record: Dict[str, Any],
@@ -493,7 +492,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_duplicate_email_detection(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         valid_user_record: Dict[str, Any],
         caplog,
     ) -> None:
@@ -526,7 +525,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_empty_user_report(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
     ) -> None:
         """Test processing with empty user report.
 
@@ -549,7 +548,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_visitor_creation_with_error_handling_support(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
     ) -> None:
         """Test that visitor can be created with error handling support.
@@ -570,7 +569,7 @@ class TestDirectoryErrorHandlingIntegration:
             return_value=mock_report_connection,
         ):
             # Add support staff emails path to config
-            mock_context.config_dict["support_emails_path"] = "/support/emails"
+            mock_context.config_opts["support_emails_path"] = "/support/emails"
 
             visitor = DirectoryPullVisitor.create(
                 context=mock_context,  # type: ignore
@@ -583,7 +582,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_gear_execution_with_dry_run(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
         valid_user_record: Dict[str, Any],
         caplog,
@@ -627,7 +626,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_gear_execution_with_actual_write(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
         valid_user_record: Dict[str, Any],
     ) -> None:
@@ -669,7 +668,7 @@ class TestDirectoryErrorHandlingIntegration:
 
         # Create context without parameter_path
         config_no_param = {"user_file": "users.yaml"}
-        context_no_param = MockGearToolkitContext(config=config_no_param)
+        context_no_param = MockGearContext(config=config_no_param)
 
         with pytest.raises(GearExecutionError, match="No parameter path"):
             DirectoryPullVisitor.create(
@@ -692,7 +691,7 @@ class TestDirectoryErrorHandlingIntegration:
 
         # Create context without user_file
         config_no_file = {"parameter_path": "/directory/test"}
-        context_no_file = MockGearToolkitContext(config=config_no_file)
+        context_no_file = MockGearContext(config=config_no_file)
 
         # Mock REDCap connection
         mock_report_connection = Mock()
@@ -713,7 +712,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_gear_handles_redcap_connection_error(
         self,
         mock_parameter_store: MockParameterStore,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
     ) -> None:
         """Test that gear handles REDCap connection errors.
@@ -742,7 +741,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_gear_handles_parameter_store_error(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
         mock_client: ClientWrapper,
     ) -> None:
         """Test that gear handles Parameter Store errors.
@@ -767,7 +766,7 @@ class TestDirectoryErrorHandlingIntegration:
 
     def test_end_of_run_notification_generation_placeholder(
         self,
-        mock_context: MockGearToolkitContext,
+        mock_context: MockGearContext,
     ) -> None:
         """Test end-of-run notification generation (placeholder).
 
