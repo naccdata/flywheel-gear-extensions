@@ -55,7 +55,7 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
     try:
         response_model.associate_uds_session()
     except ValueError as error:
-        log.warning(f"{subject.label} failed, clearing curation: {error}")
+        log.error(f"{subject.label} failed, clearing curation: {error}")
         # clear out curation tags on all files
         for file_model in response_model.data:
             curator.clear_curation_tag(file_model)
