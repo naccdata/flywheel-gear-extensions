@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from identifiers.model import IdentifiersMode
 from s3.s3_bucket import S3BucketInterface
 from storage.dataset import AggregateDataset
@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    context: GearToolkitContext,
+    context: GearContext,
     aggregate: AggregateDataset,
     output_uri: str,
     identifiers_mode: IdentifiersMode,

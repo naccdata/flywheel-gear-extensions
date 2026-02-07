@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -45,7 +45,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "DatasetAggregatorVisitor":
         """Creates a Dataset Aggregator execution visitor.
@@ -60,16 +60,17 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         """
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        options = context.config.opts
 
-        target_project = context.config.get("target_project", None)
+        target_project = options.get("target_project", None)
         if not target_project:
             raise GearExecutionError("target_project required")
 
-        output_uri = context.config.get("output_uri", None)
+        output_uri = options.get("output_uri", None)
         if not output_uri:
             raise GearExecutionError("output_uri required")
 
-        identifiers_mode = context.config.get("identifiers_mode", "prod")
+        identifiers_mode = options.get("identifiers_mode", "prod")
         if identifiers_mode not in ["dev", "prod"]:
             raise GearExecutionError(f"invalid identifiers mode: {identifiers_mode}")
 
@@ -144,7 +145,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             datasets=datasets,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         aggregate = self.__group_datasets(self.get_center_ids(context))
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 

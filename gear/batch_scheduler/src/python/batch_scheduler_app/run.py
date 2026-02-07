@@ -70,11 +70,11 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
         return BatchSchedulerVisitor(
             client=client,
             config_input=batch_configs_input,
-            time_interval=context.config.get("time_interval", 7),
-            retry_jobs=context.config.get("retry_jobs", True),
+            time_interval=context.config.opts.get("time_interval", 7),
+            retry_jobs=context.config.opts.get("retry_jobs", True),
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Invoke the batch scheduler app.
 
         Args:

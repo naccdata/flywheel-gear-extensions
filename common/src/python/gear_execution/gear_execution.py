@@ -433,7 +433,7 @@ class GearExecutionEnvironment(ABC):
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
 
-    def get_center_ids(self, context: GearToolkitContext) -> List[str]:
+    def get_center_ids(self, context: GearContext) -> List[str]:
         """Get center IDs.
 
         If used, assumes include_centers, exclude_centers, exclude_studies,
@@ -443,10 +443,11 @@ class GearExecutionEnvironment(ABC):
         Returns:
             The list of center IDs to use for this execution
         """
-        admin_id = context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
-        include_centers = context.config.get("include_centers", None)
-        exclude_centers = context.config.get("exclude_centers", None)
-        exclude_studies = context.config.get("exclude_studies", None)
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        include_centers = options.get("include_centers", None)
+        exclude_centers = options.get("exclude_centers", None)
+        exclude_studies = options.get("exclude_studies", None)
 
         if include_centers and (exclude_centers or exclude_studies):
             raise GearExecutionError(
