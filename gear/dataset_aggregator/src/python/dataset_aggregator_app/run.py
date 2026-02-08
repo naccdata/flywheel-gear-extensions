@@ -1,7 +1,9 @@
 """Entry script for Dataset Aggregator."""
 
+import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from flywheel.rest import ApiException
@@ -149,11 +151,28 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         aggregate = self.__group_datasets(self.get_center_ids(context))
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
+        # write provenance information to file
+        provenance_file = Path(context.work_dir) / "provenance.json"
+        with provenance_file.open("w") as fh:
+            provenance = {
+                "manifest": {
+                    "name": self.gear_name(context, "dataset-aggregator"),
+                    "version": context.manifest.version,
+                },
+                "config": {
+                    "opts": context.config.opts,
+                    "destination": context.config.destination,
+                },
+                "timestamp": timestamp,
+            }
+            json.dump(provenance, fh, indent=4)
+
         run(
             context=context,
             aggregate=aggregate,
             output_uri=f"{self.__output_uri}/{timestamp}",
             identifiers_mode=self.__identifiers_mode,
+            provenance_file=provenance_file,
             dry_run=self.client.dry_run,
         )
 

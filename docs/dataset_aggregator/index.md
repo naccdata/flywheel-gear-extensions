@@ -7,6 +7,8 @@ Results get written to `{output_prefix}/%Y%m%d-%H%M%S` for each table, e.g.
 * `my-bucket/target-prefix/20260206-100129`
 * `my-bucket/target-prefix/20260206-100129/my-table/aggregate_result.parquet` for a specific table
 
+A provenance file `provenance.json` is also written at the top level (e.g. `my-bucket/target-prefix/20260206-100129/provenance.json`) that dumps information about the gear that generated the data.
+
 ## Workflow
 
 1. Look up the target project for each center in the center mapping

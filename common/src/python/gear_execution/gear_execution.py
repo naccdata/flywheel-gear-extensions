@@ -493,10 +493,13 @@ class GearExecutionEnvironment(ABC):
         return center_ids
 
     @classmethod
-    def gear_name(cls, context: GearContext, default: str) -> str:
+    def gear_name(cls, context: GearContext, default: Optional[str] = None) -> str:
         """Get gear name."""
         gear_name = context.manifest.name
         if not gear_name:
+            if not default:
+                raise GearExecutionError("gear name not defined")
+
             return default
 
         return gear_name

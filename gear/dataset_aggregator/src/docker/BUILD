@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/dataset_aggregator/src/python/dataset_aggregator_app:bin",
     ],
-    image_tags=["0.1.0", "latest"],
+    image_tags=["0.1.0a", "latest"],
 )

@@ -2,7 +2,7 @@
     "name": "dataset-aggregator",
     "label": "Dataset Aggregator",
     "description": "Aggregates most recent FW datasets across centers",
-    "version": "0.1.0",
+    "version": "0.1.0a",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/dataset-aggregator:0.1.0"
+            "image": "naccdata/dataset-aggregator:0.1.0a"
         },
         "flywheel": {
             "suite": "Utility",

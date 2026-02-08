@@ -20,6 +20,7 @@ def run(
     aggregate: AggregateDataset,
     output_uri: str,
     identifiers_mode: IdentifiersMode,
+    provenance_file: Path,
     dry_run: bool = False,
 ):
     """Runs the Dataset Aggregator process.
@@ -31,6 +32,7 @@ def run(
         output_uri: Output S3 URI to write aggregated results
             to
         identifiers_mode: Mode for identifiers repository
+        provenance_file: File containing provenance info
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
     """
@@ -43,6 +45,9 @@ def run(
         # make sure we have access to the output location first
         bucket, prefix = S3BucketInterface.parse_bucket_and_key(output_uri)
         s3_output_interface = S3BucketInterface.create_from_environment(bucket)
+
+        # write provenance
+        s3_output_interface.upload_file(provenance_file, prefix)
 
     transfer_handler = TransferDuplicateHandler(identifiers_mode)
     log.info(f"Grabbing latest datasets under {aggregate.bucket}...")
@@ -68,7 +73,7 @@ def run(
         else:
             log.info(f"Uploading results to {output_uri}/{table}")
             s3_output_interface.upload_file(  # type: ignore
-                aggregate_file, f"{output_uri}/{table}"
+                aggregate_file, f"{prefix}/tables/{table}"
             )
 
         os.remove(aggregate_file)
