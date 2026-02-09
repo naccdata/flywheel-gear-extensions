@@ -154,7 +154,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         provenance_file = Path(context.work_dir) / "provenance.json"
         with provenance_file.open("w") as fh:
             provenance = self.get_provenance(context)
-            provenance['latest_datasets'] = aggregate.latest_versions
+            provenance["latest_datasets"] = aggregate.latest_versions
 
             json.dump(provenance, fh, indent=4)
 
