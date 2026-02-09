@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.3
+
+* Updates module pattern to support B1a ingest
+  
 ## 2.2.2
 
 * Fixes KeyError when processing forms without visitnum column (e.g., Milestones, NP)

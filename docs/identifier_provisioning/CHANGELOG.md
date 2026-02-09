@@ -1,8 +1,9 @@
 # Changelog
 
 All notable changes to this gear are documented in this file.
-
+ 
 ## 2.0.2
+* Updates module pattern to support B1a ingest
 * Bug fixes and improvements
 
 ## 2.0.1

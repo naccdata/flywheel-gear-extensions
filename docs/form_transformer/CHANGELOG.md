@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.7.2
+* Updates module pattern to support B1a ingest
+  
 ## 1.7.1
 * Updates to support legacy ingest pipeline
 * Rebuilt for ingest config updates
