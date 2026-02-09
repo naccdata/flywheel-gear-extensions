@@ -63,17 +63,18 @@ def run(
     for table in aggregate.tables:
         aggregate_file = aggregate.aggregate_table(table, aggregate_dir)
         transfer_handler.handle(aggregate_file)
+        target_prefix = f"{prefix}/tables/{table}"
 
         # write results to S3
         if dry_run:
             log.info(
                 "DRY RUN: would have uploaded aggregate results to "
-                + f"{output_uri}/{table}"
+                + f"{target_prefix}"
             )
         else:
-            log.info(f"Uploading results to {output_uri}/{table}")
+            log.info(f"Uploading results to {target_prefix}")
             s3_output_interface.upload_file(  # type: ignore
-                aggregate_file, f"{prefix}/tables/{table}"
+                aggregate_file, f"{target_prefix}"
             )
 
         os.remove(aggregate_file)

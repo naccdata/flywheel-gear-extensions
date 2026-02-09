@@ -433,6 +433,47 @@ class GearExecutionEnvironment(ABC):
         job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
         return job_info.get("job_info", {}).get("job_id", None)
 
+    @classmethod
+    def get_gear_name(cls, context: GearContext, default: Optional[str] = None) -> str:
+        """Get gear name.
+
+        Args:
+            context: GearContext to look up gear name
+            default: default to use if gear name not found
+        Returns:
+            the gear name
+        """
+        gear_name = context.manifest.name
+        if not gear_name:
+            if not default:
+                raise GearExecutionError("gear name not defined")
+
+            return default
+
+        return gear_name
+
+    def get_provenance(self, context: GearContext) -> Dict[str, Any]:
+        """Get gear details as provenance.
+
+        Args:
+            context: GearContext to pull gear details from
+
+        Returns:
+            plain dict containing provenance details
+        """
+        gear_name = self.get_gear_name(context)
+        return {
+            "manifest": {
+                "name": gear_name,
+                "version": context.manifest.version,
+            },
+            "config": {
+                "opts": context.config.opts,
+                "destination": context.config.destination,
+            },
+            "metadata": {"job": self.get_job_id(context, gear_name)},
+        }
+
     def get_center_ids(self, context: GearContext) -> List[str]:
         """Get center IDs.
 
@@ -491,18 +532,6 @@ class GearExecutionEnvironment(ABC):
         ]
 
         return center_ids
-
-    @classmethod
-    def gear_name(cls, context: GearContext, default: Optional[str] = None) -> str:
-        """Get gear name."""
-        gear_name = context.manifest.name
-        if not gear_name:
-            if not default:
-                raise GearExecutionError("gear name not defined")
-
-            return default
-
-        return gear_name
 
 
 # TODO: remove type ignore when using python 3.12 or above

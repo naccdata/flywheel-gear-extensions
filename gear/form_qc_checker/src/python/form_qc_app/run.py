@@ -145,7 +145,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             ) from error
 
         run(
-            gear_name=self.gear_name(context, "form-qc-checker"),
+            gear_name=self.get_gear_name(context, "form-qc-checker"),
             client_wrapper=self.client,
             input_wrapper=self.__file_input,
             s3_client=self.__s3_client,

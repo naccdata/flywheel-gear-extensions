@@ -110,7 +110,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         preserve_case = options.get("preserve_case", False)
         module = options.get("module")
         single_center = options.get("single_center", True)
-        gear_name = GearExecutionEnvironment.gear_name(context, "identifer-lookup")
+        gear_name = GearExecutionEnvironment.get_gear_name(context, "identifer-lookup")
 
         # Note: form_configs_file is optional for 'nacc' direction
         # When not provided, only basic identifier lookup will be performed

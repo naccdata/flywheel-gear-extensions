@@ -140,7 +140,6 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
                 f"No datasets found in centers for project {self.__target_project}"
             )
 
-        # TODO: can support other filetypes like csv/json?
         return ParquetAggregateDataset(
             bucket=bucket,
             project=self.__target_project,
@@ -154,17 +153,9 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         # write provenance information to file
         provenance_file = Path(context.work_dir) / "provenance.json"
         with provenance_file.open("w") as fh:
-            provenance = {
-                "manifest": {
-                    "name": self.gear_name(context, "dataset-aggregator"),
-                    "version": context.manifest.version,
-                },
-                "config": {
-                    "opts": context.config.opts,
-                    "destination": context.config.destination,
-                },
-                "timestamp": timestamp,
-            }
+            provenance = self.get_provenance(context)
+            provenance['latest_datasets'] = aggregate.latest_versions
+
             json.dump(provenance, fh, indent=4)
 
         run(

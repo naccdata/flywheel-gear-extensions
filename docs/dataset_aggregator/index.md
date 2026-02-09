@@ -2,10 +2,10 @@
 
 Aggregates most recent FW datasets across centers. Removes duplicates caused by transferred participants.
 
-Results get written to `{output_prefix}/%Y%m%d-%H%M%S` for each table, e.g.
+Results get written to `{output_prefix}/%Y%m%d-%H%M%S/tables` for each table, e.g.
 
-* `my-bucket/target-prefix/20260206-100129`
-* `my-bucket/target-prefix/20260206-100129/my-table/aggregate_result.parquet` for a specific table
+* `my-bucket/target-prefix/20260206-100129/tables`
+* `my-bucket/target-prefix/20260206-100129/tables/my-table/aggregate_result.parquet` for a specific table
 
 A provenance file `provenance.json` is also written at the top level (e.g. `my-bucket/target-prefix/20260206-100129/provenance.json`) that dumps information about the gear that generated the data.
 
@@ -25,7 +25,7 @@ For each table:
 2. Inspect the aggregated table for transfer duplicates
     1. If detected, find the current ADCID for all all transfer duplicates by querying the Identifiers API by NACCID
     2. Remove rows corresponding to the old ADCID
-5. Upload the aggregated table to S3. The current timestamp will be appended to the output prefix as `{output_prefix}/%Y%m%d-%H%M%S`
+5. Upload the aggregated table to S3. The current timestamp and a `tables` directory will be appended to the output prefix as `{output_prefix}/%Y%m%d-%H%M%S/tables`
 
 
 ## Assumptions

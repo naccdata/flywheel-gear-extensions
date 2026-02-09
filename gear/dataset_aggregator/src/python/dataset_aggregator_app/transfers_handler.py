@@ -134,7 +134,7 @@ class TransferDuplicateHandler:
         if not duplicate_naccids:
             return
 
-        log.info(f"NACCIDs with duplicates: {duplicate_naccids}")
+        log.info(f"NACCIDs with transfer duplicates: {duplicate_naccids}")
         log.info(
             f"{len(duplicate_naccids)} duplicates found in {aggregate_file}, resolving"
         )
