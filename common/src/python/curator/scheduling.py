@@ -4,17 +4,17 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import Dict, List
+from typing import List
 
 from curator.curator import Curator, ProjectCurationError
-from data.dataview import ColumnModel, make_builder
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel.models.subject import Subject
 from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from pydantic import ValidationError
 from scheduling.min_heap import MinHeap
 
-from .scheduling_models import FileModel, ProcessedFile, ViewResponseModel
+from .scheduling_models import FileModel, ViewResponseModel
 
 log = logging.getLogger(__name__)
 
@@ -35,32 +35,77 @@ def initialize_worker(in_curator: Curator, context: GearContext):
     curator.set_client(context)
 
 
-def curate_subject(subject_id: str, heap: MinHeap[FileModel]) -> None:
+def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
+    """Build file heap for the given subject."""
+    # create dataview for files in subject
+    global curator
+    assert curator, "curator object expected"
+
+    with curator.read_dataview(subject.id) as response:
+        response_data = response.read()
+        try:
+            response_model = ViewResponseModel.model_validate_json(response_data)
+        except ValidationError as error:
+            raise ProjectCurationError(
+                f"Error curating subject {subject.label}: {error}"
+            ) from error
+
+    # associate UDS sessions; fail whole subject if a duplicate session is found
+    heap = MinHeap[FileModel]()
+    try:
+        response_model.associate_uds_session()
+    except ValueError as error:
+        log.error(f"{subject.label} failed, clearing curation: {error}")
+        # clear out curation tags on all files
+        for file_model in response_model.data:
+            curator.clear_curation_tag(file_model)
+
+        # write error
+        curator.handle_curation_failure(subject, str(error))
+        return heap
+
+    log.debug("Curating %s files in for %s", len(response_model.data), subject.label)
+    for file_model in response_model.data:
+        if not file_model.visit_pass:
+            log.warning("ignoring unexpected file %s", file_model.filename)
+            continue
+
+        heap.push(file_model)
+
+    return heap
+
+
+def curate_subject(subject_id: str) -> None:
     """Defines a task function for curating the files captured in the heap.
     Assumes the files are all under the same participant.
 
     Args:
         subject_id: ID of subject this heap belongs to
-        heap: the min heap of file model objects for the participant
     """
-
     global curator
     assert curator, "curator object expected"
+
     subject = curator.get_subject(subject_id)
     subject = subject.reload()
     subject_table = SymbolTable(subject.info)
 
+    heap = build_file_heap(subject)
+    if not heap:
+        log.warning(f"No files to curate for subject {subject.label}")
+        return
+
+    log.debug(f"Curating {len(heap)} files for {subject.label}")
+
     curator.pre_curate(subject, subject_table)
-    processed_files: List[ProcessedFile] = []
+    processed_files: List[FileModel] = []
 
     while len(heap) > 0:
         file_model = heap.pop()
         if not file_model:
             continue
 
-        processed_file = curator.curate_file(subject, subject_table, file_model.file_id)
-        if processed_file.file_info:
-            processed_files.append(processed_file)
+        if curator.curate_file(subject, subject_table, file_model):
+            processed_files.append(file_model)
 
     curator.post_curate(subject, subject_table, processed_files)
 
@@ -69,88 +114,21 @@ class ProjectCurationScheduler:
     """Defines a curator for applying a FormCurator to the files in a
     project."""
 
-    def __init__(self, heap_map: Dict[str, MinHeap[FileModel]]) -> None:
-        self.__heap_map = heap_map
-
-    @classmethod
-    def create(
-        cls,
+    def __init__(
+        self,
         project: ProjectAdaptor,
-        filename_patterns: List[str],
-    ) -> "ProjectCurationScheduler":
-        """Creates a ProjectCurationScheduler for the projects.
-
-        Pulls information for all of the files in the project.
-
-        Note:Columns must correspond to fields of FileModel.
+        include_subjects: List[str],
+        exclude_subjects: List[str],
+    ) -> None:
+        """Initializer.
 
         Args:
-          project: the project
-          filename_pattern: List of filename patterns to match on
-        Returns:
-          the ProjectCurationScheduler for the form files in the project
+            project: The project to curate over
+            filename_patterns: The filename patterns to curate over
         """
-        log.info("Creating project dataview")
-
-        builder = make_builder(
-            label="attribute-curation-scheduling",
-            description="Lists files for curation",
-            columns=[
-                ColumnModel(data_key="file.name", label="filename"),
-                ColumnModel(data_key="file.file_id", label="file_id"),
-                ColumnModel(
-                    data_key="file.parents.acquisition", label="acquisition_id"
-                ),
-                ColumnModel(data_key="file.parents.subject", label="subject_id"),
-                ColumnModel(
-                    data_key="file.info.forms.json.visitdate", label="visit_date"
-                ),
-                ColumnModel(data_key="file.modified", label="modified_date"),
-                ColumnModel(data_key="file.info.raw.study_date", label="study_date"),
-                ColumnModel(data_key="file.info.raw.scan_date", label="scan_date"),
-                ColumnModel(data_key="file.info.raw.scandate", label="scandate"),
-                ColumnModel(data_key="file.info.raw.scandt", label="scandt"),
-                ColumnModel(
-                    data_key="file.info.header.dicom.StudyDate", label="img_study_date"
-                ),
-            ],
-            container="acquisition",
-            missing_data_strategy="none",
-        )
-        if filename_patterns:
-            builder.file_filter(value="|".join(filename_patterns), regex=True)
-            builder.file_container("acquisition")
-
-        view = builder.build()
-
-        with project.read_dataview(view) as response:
-            response_data = response.read()
-            try:
-                response_model = ViewResponseModel.model_validate_json(response_data)
-            except ValidationError as error:
-                raise ProjectCurationError(
-                    f"Error curating project {project.label}: {error}"
-                ) from error
-
-        log.info(
-            "Curating %s files in %s/%s",
-            len(response_model.data),
-            project.group,
-            project.label,
-        )
-
-        subject_heap_map: Dict[str, MinHeap[FileModel]] = {}
-        for file_info in response_model.data:
-            if not file_info.visit_pass:
-                log.warning("ignoring unexpected file %s", file_info.filename)
-                continue
-
-            subject_id = file_info.subject_id
-            heap = subject_heap_map.get(subject_id, MinHeap[FileModel]())
-            heap.push(file_info)
-            subject_heap_map[subject_id] = heap
-
-        return ProjectCurationScheduler(heap_map=subject_heap_map)
+        self.__project = project
+        self.__include_subjects = include_subjects
+        self.__exclude_subjects = exclude_subjects
 
     def __compute_cores(self) -> int:
         """Attempts to compute the number of cores available for processes.
@@ -164,10 +142,6 @@ class ProjectCurationScheduler:
         os_cpu_cores: int = os_cpu_count if os_cpu_count else 1
         return max(1, max(os_cpu_cores - 1, multiprocessing.cpu_count() - 1))
 
-    def get_subject_ids(self) -> List[str]:
-        """Return list of all subject IDs (FW IDs) to curate."""
-        return list(self.__heap_map.keys())
-
     def apply(
         self, curator: Curator, context: GearContext, max_num_workers: int = 4
     ) -> None:
@@ -176,10 +150,10 @@ class ProjectCurationScheduler:
         Args:
           curator: an instantiated curator class
           context: context to set SDK client from
+          include_subjects: Subjects to include in curation
+          exclude_subjects: Subjects to exclude in
           max_num_workers: max number of workers to use
         """
-        log.info("Start curator for %s subjects", len(self.__heap_map))
-
         process_count = max(max_num_workers, self.__compute_cores())
         results = []
 
@@ -191,15 +165,20 @@ class ProjectCurationScheduler:
                 context,
             ),
         ) as pool:
-            for subject_id, heap in self.__heap_map.items():
-                log.debug("Curating subject %s", subject_id)
+            for subject in self.__project.project.subjects.iter():
+                if (
+                    self.__include_subjects
+                    and subject.label not in self.__include_subjects
+                ):
+                    continue
+                if self.__exclude_subjects and subject.label in self.__exclude_subjects:
+                    continue
+
+                log.debug("Curating subject %s", subject.id)
                 results.append(
                     pool.apply_async(
                         curate_subject,
-                        (
-                            subject_id,
-                            heap,
-                        ),
+                        (subject.id,),
                     )
                 )
 
