@@ -7,7 +7,7 @@ All notable changes to this gear are documented in this file.
 
 ## 2.1.10
 * Reverts StudyModel.datatypes to List[str]
-  
+
 ## 2.1.9
 * Adds retrospective-form project to center ingest projects metadata.
   

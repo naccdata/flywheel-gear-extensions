@@ -75,6 +75,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
             raise GearExecutionError("output_prefix required")
 
         debug = context.config.opts.get("debug", False)
+
         if debug:
             log.setLevel(logging.DEBUG)
             log.info("Set logging level to DEBUG")

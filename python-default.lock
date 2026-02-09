@@ -18,7 +18,7 @@
 //     "fw-utils>=3",
 //     "hypothesis>=6.0.0",
 //     "moto[s3,ses,ssm]==5.1.14",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.1/nacc_attribute_deriver-2.0.1-py3-none-any.whl",
+//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -2026,8 +2026,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "75d3bd49c10bcd6961a755a11ab16d4a75b454e952210ce844c570538b9428ee",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.1/nacc_attribute_deriver-2.0.1-py3-none-any.whl"
+              "hash": "a4c5c3cc42ba2b1c7d2d0519c7942ef820acd542ecee96d20e7e572d65aa9b38",
+              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2035,7 +2035,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.12.*",
-          "version": "2.0.1"
+          "version": "2.1.2"
         },
         {
           "artifacts": [
@@ -2952,13 +2952,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6",
-              "url": "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl"
+              "hash": "70b18734b607bd1da571d097d236cfcfacaf01de45717d59e6e04b96877532e0",
+              "url": "https://files.pythonhosted.org/packages/e1/c6/76dc613121b793286a3f91621d7b75a2b493e0390ddca50f11993eadf192/setuptools-82.0.0-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a",
-              "url": "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz"
+              "hash": "22e0a2d69474c6ae4feb01951cb69d515ed23728cf96d05513d36e42b62b37cb",
+              "url": "https://files.pythonhosted.org/packages/82/f3/748f4d6f65d1756b9ae577f329c951cda23fb900e4de9f70900ced962085/setuptools-82.0.0.tar.gz"
             }
           ],
           "project_name": "setuptools",
@@ -3016,7 +3016,7 @@
             "wheel>=0.44.0; extra == \"test\""
           ],
           "requires_python": ">=3.9",
-          "version": "81.0.0"
+          "version": "82.0.0"
         },
         {
           "artifacts": [
@@ -3370,7 +3370,7 @@
     "fw-utils>=3",
     "hypothesis>=6.0.0",
     "moto[s3,ses,ssm]==5.1.14",
-    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.0.1/nacc_attribute_deriver-2.0.1-py3-none-any.whl",
+    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.1.2/nacc_attribute_deriver-2.1.2-py3-none-any.whl",
     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
     "natsort",
     "pandas-stubs>=2.0.3",
