@@ -35,7 +35,7 @@ from form_scheduler_app.event_accumulator import EventAccumulator
 
 # Regex pattern to extract module name from filenames
 # Matches filenames like "ptid-MODULE.csv" and captures the module name
-MODULE_PATTERN = re.compile(r"^.*-([a-zA-Z]+)(\..+)$")
+MODULE_PATTERN = re.compile(r"^.*-([a-zA-Z1-9]+)(\..+)$")
 
 log = logging.getLogger(__name__)
 
