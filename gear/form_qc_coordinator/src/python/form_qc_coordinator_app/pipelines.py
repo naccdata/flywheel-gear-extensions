@@ -101,7 +101,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
                 search_operator = "="
 
                 if len(sorted_visits) > 1:
-                    cutoff = ",".join([d.visitdate for d in sorted_visits])
+                    cutoff = ",".join([f"'{d.visitdate}'" for d in sorted_visits])
                     search_operator = DefaultValues.FW_SEARCH_OR
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
@@ -116,7 +116,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             raise GearExecutionError(
                 "Cannot find matching visits for subject "
                 f"{self._subject.label}/{self._module} with "
-                f"{self._module_configs.date_field}>={cutoff}"
+                f"{self._module_configs.date_field}{search_operator}{cutoff}"
             )
 
         qc_coordinator = QCCoordinator(

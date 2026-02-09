@@ -106,6 +106,7 @@ class VisitsLookupHelper:
 
             filters += f",{date_col_key}{search_op}{cutoff_date}"
 
+        log.info(f"Searching for visits matching with {filters}")
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,
             dv_title=title,
