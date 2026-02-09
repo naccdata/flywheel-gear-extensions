@@ -2,7 +2,7 @@
     "name": "form-transformer",
     "label": "Form CSV to JSON Transformer",
     "description": "Form specific transformation from CSV to JSON",
-    "version": "1.7.1",
+    "version": "1.7.2",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-transformer:1.7.1"
+            "image": "naccdata/form-transformer:1.7.2"
         },
         "flywheel": {
             "suite": "Curation",

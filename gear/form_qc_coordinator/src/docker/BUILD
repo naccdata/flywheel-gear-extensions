@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/form_qc_coordinator/src/python/form_qc_coordinator_app:bin",
     ],
-    image_tags=["1.4.2", "latest"],
+    image_tags=["1.4.3", "latest"],
 )

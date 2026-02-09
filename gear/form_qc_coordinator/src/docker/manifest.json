@@ -2,7 +2,7 @@
     "name": "form-qc-coordinator",
     "label": "Form QC Coordinator",
     "description": "A gear to coordinate data quality checks for a given participant",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-qc-coordinator:1.4.2"
+            "image": "naccdata/form-qc-coordinator:1.4.3"
         },
         "flywheel": {
             "suite": "Utility",
