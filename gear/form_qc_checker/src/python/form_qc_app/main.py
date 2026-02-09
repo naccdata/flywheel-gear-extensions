@@ -23,7 +23,7 @@ from gear_execution.gear_execution import (
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import MetadataKeys
+from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.error_models import FileErrorList, GearTags
 from nacc_form_validator.quality_check import (
     QualityCheck,
@@ -152,11 +152,11 @@ def run(  # noqa: C901
 
     if file_type == "json":
         separator = "_"
-        allowed = "a-z"
+        allowed = DefaultValues.MODULE_PATTERN.replace("_", "")
         split = None
     else:
         separator = "-"
-        allowed = "a-z_"
+        allowed = DefaultValues.MODULE_PATTERN
         split = "_"
 
     module = input_wrapper.get_module_name_from_file_suffix(

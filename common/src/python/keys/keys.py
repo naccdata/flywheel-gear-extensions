@@ -54,6 +54,7 @@ class DefaultValues:
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
     FINALIZED_TAG = "submission-completed"
+    MODULE_PATTERN = "a-zA-Z1-9_"
 
 
 class MetadataKeys:

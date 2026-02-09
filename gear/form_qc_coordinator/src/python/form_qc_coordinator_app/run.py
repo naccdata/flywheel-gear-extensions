@@ -146,7 +146,10 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         module = self.__file_input.get_module_name_from_file_suffix(
-            separator="_", allowed="a-z", split=None, extension="json"
+            separator="_",
+            allowed=DefaultValues.MODULE_PATTERN.replace("_", ""),
+            split=None,
+            extension="json",
         )
         if not module:
             raise GearExecutionError(

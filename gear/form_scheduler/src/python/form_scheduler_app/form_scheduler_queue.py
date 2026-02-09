@@ -26,16 +26,13 @@ from gear_execution.gear_trigger import (
 )
 from inputs.parameter_store import URLParameter
 from jobs.job_poll import JobPoll
+from keys.keys import DefaultValues
 from nacc_common.qc_report import QCTransformerError
 from notifications.email import EmailClient
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from form_scheduler_app.email_user import send_email
 from form_scheduler_app.event_accumulator import EventAccumulator
-
-# Regex pattern to extract module name from filenames
-# Matches filenames like "ptid-MODULE.csv" and captures the module name
-MODULE_PATTERN = re.compile(r"^.*-([a-zA-Z1-9]+)(\..+)$")
 
 log = logging.getLogger(__name__)
 
@@ -233,9 +230,11 @@ class SubmissionQueueBuilder(PipelineQueueBuilder):
 
         # Group files by module extracted from filename
         module_map: dict[str, list[FileEntry]] = defaultdict(list)
+        # Regex pattern to extract module name from filenames
+        fname_pattern = f"^.*-([{DefaultValues.MODULE_PATTERN}]+)(\\..+)$"
         for file in files:
             # Extract module name from filename (e.g., "ptid-uds.csv" -> "uds")
-            match = re.search(MODULE_PATTERN, file.name.lower())
+            match = re.search(fname_pattern, file.name.lower())
             if not match:
                 log.warning(
                     "File %s is incorrectly tagged with one or more tags %s",
