@@ -43,10 +43,18 @@ def run(
 
             # Create error event for validation failure
             email = user_record.get("email", "unknown")
+            firstname = user_record.get("firstname", "")
+            lastname = user_record.get("lastname", "")
+            name = (
+                f"{firstname} {lastname}".strip()
+                if firstname or lastname
+                else "Unknown"
+            )
+            auth_email = user_record.get("fw_email", "")
             error_event = UserProcessEvent(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_DATA,
-                user_context=UserContext(email=email),
+                user_context=UserContext(email=email, name=name, auth_email=auth_email),
                 message="Directory record validation failed",
                 action_needed="check_directory_record_format",
             )
@@ -57,10 +65,16 @@ def run(
             log.warning("Ignoring %s: Permissions not approved", dir_record.email)
 
             # Create error event for missing permissions approval
+            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
             error_event = UserProcessEvent(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
-                user_context=UserContext(email=dir_record.email),
+                user_context=UserContext(
+                    email=dir_record.email,
+                    name=name,
+                    center_id=dir_record.adcid,
+                    auth_email=dir_record.auth_email,
+                ),
                 message="User permissions not approved in directory",
                 action_needed="contact_center_administrator_for_approval",
             )
@@ -73,10 +87,16 @@ def run(
             )
 
             # Create error event for incomplete survey
+            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
             error_event = UserProcessEvent(
                 event_type=EventType.ERROR,
                 category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
-                user_context=UserContext(email=dir_record.email),
+                user_context=UserContext(
+                    email=dir_record.email,
+                    name=name,
+                    center_id=dir_record.adcid,
+                    auth_email=dir_record.auth_email,
+                ),
                 message="Data platform survey is incomplete",
                 action_needed="complete_data_platform_survey",
             )

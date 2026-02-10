@@ -11,9 +11,15 @@ SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
 class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
-    def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
+    def __init__(
+        self, stream: TextIO, fieldnames: List[str], extrasaction: str = "raise"
+    ) -> None:
         self.__writer = DictWriter(
-            stream, fieldnames=fieldnames, dialect="unix", quoting=QUOTE_MINIMAL
+            stream,
+            fieldnames=fieldnames,
+            dialect="unix",
+            quoting=QUOTE_MINIMAL,
+            extrasaction=extrasaction,  # type: ignore
         )
         self.__header_written = False
 
