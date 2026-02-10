@@ -10,8 +10,10 @@ from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
 from coreapi_client.models.co_person_role import CoPersonRole
 from coreapi_client.models.email_address import EmailAddress
+from coreapi_client.models.get_co_person200_response import (
+    GetCoPerson200Response as CoPersonResponse,
+)
 from coreapi_client.models.identifier import Identifier
-from coreapi_client.models.inline_object import InlineObject as CoPersonResponse
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
 from pydantic import ValidationError
