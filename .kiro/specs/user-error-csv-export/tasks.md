@@ -37,11 +37,11 @@ This implementation refactors user error handling in the pull-directory and user
     - Test category enum conversion
     - _Requirements: 1.1, 1.2, 1.3, 1.5, 5.2, 5.3_
 
-- [ ] 2. Checkpoint - Verify CSV export function
+- [x] 2. Checkpoint - Verify CSV export function
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Integrate CSV export into user-management gear
-  - [ ] 3.1 Add CSV export and file upload to `gear/user_management/src/python/user_app/run.py`
+- [x] 3. Integrate CSV export into user-management gear
+  - [x] 3.1 Add CSV export and file upload to `gear/user_management/src/python/user_app/run.py`
     - Import `export_errors_to_csv` from common library
     - After processing, check if collector has errors
     - Generate error filename from input file: `{basename}-errors.csv`
@@ -54,7 +54,7 @@ This implementation refactors user error handling in the pull-directory and user
     - **Property 3: Error Filename Generation Pattern**
     - **Validates: Requirements 2.2**
   
-  - [ ] 3.3 Replace complex notification with simple email in user-management gear
+  - [x] 3.3 Replace complex notification with simple email in user-management gear
     - Remove call to `UserEventNotificationGenerator.send_event_notification()`
     - Create simple email notification after CSV upload
     - Include: gear name, error count, CSV filename, Flywheel location, access instructions

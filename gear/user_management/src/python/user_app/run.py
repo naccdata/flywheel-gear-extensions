@@ -25,8 +25,8 @@ from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
+from users.csv_export import export_errors_to_csv
 from users.event_models import UserEventCollector
-from users.event_notifications import UserEventNotificationGenerator
 from users.user_entry import ActiveUserEntry, UserEntry
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (
@@ -299,6 +299,27 @@ class UserManagementVisitor(GearExecutionEnvironment):
             log.info("User management completed successfully with no errors")
             return
 
+        # Export errors to CSV and upload to Flywheel
+        input_filename = self.__user_filepath.stem  # Get filename without extension
+        error_filename = f"{input_filename}-errors.csv"
+
+        try:
+            csv_content = export_errors_to_csv(collector)
+            with context.open_output(
+                error_filename, mode="w", encoding="utf-8"
+            ) as error_file:
+                error_file.write(csv_content)
+            log.info("Wrote %d errors to %s", collector.error_count(), error_filename)
+        except (ValueError, OSError) as export_error:
+            log.error(
+                "Failed to export errors to CSV: %s. "
+                "Individual errors have been logged. "
+                "Gear run will continue.",
+                export_error,
+                exc_info=True,
+            )
+            return
+
         if not self.__support_emails:
             log.warning(
                 "Errors occurred but no support emails configured. "
@@ -306,40 +327,83 @@ class UserManagementVisitor(GearExecutionEnvironment):
             )
             return
 
+        # Send simple notification email
+        self.__send_error_notification(
+            context=context,
+            collector=collector,
+            error_filename=error_filename,
+        )
+
+    def __send_error_notification(
+        self,
+        context: GearContext,
+        collector: UserEventCollector,
+        error_filename: str,
+    ) -> None:
+        """Send simple error notification email.
+
+        Args:
+            context: The gear context
+            collector: The collector containing errors
+            error_filename: The name of the error CSV file
+
+        Raises:
+            GearExecutionError: If email sending fails
+        """
         log.info(
-            "Sending consolidated error notification for %d error(s)",
+            "Sending simple error notification for %d error(s)",
             collector.error_count(),
         )
         try:
-            notification_generator = UserEventNotificationGenerator(
-                email_client=EmailClient(
-                    client=create_ses_client(),
-                    source=self.__email_source,
-                ),
-                configuration_set_name="user-management-errors",
+            email_client = EmailClient(
+                client=create_ses_client(),
+                source=self.__email_source,
             )
-            message_id = notification_generator.send_event_notification(
-                collector=collector,
-                gear_name="user_management",
-                support_emails=self.__support_emails,
+
+            # Get destination information
+            destination_type = context.config.destination.get("type", "project")
+            destination_id = context.config.destination.get("id", "unknown")
+
+            # Build category breakdown
+            category_breakdown = []
+            for category, count in collector.count_by_category().items():
+                category_breakdown.append(f"  - {category}: {count}")
+            category_text = (
+                "\n".join(category_breakdown)
+                if category_breakdown
+                else "  - No categories"
             )
-            if message_id:
-                log.info(
-                    ("Successfully sent error notification with message ID: %s"),
-                    message_id,
-                )
-            else:
-                log.warning(
-                    (
-                        "Failed to send error notification - "
-                        "notification system returned no message ID"
-                    )
-                )
-        except (
-            ClientError,
-            ValidationError,
-            ValueError,
-        ) as notification_error:
+
+            # Build simple notification message
+            subject = "[User Management] User Processing Errors"
+            body = (
+                f"User processing completed with {collector.error_count()} errors.\n"
+                "\n"
+                f"Error details have been saved to: {error_filename}\n"
+                "\n"
+                f"Location: {destination_type} {destination_id}\n"
+                "\n"
+                "To access the error file:\n"
+                "1. Navigate to the project in Flywheel\n"
+                f"2. Look for the file: {error_filename}\n"
+                "3. Download and review the errors in a spreadsheet application\n"
+                "\n"
+                f"Affected users: {len(collector.get_affected_users())}\n"
+                "\n"
+                "Error breakdown by category:\n"
+                f"{category_text}\n"
+            )
+
+            message_id = email_client.send_raw(
+                destinations=self.__support_emails,
+                subject=subject,
+                body=body,
+            )
+            log.info(
+                "Successfully sent error notification with message ID: %s",
+                message_id,
+            )
+        except ClientError as notification_error:
             log.error(
                 "Failed to send error notification email: %s. "
                 "Individual errors have been logged. "
