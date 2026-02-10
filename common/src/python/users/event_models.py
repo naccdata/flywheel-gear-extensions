@@ -126,6 +126,30 @@ class UserProcessEvent(BaseModel):
     message: str
     action_needed: Optional[str] = None
 
+    @classmethod
+    def csv_fieldnames(cls) -> List[str]:
+        """Returns the field names for CSV export in the correct order.
+
+        The CSV export flattens the user_context fields, so this method
+        returns the flattened field names in the order they should appear
+        in the CSV.
+
+        Returns:
+            List of field names for CSV export
+        """
+        return [
+            "email",
+            "name",
+            "center_id",
+            "registry_id",
+            "auth_email",
+            "category",
+            "message",
+            "action_needed",
+            "timestamp",
+            "event_id",
+        ]
+
     def to_summary(self) -> str:
         """Convert event to a one-line summary for notifications.
 
