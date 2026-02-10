@@ -78,8 +78,8 @@ This implementation refactors user error handling in the pull-directory and user
     - Test no notification sent when no errors
     - _Requirements: 2.2, 2.4, 3.1, 3.7_
 
-- [ ] 4. Integrate CSV export into pull-directory gear
-  - [ ] 4.1 Add CSV export and file upload to `gear/pull_directory/src/python/directory_app/run.py`
+- [x] 4. Integrate CSV export into pull-directory gear
+  - [x] 4.1 Add CSV export and file upload to `gear/pull_directory/src/python/directory_app/run.py`
     - Import `export_errors_to_csv` from common library
     - After YAML output write, check if collector has errors
     - Use fixed error filename: `directory-pull-errors.csv`
@@ -88,7 +88,7 @@ This implementation refactors user error handling in the pull-directory and user
     - Log the number of errors written and filename
     - _Requirements: 2.1, 2.3, 2.5, 2.6, 4.2, 4.4, 4.6_
   
-  - [ ] 4.2 Replace complex notification with simple email in pull-directory gear
+  - [x] 4.2 Replace complex notification with simple email in pull-directory gear
     - Remove call to `UserEventNotificationGenerator.send_event_notification()`
     - Create simple email notification after CSV upload
     - Include: gear name, error count, CSV filename, Flywheel location, access instructions
