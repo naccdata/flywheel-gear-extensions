@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.1
+
+* Updates `nacc-attribute-deriver` to `2.1.3` for B1a support and other minor fixes
+* Updates to support B1a forms
+
 ## 1.3.0
 
 * Updates `nacc-attribute-deriver` to `2.1.2` which updates how the drugs list is mapped
