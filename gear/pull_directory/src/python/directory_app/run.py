@@ -163,15 +163,41 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
 
             error_count = self.__collector.error_count()
             affected_users = len(self.__collector.get_affected_users())
-            dest_type = context.config.destination["type"]
             dest_id = context.config.destination["id"]
+
+            # Get project information for clickable link
+            project_name = dest_id
+            project_url = None
+            try:
+                project = self.proxy.get_project_by_id(dest_id)
+                if project:
+                    # project.group is the group ID/label (e.g., "nacc")
+                    project_name = f"{project.group}/{project.label}"
+
+                    # Get site URL from client host
+                    # Host is in format "https://flywheel.naccdata.org/api"
+                    host = self.client.host
+                    if host:
+                        # Remove /api suffix if present
+                        site_url = host.rstrip("/api").rstrip("/")
+                        project_url = f"{site_url}/#/projects/{dest_id}/info"
+            except Exception as error:
+                log.warning(
+                    "Could not get project details for email: %s",
+                    error,
+                )
+
+            # Build location section with clickable link
+            location_section = f"Location: {project_name}\n"
+            if project_url:
+                location_section += f"Link: {project_url}\n"
 
             body = (
                 f"User processing completed with {error_count} errors.\n"
                 "\n"
                 f"Error details have been saved to: {error_filename}\n"
                 "\n"
-                f"Location: {dest_type} {dest_id}\n"
+                f"{location_section}"
                 "\n"
                 "To access the error file:\n"
                 "1. Navigate to the project in Flywheel\n"

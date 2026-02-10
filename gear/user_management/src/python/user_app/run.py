@@ -361,8 +361,35 @@ class UserManagementVisitor(GearExecutionEnvironment):
             )
 
             # Get destination information
-            destination_type = context.config.destination.get("type", "project")
             destination_id = context.config.destination.get("id", "unknown")
+
+            # Get project information for clickable link
+            project_name = destination_id
+            project_url = None
+            try:
+                proxy = self.client.get_proxy()
+                project = proxy.get_project_by_id(destination_id)
+                if project:
+                    # project.group is the group ID/label (e.g., "nacc")
+                    project_name = f"{project.group}/{project.label}"
+
+                    # Get site URL from client host
+                    # Host is in format "https://flywheel.naccdata.org/api"
+                    host = self.client.host
+                    if host:
+                        # Remove /api suffix if present
+                        site_url = host.rstrip("/api").rstrip("/")
+                        project_url = f"{site_url}/#/projects/{destination_id}/info"
+            except Exception as error:
+                log.warning(
+                    "Could not get project details for email: %s",
+                    error,
+                )
+
+            # Build location section with clickable link
+            location_section = f"Location: {project_name}\n"
+            if project_url:
+                location_section += f"Link: {project_url}\n"
 
             # Build category breakdown
             category_breakdown = []
@@ -381,7 +408,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 "\n"
                 f"Error details have been saved to: {error_filename}\n"
                 "\n"
-                f"Location: {destination_type} {destination_id}\n"
+                f"{location_section}"
                 "\n"
                 "To access the error file:\n"
                 "1. Navigate to the project in Flywheel\n"
