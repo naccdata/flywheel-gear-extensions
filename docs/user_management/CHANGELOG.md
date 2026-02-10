@@ -6,6 +6,14 @@ All notable changes to this gear are documented in this file.
 
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
+## 3.4.0
+
+* Changes error notification system to export errors to CSV file instead of sending large email notifications
+* Adds CSV export functionality that creates `{input-filename}-errors.csv` with detailed error information
+* Replaces consolidated email notifications with simple notification email that references the CSV file
+* Improves scalability by avoiding AWS SES message size limits for large error sets
+* Provides downloadable error reports that can be reviewed in spreadsheet applications
+
 ## 3.3.0
 
 * Adds automatic notification batching to handle large error notifications
