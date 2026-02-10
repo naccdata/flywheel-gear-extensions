@@ -8,7 +8,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from jobs.job_poll import JobPoll
 from outputs.error_writer import ListErrorWriter
-from projects.project_mapper import build_project_map
+from projects.project_mapper import generate_project_map
 from utils.files import copy_file
 
 log = logging.getLogger(__name__)
@@ -19,9 +19,10 @@ def run(
     proxy: FlywheelProxy,
     error_writer: ListErrorWriter,
     file: FileEntry,
-    target_project: str,
     centers=List[str],
     batch_size=int,
+    target_project: Optional[str],
+    staging_project_id: Optional[str],
     downstream_gears: Optional[List[str]] = None,
 ):
     """Runs the File Distribution process.
@@ -30,15 +31,19 @@ def run(
         proxy: the proxy for the Flywheel instance
         error_writer: The ListErrorWriter to write errors to
         file: File to copy to projects
-        target_project: The FW target project name to write results to for
-                        each ADCID in centers
         centers: Set of ADCIDs to copy file for
         batch_size: Number of centers to put in each batch for scheduling
+        target_project: The FW target project name to write results to for
+                        each ADCID in centers
+        staging_project_id: Target staging project to write file to instead
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
     """
-    project_map = build_project_map(
-        proxy=proxy, destination_label=target_project, center_filter=list(centers)
+    project_map = generate_project_map(
+        proxy=proxy,
+        centers=centers,
+        target_project=target_project,
+        staging_project_id=staging_project_id,
     )
 
     if not project_map:

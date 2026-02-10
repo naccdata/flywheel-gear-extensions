@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/file_distribution/src/python/file_distribution_app:bin",
     ],
-    image_tags=["1.0.0", "latest"],
+    image_tags=["1.0.1b", "latest"],
 )
