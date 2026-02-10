@@ -104,11 +104,11 @@ This implementation refactors user error handling in the pull-directory and user
     - Test no notification sent when no errors
     - _Requirements: 2.3, 3.1, 3.7_
 
-- [ ] 5. Checkpoint - Verify gear integrations
+- [x] 5. Checkpoint - Verify gear integrations
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Add EmailClient simple email method (if needed)
-  - [ ] 6.1 Check if `EmailClient` has a simple email sending method
+- [x] 6. Add EmailClient simple email method (if needed)
+  - [x] 6.1 Check if `EmailClient` has a simple email sending method
     - Review `common/src/python/users/event_notifications.py` or equivalent
     - If `send_simple_email()` or similar method exists, skip to task 7
     - If not, implement `send_simple_email(to_addresses, subject, body)` method
@@ -120,7 +120,7 @@ This implementation refactors user error handling in the pull-directory and user
     - Test error handling for send failures
     - _Requirements: 3.6_
 
-- [ ] 7. Verify consistent CSV format across gears
+- [x] 7. Verify consistent CSV format across gears
   - [ ]* 7.1 Write property test for consistent CSV format
     - **Property 6: Consistent CSV Format Across Gears**
     - **Validates: Requirements 4.6**
