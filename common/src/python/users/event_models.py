@@ -106,10 +106,22 @@ class UserContext(BaseModel):
         Returns:
             UserContext with information from the user entry
         """
+        # Extract center_id from adcid if available (ActiveUserEntry)
+        center_id = None
+        if hasattr(entry, "adcid"):
+            center_id = entry.adcid
+
+        # Extract registry_id if available (RegisteredUserEntry)
+        registry_id = None
+        if hasattr(entry, "registry_id"):
+            registry_id = entry.registry_id
+
         return cls(
             email=entry.email,
             name=entry.name.as_str() if entry.name else None,
             auth_email=entry.auth_email,
+            center_id=center_id,
+            registry_id=registry_id,
         )
 
 
