@@ -104,7 +104,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
         )
 
-        gear_name = self.gear_name(context, "legacy-sanity-check")
+        gear_name = self.get_gear_name(context, "legacy-sanity-check")
 
         form_configs = None
         with open(self.__form_configs_input.filepath, mode="r") as fh:

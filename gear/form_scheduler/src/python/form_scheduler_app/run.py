@@ -140,7 +140,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
 
         # check for other form-scheduler gear jobs running on this project
         # there shouldn't be any
-        gear_name = self.gear_name(context, "form-scheduler")
+        gear_name = self.get_gear_name(context, "form-scheduler")
         job_id = context.config.job.get("id")
 
         if JobPoll.is_another_gear_instance_running(

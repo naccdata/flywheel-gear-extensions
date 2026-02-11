@@ -4,13 +4,13 @@ botocore
 flywheel-sdk>=20.0.0 
 fw-client>=0.7.0
 fw-gear>=0.3.5
-fw-storage>=3.8.4
 fw-utils>=3
 types-jinja2>=2.11.9
 moto[s3,ssm,ses]==5.1.14
 natsort
 pandas>=2.1.1
 pandas-stubs>=2.0.3
+pyarrow>=22.0.0
 pydantic>=2.5.2
 pyyaml>=6.0.1
 pytest>=7.2.0
