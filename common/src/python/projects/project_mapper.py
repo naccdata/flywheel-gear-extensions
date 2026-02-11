@@ -1,7 +1,7 @@
 """Maps ADCID to projects."""
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from centers.center_group import CenterError, CenterGroup
 from centers.nacc_group import NACCGroup
@@ -60,7 +60,7 @@ def generate_project_map(
     centers: Iterable[str],
     target_project: Optional[str] = None,
     staging_project_id: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> Dict[str, ProjectAdaptor]:
     """Generates the project map.
 
     Args:
@@ -76,13 +76,14 @@ def generate_project_map(
     if staging_project_id:
         # if writing results to a staging project, manually build a project map
         # that maps all to the specified project ID
-        project = proxy.get_project_by_id(staging_project_id)
-        if not project:
+        fw_project = proxy.get_project_by_id(staging_project_id)
+        if not fw_project:
             raise GearExecutionError(
                 f"Cannot find staging project with ID {staging_project_id}, "
                 + "possibly a permissions issue?"
             )
 
+        project = ProjectAdaptor(project=fw_project, proxy=proxy)
         return {f"adcid-{adcid}": project for adcid in centers}
 
     # else build project map from ADCID to corresponding

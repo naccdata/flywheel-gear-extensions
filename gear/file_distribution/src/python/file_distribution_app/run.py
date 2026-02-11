@@ -7,7 +7,7 @@ from flywheel.rest import ApiException
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    ContextClient,
+    GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
@@ -70,7 +70,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
           GearExecutionError if any expected inputs are missing
         """
 
-        client = ContextClient.create(context=context)
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         if not file_input:
             raise GearExecutionError("No input file provided")
@@ -135,7 +135,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
 def main():
     """Main method for File Distribution."""
 
-    GearEngine().run(gear_type=FileDistributionVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=FileDistributionVisitor)
 
 
 if __name__ == "__main__":

@@ -4,14 +4,29 @@ import logging
 from typing import List, Optional
 
 from flywheel import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from jobs.job_poll import JobPoll
 from outputs.error_writer import ListErrorWriter
-from projects.project_mapper import generate_project_map
+from projects.project_mapper import build_project_map
 from utils.files import copy_file
 
 log = logging.getLogger(__name__)
+
+
+def copy_file_to_project(
+    proxy: FlywheelProxy, file: FileEntry, project: ProjectAdaptor
+):
+    if proxy.dry_run:
+        log.info(
+            "DRY RUN: Would have copied %s to %s/%s",
+            file.name,
+            project.group,
+            project.label,
+        )
+        return
+
+    copy_file(file, project)
 
 
 def run(
@@ -39,11 +54,24 @@ def run(
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
     """
-    project_map = generate_project_map(
-        proxy=proxy,
-        centers=centers,
-        target_project=target_project,
-        staging_project_id=staging_project_id,
+    # if staging_project_id, really just have to do it once since
+    # we're not splitting files
+    if staging_project_id:
+        log.info("staging_project_id provided, just copying file over")
+        fw_project = proxy.get_project_by_id(staging_project_id)
+        if not fw_project:
+            raise GearExecutionError(
+                f"Cannot find staging project with ID {staging_project_id}, "
+                + "possibly a permissions issue?"
+            )
+
+        staging_project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        copy_file_to_project(proxy, file, staging_project)
+        return
+
+    assert target_project, "target_project required if no staging_project_id provided"
+    project_map = build_project_map(
+        proxy=proxy, destination_label=target_project, center_filter=list(centers)
     )
 
     if not project_map:
@@ -54,6 +82,7 @@ def run(
         found_centers[i : i + batch_size]
         for i in range(0, len(found_centers), batch_size)
     ]
+    log.info(f"target_project provided, copying file to {len(found_centers)} centers")
 
     # write results to each center's project
     for i, batch in enumerate(batched_centers, start=1):
@@ -62,17 +91,7 @@ def run(
 
         for adcid in batch:
             project = project_map[adcid]
-
-            if proxy.dry_run:
-                log.info(
-                    "DRY RUN: Would have copied %s to %s/%s",
-                    file.name,
-                    project.group,
-                    project.label,
-                )
-                continue
-
-            copy_file(file, project)
+            copy_file_to_project(proxy, file, project)
             project_ids_list.append(project.id)
 
         if project_ids_list and downstream_gears:

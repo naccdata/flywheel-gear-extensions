@@ -2,7 +2,7 @@
     "name": "file-distribution",
     "label": "File Distribution",
     "description": "Gear that distributes files to target projects",
-    "version": "1.0.1b",
+    "version": "1.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/file-distribution:1.0.1b"
+            "image": "naccdata/file-distribution:1.0.1"
         },
         "flywheel": {
             "suite": "Utility",
