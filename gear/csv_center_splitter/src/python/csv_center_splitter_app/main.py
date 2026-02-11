@@ -1,7 +1,7 @@
 """Defines csv_center_splitter."""
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Set, TextIO
+from typing import Any, Dict, List, Optional, Set, TextIO
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
@@ -13,7 +13,7 @@ from outputs.errors import (
     missing_field_error,
 )
 from outputs.outputs import write_csv_to_stream
-from projects.project_mapper import build_project_map
+from projects.project_mapper import generate_project_map
 
 log = logging.getLogger(__name__)
 
@@ -101,44 +101,6 @@ class CSVVisitorCenterSplitter(CSVVisitor):
 
         self.split_data[adcid].append(row)
         return True
-
-
-def generate_project_map(
-    proxy: FlywheelProxy,
-    centers: Iterable[str],
-    target_project: Optional[str] = None,
-    staging_project_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Generates the project map.
-
-    Args:
-        proxy: the proxy for the Flywheel instance
-        centers: The list of centers to map
-        target_project: The FW target project name to write results to for
-                        each ADCID
-        staging_project_id: Project ID to stage results to; will override
-                            target_project if specified
-    Returns:
-        Evaluated project mapping
-    """
-    if staging_project_id:
-        # if writing results to a staging project, manually build a project map
-        # that maps all to the specified project ID
-        project = proxy.get_project_by_id(staging_project_id)
-        if not project:
-            raise GearExecutionError(
-                f"Cannot find staging project with ID {staging_project_id}, "
-                + "possibly a permissions issue?"
-            )
-
-        return {f"adcid-{adcid}": project for adcid in centers}
-
-    # else build project map from ADCID to corresponding
-    # FW project for upload, and filter as needed
-    assert target_project
-    return build_project_map(
-        proxy=proxy, destination_label=target_project, center_filter=list(centers)
-    )
 
 
 def run(
