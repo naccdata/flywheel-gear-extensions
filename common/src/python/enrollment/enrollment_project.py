@@ -2,12 +2,11 @@
 center."""
 
 import logging
-from typing import Dict
+from typing import Dict, override
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import MetadataKeys
 from pydantic import BaseModel, ValidationError
-from typing_extensions import override
 
 from enrollment.enrollment_subject import EnrollmentSubject
 from enrollment.enrollment_transfer import EnrollmentError, TransferRecord

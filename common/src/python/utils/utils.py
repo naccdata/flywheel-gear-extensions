@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, List, MutableMapping, Optional, Tuple
 
-from configs.ingest_configs import FormProjectConfigs
-
 
 def parse_string_to_list(
     input_str: Optional[str], to_lower: bool = True, delimiter: str = ","
@@ -24,23 +22,6 @@ def parse_string_to_list(
         return [x.strip().lower() for x in input_str.split(delimiter)]
 
     return [x.strip() for x in input_str.split(delimiter)]
-
-
-def load_form_ingest_configurations(config_file_path: str) -> FormProjectConfigs:
-    """Load the form module configs from the configs file.
-
-    Args:
-      config_file_path: the form module configs file path
-
-    Returns:
-      FormProjectConfigs
-
-    Raises:
-      ValidationError if failed to load the configs file
-    """
-
-    with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
-        return FormProjectConfigs.model_validate_json(configs_file.read())
 
 
 def flatten_dict(

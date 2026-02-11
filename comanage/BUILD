@@ -2,7 +2,7 @@ file(name="openapi_schema", source="coreapi.yaml")
 
 run_shell_command(
     name="build_client",
-    command="docker run --rm -v $PWD:/local openapitools/openapi-generator-cli generate " \
+    command="docker run --rm -v $PWD:/local openapitools/openapi-generator-cli:v7.2.0 generate " \
         "-i /local/coreapi.yaml -g python -o /local/coreapi/src/python " \
         "--package-name coreapi_client " \
         "--additional-properties='generateSourceCodeOnly=True'",
