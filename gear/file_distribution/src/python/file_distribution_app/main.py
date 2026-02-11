@@ -36,8 +36,8 @@ def run(
     file: FileEntry,
     centers=List[str],
     batch_size=int,
-    target_project: Optional[str],
-    staging_project_id: Optional[str],
+    target_project: Optional[str] = None,
+    staging_project_id: Optional[str] = None,
     downstream_gears: Optional[List[str]] = None,
 ):
     """Runs the File Distribution process.
