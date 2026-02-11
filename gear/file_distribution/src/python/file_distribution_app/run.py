@@ -123,7 +123,19 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         )
 
     def __find_associated_adcids(self, file: FileEntry) -> List[str]:
-        """Find associated ADCIDs from associated file."""
+        """Find associated ADCIDs from associated file. Searches for a file
+        matching the capture regex specified by the associated csv regex.
+
+        Args:
+            file: the input file we are distributing
+
+        Returns:
+            List of ADCIDs to distribute to, if applicable
+        """
+        if self.__staging_project_id:
+            log.info("Staging project ID provided, will not iterate over ADCIDs")
+            return []
+
         if not self.__associated_csv_regex:
             log.info("No associated CSV regex provided, will use full ADCID list")
             return self.__centers
@@ -143,13 +155,10 @@ class FileDistributionVisitor(GearExecutionEnvironment):
                 f"Could not find an associated fle called {associated_filename}"
             )
 
-        log.info(
-            f"Found associated CSV named {associated_filename}, reading "
-            + "for ADCID list"
-        )
+        log.info(f"Found associated CSV {associated_filename}, parsing for ADCID list")
 
         adcids = set()
-        data = file.read().decode("utf-8-sig")
+        data = associated_csv.read().decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(data))
 
         if not reader.fieldnames or self.__adcid_key not in reader.fieldnames:

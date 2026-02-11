@@ -6,7 +6,7 @@ The ADCIDs are mapped to the Flywheel group ID using the custom info found in th
 
 ### Associated File Regex
 
-Oftentimes the file we are distributing is associated with another file being run through the `csv-center-splitter` gear. If the `associated_csv_regex` config is provided, this gear will search for a CSV file containing the string returned from running the regex on the input file's filename. It will then attempt to read that CSV file and pull an ADCID list from that associated file.
+Oftentimes the file we are distributing is associated with another file being run through the `csv-center-splitter` gear. If the `associated_csv_regex` config is provided, this gear will search for a CSV file containing the string captured from running the regex on the input file's filename. It will then attempt to read that CSV file and pull an ADCID list from that associated file.
 
 For example, say our `associated_csv_regex` is `^(.*?)-reference\.csv`.
 
