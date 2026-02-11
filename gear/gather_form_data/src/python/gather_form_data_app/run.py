@@ -127,7 +127,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             data=error_writer.errors().model_dump(by_alias=True),
         )
 
-        gear_name = self.gear_name(context, "gather-submission-status")
+        gear_name = self.get_gear_name(context, "gather-submission-status")
         context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
     def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):

@@ -104,7 +104,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         submitter = get_submitter(file=file, proxy=self.proxy)
 
         input_path = Path(self.__file_input.filepath)
-        gear_name = self.gear_name(context, "identifier-provisioning")
+        gear_name = self.get_gear_name(context, "identifier-provisioning")
 
         error_writer = ListErrorWriter(
             container_id=self.__file_input.file_id,

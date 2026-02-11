@@ -110,7 +110,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         target_emails = options.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
-        gear_name = self.gear_name(context, "participant-transfer")
+        gear_name = self.get_gear_name(context, "participant-transfer")
         job_id = self.get_job_id(context=context, gear_name=gear_name)
         try:
             success = run(
