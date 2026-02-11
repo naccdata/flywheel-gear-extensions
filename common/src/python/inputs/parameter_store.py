@@ -1,13 +1,12 @@
 """Module for getting proxy object for AWS SSM parameter store object."""
 
 import logging
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, Type, TypedDict, TypeVar
 
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
 from redcap_api.redcap_parameter_store import REDCapParameters, REDCapReportParameters
 from ssm_parameter_store import EC2ParameterStore
-from typing_extensions import Type, TypedDict, TypeVar
 
 from inputs.environment import get_environment_variable
 
@@ -68,8 +67,7 @@ class ParameterError(Exception):
     """Error class for errors that occur when reading parameters."""
 
 
-# TODO: remove type ignore when using python 3.12 or above
-P = TypeVar("P", bound=Mapping)  # type: ignore
+P = TypeVar("P", bound=Mapping)
 
 
 class ParameterStore:

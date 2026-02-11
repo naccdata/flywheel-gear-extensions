@@ -7,11 +7,11 @@ So, imports of ParameterStore are done within tests.
 """
 
 import os
+from typing import TypedDict
 
 import boto3
 import pytest
 from moto import mock_aws
-from typing_extensions import TypedDict
 
 
 @pytest.fixture(scope="function")
@@ -78,7 +78,7 @@ class TestParameterStore:
         store = ParameterStore.create_from_environment()
         assert store
 
-        # NOTE: type parameter must be a subtype of typing_extensions.TypeDict
+        # NOTE: type parameter must be a subtype of typing.TypedDict
         valid_parameters = store.get_parameters(
             param_type=TestParameters, parameter_path="/test/valid"
         )
