@@ -12,7 +12,6 @@ from flywheel.models.subject import Subject
 from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from pydantic import ValidationError
-from scheduling.min_heap import MinHeap
 
 from .scheduling_models import FileModel, ViewResponseModel
 
@@ -35,8 +34,14 @@ def initialize_worker(in_curator: Curator, context: GearContext):
     curator.set_client(context)
 
 
-def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
-    """Build file heap for the given subject."""
+def get_curation_list(subject: Subject) -> List[FileModel]:
+    """Build ordered files list for the given subject.
+
+    Args:
+        subject: The subject to build the heap for
+    Returns:
+        Sorted list of FileModels to iterate over
+    """
     # create dataview for files in subject
     global curator
     assert curator, "curator object expected"
@@ -51,7 +56,7 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
             ) from error
 
     # associate UDS sessions; fail whole subject if a duplicate session is found
-    heap = MinHeap[FileModel]()
+    curation_list: List[FileModel] = []
     try:
         response_model.associate_uds_session()
     except ValueError as error:
@@ -62,7 +67,7 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
 
         # write error
         curator.handle_curation_failure(subject, str(error))
-        return heap
+        return curation_list
 
     log.debug("Curating %s files in for %s", len(response_model.data), subject.label)
     for file_model in response_model.data:
@@ -70,17 +75,18 @@ def build_file_heap(subject: Subject) -> MinHeap[FileModel]:
             log.warning("ignoring unexpected file %s", file_model.filename)
             continue
 
-        heap.push(file_model)
+        curation_list.append(file_model)
 
-    return heap
+    curation_list.sort()
+    return curation_list
 
 
 def curate_subject(subject_id: str) -> None:
-    """Defines a task function for curating the files captured in the heap.
-    Assumes the files are all under the same participant.
+    """Defines a task function for curating the files captured in the curation
+    list. Assumes the files are all under the same participant.
 
     Args:
-        subject_id: ID of subject this heap belongs to
+        subject_id: ID of subject this curation_list belongs to
     """
     global curator
     assert curator, "curator object expected"
@@ -89,18 +95,17 @@ def curate_subject(subject_id: str) -> None:
     subject = subject.reload()
     subject_table = SymbolTable(subject.info)
 
-    heap = build_file_heap(subject)
-    if not heap:
+    curation_list = get_curation_list(subject)
+    if not curation_list:
         log.warning(f"No files to curate for subject {subject.label}")
         return
 
-    log.debug(f"Curating {len(heap)} files for {subject.label}")
+    log.debug(f"Curating {len(curation_list)} files for {subject.label}")
 
-    curator.pre_curate(subject, subject_table)
+    curator.pre_curate(subject, subject_table, curation_list)
     processed_files: List[FileModel] = []
 
-    while len(heap) > 0:
-        file_model = heap.pop()
+    for file_model in curation_list:
         if not file_model:
             continue
 

@@ -286,8 +286,14 @@ class FormCurator(Curator):
         return True
 
     @api_retry
-    def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
-        """Run pre-curating on the entire subject. Clean up metadata as needed.
+    def pre_curate(
+        self,
+        subject: Subject,
+        subject_table: SymbolTable,
+        curation_list: List[FileModel],
+    ) -> None:
+        """Run pre-curating on the entire subject. Clean up metadata as needed,
+        and pre-compute UDS DOB.
 
         Args:
             subject: Subject to pre-process
@@ -311,6 +317,23 @@ class FormCurator(Curator):
                 "working",
             ]:
                 subject_table.pop(field)
+
+        # this is super hacky, but fastest solution for pre-computing UDS DOB
+        # so it is consistent for curation
+        target_fields = {"birthmo": None, "birthyr": None}
+        for file in curation_list:
+            if file.scope != FormScope.UDS:
+                continue
+
+            file_info = SymbolTable(file.file_info)
+            for field in target_fields:
+                value = file_info.get(f"forms.json.{field}")
+                if value is not None:
+                    target_fields[field] = value
+
+        for k, v in target_fields.items():
+            if v is not None:
+                subject_table[f"working.cross-sectional.{k}"] = v
 
     @api_retry
     def post_curate(

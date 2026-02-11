@@ -79,6 +79,9 @@ class FileModel(BaseModel):
     session_id: str
     modified_date: date
 
+    # flag to see if this file model has been processed or not
+    processed: bool = False
+
     # private attributes to be computed
     _file_date: Optional[date] = PrivateAttr(default=None)
     _scope: Optional[ScopeLiterals] = PrivateAttr(default=None)

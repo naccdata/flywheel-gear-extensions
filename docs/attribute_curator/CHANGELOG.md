@@ -6,6 +6,9 @@ All notable changes to this gear are documented in this file.
 
 * Updates `nacc-attribute-deriver` to `2.1.3` for B1a support and other minor fixes
 * Updates to support B1a forms
+* Updates to pre-compute latest UDS DOB and write to `subject.info.working.cross-sectional.birthmo/birthyr` to account for inconsistent dates across forms. Done here (as opposed to inside the `nacc-attribute-deriver`) because many things rely on DOB being accurate in the first pass
+    * In order to support pre-computation across the files, we switch to use a sorted list instead of a heap. In general a sorted list actually makes more sense for how it's being used here anyways.
+* Updates to write an analysis output file containing the target S3 dataset and an analysis ID to use as the version label. This will be used to trigger the corresponding ETL process
 
 ## 1.3.0
 
