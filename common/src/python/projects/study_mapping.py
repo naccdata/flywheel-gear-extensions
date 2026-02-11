@@ -33,6 +33,7 @@ from centers.center_group import (
     CenterError,
     CenterGroup,
     CenterStudyMetadata,
+    DashboardProjectMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
     ProjectMetadata,
@@ -67,7 +68,6 @@ class StudyMapper(ABC):
     def proxy(self):
         return self.__proxy
 
-    @abstractmethod
     def map_center_pipelines(
         self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
@@ -77,6 +77,15 @@ class StudyMapper(ABC):
           center: the center group
           study_info: the metadata object to track center projects
         """
+        if (
+            center.is_active()
+            and self.study.dashboards is not None
+            and self.study.dashboards
+        ):
+            for dashboard_name in self.study.dashboards:
+                self.__add_dashboard(
+                    center=center, study_info=study_info, dashboard_name=dashboard_name
+                )
 
     @abstractmethod
     def map_study_pipelines(self) -> None:
@@ -85,8 +94,35 @@ class StudyMapper(ABC):
     def accepted_label(self) -> str:
         return f"accepted{self.study.project_suffix()}"
 
+    def dashboard_label(self, dashboard_name: str) -> str:
+        return f"dashboard-{dashboard_name}{self.study.project_suffix()}"
+
     def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
         return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
+
+    def __add_dashboard(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        dashboard_name: str,
+    ) -> None:
+        """Adds a dashboard project to the center group."""
+
+        def update_dashboard(project: ProjectAdaptor) -> None:
+            study_info.add_dashboard(
+                DashboardProjectMetadata(
+                    study_id=self.study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    dashboard_name=dashboard_name,
+                )
+            )
+
+        self.add_pipeline(
+            center=center,
+            pipeline_label=self.dashboard_label(dashboard_name),
+            update_study=update_dashboard,
+        )
 
     def add_pipeline(
         self,
@@ -144,6 +180,9 @@ class AggregationMapper(StudyMapper):
           pipeline_adcid: the ADCID for ingest pipelines
         """
 
+        super().map_center_pipelines(
+            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
+        )
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
@@ -338,6 +377,10 @@ class DistributionMapper(StudyMapper):
           center: the center group
           study_info: the study metadata
         """
+        super().map_center_pipelines(
+            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
+        )
+
         for datatype in self.study.datatypes:
             self.__add_distribution(
                 center=center, study_info=study_info, datatype=datatype

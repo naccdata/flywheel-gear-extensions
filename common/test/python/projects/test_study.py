@@ -87,6 +87,67 @@ class TestStudy:
         project.apply(visitor)
         assert visitor.project_name == "Project Beta"
 
+    def test_study_with_dashboards(self):
+        """Test study creation with dashboards field."""
+        study = StudyModel(
+            name="Project with Dashboards",  # pyright: ignore[reportCallIssue]
+            study_id="project-dash",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            dashboards=["enrollment", "qc-status"],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.dashboards == ["enrollment", "qc-status"]
+
+    def test_study_without_dashboards(self):
+        """Test study creation without dashboards field (should default to
+        None)."""
+        study = StudyModel(
+            name="Project without Dashboards",  # pyright: ignore[reportCallIssue]
+            study_id="project-no-dash",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.dashboards is None
+
+    def test_study_with_empty_dashboards(self):
+        """Test study creation with empty dashboards list."""
+        study = StudyModel(
+            name="Project with Empty Dashboards",  # pyright: ignore[reportCallIssue]
+            study_id="project-empty-dash",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            dashboards=[],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.dashboards == []
+
+    def test_study_dashboards_from_dict(self):
+        """Test study creation from dict with dashboards."""
+        study = StudyModel.create(
+            {
+                "study": "Project Alpha",
+                "study-id": "project-alpha",
+                "centers": ["ac"],
+                "datatypes": ["form"],
+                "dashboards": ["enrollment", "qc-status"],
+                "mode": "aggregation",
+                "published": False,
+                "study-type": "primary",
+            }
+        )
+        assert study.dashboards == ["enrollment", "qc-status"]
+
 
 class TestStudyCenterModel:
     def test_validation(self):
