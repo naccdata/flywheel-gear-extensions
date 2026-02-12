@@ -2,7 +2,7 @@
     "name": "file-distribution",
     "label": "File Distribution",
     "description": "Gear that distributes files to target projects",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/file-distribution:1.0.1"
+            "image": "naccdata/file-distribution:1.1.0"
         },
         "flywheel": {
             "suite": "Utility",
@@ -56,6 +56,16 @@
             "description": "Staging project ID to stage all results to; overrides target_project",
             "type": "string",
             "default": ""
+        },
+        "associated_csv_regex": {
+            "description": "If provided, searches for an associated CSV that contains the string returned by running this regex on the input filename. Ignored if writing to a staging project.",
+            "type": "string",
+            "default": ""
+        },
+        "adcid_key": {
+            "description": "Column name from the associated CSV with the ADCIDs",
+            "type": "string",
+            "default": "adcid"
         },
         "include": {
             "description": "Comma-delimited list of ADCIDs to include",
