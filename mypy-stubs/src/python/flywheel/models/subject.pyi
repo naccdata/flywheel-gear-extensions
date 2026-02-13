@@ -75,3 +75,6 @@ class Subject:
 
     def add_tag(self, tag, **kwargs):
         ...
+
+    def delete_tag(self, tag, **kwargs):
+        ...

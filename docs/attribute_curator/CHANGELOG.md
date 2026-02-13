@@ -2,8 +2,28 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.1.2 (Unreleased)
+## 1.3.0
 
+* Updates `nacc-attribute-deriver` to `2.1.2` which updates how the drugs list is mapped
+    * Adds `_uds_visitdate` to table for scopes in the same session as an UDS visit to support this
+* Updates to report an error when two forms in the same scope have the same visitdate; fails the whole subject
+* Refactors scheduling models
+
+## 1.2.1
+
+* Updates `nacc-attribute-deriver` to `2.1.1` which updates how V1 drugs are handled
+
+## 1.2.0
+
+* Updates `nacc-attribute-deriver` to `2.1.0`
+    * Reorders COVID/CLS pass to support this
+* Optimized through significant refactoring of when and how dataviews are used
+    * Instead of creating a heap upfront, iterate over the subjects and run the dataview per subject to **include the file.info data**
+        * Significnatly reduces the API calls since we no longer have to reload every single file to get `file.info` (at the cost of more dataviews, but number of subjects is far less than number of files)
+            * As a benchmark, the test center went from taking ~2 hours to ~1 hour 20 minutes for curation
+        * Reason we don't just query for `file.info` upfront is that it would likely result in memory issues due to size of `file.info`
+        * Only loss is we no longer know how many subjects/files we are curating over at the beginning, and is a little slower when only curating a select few subjects since it now iterates over the entire project no matter what (but it is relatively fast to just skip over everything, and in production we will almost always curate all subjects) 
+* Untags previously affiliated subjects if their status changes
 * Reverts `rxclass_concepts` to being an input file now that Batch Scheduler (`1.2.0+`) can support input files; removes gear's reliancy on the gearbot
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 

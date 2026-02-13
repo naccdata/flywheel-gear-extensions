@@ -4,6 +4,7 @@ import logging
 import sys
 from typing import Optional
 
+from configs.ingest_configs import load_form_ingest_configurations
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -22,7 +23,6 @@ from redcap_api.redcap_connection import (
     REDCapReportConnection,
 )
 from s3.s3_bucket import S3BucketInterface
-from utils.utils import load_form_ingest_configurations
 
 from form_qc_app.main import run
 
@@ -145,7 +145,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             ) from error
 
         run(
-            gear_name=self.gear_name(context, "form-qc-checker"),
+            gear_name=self.get_gear_name(context, "form-qc-checker"),
             client_wrapper=self.client,
             input_wrapper=self.__file_input,
             s3_client=self.__s3_client,

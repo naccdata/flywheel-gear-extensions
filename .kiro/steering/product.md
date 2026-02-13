@@ -10,7 +10,7 @@ NACC Flywheel Extensions is a monorepo containing Python-based tools and gears f
 - **Center Management**: Manages research centers and their data
 - **Identifier Management**: Provisions and looks up identifiers for participants
 - **Form Processing**: Schedules, screens, transforms, and QC checks forms
-- **Data Curation**: Aggregates and curates data with attribute and regression curators
+- **Data Curation**: Aggregates and curates data with attribute curators
 
 ## Key Components
 

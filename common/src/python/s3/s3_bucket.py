@@ -75,6 +75,50 @@ class S3BucketInterface:
         """
         self.__client.put_object(Bucket=self.__bucket, Key=filename, Body=contents)
 
+    def upload_directory(
+        self,
+        local_dir: Path,
+        output_prefix: str,
+        exclude_patterns: Optional[List[str]] = None,
+    ) -> None:
+        """Upload local directory to S3.
+
+        Args:
+            local_dir: Local directory containing files to upload
+            output_prefix: Path prefix under bucket where results will be written
+            exclude_patterns: Optional list of glob patterns to exclude from upload
+        """
+        log.info(f"Uploading results to: {self.__bucket}/{output_prefix}")
+
+        if not local_dir.exists():
+            raise S3InterfaceError(f"Local directory does not exist: {local_dir}")
+
+        exclude_patterns = exclude_patterns or []
+
+        # Find all files to upload
+        files_to_upload = []
+        for file_path in local_dir.rglob("*"):
+            if file_path.is_file():
+                # Check if file matches any exclude pattern
+                should_exclude = any(
+                    file_path.match(pattern) for pattern in exclude_patterns
+                )
+                if not should_exclude:
+                    files_to_upload.append(file_path)
+
+        if not files_to_upload:
+            log.warning(f"No files found to upload in: {local_dir}")
+            return
+
+        log.info(f"Uploading {len(files_to_upload)} files")
+
+        # Upload each file using upload_file method
+        for local_file_path in files_to_upload:
+            relative_path = str(local_file_path.relative_to(local_dir))
+            self.upload_file(local_file_path, output_prefix, relative_path)
+
+        log.info("Results uploaded successfully")
+
     def upload_file(
         self, local_file: Path, output_prefix: str, relative_path: Optional[str] = None
     ) -> None:
@@ -173,10 +217,11 @@ class S3BucketInterface:
 
         with_glob_str = f" with glob '{glob}'" if glob else ""
         if not found_keys:
-            log.warning(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
+            log.debug(f"No files found under {self.__bucket}/{prefix}{with_glob_str}")
         else:
-            log.info(
-                f"Found {len(found_keys)} under {self.__bucket}/{prefix}{with_glob_str}"
+            log.debug(
+                f"Found {len(found_keys)} files under {self.__bucket}/"
+                + f"{prefix}{with_glob_str}"
             )
 
         return found_keys

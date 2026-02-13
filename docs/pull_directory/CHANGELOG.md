@@ -3,7 +3,24 @@
 All notable changes to this gear are documented in this file.
 
 ## Unreleased
+
+* none
+
+## 2.4.1
+
+* Improves error notification emails with clickable project links
+* Adds project name in format `group/project` (e.g., `nacc/user-admin`) to error notifications
+* Adds direct URL link to project in Flywheel for easier access to error CSV files
+* Populates `center_id` and `registry_id` columns in error CSV when data is available
+
+## 2.4.0
+
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+* Changes error notification system to export errors to CSV file instead of sending large email notifications
+* Adds CSV export functionality that creates `directory-pull-errors.csv` with detailed error information
+* Replaces consolidated email notifications with simple notification email that references the CSV file
+* Improves scalability by avoiding AWS SES message size limits for large error sets
+* Provides downloadable error reports that can be reviewed in spreadsheet applications
 
 ## 2.3.0
 
