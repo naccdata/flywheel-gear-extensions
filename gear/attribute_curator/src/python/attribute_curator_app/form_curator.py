@@ -49,6 +49,7 @@ class FormCurator(Curator):
         self,
         dataview: DataView,
         curation_tag: str,
+        active_center: bool,
         force_curate: bool = False,
         rxclass_concepts: Optional[MutableMapping] = None,
         ignore_qc: bool = False,
@@ -62,6 +63,7 @@ class FormCurator(Curator):
         self.__attribute_deriver = AttributeDeriver()
         self.__file_missingness = MissingnessDeriver("file")
         self.__subject_missingness = MissingnessDeriver("subject")
+        self.__active_center = active_center
         self.__ignore_qc = ignore_qc
 
         # prev record needed to pull across values for missingness checks
@@ -426,6 +428,9 @@ class FormCurator(Curator):
         """
         table = SymbolTable()
         table["subject.info"] = subject_table.to_dict()
+
+        # center status automatically overrides all subject statuses
+        table["_active_center"] = self.__active_center
 
         # 1. run cross-module subject-level derivations, which require completed
         # curated data from NP, MLST, UDS, and MDS

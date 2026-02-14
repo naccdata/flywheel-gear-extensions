@@ -42,7 +42,7 @@ SCOPE_PATTERN = re.compile(
     r"(?P<csf>.+_CSF\.json)|"
     r"(?P<np>.+_NP\.json)|"
     r"(?P<mds>.+_MDS\.json)|"
-    r"(?P<milestone>.+_MLST\.json)|"
+    r"(?P<mlst>.+_MLST\.json)|"
     r"(?P<covid>.+_COVID\.json)|"
     r"(?P<apoe>.+apoe_genotype\.json)|"
     r"(?P<ncrad_biosamples>.+NCRAD-SAMPLES.+\.json)|"
