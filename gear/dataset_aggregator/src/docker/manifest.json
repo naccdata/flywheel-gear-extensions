@@ -1,0 +1,71 @@
+{
+    "name": "dataset-aggregator",
+    "label": "Dataset Aggregator",
+    "description": "Aggregates most recent FW datasets across centers",
+    "version": "0.1.0",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/dataset-aggregator:0.1.0"
+        },
+        "flywheel": {
+            "suite": "Utility",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
+    },
+    "config": {
+        "target_project": {
+            "description": "Target project to aggregate datasets from.",
+            "type": "string"
+        },
+        "output_uri": {
+            "description": "S3 path of where aggregated results should be written to.",
+            "type": "string"
+        },
+        "identifiers_mode": {
+            "description": "Whether to retrieve identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter path prefix for apikey",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        },
+        "include_centers": {
+            "description": "Comma separated list of centers to include in batch run",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_centers": {
+            "description": "Comma separated list of centers to exclude from batch run",
+            "type": "string",
+            "optional": true
+        },
+        "exclude_studies": {
+            "description": "Comma separated list of study suffixes to exclude from batch run",
+            "type": "string",
+            "optional": true
+        }
+    },
+    "command": "/bin/run"
+}

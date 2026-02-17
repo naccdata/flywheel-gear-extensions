@@ -18,6 +18,13 @@ def copy_file(file: FileEntry, destination: ProjectAdaptor) -> None:
     log.info(
         "copying file %s to %s/%s", file.name, destination.group, destination.label
     )
-    file_spec = FileSpec(file.name, file.read().decode("utf-8"), file.mimetype)
+
+    raw_contents = file.read()
+    file_spec = FileSpec(
+        name=file.name,
+        contents=raw_contents.decode("utf-8"),
+        content_type=file.mimetype,
+        size=len(raw_contents),
+    )
     destination.upload_file(file_spec)
     destination.reload()

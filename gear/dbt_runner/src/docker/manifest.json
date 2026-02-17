@@ -2,7 +2,7 @@
     "name": "dbt-runner",
     "label": "DBT Runner",
     "description": "Run dbt (data build tool) projects on Flywheel datasets stored in external storage. Transforms source parquet files using user-defined dbt models and outputs results back to external storage",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/dbt-runner:0.1.1"
+            "image": "naccdata/dbt-runner:0.2.0"
         },
         "flywheel": {
             "suite": "Utility",
@@ -43,12 +43,8 @@
         }
     },
     "config": {
-        "storage_label": {
-            "description": "Label of the Flywheel external storage containing source and output data",
-            "type": "string"
-        },
-        "source_prefix": {
-            "description": "Path prefix within external storage where source Flywheel dataset files are located",
+        "source_prefixes": {
+            "description": "JSON mapping of local directory names to S3 prefixes containing parquet files.",
             "type": "string"
         },
         "output_prefix": {

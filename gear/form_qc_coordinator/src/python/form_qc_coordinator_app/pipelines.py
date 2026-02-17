@@ -10,7 +10,7 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues, MetadataKeys
@@ -28,7 +28,7 @@ class PipelineProcessor(ABC):
         self,
         *,
         proxy: FlywheelProxy,
-        gear_context: GearToolkitContext,
+        gear_context: GearContext,
         subject: SubjectAdaptor,
         module: str,
         visits_info: ParticipantVisits,

@@ -1,12 +1,14 @@
 """The run script for the user management gear."""
 
 import logging
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
+from botocore.exceptions import ClientError
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
 from coreapi_client.configuration import Configuration
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -14,16 +16,21 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
-from inputs.parameter_store import ParameterError, ParameterStore
+from inputs.parameter_store import (
+    ParameterError,
+    ParameterStore,
+)
 from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
+from users.csv_export import export_errors_to_csv
+from users.event_models import UserEventCollector
 from users.user_entry import ActiveUserEntry, UserEntry
+from users.user_process_environment import NotificationModeType
 from users.user_processes import (
     NotificationClient,
-    NotificationModeType,
     UserProcess,
     UserProcessEnvironment,
     UserQueue,
@@ -42,14 +49,15 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self,
         admin_id: str,
         client: ClientWrapper,
-        user_filepath: str,
-        auth_filepath: str,
+        user_filepath: Path,
+        auth_filepath: Path,
         email_source: str,
         comanage_config: Configuration,
         comanage_coid: int,
         redcap_param_repo: REDCapParametersRepository,
         portal_url: str,
         notification_mode: NotificationModeType = "date",
+        support_emails: Optional[List[str]] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -61,60 +69,65 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__redcap_param_repo = redcap_param_repo
         self.__notification_mode: NotificationModeType = notification_mode
         self.__portal_url = portal_url
+        self.__support_emails = support_emails or []
 
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "UserManagementVisitor":
         """Visits the gear context to gather inputs.
 
         Args:
-            context (GearToolkitContext): The gear context.
+            context (GearContext): The gear context.
         """
         assert parameter_store, "Parameter store expected"
 
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
-        user_filepath = context.get_input_path("user_file")
-        if not user_filepath:
-            raise GearExecutionError("No user directory file provided")
-        auth_filepath = context.get_input_path("auth_file")
-        if not auth_filepath:
-            raise GearExecutionError("No user role file provided")
+        # Validate and retrieve file paths
+        user_filepath, auth_filepath = cls._get_input_filepaths(context)
 
-        comanage_path = context.config.get("comanage_parameter_path")
-        if not comanage_path:
-            raise GearExecutionError("No CoManage parameter path")
-        sender_path = context.config.get("sender_path")
-        if not sender_path:
-            raise GearExecutionError("No email sender parameter path")
+        # Retrieve required parameters from parameter store
+        comanage_path = cls._require_config(
+            context, "comanage_parameter_path", "CoManage parameter path"
+        )
+        notifications_path = cls._require_config(
+            context, "notifications_path", "notifications parameter path"
+        )
+        portal_path = cls._require_config(
+            context, "portal_url_path", "path for portal URL"
+        )
 
-        portal_path = context.config.get("portal_url_path")
-        if not portal_path:
-            raise GearExecutionError("No path for portal URL")
+        comanage_parameters = cls._get_parameters(
+            parameter_store.get_comanage_parameters,
+            comanage_path,
+            "COManage configuration",
+        )
+        notification_params = cls._get_parameters(
+            parameter_store.get_notification_parameters,
+            notifications_path,
+            "notification configuration",
+        )
+        portal_url = cls._get_parameters(
+            parameter_store.get_portal_url, portal_path, "portal URL"
+        )
 
-        try:
-            comanage_parameters = parameter_store.get_comanage_parameters(comanage_path)
-            sender_parameters = parameter_store.get_notification_parameters(sender_path)
-            portal_url = parameter_store.get_portal_url(portal_path)
-        except ParameterError as error:
-            raise GearExecutionError(f"Parameter error: {error}") from error
+        # Parse support emails from notification parameters
+        support_emails = cls._parse_support_emails(
+            notification_params["support_emails"]
+        )
 
-        redcap_path = context.config.get("redcap_parameter_path", "/redcap/aws")
-        redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
-            param_store=parameter_store, base_path=redcap_path
-        )  # type: ignore
-        if not redcap_param_repo:
-            raise GearExecutionError("Failed to create REDCap parameter repository")
+        # Create REDCap parameter repository
+        redcap_param_repo = cls._create_redcap_repository(context, parameter_store)
 
         return UserManagementVisitor(
-            admin_id=context.config.get("admin_group", "nacc"),
+            admin_id=context.config.opts.get("admin_group", "nacc"),
             client=client,
             user_filepath=user_filepath,
             auth_filepath=auth_filepath,
-            email_source=sender_parameters["sender"],
+            email_source=notification_params["sender"],
             comanage_coid=int(comanage_parameters["coid"]),
             comanage_config=Configuration(
                 host=comanage_parameters["host"],
@@ -122,11 +135,120 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 password=comanage_parameters["apikey"],
             ),
             redcap_param_repo=redcap_param_repo,
-            notification_mode=context.config.get("notification_mode", "none"),
+            notification_mode=context.config.opts.get("notification_mode", "none"),
             portal_url=portal_url["url"],
+            support_emails=support_emails,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    @staticmethod
+    def _require_config(context: GearContext, key: str, description: str) -> str:
+        """Get a required configuration value.
+
+        Args:
+            context: The gear context
+            key: The configuration key
+            description: Human-readable description for error messages
+
+        Returns:
+            The configuration value
+
+        Raises:
+            GearExecutionError: If the configuration value is missing
+        """
+        value = context.config.opts.get(key)
+        if not value:
+            raise GearExecutionError(f"No {description}")
+        return value
+
+    @staticmethod
+    def _get_parameters(getter, path: str, description: str):
+        """Get parameters from parameter store.
+
+        Args:
+            getter: The parameter store getter method
+            path: The parameter path
+            description: Human-readable description for error messages
+
+        Returns:
+            The parameters
+
+        Raises:
+            GearExecutionError: If parameter retrieval fails
+        """
+        try:
+            return getter(path)
+        except ParameterError as error:
+            raise GearExecutionError(
+                f"Parameter error - {description} required: {error}"
+            ) from error
+
+    @staticmethod
+    def _get_input_filepaths(context: GearContext) -> tuple[Path, Path]:
+        """Validate and retrieve input file paths from context.
+
+        Args:
+            context: The gear context
+
+        Returns:
+            Tuple of (user_filepath, auth_filepath)
+
+        Raises:
+            GearExecutionError: If required file paths are missing
+        """
+        user_filepath = context.config.get_input_path("user_file")
+        if not user_filepath:
+            raise GearExecutionError("No user directory file provided")
+
+        auth_filepath = context.config.get_input_path("auth_file")
+        if not auth_filepath:
+            raise GearExecutionError("No user role file provided")
+
+        return user_filepath, auth_filepath
+
+    @staticmethod
+    def _parse_support_emails(emails_str: str) -> list[str]:
+        """Parse comma-separated email addresses.
+
+        Args:
+            emails_str: Comma-separated email addresses
+
+        Returns:
+            List of email addresses
+        """
+        if not emails_str:
+            return []
+        return [email.strip() for email in emails_str.split(",") if email.strip()]
+
+    @staticmethod
+    def _create_redcap_repository(
+        context: GearContext, parameter_store: ParameterStore
+    ) -> REDCapParametersRepository:
+        """Create REDCap parameter repository from parameter store.
+
+        Args:
+            context: The gear context
+            parameter_store: The parameter store instance
+
+        Returns:
+            REDCap parameter repository instance
+
+        Raises:
+            GearExecutionError: If repository creation fails
+        """
+        redcap_path = context.config.opts.get("redcap_parameter_path", "/redcap/aws")
+        try:
+            redcap_param_repo = REDCapParametersRepository.create_from_parameterstore(
+                param_store=parameter_store, base_path=redcap_path
+            )  # type: ignore
+            if not redcap_param_repo:
+                raise GearExecutionError("Failed to create REDCap parameter repository")
+            return redcap_param_repo
+        except (ParameterError, ValueError, TypeError) as error:
+            raise GearExecutionError(
+                f"Failed to create REDCap parameter repository: {error}"
+            ) from error
+
+    def run(self, context: GearContext) -> None:
         """Executes the gear.
 
         Args:
@@ -137,6 +259,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         assert self.__admin_id, "Admin group ID required"
         assert self.__email_source, "Sender email address required"
 
+        collector = UserEventCollector()
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
@@ -162,13 +285,162 @@ class UserManagementVisitor(GearExecutionEnvironment):
                                 api_instance=DefaultApi(comanage_client),
                                 coid=self.__comanage_coid,
                             ),
-                        )
+                        ),
+                        collector=collector,
                     ),
                 )
             except RegistryError as error:
-                raise GearExecutionError(f"User registry error: {error}") from error
+                # Critical service failure - registry is essential for user management
+                raise GearExecutionError(
+                    f"Critical service failure - User registry error: {error}"
+                ) from error
 
-    def __get_user_queue(self, user_file_path: str) -> UserQueue[UserEntry]:
+        if not collector.has_errors():
+            log.info("User management completed successfully with no errors")
+            return
+
+        # Export errors to CSV and upload to Flywheel
+        input_filename = self.__user_filepath.stem  # Get filename without extension
+        error_filename = f"{input_filename}-errors.csv"
+
+        try:
+            csv_content = export_errors_to_csv(collector)
+            with context.open_output(
+                error_filename, mode="w", encoding="utf-8"
+            ) as error_file:
+                error_file.write(csv_content)
+            log.info("Wrote %d errors to %s", collector.error_count(), error_filename)
+        except (ValueError, OSError) as export_error:
+            log.error(
+                "Failed to export errors to CSV: %s. "
+                "Individual errors have been logged. "
+                "Gear run will continue.",
+                export_error,
+                exc_info=True,
+            )
+            return
+
+        if not self.__support_emails:
+            log.warning(
+                "Errors occurred but no support emails configured. "
+                "Skipping error notification."
+            )
+            return
+
+        # Send simple notification email
+        self.__send_error_notification(
+            context=context,
+            collector=collector,
+            error_filename=error_filename,
+        )
+
+    def __send_error_notification(
+        self,
+        context: GearContext,
+        collector: UserEventCollector,
+        error_filename: str,
+    ) -> None:
+        """Send simple error notification email.
+
+        Args:
+            context: The gear context
+            collector: The collector containing errors
+            error_filename: The name of the error CSV file
+
+        Raises:
+            GearExecutionError: If email sending fails
+        """
+        log.info(
+            "Sending simple error notification for %d error(s)",
+            collector.error_count(),
+        )
+        try:
+            email_client = EmailClient(
+                client=create_ses_client(),
+                source=self.__email_source,
+            )
+
+            # Get destination information
+            destination_id = context.config.destination.get("id", "unknown")
+
+            # Get project information for clickable link
+            project_name = destination_id
+            project_url = None
+            try:
+                proxy = self.client.get_proxy()
+                project = proxy.get_project_by_id(destination_id)
+                if project:
+                    # project.group is the group ID/label (e.g., "nacc")
+                    project_name = f"{project.group}/{project.label}"
+
+                    # Get site URL from client host
+                    # Host is in format "https://flywheel.naccdata.org/api"
+                    host = self.client.host
+                    if host:
+                        # Remove /api suffix if present
+                        site_url = host.rstrip("/api").rstrip("/")
+                        project_url = f"{site_url}/#/projects/{destination_id}/info"
+            except Exception as error:
+                log.warning(
+                    "Could not get project details for email: %s",
+                    error,
+                )
+
+            # Build location section with clickable link
+            location_section = f"Location: {project_name}\n"
+            if project_url:
+                location_section += f"Link: {project_url}\n"
+
+            # Build category breakdown
+            category_breakdown = []
+            for category, count in collector.count_by_category().items():
+                category_breakdown.append(f"  - {category}: {count}")
+            category_text = (
+                "\n".join(category_breakdown)
+                if category_breakdown
+                else "  - No categories"
+            )
+
+            # Build simple notification message
+            subject = "[User Management] User Processing Errors"
+            body = (
+                f"User processing completed with {collector.error_count()} errors.\n"
+                "\n"
+                f"Error details have been saved to: {error_filename}\n"
+                "\n"
+                f"{location_section}"
+                "\n"
+                "To access the error file:\n"
+                "1. Navigate to the project in Flywheel\n"
+                f"2. Look for the file: {error_filename}\n"
+                "3. Download and review the errors in a spreadsheet application\n"
+                "\n"
+                f"Affected users: {len(collector.get_affected_users())}\n"
+                "\n"
+                "Error breakdown by category:\n"
+                f"{category_text}\n"
+            )
+
+            message_id = email_client.send_raw(
+                destinations=self.__support_emails,
+                subject=subject,
+                body=body,
+            )
+            log.info(
+                "Successfully sent error notification with message ID: %s",
+                message_id,
+            )
+        except ClientError as notification_error:
+            log.error(
+                "Failed to send error notification email: %s. "
+                "Individual errors have been logged. "
+                "Gear run will continue.",
+                notification_error,
+                exc_info=True,
+            )
+            raise GearExecutionError(notification_error) from notification_error
+
+    def __get_user_queue(self, user_file_path: Path) -> UserQueue[UserEntry]:
         """Get the active user objects from the user file.
 
         Args:
@@ -205,7 +477,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
         return user_list
 
-    def __get_auth_map(self, auth_file_path: str) -> AuthMap:
+    def __get_auth_map(self, auth_file_path: Path) -> AuthMap:
         """Get the authorization map from the auth file.
 
         Args:

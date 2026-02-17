@@ -23,8 +23,8 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     VisitInfo,
 )
-from flywheel_gear_toolkit import GearToolkitContext
-from flywheel_gear_toolkit.utils.metadata import Metadata, create_qc_result_dict
+from fw_gear import GearContext
+from fw_gear.utils.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
@@ -79,7 +79,7 @@ class QCCoordinator:
         configs_file: FileEntry,
         qc_gear_info: GearInfo,
         proxy: FlywheelProxy,
-        gear_context: GearToolkitContext,
+        gear_context: GearContext,
         visits_lookup_helper: VisitsLookupHelper,
     ) -> None:
         """Initialize the QC Coordinator.

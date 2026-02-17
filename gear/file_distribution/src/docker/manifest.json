@@ -2,7 +2,7 @@
     "name": "file-distribution",
     "label": "File Distribution",
     "description": "Gear that distributes files to target projects",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/file-distribution:1.0.0"
+            "image": "naccdata/file-distribution:1.0.1"
         },
         "flywheel": {
             "suite": "Utility",
@@ -49,7 +49,13 @@
         },
         "target_project": {
             "description": "Label of target project to distribute file to; all target ADCIDs expected to have a project",
-            "type": "string"
+            "type": "string",
+            "default": ""
+        },
+        "staging_project_id": {
+            "description": "Staging project ID to stage all results to; overrides target_project",
+            "type": "string",
+            "default": ""
         },
         "include": {
             "description": "Comma-delimited list of ADCIDs to include",
@@ -64,7 +70,7 @@
         "batch_size": {
             "description": "Number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others",
             "type": "integer",
-            "default": 10
+            "default": 8
         },
         "downstream_gears": {
             "description": "If scheduling, comma-delimited string of downstream gears to wait for",

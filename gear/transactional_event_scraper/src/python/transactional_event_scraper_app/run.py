@@ -5,7 +5,7 @@ from typing import Optional
 
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -51,7 +51,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "TransactionalEventScraperVisitor":
         """Creates a Transactional Event Scraper execution visitor.
@@ -76,7 +76,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         # Get destination project
-        dest_container = context.get_destination_container()
+        dest_container = context.config.get_destination_container()
         if not dest_container:
             raise GearExecutionError("No destination container found")
 
@@ -118,7 +118,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
             event_capture=event_capture,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the transactional event scraper.
 
         Args:

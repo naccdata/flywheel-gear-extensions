@@ -12,7 +12,7 @@ from centers.center_group import (
 )
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import GroupAdaptor, ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -145,7 +145,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "REDCapFlywheelTransferVisitor":
         """Creates a redcap_fw_transfer execution visitor.
 
@@ -170,7 +170,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
         )
 
         try:
-            dest_container = context.get_destination_container()
+            dest_container = context.config.get_destination_container()
         except ApiException as error:
             raise GearExecutionError(
                 f"Cannot find destination container: {error}"
@@ -264,7 +264,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
 
         return True
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the redcap_fw_transfer app.
 
         Args:

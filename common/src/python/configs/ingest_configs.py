@@ -283,3 +283,20 @@ class PipelineConfigs(BaseModel):
             ValidationError,
         ) as error:
             raise ConfigsError(error) from error
+
+
+def load_form_ingest_configurations(config_file_path: str) -> FormProjectConfigs:
+    """Load the form module configs from the configs file.
+
+    Args:
+      config_file_path: the form module configs file path
+
+    Returns:
+      FormProjectConfigs
+
+    Raises:
+      ValidationError if failed to load the configs file
+    """
+
+    with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
+        return FormProjectConfigs.model_validate_json(configs_file.read())

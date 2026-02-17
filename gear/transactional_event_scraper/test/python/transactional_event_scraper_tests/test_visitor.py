@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from event_capture.event_capture import VisitEventCapture
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterStore
 from s3.s3_bucket import S3BucketInterface
@@ -15,13 +15,21 @@ from transactional_event_scraper_app.run import TransactionalEventScraperVisitor
 @pytest.fixture
 def mock_context():
     """Create a mock gear context."""
-    context = Mock(spec=GearToolkitContext)
-    context.config = {
+    context = Mock(spec=GearContext)
+    # Mock the Config object structure from fw_gear
+    mock_config = Mock()
+    mock_config.opts = {
         "dry_run": False,
         "event_bucket": "test-bucket",
         "event_environment": "dev",
         "apikey_path_prefix": "/test/path",
     }
+    # Add get_destination_container as a Mock method
+    dest_container = Mock()
+    dest_container.container_type = "project"
+    dest_container.id = "test-project-id"
+    mock_config.get_destination_container = Mock(return_value=dest_container)
+    context.config = mock_config
     context.manifest = {"name": "transactional-event-scraper"}
     context.config_json = {"job": {"id": "test-job-id"}}
     return context
@@ -107,11 +115,11 @@ def test_create_visitor_success(
     mock_bucket = Mock(spec=S3BucketInterface)
     mock_s3_bucket.create_from_environment.return_value = mock_bucket
 
-    # Setup destination container
+    # Setup destination container on config object
     dest_container = Mock()
     dest_container.container_type = "project"
     dest_container.id = "test-project-id"
-    mock_context.get_destination_container.return_value = dest_container
+    mock_context.config.get_destination_container.return_value = dest_container
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -139,7 +147,7 @@ def test_create_visitor_success(
         context=mock_context, parameter_store=mock_parameter_store
     )
     mock_s3_bucket.create_from_environment.assert_called_once_with("test-bucket")
-    mock_context.get_destination_container.assert_called_once()
+    mock_context.config.get_destination_container.assert_called_once()
     mock_proxy.get_project_by_id.assert_called_once_with("test-project-id")
 
 
@@ -165,11 +173,11 @@ def test_create_visitor_dry_run_mode(
     mock_client = Mock()
     mock_gear_bot_client.create.return_value = mock_client
 
-    # Setup destination container
+    # Setup destination container on config object
     dest_container = Mock()
     dest_container.container_type = "project"
     dest_container.id = "test-project-id"
-    mock_context.get_destination_container.return_value = dest_container
+    mock_context.config.get_destination_container.return_value = dest_container
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -237,11 +245,11 @@ def test_create_visitor_s3_initialization_error(
     mock_client = Mock()
     mock_gear_bot_client.create.return_value = mock_client
 
-    # Setup destination container
+    # Setup destination container on config object
     dest_container = Mock()
     dest_container.container_type = "project"
     dest_container.id = "test-project-id"
-    mock_context.get_destination_container.return_value = dest_container
+    mock_context.config.get_destination_container.return_value = dest_container
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -274,7 +282,7 @@ def test_visitor_run_success(mock_run, mock_config):
     mock_run.return_value = None
 
     # Setup context
-    mock_context = Mock(spec=GearToolkitContext)
+    mock_context = Mock(spec=GearContext)
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -319,7 +327,7 @@ def test_visitor_run_with_date_filters(mock_run):
     mock_run.return_value = None
 
     # Setup context
-    mock_context = Mock(spec=GearToolkitContext)
+    mock_context = Mock(spec=GearContext)
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -356,7 +364,7 @@ def test_visitor_run_execution_error(mock_run, mock_config):
     mock_run.side_effect = Exception("Scraping failed")
 
     # Setup context
-    mock_context = Mock(spec=GearToolkitContext)
+    mock_context = Mock(spec=GearContext)
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -395,7 +403,7 @@ def test_visitor_run_dry_run_mode(mock_run):
     mock_run.return_value = None
 
     # Setup context
-    mock_context = Mock(spec=GearToolkitContext)
+    mock_context = Mock(spec=GearContext)
 
     # Setup project
     mock_project = MockProjectAdaptor(
@@ -465,11 +473,11 @@ def test_create_visitor_initializes_event_capture_correctly(
     mock_event_capture_instance = Mock(spec=VisitEventCapture)
     mock_visit_event_capture.return_value = mock_event_capture_instance
 
-    # Setup destination container
+    # Setup destination container on config object
     dest_container = Mock()
     dest_container.container_type = "project"
     dest_container.id = "test-project-id"
-    mock_context.get_destination_container.return_value = dest_container
+    mock_context.config.get_destination_container.return_value = dest_container
 
     # Setup project
     mock_project = MockProjectAdaptor(

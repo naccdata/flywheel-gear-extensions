@@ -17,7 +17,7 @@ from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,
@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 def update_input_file_qc_status(
     *,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     gear_name: str,
     input_wrapper: InputFileWrapper,
     file: FileEntry,
@@ -76,7 +76,7 @@ def update_input_file_qc_status(
     timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
     gear_context.metadata.update_file_metadata(
         input_wrapper.file_input,
-        container_type=gear_context.destination["type"],
+        container_type=gear_context.config.destination["type"],
         info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
     )
 
@@ -85,7 +85,7 @@ def update_input_file_qc_status(
     gear_context.metadata.update_file_metadata(
         input_wrapper.file_input,
         tags=updated_tags,
-        container_type=gear_context.destination["type"],
+        container_type=gear_context.config.destination["type"],
     )
 
     log.info("QC check status for file %s : %s [%s]", file.name, status_str, timestamp)
@@ -111,11 +111,12 @@ def load_supplement_input(
 
 def run(  # noqa: C901
     *,
+    gear_name: str,
     client_wrapper: ClientWrapper,
     input_wrapper: InputFileWrapper,
     s3_client: S3BucketInterface,
     admin_group: NACCGroup,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     form_project_configs: FormProjectConfigs,
     redcap_connection: Optional[REDCapReportConnection] = None,
     supplement_input: Optional[InputFileWrapper] = None,
@@ -124,6 +125,7 @@ def run(  # noqa: C901
     the appropriate file processor.
 
     Args:
+        gear_name: The gear name
         client_wrapper: Flywheel SDK client wrapper
         input_wrapper: Gear input file wrapper
         s3_client: boto3 client for QC rules S3 bucket
@@ -193,7 +195,7 @@ def run(  # noqa: C901
     pk_field = form_project_configs.primary_key.lower()
     module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
     date_field = module_configs.date_field
-    strict = gear_context.config.get("strict_mode", True)
+    strict = gear_context.config.opts.get("strict_mode", True)
 
     error_writer = ListErrorWriter(
         container_id=file_id, fw_path=proxy.get_lookup_path(file)
@@ -208,7 +210,6 @@ def run(  # noqa: C901
     )
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
-    gear_name = gear_context.manifest.get("name", "form-qc-checker")
 
     file_processor: FileProcessor
     if file_type == "json":

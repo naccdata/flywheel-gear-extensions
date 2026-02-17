@@ -12,9 +12,10 @@ published - boolean indicating whether data is to be published
 """
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -34,7 +35,7 @@ log = logging.getLogger(__name__)
 class ProjectCreationVisitor(GearExecutionEnvironment):
     """Defines the project management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: str):
+    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: Path):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__project_filepath = project_filepath
@@ -42,7 +43,7 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "ProjectCreationVisitor":
         """Creates a projection creation execution visitor.
@@ -55,19 +56,19 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
           GearExecutionError if the project file cannot be loaded
         """
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
-        project_filepath = context.get_input_path("project_file")
+        project_filepath = context.config.get_input_path("project_file")
         if not project_filepath:
             raise GearExecutionError("No project file provided")
 
-        admin_id = context.config.get("admin_group", "nacc")
+        admin_id = context.config.opts.get("admin_group", "nacc")
 
         return ProjectCreationVisitor(
             admin_id=admin_id, client=client, project_filepath=project_filepath
         )
 
-    def __get_study_list(self, project_filepath: str) -> List[StudyModel]:
+    def __get_study_list(self, project_filepath: Path) -> List[StudyModel]:
         try:
-            with open(project_filepath, "r", encoding="utf-8-sig") as stream:
+            with project_filepath.open("r", encoding="utf-8-sig") as stream:
                 project_list = load_all_from_stream(stream)
         except YAMLReadError as error:
             raise GearExecutionError(
@@ -78,7 +79,7 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
 
         return [StudyModel.create(study_doc) for study_doc in project_list]
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Executes the gear.
 
         Args:

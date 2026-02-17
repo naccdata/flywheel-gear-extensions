@@ -45,11 +45,11 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None
     ) -> "TransactionalEventScraperVisitor"
     
-    def run(self, context: GearToolkitContext) -> None
+    def run(self, context: GearContext) -> None
 ```
 
 **Key Design Decisions:**
@@ -194,7 +194,7 @@ class DateRange(BaseModel):
 Uses the standard NACC gear framework:
 
 - **ClientWrapper**: For Flywheel API access through proxy
-- **GearToolkitContext**: For configuration and input handling
+- **GearContext**: For configuration and input handling
 - **ParameterStore**: For AWS parameter access
 - **GearExecutionError**: For error handling and reporting
 

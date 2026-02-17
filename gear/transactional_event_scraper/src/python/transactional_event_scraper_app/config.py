@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from event_capture.models import DateRange
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -72,7 +72,7 @@ class TransactionalEventScraperConfig(BaseModel):
         return DateRange(start_date=start_datetime, end_date=end_datetime)
 
 
-def parse_gear_config(context: GearToolkitContext) -> TransactionalEventScraperConfig:
+def parse_gear_config(context: GearContext) -> TransactionalEventScraperConfig:
     """Parse gear configuration from context.
 
     Args:
@@ -85,7 +85,7 @@ def parse_gear_config(context: GearToolkitContext) -> TransactionalEventScraperC
         GearExecutionError: If configuration is invalid
     """
     try:
-        config_dict = context.config
+        config_dict = context.config.opts
         log.info(f"Parsing gear configuration: {config_dict}")
         return TransactionalEventScraperConfig.model_validate(config_dict)
     except ValidationError as e:

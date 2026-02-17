@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from flywheel import Client
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, S3Parameters
 from projects.project_mapper import build_project_map
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 def main():
     """Main method to distribute metadata from S3 bucket to center projects."""
 
-    with GearToolkitContext() as gear_context:
+    with GearContext() as gear_context:
         gear_context.init_logging()
         gear_context.log_config()
 
@@ -51,7 +51,7 @@ def main():
             log.error("Expected destination label")
             sys.exit(1)
 
-        apikey_path_prefix = gear_context.config.get(
+        apikey_path_prefix = gear_context.config.opts.get(
             "apikey_path_prefix", "/prod/flywheel/gearbot"
         )
         log.info("Running gearbot with API key from %s/apikey", apikey_path_prefix)
@@ -70,7 +70,7 @@ def main():
             log.error("Gearbot API key does not match host")
             sys.exit(1)
 
-        dry_run = gear_context.config.get("dry_run", False)
+        dry_run = gear_context.config.opts.get("dry_run", False)
         proxy = FlywheelProxy(client=Client(api_key), dry_run=dry_run)
 
         project_map = build_project_map(

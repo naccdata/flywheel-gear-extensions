@@ -1,10 +1,11 @@
 """Entry script for REDCap Project Info Management."""
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from centers.center_group import REDCapProjectInput
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 class REDCapProjectInfoVisitor(GearExecutionEnvironment):
     """Visitor for the REDCap Project Info Management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, input_filepath: str):
+    def __init__(self, admin_id: str, client: ClientWrapper, input_filepath: Path):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__input_file_path = input_filepath
@@ -32,7 +33,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "REDCapProjectInfoVisitor":
         """Visit context to accumulate inputs for the gear.
@@ -41,17 +42,17 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             context: The gear context.
         """
         client = ContextClient.create(context=context)
-        input_file_path = context.get_input_path("input_file")
+        input_file_path = context.config.get_input_path("input_file")
         if not input_file_path:
             raise GearExecutionError("No input file provided")
 
         return REDCapProjectInfoVisitor(
-            admin_id=context.config.get("admin_group", "nacc"),
+            admin_id=context.config.opts.get("admin_group", "nacc"),
             client=client,
             input_filepath=input_file_path,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the REDCap Project Info Management gear.
 
         Args:
@@ -64,7 +65,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
         )
 
     # pylint: disable=no-self-use
-    def __get_project_list(self, input_file_path: str) -> List[REDCapProjectInput]:
+    def __get_project_list(self, input_file_path: Path) -> List[REDCapProjectInput]:
         """Get the REDCap project info objects from the input file.
 
         Args:
@@ -73,7 +74,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             A list of REDCap project info objects.
         """
         try:
-            with open(input_file_path, "r", encoding="utf-8 ") as input_file:
+            with input_file_path.open("r", encoding="utf-8 ") as input_file:
                 object_list = load_from_stream(input_file)
         except YAMLReadError as error:
             raise GearExecutionError(

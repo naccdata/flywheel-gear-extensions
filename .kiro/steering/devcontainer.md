@@ -72,7 +72,7 @@ After changing `.devcontainer/` configuration:
 
 ## Python Environment
 
-The dev container provides Python 3.11 pre-installed. No need for pyenv or manual Python installation - the container handles this.
+The dev container provides Python 3.12 pre-installed. No need for pyenv or manual Python installation - the container handles this.
 
 ## Workflow Example
 

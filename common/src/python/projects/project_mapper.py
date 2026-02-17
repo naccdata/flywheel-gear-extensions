@@ -1,11 +1,12 @@
 """Maps ADCID to projects."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from centers.center_group import CenterError, CenterGroup
 from centers.nacc_group import NACCGroup
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)
 
@@ -51,3 +52,43 @@ def build_project_map(
         log.warning("No projects found while building project map")
 
     return project_map
+
+
+def generate_project_map(
+    *,
+    proxy: FlywheelProxy,
+    centers: Iterable[str],
+    target_project: Optional[str] = None,
+    staging_project_id: Optional[str] = None,
+) -> Dict[str, ProjectAdaptor]:
+    """Generates the project map.
+
+    Args:
+        proxy: the proxy for the Flywheel instance
+        centers: The list of centers to map
+        target_project: The FW target project name to write results to for
+                        each ADCID
+        staging_project_id: Project ID to stage results to; will override
+                            target_project if specified
+    Returns:
+        Evaluated project mapping
+    """
+    if staging_project_id:
+        # if writing results to a staging project, manually build a project map
+        # that maps all to the specified project ID
+        fw_project = proxy.get_project_by_id(staging_project_id)
+        if not fw_project:
+            raise GearExecutionError(
+                f"Cannot find staging project with ID {staging_project_id}, "
+                + "possibly a permissions issue?"
+            )
+
+        project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        return {f"adcid-{adcid}": project for adcid in centers}
+
+    # else build project map from ADCID to corresponding
+    # FW project for upload, and filter as needed
+    assert target_project, "target_project required if no staging_project_id provided"
+    return build_project_map(
+        proxy=proxy, destination_label=target_project, center_filter=list(centers)
+    )

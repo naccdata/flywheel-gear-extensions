@@ -132,7 +132,7 @@ class CenterMapInfo(BaseModel):
         """
         return [int(adcid) for adcid in self.centers]
 
-    def group_ids(self, center_ids: Optional[List[int]] = None) -> Set[str]:
+    def group_ids(self, center_ids: Optional[List[str]] = None) -> Set[str]:
         """Returns the set of group IDs for the centers in this center map.
 
         If center_ids is provided, restricts the result to those with a center
@@ -144,7 +144,7 @@ class CenterMapInfo(BaseModel):
           the set of group IDs
         """
         if center_ids:
-            keys = [str(adcid) for adcid in self.centers]
+            keys = [adcid for adcid in self.centers if adcid in center_ids]
         else:
             keys = list(self.centers.keys())
 
@@ -153,7 +153,7 @@ class CenterMapInfo(BaseModel):
             for center in [self.centers.get(key) for key in keys if key in self.centers]
         }
 
-    def active_group_ids(self, center_ids: Optional[List[int]] = None) -> Set[str]:
+    def active_group_ids(self, center_ids: Optional[List[str]] = None) -> Set[str]:
         """Returns the set of group IDs for active centers in this center map.
 
         If center_ids is provided, restricts the result to those with an ID in
@@ -165,7 +165,7 @@ class CenterMapInfo(BaseModel):
           the set of group IDs
         """
         if center_ids:
-            keys = [str(adcid) for adcid in self.centers]
+            keys = [adcid for adcid in self.centers if adcid in center_ids]
         else:
             keys = list(self.centers.keys())
 

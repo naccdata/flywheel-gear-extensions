@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from event_capture.models import DateRange
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from pydantic import ValidationError
 from transactional_event_scraper_app.config import (
@@ -145,13 +145,16 @@ class TestParseGearConfig:
 
     def test_parse_valid_config(self):
         """Test parsing valid configuration from context."""
-        context = Mock(spec=GearToolkitContext)
-        context.config = {
+        context = Mock(spec=GearContext)
+        # Mock the Config object structure from fw_gear
+        mock_config = Mock()
+        mock_config.opts = {
             "dry_run": False,
             "event_bucket": "test-bucket",
             "event_environment": "dev",
             "apikey_path_prefix": "/test/path",
         }
+        context.config = mock_config
 
         config = parse_gear_config(context)
 
@@ -163,8 +166,10 @@ class TestParseGearConfig:
 
     def test_parse_config_with_date_filters(self):
         """Test parsing configuration with date filters."""
-        context = Mock(spec=GearToolkitContext)
-        context.config = {
+        context = Mock(spec=GearContext)
+        # Mock the Config object structure from fw_gear
+        mock_config = Mock()
+        mock_config.opts = {
             "dry_run": False,
             "event_bucket": "test-bucket",
             "event_environment": "prod",
@@ -172,6 +177,7 @@ class TestParseGearConfig:
             "end_date": "2024-12-31",
             "apikey_path_prefix": "/prod/path",
         }
+        context.config = mock_config
 
         config = parse_gear_config(context)
 
@@ -180,8 +186,11 @@ class TestParseGearConfig:
 
     def test_parse_config_with_defaults(self):
         """Test parsing configuration uses defaults for missing values."""
-        context = Mock(spec=GearToolkitContext)
-        context.config = {}
+        context = Mock(spec=GearContext)
+        # Mock the Config object structure from fw_gear
+        mock_config = Mock()
+        mock_config.opts = {}
+        context.config = mock_config
 
         config = parse_gear_config(context)
 
@@ -192,10 +201,13 @@ class TestParseGearConfig:
 
     def test_parse_config_with_invalid_date_format(self):
         """Test parsing configuration fails with invalid date format."""
-        context = Mock(spec=GearToolkitContext)
-        context.config = {
+        context = Mock(spec=GearContext)
+        # Mock the Config object structure from fw_gear
+        mock_config = Mock()
+        mock_config.opts = {
             "start_date": "01/01/2024",  # Invalid format
         }
+        context.config = mock_config
 
         with pytest.raises(GearExecutionError) as exc_info:
             parse_gear_config(context)
@@ -204,10 +216,13 @@ class TestParseGearConfig:
 
     def test_parse_config_with_invalid_date_value(self):
         """Test parsing configuration fails with invalid date value."""
-        context = Mock(spec=GearToolkitContext)
-        context.config = {
+        context = Mock(spec=GearContext)
+        # Mock the Config object structure from fw_gear
+        mock_config = Mock()
+        mock_config.opts = {
             "start_date": "2024-13-01",  # Invalid month
         }
+        context.config = mock_config
 
         with pytest.raises(GearExecutionError) as exc_info:
             parse_gear_config(context)
