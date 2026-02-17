@@ -5,7 +5,8 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import RuleLabels
-from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
@@ -503,7 +504,7 @@ class ErrorComposer:
                         error_location=CSVLocation(line=line_number, column_name=field)
                         if line_number
                         else JSONLocation(key_path=field),
-                        visit_keys=VisitKeys.create_from(
+                        visit_keys=DataIdentification.from_form_record(
                             record=self.__input_data, date_field=self.__date_field
                         ),
                     )

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from pydantic import (
@@ -10,7 +10,6 @@ from pydantic import (
 )
 
 from nacc_common.data_identification import DataIdentification
-from nacc_common.field_names import FieldNames
 
 
 class QCVisitor(ABC):
@@ -84,29 +83,29 @@ class JSONLocation(BaseModel):
     key_path: str
 
 
-class VisitKeys(BaseModel):
-    adcid: Optional[int] = None
-    ptid: Optional[str] = None
-    visitnum: Optional[str] = None
-    module: Optional[str] = None
-    date: Optional[str] = None
-    naccid: Optional[str] = None
+# class VisitKeys(BaseModel):
+#     adcid: Optional[int] = None
+#     ptid: Optional[str] = None
+#     visitnum: Optional[str] = None
+#     module: Optional[str] = None
+#     date: Optional[str] = None
+#     naccid: Optional[str] = None
 
-    @classmethod
-    def create_from(
-        cls, record: Dict[str, Any], date_field: Optional[str] = None
-    ) -> "VisitKeys":
-        date = record.get(date_field) if date_field is not None else None
-        return VisitKeys(
-            adcid=record.get(FieldNames.ADCID),
-            ptid=record.get(FieldNames.PTID),
-            visitnum=record.get(FieldNames.VISITNUM),
-            date=date,
-            naccid=record.get(FieldNames.NACCID),
-            module=record.get(FieldNames.MODULE),
-        )
+#     @classmethod
+#     def create_from(
+#         cls, record: Dict[str, Any], date_field: Optional[str] = None
+#     ) -> "VisitKeys":
+#         date = record.get(date_field) if date_field is not None else None
+#         return cls(
+#             adcid=record.get(FieldNames.ADCID),
+#             ptid=record.get(FieldNames.PTID),
+#             visitnum=record.get(FieldNames.VISITNUM),
+#             date=date,
+#             naccid=record.get(FieldNames.NACCID),
+#             module=record.get(FieldNames.MODULE),
+#         )
 
-
+VisitKeys = DataIdentification
 VisitMetadata = DataIdentification
 
 # class VisitMetadata(VisitKeys):

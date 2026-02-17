@@ -34,8 +34,8 @@ class DataIdentificationExtractor:
             return None
 
         try:
-            return DataIdentification.model_validate(visit_data)
-        except ValidationError:
+            return DataIdentification.from_visit_metadata(**visit_data)
+        except (ValidationError, TypeError):
             return None
 
     @staticmethod
@@ -56,10 +56,12 @@ class DataIdentificationExtractor:
             return None
 
         try:
-            # Create mapping for field name differences
-            mapped_data = {**forms_json, "date": forms_json.get("visitdate")}
-            return DataIdentification.model_validate(mapped_data)
-        except ValidationError:
+            # Map visitdate to date for from_visit_metadata
+            mapped_data = {**forms_json}
+            if "visitdate" in mapped_data:
+                mapped_data["date"] = mapped_data.pop("visitdate")
+            return DataIdentification.from_visit_metadata(**mapped_data)
+        except (ValidationError, TypeError):
             return None
 
     @staticmethod

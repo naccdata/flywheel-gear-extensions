@@ -14,7 +14,8 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
-from nacc_common.error_models import FileQCModel, QCStatus, VisitKeys
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import FileQCModel, QCStatus
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
@@ -139,7 +140,7 @@ class CSVTransformVisitor(CSVVisitor):
                 empty_field_error(
                     field=empty_fields,
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=self.__date_field
                     ),
                 )
@@ -272,7 +273,7 @@ class CSVTransformVisitor(CSVVisitor):
                                 value=visit_num,
                                 line=line_num,
                                 error_code=SysErrorCodes.DIFF_VISITDATE,
-                                visit_keys=VisitKeys.create_from(
+                                visit_keys=DataIdentification.from_form_record(
                                     record=transformed_row, date_field=self.__date_field
                                 ),
                             )
@@ -366,7 +367,7 @@ class CSVTransformVisitor(CSVVisitor):
                 value=row_module,
                 expected=self.__module,
                 line=line_num,
-                visit_keys=VisitKeys.create_from(
+                visit_keys=DataIdentification.from_form_record(
                     record=row, date_field=self.__date_field
                 ),
             )
@@ -611,7 +612,7 @@ class CSVTransformVisitor(CSVVisitor):
                     value=visitdate,
                     line=line_num,
                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=record, date_field=self.__date_field
                     ),
                 )

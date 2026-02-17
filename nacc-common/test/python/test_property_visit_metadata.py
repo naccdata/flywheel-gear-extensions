@@ -9,12 +9,12 @@ from typing import Any, Dict
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from nacc_common.error_models import DataIdentification, VisitKeys
+from nacc_common.error_models import DataIdentification
 
 
 @st.composite
 def visit_keys_strategy(draw):
-    """Generate random VisitKeys data."""
+    """Generate random DataIdentification data."""
     return {
         "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
         "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
@@ -29,11 +29,19 @@ def visit_keys_strategy(draw):
 
 @st.composite
 def visit_metadata_strategy(draw):
-    """Generate random DataIdentification data."""
-    visit_keys_data = draw(visit_keys_strategy())
-    packet = draw(st.one_of(st.none(), st.text(min_size=1, max_size=5)))
-
-    return {**visit_keys_data, "packet": packet}
+    """Generate random DataIdentification data with all fields including
+    packet."""
+    return {
+        "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
+        "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
+        "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
+        "module": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
+        "date": draw(
+            st.one_of(st.none(), st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
+        ),
+        "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=15))),
+        "packet": draw(st.one_of(st.none(), st.text(min_size=1, max_size=5))),
+    }
 
 
 @given(visit_data=visit_metadata_strategy())
@@ -177,12 +185,21 @@ def test_visit_metadata_inheritance_compatibility():
         "adcid": 123,
     }
 
-    # Act - Use VisitKeys.create_from class method
-    visit_keys = VisitKeys.create_from(test_record, date_field="visitdate")
+    # Act - Use DataIdentification.from_form_record class method
+    visit_keys = DataIdentification.from_form_record(
+        test_record, date_field="visitdate"
+    )
 
-    # Act - Create DataIdentification from VisitKeys data
+    # Act - Create DataIdentification with packet field added
+    # Since both are DataIdentification now, just create a new one with packet
     visit_metadata = DataIdentification.from_visit_metadata(
-        **visit_keys.model_dump(), packet="I"
+        ptid=visit_keys.ptid,
+        date=visit_keys.date,
+        visitnum=visit_keys.visitnum,
+        module=visit_keys.module,
+        adcid=visit_keys.adcid,
+        naccid=visit_keys.naccid,
+        packet="I",
     )
 
     # Assert - DataIdentification should have all VisitKeys data plus packet
@@ -200,13 +217,14 @@ def test_visit_metadata_inheritance_compatibility():
 
 
 def test_data_identification_duck_types_as_visit_keys():
-    """Test DataIdentification has the same interface as VisitKeys (duck typing).
+    """Test DataIdentification has the same interface as DataIdentification
+    (duck typing).
 
     **Feature: form-scheduler-event-logging-refactor,
       Property 9: Extended Visit Metadata Model**
     **Validates: Requirements 7.1, 7.2**
 
-    DataIdentification should be usable anywhere VisitKeys is expected,
+    DataIdentification should be usable anywhere DataIdentification is expected,
     providing the same attributes via __getattr__.
     """
     # Arrange - Create both objects with same data
@@ -219,7 +237,7 @@ def test_data_identification_duck_types_as_visit_keys():
         "naccid": "NACC123456",
     }
 
-    visit_keys = VisitKeys.create_from(test_data, date_field="visitdate")
+    visit_keys = DataIdentification.from_form_record(test_data, date_field="visitdate")
     data_identification = DataIdentification.from_visit_metadata(
         ptid=test_data["ptid"],
         date=test_data["visitdate"],
@@ -229,7 +247,7 @@ def test_data_identification_duck_types_as_visit_keys():
         naccid=test_data["naccid"],
     )
 
-    # Assert - All VisitKeys attributes are accessible on DataIdentification
+    # Assert - All DataIdentification attributes are accessible on DataIdentification
     assert hasattr(data_identification, "ptid"), "Should have ptid attribute"
     assert hasattr(data_identification, "date"), "Should have date attribute"
     assert hasattr(data_identification, "visitnum"), "Should have visitnum attribute"
@@ -245,13 +263,13 @@ def test_data_identification_duck_types_as_visit_keys():
     assert data_identification.adcid == visit_keys.adcid
     assert data_identification.naccid == visit_keys.naccid
 
-    # Assert - Can be used in functions expecting VisitKeys interface
+    # Assert - Can be used in functions expecting DataIdentification interface
     def process_visit_keys(vk):
-        """Function that expects VisitKeys-like interface."""
+        """Function that expects DataIdentification-like interface."""
         return f"{vk.ptid}_{vk.date}_{vk.module}"
 
     visit_keys_result = process_visit_keys(visit_keys)
     data_id_result = process_visit_keys(data_identification)
     assert visit_keys_result == data_id_result, (
-        "Should produce same result when used as VisitKeys"
+        "Should produce same result when used as DataIdentification"
     )

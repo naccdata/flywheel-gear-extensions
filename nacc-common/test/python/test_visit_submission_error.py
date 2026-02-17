@@ -1,12 +1,13 @@
 from datetime import date
 
-from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation
 from nacc_common.visit_submission_error import ErrorReportModel, error_transformer
 
 
 class TestErrorTransformer:
     def test_valid(self):
-        visit = VisitKeys(
+        visit = DataIdentification.from_visit_metadata(
             adcid=999, ptid="dummy01", module="UDS", date=date.today().isoformat()
         )
         file_error = FileError(
@@ -42,7 +43,7 @@ class TestErrorTransformer:
 
         # assert report_fieldnames ==
 
-        visit = VisitKeys(
+        visit = DataIdentification.from_visit_metadata(
             adcid=999, ptid="dummy01", module="UDS", date=date.today().isoformat()
         )
         file_error = FileError(

@@ -18,7 +18,7 @@ from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
-from nacc_common.error_models import DataIdentification, FileError, VisitKeys
+from nacc_common.error_models import DataIdentification, FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_identifiers_lambda_repository import (
@@ -58,13 +58,14 @@ def visit_row_strategy(draw):
 @given(visit_row=visit_row_strategy())
 @settings(max_examples=100)
 def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
-    """Property test: VisitKeys are extracted consistently from CSV rows.
+    """Property test: DataIdentification are extracted consistently from CSV
+    rows.
 
       **Feature: identifier-lookup-refactoring,
     Property 9: Visit Key Consistency**
       **Validates: Requirements 2.5**
 
-      For any CSV row containing visit data, the system should use VisitKeys
+      For any CSV row containing visit data, the system should use DataIdentification
       to identify visits consistently across all visitors.
     """
     # Arrange - Create QC visitor
@@ -88,50 +89,51 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
     # Act - Process row
     qc_visitor.visit_row(visit_row, line_num=1)
 
-    # Assert - Verify VisitKeys were extracted and used
+    # Assert - Verify DataIdentification were extracted and used
     assert mock_qc_creator.update_qc_log.called, "QC log should be created"
 
     call_kwargs = mock_qc_creator.update_qc_log.call_args[1]
     visit_keys = call_kwargs["visit_keys"]
 
-    # Verify VisitKeys structure
-    assert isinstance(visit_keys, (VisitKeys, DataIdentification)), (
-        "visit_keys should be a VisitKeys or DataIdentification object"
+    # Verify DataIdentification structure
+    assert isinstance(visit_keys, (DataIdentification, DataIdentification)), (
+        "visit_keys should be a DataIdentification or DataIdentification object"
     )
 
-    # Verify VisitKeys contain consistent data from the row
+    # Verify DataIdentification contain consistent data from the row
     assert visit_keys.ptid == visit_row["ptid"], (
-        f"VisitKeys PTID should match row data: "
+        f"DataIdentification PTID should match row data: "
         f"{visit_keys.ptid} != {visit_row['ptid']}"
     )
     assert visit_keys.date == visit_row["visitdate"], (
-        f"VisitKeys date should match row data: "
+        f"DataIdentification date should match row data: "
         f"{visit_keys.date} != {visit_row['visitdate']}"
     )
     assert visit_keys.visitnum == visit_row["visitnum"], (
-        f"VisitKeys visitnum should match row data: "
+        f"DataIdentification visitnum should match row data: "
         f"{visit_keys.visitnum} != {visit_row['visitnum']}"
     )
     assert visit_keys.adcid == visit_row["adcid"], (
-        f"VisitKeys ADCID should match row data: "
+        f"DataIdentification ADCID should match row data: "
         f"{visit_keys.adcid} != {visit_row['adcid']}"
     )
     assert visit_keys.module == "TEST", (
-        "VisitKeys module should be set from module_name parameter"
+        "DataIdentification module should be set from module_name parameter"
     )
 
 
 @given(num_visits=st.integers(min_value=2, max_value=5))
 @settings(max_examples=100)
 def test_visit_keys_consistent_across_visitors(num_visits: int):
-    """Property test: VisitKeys are consistent across multiple visitors.
+    """Property test: DataIdentification are consistent across multiple
+    visitors.
 
       **Feature: identifier-lookup-refactoring,
     Property 9: Visit Key Consistency**
       **Validates: Requirements 2.5**
 
       For any CSV processing with multiple visitors, the system should use
-      VisitKeys consistently to identify the same visit across all visitors.
+      DataIdentification consistently to identify the same visit across all visitors.
     """
     # Arrange - Create CSV data with unique PTIDs
     # Note: Using "P###" format to avoid clean_ptid() stripping leading zeros
@@ -212,13 +214,13 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
     for line_num, row in enumerate(csv_reader, start=2):
         aggregate_visitor.visit_row(row, line_num)
 
-    # Assert - Verify VisitKeys are consistent across visitors
+    # Assert - Verify DataIdentification are consistent across visitors
     processed_visits = qc_visitor.get_processed_visits()
     assert len(processed_visits) == len(csv_data), (
         "QC visitor should process all visits"
     )
 
-    # Verify each processed visit has consistent VisitKeys
+    # Verify each processed visit has consistent DataIdentification
     for i, visit_keys in enumerate(processed_visits):
         expected_visit = csv_data[i]
 
@@ -236,7 +238,7 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
         )
         assert visit_keys.module == "TEST", f"Visit {i}: module should be consistent"
 
-    # Verify QC log calls used the same VisitKeys
+    # Verify QC log calls used the same DataIdentification
     qc_calls = mock_qc_creator.update_qc_log.call_args_list
     assert len(qc_calls) == len(csv_data), "QC log should be created for each visit"
 
@@ -244,26 +246,26 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
         call_visit_keys = call[1]["visit_keys"]
         processed_visit_keys = processed_visits[i]
 
-        # Verify the VisitKeys used in QC log call match the processed visit
+        # Verify the DataIdentification used in QC log call match the processed visit
         assert call_visit_keys.ptid == processed_visit_keys.ptid, (
-            f"Visit {i}: QC log VisitKeys PTID should match processed visit"
+            f"Visit {i}: QC log DataIdentification PTID should match processed visit"
         )
         assert call_visit_keys.date == processed_visit_keys.date, (
-            f"Visit {i}: QC log VisitKeys date should match processed visit"
+            f"Visit {i}: QC log DataIdentification date should match processed visit"
         )
         assert call_visit_keys.module == processed_visit_keys.module, (
-            f"Visit {i}: QC log VisitKeys module should match processed visit"
+            f"Visit {i}: QC log DataIdentification module should match processed visit"
         )
 
 
 def test_visit_keys_with_missing_fields():
-    """Test VisitKeys extraction with missing optional fields.
+    """Test DataIdentification extraction with missing optional fields.
 
       **Feature: identifier-lookup-refactoring,
     Property 9: Visit Key Consistency**
       **Validates: Requirements 2.5**
 
-      When CSV rows have missing optional fields, VisitKeys should still be
+      When CSV rows have missing optional fields, DataIdentification should still be
       extracted consistently with None values for missing fields.
     """
     # Arrange - Create QC visitor
@@ -294,29 +296,31 @@ def test_visit_keys_with_missing_fields():
     }
     qc_visitor.visit_row(visit_row, line_num=1)
 
-    # Assert - Verify VisitKeys were extracted with None for missing field
+    # Assert - Verify DataIdentification were extracted with None for missing field
     assert mock_qc_creator.update_qc_log.called, "QC log should be created"
 
     call_kwargs = mock_qc_creator.update_qc_log.call_args[1]
     visit_keys = call_kwargs["visit_keys"]
 
-    assert visit_keys.ptid == "P001", "VisitKeys should have PTID"
-    assert visit_keys.date == "2024-01-01", "VisitKeys should have date"
-    assert visit_keys.visitnum == "1", "VisitKeys should have visitnum"
-    assert visit_keys.adcid is None, "VisitKeys should have None for missing ADCID"
-    assert visit_keys.module == "TEST", "VisitKeys should have module"
+    assert visit_keys.ptid == "P001", "DataIdentification should have PTID"
+    assert visit_keys.date == "2024-01-01", "DataIdentification should have date"
+    assert visit_keys.visitnum == "1", "DataIdentification should have visitnum"
+    assert visit_keys.adcid is None, (
+        "DataIdentification should have None for missing ADCID"
+    )
+    assert visit_keys.module == "TEST", "DataIdentification should have module"
 
 
 def test_visit_keys_module_name_handling():
-    """Test VisitKeys module name handling with and without module_name
-    parameter.
+    """Test DataIdentification module name handling with and without
+    module_name parameter.
 
       **Feature: identifier-lookup-refactoring,
     Property 9: Visit Key Consistency**
       **Validates: Requirements 2.5**
 
       When module_name is provided to QCStatusLogCSVVisitor, it should be used
-      consistently in VisitKeys regardless of MODULE field in the row.
+      consistently in DataIdentification regardless of MODULE field in the row.
     """
     # Arrange - Create QC visitor with module_name parameter
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -348,10 +352,10 @@ def test_visit_keys_module_name_handling():
     }
     qc_visitor.visit_row(visit_row, line_num=1)
 
-    # Assert - Verify VisitKeys use the provided module_name
+    # Assert - Verify DataIdentification use the provided module_name
     call_kwargs = mock_qc_creator.update_qc_log.call_args[1]
     visit_keys = call_kwargs["visit_keys"]
 
     assert visit_keys.module == "CUSTOM_MODULE", (
-        "VisitKeys should use module_name parameter (uppercased)"
+        "DataIdentification should use module_name parameter (uppercased)"
     )

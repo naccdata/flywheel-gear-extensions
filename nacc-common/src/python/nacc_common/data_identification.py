@@ -125,17 +125,16 @@ class DataIdentification(BaseModel):
             naccid=naccid,
         )
 
-        # Always create visit object to ensure visitnum field is present in serialization
+        # Always create visit object to ensure visitnum field is present
         visit = VisitIdentification(visitnum=visitnum)
 
         # Create data object - default to FormIdentification for backward compatibility
         # unless modality is explicitly provided (indicating image data)
         data: FormIdentification | ImageIdentification | None = None
+        # Always create FormIdentification so that have module/packet fields
+        data = FormIdentification(module=module, packet=packet)
         if modality is not None:
             data = ImageIdentification(modality=modality)
-        else:
-            # Always create FormIdentification to ensure module/packet fields are present
-            data = FormIdentification(module=module, packet=packet)
 
         return cls(participant=participant, date=date, visit=visit, data=data)
 

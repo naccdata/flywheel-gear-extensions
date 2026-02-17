@@ -124,7 +124,7 @@ class QCStatusLogManager:
         # Use model_dump() to get visit data
         visit_data = visit_keys.model_dump(exclude_none=True)
 
-        # Map VisitKeys field names to ErrorLogTemplate expected field names
+        # Map DataIdentification field names to ErrorLogTemplate expected field names
         record = visit_data.copy()
 
         # ErrorLogTemplate expects "visitdate"
@@ -203,14 +203,8 @@ class QCStatusLogManager:
 
             # Add visit metadata if requested (for initial creation)
             if add_visit_metadata:
-                # Convert VisitKeys to DataIdentification for annotation
-                if isinstance(visit_keys, DataIdentification):
-                    visit_metadata = visit_keys
-                else:
-                    # Create DataIdentification from VisitKeys (packet will be None)
-                    visit_metadata = DataIdentification.from_visit_metadata(
-                        **visit_keys.model_dump()
-                    )
+                # visit_keys is already DataIdentification (VisitKeys is an alias)
+                visit_metadata = visit_keys
 
                 annotation_success = self.__visit_annotator.annotate_qc_log_file(
                     qc_log_filename=error_log_name,

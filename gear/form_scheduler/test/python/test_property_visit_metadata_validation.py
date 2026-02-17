@@ -62,7 +62,7 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
       **Validates: Requirements 4.4, 4.5**
     """
     # Create DataIdentification from valid data
-    visit_metadata = DataIdentification.model_validate(valid_metadata)
+    visit_metadata = DataIdentification.from_visit_metadata(**valid_metadata)
 
     # Should pass validation for event creation
     is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
@@ -87,7 +87,7 @@ def test_invalid_visit_metadata_fails_validation(invalid_metadata):
     """
     try:
         # Create DataIdentification from invalid data
-        visit_metadata = DataIdentification.model_validate(invalid_metadata)
+        visit_metadata = DataIdentification.from_visit_metadata(**invalid_metadata)
 
         # Should fail validation for event creation
         is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)

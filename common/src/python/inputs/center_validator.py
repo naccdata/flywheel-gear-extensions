@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from identifiers.model import PTID_PATTERN
 from keys.keys import SysErrorCodes
-from nacc_common.error_models import VisitKeys
+from nacc_common.data_identification import DataIdentification
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error
@@ -48,7 +48,7 @@ class CenterValidator(RowValidator):
                     value=row[FieldNames.ADCID],
                     line=line_number,
                     error_code=SysErrorCodes.ADCID_MISMATCH,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=self.__date_field
                     ),
                 )
@@ -63,7 +63,7 @@ class CenterValidator(RowValidator):
                     value=ptid,
                     line=line_number,
                     error_code=SysErrorCodes.INVALID_PTID,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=self.__date_field
                     ),
                 )

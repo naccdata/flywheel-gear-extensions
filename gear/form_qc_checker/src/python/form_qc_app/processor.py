@@ -21,7 +21,8 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
-from nacc_common.error_models import JSONLocation, VisitKeys
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import JSONLocation
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
@@ -260,7 +261,7 @@ class JSONFileProcessor(FileProcessor):
                 self._error_writer.write(
                     previous_visit_failed_error(
                         prev_visit=failed_visit.filename,
-                        visit_keys=VisitKeys.create_from(
+                        visit_keys=DataIdentification.from_form_record(
                             record=self.__input_record, date_field=self._date_field
                         ),
                     )
@@ -305,7 +306,7 @@ class JSONFileProcessor(FileProcessor):
             self._error_writer.write(
                 empty_field_error(
                     field=empty_fields,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=input_data, date_field=self._date_field
                     ),
                 )
@@ -324,7 +325,7 @@ class JSONFileProcessor(FileProcessor):
                 system_error(
                     message=message,
                     error_location=JSONLocation(key_path=self._pk_field),
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=input_data, date_field=self._date_field
                     ),
                 )

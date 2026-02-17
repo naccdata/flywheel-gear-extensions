@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import SysErrorCodes
-from nacc_common.error_models import VisitKeys
+from nacc_common.data_identification import DataIdentification
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
@@ -95,7 +95,7 @@ class FieldFilter(BaseModel):
                     value=input_record.get(self.version_map.fieldname, ""),
                     line=line_num,
                     error_code=SysErrorCodes.EXCLUDED_FIELDS,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=input_record, date_field=date_field
                     ),
                     extra_args=[incorrectly_filled],
@@ -236,7 +236,7 @@ class DateTransformer(BaseRecordTransformer):
                     expected="",
                     message="Expected a valid date string",
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=input_record, date_field=self._date_field
                     ),
                 )

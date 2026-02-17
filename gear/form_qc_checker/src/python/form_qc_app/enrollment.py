@@ -21,7 +21,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import DefaultValues
-from nacc_common.error_models import VisitKeys
+from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -147,7 +147,7 @@ class EnrollmentFormVisitor(CSVVisitor):
                 empty_field_error(
                     field=empty_fields,
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=self.__date_field
                     ),
                 )

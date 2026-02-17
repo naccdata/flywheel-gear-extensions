@@ -29,6 +29,7 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileError,
     FileErrorList,
@@ -36,7 +37,6 @@ from nacc_common.error_models import (
     GearQCModel,
     GearTags,
     QCStatus,
-    VisitKeys,
 )
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -543,7 +543,9 @@ class QCCoordinator:
             # can only update the log file since visit file cannot be found
             error_obj = system_error(
                 message=f"Error retrieving file {visit['file.name']}: {error}",
-                visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                visit_keys=DataIdentification.from_visit_metadata(
+                    ptid=ptid, visitnum=visitnum, date=visitdate
+                ),
             )
             error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
             self.__update_log_file(
@@ -608,7 +610,7 @@ class QCCoordinator:
                     field=FieldNames.MODULE,
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
-                    visit_keys=VisitKeys(
+                    visit_keys=DataIdentification.from_visit_metadata(
                         ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
                     ),
                 )
@@ -657,7 +659,7 @@ class QCCoordinator:
             field=FieldNames.MODULE,
             value=module,
             error_code=SysErrorCodes.UDS_NOT_APPROVED,
-            visit_keys=VisitKeys(
+            visit_keys=DataIdentification.from_visit_metadata(
                 ptid=ptid,
                 visitnum=visitnum,
                 date=visitdate,
@@ -805,7 +807,9 @@ class QCCoordinator:
             if not job_id:
                 error_obj = system_error(
                     message=f"Failed to trigger gear {qc_gear_name}",
-                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                    visit_keys=DataIdentification.from_visit_metadata(
+                        ptid=ptid, visitnum=visitnum, date=visitdate
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,
@@ -824,7 +828,9 @@ class QCCoordinator:
             if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
                     message=f"Errors occurred while running gear {qc_gear_name}",
-                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                    visit_keys=DataIdentification.from_visit_metadata(
+                        ptid=ptid, visitnum=visitnum, date=visitdate
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,

@@ -36,7 +36,8 @@ from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.center_validator import CenterValidator
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues
-from nacc_common.error_models import CSVLocation, FileError, FileErrorList, VisitKeys
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import CSVLocation, FileError, FileErrorList
 from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ErrorWriter, ListErrorWriter
@@ -217,7 +218,7 @@ class TransferVisitor(CSVVisitor):
                 empty_field_error(
                     field=FieldNames.NACCID,
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
@@ -240,7 +241,7 @@ class TransferVisitor(CSVVisitor):
                 value=self.__naccid,
                 line=line_num,
                 message=message,
-                visit_keys=VisitKeys.create_from(
+                visit_keys=DataIdentification.from_form_record(
                     record=row, date_field=FieldNames.ENRLFRM_DATE
                 ),
             )
@@ -345,7 +346,7 @@ class TransferVisitor(CSVVisitor):
                 empty_field_error(
                     field=FieldNames.OLDADCID,
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
@@ -367,7 +368,7 @@ class TransferVisitor(CSVVisitor):
                         f"Error in looking up NACCID for OLDADCID {previous_adcid}, "
                         f"OLDPTID {previous_ptid}: {error}"
                     ),
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
@@ -383,7 +384,7 @@ class TransferVisitor(CSVVisitor):
                         f"No NACCID found for OLDADCID {previous_adcid}, "
                         f"OLDPTID {previous_ptid}"
                     ),
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=row, date_field=FieldNames.ENRLFRM_DATE
                     ),
                 )
@@ -613,7 +614,7 @@ class NewEnrollmentVisitor(CSVVisitor):
                             expected=context["pattern"],
                             message=f"Invalid {field_name.upper()}",
                             line=line_num,
-                            visit_keys=VisitKeys.create_from(
+                            visit_keys=DataIdentification.from_form_record(
                                 record=row, date_field=FieldNames.ENRLFRM_DATE
                             ),
                         )
@@ -729,7 +730,7 @@ class ProvisioningVisitor(CSVVisitor):
                         field=FieldNames.PTID,
                         value=row[FieldNames.PTID],
                         line=line_num,
-                        visit_keys=VisitKeys.create_from(
+                        visit_keys=DataIdentification.from_form_record(
                             record=row, date_field=FieldNames.ENRLFRM_DATE
                         ),
                     )
@@ -860,7 +861,7 @@ def run(
             error_writer.write(
                 system_error(
                     message=message,
-                    visit_keys=VisitKeys(
+                    visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
                     ),
@@ -883,7 +884,7 @@ def run(
             error_writer.write(
                 system_error(
                     message=message,
-                    visit_keys=VisitKeys(
+                    visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
                         naccid=record.naccid,
@@ -915,7 +916,7 @@ def run(
             error_writer.write(
                 system_error(
                     message=message,
-                    visit_keys=VisitKeys(
+                    visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
                         naccid=record.naccid,

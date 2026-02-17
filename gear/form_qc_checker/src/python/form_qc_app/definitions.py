@@ -11,7 +11,7 @@ from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
-from nacc_common.error_models import VisitKeys
+from nacc_common.data_identification import DataIdentification
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
@@ -372,7 +372,7 @@ class DefinitionsLoader:
             self.__error_writer.write(
                 empty_field_error(
                     field=set(missing),
-                    visit_keys=VisitKeys.create_from(
+                    visit_keys=DataIdentification.from_form_record(
                         record=input_data, date_field=self.__module_configs.date_field
                     ),
                 )

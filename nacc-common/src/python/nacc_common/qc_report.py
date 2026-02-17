@@ -9,6 +9,7 @@ from typing import Any, Callable, List, Optional
 from flywheel.models.file_entry import FileEntry
 from pydantic import BaseModel, ValidationError
 
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     ClearedAlertModel,
     ClearedAlertProvenance,
@@ -17,7 +18,6 @@ from nacc_common.error_models import (
     GearQCModel,
     QCVisitor,
     ValidationModel,
-    VisitKeys,
 )
 
 ModuleName = str
@@ -28,14 +28,17 @@ log = logging.getLogger(__name__)
 QC_FILENAME_PATTERN = r"^([!-~]{1,10})_(\d{4}-\d{2}-\d{2})_(\w+)_qc-status.log$"
 
 
-def extract_visit_keys(file: FileEntry) -> VisitKeys:
+def extract_visit_keys(
+    file: FileEntry, adcid: Optional[int] = None
+) -> DataIdentification:
     """Extract visit keys from QC log filename.
 
     Args:
         file: The QC log file
+        adcid: Optional ADRC ID to include in the visit keys
 
     Returns:
-        VisitKeys object with extracted data if filename matches pattern.
+        DataIdentification object with extracted data if filename matches pattern.
         None, otherwise.
     """
     matcher = re.compile(QC_FILENAME_PATTERN)
@@ -47,7 +50,9 @@ def extract_visit_keys(file: FileEntry) -> VisitKeys:
     visitdate = match.group(2)
     module = match.group(3).upper()
 
-    return VisitKeys(ptid=ptid, date=visitdate, module=module)
+    return DataIdentification.from_visit_metadata(
+        ptid=ptid, date=visitdate, module=module, adcid=adcid
+    )
 
 
 class QCReportBaseModel(BaseModel):
@@ -59,8 +64,10 @@ class QCReportBaseModel(BaseModel):
     stage: str
 
 
-ValidationTransformer = Callable[[str, VisitKeys, ValidationModel], QCReportBaseModel]
-ErrorTransformer = Callable[[str, VisitKeys, FileError], QCReportBaseModel]
+ValidationTransformer = Callable[
+    [str, DataIdentification, ValidationModel], QCReportBaseModel
+]
+ErrorTransformer = Callable[[str, DataIdentification, FileError], QCReportBaseModel]
 
 
 class QCTransformerError(Exception):
@@ -77,7 +84,7 @@ class FileQCReportVisitor(QCVisitor):
     them for use during processing.
     """
 
-    def __init__(self, visit: VisitKeys) -> None:
+    def __init__(self, visit: DataIdentification) -> None:
         self.__visit_details = visit
         self.__gear_name: Optional[str] = None
         self.__table: List[QCReportBaseModel] = []
@@ -104,7 +111,7 @@ class FileQCReportVisitor(QCVisitor):
         return self.__table
 
     @property
-    def visit_details(self) -> Optional[VisitKeys]:
+    def visit_details(self) -> Optional[DataIdentification]:
         """Returns the details for the visit associated with the file."""
         return self.__visit_details
 
@@ -162,7 +169,9 @@ class StatusReportVisitor(FileQCReportVisitor):
     type and maps to  the report model.
     """
 
-    def __init__(self, visit: VisitKeys, transformer: ValidationTransformer) -> None:
+    def __init__(
+        self, visit: DataIdentification, transformer: ValidationTransformer
+    ) -> None:
         """Initializes a status visitor.
 
         The transformer is used to create the report object to be added to the
@@ -206,7 +215,9 @@ class ErrorReportVisitor(FileQCReportVisitor):
     and maps to  the report model.
     """
 
-    def __init__(self, visit: VisitKeys, transformer: ErrorTransformer) -> None:
+    def __init__(
+        self, visit: DataIdentification, transformer: ErrorTransformer
+    ) -> None:
         """Initializes an error visitor.
 
         The transformer is used to create the report object to be added to the
