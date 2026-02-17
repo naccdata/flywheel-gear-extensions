@@ -5,7 +5,11 @@ from typing import Optional
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import ParticipantVisits, SubjectAdaptor
+from flywheel_adaptor.subject_adaptor import (
+    ParticipantVisits,
+    SubjectAdaptor,
+    SubjectError,
+)
 from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
@@ -101,7 +105,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
                 search_operator = "="
 
                 if len(sorted_visits) > 1:
-                    cutoff = ",".join([d.visitdate for d in sorted_visits])
+                    cutoff = ",".join([f"'{d.visitdate}'" for d in sorted_visits])
                     search_operator = DefaultValues.FW_SEARCH_OR
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
@@ -116,7 +120,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             raise GearExecutionError(
                 "Cannot find matching visits for subject "
                 f"{self._subject.label}/{self._module} with "
-                f"{self._module_configs.date_field}>={cutoff}"
+                f"{self._module_configs.date_field}{search_operator}{cutoff}"
             )
 
         qc_coordinator = QCCoordinator(
@@ -208,6 +212,27 @@ class FinalizationPipelineProcessor(PipelineProcessor):
         )
         qc_coordinator.run_error_checks(visits=visits_list)
 
+    def __cleanup_last_failed_visit(self):
+        """Clean up any leftover last failed visit metadata missed by the Issue
+        Manager."""
+        try:
+            failed_visit = self._subject.get_last_failed_visit(self._module)
+        except SubjectError as error:
+            log.warning(
+                "Failed to retrieve last failed visit for "
+                f"{self._subject.label}/{self._module}: {error}"
+            )
+            return
+
+        curr_visit = self._visits_info.visits[0]
+
+        if failed_visit and (failed_visit.filename == curr_visit.filename):
+            log.info(
+                "Cleaning up last failed visit metadata for "
+                f"{self._subject.label}/{self._module}"
+            )
+            self._subject.reset_last_failed_visit(self._module)
+
     def trigger_qc_process(self):
         """Trigger the QC process for the `finalization` pipeline.
 
@@ -220,6 +245,9 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 "finalization pipeline cannot be triggered on multiple visits: "
                 f"{self._visits_info.visits}"
             )
+
+        # clean up any leftover last failed visit metadata missed by the Issue Manager
+        self.__cleanup_last_failed_visit()
 
         self.__process_dependent_modules()
 

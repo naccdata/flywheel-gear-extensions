@@ -5,6 +5,12 @@ All notable changes to this gear are documented in this file.
 ## Unreleased
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
+## 1.4.4
+Cleans up last failed visit metadata missed by the Issue Manager
+
+## 1.4.3
+Updates module pattern to support B1a ingest
+
 ## 1.4.2
 * Updates to support legacy ingest pipeline
 * Evaluates subsequent visits only for longitudinal modules
