@@ -5,7 +5,11 @@ from typing import Optional
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import ParticipantVisits, SubjectAdaptor
+from flywheel_adaptor.subject_adaptor import (
+    ParticipantVisits,
+    SubjectAdaptor,
+    SubjectError,
+)
 from flywheel_gear_toolkit import GearToolkitContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
@@ -208,6 +212,27 @@ class FinalizationPipelineProcessor(PipelineProcessor):
         )
         qc_coordinator.run_error_checks(visits=visits_list)
 
+    def __cleanup_last_failed_visit(self):
+        """Clean up any leftover last failed visit metadata missed by the Issue
+        Manager."""
+        try:
+            failed_visit = self._subject.get_last_failed_visit(self._module)
+        except SubjectError as error:
+            log.warning(
+                "Failed to retrieve last failed visit for "
+                f"{self._subject.label}/{self._module}: {error}"
+            )
+            return
+
+        curr_visit = self._visits_info.visits[0]
+
+        if failed_visit and (failed_visit.filename == curr_visit.filename):
+            log.info(
+                "Cleaning up last failed visit metadata for "
+                f"{self._subject.label}/{self._module}"
+            )
+            self._subject.reset_last_failed_visit(self._module)
+
     def trigger_qc_process(self):
         """Trigger the QC process for the `finalization` pipeline.
 
@@ -220,6 +245,9 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 "finalization pipeline cannot be triggered on multiple visits: "
                 f"{self._visits_info.visits}"
             )
+
+        # clean up any leftover last failed visit metadata missed by the Issue Manager
+        self.__cleanup_last_failed_visit()
 
         self.__process_dependent_modules()
 
