@@ -213,8 +213,9 @@ class DataIdentification(BaseModel):
             return None
 
         try:
-            return DataIdentification.model_validate(visit_data)
-        except ValidationError:
+            # Use from_visit_metadata to handle flat structure from file info
+            return cls.from_visit_metadata(**visit_data)
+        except (ValidationError, TypeError):
             return None
 
     @classmethod

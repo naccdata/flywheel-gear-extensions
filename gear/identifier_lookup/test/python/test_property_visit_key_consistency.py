@@ -18,7 +18,7 @@ from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
-from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.error_models import DataIdentification, FileError, VisitKeys
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_identifiers_lambda_repository import (
@@ -95,7 +95,9 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
     visit_keys = call_kwargs["visit_keys"]
 
     # Verify VisitKeys structure
-    assert isinstance(visit_keys, VisitKeys), "visit_keys should be a VisitKeys object"
+    assert isinstance(visit_keys, (VisitKeys, DataIdentification)), (
+        "visit_keys should be a VisitKeys or DataIdentification object"
+    )
 
     # Verify VisitKeys contain consistent data from the row
     assert visit_keys.ptid == visit_row["ptid"], (
