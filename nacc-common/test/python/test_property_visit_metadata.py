@@ -197,3 +197,61 @@ def test_visit_metadata_inheritance_compatibility():
     metadata_dict = visit_metadata.model_dump(exclude_none=True)
     assert isinstance(metadata_dict, dict), "model_dump should work"
     assert "packet" in metadata_dict, "model_dump should include packet field"
+
+
+def test_data_identification_duck_types_as_visit_keys():
+    """Test DataIdentification has the same interface as VisitKeys (duck typing).
+
+    **Feature: form-scheduler-event-logging-refactor,
+      Property 9: Extended Visit Metadata Model**
+    **Validates: Requirements 7.1, 7.2**
+
+    DataIdentification should be usable anywhere VisitKeys is expected,
+    providing the same attributes via __getattr__.
+    """
+    # Arrange - Create both objects with same data
+    test_data = {
+        "ptid": "TEST001",
+        "visitdate": "2024-01-15",
+        "visitnum": "01",
+        "module": "UDS",
+        "adcid": 123,
+        "naccid": "NACC123456",
+    }
+
+    visit_keys = VisitKeys.create_from(test_data, date_field="visitdate")
+    data_identification = DataIdentification.from_visit_metadata(
+        ptid=test_data["ptid"],
+        date=test_data["visitdate"],
+        visitnum=test_data["visitnum"],
+        module=test_data["module"],
+        adcid=test_data["adcid"],
+        naccid=test_data["naccid"],
+    )
+
+    # Assert - All VisitKeys attributes are accessible on DataIdentification
+    assert hasattr(data_identification, "ptid"), "Should have ptid attribute"
+    assert hasattr(data_identification, "date"), "Should have date attribute"
+    assert hasattr(data_identification, "visitnum"), "Should have visitnum attribute"
+    assert hasattr(data_identification, "module"), "Should have module attribute"
+    assert hasattr(data_identification, "adcid"), "Should have adcid attribute"
+    assert hasattr(data_identification, "naccid"), "Should have naccid attribute"
+
+    # Assert - Attribute values match
+    assert data_identification.ptid == visit_keys.ptid
+    assert data_identification.date == visit_keys.date
+    assert data_identification.visitnum == visit_keys.visitnum
+    assert data_identification.module == visit_keys.module
+    assert data_identification.adcid == visit_keys.adcid
+    assert data_identification.naccid == visit_keys.naccid
+
+    # Assert - Can be used in functions expecting VisitKeys interface
+    def process_visit_keys(vk):
+        """Function that expects VisitKeys-like interface."""
+        return f"{vk.ptid}_{vk.date}_{vk.module}"
+
+    visit_keys_result = process_visit_keys(visit_keys)
+    data_id_result = process_visit_keys(data_identification)
+    assert visit_keys_result == data_id_result, (
+        "Should produce same result when used as VisitKeys"
+    )
