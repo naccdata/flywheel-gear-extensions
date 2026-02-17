@@ -3,9 +3,10 @@
 import logging
 from typing import List, Optional
 
+from centers.center_group import CenterGroup
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from curator.scheduling_models import FileModel
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -114,8 +115,36 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             ignore_qc=options.get("ignore_qc", False),
         )
 
+    def __is_center_active(self) -> bool:
+        """Determine whether the current center is active, as this effects how
+        certain variables are derived.
+
+        Returns the center active status. True by default if unknown.
+        """
+        try:
+            group_adaptor = self.proxy.find_group(self.__project.group)
+            if group_adaptor:
+                group = CenterGroup.get_center_group(adaptor=group_adaptor)
+                is_active = group.is_active()
+                log.info(
+                    f"Found current center {group.adcid} with active "
+                    + f"status: {is_active}"
+                )
+
+                return is_active
+        except ProjectError as e:
+            log.warning(e)
+            pass
+
+        # return True by default; will curate as if it were an active center
+        log.info("Cannot find center group; defaulting active status to True")
+        return True
+
     def run(self, context: GearContext) -> None:
         log.info("Curating project: %s/%s", self.__project.group, self.__project.label)
+
+        # get center status
+        active_center = self.__is_center_active()
 
         rxclass_concepts = None
         if self.__rxclass_concepts_file:
@@ -129,6 +158,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             dataview=dataview,
             curation_tag=self.__curation_tag,
             force_curate=self.__force_curate,
+            active_center=active_center,
             rxclass_concepts=rxclass_concepts,
             ignore_qc=self.__ignore_qc,
         )
