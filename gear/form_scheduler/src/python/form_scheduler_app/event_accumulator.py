@@ -7,13 +7,13 @@ from typing import Optional
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
-from event_capture.visit_extractor import VisitMetadataExtractor
+from event_capture.visit_extractor import DataIdentificationExtractor
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     FileQCModel,
-    VisitMetadata,
 )
 from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
@@ -84,7 +84,7 @@ class EventAccumulator:
 
     def _extract_visit_metadata(
         self, json_file: FileEntry, qc_log_file: Optional[FileEntry]
-    ) -> Optional[VisitMetadata]:
+    ) -> Optional[DataIdentification]:
         """Extract visit metadata with priority: QC status custom info, then
         JSON file.
 
@@ -93,21 +93,23 @@ class EventAccumulator:
             qc_log_file: The QC status log file (may be None)
 
         Returns:
-            VisitMetadata instance or None if extraction fails
+            DataIdentification instance or None if extraction fails
         """
         # Try QC status custom info first
         if qc_log_file and qc_log_file.info:
-            visit_metadata = VisitMetadataExtractor.from_qc_status_custom_info(
+            visit_metadata = DataIdentificationExtractor.from_qc_status_custom_info(
                 qc_log_file.info
             )
-            if visit_metadata and VisitMetadataExtractor.is_valid_for_event(
+            if visit_metadata and DataIdentificationExtractor.is_valid_for_event(
                 visit_metadata
             ):
                 return visit_metadata
 
         # Fall back to JSON file metadata
-        visit_metadata = VisitMetadataExtractor.from_json_file_metadata(json_file)
-        if visit_metadata and VisitMetadataExtractor.is_valid_for_event(visit_metadata):
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        if visit_metadata and DataIdentificationExtractor.is_valid_for_event(
+            visit_metadata
+        ):
             return visit_metadata
 
         return None
@@ -133,11 +135,11 @@ class EventAccumulator:
     def _create_visit_event(
         self,
         *,
-        visit_metadata: VisitMetadata,
+        visit_metadata: DataIdentification,
         project: ProjectAdaptor,
         qc_completion_time: datetime,
     ) -> Optional[VisitEvent]:
-        """Create a QC-pass VisitEvent from VisitMetadata.
+        """Create a QC-pass VisitEvent from DataIdentification.
 
         Args:
             visit_metadata: The visit metadata
@@ -171,8 +173,8 @@ class EventAccumulator:
             center_label=project.group,
             gear_name="form-scheduler",
             ptid=visit_metadata.ptid,
-            visit_date=visit_metadata.date,
-            visit_number=visit_metadata.visitnum,
+            date=visit_metadata.date,
+            visitnum=visit_metadata.visitnum,
             datatype=pipeline_label.datatype,
             module=visit_metadata.module,
             packet=visit_metadata.packet,

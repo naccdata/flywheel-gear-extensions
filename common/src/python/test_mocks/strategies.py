@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from hypothesis import strategies as st
-from nacc_common.error_models import QCStatus, VisitMetadata
+from nacc_common.error_models import DataIdentification, QCStatus
 
 
 @st.composite
@@ -33,8 +33,8 @@ def ptid_strategy(draw) -> str:
 
 
 @st.composite
-def visit_metadata_strategy(draw) -> VisitMetadata:
-    """Generate random VisitMetadata for testing.
+def visit_metadata_strategy(draw) -> DataIdentification:
+    """Generate random DataIdentification for testing.
 
     PTIDs must not be all zeros or empty after stripping leading zeros.
     """
@@ -61,7 +61,7 @@ def visit_metadata_strategy(draw) -> VisitMetadata:
     module = draw(st.sampled_from(["UDS", "FTLD", "LBD", "MDS"]))
     packet = draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"])))
 
-    return VisitMetadata(
+    return DataIdentification.from_visit_metadata(
         ptid=ptid,
         date=date,
         visitnum=visitnum,
@@ -141,7 +141,7 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate valid VisitMetadata with all required fields.
+    """Generate valid DataIdentification with all required fields.
 
     PTIDs must not be all zeros or empty after stripping leading zeros.
     """
@@ -181,7 +181,7 @@ def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def invalid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate invalid VisitMetadata missing required fields."""
+    """Generate invalid DataIdentification missing required fields."""
     # Generate metadata with at least one required field missing or None
     base_data = {
         "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),

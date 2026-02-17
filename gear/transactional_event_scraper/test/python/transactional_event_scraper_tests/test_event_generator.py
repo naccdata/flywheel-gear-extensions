@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from event_capture.event_generator import EventGenerator
 from event_capture.models import QCEventData, SubmitEventData
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 from test_mocks.mock_flywheel import MockProjectAdaptor
 
 
@@ -52,7 +52,7 @@ def mock_project_no_datatype():
 @pytest.fixture
 def sample_submit_event_data():
     """Create sample SubmitEventData for testing submission events."""
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         visitnum="001",
@@ -69,7 +69,7 @@ def sample_submit_event_data():
 @pytest.fixture
 def sample_qc_event_data():
     """Create sample QCEventData for testing QC events."""
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         visitnum="001",
@@ -166,7 +166,7 @@ def test_create_pass_qc_event_success(mock_project, sample_qc_event_data):
 
 def test_create_pass_qc_event_not_pass_status(mock_project):
     """Test not-pass-qc event is created when status is not PASS."""
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         visitnum="001",
@@ -188,7 +188,7 @@ def test_create_pass_qc_event_not_pass_status(mock_project):
 
 def test_create_pass_qc_event_no_completion_timestamp(mock_project):
     """Test QC event requires completion timestamp."""
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         visitnum="001",
@@ -239,7 +239,7 @@ def test_event_generator_with_different_study():
         info={"pipeline_adcid": 456},
     )
 
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="220002",
         date="2024-02-20",
         visitnum="002",
@@ -268,7 +268,7 @@ def test_event_generator_with_optional_fields_none():
         info={"pipeline_adcid": 789},
     )
 
-    visit_metadata = VisitMetadata(
+    visit_metadata = DataIdentification.from_visit_metadata(
         ptid="330003",
         date="2024-03-30",
         visitnum=None,  # Optional field

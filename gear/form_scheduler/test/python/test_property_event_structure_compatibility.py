@@ -17,9 +17,9 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     GearQCModel,
     ValidationModel,
-    VisitMetadata,
 )
 from test_mocks.strategies import json_file_strategy as shared_json_strategy
 from test_mocks.strategies import visit_metadata_strategy
@@ -113,7 +113,7 @@ def json_file_strategy(draw) -> FileEntry:
 )
 @settings(max_examples=100)
 def test_event_structure_compatibility(
-    visit_metadata: VisitMetadata, qc_completion_time: datetime
+    visit_metadata: DataIdentification, qc_completion_time: datetime
 ):
     """Property test: QC-pass events maintain compatible structure and field
     names.

@@ -4,7 +4,8 @@ import logging
 from typing import Any, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import FileErrorList, QCStatus, VisitKeys, VisitMetadata
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import FileErrorList, QCStatus
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -32,7 +33,7 @@ class FileVisitAnnotator:
         self.__project = project
 
     def annotate_qc_log_file(
-        self, qc_log_filename: str, visit_metadata: VisitMetadata
+        self, qc_log_filename: str, visit_metadata: DataIdentification
     ) -> bool:
         """Add visit metadata to a QC status log file.
 
@@ -78,7 +79,9 @@ class FileVisitAnnotator:
             )
             return False
 
-    def _create_visit_metadata(self, visit_metadata: VisitMetadata) -> dict[str, Any]:
+    def _create_visit_metadata(
+        self, visit_metadata: DataIdentification
+    ) -> dict[str, Any]:
         """Create visit metadata dictionary for a single visit.
 
         Args:
@@ -108,7 +111,7 @@ class QCStatusLogManager:
         self.__visit_annotator = visit_annotator
 
     def _prepare_template_record(
-        self, visit_keys: VisitKeys
+        self, visit_keys: DataIdentification
     ) -> Optional[dict[str, Any]]:
         """Prepare record dictionary for ErrorLogTemplate instantiation.
 
@@ -134,7 +137,7 @@ class QCStatusLogManager:
 
     def update_qc_log(
         self,
-        visit_keys: VisitKeys,
+        visit_keys: DataIdentification,
         project: ProjectAdaptor,
         gear_name: str,
         status: QCStatus,
@@ -200,12 +203,14 @@ class QCStatusLogManager:
 
             # Add visit metadata if requested (for initial creation)
             if add_visit_metadata:
-                # Convert VisitKeys to VisitMetadata for annotation
-                if isinstance(visit_keys, VisitMetadata):
+                # Convert VisitKeys to DataIdentification for annotation
+                if isinstance(visit_keys, DataIdentification):
                     visit_metadata = visit_keys
                 else:
-                    # Create VisitMetadata from VisitKeys (packet will be None)
-                    visit_metadata = VisitMetadata(**visit_keys.model_dump())
+                    # Create DataIdentification from VisitKeys (packet will be None)
+                    visit_metadata = DataIdentification.from_visit_metadata(
+                        **visit_keys.model_dump()
+                    )
 
                 annotation_success = self.__visit_annotator.annotate_qc_log_file(
                     qc_log_filename=error_log_name,
@@ -222,7 +227,7 @@ class QCStatusLogManager:
 
         return success
 
-    def get_qc_log_filename(self, visit_keys: VisitKeys) -> Optional[str]:
+    def get_qc_log_filename(self, visit_keys: DataIdentification) -> Optional[str]:
         """Get the QC status log filename for a visit without creating it.
 
         Args:

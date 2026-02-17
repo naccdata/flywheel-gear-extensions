@@ -7,12 +7,9 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
-    SerializationInfo,
-    SerializerFunctionWrapHandler,
-    ValidationError,
-    model_serializer,
 )
 
+from nacc_common.data_identification import DataIdentification
 from nacc_common.field_names import FieldNames
 
 
@@ -110,60 +107,62 @@ class VisitKeys(BaseModel):
         )
 
 
-class VisitMetadata(VisitKeys):
-    """Extended visit metadata that includes packet information for VisitEvent
-    creation.
+VisitMetadata = DataIdentification
 
-    Extends VisitKeys with the packet field needed for form events. Only
-    includes fields actually needed for VisitEvent creation.
-    """
+# class VisitMetadata(VisitKeys):
+#     """Extended visit metadata that includes packet information for VisitEvent
+#     creation.
 
-    packet: Optional[str] = None
+#     Extends VisitKeys with the packet field needed for form events. Only
+#     includes fields actually needed for VisitEvent creation.
+#     """
 
-    @model_serializer(mode="wrap")
-    def to_visit_event_fields(
-        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> Dict[str, Any]:
-        """Extract fields needed for VisitEvent creation. with proper field
-        name mapping.
+#     packet: Optional[str] = None
 
-        Returns:
-            Dictionary with fields mapped to VisitEvent field names
-        """
-        # Use model_dump and map field names for VisitEvent
-        data = handler(self)
-        if info.mode == "raw":
-            return data
+#     @model_serializer(mode="wrap")
+#     def to_visit_event_fields(
+#         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+#     ) -> Dict[str, Any]:
+#         """Extract fields needed for VisitEvent creation. with proper field
+#         name mapping.
 
-        # Map field names, handling cases where keys might not exist
-        # (e.g., when exclude_none=True and the value is None)
-        if "date" in data:
-            data["visit_date"] = data.pop("date")
-        if "visitnum" in data:
-            data["visit_number"] = data.pop("visitnum")
-        return data
+#         Returns:
+#             Dictionary with fields mapped to VisitEvent field names
+#         """
+#         # Use model_dump and map field names for VisitEvent
+#         data = handler(self)
+#         if info.mode == "raw":
+#             return data
 
-    @classmethod
-    def create(cls, file_entry: FileEntry) -> Optional["VisitMetadata"]:
-        """Factory method to create VisitMetadata from a FileEntry.
+#         # Map field names, handling cases where keys might not exist
+#         # (e.g., when exclude_none=True and the value is None)
+#         if "date" in data:
+#             data["visit_date"] = data.pop("date")
+#         if "visitnum" in data:
+#             data["visit_number"] = data.pop("visitnum")
+#         return data
 
-        Args:
-          file_entry: the file entry
-        Returns:
-          the VisitMetadata instance if there is visit metadata. None, otherwise.
-        """
-        file_entry = file_entry.reload()
-        if not file_entry.info:
-            return None
+#     @classmethod
+#     def create(cls, file_entry: FileEntry) -> Optional["VisitMetadata"]:
+#         """Factory method to create VisitMetadata from a FileEntry.
 
-        visit_data = file_entry.info.get("visit")
-        if not visit_data:
-            return None
+#         Args:
+#           file_entry: the file entry
+#         Returns:
+#           the VisitMetadata instance if there is visit metadata. None, otherwise.
+#         """
+#         file_entry = file_entry.reload()
+#         if not file_entry.info:
+#             return None
 
-        try:
-            return VisitMetadata.model_validate(visit_data)
-        except ValidationError:
-            return None
+#         visit_data = file_entry.info.get("visit")
+#         if not visit_data:
+#             return None
+
+#         try:
+#             return VisitMetadata.model_validate(visit_data)
+#         except ValidationError:
+#             return None
 
 
 class FileError(BaseModel):

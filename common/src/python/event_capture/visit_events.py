@@ -33,8 +33,8 @@ class VisitEvent(BaseModel):
     center_label: str
     gear_name: str
     ptid: str = Field(max_length=10, pattern=PTID_PATTERN)
-    visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    visit_number: Optional[str] = None
+    visit_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", validation_alias="date")
+    visit_number: Optional[str] = Field(default=None, validation_alias="visitnum")
     datatype: DatatypeNameType
     module: Optional[str] = None
     packet: Optional[str] = None

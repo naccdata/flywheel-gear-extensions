@@ -44,7 +44,7 @@ from event_capture.models import (
     UnmatchedSubmitEvents,
 )
 from event_capture.visit_events import VisitEvent
-from event_capture.visit_extractor import VisitMetadataExtractor
+from event_capture.visit_extractor import DataIdentificationExtractor
 
 log = logging.getLogger(__name__)
 
@@ -299,12 +299,13 @@ class QCEventProcessor:
             QCEventData if extraction successful, None otherwise
         """
         # Extract visit metadata from JSON file (includes packet)
-        # Note: VisitMetadataExtractor is imported from event_capture.visit_extractor
-        visit_metadata = VisitMetadataExtractor.from_json_file_metadata(json_file)
+        # Note: DataIdentificationExtractor is imported from
+        # event_capture.visit_extractor
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
         if not visit_metadata:
             return None
 
-        if not VisitMetadataExtractor.is_valid_for_event(visit_metadata):
+        if not DataIdentificationExtractor.is_valid_for_event(visit_metadata):
             return None
 
         # Find corresponding QC status log

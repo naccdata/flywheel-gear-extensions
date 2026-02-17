@@ -7,10 +7,10 @@ from unittest.mock import Mock
 from flywheel.models.file_entry import FileEntry
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     FileQCModel,
     GearQCModel,
     ValidationModel,
-    VisitMetadata,
 )
 
 from .mock_flywheel import MockFile
@@ -161,7 +161,7 @@ class FileEntryFactory:
         date: str,
         module: str,
         qc_metadata: FileQCModel,
-        visit_metadata: Optional[VisitMetadata] = None,
+        visit_metadata: Optional[DataIdentification] = None,
         modified: Optional[datetime] = None,
     ) -> MockFile:
         """Create a mock QC-status file with visit metadata in custom info.
@@ -171,7 +171,7 @@ class FileEntryFactory:
             date: Visit date
             module: Module name (e.g., "uds")
             qc_metadata: FileQCModel instance
-            visit_metadata: VisitMetadata to include in custom info
+            visit_metadata: DataIdentification to include in custom info
             modified: File modification timestamp
 
         Returns:
@@ -230,7 +230,7 @@ class FileEntryFactory:
         return file_entry
 
 
-class VisitMetadataFactory:
+class DataIdentificationFactory:
     """Factory for creating visit metadata objects."""
 
     @staticmethod
@@ -242,8 +242,8 @@ class VisitMetadataFactory:
         packet: Optional[str] = "I",
         adcid: Optional[int] = None,
         naccid: Optional[str] = None,
-    ) -> VisitMetadata:
-        """Create a VisitMetadata object with specified values.
+    ) -> DataIdentification:
+        """Create a DataIdentification object with specified values.
 
         Args:
             ptid: Participant ID
@@ -255,9 +255,9 @@ class VisitMetadataFactory:
             naccid: NACC ID
 
         Returns:
-            VisitMetadata object
+            DataIdentification object
         """
-        return VisitMetadata(
+        return DataIdentification.from_visit_metadata(
             ptid=ptid,
             date=date,
             visitnum=visitnum,

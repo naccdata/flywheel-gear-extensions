@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 
 
 def assert_valid_qc_pass_event(
@@ -120,7 +120,7 @@ def assert_event_structure_matches(
 
 
 def assert_visit_metadata_matches(
-    actual: VisitMetadata,
+    actual: DataIdentification,
     expected_ptid: str,
     expected_date: str,
     expected_module: str,
@@ -130,7 +130,7 @@ def assert_visit_metadata_matches(
     """Assert that visit metadata matches expected values.
 
     Args:
-        actual: The VisitMetadata to validate
+        actual: The DataIdentification to validate
         expected_ptid: Expected participant ID
         expected_date: Expected visit date
         expected_module: Expected module
@@ -138,24 +138,25 @@ def assert_visit_metadata_matches(
         expected_packet: Expected packet (optional)
     """
     assert actual.ptid == expected_ptid, (
-        f"VisitMetadata PTID should be '{expected_ptid}', got {actual.ptid}"
+        f"DataIdentification PTID should be '{expected_ptid}', got {actual.ptid}"
     )
     assert actual.date == expected_date, (
-        f"VisitMetadata date should be '{expected_date}', got {actual.date}"
+        f"DataIdentification date should be '{expected_date}', got {actual.date}"
     )
     assert actual.module == expected_module, (
-        f"VisitMetadata module should be '{expected_module}', got {actual.module}"
+        f"DataIdentification module should be '{expected_module}', got {actual.module}"
     )
 
     if expected_visitnum is not None:
         assert actual.visitnum == expected_visitnum, (
-            f"VisitMetadata visitnum should be '{expected_visitnum}', "
+            f"DataIdentification visitnum should be '{expected_visitnum}', "
             f"got {actual.visitnum}"
         )
 
     if expected_packet is not None:
         assert actual.packet == expected_packet, (
-            f"VisitMetadata packet should be '{expected_packet}', got {actual.packet}"
+            f"DataIdentification packet should be '{expected_packet}', "
+            f"got {actual.packet}"
         )
 
 

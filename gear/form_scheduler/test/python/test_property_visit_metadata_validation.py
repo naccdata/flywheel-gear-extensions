@@ -13,12 +13,12 @@ from unittest.mock import Mock
 import pytest
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import (
+    DataIdentificationExtractor,
     EventAccumulator,
-    VisitMetadataExtractor,
 )
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 from test_mocks.strategies import (
     invalid_visit_metadata_strategy,
     valid_visit_metadata_strategy,
@@ -53,19 +53,19 @@ def event_accumulator(mock_event_capture):
 @given(valid_metadata=valid_visit_metadata_strategy())
 @settings(max_examples=100)
 def test_valid_visit_metadata_passes_validation(valid_metadata):
-    """Property test: For any VisitMetadata with required fields (ptid, date,
-    module), validation should pass and allow VisitEvent creation.
+    """Property test: For any DataIdentification with required fields (ptid,
+    date, module), validation should pass and allow VisitEvent creation.
 
       **Feature: form-scheduler-event-logging-refactor,
     Property 6:
         Visit Metadata Validation**
       **Validates: Requirements 4.4, 4.5**
     """
-    # Create VisitMetadata from valid data
-    visit_metadata = VisitMetadata.model_validate(valid_metadata)
+    # Create DataIdentification from valid data
+    visit_metadata = DataIdentification.model_validate(valid_metadata)
 
     # Should pass validation for event creation
-    is_valid = VisitMetadataExtractor.is_valid_for_event(visit_metadata)
+    is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
 
     # All required fields are present, so should be valid
     assert is_valid is True
@@ -77,7 +77,7 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
 @given(invalid_metadata=invalid_visit_metadata_strategy())
 @settings(max_examples=100)
 def test_invalid_visit_metadata_fails_validation(invalid_metadata):
-    """Property test: For any VisitMetadata missing required fields (ptid,
+    """Property test: For any DataIdentification missing required fields (ptid,
     date, module), validation should fail and skip event logging.
 
       **Feature: form-scheduler-event-logging-refactor,
@@ -86,11 +86,11 @@ def test_invalid_visit_metadata_fails_validation(invalid_metadata):
       **Validates: Requirements 4.4, 4.5**
     """
     try:
-        # Create VisitMetadata from invalid data
-        visit_metadata = VisitMetadata.model_validate(invalid_metadata)
+        # Create DataIdentification from invalid data
+        visit_metadata = DataIdentification.model_validate(invalid_metadata)
 
         # Should fail validation for event creation
-        is_valid = VisitMetadataExtractor.is_valid_for_event(visit_metadata)
+        is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
 
         # At least one required field is missing, so should be invalid
         assert is_valid is False
@@ -116,24 +116,32 @@ def test_visit_metadata_validation_edge_cases():
       **Validates: Requirements 4.4, 4.5**
     """
     # Test with empty strings (should be invalid)
-    empty_metadata = VisitMetadata(ptid="", date="", module="")
-    assert VisitMetadataExtractor.is_valid_for_event(empty_metadata) is False
+    empty_metadata = DataIdentification.from_visit_metadata(ptid="", date="", module="")
+    assert DataIdentificationExtractor.is_valid_for_event(empty_metadata) is False
 
     # Test with whitespace-only strings (now considered valid since we trust input data)
-    whitespace_metadata = VisitMetadata(ptid="   ", date="   ", module="   ")
-    assert VisitMetadataExtractor.is_valid_for_event(whitespace_metadata) is True
+    whitespace_metadata = DataIdentification.from_visit_metadata(
+        ptid="   ", date="   ", module="   "
+    )
+    assert DataIdentificationExtractor.is_valid_for_event(whitespace_metadata) is True
 
     # Test with None values (should be invalid)
-    none_metadata = VisitMetadata(ptid=None, date=None, module=None)
-    assert VisitMetadataExtractor.is_valid_for_event(none_metadata) is False
+    none_metadata = DataIdentification.from_visit_metadata(
+        ptid=None, date=None, module=None
+    )
+    assert DataIdentificationExtractor.is_valid_for_event(none_metadata) is False
 
     # Test with mixed valid/invalid (should be invalid)
-    mixed_metadata = VisitMetadata(ptid="110001", date=None, module="UDS")
-    assert VisitMetadataExtractor.is_valid_for_event(mixed_metadata) is False
+    mixed_metadata = DataIdentification.from_visit_metadata(
+        ptid="110001", date=None, module="UDS"
+    )
+    assert DataIdentificationExtractor.is_valid_for_event(mixed_metadata) is False
 
     # Test with all required fields present (should be valid)
-    valid_metadata = VisitMetadata(ptid="110001", date="2024-01-15", module="UDS")
-    assert VisitMetadataExtractor.is_valid_for_event(valid_metadata) is True
+    valid_metadata = DataIdentification.from_visit_metadata(
+        ptid="110001", date="2024-01-15", module="UDS"
+    )
+    assert DataIdentificationExtractor.is_valid_for_event(valid_metadata) is True
 
 
 def test_visit_metadata_extraction_validation_integration(event_accumulator):
@@ -194,11 +202,13 @@ def test_visit_metadata_validation_with_optional_fields():
       **Validates: Requirements 4.4, 4.5**
     """
     # Test with only required fields
-    minimal_metadata = VisitMetadata(ptid="110001", date="2024-01-15", module="UDS")
-    assert VisitMetadataExtractor.is_valid_for_event(minimal_metadata) is True
+    minimal_metadata = DataIdentification.from_visit_metadata(
+        ptid="110001", date="2024-01-15", module="UDS"
+    )
+    assert DataIdentificationExtractor.is_valid_for_event(minimal_metadata) is True
 
     # Test with all fields including optional ones
-    complete_metadata = VisitMetadata(
+    complete_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         module="UDS",
@@ -207,10 +217,10 @@ def test_visit_metadata_validation_with_optional_fields():
         adcid=123,
         naccid="NACC001",
     )
-    assert VisitMetadataExtractor.is_valid_for_event(complete_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(complete_metadata) is True
 
     # Test with required fields and some optional fields None
-    partial_metadata = VisitMetadata(
+    partial_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         module="UDS",
@@ -219,7 +229,7 @@ def test_visit_metadata_validation_with_optional_fields():
         adcid=None,
         naccid=None,
     )
-    assert VisitMetadataExtractor.is_valid_for_event(partial_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(partial_metadata) is True
 
 
 @given(
@@ -242,8 +252,10 @@ def test_visit_metadata_validation_required_fields_property(ptid, date, module):
       **Validates: Requirements 4.4, 4.5**
     """
     try:
-        visit_metadata = VisitMetadata(ptid=ptid, date=date, module=module)
-        is_valid = VisitMetadataExtractor.is_valid_for_event(visit_metadata)
+        visit_metadata = DataIdentification.from_visit_metadata(
+            ptid=ptid, date=date, module=module
+        )
+        is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
 
         # Should be valid if and only if all required fields are truthy
         expected_valid = bool(ptid and date and module)
@@ -267,7 +279,7 @@ def test_visit_metadata_validation_milestone_form_without_visitnum():
       **Validates: Requirements 4.4, 4.5**
     """
     # Create milestone metadata WITHOUT visitnum
-    milestone_metadata = VisitMetadata(
+    milestone_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         module="MLST",
@@ -276,7 +288,7 @@ def test_visit_metadata_validation_milestone_form_without_visitnum():
     )
 
     # Should pass validation
-    assert VisitMetadataExtractor.is_valid_for_event(milestone_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(milestone_metadata) is True
 
     # Verify required fields are present
     assert milestone_metadata.ptid == "110001"
@@ -298,7 +310,7 @@ def test_visit_metadata_validation_np_form_without_visitnum():
       **Validates: Requirements 4.4, 4.5**
     """
     # Create NP metadata WITHOUT visitnum
-    np_metadata = VisitMetadata(
+    np_metadata = DataIdentification.from_visit_metadata(
         ptid="110002",
         date="2024-02-20",
         module="NP",
@@ -307,7 +319,7 @@ def test_visit_metadata_validation_np_form_without_visitnum():
     )
 
     # Should pass validation
-    assert VisitMetadataExtractor.is_valid_for_event(np_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(np_metadata) is True
 
     # Verify required fields are present
     assert np_metadata.ptid == "110002"
@@ -327,24 +339,24 @@ def test_visit_metadata_validation_forms_with_and_without_visitnum():
       **Validates: Requirements 4.4, 4.5**
     """
     # Form WITH visitnum (e.g., UDS)
-    uds_metadata = VisitMetadata(
+    uds_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         module="UDS",
         visitnum="01",
         packet="I",
     )
-    assert VisitMetadataExtractor.is_valid_for_event(uds_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(uds_metadata) is True
 
     # Form WITHOUT visitnum (e.g., Milestone)
-    milestone_metadata = VisitMetadata(
+    milestone_metadata = DataIdentification.from_visit_metadata(
         ptid="110001",
         date="2024-01-15",
         module="MLST",
         visitnum=None,
         packet="M",
     )
-    assert VisitMetadataExtractor.is_valid_for_event(milestone_metadata) is True
+    assert DataIdentificationExtractor.is_valid_for_event(milestone_metadata) is True
 
     # Both should be valid - visitnum is optional
     assert uds_metadata.visitnum == "01"

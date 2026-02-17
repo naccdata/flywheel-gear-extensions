@@ -1,14 +1,15 @@
-"""Unit tests for FileVisitAnnotator changes to use VisitMetadata."""
+"""Unit tests for FileVisitAnnotator changes to use DataIdentification."""
 
 from unittest.mock import Mock, patch
 
 from error_logging.qc_status_log_creator import FileVisitAnnotator
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 
 
-class TestFileVisitAnnotatorVisitMetadata:
-    """Test FileVisitAnnotator with VisitMetadata including packet field."""
+class TestFileVisitAnnotatorDataIdentification:
+    """Test FileVisitAnnotator with DataIdentification including packet
+    field."""
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -16,9 +17,9 @@ class TestFileVisitAnnotatorVisitMetadata:
         self.annotator = FileVisitAnnotator(self.mock_project)
 
     def test_annotate_qc_log_file_with_packet_field(self):
-        """Test annotation with VisitMetadata including packet field."""
+        """Test annotation with DataIdentification including packet field."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110001",
             date="2024-01-15",
             module="UDS",
@@ -61,9 +62,10 @@ class TestFileVisitAnnotatorVisitMetadata:
             assert visit_data["adcid"] == 123
 
     def test_annotate_qc_log_file_without_packet_field(self):
-        """Test annotation with VisitMetadata without packet field (None)."""
+        """Test annotation with DataIdentification without packet field
+        (None)."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110002",
             date="2024-01-16",
             module="FTD",
@@ -103,7 +105,7 @@ class TestFileVisitAnnotatorVisitMetadata:
     def test_annotate_qc_log_file_missing_required_fields(self):
         """Test annotation fails gracefully with missing required fields."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid=None,  # Missing required field
             date="2024-01-15",
             module="UDS",
@@ -122,7 +124,7 @@ class TestFileVisitAnnotatorVisitMetadata:
     def test_annotate_qc_log_file_missing_file(self):
         """Test annotation fails gracefully when QC log file is not found."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110001", date="2024-01-15", module="UDS", visitnum="01", packet="I"
         )
         qc_log_filename = "missing-qc-log.json"
@@ -139,7 +141,7 @@ class TestFileVisitAnnotatorVisitMetadata:
     def test_annotate_qc_log_file_update_file_info_exception(self):
         """Test annotation handles update_file_info exceptions gracefully."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110001", date="2024-01-15", module="UDS", visitnum="01", packet="I"
         )
         qc_log_filename = "test-qc-log.json"
@@ -162,9 +164,9 @@ class TestFileVisitAnnotatorVisitMetadata:
 
     def test_create_visit_metadata_uses_model_dump(self):
         """Test that _create_visit_metadata uses
-        VisitMetadata.model_dump(mode='raw')."""
+        DataIdentification.model_dump(mode='raw')."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110001",
             date="2024-01-15",
             module="UDS",
@@ -191,7 +193,7 @@ class TestFileVisitAnnotatorVisitMetadata:
         """Test that the annotation doesn't break existing QC status log
         structure."""
         # Arrange
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="110001", date="2024-01-15", module="UDS", visitnum="01", packet="I"
         )
         qc_log_filename = "existing-qc-log.json"
