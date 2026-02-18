@@ -153,19 +153,22 @@ class TestUnmatchedSubmitEvents:
 
     def _create_test_event(self, ptid: str, visit_date: str, module: str) -> VisitEvent:
         """Helper to create a test VisitEvent."""
-        return VisitEvent(
-            action=ACTION_SUBMIT,
-            study="adrc",
-            pipeline_adcid=1,
-            project_label="test-project",
-            center_label="test-center",
-            gear_name="test-gear",
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=1,
             ptid=ptid,
             date=visit_date,
             visitnum="v1",
-            datatype="form",
             module=module,
             packet=None,
+        )
+        return VisitEvent(
+            action=ACTION_SUBMIT,
+            study="adrc",
+            project_label="test-project",
+            center_label="test-center",
+            gear_name="test-gear",
+            data_identification=data_id,
+            datatype="form",
             timestamp=datetime.now(),
         )
 

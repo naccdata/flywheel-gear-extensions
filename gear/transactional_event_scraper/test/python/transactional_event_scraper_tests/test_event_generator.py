@@ -119,7 +119,7 @@ def test_create_submission_event_success(mock_project, sample_submit_event_data)
     assert event.visit_number == "001"
     assert event.datatype == "form"
     assert event.module == "UDS"
-    assert event.packet == "z1x"
+    assert event.packet == "Z1X"  # Normalized to uppercase
     assert event.timestamp == datetime(2024, 1, 15, 10, 0, 0)
 
 
@@ -160,7 +160,7 @@ def test_create_pass_qc_event_success(mock_project, sample_qc_event_data):
     assert event.visit_number == "001"
     assert event.datatype == "form"
     assert event.module == "UDS"
-    assert event.packet == "z1x"
+    assert event.packet == "Z1X"  # Normalized to uppercase
     assert event.timestamp == datetime(2024, 1, 15, 11, 0, 0)
 
 

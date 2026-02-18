@@ -1,10 +1,14 @@
 from typing import Any, Optional, Self
 
+from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
+from identifiers.model import PTID_PATTERN
 from pydantic import (
     BaseModel,
+    Field,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     ValidationError,
+    field_validator,
     model_serializer,
 )
 
@@ -48,7 +52,11 @@ class VisitIdentification(BaseModel):
         Returns:
           object created from record
         """
-        return cls(visitnum=record.get(FieldNames.VISITNUM))
+        visitnum = record.get(FieldNames.VISITNUM)
+        # Convert empty string to None
+        if visitnum == "":
+            visitnum = None
+        return cls(visitnum=visitnum)
 
 
 class FormIdentification(BaseModel):
@@ -66,9 +74,32 @@ class FormIdentification(BaseModel):
         Returns:
           object created from record
         """
-        return cls(
-            module=record.get(FieldNames.MODULE), packet=record.get(FieldNames.PACKET)
-        )
+        module = record.get(FieldNames.MODULE)
+        if module is None:
+            raise EmptyFieldError(FieldNames.MODULE)
+
+        packet = record.get(FieldNames.PACKET)
+        # Convert empty string to None
+        if packet == "":
+            packet = None
+
+        return cls(module=record.get(FieldNames.MODULE), packet=packet)
+
+    @field_validator("module", "packet")
+    @classmethod
+    def normalize_module(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize module to uppercase for canonical storage and matching.
+
+        This ensures consistency with EventMatchKey matching logic and
+        provides case-insensitive module handling throughout the system.
+
+        Args:
+            v: The module value
+
+        Returns:
+            Module normalized to uppercase, or None if input is None
+        """
+        return v.upper() if v else v
 
 
 class ImageIdentification(BaseModel):
@@ -93,10 +124,10 @@ class DataIdentification(BaseModel):
     def from_visit_metadata(
         cls,
         adcid: Optional[int] = None,
-        ptid: Optional[str] = None,
+        ptid: Optional[str] = Field(None, max_length=10, pattern=PTID_PATTERN),
         naccid: Optional[str] = None,
         visitnum: Optional[str] = None,
-        date: Optional[str] = None,
+        date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
         module: Optional[str] = None,
         packet: Optional[str] = None,
         modality: Optional[str] = None,
@@ -138,6 +169,51 @@ class DataIdentification(BaseModel):
 
         return cls(participant=participant, date=date, visit=visit, data=data)
 
+    def with_updates(
+        self,
+        adcid: Optional[int] = None,
+        packet: Optional[str] = None,
+        visitnum: Optional[str] = None,
+    ) -> "DataIdentification":
+        """Return a copy of this DataIdentification with specified fields
+        updated.
+
+        Only updates fields that are explicitly provided (not None).
+        This is useful for backfilling missing data from different sources.
+
+        Args:
+            adcid: Center identifier to update
+            packet: Form packet (I/F/T) to update
+            visitnum: Visit sequence number to update
+
+        Returns:
+            New DataIdentification instance with updated fields
+        """
+        updates: dict[str, Any] = {}
+
+        # Update participant.adcid if provided
+        if adcid is not None:
+            updates["participant"] = self.participant.model_copy(
+                update={"adcid": adcid}
+            )
+
+        # Update visit.visitnum if provided
+        if visitnum is not None:
+            if self.visit is not None:
+                updates["visit"] = self.visit.model_copy(update={"visitnum": visitnum})
+            else:
+                updates["visit"] = VisitIdentification(visitnum=visitnum)
+
+        # Update data.packet if provided (only for FormIdentification)
+        if packet is not None:
+            if self.data is not None and isinstance(self.data, FormIdentification):
+                updates["data"] = self.data.model_copy(update={"packet": packet})
+            elif self.data is None:
+                # Create FormIdentification with just packet
+                updates["data"] = FormIdentification(packet=packet)
+
+        return self.model_copy(update=updates)
+
     def __getattr__(self, attribute_name: str) -> Optional[Any]:
         # Check participant
         if hasattr(self.participant, attribute_name):
@@ -177,9 +253,7 @@ class DataIdentification(BaseModel):
         return data
 
     @classmethod
-    def from_form_record(
-        cls, record: dict[str, Any], date_field: Optional[str] = None
-    ) -> Self:
+    def from_form_record(cls, record: dict[str, Any], date_field: str) -> Self:
         """Creates object from form data record.
 
         Args:
@@ -187,12 +261,44 @@ class DataIdentification(BaseModel):
         Returns:
           object created from record
         """
+        date = record.get(date_field) if date_field is not None else None
+        if date is None:
+            raise EmptyFieldError(date_field)
+        normalized_date = convert_date(
+            date_string=date, date_format=DEFAULT_DATE_FORMAT
+        )
+        if not normalized_date:
+            raise InvalidDateError(date_field, date)
+
         return cls(
             participant=ParticipantIdentification.from_form_record(record),
-            date=record.get(date_field) if date_field is not None else None,
+            date=normalized_date,
             visit=VisitIdentification.from_form_record(record),
             data=FormIdentification.from_form_record(record),
         )
+
+    @classmethod
+    def from_form_record_safe(
+        cls, record: dict[str, Any], date_field: str
+    ) -> Optional[Self]:
+        """Creates object from form data record, returning None on error.
+
+        This is a safe version of from_form_record that returns None instead of
+        raising EmptyFieldError or InvalidDateError. Useful for error reporting
+        where you want to include visit keys if available, but don't want to fail
+        if they can't be extracted.
+
+        Args:
+          record: dictionary for record from form data
+          date_field: name of the date field to use
+        Returns:
+          DataIdentification object if successful, None if date field is empty
+          or invalid
+        """
+        try:
+            return cls.from_form_record(record, date_field)
+        except (EmptyFieldError, InvalidDateError):
+            return None
 
     @classmethod
     def from_visit_info(cls, file_entry) -> Optional["DataIdentification"]:
@@ -227,6 +333,17 @@ class DataIdentification(BaseModel):
             else:
                 result.append(fieldname)
         return result
+
+
+class EmptyFieldError(Exception):
+    def __init__(self, fieldname: str) -> None:
+        self.fieldname = fieldname
+
+
+class InvalidDateError(Exception):
+    def __init__(self, date_field: str, value: str) -> None:
+        self.date_field = date_field
+        self.value = value
 
 
 # VisitKeys = DataIdentification

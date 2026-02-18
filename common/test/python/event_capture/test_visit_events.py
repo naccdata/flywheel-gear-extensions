@@ -2,21 +2,25 @@ from datetime import datetime
 
 import pytest
 from event_capture.visit_events import VisitEvent
+from nacc_common.data_identification import DataIdentification
 
 
 class TestVisitEvent:
     def test_datatype(self):
         try:
-            valid_event = VisitEvent(
-                action="submit",
-                pipeline_adcid=0,
-                project_label="ingest-form",
-                center_label="sample-center",
+            data_id = DataIdentification.from_visit_metadata(
+                adcid=0,
                 ptid="dummy",
                 date="2025-10-07",
                 visitnum="v1",
-                datatype="form",
                 module="UDS",
+            )
+            valid_event = VisitEvent(
+                action="submit",
+                project_label="ingest-form",
+                center_label="sample-center",
+                data_identification=data_id,
+                datatype="form",
                 timestamp=datetime.now(),
                 gear_name="dummy-gear",
             )
@@ -25,32 +29,38 @@ class TestVisitEvent:
             raise AssertionError(error) from error
 
         with pytest.raises(ValueError):
-            VisitEvent(
-                action="submit",
-                pipeline_adcid=0,
-                project_label="ingest-dicom",
-                center_label="sample-center",
+            data_id = DataIdentification.from_visit_metadata(
+                adcid=0,
                 ptid="dummy",
                 date="2025-10-07",
                 visitnum="v1",
-                datatype="dicom",
                 module="UDS",
+            )
+            VisitEvent(
+                action="submit",
+                project_label="ingest-dicom",
+                center_label="sample-center",
+                data_identification=data_id,
+                datatype="dicom",
                 timestamp=datetime.now(),
                 gear_name="dummy-gear",
             )
 
     def test_module_normalization_to_uppercase(self):
         """Test that module is normalized to uppercase."""
-        event = VisitEvent(
-            action="submit",
-            pipeline_adcid=0,
-            project_label="ingest-form",
-            center_label="sample-center",
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=0,
             ptid="nacc123456",
             date="2025-10-07",
             visitnum="v1",
-            datatype="form",
             module="uds",
+        )
+        event = VisitEvent(
+            action="submit",
+            project_label="ingest-form",
+            center_label="sample-center",
+            data_identification=data_id,
+            datatype="form",
             timestamp=datetime.now(),
             gear_name="dummy-gear",
         )
@@ -59,16 +69,19 @@ class TestVisitEvent:
 
     def test_module_normalization_mixed_case(self):
         """Test that module with mixed case is normalized to uppercase."""
-        event = VisitEvent(
-            action="submit",
-            pipeline_adcid=0,
-            project_label="ingest-form",
-            center_label="sample-center",
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=0,
             ptid="nacc123456",
             date="2025-10-07",
             visitnum="v1",
-            datatype="form",
             module="Uds",
+        )
+        event = VisitEvent(
+            action="submit",
+            project_label="ingest-form",
+            center_label="sample-center",
+            data_identification=data_id,
+            datatype="form",
             timestamp=datetime.now(),
             gear_name="dummy-gear",
         )
@@ -77,16 +90,19 @@ class TestVisitEvent:
 
     def test_module_normalization_already_uppercase(self):
         """Test that uppercase module remains unchanged."""
-        event = VisitEvent(
-            action="submit",
-            pipeline_adcid=0,
-            project_label="ingest-form",
-            center_label="sample-center",
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=0,
             ptid="nacc123456",
             date="2025-10-07",
             visitnum="v1",
-            datatype="form",
             module="UDS",
+        )
+        event = VisitEvent(
+            action="submit",
+            project_label="ingest-form",
+            center_label="sample-center",
+            data_identification=data_id,
+            datatype="form",
             timestamp=datetime.now(),
             gear_name="dummy-gear",
         )
@@ -94,37 +110,45 @@ class TestVisitEvent:
         assert event.module == "UDS"
 
     def test_module_normalization_none_preserved(self):
-        """Test that None module is preserved (for non-form datatypes)."""
-        event = VisitEvent(
-            action="submit",
-            pipeline_adcid=0,
-            project_label="ingest-dicom",
-            center_label="sample-center",
+        """Test that module attribute doesn't exist for image datatypes."""
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=0,
             ptid="ptid123",
             date="2025-10-07",
             visitnum="v1",
+            modality="MR",  # Use modality for image data
+        )
+        event = VisitEvent(
+            action="submit",
+            project_label="ingest-dicom",
+            center_label="sample-center",
+            data_identification=data_id,
             datatype="dicom",
-            module=None,
             timestamp=datetime.now(),
             gear_name="dummy-gear",
         )
 
-        assert event.module is None
+        # Image events don't have module attribute
+        with pytest.raises(AttributeError):
+            _ = event.module
 
     def test_normalization_consistency_with_event_match_key(self):
         """Test that normalized module values are consistent with EventMatchKey
         expectations."""
         # Create event with lowercase module
-        event = VisitEvent(
-            action="submit",
-            pipeline_adcid=0,
-            project_label="ingest-form",
-            center_label="sample-center",
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=0,
             ptid="NACC123456",
             date="2025-10-07",
             visitnum="v1",
-            datatype="form",
             module="uds",
+        )
+        event = VisitEvent(
+            action="submit",
+            project_label="ingest-form",
+            center_label="sample-center",
+            data_identification=data_id,
+            datatype="form",
             timestamp=datetime.now(),
             gear_name="dummy-gear",
         )
