@@ -10,7 +10,7 @@ from nacc_attribute_deriver.utils.scope import (
 # visits/data and cross-sectional derived values
 BACKPROP_SCOPES = [
     FormScope.UDS,
-    FormScope.MILESTONE,
+    FormScope.MLST,
     MixedProtocolScope.MRI_DICOM,
     MixedProtocolScope.PET_DICOM,
 ]
@@ -20,7 +20,7 @@ BACKPROP_SCOPES = [
 CHILD_SCOPES = {
     FormScope.UDS: [
         FormScope.CROSS_MODULE,
-        FormScope.MILESTONE,
+        FormScope.MLST,
         FormScope.FTLD,
         FormScope.LBD,
         FormScope.CSF,
@@ -40,6 +40,7 @@ RESOLVED_SCOPES = [
     FormScope.UDS,
     FormScope.NP,
     FormScope.MDS,
+    FormScope.MLST,
     FormScope.CSF,
     FormScope.FTLD,
     FormScope.LBD,

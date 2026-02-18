@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.1
+
+* Updates `nacc-attribute-deriver` to `2.1.3` for B1a support and a multitude of other fixes
+* Updates gear to support B1a forms scope
+* Updates to pre-compute latest UDS DOB and write to `subject.info.working.cross-sectional.birthmo/birthyr` to account for inconsistent dates across forms. Done here (as opposed to inside the `nacc-attribute-deriver`) because many things rely on DOB being accurate in the first pass
+    * In order to support pre-computation across the files, we switch to use a sorted list instead of a heap. In general a sorted list actually makes more sense for how it's being used here anyways.
+* Updates to pass center status for cross-module derivations (needed for variables like `NACCACTV`) - as such, gear assumes all files belong to a single center
+
 ## 1.3.0
 
 * Updates `nacc-attribute-deriver` to `2.1.2` which updates how the drugs list is mapped
