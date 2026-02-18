@@ -170,12 +170,18 @@ class Curator(ABC):
         log.debug("curating file %s with scope %s", file_model.filename, scope)
         return self.execute(subject, file_model, table, scope)
 
-    def pre_curate(self, subject: Subject, subject_table: SymbolTable) -> None:
+    def pre_curate(
+        self,
+        subject: Subject,
+        subject_table: SymbolTable,
+        curation_list: List[FileModel],
+    ) -> None:
         """Run pre-curation on the entire subject. Not required.
 
         Args:
             subject: Subject to pre-process
             subject_table: SymbolTable containing subject-specific metadata
+            curation_list: List of FileModels to be curated
         """
         return
 

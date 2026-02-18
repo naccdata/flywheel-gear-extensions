@@ -147,42 +147,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "2fdf8f5349b130d62576068a6c47b3eec368a70bc28f16d8cce17c5f7e74fc2e",
-              "url": "https://files.pythonhosted.org/packages/5e/14/bf4077d843d737bec6f4176e113182a4435a1864e2a819ca07004da8a9ac/boto3-1.42.50-py3-none-any.whl"
+              "hash": "99e1df4361c3f6ff6ade65803c043ea96314826134962dd3b385433b309eb819",
+              "url": "https://files.pythonhosted.org/packages/12/b1/1fa30cd7b26617d59efbe3a4f3660a5b8b397a4623bf1e67016c4cb6dd0e/boto3-1.42.49-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "38545d7e6e855fefc8a11e899ccbd6d2c9f64671d6648c2acfb1c78c1057a480",
-              "url": "https://files.pythonhosted.org/packages/59/41/7a7280875ec000e280b0392478a5d6247bc88e7ecf2ae6ec8f4ddb35b014/boto3-1.42.50.tar.gz"
+              "hash": "9cd252f640567b86e92b0a8ffdd4ade9a3018ee357c724bff6a21b8c8a41be0c",
+              "url": "https://files.pythonhosted.org/packages/20/91/105aa17e0f3a566d33e2d8a3b32a70f553b1ad500d9756c6dd63991d8354/boto3-1.42.49.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.43.0,>=1.42.50",
+            "botocore<1.43.0,>=1.42.49",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.17.0,>=0.16.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.50"
+          "version": "1.42.49"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "9a449ee9ced05c3cbe990dc9da2dad5be85af1f5de35e5a577cb28ddb843bb48",
-              "url": "https://files.pythonhosted.org/packages/b7/fc/b3ca34dc5be308bad29caf6c7159363cfbd7f43c09271cc3c91655d2f9b6/boto3_stubs-1.42.50-py3-none-any.whl"
+              "hash": "ec4368a2905e4ccbba6d606cf3e0549f159962a0e5751384e8c6624116a1729a",
+              "url": "https://files.pythonhosted.org/packages/47/de/302b3b56510d3ac3e78eb9b0e93914cf36d01a4fc79471c345636783c45d/boto3_stubs-1.42.49-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "101d1339a40cecdc89f03d4802351a7696f48ab6a75352cae58016189ef5b483",
-              "url": "https://files.pythonhosted.org/packages/ad/4c/218454f1b9d7846fcd5780f691779d23efb23c6a6cdebea06f6392fdd11d/boto3_stubs-1.42.50.tar.gz"
+              "hash": "8edb22726cf4b733e008733f4d44adde389eb7648b0c22cf071a675fed8daaab",
+              "url": "https://files.pythonhosted.org/packages/d4/e2/fa495f8a89ac713cc8f0081e35c649d1a8fa7c3d6d8f08bd1e068ef65c1b/boto3_stubs-1.42.49.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.43.0,>=1.42.0; extra == \"full\"",
-            "boto3==1.42.50; extra == \"boto3\"",
+            "boto3==1.42.49; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"all\"",
@@ -1023,19 +1023,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.50"
+          "version": "1.42.49"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "3ec7004009d1557a881b1d076d54b5768230849fa9ccdebfd409f0571490e691",
-              "url": "https://files.pythonhosted.org/packages/aa/b8/b02ad16c5198e652eafdd8bad76aa62ac094afabbe1241b4be1cd4075666/botocore-1.42.50-py3-none-any.whl"
+              "hash": "1c33544f72101eed4ccf903ebb667a803e14e25b2af4e0836e4b871da1c0af37",
+              "url": "https://files.pythonhosted.org/packages/d6/cd/7e7ceeff26889d1fd923f069381e3b2b85ff6d46c6fd1409ed8f486cc06f/botocore-1.42.49-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "de1e128e4898f4e66877bfabbbb03c61f99366f27520442539339e8a74afe3a5",
-              "url": "https://files.pythonhosted.org/packages/93/fd/e63789133b2bf044c8550cd6766ec93628b0ac18a03f2aa0b80171f0697a/botocore-1.42.50.tar.gz"
+              "hash": "333115a64a507697b0c450ade7e2d82bc8b4e21c0051542514532b455712bdcc",
+              "url": "https://files.pythonhosted.org/packages/c5/95/c3a3765ab65073695161e7180d631428cb6e67c18d97e8897871dfe51fcc/botocore-1.42.49.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1047,7 +1047,7 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.50"
+          "version": "1.42.49"
         },
         {
           "artifacts": [
@@ -1664,13 +1664,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "7b7220585c67759b1b1ef839b1e6e9e3d82ed468cfc1ece43c67184848d7edd9",
-              "url": "https://files.pythonhosted.org/packages/c4/f7/5cc291d701094754a1d327b44d80a44971e13962881d9a400235726171da/hypothesis-6.151.9-py3-none-any.whl"
+              "hash": "4e6e933a98c6f606b3e0ada97a750e7fff12277a40260b9300a05e7a5c3c5e2e",
+              "url": "https://files.pythonhosted.org/packages/2c/70/42760b369723f8b5aa6a21e5fae58809f503ca7ebb6da13b99f4de36305a/hypothesis-6.151.6-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "2f284428dda6c3c48c580de0e18470ff9c7f5ef628a647ee8002f38c3f9097ca",
-              "url": "https://files.pythonhosted.org/packages/19/e1/ef365ff480903b929d28e057f57b76cae51a30375943e33374ec9a165d9c/hypothesis-6.151.9.tar.gz"
+              "hash": "755decfa326c8c97a4c8766fe40509985003396442138554b0ae824f9584318f",
+              "url": "https://files.pythonhosted.org/packages/00/5b/039c095977004f2316225559d591c5a4c62b2e4d7a429db2dd01d37c3ec2/hypothesis-6.151.6.tar.gz"
             }
           ],
           "project_name": "hypothesis",
@@ -1714,7 +1714,7 @@
             "watchdog>=4.0.0; extra == \"watchdog\""
           ],
           "requires_python": ">=3.10",
-          "version": "6.151.9"
+          "version": "6.151.6"
         },
         {
           "artifacts": [
