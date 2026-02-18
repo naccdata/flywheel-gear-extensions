@@ -73,20 +73,26 @@ class EventGenerator:
             )
             return None
 
+        # Add adcid from project context to visit metadata
+        visit_metadata = event_data.visit_metadata.with_updates(
+            adcid=self._pipeline_adcid
+        )
+
         try:
             return VisitEvent(
                 action=ACTION_SUBMIT,
                 study=self._pipeline_label.study_id,
-                pipeline_adcid=self._pipeline_adcid,
+                # pipeline_adcid=self._pipeline_adcid,
                 project_label=self._project.label,
                 center_label=self._project.group,
                 gear_name="transactional-event-scraper",
-                ptid=event_data.visit_metadata.ptid,
-                date=event_data.visit_metadata.date,
-                visitnum=event_data.visit_metadata.visitnum,
+                data_identification=visit_metadata,
+                # ptid=event_data.visit_metadata.ptid,
+                # date=event_data.visit_metadata.date,
+                # visitnum=event_data.visit_metadata.visitnum,
                 datatype=self._pipeline_label.datatype,
-                module=event_data.visit_metadata.module,
-                packet=event_data.visit_metadata.packet,
+                # module=event_data.visit_metadata.module,
+                # packet=event_data.visit_metadata.packet,
                 timestamp=event_data.submission_timestamp,
             )
         except ValidationError as error:
@@ -130,20 +136,26 @@ class EventGenerator:
             )
             return None
 
+        # Add adcid from project context to visit metadata
+        visit_metadata = event_data.visit_metadata.with_updates(
+            adcid=self._pipeline_adcid
+        )
+
         try:
             return VisitEvent(
                 action=action,
                 study=self._pipeline_label.study_id,
-                pipeline_adcid=self._pipeline_adcid,
+                # pipeline_adcid=self._pipeline_adcid,
                 project_label=self._project.label,
                 center_label=self._project.group,
                 gear_name="transactional-event-scraper",
-                ptid=event_data.visit_metadata.ptid,
-                date=event_data.visit_metadata.date,
-                visitnum=event_data.visit_metadata.visitnum,
+                data_identification=visit_metadata,
+                # ptid=event_data.visit_metadata.ptid,
+                # date=event_data.visit_metadata.date,
+                # visitnum=event_data.visit_metadata.visitnum,
                 datatype=self._pipeline_label.datatype,
-                module=event_data.visit_metadata.module,
-                packet=event_data.visit_metadata.packet,
+                # module=event_data.visit_metadata.module,
+                # packet=event_data.visit_metadata.packet,
                 timestamp=event_data.qc_completion_timestamp,
             )
         except ValidationError as error:

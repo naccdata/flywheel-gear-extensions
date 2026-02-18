@@ -165,19 +165,22 @@ class EventAccumulator:
             )
             return None
 
+        visit_metadata = visit_metadata.with_updates(adcid=project.get_pipeline_adcid())
+
         return VisitEvent(
             action=ACTION_PASS_QC,
             study=pipeline_label.study_id,
-            pipeline_adcid=project.get_pipeline_adcid(),
+            # pipeline_adcid=project.get_pipeline_adcid(),
             project_label=project.label,
             center_label=project.group,
             gear_name="form-scheduler",
-            ptid=visit_metadata.ptid,
-            date=visit_metadata.date,
-            visitnum=visit_metadata.visitnum,
+            # ptid=visit_metadata.ptid,
+            # date=visit_metadata.date,
+            # visitnum=visit_metadata.visitnum,
             datatype=pipeline_label.datatype,
-            module=visit_metadata.module,
-            packet=visit_metadata.packet,
+            # module=visit_metadata.module,
+            # packet=visit_metadata.packet,
+            data_identification=visit_metadata,
             timestamp=qc_completion_time,
         )
 

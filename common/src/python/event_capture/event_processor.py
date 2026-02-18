@@ -386,13 +386,26 @@ class QCEventProcessor:
         # Packet information is only available in JSON files (not in QC logs),
         # so submit events always have packet=None initially. Fill it in from
         # the JSON file metadata.
-        if submit_event.packet is None:
-            submit_event.packet = qc_event_data.visit_metadata.packet
-
         # Visit number might be missing from the QC log but present in the JSON.
         # Only fill it in if the submit event doesn't already have it.
-        if submit_event.visit_number is None:
-            submit_event.visit_number = qc_event_data.visit_metadata.visitnum
+        updates = {}
+        if (
+            submit_event.packet is None
+            and qc_event_data.visit_metadata.packet is not None
+        ):
+            updates["packet"] = qc_event_data.visit_metadata.packet
+        if (
+            submit_event.visit_number is None
+            and qc_event_data.visit_metadata.visitnum is not None
+        ):
+            updates["visitnum"] = qc_event_data.visit_metadata.visitnum
+
+        # Create enriched event with updated data_identification if needed
+        if updates:
+            enriched_data_id = submit_event.data_identification.with_updates(**updates)
+            submit_event = submit_event.model_copy(
+                update={"data_identification": enriched_data_id}
+            )
 
         # Capture the enriched submit event to S3.
         # The event now has complete information: submission timestamp from the
