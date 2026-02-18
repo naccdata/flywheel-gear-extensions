@@ -14,7 +14,9 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.error_models import FileQCModel, QCStatus
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -136,13 +138,14 @@ class CSVTransformVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=self.__date_field
+            )
             self.__error_writer.write(
                 empty_field_error(
                     field=empty_fields,
                     line=line_num,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=row, date_field=self.__date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             self.__update_visit_error_log(input_record=row, qc_passed=False)
@@ -267,15 +270,16 @@ class CSVTransformVisitor(CSVVisitor):
                     if visit_num not in prev_visit_nums:
                         prev_visit_nums.append(visit_num)
                     else:
+                        visit_keys = DataIdentification.from_form_record_safe(
+                            record=transformed_row, date_field=self.__date_field
+                        )
                         self.__error_writer.write(
                             preprocessing_error(
                                 field=FieldNames.VISITNUM,
                                 value=visit_num,
                                 line=line_num,
                                 error_code=SysErrorCodes.DIFF_VISITDATE,
-                                visit_keys=DataIdentification.from_form_record(
-                                    record=transformed_row, date_field=self.__date_field
-                                ),
+                                visit_keys=visit_keys,
                             )
                         )
                         success = False
@@ -361,15 +365,16 @@ class CSVTransformVisitor(CSVVisitor):
         if self.__module == row_module:
             return True
 
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=row, date_field=self.__date_field
+        )
         self.__error_writer.write(
             unexpected_value_error(
                 field=FieldNames.MODULE,
                 value=row_module,
                 expected=self.__module,
                 line=line_num,
-                visit_keys=DataIdentification.from_form_record(
-                    record=row, date_field=self.__date_field
-                ),
+                visit_keys=visit_keys,
             )
         )
 
@@ -606,15 +611,16 @@ class CSVTransformVisitor(CSVVisitor):
                 packet,
                 visitdate,
             )
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=record, date_field=self.__date_field
+            )
             self.__error_writer.write(
                 preprocessing_error(
                     field=self.__date_field,
                     value=visitdate,
                     line=line_num,
                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=record, date_field=self.__date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
 

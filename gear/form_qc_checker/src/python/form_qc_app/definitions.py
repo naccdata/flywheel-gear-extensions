@@ -11,7 +11,9 @@ from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import empty_field_error
@@ -369,12 +371,13 @@ class DefinitionsLoader:
             submission_status[form] = int(mode) != DefaultValues.NOTFILLED
 
         if missing:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self.__module_configs.date_field
+            )
             self.__error_writer.write(
                 empty_field_error(
                     field=set(missing),
-                    visit_keys=DataIdentification.from_form_record(
-                        record=input_data, date_field=self.__module_configs.date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             raise DefinitionException(

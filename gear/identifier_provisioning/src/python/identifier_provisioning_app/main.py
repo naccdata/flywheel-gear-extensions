@@ -36,7 +36,9 @@ from identifiers.model import CenterIdentifiers, IdentifierObject
 from inputs.center_validator import CenterValidator
 from inputs.csv_reader import AggregateRowValidator, CSVVisitor, read_csv
 from keys.keys import DefaultValues
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.error_models import CSVLocation, FileError, FileErrorList
 from nacc_common.field_names import FieldNames
 from notifications.email import EmailClient, create_ses_client
@@ -214,13 +216,12 @@ class TransferVisitor(CSVVisitor):
 
         self.__naccid = row.get(FieldNames.NACCID)
         if not self.__naccid:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=FieldNames.ENRLFRM_DATE
+            )
             self.__error_writer.write(
                 empty_field_error(
-                    field=FieldNames.NACCID,
-                    line=line_num,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
+                    field=FieldNames.NACCID, line=line_num, visit_keys=visit_keys
                 )
             )
             return False
@@ -235,15 +236,16 @@ class TransferVisitor(CSVVisitor):
         except (IdentifierRepositoryError, TypeError) as error:
             message = f"Error in looking up NACCID {self.__naccid}: {error}"
 
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=row, date_field=FieldNames.ENRLFRM_DATE
+        )
         self.__error_writer.write(
             identifier_error(
                 field=FieldNames.NACCID,
                 value=self.__naccid,
                 line=line_num,
                 message=message,
-                visit_keys=DataIdentification.from_form_record(
-                    record=row, date_field=FieldNames.ENRLFRM_DATE
-                ),
+                visit_keys=visit_keys,
             )
         )
 
@@ -342,13 +344,14 @@ class TransferVisitor(CSVVisitor):
 
         previous_adcid = row.get(FieldNames.OLDADCID)
         if previous_adcid is None:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=FieldNames.ENRLFRM_DATE
+            )
             self.__error_writer.write(
                 empty_field_error(
                     field=FieldNames.OLDADCID,
                     line=line_num,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return False
@@ -360,6 +363,9 @@ class TransferVisitor(CSVVisitor):
         try:
             ptid_identifier = self.__repo.get(adcid=previous_adcid, ptid=previous_ptid)
         except (IdentifierRepositoryError, TypeError) as error:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=FieldNames.ENRLFRM_DATE
+            )
             self.__error_writer.write(
                 identifier_error(
                     value=previous_ptid,
@@ -368,14 +374,15 @@ class TransferVisitor(CSVVisitor):
                         f"Error in looking up NACCID for OLDADCID {previous_adcid}, "
                         f"OLDPTID {previous_ptid}: {error}"
                     ),
-                    visit_keys=DataIdentification.from_form_record(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return False
 
         if not ptid_identifier:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=FieldNames.ENRLFRM_DATE
+            )
             self.__error_writer.write(
                 identifier_error(
                     value=previous_ptid,
@@ -384,9 +391,7 @@ class TransferVisitor(CSVVisitor):
                         f"No NACCID found for OLDADCID {previous_adcid}, "
                         f"OLDPTID {previous_ptid}"
                     ),
-                    visit_keys=DataIdentification.from_form_record(
-                        record=row, date_field=FieldNames.ENRLFRM_DATE
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return False
@@ -607,6 +612,9 @@ class NewEnrollmentVisitor(CSVVisitor):
                 if error["type"] == "string_pattern_mismatch":
                     field_name = str(error["loc"][0])
                     context = error.get("ctx", {"pattern": ""})
+                    visit_keys = DataIdentification.from_form_record_safe(
+                        record=row, date_field=FieldNames.ENRLFRM_DATE
+                    )
                     self.__error_writer.write(
                         unexpected_value_error(
                             field=field_name,
@@ -614,9 +622,7 @@ class NewEnrollmentVisitor(CSVVisitor):
                             expected=context["pattern"],
                             message=f"Invalid {field_name.upper()}",
                             line=line_num,
-                            visit_keys=DataIdentification.from_form_record(
-                                record=row, date_field=FieldNames.ENRLFRM_DATE
-                            ),
+                            visit_keys=visit_keys,
                         )
                     )
 
@@ -724,15 +730,16 @@ class ProvisioningVisitor(CSVVisitor):
                     f"{row[FieldNames.PTID]}: {error}"
                 )
                 log.error(message)
+                visit_keys = DataIdentification.from_form_record_safe(
+                    record=row, date_field=FieldNames.ENRLFRM_DATE
+                )
                 self.__error_writer.write(
                     identifier_error(
                         message=message,
                         field=FieldNames.PTID,
                         value=row[FieldNames.PTID],
                         line=line_num,
-                        visit_keys=DataIdentification.from_form_record(
-                            record=row, date_field=FieldNames.ENRLFRM_DATE
-                        ),
+                        visit_keys=visit_keys,
                     )
                 )
                 update_record_level_error_log(

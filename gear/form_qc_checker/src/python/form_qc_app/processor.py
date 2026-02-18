@@ -21,7 +21,9 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.error_models import JSONLocation
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -258,12 +260,13 @@ class JSONFileProcessor(FileProcessor):
 
             # has a failed previous visit
             if failed_visit.visitdate < visitdate:
+                visit_keys = DataIdentification.from_form_record_safe(
+                    record=self.__input_record, date_field=self._date_field
+                )
                 self._error_writer.write(
                     previous_visit_failed_error(
                         prev_visit=failed_visit.filename,
-                        visit_keys=DataIdentification.from_form_record(
-                            record=self.__input_record, date_field=self._date_field
-                        ),
+                        visit_keys=visit_keys,
                     )
                 )
                 return "DIFFERENT"
@@ -303,12 +306,13 @@ class JSONFileProcessor(FileProcessor):
                 found_all = False
 
         if not found_all:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 empty_field_error(
                     field=empty_fields,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None
@@ -321,13 +325,14 @@ class JSONFileProcessor(FileProcessor):
                 f"{subject_lbl} in project {self._project.label}"
             )
             log.error(message)
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 system_error(
                     message=message,
                     error_location=JSONLocation(key_path=self._pk_field),
-                    visit_keys=DataIdentification.from_form_record(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None

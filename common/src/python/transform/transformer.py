@@ -6,7 +6,9 @@ from typing import Any, Dict, List, Optional, Set
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from keys.keys import SysErrorCodes
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
@@ -89,15 +91,16 @@ class FieldFilter(BaseModel):
             transformed[field] = value
 
         if incorrectly_filled:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_record, date_field=date_field
+            )
             error_writer.write(
                 preprocessing_error(
                     field=self.version_map.fieldname,
                     value=input_record.get(self.version_map.fieldname, ""),
                     line=line_num,
                     error_code=SysErrorCodes.EXCLUDED_FIELDS,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=input_record, date_field=date_field
-                    ),
+                    visit_keys=visit_keys,
                     extra_args=[incorrectly_filled],
                 )
             )
@@ -229,6 +232,9 @@ class DateTransformer(BaseRecordTransformer):
             date_format=DEFAULT_DATE_FORMAT,
         )  # type: ignore
         if not normalized_date:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_record, date_field=self._date_field
+            )
             self._error_writer.write(
                 unexpected_value_error(
                     field=self._date_field,
@@ -236,9 +242,7 @@ class DateTransformer(BaseRecordTransformer):
                     expected="",
                     message="Expected a valid date string",
                     line=line_num,
-                    visit_keys=DataIdentification.from_form_record(
-                        record=input_record, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None
