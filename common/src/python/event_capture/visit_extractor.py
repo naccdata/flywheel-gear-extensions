@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from flywheel.models.file_entry import FileEntry
-from nacc_common.error_models import (
+from nacc_common.data_identification import (
     DataIdentification,
 )
 from pydantic import ValidationError
@@ -42,6 +42,9 @@ class DataIdentificationExtractor:
     def from_json_file_metadata(json_file: FileEntry) -> Optional[DataIdentification]:
         """Extract DataIdentification from JSON file forms metadata.
 
+        The forms.json metadata uses normalized field names (visitdate, not
+        module-specific date fields) since it's been processed during upload.
+
         Args:
             json_file: JSON file with forms metadata
 
@@ -55,11 +58,31 @@ class DataIdentificationExtractor:
         if not forms_json:
             return None
 
+        return DataIdentificationExtractor.from_forms_json(forms_json)
+
+    @staticmethod
+    def from_forms_json(forms_json: dict[str, Any]) -> Optional[DataIdentification]:
+        """Extract DataIdentification from forms.json dict.
+
+        Args:
+            forms_json: Dictionary with forms metadata (ptid, visitdate, module, etc.)
+
+        Returns:
+            DataIdentification instance or None if required fields are missing/invalid
+        """
+        if not forms_json:
+            return None
+
+        # Check for required fields before attempting to create DataIdentification
+        if not forms_json.get("module"):
+            return None
+
         try:
             # Map visitdate to date for from_visit_metadata
+            # forms.json uses normalized field names after upload processing
             mapped_data = {**forms_json}
             if "visitdate" in mapped_data:
                 mapped_data["date"] = mapped_data.pop("visitdate")
             return DataIdentification.from_visit_metadata(**mapped_data)
-        except (ValidationError, TypeError):
+        except (ValidationError, TypeError, ValueError):
             return None
