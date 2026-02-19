@@ -75,10 +75,12 @@ def file_project(
 ) -> Generator[MockProjectAdaptor, Any, Any]:
     project = MockProjectAdaptor("dummy_project")
     qc_model = status_file_model
-    log_filename = ErrorLogTemplate().instantiate(
-        {"ptid": visit_details.ptid, "visitdate": visit_details.date},
+    data_id = DataIdentification.from_visit_metadata(
+        ptid=visit_details.ptid,
+        date=visit_details.date,
         module=visit_details.module,
     )
+    log_filename = ErrorLogTemplate().instantiate(data_id)
     project.upload_file(
         file={"name": log_filename, "contents": "blah", "info": qc_model.model_dump()}
     )

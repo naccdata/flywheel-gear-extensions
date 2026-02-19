@@ -25,7 +25,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="A1", packet="I"),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         assert filename == "12345_001_2024-01-15_a1_i_qc-status.log"
 
@@ -39,7 +39,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="NP", packet="I"),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         assert filename == "12345_2024-01-15_np_i_qc-status.log"
 
@@ -53,7 +53,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="A1", packet=None),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         assert filename == "12345_001_2024-01-15_a1_qc-status.log"
 
@@ -67,7 +67,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="A1", packet=None),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         assert filename == "12345_2024-01-15_a1_qc-status.log"
 
@@ -90,7 +90,7 @@ class TestErrorLogTemplateDataIdentification:
             }
         )
 
-        filename = template.instantiate_from_data_identification(data_id_with_module)
+        filename = template.instantiate(data_id_with_module)
 
         assert filename == "12345_2024-01-20_mr_qc-status.log"
 
@@ -130,62 +130,6 @@ class TestErrorLogTemplateDataIdentification:
             )
         assert "module" in str(exc_info.value)
 
-    def test_get_possible_filenames_with_all_fields(self):
-        """Test get_possible_filenames returns correct fallback order."""
-        template = ErrorLogTemplate()
-        data_id = DataIdentification(
-            participant=ParticipantIdentification(adcid=1, ptid="12345"),
-            date="2024-01-15",
-            visit=VisitIdentification(visitnum="001"),
-            data=FormIdentification(module="A1", packet="I"),
-        )
-
-        filenames = template.get_possible_filenames(data_id)
-
-        # Should have new format first
-        assert filenames[0] == "12345_001_2024-01-15_a1_i_qc-status.log"
-
-        # Should include legacy format for backward compatibility
-        assert "12345_2024-01-15_a1_qc-status.log" in filenames
-
-        # Should have intermediate formats
-        assert "12345_001_2024-01-15_a1_qc-status.log" in filenames  # No packet
-        assert "12345_2024-01-15_a1_i_qc-status.log" in filenames  # No visitnum
-
-    def test_get_possible_filenames_with_only_packet(self):
-        """Test get_possible_filenames when only packet is present."""
-        template = ErrorLogTemplate()
-        data_id = DataIdentification(
-            participant=ParticipantIdentification(adcid=1, ptid="12345"),
-            date="2024-01-15",
-            visit=None,  # No visit
-            data=FormIdentification(module="NP", packet="I"),
-        )
-
-        filenames = template.get_possible_filenames(data_id)
-
-        # Should have new format with packet first
-        assert filenames[0] == "12345_2024-01-15_np_i_qc-status.log"
-
-        # Should include legacy format without packet
-        assert "12345_2024-01-15_np_qc-status.log" in filenames
-
-    def test_get_possible_filenames_legacy_only(self):
-        """Test get_possible_filenames with legacy format data."""
-        template = ErrorLogTemplate()
-        data_id = DataIdentification(
-            participant=ParticipantIdentification(adcid=1, ptid="12345"),
-            date="2024-01-15",
-            visit=None,  # No visit for legacy format
-            data=FormIdentification(module="A1", packet=None),
-        )
-
-        filenames = template.get_possible_filenames(data_id)
-
-        # Should only have one filename (legacy format)
-        assert len(filenames) == 1
-        assert filenames[0] == "12345_2024-01-15_a1_qc-status.log"
-
     def test_ptid_leading_zeros_stripped(self):
         """Test that leading zeros are stripped from ptid."""
         template = ErrorLogTemplate()
@@ -196,7 +140,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="A1", packet="I"),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         # Leading zeros should be stripped
         assert filename == "12345_001_2024-01-15_a1_i_qc-status.log"
@@ -211,7 +155,7 @@ class TestErrorLogTemplateDataIdentification:
             data=FormIdentification(module="A1", packet="I"),
         )
 
-        filename = template.instantiate_from_data_identification(data_id)
+        filename = template.instantiate(data_id)
 
         # Module and packet should be lowercase
         assert filename is not None

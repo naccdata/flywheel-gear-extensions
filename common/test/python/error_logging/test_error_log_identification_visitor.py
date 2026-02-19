@@ -23,11 +23,11 @@ def test_form_data_from_visit():
 
     data_id.apply(visitor)
 
-    # Full prefix includes visitnum
+    # Full prefix includes visitnum and packet
     assert visitor.log_name_prefix == "12345_001_2024-01-15_a1_i"
 
-    # Legacy prefix excludes visitnum
-    assert visitor.legacy_log_name_prefix == "12345_2024-01-15_a1_i"
+    # Legacy prefix excludes visitnum AND packet
+    assert visitor.legacy_log_name_prefix == "12345_2024-01-15_a1"
 
 
 def test_form_data_from_visit_no_packet():
@@ -60,9 +60,11 @@ def test_form_data_outside_visit():
 
     data_id.apply(visitor)
 
-    # Without visitnum, both prefixes should be the same
+    # New format includes packet (no visitnum since visit=None)
     assert visitor.log_name_prefix == "67890_2024-02-20_np_i"
-    assert visitor.legacy_log_name_prefix == "67890_2024-02-20_np_i"
+
+    # Legacy format excludes packet
+    assert visitor.legacy_log_name_prefix == "67890_2024-02-20_np"
 
 
 def test_form_data_outside_visit_no_packet():
@@ -147,9 +149,11 @@ def test_module_case_normalization():
 
     data_id.apply(visitor)
 
-    # Module and packet should be lowercase
+    # Module and packet should be lowercase in new format
     assert visitor.log_name_prefix == "12345_2024-07-01_a1_f"
-    assert visitor.legacy_log_name_prefix == "12345_2024-07-01_a1_f"
+
+    # Legacy format excludes packet
+    assert visitor.legacy_log_name_prefix == "12345_2024-07-01_a1"
 
 
 def test_empty_visitor_returns_none():
