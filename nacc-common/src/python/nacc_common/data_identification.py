@@ -5,11 +5,13 @@ from identifiers.model import PTID_PATTERN
 from pydantic import (
     BaseModel,
     Field,
+    ModelWrapValidatorHandler,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     ValidationError,
     field_validator,
     model_serializer,
+    model_validator,
 )
 
 from nacc_common.field_names import FieldNames
@@ -19,8 +21,13 @@ class ParticipantIdentification(BaseModel):
     """Identifies a participant and their center."""
 
     adcid: Optional[int] = None
-    ptid: Optional[str] = None
+    ptid: str
     naccid: Optional[str] = None
+
+    @field_validator("ptid")
+    @classmethod
+    def normalize_ptid(cls, value: str) -> str:
+        return value.strip().lstrip("0")
 
     @classmethod
     def from_form_record(cls, record: dict[str, Any]) -> Self:
@@ -39,31 +46,39 @@ class ParticipantIdentification(BaseModel):
 
 
 class VisitIdentification(BaseModel):
-    """Identifies a specific visit."""
+    """Identifies a specific visit.
 
-    visitnum: Optional[str] = None
+    If this object exists, visitnum must be present. Use visit=None at
+    the DataIdentification level for non-visit data.
+    """
+
+    visitnum: str
 
     @classmethod
-    def from_form_record(cls, record: dict[str, Any]) -> Self:
+    def from_form_record(cls, record: dict[str, Any]) -> Optional[Self]:
         """Creates object from form data record.
 
         Args:
           record: dictionary for record from form data
         Returns:
-          object created from record
+          VisitIdentification if visitnum is present, None otherwise
         """
         visitnum = record.get(FieldNames.VISITNUM)
         # Convert empty string to None
-        if visitnum == "":
-            visitnum = None
+        if visitnum == "" or visitnum is None:
+            return None
         return cls(visitnum=visitnum)
 
 
 class FormIdentification(BaseModel):
-    """Identifies form-specific data."""
+    """Identifies form-specific data.
 
-    module: Optional[str] = None  # Form name (A1, B1, NP, Milestone, etc.)
-    packet: Optional[str] = None  # I=Initial, F=Followup, T=Telephone
+    If this object exists, module must be present. Packet is optional as
+    not all forms have packets.
+    """
+
+    module: str  # Form name (A1, B1, NP, Milestone, etc.) - required
+    packet: Optional[str] = None  # I=Initial, F=Followup, T=Telephone - optional
 
     @classmethod
     def from_form_record(cls, record: dict[str, Any]) -> Self:
@@ -73,6 +88,8 @@ class FormIdentification(BaseModel):
           record: dictionary for record from form data
         Returns:
           object created from record
+        Raises:
+          EmptyFieldError if module is missing
         """
         module = record.get(FieldNames.MODULE)
         if module is None:
@@ -83,11 +100,11 @@ class FormIdentification(BaseModel):
         if packet == "":
             packet = None
 
-        return cls(module=record.get(FieldNames.MODULE), packet=packet)
+        return cls(module=module, packet=packet)
 
-    @field_validator("module", "packet")
+    @field_validator("module")
     @classmethod
-    def normalize_module(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_module(cls, v: str) -> str:
         """Normalize module to uppercase for canonical storage and matching.
 
         This ensures consistency with EventMatchKey matching logic and
@@ -97,15 +114,31 @@ class FormIdentification(BaseModel):
             v: The module value
 
         Returns:
-            Module normalized to uppercase, or None if input is None
+            Module normalized to uppercase
+        """
+        return v.upper()
+
+    @field_validator("packet")
+    @classmethod
+    def normalize_packet(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize packet to uppercase for canonical storage and matching.
+
+        Args:
+            v: The packet value
+
+        Returns:
+            Packet normalized to uppercase, or None if input is None
         """
         return v.upper() if v else v
 
 
 class ImageIdentification(BaseModel):
-    """Identifies image-specific data."""
+    """Identifies image-specific data.
 
-    modality: Optional[str] = None  # Imaging modality (MR, CT, PET, etc.)
+    If this object exists, modality must be present.
+    """
+
+    modality: str  # Imaging modality (MR, CT, PET, etc.) - required
 
 
 class DataIdentification(BaseModel):
@@ -113,12 +146,20 @@ class DataIdentification(BaseModel):
 
     Combines participant identification with optional visit
     identification. This replaces the legacy VisitKeys class.
+
+    Required fields:
+    - participant: Always required
+    - date: Always required (data always has a date)
+    - data: Always required (FormIdentification or ImageIdentification)
+
+    Optional fields (use None when not applicable):
+    - visit: None for non-visit data (e.g., enrollment, milestones)
     """
 
     participant: ParticipantIdentification
-    date: Optional[str] = None
+    date: str
     visit: Optional[VisitIdentification] = None
-    data: Optional[FormIdentification | ImageIdentification] = None
+    data: FormIdentification | ImageIdentification
 
     @classmethod
     def from_visit_metadata(
@@ -139,16 +180,19 @@ class DataIdentification(BaseModel):
 
         Args:
             adcid: Center identifier
-            ptid: Participant identifier (center-assigned)
+            ptid: Participant identifier (center-assigned) - required
             naccid: Participant identifier (NACC-assigned)
             visitnum: Visit sequence number
-            date: Visit date or collection date
-            module: Form name or imaging modality
+            date: Visit date or collection date - required
+            module: Form name - required unless modality is provided
             packet: Form packet (I/F/T)
-            modality: Imaging modality (alternative to module for images)
+            modality: Imaging modality - required unless module is provided
 
         Returns:
             DataIdentification with composed structure
+
+        Raises:
+            ValidationError if required fields (ptid, date, module/modality) are missing
         """
         participant = ParticipantIdentification(
             adcid=adcid,
@@ -156,16 +200,17 @@ class DataIdentification(BaseModel):
             naccid=naccid,
         )
 
-        # Always create visit object to ensure visitnum field is present
-        visit = VisitIdentification(visitnum=visitnum)
+        # Create visit object only if visitnum is present
+        visit = VisitIdentification(visitnum=visitnum) if visitnum else None
 
-        # Create data object - default to FormIdentification for backward compatibility
-        # unless modality is explicitly provided (indicating image data)
-        data: FormIdentification | ImageIdentification | None = None
-        # Always create FormIdentification so that have module/packet fields
-        data = FormIdentification(module=module, packet=packet)
+        # Create data object - either form or image (required)
+        data: FormIdentification | ImageIdentification
         if modality is not None:
             data = ImageIdentification(modality=modality)
+        elif module is not None:
+            data = FormIdentification(module=module, packet=packet)
+        else:
+            raise ValueError("Either module or modality must be provided")
 
         return cls(participant=participant, date=date, visit=visit, data=data)
 
@@ -209,8 +254,11 @@ class DataIdentification(BaseModel):
             if self.data is not None and isinstance(self.data, FormIdentification):
                 updates["data"] = self.data.model_copy(update={"packet": packet})
             elif self.data is None:
-                # Create FormIdentification with just packet
-                updates["data"] = FormIdentification(packet=packet)
+                # Cannot create FormIdentification with just packet - module is required
+                # This is a limitation of the new design
+                raise ValueError(
+                    "Cannot add packet: FormIdentification requires module"
+                )
 
         return self.model_copy(update=updates)
 
@@ -223,13 +271,43 @@ class DataIdentification(BaseModel):
         if self.visit is not None and hasattr(self.visit, attribute_name):
             return getattr(self.visit, attribute_name)
 
-        # Check data (may be None)
-        if self.data is not None and hasattr(self.data, attribute_name):
+        # Return None for visitnum if visit is None (backward compatibility)
+        if attribute_name == "visitnum" and self.visit is None:
+            return None
+
+        # Check data (always present)
+        if hasattr(self.data, attribute_name):
             return getattr(self.data, attribute_name)
 
         raise AttributeError(
             f"No attribute {attribute_name} for DataIdentification object"
         )
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def visit_validator(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        """Ensure visit is None if visitnum would be None.
+
+        This prevents creating VisitIdentification(visitnum=None) which
+        is invalid.
+        """
+        if isinstance(value, DataIdentification):
+            return handler(value)
+
+        if isinstance(value, dict):
+            visit = value.get("visit")
+            # If visit is a dict with visitnum=None, remove it
+            if isinstance(visit, dict) and visit.get("visitnum") is None:
+                value = value.copy()  # Don't mutate the input
+                value["visit"] = None
+            # If visit is a VisitIdentification object
+            elif hasattr(visit, "visitnum") and visit.visitnum is None:
+                value = value.copy()
+                value["visit"] = None
+
+        return handler(value)
 
     @model_serializer(mode="wrap")
     def serialize_model(
@@ -242,6 +320,9 @@ class DataIdentification(BaseModel):
         for field_name in ["participant", "visit", "data"]:
             value = data.pop(field_name, None)
             if value is None:
+                # For visit, add visitnum=None to maintain backward compatibility
+                if field_name == "visit":
+                    data["visitnum"] = None
                 continue
             if not isinstance(value, dict):
                 continue
