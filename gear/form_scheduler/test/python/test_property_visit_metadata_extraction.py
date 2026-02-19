@@ -20,6 +20,7 @@ from form_scheduler_app.event_accumulator import (
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from nacc_common.data_identification import DataIdentification
+from pydantic import ValidationError
 from test_mocks.strategies import (
     valid_visit_metadata_strategy as visit_metadata_strategy,
 )
@@ -268,7 +269,8 @@ def test_visit_metadata_extractor_utilities():
     assert valid_metadata.ptid == "110001"
 
     # Test with invalid metadata - ptid=None should raise ValidationError
-    with pytest.raises(Exception):  # ValidationError from pydantic
+
+    with pytest.raises(ValidationError):
         DataIdentification.from_visit_metadata(
             ptid=None, date="2024-01-15", module="UDS"
         )
