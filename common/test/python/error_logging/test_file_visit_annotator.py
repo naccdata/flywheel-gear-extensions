@@ -104,22 +104,23 @@ class TestFileVisitAnnotatorDataIdentification:
 
     def test_annotate_qc_log_file_missing_required_fields(self):
         """Test annotation fails gracefully with missing required fields."""
-        # Arrange
-        visit_metadata = DataIdentification.from_visit_metadata(
-            ptid=None,  # Missing required field
-            date="2024-01-15",
-            module="UDS",
-            visitnum="01",
-            packet="I",
-        )
-        qc_log_filename = "test-qc-log.json"
+        # Arrange - ptid is now required, so we can't create DataIdentification without it
+        # Instead, test that validation error is raised when trying to create invalid data
+        import pytest
+        from pydantic import ValidationError
 
-        # Act
-        result = self.annotator.annotate_qc_log_file(qc_log_filename, visit_metadata)
+        # Act & Assert - Should raise ValidationError when ptid is None
+        with pytest.raises(ValidationError) as exc_info:
+            DataIdentification.from_visit_metadata(
+                ptid=None,  # Missing required field
+                date="2024-01-15",
+                module="UDS",
+                visitnum="01",
+                packet="I",
+            )
 
-        # Assert
-        assert result is False
-        self.mock_project.get_file.assert_not_called()
+        # Verify it's the ptid field that failed
+        assert "ptid" in str(exc_info.value)
 
     def test_annotate_qc_log_file_missing_file(self):
         """Test annotation fails gracefully when QC log file is not found."""

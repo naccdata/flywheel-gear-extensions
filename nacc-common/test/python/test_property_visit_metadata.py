@@ -14,15 +14,16 @@ from nacc_common.error_models import DataIdentification
 
 @st.composite
 def visit_keys_strategy(draw):
-    """Generate random DataIdentification data."""
+    """Generate random DataIdentification data.
+
+    ptid, date, and module are required fields.
+    """
     return {
         "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
-        "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
+        "ptid": draw(st.text(min_size=1, max_size=10)),  # Required
         "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
-        "module": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
-        "date": draw(
-            st.one_of(st.none(), st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
-        ),
+        "module": draw(st.text(min_size=1, max_size=10)),  # Required
+        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),  # Required
         "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=15))),
     }
 
@@ -30,15 +31,16 @@ def visit_keys_strategy(draw):
 @st.composite
 def visit_metadata_strategy(draw):
     """Generate random DataIdentification data with all fields including
-    packet."""
+    packet.
+
+    ptid, date, and module are required fields.
+    """
     return {
         "adcid": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=999))),
-        "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
+        "ptid": draw(st.text(min_size=1, max_size=10)),  # Required
         "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
-        "module": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),
-        "date": draw(
-            st.one_of(st.none(), st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
-        ),
+        "module": draw(st.text(min_size=1, max_size=10)),  # Required
+        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),  # Required
         "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=15))),
         "packet": draw(st.one_of(st.none(), st.text(min_size=1, max_size=5))),
     }
@@ -65,17 +67,19 @@ def test_visit_metadata_to_visit_event_fields_mapping(visit_data: Dict[str, Any]
     # Assert - Should return a dictionary
     assert isinstance(event_fields, dict), "model_dump should return a dictionary"
 
-    # Assert - Should have all expected fields with natural names
-    expected_fields = [
-        "ptid",
-        "date",
-        "visitnum",
-        "module",
-        "packet",
-        "adcid",
-        "naccid",
-    ]
-    for field in expected_fields:
+    # Assert - Required fields should always be present
+    required_fields = ["ptid", "date", "module"]
+    for field in required_fields:
+        assert field in event_fields, (
+            f"Event fields should contain required field {field}"
+        )
+        assert event_fields[field] is not None, (
+            f"Required field {field} should not be None"
+        )
+
+    # Assert - Optional fields should be present (may be None)
+    optional_fields = ["visitnum", "packet", "adcid", "naccid"]
+    for field in optional_fields:
         assert field in event_fields, f"Event fields should contain {field}"
 
     # Assert - Field values should match
