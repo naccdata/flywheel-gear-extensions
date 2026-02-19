@@ -74,7 +74,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             A list of REDCap project info objects.
         """
         try:
-            with input_file_path.open("r", encoding="utf-8 ") as input_file:
+            with open(input_file_path, mode="r", encoding="utf-8 ") as input_file:
                 object_list = load_from_stream(input_file)
         except YAMLReadError as error:
             raise GearExecutionError(

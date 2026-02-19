@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/redcap_project_creation/src/python/redcap_project_creation_app:bin",
     ],
-    image_tags=["1.2.0", "latest"],
+    image_tags=["1.2.1", "latest"],
 )
