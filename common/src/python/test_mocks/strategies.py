@@ -144,20 +144,28 @@ def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
     """Generate valid DataIdentification with all required fields.
 
     PTIDs must not be all zeros or empty after stripping leading zeros.
+    The strategy ensures PTIDs remain valid after normalize_ptid
+    processing.
     """
-    # Generate PTID that won't be all zeros
+    # Generate PTID that won't become empty or change after normalization
     ptid = draw(
-        st.text(
-            min_size=1,
-            max_size=10,
-            alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
+        st.one_of(
+            # Non-zero digit followed by any alphanumeric (no leading zeros)
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(
+                    whitelist_categories=("Nd", "Lu"), blacklist_characters="0"
+                ),
+            ).filter(lambda x: x and x.strip().lstrip("0") == x.strip()),
+            # Or just uppercase letters (no digits, so no zero issues)
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(whitelist_categories=("Lu",)),
+            ),
         )
     )
-
-    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
-    if ptid.strip("0") == "":
-        # Replace with a valid PTID containing at least one non-zero character
-        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
 
     return {
         "ptid": ptid,

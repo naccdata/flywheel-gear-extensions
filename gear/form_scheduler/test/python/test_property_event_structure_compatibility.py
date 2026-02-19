@@ -294,7 +294,11 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
         "Event gear_name should be 'form-scheduler'"
     )
     assert event.datatype == "form", "Event datatype should be 'form'"
-    assert event.ptid == forms_json["ptid"], "Event PTID should match JSON file"
+
+    # PTIDs are normalized (leading zeros stripped), so compare normalized values
+    expected_ptid = forms_json["ptid"].strip().lstrip("0") or forms_json["ptid"]
+    assert event.ptid == expected_ptid, "Event PTID should match JSON file (normalized)"
+
     assert event.visit_date == forms_json["visitdate"], (
         "Event visit_date should match JSON file"
     )

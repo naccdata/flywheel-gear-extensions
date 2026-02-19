@@ -30,15 +30,30 @@ from test_mocks.mock_identifiers_lambda_repository import (
 def visit_row_strategy(draw):
     """Generate random visit row data.
 
-    Note: PTIDs are generated with uppercase letters and digits to avoid
-    issues with clean_ptid() which strips leading zeros. PTIDs like "0" or "00"
-    would become empty strings after cleaning.
+    Note: PTIDs must not be all zeros or whitespace, as normalize_ptid()
+    strips leading zeros and whitespace. PTIDs like "0", "00", or "000"
+    would become empty strings after cleaning, which are invalid.
     """
+    # Generate ptid that won't become empty after stripping zeros
+    # Either start with non-zero digit, or use letters
     ptid = draw(
-        st.text(
-            min_size=1,
-            max_size=10,
-            alphabet=st.characters(whitelist_categories=("Lu", "Nd")),
+        st.one_of(
+            # Non-zero digit followed by any alphanumeric
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(
+                    whitelist_categories=("Lu", "Nd"), blacklist_characters="0"
+                ),
+            ).filter(
+                lambda x: x and x.strip().lstrip("0")
+            ),  # Ensure not empty after normalization
+            # Or just uppercase letters (no digits)
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(whitelist_categories=("Lu",)),
+            ),
         )
     )
     date = draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
