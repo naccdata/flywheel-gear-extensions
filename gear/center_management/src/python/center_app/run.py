@@ -85,7 +85,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
           Map of CenterInfo objects to optional list of tags
         """
         try:
-            with center_file_path.open("r", encoding="utf-8-sig") as center_file:
+            with open(center_file_path, mode="r", encoding="utf-8-sig") as center_file:
                 object_list = load_from_stream(center_file)
         except YAMLReadError as error:
             raise GearExecutionError(
