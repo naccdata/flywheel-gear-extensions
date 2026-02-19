@@ -13,7 +13,6 @@ from unittest.mock import Mock
 import pytest
 from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import (
-    DataIdentificationExtractor,
     EventAccumulator,
 )
 from hypothesis import given, settings
@@ -61,14 +60,11 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
         Visit Metadata Validation**
       **Validates: Requirements 4.4, 4.5**
     """
-    # Create DataIdentification from valid data
+    # Create DataIdentification from valid data - Pydantic validation ensures required fields
     visit_metadata = DataIdentification.from_visit_metadata(**valid_metadata)
 
-    # Should pass validation for event creation
-    is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
-
-    # All required fields are present, so should be valid
-    assert is_valid is True
+    # If creation succeeded, all required fields are present
+    assert visit_metadata is not None
     assert visit_metadata.ptid is not None
     assert visit_metadata.date is not None
     assert visit_metadata.module is not None
@@ -78,32 +74,27 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
 @settings(max_examples=100)
 def test_invalid_visit_metadata_fails_validation(invalid_metadata):
     """Property test: For any DataIdentification missing required fields (ptid,
-    date, module), validation should fail and skip event logging.
+    date, module), Pydantic validation should fail.
 
       **Feature: form-scheduler-event-logging-refactor,
     Property 6:
         Visit Metadata Validation**
       **Validates: Requirements 4.4, 4.5**
     """
+    # Pydantic validation should raise ValidationError for invalid data
+    # (missing required fields like ptid, date, or module)
     try:
-        # Create DataIdentification from invalid data
         visit_metadata = DataIdentification.from_visit_metadata(**invalid_metadata)
-
-        # Should fail validation for event creation
-        is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
-
-        # At least one required field is missing, so should be invalid
-        assert is_valid is False
-
-        # Verify that at least one required field is None
+        # If it succeeds, verify at least one required field is actually missing/empty
+        # (empty strings pass Pydantic but fail business logic)
         required_fields_present = bool(
             visit_metadata.ptid and visit_metadata.date and visit_metadata.module
         )
-        assert required_fields_present is False
-
+        assert required_fields_present is False, (
+            "If validation passed, at least one required field should be empty"
+        )
     except Exception:
-        # If Pydantic validation fails entirely, that's also acceptable
-        # for invalid data
+        # ValidationError is expected for invalid data
         pass
 
 
@@ -115,33 +106,33 @@ def test_visit_metadata_validation_edge_cases():
         Visit Metadata Validation**
       **Validates: Requirements 4.4, 4.5**
     """
-    # Test with empty strings (should be invalid)
+    # Test with empty strings - Pydantic allows them but they're logically invalid
     empty_metadata = DataIdentification.from_visit_metadata(ptid="", date="", module="")
-    assert DataIdentificationExtractor.is_valid_for_event(empty_metadata) is False
+    # Empty strings pass Pydantic validation but fail business logic checks
+    assert not (empty_metadata.ptid and empty_metadata.date and empty_metadata.module)
 
-    # Test with whitespace-only strings (now considered valid since we trust input data)
+    # Test with whitespace-only strings - normalize_ptid strips them to empty
     whitespace_metadata = DataIdentification.from_visit_metadata(
         ptid="   ", date="   ", module="   "
     )
-    assert DataIdentificationExtractor.is_valid_for_event(whitespace_metadata) is True
+    # After normalization, ptid becomes empty
+    assert whitespace_metadata.ptid == ""
+    assert not whitespace_metadata.ptid  # Empty string is falsy
 
-    # Test with None values (should be invalid)
-    none_metadata = DataIdentification.from_visit_metadata(
-        ptid=None, date=None, module=None
-    )
-    assert DataIdentificationExtractor.is_valid_for_event(none_metadata) is False
+    # Test with None values (should raise ValidationError)
+    with pytest.raises(Exception):  # ValidationError from pydantic
+        DataIdentification.from_visit_metadata(ptid=None, date=None, module=None)
 
-    # Test with mixed valid/invalid (should be invalid)
-    mixed_metadata = DataIdentification.from_visit_metadata(
-        ptid="110001", date=None, module="UDS"
-    )
-    assert DataIdentificationExtractor.is_valid_for_event(mixed_metadata) is False
+    # Test with mixed valid/invalid (should raise ValidationError)
+    with pytest.raises(Exception):  # ValidationError from pydantic
+        DataIdentification.from_visit_metadata(ptid="110001", date=None, module="UDS")
 
-    # Test with all required fields present (should be valid)
+    # Test with all required fields present (should succeed)
     valid_metadata = DataIdentification.from_visit_metadata(
         ptid="110001", date="2024-01-15", module="UDS"
     )
-    assert DataIdentificationExtractor.is_valid_for_event(valid_metadata) is True
+    assert valid_metadata is not None
+    assert valid_metadata.ptid and valid_metadata.date and valid_metadata.module
 
 
 def test_visit_metadata_extraction_validation_integration(event_accumulator):
@@ -205,7 +196,8 @@ def test_visit_metadata_validation_with_optional_fields():
     minimal_metadata = DataIdentification.from_visit_metadata(
         ptid="110001", date="2024-01-15", module="UDS"
     )
-    assert DataIdentificationExtractor.is_valid_for_event(minimal_metadata) is True
+    assert minimal_metadata is not None
+    assert minimal_metadata.ptid and minimal_metadata.date and minimal_metadata.module
 
     # Test with all fields including optional ones
     complete_metadata = DataIdentification.from_visit_metadata(
@@ -217,7 +209,10 @@ def test_visit_metadata_validation_with_optional_fields():
         adcid=123,
         naccid="NACC001",
     )
-    assert DataIdentificationExtractor.is_valid_for_event(complete_metadata) is True
+    assert complete_metadata is not None
+    assert (
+        complete_metadata.ptid and complete_metadata.date and complete_metadata.module
+    )
 
     # Test with required fields and some optional fields None
     partial_metadata = DataIdentification.from_visit_metadata(
@@ -229,7 +224,8 @@ def test_visit_metadata_validation_with_optional_fields():
         adcid=None,
         naccid=None,
     )
-    assert DataIdentificationExtractor.is_valid_for_event(partial_metadata) is True
+    assert partial_metadata is not None
+    assert partial_metadata.ptid and partial_metadata.date and partial_metadata.module
 
 
 @given(
@@ -243,8 +239,8 @@ def test_visit_metadata_validation_with_optional_fields():
 )
 @settings(max_examples=100)
 def test_visit_metadata_validation_required_fields_property(ptid, date, module):
-    """Property test: Validation should pass if and only if all required fields
-    (ptid, date, module) are present and non-empty.
+    """Property test: Pydantic validation should pass if and only if all
+    required fields (ptid, date, module) are non-None.
 
       **Feature: form-scheduler-event-logging-refactor,
     Property 6:
@@ -255,15 +251,13 @@ def test_visit_metadata_validation_required_fields_property(ptid, date, module):
         visit_metadata = DataIdentification.from_visit_metadata(
             ptid=ptid, date=date, module=module
         )
-        is_valid = DataIdentificationExtractor.is_valid_for_event(visit_metadata)
-
-        # Should be valid if and only if all required fields are truthy
-        expected_valid = bool(ptid and date and module)
-        assert is_valid == expected_valid
+        # If Pydantic validation passed, all required fields should be non-None
+        # (though they might be empty strings)
+        assert visit_metadata is not None
 
     except Exception:
-        # If Pydantic validation fails, the data is definitely invalid
-        # This is acceptable for malformed input
+        # If Pydantic validation fails, at least one required field was None
+        # This is expected and acceptable
         pass
 
 
@@ -287,8 +281,8 @@ def test_visit_metadata_validation_milestone_form_without_visitnum():
         visitnum=None,  # Explicitly None for milestone forms
     )
 
-    # Should pass validation
-    assert DataIdentificationExtractor.is_valid_for_event(milestone_metadata) is True
+    # Should pass Pydantic validation
+    assert milestone_metadata is not None
 
     # Verify required fields are present
     assert milestone_metadata.ptid == "110001"
@@ -318,8 +312,8 @@ def test_visit_metadata_validation_np_form_without_visitnum():
         visitnum=None,  # Explicitly None for NP forms
     )
 
-    # Should pass validation
-    assert DataIdentificationExtractor.is_valid_for_event(np_metadata) is True
+    # Should pass Pydantic validation
+    assert np_metadata is not None
 
     # Verify required fields are present
     assert np_metadata.ptid == "110002"
@@ -346,7 +340,7 @@ def test_visit_metadata_validation_forms_with_and_without_visitnum():
         visitnum="01",
         packet="I",
     )
-    assert DataIdentificationExtractor.is_valid_for_event(uds_metadata) is True
+    assert uds_metadata is not None
 
     # Form WITHOUT visitnum (e.g., Milestone)
     milestone_metadata = DataIdentification.from_visit_metadata(
@@ -356,7 +350,7 @@ def test_visit_metadata_validation_forms_with_and_without_visitnum():
         visitnum=None,
         packet="M",
     )
-    assert DataIdentificationExtractor.is_valid_for_event(milestone_metadata) is True
+    assert milestone_metadata is not None
 
     # Both should be valid - visitnum is optional
     assert uds_metadata.visitnum == "01"

@@ -63,14 +63,3 @@ class DataIdentificationExtractor:
             return DataIdentification.from_visit_metadata(**mapped_data)
         except (ValidationError, TypeError):
             return None
-
-    @staticmethod
-    def is_valid_for_event(visit_metadata: DataIdentification) -> bool:
-        """Check if DataIdentification has required fields for VisitEvent
-        creation."""
-        if not visit_metadata:
-            return False
-
-        return bool(
-            visit_metadata.ptid and visit_metadata.date and visit_metadata.module
-        )

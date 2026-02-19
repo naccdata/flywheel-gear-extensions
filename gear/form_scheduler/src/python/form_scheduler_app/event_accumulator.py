@@ -100,16 +100,12 @@ class EventAccumulator:
             visit_metadata = DataIdentificationExtractor.from_qc_status_custom_info(
                 qc_log_file.info
             )
-            if visit_metadata and DataIdentificationExtractor.is_valid_for_event(
-                visit_metadata
-            ):
+            if visit_metadata:
                 return visit_metadata
 
         # Fall back to JSON file metadata
         visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
-        if visit_metadata and DataIdentificationExtractor.is_valid_for_event(
-            visit_metadata
-        ):
+        if visit_metadata:
             return visit_metadata
 
         return None

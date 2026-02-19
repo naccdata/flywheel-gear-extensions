@@ -305,9 +305,6 @@ class QCEventProcessor:
         if not visit_metadata:
             return None
 
-        if not DataIdentificationExtractor.is_valid_for_event(visit_metadata):
-            return None
-
         # Find corresponding QC status log
         qc_log_file = self._find_qc_status_for_json_file(json_file)
         if not qc_log_file:
