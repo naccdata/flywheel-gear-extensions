@@ -6,7 +6,14 @@ from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, conv
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import (
+    AbstractIdentificationVisitor,
+    DataIdentification,
+    FormIdentification,
+    ImageIdentification,
+    ParticipantIdentification,
+    VisitIdentification,
+)
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
 from nacc_common.field_names import FieldNames
 from pydantic import BaseModel, ValidationError
@@ -61,6 +68,90 @@ class VisitLabelTemplate(BaseModel):
         return "_".join(components)
 
 
+class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
+    """Visitor that collects identification attributes for error log file
+    naming."""
+
+    def __init__(self) -> None:
+        self.__participant_attribute = ""
+        self.__visit_attribute = ""
+        self.__date_attribute = ""
+        self.__data_attribute = ""
+
+    @property
+    def log_name_prefix(self) -> Optional[str]:
+        """Build log name prefix from collected attributes.
+
+        Returns None if any required attributes (participant, date,
+        data) are empty. Visit attribute is optional.
+        """
+        # Check required attributes
+        if (
+            not self.__participant_attribute
+            or not self.__date_attribute
+            or not self.__data_attribute
+        ):
+            return None
+
+        prefix = f"{self.__participant_attribute}"
+        if self.__visit_attribute:
+            prefix = f"{prefix}_{self.__visit_attribute}"
+        prefix = f"{prefix}_{self.__date_attribute}"
+        prefix = f"{prefix}_{self.__data_attribute}"
+        return prefix
+
+    @property
+    def legacy_log_name_prefix(self) -> Optional[str]:
+        """Build legacy log name prefix (without visitnum).
+
+        Legacy format: {ptid}_{date}_{module} Returns None if required
+        attributes are missing.
+        """
+        # Check required attributes
+        if (
+            not self.__participant_attribute
+            or not self.__date_attribute
+            or not self.__data_attribute
+        ):
+            return None
+
+        return (
+            f"{self.__participant_attribute}_"
+            f"{self.__date_attribute}_"
+            f"{self.__data_attribute}"
+        )
+
+    def visit_participant(self, participant: ParticipantIdentification) -> None:
+        """Collect participant identification (ptid)."""
+        self.__participant_attribute = participant.ptid
+
+    def visit_visit(self, visit: VisitIdentification) -> None:
+        """Collect visit identification (visitnum)."""
+        self.__visit_attribute = visit.visitnum
+
+    def visit_form(self, form: FormIdentification) -> None:
+        """Collect form identification (module and packet).
+
+        Converts to lowercase for filename compatibility.
+        """
+        module = form.module.lower()
+        if form.packet is not None:
+            self.__data_attribute = f"{module}_{form.packet.lower()}"
+        else:
+            self.__data_attribute = module
+
+    def visit_image(self, image: ImageIdentification) -> None:
+        """Collect image identification (modality).
+
+        Converts to lowercase for filename compatibility.
+        """
+        self.__data_attribute = image.modality.lower()
+
+    def visit_data_identification(self, data_id: DataIdentification) -> None:
+        """Collect date from data identification."""
+        self.__date_attribute = data_id.date
+
+
 class ErrorLogTemplate(VisitLabelTemplate):
     """Template for creating the name of an error log file.
 
@@ -112,49 +203,21 @@ class ErrorLogTemplate(VisitLabelTemplate):
             Old format (no visitnum, no packet):
                 → 12345_2024-01-15_a1_qc-status.log
         """
-        # Validate required fields
-        if not data_id.ptid or not data_id.date or not data_id.module:
+        visitor = ErrorLogIdentificationVisitor()
+        data_id.apply(visitor)
+
+        prefix = visitor.log_name_prefix
+        if prefix is None:
             return None
 
-        # Clean and normalize ptid
-        cleaned_ptid = data_id.ptid.strip().lstrip("0")
-        if not cleaned_ptid:
-            return None
-
-        # Normalize date
-        normalized_date = convert_date(
-            date_string=data_id.date, date_format=DEFAULT_DATE_FORMAT
-        )
-        if not normalized_date:
-            return None
-
-        # Build filename components
-        components = [cleaned_ptid]
-
-        # Add visitnum if present
-        if data_id.visitnum:
-            components.append(data_id.visitnum)
-
-        # Add date and module
-        components.append(normalized_date)
-        components.append(data_id.module.lower())
-
-        # Add packet if present (forms only)
-        if data_id.packet:
-            components.append(data_id.packet.lower())
-
-        # Create visit label and filename
-        visit_label = "_".join(components)
-        return self.create_filename(visit_label)
+        return self.create_filename(prefix)
 
     def get_possible_filenames(self, data_id: "DataIdentification") -> list[str]:
         """Get list of possible filenames for lookup (new and legacy formats).
 
         Returns filenames in priority order:
-        1. New format with visitnum and packet (if present)
-        2. Format without packet (if packet was present)
-        3. Format without visitnum (if visitnum was present)
-        4. Legacy format (no visitnum, no packet)
+        1. New format with visitnum (if present)
+        2. Legacy format without visitnum
 
         This supports backward compatibility when looking up existing files.
 
@@ -164,70 +227,20 @@ class ErrorLogTemplate(VisitLabelTemplate):
         Returns:
             List of possible filenames to try, in priority order
         """
-        filenames = []
+        visitor = ErrorLogIdentificationVisitor()
+        data_id.apply(visitor)
 
-        # Try new format first
-        new_format = self.instantiate_from_data_identification(data_id)
-        if new_format:
-            filenames.append(new_format)
+        filenames = set()
 
-        # Generate fallback formats for backward compatibility
-        has_visitnum = data_id.visitnum is not None
-        has_packet = data_id.packet is not None
+        # Add new format (with visitnum if present)
+        if visitor.log_name_prefix:
+            filenames.add(self.create_filename(visitor.log_name_prefix))
 
-        # If we have both visitnum and packet, try without packet
-        if has_visitnum and has_packet:
-            data_id_no_packet = data_id.model_copy(
-                update={"data": data_id.data.model_copy(update={"packet": None})}
-                if data_id.data
-                else {}
-            )
-            filename = self.instantiate_from_data_identification(data_id_no_packet)
-            if filename and filename not in filenames:
-                filenames.append(filename)
+        # Add legacy format (without visitnum)
+        if visitor.legacy_log_name_prefix:
+            filenames.add(self.create_filename(visitor.legacy_log_name_prefix))
 
-        # If we have visitnum, try without it
-        if has_visitnum:
-            data_id_no_visitnum = data_id.model_copy(
-                update={
-                    "visit": None
-                    if not data_id.visit
-                    else data_id.visit.model_copy(update={"visitnum": None})
-                }
-            )
-            filename = self.instantiate_from_data_identification(data_id_no_visitnum)
-            if filename and filename not in filenames:
-                filenames.append(filename)
-
-        # If we have packet, try without it
-        if has_packet and not has_visitnum:
-            data_id_no_packet = data_id.model_copy(
-                update={"data": data_id.data.model_copy(update={"packet": None})}
-                if data_id.data
-                else {}
-            )
-            filename = self.instantiate_from_data_identification(data_id_no_packet)
-            if filename and filename not in filenames:
-                filenames.append(filename)
-
-        # Legacy format (no visitnum, no packet) - should already be included above
-        # but add explicitly if somehow missing
-        if has_visitnum or has_packet:
-            data_id_legacy = data_id.model_copy(
-                update={
-                    "visit": None
-                    if not data_id.visit
-                    else data_id.visit.model_copy(update={"visitnum": None}),
-                    "data": data_id.data.model_copy(update={"packet": None})
-                    if data_id.data
-                    else None,
-                }
-            )
-            filename = self.instantiate_from_data_identification(data_id_legacy)
-            if filename and filename not in filenames:
-                filenames.append(filename)
-
-        return filenames
+        return list(filenames)
 
     def create_filename(self, visit_label: str) -> str:
         """Creates a log file name from this template by extending the visit-

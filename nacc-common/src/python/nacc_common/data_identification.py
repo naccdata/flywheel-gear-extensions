@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Any, Optional, Self
 
 from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
@@ -15,6 +16,35 @@ from pydantic import (
 )
 
 from nacc_common.field_names import FieldNames
+
+
+class AbstractIdentificationVisitor(ABC):
+    """Abstract visitor for traversing identification components."""
+
+    @abstractmethod
+    def visit_participant(self, participant: "ParticipantIdentification") -> None:
+        """Visit a ParticipantIdentification component."""
+        pass
+
+    @abstractmethod
+    def visit_visit(self, visit: "VisitIdentification") -> None:
+        """Visit a VisitIdentification component."""
+        pass
+
+    @abstractmethod
+    def visit_form(self, form: "FormIdentification") -> None:
+        """Visit a FormIdentification component."""
+        pass
+
+    @abstractmethod
+    def visit_image(self, image: "ImageIdentification") -> None:
+        """Visit an ImageIdentification component."""
+        pass
+
+    @abstractmethod
+    def visit_data_identification(self, data_id: "DataIdentification") -> None:
+        """Visit a DataIdentification component."""
+        pass
 
 
 class ParticipantIdentification(BaseModel):
@@ -44,6 +74,10 @@ class ParticipantIdentification(BaseModel):
             naccid=record.get(FieldNames.NACCID),
         )
 
+    def apply(self, visitor: AbstractIdentificationVisitor) -> None:
+        """Apply visitor to this participant identification."""
+        visitor.visit_participant(self)
+
 
 class VisitIdentification(BaseModel):
     """Identifies a specific visit.
@@ -68,6 +102,10 @@ class VisitIdentification(BaseModel):
         if visitnum == "" or visitnum is None:
             return None
         return cls(visitnum=visitnum)
+
+    def apply(self, visitor: AbstractIdentificationVisitor) -> None:
+        """Apply visitor to this visit identification."""
+        visitor.visit_visit(self)
 
 
 class FormIdentification(BaseModel):
@@ -131,6 +169,10 @@ class FormIdentification(BaseModel):
         """
         return v.upper() if v else v
 
+    def apply(self, visitor: AbstractIdentificationVisitor) -> None:
+        """Apply visitor to this form identification."""
+        visitor.visit_form(self)
+
 
 class ImageIdentification(BaseModel):
     """Identifies image-specific data.
@@ -139,6 +181,10 @@ class ImageIdentification(BaseModel):
     """
 
     modality: str  # Imaging modality (MR, CT, PET, etc.) - required
+
+    def apply(self, visitor: AbstractIdentificationVisitor) -> None:
+        """Apply visitor to this image identification."""
+        visitor.visit_image(self)
 
 
 class DataIdentification(BaseModel):
@@ -412,6 +458,14 @@ class DataIdentification(BaseModel):
             else:
                 result.append(fieldname)
         return result
+
+    def apply(self, visitor: AbstractIdentificationVisitor) -> None:
+        """Apply visitor to this data identification and all its components."""
+        visitor.visit_data_identification(self)
+        self.participant.apply(visitor)
+        if self.visit is not None:
+            self.visit.apply(visitor)
+        self.data.apply(visitor)
 
 
 class EmptyFieldError(Exception):
