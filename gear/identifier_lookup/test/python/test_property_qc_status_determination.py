@@ -34,14 +34,14 @@ def visit_data_strategy(draw):
                 min_size=1,
                 max_size=10,
                 alphabet=st.characters(
-                    whitelist_categories=("Lu", "Nd"), blacklist_characters="0"
+                    whitelist_categories=["Lu", "Nd"], blacklist_characters="0"
                 ),
             ).filter(lambda x: x and x.strip().lstrip("0")),
             # Or just uppercase letters (no digits)
             st.text(
                 min_size=1,
                 max_size=10,
-                alphabet=st.characters(whitelist_categories=("Lu",)),
+                alphabet=st.characters(whitelist_categories=["Lu"]),
             ),
         )
     )

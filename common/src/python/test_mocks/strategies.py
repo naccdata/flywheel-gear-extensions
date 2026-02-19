@@ -155,14 +155,14 @@ def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
                 min_size=1,
                 max_size=10,
                 alphabet=st.characters(
-                    whitelist_categories=("Nd", "Lu"), blacklist_characters="0"
+                    whitelist_categories=["Nd", "Lu"], blacklist_characters="0"
                 ),
             ).filter(lambda x: x and x.strip().lstrip("0") == x.strip()),
             # Or just uppercase letters (no digits, so no zero issues)
             st.text(
                 min_size=1,
                 max_size=10,
-                alphabet=st.characters(whitelist_categories=("Lu",)),
+                alphabet=st.characters(whitelist_categories=["Lu"]),
             ),
         )
     )
