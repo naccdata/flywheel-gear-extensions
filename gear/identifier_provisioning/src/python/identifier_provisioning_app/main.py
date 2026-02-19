@@ -24,7 +24,10 @@ from enrollment.enrollment_transfer import (
 )
 from error_logging.error_logger import (
     ErrorLogTemplate,
-    update_error_log_and_qc_metadata,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
@@ -85,23 +88,32 @@ def update_record_level_error_log(
     """
 
     if not errorlog_template:
-        errorlog_template = ErrorLogTemplate(
-            id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
-        )
+        errorlog_template = ErrorLogTemplate()
 
-    error_log_name = errorlog_template.instantiate(
-        module=DefaultValues.ENROLLMENT_MODULE, record=input_record
+    # Create DataIdentification from enrollment record
+    data_id = DataIdentification.from_visit_metadata(
+        ptid=input_record.get(FieldNames.PTID),
+        date=input_record.get(FieldNames.ENRLFRM_DATE),
+        module=DefaultValues.ENROLLMENT_MODULE,
+        naccid=input_record.get(FieldNames.NACCID),
+        adcid=input_record.get(FieldNames.ADCID),
     )
 
     status = "PASS" if qc_passed else "FAIL"
     if transfer and qc_passed:
         status = "IN REVIEW"
 
-    if not error_log_name or not update_error_log_and_qc_metadata(
-        error_log_name=error_log_name,
-        destination_prj=project,
+    # Use QCStatusLogManager to update QC log (handles both new and legacy formats)
+    qc_manager = QCStatusLogManager(
+        error_log_template=errorlog_template,
+        visit_annotator=FileVisitAnnotator(project),
+    )
+
+    if not qc_manager.update_qc_log(
+        visit_keys=data_id,
+        project=project,
         gear_name=gear_name,
-        state=status,
+        status=status,  # type: ignore[arg-type]
         errors=errors,
     ):
         raise GearExecutionError(
