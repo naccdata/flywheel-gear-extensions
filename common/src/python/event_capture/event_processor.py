@@ -336,21 +336,13 @@ class QCEventProcessor:
         Returns:
             QC status log file entry if found, None otherwise
         """
-        if not json_file.info:
-            return None
-
-        forms_json = json_file.info.get("forms", {}).get("json", {})
-        if not forms_json:
-            return None
-
-        module = forms_json.get("module")
-        if not module:
+        # Extract DataIdentification from JSON file metadata
+        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        if not data_id:
             return None
 
         # Generate expected QC log filename
-        qc_log_name = self._error_log_template.instantiate(
-            record=forms_json, module=module
-        )
+        qc_log_name = self._error_log_template.instantiate(data_id)
         if not qc_log_name:
             return None
 
