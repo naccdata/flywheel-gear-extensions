@@ -298,13 +298,11 @@ class DataIdentification(BaseModel):
 
         if isinstance(value, dict):
             visit = value.get("visit")
-            # If visit is a dict with visitnum=None, remove it
-            if isinstance(visit, dict) and visit.get("visitnum") is None:
+            # If visit is an object with visitnum=None, remove it
+            if (isinstance(visit, dict) and visit.get("visitnum") is None) or (
+                isinstance(visit, VisitIdentification) and visit.visitnum is None
+            ):
                 value = value.copy()  # Don't mutate the input
-                value["visit"] = None
-            # If visit is a VisitIdentification object
-            elif hasattr(visit, "visitnum") and visit.visitnum is None:
-                value = value.copy()
                 value["visit"] = None
 
         return handler(value)
