@@ -7,7 +7,10 @@ from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextI
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import (
     ErrorLogTemplate,
-    update_error_log_and_qc_metadata,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -74,9 +77,7 @@ class CSVTransformVisitor(CSVVisitor):
         self.__errorlog_template = (
             self.__module_configs.errorlog_template
             if self.__module_configs.errorlog_template
-            else ErrorLogTemplate(
-                id_field=FieldNames.PTID, date_field=self.__date_field
-            )
+            else ErrorLogTemplate()
         )
 
         self.__existing_visits: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(
@@ -405,22 +406,41 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
-        error_log_name = self.__errorlog_template.instantiate(
-            module=self.module, record=input_record
+        # Create DataIdentification from CSV record
+        # Note: Use visitor's module (self.module), not record's module,
+        # to ensure consistent QC log filenames even when record has wrong module
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=input_record.get(FieldNames.PTID),
+            date=input_record.get(self.__date_field),
+            module=self.module,  # Use visitor's module, not record's module
+            visitnum=input_record.get(FieldNames.VISITNUM),
+            packet=input_record.get(FieldNames.PACKET),
+            naccid=input_record.get(FieldNames.NACCID),
+            adcid=input_record.get(FieldNames.ADCID),
         )
-        if not error_log_name:
-            return None
+
+        # Use QCStatusLogManager to get filename
+        qc_manager = QCStatusLogManager(
+            error_log_template=self.__errorlog_template,
+            visit_annotator=FileVisitAnnotator(self.__project),
+        )
 
         if not update:
+            # When not updating, return the actual filename that exists or would be used
+            # This checks for both new and legacy formats
+            error_log_name = qc_manager.get_qc_log_filename(data_id, self.__project)
             return error_log_name
 
-        if not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self.__project,
+        # Update QC log (handles both new and legacy formats)
+        error_log_name = qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=self.__project,
             gear_name=self.__gear_name,
-            state="PASS" if qc_passed else "FAIL",
+            status="PASS" if qc_passed else "FAIL",
             errors=self.__error_writer.errors(),
-        ):
+        )
+
+        if not error_log_name:
             log.error(
                 "Failed to update error log for visit %s, %s",
                 input_record[FieldNames.PTID],
@@ -511,9 +531,25 @@ class CSVTransformVisitor(CSVVisitor):
             log.warning("Module not specified to update visit error log")
             return False
 
-        error_log_name = self.__errorlog_template.instantiate(
-            module=self.module, record=input_record
+        # Create DataIdentification from CSV record
+        # Note: Use visitor's module (self.module), not record's module
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=input_record.get(FieldNames.PTID),
+            date=input_record.get(self.__date_field),
+            module=self.module,  # Use visitor's module, not record's module
+            visitnum=input_record.get(FieldNames.VISITNUM),
+            packet=input_record.get(FieldNames.PACKET),
+            naccid=input_record.get(FieldNames.NACCID),
+            adcid=input_record.get(FieldNames.ADCID),
         )
+
+        # Use QCStatusLogManager to get the actual filename (checks both formats)
+        qc_manager = QCStatusLogManager(
+            error_log_template=self.__errorlog_template,
+            visit_annotator=FileVisitAnnotator(self.__project),
+        )
+
+        error_log_name = qc_manager.get_qc_log_filename(data_id, self.__project)
         if not error_log_name:
             return False
 
