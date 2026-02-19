@@ -104,8 +104,9 @@ class TestFileVisitAnnotatorDataIdentification:
 
     def test_annotate_qc_log_file_missing_required_fields(self):
         """Test annotation fails gracefully with missing required fields."""
-        # Arrange - ptid is now required, so we can't create DataIdentification without it
-        # Instead, test that validation error is raised when trying to create invalid data
+        # Arrange - ptid is now required, so we can't create
+        # DataIdentification without it. Test that validation error is raised
+        # when trying to create invalid data
         import pytest
         from pydantic import ValidationError
 

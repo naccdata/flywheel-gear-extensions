@@ -43,7 +43,8 @@ def assert_valid_qc_pass_event(
         f"Event datatype should be '{expected_datatype}', got {event.datatype}"
     )
     assert event.ptid == normalized_expected_ptid, (
-        f"Event PTID should be '{normalized_expected_ptid}' (normalized from '{expected_ptid}'), got {event.ptid}"
+        f"Event PTID should be '{normalized_expected_ptid}' "
+        f"(normalized from '{expected_ptid}'), got {event.ptid}"
     )
     assert event.visit_date == expected_visit_date, (
         f"Event visit_date should be '{expected_visit_date}', got {event.visit_date}"
@@ -145,7 +146,8 @@ def assert_visit_metadata_matches(
     normalized_expected_ptid = expected_ptid.strip().lstrip("0") or expected_ptid
 
     assert actual.ptid == normalized_expected_ptid, (
-        f"DataIdentification PTID should be '{normalized_expected_ptid}' (normalized from '{expected_ptid}'), got {actual.ptid}"
+        f"DataIdentification PTID should be '{normalized_expected_ptid}' "
+        f"(normalized from '{expected_ptid}'), got {actual.ptid}"
     )
     assert actual.date == expected_date, (
         f"DataIdentification date should be '{expected_date}', got {actual.date}"

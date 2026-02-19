@@ -60,7 +60,8 @@ def test_valid_visit_metadata_passes_validation(valid_metadata):
         Visit Metadata Validation**
       **Validates: Requirements 4.4, 4.5**
     """
-    # Create DataIdentification from valid data - Pydantic validation ensures required fields
+    # Create DataIdentification from valid data - Pydantic validation
+    # ensures required fields
     visit_metadata = DataIdentification.from_visit_metadata(**valid_metadata)
 
     # If creation succeeded, all required fields are present
@@ -120,11 +121,13 @@ def test_visit_metadata_validation_edge_cases():
     assert not whitespace_metadata.ptid  # Empty string is falsy
 
     # Test with None values (should raise ValidationError)
-    with pytest.raises(Exception):  # ValidationError from pydantic
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
         DataIdentification.from_visit_metadata(ptid=None, date=None, module=None)
 
     # Test with mixed valid/invalid (should raise ValidationError)
-    with pytest.raises(Exception):  # ValidationError from pydantic
+    with pytest.raises(ValidationError):
         DataIdentification.from_visit_metadata(ptid="110001", date=None, module="UDS")
 
     # Test with all required fields present (should succeed)

@@ -100,8 +100,6 @@ class TestErrorLogTemplateDataIdentification:
         import pytest
         from pydantic import ValidationError
 
-        template = ErrorLogTemplate()
-
         # Missing ptid - should raise ValidationError
         with pytest.raises(ValidationError) as exc_info:
             DataIdentification(
