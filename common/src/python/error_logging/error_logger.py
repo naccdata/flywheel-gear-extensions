@@ -6,6 +6,7 @@ from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, conv
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
 from nacc_common.field_names import FieldNames
 from pydantic import BaseModel, ValidationError
@@ -86,6 +87,147 @@ class ErrorLogTemplate(VisitLabelTemplate):
             return None
 
         return self.create_filename(prefix)
+
+    def instantiate_from_data_identification(
+        self, data_id: "DataIdentification"
+    ) -> Optional[str]:
+        """Generate QC log filename from DataIdentification.
+
+        Creates filename that reflects the DataIdentification structure:
+        - Includes visitnum if present
+        - Includes packet if present (forms only)
+        - Format: {ptid}[_{visitnum}]_{date}_{module}[_{packet}]_qc-status.log
+
+        Args:
+            data_id: DataIdentification with visit metadata
+
+        Returns:
+            QC log filename, or None if required fields are missing
+
+        Examples:
+            Form with visitnum and packet:
+                → 12345_001_2024-01-15_a1_i_qc-status.log
+            Form without visitnum (non-visit form):
+                → 12345_2024-01-15_np_i_qc-status.log
+            Old format (no visitnum, no packet):
+                → 12345_2024-01-15_a1_qc-status.log
+        """
+        # Validate required fields
+        if not data_id.ptid or not data_id.date or not data_id.module:
+            return None
+
+        # Clean and normalize ptid
+        cleaned_ptid = data_id.ptid.strip().lstrip("0")
+        if not cleaned_ptid:
+            return None
+
+        # Normalize date
+        normalized_date = convert_date(
+            date_string=data_id.date, date_format=DEFAULT_DATE_FORMAT
+        )
+        if not normalized_date:
+            return None
+
+        # Build filename components
+        components = [cleaned_ptid]
+
+        # Add visitnum if present
+        if data_id.visitnum:
+            components.append(data_id.visitnum)
+
+        # Add date and module
+        components.append(normalized_date)
+        components.append(data_id.module.lower())
+
+        # Add packet if present (forms only)
+        if data_id.packet:
+            components.append(data_id.packet.lower())
+
+        # Create visit label and filename
+        visit_label = "_".join(components)
+        return self.create_filename(visit_label)
+
+    def get_possible_filenames(self, data_id: "DataIdentification") -> list[str]:
+        """Get list of possible filenames for lookup (new and legacy formats).
+
+        Returns filenames in priority order:
+        1. New format with visitnum and packet (if present)
+        2. Format without packet (if packet was present)
+        3. Format without visitnum (if visitnum was present)
+        4. Legacy format (no visitnum, no packet)
+
+        This supports backward compatibility when looking up existing files.
+
+        Args:
+            data_id: DataIdentification with visit metadata
+
+        Returns:
+            List of possible filenames to try, in priority order
+        """
+        filenames = []
+
+        # Try new format first
+        new_format = self.instantiate_from_data_identification(data_id)
+        if new_format:
+            filenames.append(new_format)
+
+        # Generate fallback formats for backward compatibility
+        has_visitnum = data_id.visitnum is not None
+        has_packet = data_id.packet is not None
+
+        # If we have both visitnum and packet, try without packet
+        if has_visitnum and has_packet:
+            data_id_no_packet = data_id.model_copy(
+                update={"data": data_id.data.model_copy(update={"packet": None})}
+                if data_id.data
+                else {}
+            )
+            filename = self.instantiate_from_data_identification(data_id_no_packet)
+            if filename and filename not in filenames:
+                filenames.append(filename)
+
+        # If we have visitnum, try without it
+        if has_visitnum:
+            data_id_no_visitnum = data_id.model_copy(
+                update={
+                    "visit": None
+                    if not data_id.visit
+                    else data_id.visit.model_copy(update={"visitnum": None})
+                }
+            )
+            filename = self.instantiate_from_data_identification(data_id_no_visitnum)
+            if filename and filename not in filenames:
+                filenames.append(filename)
+
+        # If we have packet, try without it
+        if has_packet and not has_visitnum:
+            data_id_no_packet = data_id.model_copy(
+                update={"data": data_id.data.model_copy(update={"packet": None})}
+                if data_id.data
+                else {}
+            )
+            filename = self.instantiate_from_data_identification(data_id_no_packet)
+            if filename and filename not in filenames:
+                filenames.append(filename)
+
+        # Legacy format (no visitnum, no packet) - should already be included above
+        # but add explicitly if somehow missing
+        if has_visitnum or has_packet:
+            data_id_legacy = data_id.model_copy(
+                update={
+                    "visit": None
+                    if not data_id.visit
+                    else data_id.visit.model_copy(update={"visitnum": None}),
+                    "data": data_id.data.model_copy(update={"packet": None})
+                    if data_id.data
+                    else None,
+                }
+            )
+            filename = self.instantiate_from_data_identification(data_id_legacy)
+            if filename and filename not in filenames:
+                filenames.append(filename)
+
+        return filenames
 
     def create_filename(self, visit_label: str) -> str:
         """Creates a log file name from this template by extending the visit-
