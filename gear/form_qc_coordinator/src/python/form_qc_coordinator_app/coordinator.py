@@ -13,7 +13,10 @@ from configs.ingest_configs import (
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import (
     reset_error_log_metadata_for_gears,
-    update_error_log_and_qc_metadata,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
@@ -301,38 +304,42 @@ class QCCoordinator:
         Raises:
             GearExecutionError: If failed to update log file
         """
-        error_log_name = ErrorLogTemplate().instantiate(
-            record={
-                f"{FieldNames.PTID}": ptid,
-                f"{FieldNames.DATE_COLUMN}": visitdate,
-            },
+        # Create DataIdentification from visit information
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=ptid,
+            date=visitdate,
             module=module,
         )
 
-        if (
-            not error_log_name
-            or not self.__project
-            or not update_error_log_and_qc_metadata(
-                error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(
-                    project=self.__project, proxy=self.__proxy
-                ),
-                gear_name=gear_name,
-                state=status,
-                errors=errors,
-                reset_qc_metadata="GEAR",
-            )
-        ):
+        # Use QCStatusLogManager to update QC log (handles both new and legacy formats)
+        if not self.__project:
+            raise GearExecutionError("Project not available for updating error log")
+
+        project_adaptor = ProjectAdaptor(project=self.__project, proxy=self.__proxy)
+        qc_manager = QCStatusLogManager(
+            error_log_template=ErrorLogTemplate(),
+            visit_annotator=FileVisitAnnotator(project_adaptor),
+        )
+
+        error_log_name = qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=project_adaptor,
+            gear_name=gear_name,
+            status=status,  # type: ignore[arg-type]
+            errors=errors,
+            reset_qc_metadata="GEAR",
+        )
+
+        if not error_log_name:
             raise GearExecutionError(
                 f"Failed to update error log for visit {ptid}, {visitdate}"
             )
 
         if reset_gears:
+            # Use the error log name from the update
             reset_error_log_metadata_for_gears(
                 error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(
-                    project=self.__project, proxy=self.__proxy
-                ),
+                destination_prj=project_adaptor,
                 gear_names=reset_gears,
             )
 
