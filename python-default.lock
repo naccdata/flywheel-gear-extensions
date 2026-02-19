@@ -32,7 +32,7 @@
 //     "pyyaml>=6.0.1",
 //     "ratelimit-types>=0.0.1",
 //     "ratelimit>=2.2.1",
-//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.2/redcap_api-0.1.2-py3-none-any.whl",
+//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl",
 //     "requests-oauthlib>=2.0.0",
 //     "requests>=2.18.4",
 //     "setuptools>=68.3.0",
@@ -2715,8 +2715,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "6f849198912fa006e3761677179491ecb9499c4f6b701a986e45cf2883db082d",
-              "url": "https://github.com/naccdata/redcap-api/releases/download/v0.1.2/redcap_api-0.1.2-py3-none-any.whl"
+              "hash": "0632db71cb577238ef6b57cd3ba7a3e6dad1b37a010988d6c96421d6110c7402",
+              "url": "https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl"
             }
           ],
           "project_name": "redcap-api",
@@ -2726,7 +2726,7 @@
             "requests>=2.18.4"
           ],
           "requires_python": "==3.12.*",
-          "version": "0.1.2"
+          "version": "0.1.4"
         },
         {
           "artifacts": [
@@ -3380,7 +3380,7 @@
     "pyyaml>=6.0.1",
     "ratelimit-types>=0.0.1",
     "ratelimit>=2.2.1",
-    "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.2/redcap_api-0.1.2-py3-none-any.whl",
+    "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl",
     "requests-oauthlib>=2.0.0",
     "requests>=2.18.4",
     "setuptools>=68.3.0",
