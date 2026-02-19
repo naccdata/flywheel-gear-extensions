@@ -83,7 +83,6 @@ def test_qc_status_log_matching_success(
     )
 
     # Generate expected QC status log filename using ErrorLogTemplate format
-    # Format: {ptid}_{date}_{module}_qc-status.log
     module = forms_metadata["module"]
     ptid = forms_metadata["ptid"].strip().lstrip("0")
     # ErrorLogTemplate returns None if ptid becomes empty after cleaning
@@ -105,7 +104,24 @@ def test_qc_status_log_matching_success(
         assert result is None
         return
 
-    expected_qc_log_name = f"{ptid}_{normalized_date}_{module.lower()}_qc-status.log"
+    # Build filename based on what fields are present (new format)
+    # Format: {ptid}[_{visitnum}]_{date}_{module}[_{packet}]_qc-status.log
+    filename_parts = [ptid]
+
+    # Add visitnum if present
+    visitnum = forms_metadata.get("visitnum")
+    if visitnum:
+        filename_parts.append(visitnum)
+
+    filename_parts.append(normalized_date)
+    filename_parts.append(module.lower())
+
+    # Add packet if present
+    packet = forms_metadata.get("packet")
+    if packet:
+        filename_parts.append(packet.lower())
+
+    expected_qc_log_name = "_".join(filename_parts) + "_qc-status.log"
 
     # Create corresponding QC status log file and add to project
     qc_log_file = create_mock_file_entry(expected_qc_log_name)
