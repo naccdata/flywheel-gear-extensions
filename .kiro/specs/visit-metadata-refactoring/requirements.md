@@ -154,14 +154,13 @@ This document specifies requirements for refactoring the visit metadata architec
 
 1. WHEN creating a new QC log file, THE ErrorLogTemplate SHALL generate a filename that includes all non-None fields from DataIdentification in a consistent order
 2. THE filename SHALL include fields in this order: ptid, visitnum (if present), date, module, then any datatype-specific fields (if present)
-3. THE ErrorLogTemplate SHALL NOT hardcode datatype-specific logic (e.g., checking for "form" vs "image")
-4. THE ErrorLogTemplate SHALL determine which fields to include by inspecting the DataIdentification structure
-5. THE ErrorLogTemplate SHALL provide an `instantiate_from_data_identification` method that accepts DataIdentification and returns the filename string with all non-None fields
-6. THE ErrorLogTemplate SHALL provide a `get_possible_filenames` method that returns a list of possible filename variations by progressively removing optional fields
-7. WHEN looking up existing QC log files, THE system SHALL try multiple filename formats in priority order (most complete first, legacy format last)
+3. THE ErrorLogTemplate SHALL use a visitor pattern to traverse DataIdentification structure
+4. THE ErrorLogTemplate SHALL determine which fields to include by visiting the DataIdentification components
+5. THE ErrorLogTemplate SHALL provide an `instantiate()` method that accepts DataIdentification and returns the filename string with all non-None fields
+6. THE ErrorLogTemplate SHALL provide an `instantiate_legacy()` method that returns a filename without visitnum/packet for backward compatibility
+7. WHEN looking up existing QC log files, THE system SHALL try new format first, then legacy format
 8. THE system SHALL be able to discover and work with files created using old filename formats (with fewer fields)
-9. THE legacy `instantiate` method SHALL remain unchanged for backward compatibility with existing code
-10. WHEN an old-format file is discovered and DataIdentification has additional non-None fields, THE system MAY rename the file to the new format to improve discoverability
+9. THE legacy behavior SHALL be preserved through the visitor pattern implementation
 
 ### Requirement 12: QC Status Log Manager Integration
 
@@ -169,10 +168,11 @@ This document specifies requirements for refactoring the visit metadata architec
 
 #### Acceptance Criteria
 
-1. WHEN QCStatusLogManager creates a QC log file, THE system SHALL use `instantiate_from_data_identification` to generate the filename
-2. WHEN QCStatusLogManager looks up existing QC log files, THE system SHALL use `get_possible_filenames` to try multiple filename formats
-3. WHEN looking up files, THE system SHALL try filenames in priority order and return the first match found
+1. WHEN QCStatusLogManager creates a QC log file, THE system SHALL use `instantiate()` to generate the filename
+2. WHEN QCStatusLogManager looks up existing QC log files, THE system SHALL use `get_qc_log_filename()` to try both new and legacy formats
+3. WHEN looking up files, THE system SHALL try new format first, then legacy format, and return the first match found
 4. THE QCStatusLogManager SHALL continue to work with legacy filenames that lack visitnum or packet fields
+5. THE QCStatusLogManager SHALL return the filename on success for downstream use
 
 ### Requirement 13: Event Processing Integration
 
@@ -180,8 +180,8 @@ This document specifies requirements for refactoring the visit metadata architec
 
 #### Acceptance Criteria
 
-1. WHEN EventAccumulator in form_scheduler generates QC log filenames, THE system SHALL use `instantiate_from_data_identification`
-2. WHEN EventAccumulator looks up existing QC log files, THE system SHALL use `get_possible_filenames` for backward compatibility
-3. WHEN EventProcessor in event_capture generates QC log filenames, THE system SHALL use `instantiate_from_data_identification`
-4. WHEN EventProcessor looks up existing QC log files, THE system SHALL use `get_possible_filenames` for backward compatibility
+1. WHEN EventAccumulator in form_scheduler generates QC log filenames, THE system SHALL use `instantiate()`
+2. WHEN EventAccumulator looks up existing QC log files, THE system SHALL handle both new and legacy formats
+3. WHEN EventProcessor in event_capture generates QC log filenames, THE system SHALL use `instantiate()`
+4. WHEN EventProcessor looks up existing QC log files, THE system SHALL handle both new and legacy formats
 5. THE event processing components SHALL handle both new and legacy filename formats transparently

@@ -231,152 +231,140 @@ If future datatypes add new identification fields to DataIdentification, those f
 
 ### ErrorLogTemplate Methods
 
-#### instantiate_from_data_identification()
+#### instantiate()
 
-Generates filename directly from DataIdentification using the template's field order:
+Generates filename directly from DataIdentification using a visitor pattern:
 
 ```python
-def instantiate_from_data_identification(
+def instantiate(
     self, 
     data_id: DataIdentification
 ) -> Optional[str]:
     """Generate QC log filename from DataIdentification.
     
-    Iterates through field_order, extracts non-None values from data_id,
-    and builds filename with fields in template-defined order.
+    Uses ErrorLogIdentificationVisitor to extract fields and build filename.
     Returns None if required fields are missing.
     """
 ```
 
 **Behavior:**
-- Iterates through `field_order` list to determine field sequence
-- For each field in field_order, extracts value from data_id (if present and non-None)
-- Validates that all `required_fields` are present
+- Uses visitor pattern to traverse DataIdentification structure
+- Visitor extracts non-None values from participant, visit, and data components
 - Normalizes field values (lowercase, leading zeros for visitnum)
 - Builds filename by joining extracted fields with underscores
-- Works for any datatype because it only includes fields that exist in data_id
+- Works for any datatype because visitor handles different identification types
 
-**Algorithm:**
+**Implementation:**
 ```python
-components = []
-for field_name in self.field_order:
-    value = extract_field_from_data_id(data_id, field_name)
-    if value is not None:
-        components.append(normalize(value))
-filename = "_".join(components) + f"_{self.suffix}.{self.extension}"
+visitor = ErrorLogIdentificationVisitor()
+data_id.accept(visitor)
+prefix = visitor.log_name_prefix()
+if prefix:
+    return self.create_filename(prefix)
+return None
 ```
 
-#### get_possible_filenames()
+#### instantiate_legacy()
 
-Returns list of possible filenames for lookup by generating variations:
+Generates legacy format filename (without visitnum/packet) for backward compatibility:
 
 ```python
-def get_possible_filenames(
+def instantiate_legacy(
     self, 
     data_id: DataIdentification
-) -> list[str]:
-    """Get all possible filename variations for backward compatibility.
+) -> Optional[str]:
+    """Generate legacy format QC log filename from DataIdentification.
     
-    Generates variations by systematically removing optional fields
-    (fields not in required_fields list) from the data_id.
-    Returns filenames in priority order (most complete first).
+    Uses ErrorLogIdentificationVisitor to extract fields but excludes
+    visitnum and packet for backward compatibility with old filenames.
+    Returns None if required fields are missing.
     """
 ```
 
 **Behavior:**
-- Generates filename variations by creating modified data_id objects with optional fields set to None
-- Uses `field_order` and `required_fields` to determine which fields are optional
-- Returns list in priority order (most complete first, legacy format last)
-- Deduplicates filenames
-- Works for any datatype because it operates on the template's field definitions
-
-**Algorithm:**
-```python
-variations = []
-optional_fields = [f for f in field_order if f not in required_fields]
-
-# Generate all combinations of optional fields (present/absent)
-for field_combination in powerset(optional_fields):
-    modified_data_id = data_id.copy()
-    for field in optional_fields:
-        if field not in field_combination:
-            set_field_to_none(modified_data_id, field)
-    filename = instantiate_from_data_identification(modified_data_id)
-    if filename:
-        variations.append(filename)
-
-return deduplicate(variations)
-```
+- Uses same visitor pattern as `instantiate()`
+- Calls `visitor.legacy_log_name_prefix()` instead of `log_name_prefix()`
+- Excludes visitnum and packet fields
+- Returns legacy format: `{ptid}_{date}_{module}_qc-status.log`
 
 ### Design Approach
 
-The filename generation uses a **template-based approach** that is datatype-agnostic:
+The filename generation uses a **visitor pattern** that is datatype-agnostic:
 
-**Template Structure:**
+**Visitor Pattern:**
 
-The ErrorLogTemplate defines the field order for filenames:
+The `ErrorLogIdentificationVisitor` traverses the DataIdentification structure:
 ```python
-class ErrorLogTemplate(VisitLabelTemplate):
-    # Field order for filename generation
-    field_order: List[str] = ["ptid", "visitnum", "date", "module", "packet"]
-    required_fields: List[str] = ["ptid", "date", "module"]
+class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
+    def visit_participant(self, participant: ParticipantIdentification) -> None:
+        # Extract ptid
+        
+    def visit_visit(self, visit: VisitIdentification) -> None:
+        # Extract visitnum
+        
+    def visit_form(self, form: FormIdentification) -> None:
+        # Extract module and packet
+        
+    def visit_image(self, image: ImageIdentification) -> None:
+        # Extract modality (as module)
 ```
 
 **How It Works:**
 
-1. **Template defines order** - The `field_order` list specifies the exact order fields appear in filenames
-2. **Extract available fields** - The method extracts field values from DataIdentification by iterating through `field_order`
-3. **Include non-None fields** - Only fields that are non-None in the DataIdentification are included
-4. **Consistent ordering** - Because we iterate through a fixed list, the order is always consistent
-5. **Extensible** - New datatypes can add fields to the template without changing the core logic
+1. **Visitor traverses structure** - DataIdentification.accept() calls visitor methods
+2. **Extract available fields** - Each visit method extracts relevant fields
+3. **Include non-None fields** - Only fields that are non-None are included
+4. **Build prefix** - Visitor assembles fields in correct order
+5. **Extensible** - New datatypes add new visit methods without changing core logic
 
-**Field Categories:**
-- **Common fields** (all datatypes): ptid, date, module
-- **Visit-related fields** (visit-based data): visitnum
-- **Datatype-specific fields** (varies by datatype): 
-  - Forms: packet
-  - Images: (none currently)
-  - Future datatypes: add to field_order list
+**Field Order:**
+- `ptid` (from participant)
+- `visitnum` (from visit, if present)
+- `date` (from data_id)
+- `module` (from form or image)
+- `packet` (from form, if present)
 
 **Example:**
 ```python
 # Form data with all fields
 data_id = DataIdentification(ptid="12345", visitnum="001", date="2024-01-15", 
                               module="a1", packet="i")
-# Iterates field_order: ["ptid", "visitnum", "date", "module", "packet"]
-# All present → "12345_001_2024-01-15_a1_i_qc-status.log"
+visitor = ErrorLogIdentificationVisitor()
+data_id.accept(visitor)
+# visitor.log_name_prefix() → "12345_001_2024-01-15_a1_i"
+# Result: "12345_001_2024-01-15_a1_i_qc-status.log"
 
 # Image data (no packet field)
 data_id = DataIdentification(ptid="12345", visitnum=None, date="2024-01-20", 
                               module="mr", packet=None)
-# Iterates field_order: ["ptid", "visitnum", "date", "module", "packet"]
-# Only ptid, date, module present → "12345_2024-01-20_mr_qc-status.log"
+visitor = ErrorLogIdentificationVisitor()
+data_id.accept(visitor)
+# visitor.log_name_prefix() → "12345_2024-01-20_mr"
+# Result: "12345_2024-01-20_mr_qc-status.log"
 ```
 
-The implementation determines field presence by checking the DataIdentification structure, not by checking datatype labels.
+The implementation determines field presence by visiting the DataIdentification structure, not by checking datatype labels.
 
 ### Backward Compatibility Strategy
 
 **For file creation:**
-- Use `instantiate_from_data_identification()` to generate new format
-- New files include all available fields
+- Use `instantiate()` to generate new format
+- New files include all available fields (visitnum, packet when present)
 
 **For file lookup:**
-- Use `get_possible_filenames()` to try multiple formats
-- Try new format first, fall back to legacy formats
+- `QCStatusLogManager.get_qc_log_filename()` tries both formats
+- Try new format first with `instantiate()`
+- Fall back to legacy format with `instantiate_legacy()`
 - Existing files with legacy names are still found
-
-**Legacy method preserved:**
-- `instantiate(record: Dict[str, Any], module: str)` remains unchanged
-- Existing code using legacy method continues to work
 
 ### Integration Points
 
-The new methods need to be integrated into:
+The new methods have been integrated into:
 
-1. **QCStatusLogManager** - Update to use `instantiate_from_data_identification()` for file creation and `get_possible_filenames()` for file lookup
-2. **EventAccumulator** (form_scheduler) - Update to use new methods for QC log filename generation and lookup
-3. **EventProcessor** (event_capture) - Update to use new methods for QC log filename generation and lookup
+1. **QCStatusLogManager** - Uses `instantiate()` for file creation and `get_qc_log_filename()` for file lookup (tries both new and legacy formats)
+2. **EventAccumulator** (form_scheduler) - Uses `instantiate()` for QC log filename generation
+3. **EventProcessor** (event_capture) - Uses `instantiate()` for QC log filename generation
+4. **All gears** - Migrated to use `QCStatusLogManager` for centralized QC log operations
 
 ### Benefits
 
@@ -412,18 +400,20 @@ Stored in file.info.visit or used for VisitEvent
 ```
 DataIdentification
   ↓
-ErrorLogTemplate.instantiate_from_data_identification(data_id)
+ErrorLogTemplate.instantiate(data_id)
+  ↓
+ErrorLogIdentificationVisitor traverses structure
   ↓
 QC log filename: {ptid}[_{visitnum}]_{date}_{module}[_{packet}]_qc-status.log
 
 For file lookup (backward compatibility):
-ErrorLogTemplate.get_possible_filenames(data_id)
+QCStatusLogManager.get_qc_log_filename(data_id, project)
   ↓
-List of possible filenames in priority order:
-  1. New format with all fields
-  2. Format without packet
-  3. Format without visitnum
-  4. Legacy format
+Try ErrorLogTemplate.instantiate(data_id) → check if file exists
+  ↓
+Try ErrorLogTemplate.instantiate_legacy(data_id) → check if file exists
+  ↓
+Return new format filename (what would be created)
 ```
 
 ### Event Capture
@@ -457,17 +447,20 @@ JSON event file
 - ✅ Updated VisitEvent to use DataIdentification
 - ✅ Implemented flat serialization for backward compatibility
 - ✅ Added enhanced QC filename methods to ErrorLogTemplate
-- ✅ Implemented `instantiate_from_data_identification()` method
-- ✅ Implemented `get_possible_filenames()` method for backward compatibility
+- ✅ Implemented `instantiate()` method using visitor pattern
+- ✅ Implemented `instantiate_legacy()` method for backward compatibility
+- ✅ Implemented `ErrorLogIdentificationVisitor` for datatype-agnostic filename generation
 
-### Phase 2: QC Filename Integration (In Progress)
+### Phase 2: QC Filename Integration (Completed)
 
-- [ ] Update QCStatusLogManager to use `instantiate_from_data_identification()`
-- [ ] Update QCStatusLogManager file lookup to use `get_possible_filenames()`
-- [ ] Update EventAccumulator in form_scheduler to use new methods
-- [ ] Update EventProcessor in event_capture to use new methods
-- [ ] Run integration tests to verify backward compatibility with legacy filenames
-- [ ] Verify new filenames include visitnum and packet when available
+- ✅ Updated QCStatusLogManager to use `instantiate()` for file creation
+- ✅ Updated QCStatusLogManager.get_qc_log_filename() to try both new and legacy formats
+- ✅ Updated EventAccumulator in form_scheduler to use `instantiate()`
+- ✅ Updated EventProcessor in event_capture to use `instantiate()`
+- ✅ Migrated all gears to use QCStatusLogManager
+- ✅ Verified backward compatibility with legacy filenames
+- ✅ Verified new filenames include visitnum and packet when available
+- ✅ Removed unused `id_field` and `date_field` parameters from ErrorLogTemplate initializations
 
 ### Phase 3: Internal Migration (Future)
 
