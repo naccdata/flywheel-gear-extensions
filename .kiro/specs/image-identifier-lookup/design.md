@@ -1,5 +1,22 @@
 # Design Document: Image Identifier Lookup Gear
 
+## Status Update: Infrastructure Ready
+
+The refactor/visit-metadata branch has been merged, providing the complete metadata architecture needed for this gear:
+
+✅ **Available Infrastructure:**
+- `DataIdentification` with `ImageIdentification` for image metadata
+- QCStatusLogManager, ErrorLogTemplate, FileVisitAnnotator updated for DataIdentification
+- VisitEvent and VisitEventCapture support image datatypes
+- Visitor pattern for datatype-agnostic QC log filename generation
+- All shared utilities ready for image processing
+
+**Implementation Focus:**
+- DICOM metadata extraction (PatientID, StudyDate, Modality, and comprehensive metadata fields)
+- Identifier lookup orchestration
+- Early data extraction and fail-fast validation
+- Integration with existing QC logging and event capture (required)
+
 ## 1. Overview
 
 The Image Identifier Lookup gear performs NACCID lookups for DICOM images uploaded to the NACC Data Platform. The gear operates on a single image file as input, performing one lookup per file execution.
@@ -52,6 +69,7 @@ This gear shares architectural patterns and reuses components from the `identifi
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │ 4. Subject Metadata Update                               │  │
 │  │    - Store NACCID in subject.info                        │  │
+│  │    - Store extracted DICOM metadata in subject.info      │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                           ↓                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -61,7 +79,7 @@ This gear shares architectural patterns and reuses components from the `identifi
 │  └──────────────────────────────────────────────────────────┘  │
 │                           ↓                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 6. Event Capture                                          │  │
+│  │ 6. Event Capture (Required)                              │  │
 │  │    - Log submission event to S3 transaction log          │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                           ↓                                      │
@@ -114,15 +132,17 @@ This gear shares architectural patterns and reuses components from the `identifi
                            │ uses
                            ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ImageVisitMetadata                            │
-│                    (extends VisitKeys)                           │
+│                    DataIdentification                            │
+│            (from nacc_common.data_identification)                │
 ├─────────────────────────────────────────────────────────────────┤
-│  + ptid: str                                                     │
+│  + participant: ParticipantIdentification                        │
+│    - adcid: int                                                  │
+│    - ptid: str                                                   │
+│    - naccid: Optional[str]                                       │
 │  + date: str                                                     │
-│  + modality: str                                                 │
-│  + adcid: Optional[int]                                         │
-│  + naccid: Optional[str]                                        │
-│  + module: str = "image"  # Fixed value for images              │
+│  + visit: Optional[VisitIdentification]                          │
+│  + data: ImageIdentification                                     │
+│    - modality: str                                               │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -134,46 +154,50 @@ This gear shares architectural patterns and reuses components from the `identifi
 │  - VisitEventCapture (from event_capture/)                      │
 │  - ProjectAdaptor, SubjectAdaptor (from flywheel_adaptor/)      │
 │  - ErrorLogTemplate (from error_logging/)                       │
+│  - DataIdentification, ImageIdentification (from nacc_common/)  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 3. Data Models
 
-### 3.1 ImageVisitMetadata
+### 3.1 DataIdentification with ImageIdentification (✅ Implemented in refactor/visit-metadata)
 
-A new datatype-specific metadata class extending the base `VisitKeys` model:
+The gear uses the refactored `DataIdentification` architecture from `nacc_common.data_identification`:
 
 ```python
-class ImageVisitMetadata(VisitKeys):
-    """Visit metadata specific to image datatypes.
-    
-    Extends VisitKeys with image-specific fields while maintaining
-    compatibility with the generalized metadata architecture.
-    
-    For images, modality serves the same role as module does for forms:
-    - Forms use module: "uds", "ivp", "tvp", etc.
-    - Images use modality: "MR", "CT", "PET", etc.
-    """
-    modality: str  # DICOM Modality tag (0008,0060) - e.g., "MR", "CT", "PET"
-    
-    # Inherited from VisitKeys:
-    # - ptid: Optional[str]
-    # - date: Optional[str]  # From AcquisitionDate or StudyDate
-    # - adcid: Optional[int]
-    # - naccid: Optional[str]
-    # - module: Optional[str]  # Set to modality value for images
-    # - visitnum: Optional[str]  # Not used for images
+# From nacc-common/src/python/nacc_common/data_identification.py
+
+class ImageIdentification(BaseModel):
+    """Identifies image-specific data."""
+    modality: str  # Imaging modality (MR, CT, PET, etc.) - required
+
+class DataIdentification(BaseModel):
+    """Base class for all data identification using composition."""
+    participant: ParticipantIdentification  # adcid, ptid, naccid
+    date: str  # Visit date or acquisition date
+    visit: Optional[VisitIdentification] = None  # visitnum (if applicable)
+    data: FormIdentification | ImageIdentification  # Datatype-specific fields
 ```
 
-**Design Rationale:**
+**For images, create DataIdentification like this:**
 
-- Extends `VisitKeys` to maintain compatibility with existing utilities
-- For images, `module` field is set to the `modality` value (MR, CT, PET, etc.)
-  - This parallels how forms use module (uds, ivp, tvp)
-  - Modality is the natural categorization for imaging data
-- Adds explicit `modality` field for clarity and type safety
-- Does NOT include form-specific fields like `packet`
-- Allows future extension for other datatypes (e.g., `GenomicVisitMetadata`, `BiospecimenVisitMetadata`)
+```python
+data_id = DataIdentification.from_visit_metadata(
+    adcid=pipeline_adcid,
+    ptid=ptid,
+    naccid=naccid,
+    date=acquisition_date,  # From DICOM AcquisitionDate/StudyDate
+    modality=modality,  # From DICOM Modality tag
+    visitnum=None  # Images typically don't have visit numbers
+)
+```
+
+**Key Features:**
+- Composition pattern separates participant, visit, and datatype-specific data
+- `ImageIdentification` contains only image-specific fields (modality)
+- Flat serialization for backward compatibility with existing storage
+- Visitor pattern support for datatype-agnostic operations (QC log filenames, etc.)
+- Works seamlessly with QCStatusLogManager, FileVisitAnnotator, VisitEventCapture
 
 ### 3.2 ProcessResult
 
@@ -186,7 +210,7 @@ class ProcessResult:
     success: bool
     ptid: str
     naccid: Optional[str]
-    visit_metadata: ImageVisitMetadata
+    data_identification: DataIdentification  # Uses refactored architecture
     errors: List[FileError]
     skipped: bool = False  # True if NACCID already exists with correct value
 ```
@@ -249,12 +273,13 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
            - Pipeline ADCID from project metadata
            - PTID from subject.label or DICOM PatientID tag
            - Existing NACCID from subject.info (if present)
-           - Visit metadata from DICOM (date, modality)
+           - Visit metadata from DICOM (StudyDate, modality)
+           - Comprehensive DICOM metadata for storage
         3. Check idempotency: if NACCID already exists, skip to step 6
         4. Perform NACCID lookup using IdentifiersLambdaRepository
-        5. Update subject metadata with NACCID
+        5. Update subject metadata with NACCID and DICOM metadata
         6. Update QC status log
-        7. Capture submission event
+        7. Capture submission event (required)
         8. Update file QC metadata and tags
         """
 ```
@@ -322,7 +347,7 @@ class ImageIdentifierLookupProcessor:
     def _update_subject_metadata(self, naccid: str) -> None:
         """Store NACCID in subject.info using configured field name.
         
-        Uses SubjectAdaptor.update_info()
+        Uses SubjectAdaptor.update() to update subject.info
         
         Raises:
             UpdateError: If metadata update fails
@@ -345,6 +370,9 @@ class ImageIdentifierLookupProcessor:
 def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
     """Extract pipeline ADCID from project metadata.
     
+    Uses ProjectAdaptor.get_pipeline_adcid() which handles fallback
+    from "pipeline_adcid" to "adcid" in project.info.
+    
     Args:
         project: Project adaptor
         
@@ -352,16 +380,9 @@ def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
         Pipeline ADCID as integer
         
     Raises:
-        ValueError: If ADCID missing or invalid format
+        ProjectError: If ADCID missing from project metadata
     """
-    adcid = project.get_metadata_value("pipeline_adcid")
-    if not adcid:
-        raise ValueError("Pipeline ADCID not found in project metadata")
-    
-    try:
-        return int(adcid)
-    except (ValueError, TypeError) as error:
-        raise ValueError(f"Invalid pipeline ADCID format: {adcid}") from error
+    return project.get_pipeline_adcid()
 
 
 def extract_ptid(
@@ -413,7 +434,7 @@ def extract_existing_naccid(
     Returns:
         Existing NACCID if present, None otherwise
     """
-    return subject.get_info_value(naccid_field_name)
+    return subject.info.get(naccid_field_name)
 
 
 def extract_visit_metadata(
@@ -422,7 +443,7 @@ def extract_visit_metadata(
     adcid: int,
     naccid: Optional[str],
     default_modality: str
-) -> ImageVisitMetadata:
+) -> DataIdentification:
     """Extract visit metadata from DICOM file.
     
     Args:
@@ -433,20 +454,18 @@ def extract_visit_metadata(
         default_modality: Default modality if DICOM tag missing
         
     Returns:
-        ImageVisitMetadata instance
+        DataIdentification instance with ImageIdentification
         
     Raises:
-        ValueError: If required fields (date) are missing
+        ValueError: If required fields (StudyDate) are missing
         InvalidDicomError: If file is not valid DICOM
     """
-    # Extract date (required)
-    date = read_dicom_tag(file_path, (0x0008, 0x0022))  # AcquisitionDate
-    if not date:
-        date = read_dicom_tag(file_path, (0x0008, 0x0020))  # StudyDate fallback
+    # Extract date (required) - StudyDate is canonical per DICOM standard
+    date = read_dicom_tag(file_path, (0x0008, 0x0020))  # StudyDate (required field)
     
     if not date:
         raise ValueError(
-            "Visit date not found: both AcquisitionDate and StudyDate are missing"
+            "Visit date not found: StudyDate (0008,0020) is missing (required DICOM field)"
         )
     
     # Extract modality (use default if missing)
@@ -454,14 +473,51 @@ def extract_visit_metadata(
     if not modality:
         modality = default_modality
     
-    return ImageVisitMetadata(
+    return DataIdentification.from_visit_metadata(
         ptid=ptid,
         date=format_dicom_date(date),  # Convert YYYYMMDD to YYYY-MM-DD
         modality=modality,
-        module=modality,  # For images, module = modality
         adcid=adcid,
-        naccid=naccid
+        naccid=naccid,
+        visitnum=None  # Images typically don't have visit numbers
     )
+
+
+def extract_dicom_metadata(file_path: Path) -> dict[str, Any]:
+    """Extract comprehensive DICOM metadata for storage.
+    
+    Extracts identifier and descriptive fields for tracking and reference.
+    
+    Args:
+        file_path: Path to DICOM file
+        
+    Returns:
+        Dictionary of DICOM metadata fields (None for missing optional fields)
+        
+    Raises:
+        InvalidDicomError: If file is not valid DICOM
+    """
+    metadata = {}
+    
+    # Identifier fields
+    metadata['patient_id'] = read_dicom_tag(file_path, (0x0010, 0x0020))  # PatientID
+    metadata['study_instance_uid'] = read_dicom_tag(file_path, (0x0020, 0x000D))  # StudyInstanceUID
+    metadata['series_instance_uid'] = read_dicom_tag(file_path, (0x0020, 0x000E))  # SeriesInstanceUID
+    metadata['series_number'] = read_dicom_tag(file_path, (0x0020, 0x0011))  # SeriesNumber
+    
+    # Date fields
+    metadata['study_date'] = read_dicom_tag(file_path, (0x0008, 0x0020))  # StudyDate
+    metadata['series_date'] = read_dicom_tag(file_path, (0x0008, 0x0021))  # SeriesDate
+    
+    # Descriptive fields
+    metadata['modality'] = read_dicom_tag(file_path, (0x0008, 0x0060))  # Modality
+    metadata['magnetic_field_strength'] = read_dicom_tag(file_path, (0x0018, 0x0087))  # MagneticFieldStrength
+    metadata['manufacturer'] = read_dicom_tag(file_path, (0x0008, 0x0070))  # Manufacturer
+    metadata['manufacturer_model_name'] = read_dicom_tag(file_path, (0x0008, 0x1090))  # ManufacturerModelName
+    metadata['series_description'] = read_dicom_tag(file_path, (0x0008, 0x103E))  # SeriesDescription
+    metadata['images_in_acquisition'] = read_dicom_tag(file_path, (0x0020, 0x1002))  # ImagesInAcquisition
+    
+    return metadata
 ```
 
 **Helper Functions:**
@@ -529,16 +585,31 @@ modality = read_dicom_tag(file_path, (0x0008, 0x0060))  # Modality
 
 **DICOM Tags Used:**
 
-- `(0010,0020)` - PatientID: Patient identifier
-- `(0008,0022)` - AcquisitionDate: Date image was acquired (YYYYMMDD)
-- `(0008,0020)` - StudyDate: Date of study (YYYYMMDD) - fallback for date
+**Identifier Tags:**
+- `(0010,0020)` - PatientID: Patient identifier (PTID source)
+- `(0020,000D)` - StudyInstanceUID: Unique study identifier
+- `(0020,000E)` - SeriesInstanceUID: Unique series identifier
+- `(0020,0011)` - SeriesNumber: Series number within study
+
+**Date Tags:**
+- `(0008,0020)` - StudyDate: Date of study (YYYYMMDD) - **canonical date per DICOM standard (required field)**
+- `(0008,0021)` - SeriesDate: Date of series (YYYYMMDD) - optional
+
+**Descriptive Tags:**
 - `(0008,0060)` - Modality: Type of equipment (MR, CT, PET, etc.)
+- `(0018,0087)` - MagneticFieldStrength: Field strength for MR
+- `(0008,0070)` - Manufacturer: Equipment manufacturer
+- `(0008,1090)` - ManufacturerModelName: Equipment model
+- `(0008,103E)` - SeriesDescription: Description of series
+- `(0020,1002)` - ImagesInAcquisition: Number of images in acquisition
+
+**Note:** StudyDate is used as the canonical date because it is a required field in the DICOM standard. All other date fields (like AcquisitionDate, SeriesDate) are optional and should not be used as the primary date source.
 
 ### 4.5 QC Status Logging
 
 **Integration with Existing Infrastructure:**
 
-The gear reuses the existing QC status logging infrastructure from `common/src/python/error_logging/`:
+The gear reuses the existing QC status logging infrastructure from `common/src/python/error_logging/`, which has been updated to work with `DataIdentification`:
 
 ```python
 # Initialization (in create method)
@@ -550,11 +621,10 @@ qc_log_manager = QCStatusLogManager(
 )
 
 # Usage (after processing)
-visit_keys = ImageVisitMetadata(
+data_id = DataIdentification.from_visit_metadata(
     ptid=result.ptid,
-    date=result.visit_metadata.date,
-    modality=result.visit_metadata.modality,
-    module=result.visit_metadata.modality,  # module = modality for images
+    date=result.data_identification.date,
+    modality=result.data_identification.data.modality,  # ImageIdentification.modality
     adcid=pipeline_adcid,
     naccid=result.naccid
 )
@@ -562,7 +632,7 @@ visit_keys = ImageVisitMetadata(
 status = QC_STATUS_PASS if result.success else QC_STATUS_FAIL
 
 qc_log_manager.update_qc_log(
-    visit_keys=visit_keys,
+    visit_keys=data_id,  # Accepts DataIdentification
     project=project,
     gear_name=gear_name,
     status=status,
@@ -573,23 +643,24 @@ qc_log_manager.update_qc_log(
 
 **QC Log Filename Format:**
 
-The `ErrorLogTemplate` generates filenames based on the visit keys using the pattern:
+The `ErrorLogTemplate` uses the visitor pattern to generate filenames from `DataIdentification`:
 
-- Pattern: `{ptid}_{date}_{module}_qc-status.log`
-- For images: `module` is set to the modality value (MR, CT, PET, etc.)
-- Example: `110001_2024-01-15_MR_qc-status.log`
-- For comparison, form QC logs use: `110001_2024-01-15_uds_qc-status.log`
+- Pattern: `{ptid}[_{visitnum}]_{date}_{modality}_qc-status.log`
+- For images (no visitnum): `{ptid}_{date}_{modality}_qc-status.log`
+- Example: `110001_2024-01-15_mr_qc-status.log`
+- For comparison, form QC logs: `110001_001_2024-01-15_a1_i_qc-status.log`
 
-**Note on Module Field:** For images, modality serves the same role as module does for forms:
-- Forms categorize by module: "uds", "ivp", "tvp", etc.
-- Images categorize by modality: "MR", "CT", "PET", etc.
-- This provides natural categorization and makes QC log filenames descriptive
+**Key Changes from Original Design:**
+- Uses `DataIdentification` instead of `ImageVisitMetadata`
+- Modality is accessed via `data_id.data.modality` (ImageIdentification component)
+- Filename generation uses visitor pattern (datatype-agnostic)
+- No need to set `module=modality` - handled by composition
 
 ### 4.6 Event Capture
 
 **Integration with Existing Infrastructure:**
 
-The gear reuses the existing event capture infrastructure from `common/src/python/event_capture/`. Event capture is required for all image processing.
+The gear reuses the existing event capture infrastructure from `common/src/python/event_capture/`, which has been updated to use `DataIdentification`. Event capture is required for all image processing.
 
 ```python
 # Initialization (in create method - required)
@@ -614,19 +685,33 @@ except ClientError as error:
     ) from error
 
 # Usage (after successful processing)
+
+# Extract comprehensive DICOM metadata for storage
+dicom_metadata = extract_dicom_metadata(file_path)
+
+# Store DICOM metadata in subject.info
+subject.update({
+    'dicom_metadata': dicom_metadata,
+    naccid_field_name: result.naccid
+})
+
+# Create DataIdentification for event capture
+data_id = DataIdentification.from_visit_metadata(
+    ptid=result.ptid,
+    date=result.data_identification.date,
+    modality=result.data_identification.data.modality,
+    adcid=pipeline_adcid,
+    naccid=result.naccid
+)
+
 visit_event = VisitEvent(
     action=ACTION_SUBMIT,
     study="adrc",
-    pipeline_adcid=pipeline_adcid,
     project_label=project.label,
     center_label=project.center_label,
     gear_name=gear_name,
-    ptid=result.ptid,
-    visit_date=result.visit_metadata.date,  # From AcquisitionDate/StudyDate
-    visit_number=None,  # Not applicable for images
-    datatype="image",
-    module=None,  # Images don't have form modules
-    packet=None,  # Not applicable for images
+    data_identification=data_id,
+    datatype="dicom",  # Use "dicom" for image datatypes
     timestamp=datetime.now()
 )
 
@@ -645,12 +730,13 @@ The `VisitEventCapture` generates filenames:
 - Pattern: `{env}/log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json`
 - Example: `prod/log-submit-20240115-100000-42-imaging-project-110001-2024-01-15.json`
 
-**Key Differences from Form Events:**
+**Key Changes from Original Design:**
 
-- `datatype="image"` instead of `"form"`
-- `module=None` (no form module for images)
-- `packet=None` (not applicable to images)
-- `visit_number=None` (typically not used for imaging visits)
+- Uses `DataIdentification` with `ImageIdentification` component
+- VisitEvent accepts `data_identification` parameter (composition pattern)
+- Datatype is "dicom" for images (not "image")
+- No need to manually set module/packet - handled by composition
+- Event serialization flattens DataIdentification for backward compatibility
 
 ## 5. Error Handling
 
@@ -663,12 +749,12 @@ The `VisitEventCapture` generates filenames:
 - Pipeline ADCID missing from project metadata
 - Pipeline ADCID invalid format
 - PTID missing from both subject.label and DICOM PatientID tag
-- Visit date missing from both AcquisitionDate and StudyDate tags
+- Visit date (StudyDate) missing from DICOM file
 
 **2. Configuration Errors (Fail Early):**
 
 - Invalid database mode configuration
-- Missing event capture configuration (event_environment or event_bucket)
+- Missing event capture configuration (event_environment or event_bucket) - REQUIRED
 - S3 bucket not accessible during initialization
 
 **3. Lookup Errors:**
@@ -701,8 +787,8 @@ class ErrorHandler:
     def __init__(self, error_writer: ListErrorWriter):
         self.__error_writer = error_writer
         
-    def handle_ptid_extraction_error(self, error: Exception) -> FileError:
-        """Handle errors during PTID extraction."""
+    def create_ptid_extraction_error(self, error: Exception) -> FileError:
+        """Create FileError for PTID extraction failures."""
         return FileError(
             error_type="error",
             error_code="PTID_EXTRACTION_FAILED",
@@ -710,8 +796,8 @@ class ErrorHandler:
             timestamp=datetime.now().isoformat()
         )
         
-    def handle_lookup_error(self, ptid: str, adcid: int, error: Exception) -> FileError:
-        """Handle identifier lookup errors."""
+    def create_lookup_error(self, ptid: str, adcid: int, error: Exception) -> FileError:
+        """Create FileError for identifier lookup failures."""
         return FileError(
             error_type="error",
             error_code="NACCID_LOOKUP_FAILED",
@@ -720,8 +806,8 @@ class ErrorHandler:
             timestamp=datetime.now().isoformat()
         )
         
-    def handle_metadata_conflict(self, ptid: str, existing: str, new: str) -> FileError:
-        """Handle NACCID conflict in subject metadata."""
+    def create_metadata_conflict_error(self, ptid: str, existing: str, new: str) -> FileError:
+        """Create FileError for NACCID conflicts in subject metadata."""
         return FileError(
             error_type="error",
             error_code="NACCID_CONFLICT",
@@ -768,8 +854,8 @@ After extracting existing NACCID from subject.info, the gear checks if processin
 - File is not a valid DICOM file
 - Pipeline ADCID missing or invalid format
 - PTID extraction fails (both sources empty)
-- Visit date missing (both DICOM tags empty)
-- Event capture not configured (missing event_environment or event_bucket)
+- Visit date (StudyDate) missing from DICOM file (required DICOM field)
+- Event capture not configured (missing event_environment or event_bucket) - REQUIRED
 - S3 bucket not accessible during initialization
 - Identifier lookup fails (no matching record)
 - NACCID conflict (existing value differs from lookup result)
@@ -861,15 +947,15 @@ After extracting existing NACCID from subject.info, the gear checks if processin
    - `IdentifierRepository`: Abstract interface
    - `model.py`: PTID patterns and validation
 
-2. **error_logging/** - QC status logging
+2. **error_logging/** - QC status logging (✅ Updated for DataIdentification)
    - `QCStatusLogManager`: Manage QC status logs
    - `FileVisitAnnotator`: Add visit metadata to log files
-   - `ErrorLogTemplate`: Generate QC log filenames
+   - `ErrorLogTemplate`: Generate QC log filenames using visitor pattern
    - `error_logger.py`: Update error logs and QC metadata
 
-3. **event_capture/** - Event logging
+3. **event_capture/** - Event logging (✅ Updated for DataIdentification)
    - `VisitEventCapture`: Capture events to S3
-   - `visit_events.py`: VisitEvent model
+   - `visit_events.py`: VisitEvent model with DataIdentification support
 
 4. **flywheel_adaptor/** - Flywheel API interactions
    - `ProjectAdaptor`: Project operations and metadata
@@ -884,10 +970,16 @@ After extracting existing NACCID from subject.info, the gear checks if processin
 6. **s3/** - S3 operations
    - `S3BucketInterface`: S3 bucket operations for event storage
 
-**From `nacc-common/src/python/nacc_common/`:**
+**From `nacc-common/src/python/nacc_common/` (✅ Refactored Architecture):**
 
-1. **error_models.py**
-   - `VisitKeys`: Base visit identification model
+1. **data_identification.py**
+   - `DataIdentification`: Base class using composition pattern
+   - `ParticipantIdentification`: Participant and center identification
+   - `VisitIdentification`: Visit number identification
+   - `ImageIdentification`: Image-specific data (modality)
+   - `AbstractIdentificationVisitor`: Visitor pattern interface
+
+2. **error_models.py**
    - `FileError`, `FileErrorList`: Error models
    - `QCStatus`: QC status literals
    - `GearTags`: Gear tagging utilities
@@ -896,93 +988,68 @@ After extracting existing NACCID from subject.info, the gear checks if processin
 
 **In `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/`:**
 
-1. **models.py**
-   - `ImageVisitMetadata`: Image-specific visit metadata (extends VisitKeys)
-   - `ProcessResult`: Internal result object (may be simplified or removed)
-
-2. **extraction.py**
+1. **extraction.py**
    - `extract_pipeline_adcid()`: Extract ADCID from project metadata
    - `extract_ptid()`: Extract PTID from subject or DICOM
    - `extract_existing_naccid()`: Extract existing NACCID from subject.info
-   - `extract_visit_metadata()`: Extract visit metadata from DICOM
+   - `extract_visit_metadata()`: Extract visit metadata from DICOM and create DataIdentification
    - `format_dicom_date()`: Convert DICOM date to ISO format
 
-3. **dicom_utils.py**
+2. **dicom_utils.py**
    - `read_dicom_tag()`: Read DICOM tag value from file
    - `InvalidDicomError`: Custom exception for DICOM errors
 
-4. **processor.py**
+3. **processor.py**
    - `ImageIdentifierLookupProcessor`: Simplified business logic
    - Receives pre-extracted data, performs lookup and update
 
-5. **run.py**
+4. **run.py**
    - `ImageIdentifierLookupVisitor`: Gear execution visitor
    - Main entry point and orchestration
    - Performs early extraction and fail-fast validation
 
-6. **main.py**
+5. **main.py**
    - `run()`: Main execution function
    - High-level workflow coordination
 
-### 7.3 Potential Refactoring Opportunities
+6. **models.py** (optional)
+   - `ProcessResult`: Internal result object if needed for complex state tracking
 
-**1. Generalize VisitMetadata Architecture**
+### 7.3 Refactoring Status (✅ COMPLETED)
 
-Current state: `VisitMetadata` in nacc-common includes `packet` field (form-specific)
+**Visit Metadata Architecture Refactoring**
 
-Proposed refactoring:
+The visit metadata architecture has been successfully refactored in the merged refactor/visit-metadata branch:
 
-```python
-# In nacc-common/src/python/nacc_common/error_models.py
+✅ **Completed Changes:**
 
-class VisitKeys(BaseModel):
-    """Base visit identification fields common to all datatypes."""
-    adcid: Optional[int] = None
-    ptid: Optional[str] = None
-    visitnum: Optional[str] = None
-    module: Optional[str] = None
-    date: Optional[str] = None
-    naccid: Optional[str] = None
+1. **DataIdentification with Composition Pattern**
+   - Replaced flat `VisitKeys`/`VisitMetadata` with composition-based `DataIdentification`
+   - Component classes: `ParticipantIdentification`, `VisitIdentification`, `FormIdentification`, `ImageIdentification`
+   - Visitor pattern for datatype-agnostic operations
 
-class VisitMetadata(VisitKeys):
-    """Extended visit metadata for form datatypes.
-    
-    Includes packet field specific to forms.
-    """
-    packet: Optional[str] = None
+2. **Image Support**
+   - `ImageIdentification` class with modality field
+   - No form-specific fields (packet) in image metadata
+   - Seamless integration with QCStatusLogManager, FileVisitAnnotator, VisitEventCapture
 
-class ImageVisitMetadata(VisitKeys):
-    """Extended visit metadata for image datatypes.
-    
-    Includes modality field specific to images.
-    """
-    modality: str
-    module: str = "image"  # Fixed value for images
-```
+3. **Enhanced QC Log Filenames**
+   - Visitor pattern generates filenames: `{ptid}[_{visitnum}]_{date}_{modality}_qc-status.log`
+   - Backward compatible with legacy filenames
+   - Works for any datatype through visitor pattern
 
-**Benefits:**
+4. **Event Capture Updates**
+   - VisitEvent uses `data_identification: DataIdentification`
+   - Supports "dicom" datatype for images
+   - Flat serialization for backward compatibility
 
-- Cleaner separation of datatype-specific fields
-- Easier to add new datatypes (genomic, biospecimen, etc.)
-- Maintains backward compatibility with existing form-based code
+**Benefits Realized:**
 
-**Impact:**
-
-- No changes needed to existing form processing code
-- `VisitMetadata` remains unchanged for forms
-- New `ImageVisitMetadata` for images
-
-**2. Enhance ErrorLogTemplate for Multiple Datatypes**
-
-Current state: `ErrorLogTemplate` expects form-specific fields
-
-Potential enhancement:
-
-- Make template more flexible to handle different datatypes
-- Use datatype-specific filename patterns
-- Example: `{ptid}_{date}_{datatype}_{module}_qc.json`
-
-**Decision:** Keep existing template for now, use `module="image"` as workaround. Consider enhancement in future if more datatypes are added.
+- Clean separation of datatype-specific fields
+- Easy to add new datatypes (genomic, biospecimen, etc.)
+- Full backward compatibility with existing form processing code
+- Datatype-agnostic utilities through visitor pattern
+- No need for workarounds like `module="image"`
 
 ## 8. Testing Strategy
 
@@ -1016,11 +1083,17 @@ Potential enhancement:
    - Error when update fails
 
 5. **Visit Metadata Tests** (`test_visit_metadata.py`)
-   - Extract from AcquisitionDate (primary)
-   - Fallback to StudyDate
+   - Extract StudyDate (canonical date per DICOM standard)
    - Extract modality from DICOM tag
    - Use default modality when tag missing
    - Format DICOM date (YYYYMMDD) to ISO format (YYYY-MM-DD)
+   - Fail when StudyDate is missing (required field)
+
+6. **DICOM Metadata Extraction Tests** (`test_dicom_metadata.py`)
+   - Extract all identifier fields (PatientID, StudyInstanceUID, SeriesInstanceUID, SeriesNumber)
+   - Extract all descriptive fields (MagneticFieldStrength, Manufacturer, etc.)
+   - Handle missing optional tags gracefully (store None/null)
+   - Store metadata in subject.info
 
 6. **QC Status Logging Tests** (`test_qc_logging.py`)
    - Create QC status log on success
@@ -1092,11 +1165,11 @@ Potential enhancement:
    - Gear fails immediately during extraction
    - No lookup attempted
 
-7. **Fail Fast - Missing Visit Date**
-   - DICOM AcquisitionDate tag is missing
-   - DICOM StudyDate tag is missing
+7. **Fail Fast - Missing Visit Date (StudyDate)**
+   - DICOM StudyDate tag is missing (required DICOM field)
    - Gear fails immediately during extraction
    - No lookup attempted
+   - Clear error message provided
 
 ### 8.3 Property-Based Tests
 
@@ -1327,7 +1400,24 @@ log.error(f"Failed to update subject metadata: {error}")
 
 ## 13. Future Enhancements
 
-### 13.1 Batch Processing
+### 13.1 DICOM PatientID Replacement (Out of Scope for This Gear)
+
+**Status:** OUT OF SCOPE for this gear - should be handled later in the pipeline
+
+**Rationale:**
+- This gear focuses on identifier lookup and metadata storage
+- PatientID replacement is a data transformation that should occur after validation
+- Separating concerns allows for better control over when de-identification occurs
+- A dedicated de-identification gear can handle this along with other PHI removal tasks
+
+**Future Implementation Notes:**
+- Consider creating a separate DICOM de-identification gear
+- Should run after QC validation and before data acceptance
+- Should preserve original files and create de-identified copies
+- Should maintain audit trail of transformations
+- Should handle all PHI fields, not just PatientID
+
+### 13.2 Batch Processing
 
 **Current:** One file per gear execution
 
@@ -1337,19 +1427,18 @@ log.error(f"Failed to update subject metadata: {error}")
 - Parallel processing for efficiency
 - Aggregate QC reporting
 
-### 13.2 Additional DICOM Metadata
+### 13.3 Additional DICOM Metadata
 
-**Current:** Extract PatientID, AcquisitionDate, StudyDate, Modality
+**Current:** Extract PatientID, StudyDate, Modality, plus comprehensive metadata (StudyInstanceUID, SeriesInstanceUID, SeriesNumber, MagneticFieldStrength, Manufacturer, ManufacturerModelName, SeriesDescription, ImagesInAcquisition)
 
-**Future:** Extract and store additional metadata
+**Future:** Extract and store additional metadata for advanced use cases
 
 - StudyDescription
-- SeriesDescription
 - ProtocolName
-- Scanner manufacturer and model
 - Image dimensions and resolution
+- Additional scanner-specific parameters
 
-### 13.3 Image Quality Checks
+### 13.4 Image Quality Checks
 
 **Current:** Only identifier lookup
 
@@ -1360,7 +1449,7 @@ log.error(f"Failed to update subject metadata: {error}")
 - Check for corruption
 - Verify modality-specific requirements
 
-### 13.4 Multi-Center Support
+### 13.5 Multi-Center Support
 
 **Current:** Single center per project (pipeline ADCID)
 
@@ -1370,23 +1459,22 @@ log.error(f"Failed to update subject metadata: {error}")
 - Map to ADCID dynamically
 - Support center-specific configurations
 
-### 13.5 Generalized Metadata Architecture
+### 13.6 Generalized Metadata Architecture (✅ COMPLETED)
 
-**Current:** ImageVisitMetadata extends VisitKeys
+**Status:** This has been completed in the refactor/visit-metadata branch (merged)
 
-**Future:** Formalize datatype-specific metadata hierarchy
+**Implementation:**
+- `DataIdentification` with composition pattern (replaces VisitKeys/VisitMetadata)
+- Component classes: `ParticipantIdentification`, `VisitIdentification`
+- Datatype-specific components: `FormIdentification` (packet), `ImageIdentification` (modality)
+- Visitor pattern for datatype-agnostic operations
+- Full backward compatibility with existing code
 
-- Base VisitMetadata with common fields
-- FormVisitMetadata with packet
-- ImageVisitMetadata with modality
-- GenomicVisitMetadata with assay type
-- BiospecimenVisitMetadata with sample type
-
-**Benefits:**
-
+**Benefits Realized:**
 - Consistent metadata structure across datatypes
-- Easier to add new datatypes
-- Shared utilities work polymorphically
+- Easy to add new datatypes (genomic, biospecimen, etc.)
+- Shared utilities work polymorphically via visitor pattern
+- Clean separation of concerns
 
 ## 14. Implementation Plan
 
@@ -1455,12 +1543,32 @@ The implementation will be considered complete when:
 
 ### 16.1 DICOM Tag Reference
 
+**Identifier Tags:**
+
 | Tag | Name | Description | Usage |
 |-----|------|-------------|-------|
 | (0010,0020) | PatientID | Patient identifier | PTID extraction (fallback) |
-| (0008,0022) | AcquisitionDate | Date image acquired | Visit date (primary) |
-| (0008,0020) | StudyDate | Date of study | Visit date (fallback) |
-| (0008,0060) | Modality | Equipment type | Visit metadata |
+| (0020,000D) | StudyInstanceUID | Unique study identifier | Metadata storage |
+| (0020,000E) | SeriesInstanceUID | Unique series identifier | Metadata storage |
+| (0020,0011) | SeriesNumber | Series number within study | Metadata storage |
+
+**Date Tags:**
+
+| Tag | Name | Description | Usage |
+|-----|------|-------------|-------|
+| (0008,0020) | StudyDate | Date of study (YYYYMMDD) | Visit date (canonical - required DICOM field) |
+| (0008,0021) | SeriesDate | Date of series (YYYYMMDD) | Metadata storage (optional) |
+
+**Descriptive Tags:**
+
+| Tag | Name | Description | Usage |
+|-----|------|-------------|-------|
+| (0008,0060) | Modality | Equipment type (MR, CT, PET, etc.) | Visit metadata |
+| (0018,0087) | MagneticFieldStrength | Field strength for MR | Metadata storage |
+| (0008,0070) | Manufacturer | Equipment manufacturer | Metadata storage |
+| (0008,1090) | ManufacturerModelName | Equipment model | Metadata storage |
+| (0008,103E) | SeriesDescription | Description of series | Metadata storage |
+| (0020,1002) | ImagesInAcquisition | Number of images | Metadata storage |
 
 ### 16.2 Error Codes
 
@@ -1472,7 +1580,7 @@ The implementation will be considered complete when:
 | NACCID_CONFLICT | NACCID mismatch in subject metadata | ERROR | Investigate data inconsistency |
 | METADATA_UPDATE_FAILED | Failed to update subject metadata | ERROR | Check Flywheel API permissions |
 | INVALID_DICOM | File is not a valid DICOM file | ERROR | Verify input file format |
-| MISSING_DATE | AcquisitionDate and StudyDate both missing | ERROR | Check DICOM file completeness |
+| MISSING_DATE | StudyDate is missing (required DICOM field) | ERROR | Check DICOM file completeness |
 
 ### 16.3 Glossary
 
@@ -1482,9 +1590,11 @@ The implementation will be considered complete when:
 - **PTID**: Participant Identifier
 - **QC**: Quality Control
 - **Modality**: Type of imaging equipment (MR, CT, PET, etc.)
-- **AcquisitionDate**: Date when the image was acquired
-- **StudyDate**: Date of the imaging study
-- **PatientID**: DICOM tag containing patient identifier
+- **StudyDate**: Date of the imaging study (DICOM tag 0008,0020) - canonical date field, required in DICOM standard
+- **PatientID**: DICOM tag (0010,0020) containing patient identifier
+- **StudyInstanceUID**: Unique identifier for a DICOM study
+- **SeriesInstanceUID**: Unique identifier for a DICOM series
+- **SeriesNumber**: Series number within a study
 
 ### 16.4 References
 

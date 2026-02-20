@@ -1,5 +1,25 @@
 # Requirements Document
 
+## Status Update: Merged refactor/visit-metadata Branch
+
+**Important:** The refactor/visit-metadata branch has been merged, which completed significant infrastructure work that this spec depends on:
+
+✅ **Completed Infrastructure (Available for Use):**
+- `DataIdentification` architecture with composition pattern (replaces legacy VisitKeys/VisitMetadata)
+- `ImageIdentification` class for image-specific metadata (modality field)
+- `ParticipantIdentification`, `VisitIdentification` component classes
+- Visitor pattern for datatype-agnostic operations
+- QCStatusLogManager updated to work with DataIdentification
+- ErrorLogTemplate using visitor pattern for filename generation
+- VisitEvent updated to use DataIdentification with composition
+- Enhanced QC log filenames: `{ptid}[_{visitnum}]_{date}_{modality}_qc-status.log`
+
+**Impact on This Spec:**
+- Requirement 10 (Generalized Metadata Architecture) is fully satisfied
+- No need to create ImageVisitMetadata class - use DataIdentification with ImageIdentification
+- QC logging and event capture infrastructure ready for image datatypes
+- Focus implementation on DICOM extraction, identifier lookup, and gear orchestration
+
 ## Introduction
 
 This specification defines the Image Identifier Lookup gear, which performs NACCID lookups for DICOM images uploaded to the NACC Data Platform. The gear runs on a single image file as input, performing one lookup per file (the file is the unit of data). The gear uses the PatientID DICOM tag (stored in subject.label) to look up the corresponding NACCID and store it in subject metadata. The gear creates QC status logs for tracking and uses transactional event capture to log submission events.
@@ -23,9 +43,11 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 - **Visit_Event**: Event object representing the image submission activity
 - **Event_Capture**: Shared utility for logging events to S3 transaction log
 - **Identifiers_Repository**: Service for looking up identifier mappings (PTID/ADCID to NACCID)
-- **AcquisitionDate**: DICOM tag (0008,0022) containing the date the image was acquired
+- **StudyDate**: DICOM tag (0008,0020) containing the date of the study - canonical date field (required in DICOM standard)
+- **StudyInstanceUID**: DICOM tag (0020,000D) - unique identifier for the study
+- **SeriesInstanceUID**: DICOM tag (0020,000E) - unique identifier for the series
+- **SeriesNumber**: DICOM tag (0020,0011) - series number within the study
 - **Modality**: DICOM tag (0008,0060) describing the imaging modality (e.g., MR, CT, PET)
-- **ImageVisitMetadata**: Base metadata class for image visit information, extending from a generalized visit metadata structure
 - **pydicom**: Python package for reading and parsing DICOM files
 
 ## Requirements
@@ -79,40 +101,50 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 3. WHEN the NACCID field already exists in subject.info with the same value, THE Image_Identifier_Lookup_Gear SHALL skip the update and mark the operation as successful
 4. WHEN the NACCID field already exists in subject.info with a different value, THE Image_Identifier_Lookup_Gear SHALL record an error and fail the QC check
 5. WHEN updating subject metadata fails due to API errors, THE Image_Identifier_Lookup_Gear SHALL record an error and fail the QC check
+6. WHEN the NACCID lookup succeeds, THE Image_Identifier_Lookup_Gear SHALL store extracted DICOM metadata in subject.info for reference and tracking
+7. WHEN storing DICOM metadata, THE Image_Identifier_Lookup_Gear SHALL include: StudyInstanceUID, SeriesInstanceUID, SeriesNumber, MagneticFieldStrength, Manufacturer, ManufacturerModelName, SeriesDescription, ImagesInAcquisition, StudyDate, Modality
 
 ### Requirement 5: QC Status Log Creation
 
 **User Story:** As a data platform administrator, I want a QC status log to be created for the lookup operation, so that I can track the success or failure of the identifier lookup.
 
+**Note:** QCStatusLogManager and ErrorLogTemplate have been updated to use DataIdentification and support image datatypes via the visitor pattern.
+
 #### Acceptance Criteria
 
 1. WHEN processing the input image file, THE Image_Identifier_Lookup_Gear SHALL create a QC status log file at the project level
-2. WHEN creating the QC status log filename, THE Image_Identifier_Lookup_Gear SHALL use a naming pattern with PTID, AcquisitionDate, and modality (e.g., "{PTID}_{AcquisitionDate}_{modality}_qc.json")
+2. WHEN creating the QC status log filename, THE ErrorLogTemplate SHALL use the visitor pattern to generate filenames with format: `{ptid}[_{visitnum}]_{date}_{modality}_qc-status.log`
 3. WHEN the identifier lookup succeeds, THE Image_Identifier_Lookup_Gear SHALL update the QC status log with PASS status
 4. WHEN the identifier lookup fails, THE Image_Identifier_Lookup_Gear SHALL update the QC status log with FAIL status and error details
 5. WHEN QC status log creation fails, THE Image_Identifier_Lookup_Gear SHALL log the error but continue processing
-6. WHEN updating the QC status log, THE Image_Identifier_Lookup_Gear SHALL use the QCStatusLogManager with appropriate ImageVisitMetadata
-7. WHEN creating the initial QC status log, THE Image_Identifier_Lookup_Gear SHALL add visit metadata to the log file using FileVisitAnnotator with ImageVisitMetadata structure
+6. WHEN updating the QC status log, THE Image_Identifier_Lookup_Gear SHALL use QCStatusLogManager with DataIdentification containing ImageIdentification
+7. WHEN creating the initial QC status log, THE Image_Identifier_Lookup_Gear SHALL add visit metadata to the log file using FileVisitAnnotator with DataIdentification structure
 
 ### Requirement 6: Visit Metadata Extraction
 
 **User Story:** As a data platform administrator, I want visit information to be extracted from the DICOM metadata, so that QC logs and events can be properly associated with imaging visits.
 
+**Note:** The metadata architecture (DataIdentification with ImageIdentification) has been implemented in the refactor/visit-metadata branch. This requirement focuses on extracting DICOM-specific data to populate that structure.
+
 #### Acceptance Criteria
 
 1. WHEN extracting visit information, THE Image_Identifier_Lookup_Gear SHALL use PTID from subject.label or DICOM PatientID tag (0010,0020)
-2. WHEN extracting visit date, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate tag (0008,0022) as the primary source
-3. WHEN AcquisitionDate is not available, THE Image_Identifier_Lookup_Gear SHALL use the DICOM StudyDate tag (0008,0020) as a fallback
-4. WHEN neither AcquisitionDate nor StudyDate is available, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
-5. WHEN extracting modality information, THE Image_Identifier_Lookup_Gear SHALL use the DICOM Modality tag (0008,0060) from the image metadata
-6. WHEN Modality tag is not available, THE Image_Identifier_Lookup_Gear SHALL use a configurable default modality from gear configuration
-7. WHEN no modality is configured and the DICOM tag is missing, THE Image_Identifier_Lookup_Gear SHALL use "UNKNOWN" as the default modality
-8. WHEN visit information is incomplete (missing PTID or date), THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
-9. WHEN creating visit metadata structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata class that extends from a base visit metadata class to support future datatype extensions
+2. WHEN extracting visit date, THE Image_Identifier_Lookup_Gear SHALL use the DICOM StudyDate tag (0008,0020) as the canonical date source (required field in DICOM standard)
+3. WHEN StudyDate is not available, THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
+4. WHEN extracting modality information, THE Image_Identifier_Lookup_Gear SHALL use the DICOM Modality tag (0008,0060) from the image metadata
+5. WHEN Modality tag is not available, THE Image_Identifier_Lookup_Gear SHALL use a configurable default modality from gear configuration
+6. WHEN no modality is configured and the DICOM tag is missing, THE Image_Identifier_Lookup_Gear SHALL use "UNKNOWN" as the default modality
+7. WHEN visit information is incomplete (missing PTID or date), THE Image_Identifier_Lookup_Gear SHALL fail with an appropriate error message
+8. WHEN creating DataIdentification structures, THE Image_Identifier_Lookup_Gear SHALL use ImageIdentification for the data component with the extracted modality
+9. WHEN extracting DICOM metadata, THE Image_Identifier_Lookup_Gear SHALL extract and store the following identifier fields: PatientID (0010,0020), StudyInstanceUID (0020,000D), SeriesInstanceUID (0020,000E), SeriesNumber (0020,0011)
+10. WHEN extracting DICOM metadata, THE Image_Identifier_Lookup_Gear SHALL extract and store the following descriptive fields: MagneticFieldStrength (0018,0087), Manufacturer (0008,0070), ManufacturerModelName (0008,1090), SeriesDescription (0008,103E), ImagesInAcquisition (0020,1002)
+11. WHEN any optional DICOM tag is missing, THE Image_Identifier_Lookup_Gear SHALL continue processing and store None/null for that field
 
 ### Requirement 7: Transactional Event Capture
 
 **User Story:** As a data platform administrator, I want a submission event to be logged for the image, so that I can track when the image was processed through the identifier lookup workflow.
+
+**Note:** VisitEvent has been updated to use DataIdentification with composition pattern and supports image datatypes.
 
 #### Acceptance Criteria
 
@@ -121,11 +153,11 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 3. WHEN the S3 bucket for event capture is not accessible, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
 4. WHEN the Image_Identifier_Lookup_Gear processes the input image file, THE Image_Identifier_Lookup_Gear SHALL create a submission event using VisitEventCapture
 5. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL use the DICOM AcquisitionDate (or StudyDate as fallback) as the event timestamp
-6. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and ImageVisitMetadata (PTID, date, modality)
-7. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL set the action to "submit" and datatype to "image"
+6. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL populate the event with center label, project label, gear name, and DataIdentification with ImageIdentification (PTID, date, modality)
+7. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL set the action to "submit" and datatype to "dicom"
 8. WHEN creating the submission event, THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields such as packet (not applicable to images)
 9. WHEN event capture fails during processing, THE Image_Identifier_Lookup_Gear SHALL log the error but not fail the entire operation
-10. WHEN creating event structures, THE Image_Identifier_Lookup_Gear SHALL use ImageVisitMetadata that extends from a base visit metadata class to ensure compatibility with the generalized event capture system
+10. WHEN creating event structures, THE Image_Identifier_Lookup_Gear SHALL use DataIdentification with ImageIdentification component to ensure compatibility with the generalized event capture system
 
 ### Requirement 8: Error Handling and Reporting
 
@@ -153,19 +185,26 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 6. THE Image_Identifier_Lookup_Gear SHALL accept an "admin_group" configuration parameter for the NACC admin group ID (default: "nacc")
 7. WHEN either event_environment or event_bucket is missing, THE Image_Identifier_Lookup_Gear SHALL fail during initialization with an appropriate error message
 
-### Requirement 10: Generalized Metadata Architecture
+### Requirement 10: Generalized Metadata Architecture (✅ COMPLETED in refactor/visit-metadata)
 
 **User Story:** As a developer, I want a generalized metadata architecture that supports multiple datatypes, so that the system can be extended to support future data types beyond forms and images.
 
-#### Acceptance Criteria
+**Status:** This requirement has been fully implemented in the refactor/visit-metadata branch that was merged. The architecture now uses:
+- `DataIdentification` as the base class (replaces legacy VisitKeys/VisitMetadata)
+- `ParticipantIdentification`, `VisitIdentification` as component classes
+- `FormIdentification` for form-specific data (module, packet)
+- `ImageIdentification` for image-specific data (modality)
+- Visitor pattern for datatype-agnostic operations
 
-1. THE Image_Identifier_Lookup_Gear SHALL use a base VisitMetadata class that defines common fields across all datatypes (PTID, date)
-2. THE Image_Identifier_Lookup_Gear SHALL implement ImageVisitMetadata as a datatype-specific subclass of the base VisitMetadata class
-3. WHEN ImageVisitMetadata is defined, THE Image_Identifier_Lookup_Gear SHALL include image-specific fields (modality) in addition to base fields
-4. THE Image_Identifier_Lookup_Gear SHALL NOT include form-specific fields (packet, module) in ImageVisitMetadata
-5. WHEN passing metadata to shared utilities (QCStatusLogManager, FileVisitAnnotator, VisitEventCapture), THE Image_Identifier_Lookup_Gear SHALL use the ImageVisitMetadata subclass
-6. WHEN shared utilities process metadata, THE Image_Identifier_Lookup_Gear SHALL ensure they can handle both base VisitMetadata and datatype-specific subclasses polymorphically
-7. THE Image_Identifier_Lookup_Gear SHALL design the metadata architecture to allow future addition of new datatype-specific subclasses (e.g., GenomicVisitMetadata, BiospecimenVisitMetadata) without modifying existing code
+#### Acceptance Criteria (All Met)
+
+1. ✅ THE system uses DataIdentification with composition pattern for all datatypes
+2. ✅ ImageIdentification is implemented as a component class with modality field
+3. ✅ ImageIdentification includes only image-specific fields (modality)
+4. ✅ FormIdentification contains form-specific fields (module, packet) separate from ImageIdentification
+5. ✅ QCStatusLogManager, FileVisitAnnotator, and VisitEventCapture accept DataIdentification
+6. ✅ Shared utilities handle any DataIdentification subclass polymorphically via visitor pattern
+7. ✅ Architecture supports future datatypes through composition (e.g., GenomicIdentification, BiospecimenIdentification)
 
 ### Requirement 11: Idempotency and Skip Logic
 
@@ -192,6 +231,25 @@ This gear follows similar patterns to the `identifier_lookup` gear, which perfor
 5. WHEN implementing Flywheel interactions, THE Image_Identifier_Lookup_Gear SHALL reuse ProjectAdaptor, SubjectAdaptor, and other adaptor classes from the `common/` package
 6. WHEN shared functionality is found in gear-specific directories, THE Image_Identifier_Lookup_Gear MAY refactor it into the `common/` package if it benefits multiple gears
 7. WHEN refactoring code from gear directories to common packages, THE Image_Identifier_Lookup_Gear SHALL ensure no existing functionality breaks by running all affected tests
-8. WHEN creating new abstractions (e.g., ImageVisitMetadata), THE Image_Identifier_Lookup_Gear SHALL place them in appropriate common package modules for reuse by future gears
+8. WHEN creating new abstractions, THE Image_Identifier_Lookup_Gear SHALL place them in appropriate common package modules for reuse by future gears
 9. WHEN modifying existing shared utilities to support images, THE Image_Identifier_Lookup_Gear SHALL maintain backward compatibility with form-based usage
 10. THE Image_Identifier_Lookup_Gear SHALL modify the existing template code in `gear/image_identifier_lookup` rather than creating a new gear from scratch
+
+### Requirement 13: DICOM PatientID Replacement (Out of Scope - Future Pipeline Stage)
+
+**User Story:** As a data platform administrator, I want the option to replace the DICOM PatientID tag with the NACCID, so that DICOM files do not contain PTIDs when moved to accepted storage or shared externally.
+
+**Status:** OUT OF SCOPE for this gear. PatientID replacement should be handled later in the pipeline, potentially as a separate gear or as part of the data acceptance/curation workflow.
+
+**Rationale:** 
+- This gear focuses on identifier lookup and metadata storage
+- PatientID replacement is a data transformation that should occur after validation
+- Separating concerns allows for better control over when de-identification occurs
+- A dedicated de-identification gear can handle this along with other PHI removal tasks
+
+**Future Implementation Notes:**
+- Consider creating a separate DICOM de-identification gear
+- Should run after QC validation and before data acceptance
+- Should preserve original files and create de-identified copies
+- Should maintain audit trail of transformations
+- Should handle all PHI fields, not just PatientID
