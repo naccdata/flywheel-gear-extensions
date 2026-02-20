@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any, Literal, Optional, get_args
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     Field,
     field_validator,
@@ -80,7 +81,12 @@ class StudyAccessMap(BaseModel):
 
 class DirectoryAuthorizations(BaseModel):
     """Data model for deserializing a json object from a directory permission
-    report."""
+    report.
+
+    Note: web_access_level and adrc_reports_access_level both use the same source
+    field (web_report_access) for deserialization. This model is only used for
+    deserialization from REDCap reports and is never serialized.
+    """
 
     firstname: str
     lastname: str
@@ -89,7 +95,12 @@ class DirectoryAuthorizations(BaseModel):
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
     adcid: int = Field(alias="adresearchctr")
-    web_report_access: bool
+    web_access_level: AuthorizationAccessLevel = Field(
+        validation_alias=AliasChoices("web_report_access")
+    )
+    adrc_reports_access_level: AuthorizationAccessLevel = Field(
+        validation_alias=AliasChoices("web_report_access")
+    )
     study_selections: list[str]
     adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="p30_naccid_enroll_access_level"
@@ -184,6 +195,29 @@ class DirectoryAuthorizations(BaseModel):
 
         return "NoAccess"
 
+    @field_validator("web_access_level", mode="before")
+    def convert_web_access_level(cls, value: Any) -> AuthorizationAccessLevel:
+        """Converts web_report_access checkbox field to Web access level.
+
+        The field can contain: '', 'Web', 'RepDash', or 'Web,RepDash'.
+        Returns ViewAccess if 'Web' is present, otherwise NoAccess.
+        """
+        if isinstance(value, str) and "Web" in value:
+            return "ViewAccess"
+        return "NoAccess"
+
+    @field_validator("adrc_reports_access_level", mode="before")
+    def convert_adrc_reports_access_level(cls, value: Any) -> AuthorizationAccessLevel:
+        """Converts web_report_access checkbox field to ADRC Reports access
+        level.
+
+        The field can contain: '', 'Web', 'RepDash', or 'Web,RepDash'.
+        Returns ViewAccess if 'RepDash' is present, otherwise NoAccess.
+        """
+        if isinstance(value, str) and "RepDash" in value:
+            return "ViewAccess"
+        return "NoAccess"
+
     @field_validator("study_selections", "affiliated_study", mode="before")
     def convert_string_list(cls, value_list: Any) -> list[str]:
         if isinstance(value_list, list):
@@ -193,9 +227,7 @@ class DirectoryAuthorizations(BaseModel):
 
         return value_list.split(",")
 
-    @field_validator(
-        "web_report_access", "inactive", "permissions_approval", mode="before"
-    )
+    @field_validator("inactive", "permissions_approval", mode="before")
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
