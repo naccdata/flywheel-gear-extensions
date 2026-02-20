@@ -1,19 +1,18 @@
 """Entry script for Image Identifier Lookup."""
 
 import logging
-
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
-    GearExecutionError,
 )
-from image_identifier_lookup_app.main import run
 from inputs.parameter_store import ParameterStore
+
+from image_identifier_lookup_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -27,9 +26,9 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'ImageIdentifierLookupVisitor':
+        context: GearContext,
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "ImageIdentifierLookupVisitor":
         """Creates a Image Identifier Lookup execution visitor.
 
         Args:
@@ -45,7 +44,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
 
         return ImageIdentifierLookupVisitor(client=client)
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         run(proxy=self.proxy)
 
 
