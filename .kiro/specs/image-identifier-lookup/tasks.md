@@ -13,22 +13,22 @@ Key architectural principles:
 
 ## Tasks
 
-- [ ] 1. Set up DICOM utilities and data extraction
-  - [ ] 1.1 Create DICOM parsing utilities
+- [x] 1. Set up DICOM utilities and data extraction
+  - [x] 1.1 Create DICOM parsing utilities
     - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/dicom_utils.py`
     - Implement `read_dicom_tag(file_path, tag)` function using pydicom
     - Implement `InvalidDicomError` exception class
     - Handle DICOM parsing errors gracefully
     - _Requirements: 1.5, 1.8, 6.2, 6.9, 6.10, 6.11_
 
-  - [ ]* 1.2 Write unit tests for DICOM parsing
+  - [x] 1.2 Write unit tests for DICOM parsing
     - Test reading valid DICOM tags (PatientID, StudyDate, Modality)
     - Test handling of missing optional tags (return None)
     - Test error handling for invalid DICOM files
     - Test extraction of all identifier and descriptive fields
     - _Requirements: 1.5, 6.9, 6.10, 6.11_
 
-  - [ ] 1.3 Create early data extraction utilities
+  - [x] 1.3 Create early data extraction utilities
     - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/extraction.py`
     - Implement `extract_pipeline_adcid(project)` using ProjectAdaptor.get_pipeline_adcid()
     - Implement `extract_ptid(subject, file_path)` with subject.label priority, DICOM PatientID fallback
@@ -39,7 +39,7 @@ Key architectural principles:
     - All functions should fail fast with clear error messages when required data is missing
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 4.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.9, 6.10, 6.11_
 
-  - [ ]* 1.4 Write unit tests for data extraction
+  - [x] 1.4 Write unit tests for data extraction
     - Test extract_pipeline_adcid with valid and missing ADCID
     - Test extract_ptid with subject.label (primary path)
     - Test extract_ptid with DICOM PatientID fallback
