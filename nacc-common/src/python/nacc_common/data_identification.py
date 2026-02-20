@@ -477,10 +477,3 @@ class InvalidDateError(Exception):
     def __init__(self, date_field: str, value: str) -> None:
         self.date_field = date_field
         self.value = value
-
-
-# VisitKeys = DataIdentification
-#   create_from -> from_form_record
-# VisitMetadata = DataIdentification
-# .  create -> from_visit_info
-# ImageVisitMetadata = DataIdentification
