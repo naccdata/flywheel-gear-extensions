@@ -7,8 +7,6 @@ Fixes loading the input file
 
 ## 2.2.0
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
-
-## 2.2.0
 * Adds support for dashboard projects in studies
   - Studies can now define a `dashboards` field with a list of dashboard names
   - Dashboard projects are created for active centers with naming pattern `dashboard-{name}` or `dashboard-{name}-{study_id}`
