@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.2
+
+* Updates `nacc-attribute-deriver` to `2.1.4` for another round of fixes
+
 ## 1.3.1
 
 * Updates `nacc-attribute-deriver` to `2.1.3` for B1a support and a multitude of other fixes
