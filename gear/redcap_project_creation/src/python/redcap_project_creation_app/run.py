@@ -75,7 +75,7 @@ def validate_input_data(input_file_path: Path) -> Optional[StudyREDCapMetadata]:
     """
 
     try:
-        with input_file_path.open("r", encoding="utf-8 ") as input_file:
+        with open(input_file_path, mode="r", encoding="utf-8 ") as input_file:
             input_data = load_from_stream(input_file)
     except YAMLReadError as error:
         log.error("Failed to read the input file - %s", error)

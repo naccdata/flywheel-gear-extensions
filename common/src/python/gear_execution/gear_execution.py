@@ -284,7 +284,7 @@ class InputFileWrapper:
     def get_module_name_from_file_suffix(
         self,
         separator: str = "-",
-        allowed: str = "a-z_",
+        allowed: str = DefaultValues.MODULE_PATTERN,
         extension: str = "csv",
         split: Optional[str] = "_",
     ) -> Optional[str]:
@@ -292,7 +292,7 @@ class InputFileWrapper:
 
         Args:
             separator: suffix separator, defaults to "-".
-            allowed: characters allowed in suffix, defaults to "a-z_".
+            allowed: characters allowed in suffix, defaults to "a-zA-Z1-9_".
             extension: file extension, defaults to "csv"
             split (optional): character to split the suffix, defaults to '_'.
                             (set to None if not required)

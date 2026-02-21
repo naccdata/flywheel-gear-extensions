@@ -24,7 +24,7 @@ from flywheel_adaptor.subject_adaptor import (
     VisitInfo,
 )
 from fw_gear import GearContext
-from fw_gear.utils.metadata import Metadata, create_qc_result_dict
+from fw_gear.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll

@@ -134,7 +134,7 @@ class TestDetermineScope:
         assert fm("NACCXXX_CLS-RECORD-2012-02-10_CLS.json").scope == "cls"
         assert fm("NACCXXX_NP-RECORD-2012-02-10_NP.json").scope == "np"
         assert fm("NACCXXX_MDS-RECORD-2006-03-23_MDS.json").scope == "mds"
-        assert fm("NACCXXX_MILESTONE-2011-10-26_MLST.json").scope == "milestone"
+        assert fm("NACCXXX_MILESTONE-2011-10-26_MLST.json").scope == "mlst"
         assert fm("NACCXXX_FORMS-VISIT-2_MEDS.json").scope == "meds"
         assert fm("NACCXXX_FORMS-VISIT-3_FTLD.json").scope == "ftld"
         assert fm("NACCXXX_FORMS-VISIT-4_LBD.json").scope == "lbd"
