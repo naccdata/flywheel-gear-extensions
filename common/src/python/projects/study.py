@@ -125,6 +125,7 @@ class StudyModel(BaseModel):
     study_id: str
     centers: List[StudyCenterModel]
     datatypes: List[str]
+    dashboards: Optional[List[str]] = None
     mode: Literal["aggregation", "distribution"]
     study_type: Literal["primary", "affiliated"]
     legacy: bool = Field(True)

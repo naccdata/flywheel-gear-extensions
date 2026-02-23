@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.3.0
+* Adds support for dashboard projects in studies
+  - Studies can now define a `dashboards` field with a list of dashboard names
+  - Dashboard projects are created for active centers with naming pattern `dashboard-{name}` or `dashboard-{name}-{study_id}`
+  - Dashboard projects are tracked in center metadata and included in user authorization
+
 ## 2.2.1
 Fixes loading the input file
 
