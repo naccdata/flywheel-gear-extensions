@@ -6,6 +6,7 @@ from centers.center_group import (
     CenterGroup,
     CenterMetadata,
     CenterStudyMetadata,
+    DashboardProjectMetadata,
     DistributionProjectMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
@@ -105,6 +106,12 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         if ingest_projects:
             self.__apply_authorizations(
                 projects=ingest_projects, pipeline_name="ingest"
+            )
+
+        dashboard_projects = study.dashboard_projects
+        if dashboard_projects:
+            self.__apply_authorizations(
+                projects=dashboard_projects, pipeline_name="dashboard"
             )
 
         distribution_projects = study.distribution_projects
@@ -234,5 +241,13 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
 
         Args:
           project: the distribution project metadata
+        """
+        self.visit_project(project)
+
+    def visit_dashboard_project(self, project: DashboardProjectMetadata) -> None:
+        """Assigns user roles to the dashboard project.
+
+        Args:
+          project: the dashboard project metadata
         """
         self.visit_project(project)
