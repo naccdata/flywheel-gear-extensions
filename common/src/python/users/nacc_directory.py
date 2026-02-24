@@ -16,7 +16,7 @@ from users.authorizations import (
     DatatypeNameType,
     StudyAuthorizations,
 )
-from users.user_entry import ActiveUserEntry, PersonName, UserEntry
+from users.user_entry import CenterUserEntry, PersonName, UserEntry
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class DirectoryAuthorizations(BaseModel):
     auth_email: str = Field(alias="fw_email")
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
-    adcid: int = Field(alias="adresearchctr")
+    adcid: Optional[int] = Field(alias="adcid")
     web_access_level: AuthorizationAccessLevel = Field(
         validation_alias=AliasChoices("web_report_access")
     )
@@ -164,6 +164,18 @@ class DirectoryAuthorizations(BaseModel):
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
+
+    @field_validator("adcid")
+    def convert_adcid(cls, adcid: Any) -> Optional[int]:
+        if isinstance(adcid, int):
+            return adcid
+        if not isinstance(adcid, str):
+            return adcid
+
+        try:
+            return int(adcid)
+        except ValueError:
+            return None
 
     @field_validator(
         "adrc_enrollment_access_level",
@@ -265,7 +277,7 @@ class DirectoryAuthorizations(BaseModel):
             temp_list = field_name.split("_")
             if len(temp_list) != 4:
                 continue
-            study, datatype, *tail = temp_list
+            study, datatype, *_tail = temp_list
             datatype = "scan-analysis" if datatype == "scan" else datatype
             if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
                 log.warning("the data type %s is ignored for %s", datatype, self.email)
@@ -308,8 +320,12 @@ class DirectoryAuthorizations(BaseModel):
                 approved=self.permissions_approval,
             )
 
+        if self.adcid is None:
+            # TODO: this should be a "community" user
+            return None
+
         authorizations = self.__parse_fields().get_authorizations()
-        return ActiveUserEntry(
+        return CenterUserEntry(
             org_name=self.org_name,
             adcid=int(self.adcid),
             name=name,

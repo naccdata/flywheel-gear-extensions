@@ -13,7 +13,7 @@ from notifications.email import (
 )
 
 from users.authorizations import AuthMap
-from users.user_entry import ActiveUserEntry
+from users.user_entry import CenterUserEntry
 from users.user_registry import RegistryPerson, UserRegistry
 
 NotificationModeType = Literal["date", "force", "none"]
@@ -35,7 +35,7 @@ class NotificationClient:
         self.__portal_url = portal_url
         self.__mode: NotificationModeType = mode
 
-    def __claim_template(self, user_entry: ActiveUserEntry) -> TemplateDataModel:
+    def __claim_template(self, user_entry: CenterUserEntry) -> TemplateDataModel:
         """Creates the email data template from the user entry for a registry
         claim email.
 
@@ -51,7 +51,7 @@ class NotificationClient:
             firstname=user_entry.first_name, email_address=user_entry.auth_email
         )
 
-    def __claim_destination(self, user_entry: ActiveUserEntry) -> DestinationModel:
+    def __claim_destination(self, user_entry: CenterUserEntry) -> DestinationModel:
         """Creates the email destination from the user entry for a registry
         claim email.
 
@@ -65,7 +65,7 @@ class NotificationClient:
         assert user_entry.auth_email, "user entry must have auth email"
         return DestinationModel(to_addresses=[user_entry.auth_email])
 
-    def send_claim_email(self, user_entry: ActiveUserEntry) -> None:
+    def send_claim_email(self, user_entry: CenterUserEntry) -> None:
         """Sends the initial claim email to the auth email of the user.
 
         The user entry must have the auth email address set.
@@ -80,7 +80,7 @@ class NotificationClient:
             template_data=self.__claim_template(user_entry),
         )
 
-    def send_followup_claim_email(self, user_entry: ActiveUserEntry) -> None:
+    def send_followup_claim_email(self, user_entry: CenterUserEntry) -> None:
         """Sends the followup claim email to the auth email of the user.
 
         The user entry must have the auth email address set.
@@ -96,7 +96,7 @@ class NotificationClient:
                 template_data=self.__claim_template(user_entry),
             )
 
-    def send_creation_email(self, user_entry: ActiveUserEntry) -> None:
+    def send_creation_email(self, user_entry: CenterUserEntry) -> None:
         """Sends the user creation email to the email of the user.
 
         Args:
@@ -114,7 +114,7 @@ class NotificationClient:
             ),
         )
 
-    def __should_send(self, user_entry: ActiveUserEntry) -> bool:
+    def __should_send(self, user_entry: CenterUserEntry) -> bool:
         """Determines whether to send a notification.
 
         If notification mode is force, then returns true.

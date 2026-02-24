@@ -106,7 +106,7 @@ class UserContext(BaseModel):
         Returns:
             UserContext with information from the user entry
         """
-        # Extract center_id from adcid if available (ActiveUserEntry)
+        # Extract center_id from adcid if available (CenterUserEntry)
         center_id = None
         if hasattr(entry, "adcid"):
             center_id = entry.adcid

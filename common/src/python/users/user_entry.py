@@ -69,7 +69,7 @@ class UserEntry(BaseModel):
         return self.model_dump(serialize_as_any=True)  # type: ignore
 
 
-class ActiveUserEntry(UserEntry):
+class CenterUserEntry(UserEntry):
     """A user entry from Flywheel access report of the NACC directory."""
 
     org_name: str
@@ -98,7 +98,7 @@ class ActiveUserEntry(UserEntry):
         )
 
 
-class RegisteredUserEntry(ActiveUserEntry):
+class RegisteredUserEntry(CenterUserEntry):
     """User directory entry extended with a registry ID."""
 
     registry_id: str

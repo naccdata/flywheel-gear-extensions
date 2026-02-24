@@ -12,7 +12,7 @@ import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 from users.event_models import EventCategory, UserEventCollector
 from users.failure_analyzer import FailureAnalyzer
-from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
+from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
     ActiveUserProcess,
     ClaimedUserProcess,
@@ -52,8 +52,8 @@ class TestActiveUserProcessIntegration:
 
     @pytest.fixture
     def sample_active_entry(self):
-        """Create a sample ActiveUserEntry for testing."""
-        return ActiveUserEntry(
+        """Create a sample CenterUserEntry for testing."""
+        return CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email="john.auth@example.com",
@@ -103,7 +103,7 @@ class TestActiveUserProcessIntegration:
         """Test that ActiveUserProcess creates error event for missing auth
         email."""
         # Create entry without auth email
-        entry_no_auth = ActiveUserEntry(
+        entry_no_auth = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email=None,  # Missing auth email
@@ -660,7 +660,7 @@ class TestUserProcessIntegrationEndToEnd:
         """Test that multiple different error types are collected in a single
         run."""
         # Create entries that will trigger different error types
-        entry_no_auth = ActiveUserEntry(
+        entry_no_auth = CenterUserEntry(
             name=PersonName(first_name="No", last_name="Auth"),
             email="no.auth@example.com",
             auth_email=None,  # Missing auth email
@@ -671,7 +671,7 @@ class TestUserProcessIntegrationEndToEnd:
             authorizations=[],
         )
 
-        entry_bad_claim = ActiveUserEntry(
+        entry_bad_claim = CenterUserEntry(
             name=PersonName(first_name="Bad", last_name="Claim"),
             email="bad.claim@example.com",
             auth_email="bad.auth@example.com",
@@ -716,7 +716,7 @@ class TestUserProcessIntegrationEndToEnd:
         """Test that UserEventCollector maintains state across different
         process instances."""
         # Create first process and add an error
-        entry1 = ActiveUserEntry(
+        entry1 = CenterUserEntry(
             name=PersonName(first_name="First", last_name="User"),
             email="first@example.com",
             auth_email=None,
@@ -770,7 +770,7 @@ class TestUserProcessIntegrationEndToEnd:
         # Test various scenarios to ensure all log messages still occur
 
         # Scenario 1: Missing auth email
-        entry_no_auth = ActiveUserEntry(
+        entry_no_auth = CenterUserEntry(
             name=PersonName(first_name="No", last_name="Auth"),
             email="no.auth@example.com",
             auth_email=None,
@@ -782,7 +782,7 @@ class TestUserProcessIntegrationEndToEnd:
         )
 
         # Scenario 2: Bad claim
-        entry_bad_claim = ActiveUserEntry(
+        entry_bad_claim = CenterUserEntry(
             name=PersonName(first_name="Bad", last_name="Claim"),
             email="bad.claim@example.com",
             auth_email="bad.auth@example.com",
@@ -794,7 +794,7 @@ class TestUserProcessIntegrationEndToEnd:
         )
 
         # Scenario 3: New user registration
-        entry_new_user = ActiveUserEntry(
+        entry_new_user = CenterUserEntry(
             name=PersonName(first_name="New", last_name="User"),
             email="new.user@example.com",
             auth_email="new.auth@example.com",

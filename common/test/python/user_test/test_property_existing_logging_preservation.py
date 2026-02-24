@@ -11,7 +11,7 @@ from unittest.mock import Mock
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from users.event_models import UserEventCollector
-from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
+from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
     ActiveUserProcess,
     ClaimedUserProcess,
@@ -62,9 +62,9 @@ class LogCapture:
 
 @st.composite
 def active_user_entry_strategy(draw):
-    """Generate random ActiveUserEntry for testing."""
+    """Generate random CenterUserEntry for testing."""
     # Use simple, direct generation to avoid filtering
-    return ActiveUserEntry(
+    return CenterUserEntry(
         name=PersonName(first_name="TestFirst", last_name="TestLast"),
         email="test@example.com",
         auth_email=draw(st.one_of(st.none(), st.just("auth@example.com"))),
@@ -386,7 +386,7 @@ def test_collector_does_not_interfere_with_logging(mock_env):
     collector = UserEventCollector()
 
     # Create a simple entry that will trigger logging
-    entry = ActiveUserEntry(
+    entry = CenterUserEntry(
         name=PersonName(first_name="Test", last_name="User"),
         email="test@example.com",
         auth_email=None,  # This will trigger error logging

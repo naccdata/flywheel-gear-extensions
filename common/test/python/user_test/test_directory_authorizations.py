@@ -1,5 +1,9 @@
 from users.authorizations import Activity, StudyAuthorizations
-from users.nacc_directory import ActiveUserEntry, DirectoryAuthorizations, UserEntry
+from users.nacc_directory import (
+    CenterUserEntry,
+    DirectoryAuthorizations,
+    UserEntry,
+)
 
 
 class TestDirectoryAuthorizations:
@@ -37,6 +41,7 @@ class TestDirectoryAuthorizations:
                 "email": "user@institution.edu",
                 "contact_company_name": "an institution",
                 "adresearchctr": "999",
+                "adcid": "999",
                 "archive_contact": "1",
                 "nacc_data_platform_access_information_complete": "2",
             },
@@ -81,6 +86,7 @@ class TestDirectoryAuthorizations:
             "email": "user@institution.edu",
             "contact_company_name": "an institution",
             "adresearchctr": "999",
+            "adcid": "999",
             "archive_contact": "0",
             "nacc_data_platform_access_information_complete": "2",
         },
@@ -93,7 +99,7 @@ class TestDirectoryAuthorizations:
     assert auths.dlbc_form_access_level == "NoAccess"
 
     user_entry = auths.to_user_entry()
-    assert user_entry and isinstance(user_entry, ActiveUserEntry)
+    assert user_entry and isinstance(user_entry, CenterUserEntry)
     assert user_entry.active
     assert user_entry.adcid == 999
     assert len(user_entry.authorizations) == 4

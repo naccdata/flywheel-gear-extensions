@@ -18,7 +18,7 @@ from users.event_models import (
     UserProcessEvent,
 )
 from users.failure_analyzer import FailureAnalyzer
-from users.user_entry import ActiveUserEntry, RegisteredUserEntry, UserEntry
+from users.user_entry import CenterUserEntry, RegisteredUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
 from users.user_registry import RegistryPerson
 
@@ -443,7 +443,7 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         update_process.execute(self.__update_queue)
 
 
-class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
+class UnclaimedUserProcess(BaseUserProcess[CenterUserEntry]):
     """Applies the process for user entries with unclaimed user registry
     entries."""
 
@@ -461,7 +461,7 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
         super().__init__(collector)
         self.__notification_client = notification_client
 
-    def visit(self, entry: ActiveUserEntry) -> None:
+    def visit(self, entry: CenterUserEntry) -> None:
         """Sends a notification email to claim the user and creates error event
         for tracking."""
         self.__notification_client.send_followup_claim_email(entry)
@@ -484,7 +484,7 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
         )
         self.collector.collect(error_event)
 
-    def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
+    def execute(self, queue: UserQueue[CenterUserEntry]) -> None:
         """Applies this process to the queue.
 
         Args:
@@ -494,7 +494,7 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
         queue.apply(self)
 
 
-class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
+class ActiveUserProcess(BaseUserProcess[CenterUserEntry]):
     """Defines the process for active user entries relative to the COManage
     registry.
 
@@ -516,10 +516,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         super().__init__(collector)
         self.__env = environment
         self.__claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        self.__unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.__unclaimed_queue: UserQueue[CenterUserEntry] = UserQueue()
         self.failure_analyzer = FailureAnalyzer(environment)
 
-    def visit(self, entry: ActiveUserEntry) -> None:
+    def visit(self, entry: CenterUserEntry) -> None:
         """Adds a new user to user registry, otherwise, adds the user to
         claimed or unclaimed queues.
 
@@ -659,7 +659,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
         return max(dates)
 
-    def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
+    def execute(self, queue: UserQueue[CenterUserEntry]) -> None:
         """Applies this process to the active user queue.
 
         Registers any new users, and splits remainder into separate queues
@@ -701,7 +701,7 @@ class UserProcess(BaseUserProcess[UserEntry]):
             collector: Event collector for capturing events
         """
         super().__init__(collector)
-        self.__active_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.__active_queue: UserQueue[CenterUserEntry] = UserQueue()
         self.__inactive_queue: UserQueue[UserEntry] = UserQueue()
         self.__env = environment
 
@@ -720,7 +720,7 @@ class UserProcess(BaseUserProcess[UserEntry]):
             log.info("Ignoring active user with no auth email: %s", entry.email)
             return
 
-        if isinstance(entry, ActiveUserEntry):
+        if isinstance(entry, CenterUserEntry):
             self.__active_queue.enqueue(entry)
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:

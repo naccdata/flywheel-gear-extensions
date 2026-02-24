@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
-from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
+from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
 
 
 class TestUserContext:
@@ -16,7 +16,7 @@ class TestUserContext:
         """Test UserContext creation from UserEntry."""
 
         # Create a basic user entry
-        user_entry = ActiveUserEntry(
+        user_entry = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email="john.auth@example.com",

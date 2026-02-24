@@ -6,7 +6,7 @@ import yaml
 from pydantic import ValidationError
 from users.authorizations import Activity, StudyAuthorizations
 from users.nacc_directory import (
-    ActiveUserEntry,
+    CenterUserEntry,
     DirectoryAuthorizations,
     PersonName,
     UserEntry,
@@ -17,7 +17,7 @@ from users.user_entry import UserEntryList
 def create_user_entry(entry: dict[str, Any]) -> UserEntry:
     if entry.get("active"):
         try:
-            return ActiveUserEntry.model_validate(entry)
+            return CenterUserEntry.model_validate(entry)
         except ValidationError as error:
             raise AssertionError(error) from error
 
@@ -45,6 +45,7 @@ class TestUserEntry:
                 {
                     "contact_company_name": "the center",
                     "adresearchctr": "0",
+                    "adcid": "0",
                     "firstname": "ooly",
                     "lastname": "puppy",
                     "email": "ools@that.org",
@@ -92,7 +93,7 @@ class TestUserEntry:
 
     def test_active(self):
         """Tests around creating objects."""
-        entry = ActiveUserEntry(
+        entry = CenterUserEntry(
             org_name="the center",
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
@@ -124,6 +125,7 @@ class TestUserEntry:
                 {
                     "contact_company_name": "the center",
                     "adresearchctr": "0",
+                    "adcid": "0",
                     "firstname": "chip",
                     "lastname": "puppy",
                     "email": "chip@theorg.org",
@@ -182,7 +184,7 @@ class TestUserEntry:
             approved=True,
         )
         user_list.append(entry1)
-        entry2 = ActiveUserEntry(
+        entry2 = CenterUserEntry(
             org_name="the center",
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
