@@ -4,7 +4,7 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
-from users.authorizations import Activity, StudyAuthorizations
+from users.authorizations import Activity, DatatypeResource, StudyAuthorizations
 from users.nacc_directory import (
     CenterUserEntry,
     DirectoryAuthorizations,
@@ -102,12 +102,17 @@ class TestUserEntry:
                 StudyAuthorizations(
                     study_id="adrc",
                     activities={
-                        "enrollment": Activity(
-                            datatype="enrollment", action="submit-audit"
+                        DatatypeResource(datatype="enrollment"): Activity(
+                            resource=DatatypeResource(datatype="enrollment"),
+                            action="submit-audit",
                         ),
-                        "form": Activity(datatype="form", action="submit-audit"),
-                        "scan-analysis": Activity(
-                            datatype="scan-analysis", action="view"
+                        DatatypeResource(datatype="form"): Activity(
+                            resource=DatatypeResource(datatype="form"),
+                            action="submit-audit",
+                        ),
+                        DatatypeResource(datatype="scan-analysis"): Activity(
+                            resource=DatatypeResource(datatype="scan-analysis"),
+                            action="view",
                         ),
                     },
                 )
@@ -117,7 +122,7 @@ class TestUserEntry:
             auth_email="chip_auth@theorg.org",
         )
 
-        assert "submit-audit-form" in entry.authorizations[0]  # type: ignore
+        assert "submit-audit-datatype-form" in entry.authorizations[0]  # type: ignore
 
         # assumes study_id is adrc
         try:
@@ -193,9 +198,13 @@ class TestUserEntry:
                 StudyAuthorizations(
                     study_id="dummy",
                     activities={
-                        "form": Activity(datatype="form", action="submit-audit"),
-                        "enrollment": Activity(
-                            datatype="enrollment", action="submit-audit"
+                        DatatypeResource(datatype="form"): Activity(
+                            resource=DatatypeResource(datatype="form"),
+                            action="submit-audit",
+                        ),
+                        DatatypeResource(datatype="enrollment"): Activity(
+                            resource=DatatypeResource(datatype="enrollment"),
+                            action="submit-audit",
                         ),
                     },
                 )

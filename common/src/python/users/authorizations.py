@@ -154,7 +154,8 @@ class Resource(ABC, BaseModel):
 
 
 class DatatypeResource(Resource):
-    """Resource representing a data type (e.g., form, enrollment, scan-analysis).
+    """Resource representing a data type (e.g., form, enrollment, scan-
+    analysis).
 
     Used for authorization activities related to data processing pipelines.
 
@@ -278,6 +279,25 @@ class StudyAuthorizations(BaseModel):
             [str(activity) for activity in self.activities.values()]
         )
         return f"study_id='{self.study_id}' activities=[{activity_str}]"
+
+    @model_serializer
+    def serialize_model(self) -> dict[str, Any]:
+        """Serialize StudyAuthorizations with Resource keys converted to
+        strings.
+
+        Converts the activities dict from {Resource: Activity} to {str: str}
+        format for proper serialization to YAML/JSON.
+
+        Returns:
+            Dictionary with study_id and activities with string keys/values
+        """
+        return {
+            "study_id": self.study_id,
+            "activities": {
+                str(resource): str(activity)
+                for resource, activity in self.activities.items()
+            },
+        }
 
     def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
         """Adds an activity with the datatype and action to the authorizations.

@@ -1,4 +1,4 @@
-from users.authorizations import Activity, StudyAuthorizations
+from users.authorizations import Activity, DatatypeResource, StudyAuthorizations
 from users.nacc_directory import (
     CenterUserEntry,
     DirectoryAuthorizations,
@@ -110,29 +110,48 @@ class TestDirectoryAuthorizations:
     assert user_authorizations.get("adrc") == StudyAuthorizations(
         study_id="adrc",
         activities={
-            "enrollment": Activity(datatype="enrollment", action="view"),
-            "form": Activity(datatype="form", action="submit-audit"),
-            "dicom": Activity(datatype="dicom", action="submit-audit"),
+            DatatypeResource(datatype="enrollment"): Activity(
+                resource=DatatypeResource(datatype="enrollment"), action="view"
+            ),
+            DatatypeResource(datatype="form"): Activity(
+                resource=DatatypeResource(datatype="form"), action="submit-audit"
+            ),
+            DatatypeResource(datatype="dicom"): Activity(
+                resource=DatatypeResource(datatype="dicom"), action="submit-audit"
+            ),
         },
     )
     assert user_authorizations.get("clariti") == StudyAuthorizations(
         study_id="clariti",
-        activities={"biomarker": Activity(datatype="biomarker", action="view")},
+        activities={
+            DatatypeResource(datatype="biomarker"): Activity(
+                resource=DatatypeResource(datatype="biomarker"), action="view"
+            )
+        },
     )
     assert user_authorizations.get("ncrad") == StudyAuthorizations(
         study_id="ncrad",
         activities={
-            "biomarker": Activity(datatype="biomarker", action="submit-audit"),
-            "apoe": Activity(datatype="apoe", action="view"),
+            DatatypeResource(datatype="biomarker"): Activity(
+                resource=DatatypeResource(datatype="biomarker"), action="submit-audit"
+            ),
+            DatatypeResource(datatype="apoe"): Activity(
+                resource=DatatypeResource(datatype="apoe"), action="view"
+            ),
         },
     )
     assert user_authorizations.get("niagads") == StudyAuthorizations(
         study_id="niagads",
         activities={
-            "gwas": Activity(datatype="gwas", action="view"),
-            "genetic-availability": Activity(
-                datatype="genetic-availability", action="view"
+            DatatypeResource(datatype="gwas"): Activity(
+                resource=DatatypeResource(datatype="gwas"), action="view"
             ),
-            "imputation": Activity(datatype="imputation", action="view"),
+            DatatypeResource(datatype="genetic-availability"): Activity(
+                resource=DatatypeResource(datatype="genetic-availability"),
+                action="view",
+            ),
+            DatatypeResource(datatype="imputation"): Activity(
+                resource=DatatypeResource(datatype="imputation"), action="view"
+            ),
         },
     )
