@@ -27,7 +27,7 @@ from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
 from users.event_models import UserEventCollector
-from users.user_entry import ActiveUserEntry, UserEntry
+from users.user_entry import CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (
     NotificationClient,
@@ -464,7 +464,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 if not user_doc.get("active"):
                     user_entry = UserEntry.model_validate(user_doc)
                 else:
-                    user_entry = ActiveUserEntry.model_validate(user_doc)
+                    user_entry = CenterUserEntry.model_validate(user_doc)
             except ValidationError as error:
                 log.error("Error creating user entry: %s", error)
                 continue
