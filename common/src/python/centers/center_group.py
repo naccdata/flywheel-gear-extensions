@@ -19,7 +19,7 @@ from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository, REDCapProject
 from serialization.case import kebab_case
-from users.authorizations import Activity
+from users.authorizations import Activity, DatatypeResource
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_info import CenterInfo
@@ -542,7 +542,9 @@ class REDCapFormProjectMetadata(BaseModel):
     def get_submission_activity(self) -> Activity:
         datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
-        return Activity(datatype=datatype, action="submit-audit")
+        return Activity(
+            resource=DatatypeResource(datatype=datatype), action="submit-audit"
+        )
 
     def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
         visitor.visit_redcap_form_project(self)
