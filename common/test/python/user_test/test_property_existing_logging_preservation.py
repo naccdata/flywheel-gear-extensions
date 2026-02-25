@@ -12,7 +12,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from users.authorizations import Authorizations
 from users.event_models import UserEventCollector
-from users.user_entry import CenterUserEntry, PersonName
+from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName
 from users.user_processes import (
     ActiveUserProcess,
     ClaimedUserProcess,
@@ -251,8 +251,8 @@ def test_active_user_process_preserves_info_logging_for_new_users(entry, mock_en
 def test_update_user_process_preserves_existing_logging_with_error_handling(
     entry, mock_env
 ):
-    """Property test: UpdateUserProcess maintains all existing log messages
-    while adding error event capture.
+    """Property test: UpdateCenterUserProcess maintains all existing log
+    messages while adding error event capture.
 
     **Feature: automated-error-handling, Property 6: Existing Logging Preservation**
     **Validates: Requirements 1a.8**
@@ -260,18 +260,20 @@ def test_update_user_process_preserves_existing_logging_with_error_handling(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
+    from users.user_processes import UpdateCenterUserProcess
+
     collector = UserEventCollector()
 
     # Test scenario: Missing registry email (should log error)
     # Set the email_address to None on the entry's registry_person
     entry.registry_person.email_address = None
 
+    # Set fw_user on the entry (required by UpdateCenterUserProcess)
     mock_fw_user = Mock()
     mock_fw_user.email = entry.email
+    entry.set_fw_user(mock_fw_user)
 
-    mock_env.proxy.find_user.return_value = mock_fw_user
-
-    process = UpdateUserProcess(mock_env, collector)
+    process = UpdateCenterUserProcess(mock_env, collector)
 
     with LogCapture(level=logging.ERROR) as log_capture:
         process.visit(entry)
@@ -347,7 +349,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     """
     collector = UserEventCollector()
 
-    claimed_queue: UserQueue[CenterUserEntry] = UserQueue()
+    claimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
 
     # Test scenario: User creation needed (should log info)
     mock_env.proxy.find_user.side_effect = [
