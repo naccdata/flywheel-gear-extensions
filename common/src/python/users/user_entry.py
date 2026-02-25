@@ -7,7 +7,7 @@ from typing import NewType, Optional
 from flywheel.models.user import User
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
-from users.authorizations import StudyAuthorizations
+from users.authorizations import Authorizations, StudyAuthorizations
 
 log = logging.getLogger(__name__)
 
@@ -69,12 +69,16 @@ class UserEntry(BaseModel):
         return self.model_dump(serialize_as_any=True)  # type: ignore
 
 
-class CenterUserEntry(UserEntry):
+class ActiveUserEntry(UserEntry):
+    authorizations: Authorizations
+
+
+class CenterUserEntry(ActiveUserEntry):
     """A user entry from Flywheel access report of the NACC directory."""
 
     org_name: str
     adcid: int
-    authorizations: list[StudyAuthorizations]
+    study_authorizations: list[StudyAuthorizations]
 
     def register(self, registry_id: str) -> "RegisteredUserEntry":
         """Adds the registry id to this user entry.
@@ -93,6 +97,7 @@ class CenterUserEntry(UserEntry):
             org_name=self.org_name,
             adcid=self.adcid,
             authorizations=self.authorizations,
+            study_authorizations=self.study_authorizations,
             registry_id=registry_id,
             registration_date=self.registration_date,
         )
