@@ -214,6 +214,36 @@ class DashboardResource(Resource):
         return "dashboard"
 
 
+class PageResource(Resource):
+    """Resource representing a portal page.
+
+    Used for authorization related to portal page access and viewing.
+
+    String format: "page-{page-name}"
+    Examples: "page-webinars", "page-presentations"
+
+    Attributes:
+        page: The page identifier (any string)
+    """
+
+    page: str
+
+    @property
+    def name(self) -> str:
+        """Return the page identifier."""
+        return self.page
+
+    @classmethod
+    def prefix(cls) -> str:
+        """Return 'page' as the prefix for this resource type."""
+        return "page"
+
+    @classmethod
+    def field_name(cls) -> str:
+        """Return 'page' as the field name for validation."""
+        return "page"
+
+
 class Activity(BaseModel):
     """Data model representing an user activity for authorization.
 
@@ -268,17 +298,140 @@ class Activity(BaseModel):
         return handler({"resource": resource, "action": action_string})
 
 
-class StudyAuthorizations(BaseModel):
-    """Type class for authorizations."""
-
-    study_id: str
+class Activities(BaseModel):
     activities: dict[Resource, Activity] = {}
 
     def __str__(self) -> str:
-        activity_str = ",".join(
-            [str(activity) for activity in self.activities.values()]
+        return ",".join([str(activity) for activity in self.activities.values()])
+
+    @model_serializer
+    def serialize_model(self) -> dict[str, Any]:
+        return {
+            str(resource): str(activity)
+            for resource, activity in self.activities.items()
+        }
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def validate_activities(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        """Validate activities dict, converting string keys to Resource
+        objects."""
+        if isinstance(value, cls):
+            return handler(value)
+
+        # Handle when value is the full model dict with "activities" key
+        if isinstance(value, dict):
+            activities_dict = value.get("activities", value)
+
+        converted = {}
+        for key, val in activities_dict.items():
+            if isinstance(key, str):
+                resource = Resource.model_validate(key)
+                activity = Activity.model_validate(val)
+                converted[resource] = activity
+            else:
+                converted[key] = val
+
+        value = {"activities": converted}
+
+        return handler(value)
+
+    def add(self, resource: Resource, activity: Activity):
+        self.activities[resource] = activity
+
+    def __contains__(self, item: Union[str, Activity, Resource]) -> bool:
+        # Check if item is a Resource (dict key check)
+        if isinstance(item, Resource):
+            return item in self.activities
+
+        # Check if item is an Activity or string representation of Activity
+        try:
+            input_activity = (
+                Activity.model_validate(item) if isinstance(item, str) else item
+            )
+        except ValidationError:
+            # TODO: needs to raise error
+            return False
+
+        resource_activity = self.activities.get(input_activity.resource)
+        if resource_activity is None:
+            return False
+
+        return input_activity.action == resource_activity.action
+
+    # Dictionary-like methods to make Activities behave like dict[Resource, Activity]
+
+    def __getitem__(self, key: Resource) -> Activity:
+        """Get activity by resource key."""
+        return self.activities[key]
+
+    def __setitem__(self, key: Resource, value: Activity) -> None:
+        """Set activity for a resource key."""
+        self.activities[key] = value
+
+    def __delitem__(self, key: Resource) -> None:
+        """Delete activity for a resource key."""
+        del self.activities[key]
+
+    def __len__(self) -> int:
+        """Return number of activities."""
+        return len(self.activities)
+
+    def __iter__(self):
+        """Iterate over resource keys."""
+        return iter(self.activities)
+
+    def keys(self):
+        """Return view of resource keys."""
+        return self.activities.keys()
+
+    def values(self):
+        """Return view of activity values."""
+        return self.activities.values()
+
+    def items(self):
+        """Return view of (resource, activity) pairs."""
+        return self.activities.items()
+
+    def get(self, key: Resource, default: Activity | None = None) -> Activity | None:
+        """Get activity for resource, returning default if not found."""
+        return self.activities.get(key, default)
+
+
+class Authorizations(BaseModel):
+    activities: Activities = Activities()
+
+    def __str__(self) -> str:
+        return f"activities=[{self.activities}]"
+
+    def add_datatype(self, datatype: DatatypeNameType, action: ActionType) -> None:
+        """Adds an activity with the datatype and action to the authorizations.
+
+        Args:
+          datatype: the datatype
+          action: the action
+        """
+        resource = DatatypeResource(datatype=datatype)
+        self.add(resource=resource, action=action)
+
+    def add(self, resource: Resource, action: ActionType) -> None:
+        self.activities.add(
+            resource=resource, activity=Activity(resource=resource, action=action)
         )
-        return f"study_id='{self.study_id}' activities=[{activity_str}]"
+
+    def __contains__(self, activity: Union[str, Activity]) -> bool:
+        return activity in self.activities
+
+
+class StudyAuthorizations(Authorizations):
+    """Type class for authorizations."""
+
+    study_id: str
+
+    def __str__(self) -> str:
+        return f"study_id='{self.study_id}' activities=[{self.activities}]"
 
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
@@ -293,38 +446,8 @@ class StudyAuthorizations(BaseModel):
         """
         return {
             "study_id": self.study_id,
-            "activities": {
-                str(resource): str(activity)
-                for resource, activity in self.activities.items()
-            },
+            "activities": self.activities.model_dump(),
         }
-
-    def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
-        """Adds an activity with the datatype and action to the authorizations.
-
-        Args:
-          datatype: the datatype
-          action: the action
-        """
-        resource = DatatypeResource(datatype=datatype)
-        self.activities[resource] = Activity(resource=resource, action=action)
-
-    def __contains__(self, activity: Union[str, Activity]) -> bool:
-        try:
-            input_activity = (
-                Activity.model_validate(activity)
-                if isinstance(activity, str)
-                else activity
-            )
-        except ValidationError:
-            # TODO: needs to raise error
-            return False
-
-        datatype_activity = self.activities.get(input_activity.resource)
-        if datatype_activity is None:
-            return False
-
-        return input_activity.action == datatype_activity.action
 
 
 class AuthMap(BaseModel):
