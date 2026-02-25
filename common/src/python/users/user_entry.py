@@ -83,6 +83,7 @@ class ActiveUserEntry(UserEntry):
 
     authorizations: Authorizations
     registry_person: Optional[RegistryPerson] = Field(default=None, exclude=True)
+    fw_user: Optional[User] = Field(default=None, exclude=True)
 
     @property
     def is_registered(self) -> bool:
@@ -121,8 +122,17 @@ class ActiveUserEntry(UserEntry):
         Args:
             registry_person: the RegistryPerson object to attach
         """
-        # Pydantic models are immutable by default, so we use object.__setattr__
-        object.__setattr__(self, "registry_person", registry_person)
+        self.registry_person = registry_person
+
+    def set_fw_user(self, fw_user: User) -> None:
+        """Attaches the Flywheel user to this user entry.
+
+        Mutates this object to add the Flywheel user.
+
+        Args:
+            fw_user: the Flywheel User object to attach
+        """
+        self.fw_user = fw_user
 
     def as_user(self) -> User:
         """Creates a user object from the directory entry.

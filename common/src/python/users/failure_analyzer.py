@@ -30,7 +30,7 @@ class FailureAnalyzer:
         self.env = environment
 
     def analyze_flywheel_user_creation_failure(
-        self, entry: CenterUserEntry, error: FlywheelError
+        self, entry: ActiveUserEntry, error: FlywheelError
     ) -> Optional[UserProcessEvent]:
         """Analyze why Flywheel user creation failed after 3 attempts.
 
