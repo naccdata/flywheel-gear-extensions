@@ -250,7 +250,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
 
         authorizations = {
             authorization.study_id: authorization
-            for authorization in entry.authorizations
+            for authorization in entry.study_authorizations
         }
         self.__authorize_user(
             user=fw_user,

@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from users.authorizations import Authorizations
 from users.event_models import UserEventCollector
 from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
 from users.user_processes import (
@@ -72,7 +73,8 @@ def active_user_entry_strategy(draw):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
 
@@ -88,7 +90,8 @@ def registered_user_entry_strategy(draw):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
         registry_id="test123",
     )
 
@@ -394,7 +397,8 @@ def test_collector_does_not_interfere_with_logging(mock_env):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
     # Test with error collector

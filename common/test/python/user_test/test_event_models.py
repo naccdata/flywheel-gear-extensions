@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 
 import pytest
+from users.authorizations import Authorizations
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
 from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
 
@@ -24,7 +25,8 @@ class TestUserContext:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         # Create UserContext from user entry
@@ -103,8 +105,9 @@ class TestUserContext:
             approved=True,
             org_name="Test Center",
             adcid=999,
-            authorizations=[],
+            authorizations=Authorizations(),
             registry_id="reg789",
+            study_authorizations=[],
         )
 
         # Create UserContext from registered user entry

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
+from users.authorizations import Authorizations
 from users.user_entry import PersonName, RegisteredUserEntry
 from users.user_registry import RegistryPerson
 
@@ -39,7 +40,8 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg123",
         )
 
@@ -175,7 +177,8 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Different Center",
             adcid=456,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg456",
         )
 
@@ -242,7 +245,8 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg123",
         )
 
@@ -328,7 +332,8 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Another Center",
             adcid=789,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg789",
         )
 
@@ -470,7 +475,8 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Full Context Center",
             adcid=999,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg999",
         )
 

@@ -219,6 +219,7 @@ def test_user_context_from_user_entry_preserves_information(user_context):
     For any user entry, UserContext.from_user_entry should preserve all available
     user information from the entry.
     """
+    from users.authorizations import Authorizations
     from users.user_entry import CenterUserEntry, PersonName
 
     # Create a mock user entry with the same information as user_context
@@ -243,7 +244,8 @@ def test_user_context_from_user_entry_preserves_information(user_context):
         approved=True,
         org_name="Test Organization",
         adcid=user_context.center_id or 1,  # CenterUserEntry requires adcid
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
     # Create UserContext from the user entry

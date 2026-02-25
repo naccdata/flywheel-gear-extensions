@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
+from users.authorizations import Authorizations
 from users.event_models import EventCategory, UserEventCollector
 from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
@@ -61,7 +62,8 @@ class TestActiveUserProcessIntegration:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
     def test_active_user_process_preserves_existing_functionality(
@@ -111,7 +113,8 @@ class TestActiveUserProcessIntegration:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         process = ActiveUserProcess(mock_environment, collector)
@@ -298,7 +301,8 @@ class TestClaimedUserProcessIntegration:
             approved=True,
             org_name="Test Center",
             adcid=456,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg456",
         )
 
@@ -477,7 +481,8 @@ class TestUpdateUserProcessIntegration:
             approved=True,
             org_name="Test Center",
             adcid=789,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg789",
         )
 
@@ -668,7 +673,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         entry_bad_claim = CenterUserEntry(
@@ -679,7 +685,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         # Setup mocks for different scenarios
@@ -724,7 +731,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         process1 = ActiveUserProcess(mock_environment, collector)
@@ -742,7 +750,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=456,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
             registry_id="reg456",
         )
 
@@ -778,7 +787,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         # Scenario 2: Bad claim
@@ -790,7 +800,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         # Scenario 3: New user registration
@@ -802,7 +813,8 @@ class TestUserProcessIntegrationEndToEnd:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
 
         # Setup mocks for different scenarios
