@@ -7,7 +7,7 @@ from datetime import datetime
 import pytest
 from users.authorizations import Authorizations
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
-from users.user_entry import CenterUserEntry, PersonName, RegisteredUserEntry
+from users.user_entry import CenterUserEntry, PersonName
 
 
 class TestUserContext:
@@ -37,6 +37,9 @@ class TestUserContext:
         assert user_context.name is not None
         assert user_context.name == "John Doe"
         assert user_context.auth_email == "john.auth@example.com"
+        assert user_context.center_id == 123
+        # registry_id should be None for unregistered entry
+        assert user_context.registry_id is None
 
     def test_user_context_creation_with_optional_fields(self):
         """Test UserContext creation with optional fields."""
@@ -94,10 +97,18 @@ class TestUserContext:
         assert parsed_json["name"] == "Alice Johnson"
 
     def test_user_context_from_registered_user_entry(self):
-        """Test UserContext creation from RegisteredUserEntry."""
+        """Test UserContext creation from CenterUserEntry with
+        registry_person."""
+        from unittest.mock import Mock
+
+        from users.user_registry import RegistryPerson
+
+        # Create a mock RegistryPerson
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg789"
 
         # Create a registered user entry
-        registered_entry = RegisteredUserEntry(
+        registered_entry = CenterUserEntry(
             name=PersonName(first_name="Bob", last_name="Wilson"),
             email="bob.wilson@example.com",
             auth_email="bob.auth@example.com",
@@ -106,9 +117,9 @@ class TestUserContext:
             org_name="Test Center",
             adcid=999,
             authorizations=Authorizations(),
-            registry_id="reg789",
             study_authorizations=[],
         )
+        registered_entry.register(mock_registry_person)
 
         # Create UserContext from registered user entry
         user_context = UserContext.from_user_entry(registered_entry)
@@ -118,6 +129,36 @@ class TestUserContext:
         assert user_context.name is not None
         assert user_context.name == "Bob Wilson"
         assert user_context.auth_email == "bob.auth@example.com"
+        assert user_context.center_id == 999
+        assert user_context.registry_id == "reg789"
+
+    def test_user_context_from_unregistered_center_entry(self):
+        """Test UserContext creation from unregistered CenterUserEntry."""
+
+        # Create an unregistered center user entry
+        unregistered_entry = CenterUserEntry(
+            name=PersonName(first_name="Alice", last_name="Brown"),
+            email="alice.brown@example.com",
+            auth_email="alice.auth@example.com",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=888,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+        # Don't call register() - leave it unregistered
+
+        # Create UserContext from unregistered user entry
+        user_context = UserContext.from_user_entry(unregistered_entry)
+
+        # Verify the context contains expected data
+        assert user_context.email == "alice.brown@example.com"
+        assert user_context.name == "Alice Brown"
+        assert user_context.auth_email == "alice.auth@example.com"
+        assert user_context.center_id == 888
+        # registry_id should be None for unregistered entry
+        assert user_context.registry_id is None
 
 
 class TestUserProcessEvent:

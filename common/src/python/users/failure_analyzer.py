@@ -1,5 +1,6 @@
 """Failure analyzer for complex user management scenarios."""
 
+import logging
 from typing import List, Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelError
@@ -10,9 +11,11 @@ from users.event_models import (
     UserContext,
     UserProcessEvent,
 )
-from users.user_entry import RegisteredUserEntry, UserEntry
+from users.user_entry import ActiveUserEntry, CenterUserEntry
 from users.user_process_environment import UserProcessEnvironment
 from users.user_registry import RegistryPerson, org_name_is
+
+log = logging.getLogger(__name__)
 
 
 class FailureAnalyzer:
@@ -27,7 +30,7 @@ class FailureAnalyzer:
         self.env = environment
 
     def analyze_flywheel_user_creation_failure(
-        self, entry: RegisteredUserEntry, error: FlywheelError
+        self, entry: CenterUserEntry, error: FlywheelError
     ) -> Optional[UserProcessEvent]:
         """Analyze why Flywheel user creation failed after 3 attempts.
 
@@ -38,6 +41,12 @@ class FailureAnalyzer:
         Returns:
             A UserProcessEvent describing the failure, or None if analysis fails
         """
+        if not entry.registry_id:
+            log.warning(
+                "Cannot analyze failure for entry without registry_id: %s", entry.email
+            )
+            return None
+
         try:
             # Check if user already exists (duplicate)
             existing_user = self.env.find_user(entry.registry_id)
@@ -81,12 +90,12 @@ class FailureAnalyzer:
             )
 
     def analyze_missing_claimed_user(
-        self, entry: RegisteredUserEntry
+        self, entry: CenterUserEntry
     ) -> Optional[UserProcessEvent]:
         """Analyze why we can't find a claimed user by registry_id.
 
         This method is specifically for the scenario where:
-        - We have a RegisteredUserEntry with a registry_id
+        - We have a CenterUserEntry with a registry_id
         - find_by_registry_id() returns None (user not found in registry)
         - This indicates a data inconsistency between our records and the registry
 
@@ -150,7 +159,7 @@ class FailureAnalyzer:
         )
 
     def detect_incomplete_claim(
-        self, entry: UserEntry, bad_claim_persons: List[RegistryPerson]
+        self, entry: ActiveUserEntry, bad_claim_persons: List[RegistryPerson]
     ) -> Optional[UserProcessEvent]:
         """Detect incomplete claims and identify if ORCID is the identity
         provider.
