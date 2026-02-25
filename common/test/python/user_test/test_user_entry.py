@@ -4,7 +4,13 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
-from users.authorizations import Activity, DatatypeResource, StudyAuthorizations
+from users.authorizations import (
+    Activity,
+    Authorizations,
+    DatatypeResource,
+    PageResource,
+    StudyAuthorizations,
+)
 from users.nacc_directory import (
     CenterUserEntry,
     DirectoryAuthorizations,
@@ -98,7 +104,15 @@ class TestUserEntry:
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=[
+            authorizations=Authorizations(
+                activities={
+                    PageResource(page="web"): Activity(
+                        resource=PageResource(page="web"),
+                        action="view",
+                    ),
+                },
+            ),
+            study_authorizations=[
                 StudyAuthorizations(
                     study_id="adrc",
                     activities={
@@ -122,7 +136,7 @@ class TestUserEntry:
             auth_email="chip_auth@theorg.org",
         )
 
-        assert "submit-audit-datatype-form" in entry.authorizations[0]  # type: ignore
+        assert "submit-audit-datatype-form" in entry.study_authorizations[0]  # type: ignore
 
         # assumes study_id is adrc
         try:
@@ -137,7 +151,7 @@ class TestUserEntry:
                     "fw_email": "chip_auth@theorg.org",
                     "archive_contact": "0",
                     "flywheel_access": "1",
-                    "web_report_access": "1",
+                    "web_report_access": "Web",
                     "study_selections": "P30,AffliatedStudy",
                     "scan_dashboard_access_level": "ViewAccess",
                     "p30_naccid_enroll_access_level": "SubmitAudit",
@@ -194,7 +208,15 @@ class TestUserEntry:
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=[
+            authorizations=Authorizations(
+                activities={
+                    PageResource(page="webinars"): Activity(
+                        resource=PageResource(page="webinars"),
+                        action="view",
+                    ),
+                },
+            ),
+            study_authorizations=[
                 StudyAuthorizations(
                     study_id="dummy",
                     activities={

@@ -11,6 +11,7 @@ from users.authorizations import (
     AuthMap,
     DashboardResource,
     DatatypeResource,
+    Resource,
     StudyAuthorizations,
 )
 from users.user_entry import CenterUserEntry
@@ -82,8 +83,8 @@ def auth_map_alpha_yaml():
 def alpha_authorizations():
     """Authorizations object."""
     authorizations = StudyAuthorizations(study_id="dummy")
-    authorizations.add(datatype="form", action="submit-audit")
-    authorizations.add(datatype="enrollment", action="submit-audit")
+    authorizations.add_datatype(datatype="form", action="submit-audit")
+    authorizations.add_datatype(datatype="enrollment", action="submit-audit")
     yield authorizations
 
 
@@ -91,8 +92,8 @@ def alpha_authorizations():
 def beta_authorizations():
     """Authorizations object."""
     authorizations = StudyAuthorizations(study_id="dummy")
-    authorizations.add(datatype="dicom", action="submit-audit")
-    authorizations.add(datatype="form", action="view")
+    authorizations.add_datatype(datatype="dicom", action="submit-audit")
+    authorizations.add_datatype(datatype="form", action="view")
     yield authorizations
 
 
@@ -235,7 +236,7 @@ class TestAuthMap:
 
         # Create authorizations with both types
         mixed_auth = StudyAuthorizations(study_id="test")
-        mixed_auth.add(datatype="form", action="submit-audit")
+        mixed_auth.add_datatype(datatype="form", action="submit-audit")
 
         dashboard_resource = DashboardResource(dashboard="reports")
         dashboard_activity = Activity(resource=dashboard_resource, action="view")
@@ -255,7 +256,7 @@ class TestAuthMap:
 
         # Create authorization with activity
         auth = StudyAuthorizations(study_id="test")
-        auth.add(datatype="form", action="submit-audit")
+        auth.add_datatype(datatype="form", action="submit-audit")
 
         # Get roles - should match even though Activity instances are different
         roles = auth_map.get(project_label="test-project", authorizations=auth)
@@ -276,7 +277,7 @@ class TestAuthMap:
 
         # Create authorization with hyphenated datatype
         auth = StudyAuthorizations(study_id="test")
-        auth.add(datatype="scan-analysis", action="view")
+        auth.add_datatype(datatype="scan-analysis", action="view")
 
         roles = auth_map.get(project_label="ingest-scan", authorizations=auth)
         assert len(roles) == 1
@@ -293,7 +294,7 @@ class TestAuthMap:
         )
 
         auth = StudyAuthorizations(study_id="test")
-        auth.add(datatype="form", action="submit-audit")
+        auth.add_datatype(datatype="form", action="submit-audit")
 
         # Should match "ingest-form-dvcid" by removing suffix
         roles = auth_map.get(project_label="ingest-form-dvcid", authorizations=auth)
@@ -304,7 +305,7 @@ class TestAuthMap:
 class TestAuthorization:
     def test_contains(self):
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="form", action="submit-audit")
 
         assert "submit-audit-datatype-form" in authorization
         assert "view-datatype-form" not in authorization
@@ -321,8 +322,8 @@ class TestAuthorization:
     def test_contains_with_string(self):
         """Test __contains__ with string activity representation."""
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
-        authorization.add(datatype="enrollment", action="view")
+        authorization.add_datatype(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="enrollment", action="view")
 
         # Test string format
         assert "submit-audit-datatype-form" in authorization
@@ -333,7 +334,7 @@ class TestAuthorization:
     def test_contains_with_resource_as_key(self):
         """Test that Resource objects work as dictionary keys in activities."""
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="form", action="submit-audit")
 
         # Create a new Resource instance with same value
         form_resource = DatatypeResource(datatype="form")
@@ -345,9 +346,9 @@ class TestAuthorization:
     def test_add_multiple_datatypes(self):
         """Test adding multiple datatype activities."""
         authorization = StudyAuthorizations(study_id="adrc")
-        authorization.add(datatype="form", action="submit-audit")
-        authorization.add(datatype="enrollment", action="submit-audit")
-        authorization.add(datatype="scan-analysis", action="view")
+        authorization.add_datatype(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="enrollment", action="submit-audit")
+        authorization.add_datatype(datatype="scan-analysis", action="view")
 
         assert len(authorization.activities) == 3
         assert "submit-audit-datatype-form" in authorization
@@ -357,8 +358,8 @@ class TestAuthorization:
     def test_add_overwrites_existing(self):
         """Test that adding same datatype overwrites previous activity."""
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
-        authorization.add(datatype="form", action="view")
+        authorization.add_datatype(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="form", action="view")
 
         # Should only have one activity for form
         assert len(authorization.activities) == 1
@@ -413,7 +414,7 @@ class TestAuthorization:
 
     def test_str(self):
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="form", action="submit-audit")
 
         assert (
             str(authorization)
@@ -423,8 +424,8 @@ class TestAuthorization:
     def test_str_multiple_activities(self):
         """Test string representation with multiple activities."""
         authorization = StudyAuthorizations(study_id="adrc")
-        authorization.add(datatype="form", action="submit-audit")
-        authorization.add(datatype="enrollment", action="view")
+        authorization.add_datatype(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="enrollment", action="view")
 
         result = str(authorization)
         assert "study_id='adrc'" in result
@@ -434,7 +435,7 @@ class TestAuthorization:
     def test_contains_invalid_string(self):
         """Test __contains__ with invalid string format."""
         authorization = StudyAuthorizations(study_id="dummy")
-        authorization.add(datatype="form", action="submit-audit")
+        authorization.add_datatype(datatype="form", action="submit-audit")
 
         # Invalid strings should return False, not raise exception
         assert "invalid-string" not in authorization
@@ -483,6 +484,8 @@ class TestUserAuthorizations:
             "approved: true\n"
             "auth_email: blah@blah.org\n"
             "authorizations:\n"
+            "  activities: {}\n"
+            "study_authorizations:\n"
             "- activities:\n"
             "    datatype-enrollment: submit-audit-datatype-enrollment\n"
             "    datatype-form: submit-audit-datatype-form\n"
@@ -496,7 +499,9 @@ class TestUserAuthorizations:
         user_object = yaml.safe_load(user_yaml)
         assert user_object
         user_entry = CenterUserEntry.model_validate(user_object)
-        authorizations = {auth.study_id: auth for auth in user_entry.authorizations}
+        authorizations = {
+            auth.study_id: auth for auth in user_entry.study_authorizations
+        }
         adrc_authorization = authorizations.get("adrc")
         assert adrc_authorization
         assert "submit-audit-datatype-enrollment" in adrc_authorization
@@ -533,3 +538,236 @@ class TestUserAuthorizations:
             == submission_activity
         )
         assert submission_activity in adrc_authorization
+
+
+class TestActivitiesDictMethods:
+    """Test dictionary-like methods of Activities class."""
+
+    def test_getitem(self):
+        """Test __getitem__ method for accessing activities by resource."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        activity = Activity(resource=resource, action="submit-audit")
+        authorization.activities[resource] = activity
+
+        # Should be able to access using bracket notation
+        retrieved = authorization.activities[resource]
+        assert retrieved == activity
+
+    def test_getitem_key_error(self):
+        """Test __getitem__ raises KeyError for missing resource."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+
+        with pytest.raises(KeyError):
+            _ = authorization.activities[resource]
+
+    def test_setitem(self):
+        """Test __setitem__ method for setting activities."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        activity = Activity(resource=resource, action="submit-audit")
+
+        # Should be able to set using bracket notation
+        authorization.activities[resource] = activity
+        assert authorization.activities[resource] == activity
+
+    def test_delitem(self):
+        """Test __delitem__ method for deleting activities."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        activity = Activity(resource=resource, action="submit-audit")
+        authorization.activities[resource] = activity
+
+        # Should be able to delete using del
+        del authorization.activities[resource]
+        assert resource not in authorization.activities
+        assert len(authorization.activities) == 0
+
+    def test_delitem_key_error(self):
+        """Test __delitem__ raises KeyError for missing resource."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+
+        with pytest.raises(KeyError):
+            del authorization.activities[resource]
+
+    def test_len(self):
+        """Test __len__ method returns correct count."""
+        authorization = StudyAuthorizations(study_id="test")
+        assert len(authorization.activities) == 0
+
+        authorization.add_datatype(datatype="form", action="submit-audit")
+        assert len(authorization.activities) == 1
+
+        authorization.add_datatype(datatype="enrollment", action="view")
+        assert len(authorization.activities) == 2
+
+    def test_iter(self):
+        """Test __iter__ method for iterating over resource keys."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource1 = DatatypeResource(datatype="form")
+        resource2 = DatatypeResource(datatype="enrollment")
+        activity1 = Activity(resource=resource1, action="submit-audit")
+        activity2 = Activity(resource=resource2, action="view")
+
+        authorization.activities[resource1] = activity1
+        authorization.activities[resource2] = activity2
+
+        # Should be able to iterate over resources
+        resources = list(authorization.activities)
+        assert len(resources) == 2
+        assert resource1 in resources
+        assert resource2 in resources
+
+    def test_keys(self):
+        """Test keys() method returns resource keys."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource1 = DatatypeResource(datatype="form")
+        resource2 = DatatypeResource(datatype="enrollment")
+        activity1 = Activity(resource=resource1, action="submit-audit")
+        activity2 = Activity(resource=resource2, action="view")
+
+        authorization.activities[resource1] = activity1
+        authorization.activities[resource2] = activity2
+
+        keys = authorization.activities.keys()
+        assert resource1 in keys
+        assert resource2 in keys
+        assert len(list(keys)) == 2
+
+    def test_values(self):
+        """Test values() method returns activity values."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource1 = DatatypeResource(datatype="form")
+        resource2 = DatatypeResource(datatype="enrollment")
+        activity1 = Activity(resource=resource1, action="submit-audit")
+        activity2 = Activity(resource=resource2, action="view")
+
+        authorization.activities[resource1] = activity1
+        authorization.activities[resource2] = activity2
+
+        values = authorization.activities.values()
+        assert activity1 in values
+        assert activity2 in values
+        assert len(list(values)) == 2
+
+    def test_items(self):
+        """Test items() method returns (resource, activity) pairs."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource1 = DatatypeResource(datatype="form")
+        resource2 = DatatypeResource(datatype="enrollment")
+        activity1 = Activity(resource=resource1, action="submit-audit")
+        activity2 = Activity(resource=resource2, action="view")
+
+        authorization.activities[resource1] = activity1
+        authorization.activities[resource2] = activity2
+
+        items = list(authorization.activities.items())
+        assert len(items) == 2
+        assert (resource1, activity1) in items
+        assert (resource2, activity2) in items
+
+    def test_get_with_existing_key(self):
+        """Test get() method with existing key."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        activity = Activity(resource=resource, action="submit-audit")
+        authorization.activities[resource] = activity
+
+        retrieved = authorization.activities.get(resource)
+        assert retrieved == activity
+
+    def test_get_with_missing_key(self):
+        """Test get() method with missing key returns None."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+
+        retrieved = authorization.activities.get(resource)
+        assert retrieved is None
+
+    def test_get_with_default(self):
+        """Test get() method with missing key returns default value."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        default_activity = Activity(
+            resource=DatatypeResource(datatype="enrollment"), action="view"
+        )
+
+        retrieved = authorization.activities.get(resource, default_activity)
+        assert retrieved == default_activity
+
+    def test_contains_with_resource_key(self):
+        """Test __contains__ with Resource key (dict-like behavior)."""
+        authorization = StudyAuthorizations(study_id="test")
+        resource = DatatypeResource(datatype="form")
+        activity = Activity(resource=resource, action="submit-audit")
+        authorization.activities[resource] = activity
+
+        # Should support checking if resource key exists
+        assert resource in authorization.activities
+
+        missing_resource = DatatypeResource(datatype="enrollment")
+        assert missing_resource not in authorization.activities
+
+    def test_dict_like_usage_pattern(self):
+        """Test using Activities like a regular dict."""
+        authorization = StudyAuthorizations(study_id="test")
+
+        # Add items using dict-like syntax
+        form_resource = DatatypeResource(datatype="form")
+        form_activity = Activity(resource=form_resource, action="submit-audit")
+        authorization.activities[form_resource] = form_activity
+
+        enrollment_resource = DatatypeResource(datatype="enrollment")
+        enrollment_activity = Activity(resource=enrollment_resource, action="view")
+        authorization.activities[enrollment_resource] = enrollment_activity
+
+        # Check length
+        assert len(authorization.activities) == 2
+
+        # Iterate over keys
+        for resource in authorization.activities:
+            assert isinstance(resource, Resource)
+
+        # Iterate over items
+        for resource, activity in authorization.activities.items():
+            assert isinstance(resource, Resource)
+            assert isinstance(activity, Activity)
+
+        # Check membership
+        assert form_resource in authorization.activities
+        assert enrollment_resource in authorization.activities
+
+        # Get values
+        assert authorization.activities[form_resource] == form_activity
+        assert authorization.activities.get(enrollment_resource) == enrollment_activity
+
+        # Delete item
+        del authorization.activities[form_resource]
+        assert form_resource not in authorization.activities
+        assert len(authorization.activities) == 1
+
+    def test_mixed_resource_types_dict_access(self):
+        """Test dict-like access with mixed resource types."""
+        authorization = StudyAuthorizations(study_id="test")
+
+        # Add datatype resource
+        datatype_resource = DatatypeResource(datatype="form")
+        datatype_activity = Activity(resource=datatype_resource, action="submit-audit")
+        authorization.activities[datatype_resource] = datatype_activity
+
+        # Add dashboard resource
+        dashboard_resource = DashboardResource(dashboard="reports")
+        dashboard_activity = Activity(resource=dashboard_resource, action="view")
+        authorization.activities[dashboard_resource] = dashboard_activity
+
+        # Should be able to access both types
+        assert authorization.activities[datatype_resource] == datatype_activity
+        assert authorization.activities[dashboard_resource] == dashboard_activity
+
+        # Should be able to iterate over both
+        resources = list(authorization.activities.keys())
+        assert len(resources) == 2
+        assert datatype_resource in resources
+        assert dashboard_resource in resources

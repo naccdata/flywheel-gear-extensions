@@ -96,16 +96,18 @@ class TestDirectoryAuthorizations:
     assert not auths.inactive
     assert auths.complete
     assert "LEADS" not in auths.affiliated_study
-    assert auths.dlbc_form_access_level == "NoAccess"
+    assert auths.dlbc_datatype_form_access_level == "NoAccess"
 
     user_entry = auths.to_user_entry()
     assert user_entry and isinstance(user_entry, CenterUserEntry)
     assert user_entry.active
     assert user_entry.adcid == 999
-    assert len(user_entry.authorizations) == 4
+    assert len(user_entry.study_authorizations) == 4
 
     # using dict to manage authorizations to avoid ordering issues in comparing lists
-    user_authorizations = {auth.study_id: auth for auth in user_entry.authorizations}  # noqa: RUF012
+    user_authorizations = {  # noqa: RUF012
+        auth.study_id: auth for auth in user_entry.study_authorizations
+    }
 
     assert user_authorizations.get("adrc") == StudyAuthorizations(
         study_id="adrc",
