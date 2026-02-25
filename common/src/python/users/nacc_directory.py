@@ -444,7 +444,6 @@ class DirectoryAuthorizations(BaseModel):
 
         authorizations = self.__parse_fields().get_authorizations()
         if self.adcid is None:
-            # TODO: this should be a "community" user
             return ActiveUserEntry(
                 name=name,
                 email=email,
