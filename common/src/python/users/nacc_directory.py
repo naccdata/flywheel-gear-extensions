@@ -10,7 +10,6 @@ from pydantic import (
     Field,
     field_validator,
 )
-
 from users.authorizations import (
     ActionType,
     Authorizations,
@@ -186,12 +185,16 @@ class DirectoryAuthorizations(BaseModel):
     permissions_approval_date: date
     permissions_approval_name: str
 
-    @field_validator("adcid")
+    @field_validator("adcid", mode="before")
     def convert_adcid(cls, adcid: Any) -> Optional[int]:
         if isinstance(adcid, int):
             return adcid
         if not isinstance(adcid, str):
             return adcid
+
+        # Handle empty strings and non-numeric values
+        if not adcid or adcid.strip() == "" or adcid.upper() == "NA":
+            return None
 
         try:
             return int(adcid)
