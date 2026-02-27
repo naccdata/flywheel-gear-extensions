@@ -81,9 +81,34 @@ def run(
             collector.collect(error_event)
             continue
 
-        entry = dir_record.to_user_entry()
-        if not entry:
+        try:
+            entry = dir_record.to_user_entry()
+        except ValidationError as error:
+            log.error(
+                "Error converting directory record to user entry for %s: %s",
+                dir_record.email,
+                error,
+            )
+
+            # Create error event for user entry validation failure
+            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_DATA,
+                user_context=UserContext(
+                    email=dir_record.email,
+                    name=name,
+                    center_id=dir_record.adcid,
+                    auth_email=dir_record.auth_email,
+                ),
+                message="Failed to create user entry from directory record",
+                action_needed="check_directory_record_completeness",
+            )
+            collector.collect(error_event)
             continue
+
+        # Should not be None since we already checked permissions_approval
+        assert entry is not None, f"Unexpected None entry for {dir_record.email}"
 
         if entry.email in user_emails:
             log.warning("Email %s occurs in more than one contact", entry.email)
