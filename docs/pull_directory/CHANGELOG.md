@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 3.0.0
 
 * Refactors directory authorization model to support generalized resources (pages, dashboards, datatypes)
 * Adds support for parsing web access and dashboard access from `web_report_access` field
