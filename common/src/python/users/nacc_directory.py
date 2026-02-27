@@ -182,7 +182,6 @@ class DirectoryAuthorizations(BaseModel):
     adrc_datatype_scan_analysis_access_level: AuthorizationAccessLevel = Field(
         alias="scan_dashboard_access_level"
     )
-    complete: bool = Field(alias="nacc_data_platform_access_information_complete")
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
@@ -269,15 +268,6 @@ class DirectoryAuthorizations(BaseModel):
             raise TypeError("expecting bool or string value")
 
         return value == "1"
-
-    @field_validator("complete", mode="before")
-    def convert_complete(cls, value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if not isinstance(value, str):
-            raise TypeError("expecting form completion value")
-
-        return value == "2"
 
     def __handle_datatype_resource(
         self,
@@ -426,8 +416,6 @@ class DirectoryAuthorizations(BaseModel):
         """Converts this DirectoryAuthorizations object to a UserEntry."""
 
         if not self.permissions_approval:
-            return None
-        if not self.complete:
             return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)

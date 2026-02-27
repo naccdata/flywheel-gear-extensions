@@ -81,28 +81,6 @@ def run(
             collector.collect(error_event)
             continue
 
-        if not dir_record.complete:
-            log.warning(
-                "Ignoring %s: Data platform survey is incomplete", dir_record.email
-            )
-
-            # Create error event for incomplete survey
-            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
-            error_event = UserProcessEvent(
-                event_type=EventType.ERROR,
-                category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
-                user_context=UserContext(
-                    email=dir_record.email,
-                    name=name,
-                    center_id=dir_record.adcid,
-                    auth_email=dir_record.auth_email,
-                ),
-                message="Data platform survey is incomplete",
-                action_needed="complete_data_platform_survey",
-            )
-            collector.collect(error_event)
-            continue
-
         entry = dir_record.to_user_entry()
         if not entry:
             continue

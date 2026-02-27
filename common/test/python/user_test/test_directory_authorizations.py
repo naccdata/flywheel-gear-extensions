@@ -43,7 +43,6 @@ class TestDirectoryAuthorizations:
                 "adresearchctr": "999",
                 "adcid": "999",
                 "archive_contact": "1",
-                "nacc_data_platform_access_information_complete": "2",
             },
             by_alias=True,
         )
@@ -88,13 +87,11 @@ class TestDirectoryAuthorizations:
             "adresearchctr": "999",
             "adcid": "999",
             "archive_contact": "0",
-            "nacc_data_platform_access_information_complete": "2",
         },
         by_alias=True,
     )
     assert auths
     assert not auths.inactive
-    assert auths.complete
     assert "LEADS" not in auths.affiliated_study
     assert auths.dlbc_datatype_form_access_level == "NoAccess"
 
