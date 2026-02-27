@@ -466,10 +466,30 @@ class AuthMap(BaseModel):
     ) -> list[RoleOutput]:
         role_map: dict[str, RoleOutput] = {}
         activity_map = self.project_authorizations.get(label, {})
-        for activity in authorizations.activities.values():
-            role_list = activity_map.get(activity, [])
-            for role in role_list:
-                role_map[role.label] = role
+
+        # Flatten the list of role lists for submit-audit activities
+        submit_roles = [
+            role
+            for activity in authorizations.activities.values()
+            if str(activity).startswith("submit-audit-")
+            for role in activity_map.get(activity, [])
+        ]
+        for role in submit_roles:
+            role_map[role.label] = role
+
+        # Flatten the list of role lists for view activities
+        view_roles = [
+            role
+            for activity in authorizations.activities.values()
+            if not str(activity).startswith("submit-audit-")
+            for role in activity_map.get(activity, [])
+        ]
+        for role in view_roles:
+            if submit_roles and role.label != self.read_only_role.label:
+                continue
+
+            role_map[role.label] = role
+
         return list(role_map.values())
 
     def get(
