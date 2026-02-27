@@ -184,7 +184,7 @@ class UserEntryList(RootModel):
     Use model_dump(serialize_as_any=True)
     """
 
-    root: list[UserEntry]
+    root: list[CenterUserEntry | ActiveUserEntry | UserEntry]
 
     def __iter__(self):
         return iter(self.root)
