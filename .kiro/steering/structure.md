@@ -54,6 +54,10 @@ This is a Pants-managed monorepo with multiple packages and gears organized by f
   - `index.md` - Main documentation index
   - Subdirectories for each gear and process
   - Published to GitHub Pages
+  - **IMPORTANT**: Each gear and package has its CHANGELOG.md in `docs/{component_name}/CHANGELOG.md`
+    - Example: `docs/user_management/CHANGELOG.md`
+    - Example: `docs/nacc_common/CHANGELOG.md`
+    - Example: `docs/form_qc_checker/CHANGELOG.md`
 
 ### Templates
 
@@ -78,7 +82,7 @@ Standard layout for Python packages:
 ```
 package-name/
 ├── BUILD                    # Pants build file
-├── pyproject.toml          # Package metadata (if distributed)
+├── pyproject.toml          # Package metadata (if distributed) - contains version
 ├── README.md
 ├── src/python/
 │   └── package_name/       # Python module
@@ -90,6 +94,8 @@ package-name/
         └── test_*.py
 ```
 
+**Note**: Package CHANGELOGs are located in `docs/{package-name}/CHANGELOG.md`, NOT in the package directory itself.
+
 ### Gear Structure
 
 Standard layout for gears:
@@ -98,7 +104,8 @@ gear/gear-name/
 ├── src/
 │   ├── docker/
 │   │   ├── BUILD
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── manifest.json   # Contains version number
 │   └── python/
 │       └── app_name/
 │           ├── BUILD
@@ -109,6 +116,8 @@ gear/gear-name/
 └── data/
     └── *.yaml              # Test data
 ```
+
+**Note**: Gear CHANGELOGs are located in `docs/{gear-name}/CHANGELOG.md`, NOT in the gear directory itself.
 
 ### BUILD Files
 
