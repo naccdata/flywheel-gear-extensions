@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.0.1
+
+* Fixes validation error when processing directory entries with empty or 'NA' adcid values
+* Updates `DirectoryAuthorizations.convert_adcid` validator to run in `mode="before"` to handle string conversion before Pydantic type checking
+* Handles empty strings, whitespace-only strings, and 'NA' values by converting them to None
+
 ## 3.0.0
 
 * Refactors directory authorization model to support generalized resources (pages, dashboards, datatypes)
