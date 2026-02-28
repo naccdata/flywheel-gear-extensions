@@ -203,7 +203,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         if not auth_filepath:
             raise GearExecutionError("No user role file provided")
 
-        return user_filepath, auth_filepath
+        return Path(user_filepath), Path(auth_filepath)
 
     @staticmethod
     def _parse_support_emails(emails_str: str) -> list[str]:
