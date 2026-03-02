@@ -6,6 +6,13 @@ All notable changes to this gear are documented in this file.
 
 * none
 
+## 4.0.3
+
+* Fixes Path type handling in input file path retrieval
+  * Wraps `context.config.get_input_path()` return values with `Path()` to ensure Path objects
+  * Resolves `AttributeError: 'str' object has no attribute 'stem'` when generating error filenames
+  * Addresses type mismatch where `fw-gear` library returns strings despite Path type hint
+
 ## 4.0.2
 
 * Fixes user entry validation to correctly handle polymorphic user types
