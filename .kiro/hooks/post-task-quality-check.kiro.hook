@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Quality Check After Task Completion",
+  "description": "Runs full quality check (fix, lint, check, test) on the relevant code after a spec task is marked as completed",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A spec task was just completed. Run the full quality check workflow using the kiro-pants-power on the appropriate target for the code that was modified in this task. Use the target that corresponds to the gear or module that was worked on (e.g., \"gear/image_identifier_lookup/src/python::\" for image identifier lookup tasks). After running the quality check, report the results. If any checks fail, fix the issues and re-run the quality check until all checks pass."
+  }
+}
