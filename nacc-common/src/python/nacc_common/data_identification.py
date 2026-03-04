@@ -115,7 +115,7 @@ class FormIdentification(BaseModel):
     not all forms have packets.
     """
 
-    module: str  # Form name (A1, B1, NP, Milestone, etc.) - required
+    module: str  # Module is UDS, LBD, FTLD, NP, etc. (not the form name) - required
     packet: Optional[str] = None  # I=Initial, F=Followup, T=Telephone - optional
 
     @classmethod
@@ -225,13 +225,13 @@ class DataIdentification(BaseModel):
         that uses the legacy flat structure.
 
         Args:
-            adcid: Center identifier
+            adcid: Center identifier (optional - may not be available in all contexts)
             ptid: Participant identifier (center-assigned) - required
-            naccid: Participant identifier (NACC-assigned)
-            visitnum: Visit sequence number
+            naccid: Participant identifier (NACC-assigned) - optional
+            visitnum: Visit sequence number - optional (not present for non-visit data)
             date: Visit date or collection date - required
-            module: Form name - required unless modality is provided
-            packet: Form packet (I/F/T)
+            module: Module identifier (UDS, LBD, FTLD, NP, etc.) - required unless modality is provided
+            packet: Form packet (I/F/T) - optional
             modality: Imaging modality - required unless module is provided
 
         Returns:
