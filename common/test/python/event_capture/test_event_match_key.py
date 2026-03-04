@@ -5,15 +5,15 @@ from datetime import datetime
 import pytest
 from event_capture.models import EventMatchKey, UnmatchedSubmitEvents
 from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 
 
 class TestEventMatchKey:
     """Tests for EventMatchKey creation and matching."""
 
     def test_from_visit_metadata_creates_key(self):
-        """Test that EventMatchKey can be created from VisitMetadata."""
-        metadata = VisitMetadata(
+        """Test that EventMatchKey can be created from DataIdentification."""
+        metadata = DataIdentification.from_visit_metadata(
             ptid="NACC123456",
             date="2024-01-15",
             module="UDS",
@@ -30,7 +30,7 @@ class TestEventMatchKey:
     def test_from_visit_metadata_normalizes_module_to_uppercase(self):
         """Test that module is normalized to uppercase for case-insensitive
         matching."""
-        metadata = VisitMetadata(
+        metadata = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="2024-01-15", module="uds", visitnum="v1"
         )
 
@@ -40,7 +40,7 @@ class TestEventMatchKey:
 
     def test_from_visit_metadata_raises_on_missing_ptid(self):
         """Test that ValueError is raised when ptid is missing."""
-        metadata = VisitMetadata(
+        metadata = DataIdentification.from_visit_metadata(
             ptid="", date="2024-01-15", module="UDS", visitnum="v1"
         )
 
@@ -49,7 +49,7 @@ class TestEventMatchKey:
 
     def test_from_visit_metadata_raises_on_missing_date(self):
         """Test that ValueError is raised when date is missing."""
-        metadata = VisitMetadata(
+        metadata = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="", module="UDS", visitnum="v1"
         )
 
@@ -58,7 +58,7 @@ class TestEventMatchKey:
 
     def test_from_visit_metadata_raises_on_missing_module(self):
         """Test that ValueError is raised when module is missing."""
-        metadata = VisitMetadata(
+        metadata = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="2024-01-15", module="", visitnum="v1"
         )
 
@@ -97,13 +97,13 @@ class TestEventMatchKey:
     def test_case_insensitive_module_matching(self):
         """Test that module matching is case-insensitive (UDS vs uds)."""
         # Create metadata with different case modules
-        metadata_upper = VisitMetadata(
+        metadata_upper = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="2024-01-15", module="UDS", visitnum="v1"
         )
-        metadata_lower = VisitMetadata(
+        metadata_lower = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="2024-01-15", module="uds", visitnum="v1"
         )
-        metadata_mixed = VisitMetadata(
+        metadata_mixed = DataIdentification.from_visit_metadata(
             ptid="NACC123456", date="2024-01-15", module="Uds", visitnum="v1"
         )
 
@@ -153,19 +153,22 @@ class TestUnmatchedSubmitEvents:
 
     def _create_test_event(self, ptid: str, visit_date: str, module: str) -> VisitEvent:
         """Helper to create a test VisitEvent."""
+        data_id = DataIdentification.from_visit_metadata(
+            adcid=1,
+            ptid=ptid,
+            date=visit_date,
+            visitnum="v1",
+            module=module,
+            packet=None,
+        )
         return VisitEvent(
             action=ACTION_SUBMIT,
             study="adrc",
-            pipeline_adcid=1,
             project_label="test-project",
             center_label="test-center",
             gear_name="test-gear",
-            ptid=ptid,
-            visit_date=visit_date,
-            visit_number="v1",
+            data_identification=data_id,
             datatype="form",
-            module=module,
-            packet=None,
             timestamp=datetime.now(),
         )
 

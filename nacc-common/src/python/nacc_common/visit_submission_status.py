@@ -4,7 +4,7 @@ from typing import Optional, get_args
 
 from flywheel.models.file_entry import FileEntry
 
-from nacc_common.error_models import QCStatus, ValidationModel, VisitKeys
+from nacc_common.error_models import DataIdentification, QCStatus, ValidationModel
 from nacc_common.qc_report import (
     QCReportBaseModel,
     QCTransformerError,
@@ -26,7 +26,7 @@ class StatusReportModel(QCReportBaseModel):
 
 
 def status_transformer(
-    gear_name: str, visit: VisitKeys, validation_model: ValidationModel
+    gear_name: str, visit: DataIdentification, validation_model: ValidationModel
 ) -> StatusReportModel:
     """Transformer for creating status report objects from a file QC validation
     model.
@@ -66,6 +66,5 @@ def status_transformer(
 
 
 def status_report_visitor_builder(file: FileEntry, adcid: int) -> StatusReportVisitor:
-    visit = extract_visit_keys(file)
-    visit.adcid = adcid
+    visit = extract_visit_keys(file, adcid=adcid)
     return StatusReportVisitor(visit=visit, transformer=status_transformer)

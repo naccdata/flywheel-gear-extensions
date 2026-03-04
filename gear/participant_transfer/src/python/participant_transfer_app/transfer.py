@@ -15,6 +15,10 @@ from enrollment.enrollment_transfer import (
     TransferStatus,
 )
 from error_logging.error_logger import ErrorLogTemplate, update_gear_qc_status
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
+)
 from identifiers.identifiers_lambda_repository import (
     IdentifierRepositoryError,
     IdentifiersLambdaRepository,
@@ -22,7 +26,7 @@ from identifiers.identifiers_lambda_repository import (
 from identifiers.identifiers_repository import IdentifierUpdateObject
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from keys.keys import DefaultValues
-from nacc_common.field_names import FieldNames
+from nacc_common.data_identification import DataIdentification
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError
 
@@ -430,18 +434,22 @@ class TransferProcessor:
     def update_transfer_request_qc_status(self) -> None:
         """Set the identifier-provisioning gear QC status to PASS in the error
         log for this transfer request."""
-        errorlog_template = ErrorLogTemplate(
-            id_field=FieldNames.PTID, date_field=FieldNames.ENRLFRM_DATE
+        errorlog_template = ErrorLogTemplate()
+
+        # Create DataIdentification from transfer record
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=self.__transfer_record.center_identifiers.ptid,
+            date=self.__transfer_record.request_date.strftime(DEFAULT_DATE_FORMAT),
+            module=DefaultValues.ENROLLMENT_MODULE,
         )
-        transfer_record = {
-            FieldNames.PTID: self.__transfer_record.center_identifiers.ptid,
-            FieldNames.ENRLFRM_DATE: self.__transfer_record.request_date.strftime(
-                DEFAULT_DATE_FORMAT
-            ),
-        }
-        error_log_name = errorlog_template.instantiate(
-            module=DefaultValues.ENROLLMENT_MODULE, record=transfer_record
+
+        # Use QCStatusLogManager to get the actual filename (checks both formats)
+        qc_manager = QCStatusLogManager(
+            error_log_template=errorlog_template,
+            visit_annotator=FileVisitAnnotator(self.__enroll_project),
         )
+
+        error_log_name = qc_manager.get_qc_log_filename(data_id, self.__enroll_project)
         if not error_log_name:
             log.warning("Failed to retrieve error log for transfer request")
             return

@@ -13,7 +13,10 @@ from configs.ingest_configs import (
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import (
     reset_error_log_metadata_for_gears,
-    update_error_log_and_qc_metadata,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
@@ -29,6 +32,7 @@ from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
 from keys.keys import DefaultValues, MetadataKeys, SysErrorCodes
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileError,
     FileErrorList,
@@ -36,7 +40,6 @@ from nacc_common.error_models import (
     GearQCModel,
     GearTags,
     QCStatus,
-    VisitKeys,
 )
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -301,38 +304,42 @@ class QCCoordinator:
         Raises:
             GearExecutionError: If failed to update log file
         """
-        error_log_name = ErrorLogTemplate().instantiate(
-            record={
-                f"{FieldNames.PTID}": ptid,
-                f"{FieldNames.DATE_COLUMN}": visitdate,
-            },
+        # Create DataIdentification from visit information
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=ptid,
+            date=visitdate,
             module=module,
         )
 
-        if (
-            not error_log_name
-            or not self.__project
-            or not update_error_log_and_qc_metadata(
-                error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(
-                    project=self.__project, proxy=self.__proxy
-                ),
-                gear_name=gear_name,
-                state=status,
-                errors=errors,
-                reset_qc_metadata="GEAR",
-            )
-        ):
+        # Use QCStatusLogManager to update QC log (handles both new and legacy formats)
+        if not self.__project:
+            raise GearExecutionError("Project not available for updating error log")
+
+        project_adaptor = ProjectAdaptor(project=self.__project, proxy=self.__proxy)
+        qc_manager = QCStatusLogManager(
+            error_log_template=ErrorLogTemplate(),
+            visit_annotator=FileVisitAnnotator(project_adaptor),
+        )
+
+        error_log_name = qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=project_adaptor,
+            gear_name=gear_name,
+            status=status,  # type: ignore[arg-type]
+            errors=errors,
+            reset_qc_metadata="GEAR",
+        )
+
+        if not error_log_name:
             raise GearExecutionError(
                 f"Failed to update error log for visit {ptid}, {visitdate}"
             )
 
         if reset_gears:
+            # Use the error log name from the update
             reset_error_log_metadata_for_gears(
                 error_log_name=error_log_name,
-                destination_prj=ProjectAdaptor(
-                    project=self.__project, proxy=self.__proxy
-                ),
+                destination_prj=project_adaptor,
                 gear_names=reset_gears,
             )
 
@@ -543,7 +550,9 @@ class QCCoordinator:
             # can only update the log file since visit file cannot be found
             error_obj = system_error(
                 message=f"Error retrieving file {visit['file.name']}: {error}",
-                visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                visit_keys=DataIdentification.from_visit_metadata(
+                    ptid=ptid, visitnum=visitnum, date=visitdate
+                ),
             )
             error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
             self.__update_log_file(
@@ -608,7 +617,7 @@ class QCCoordinator:
                     field=FieldNames.MODULE,
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
-                    visit_keys=VisitKeys(
+                    visit_keys=DataIdentification.from_visit_metadata(
                         ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
                     ),
                 )
@@ -657,7 +666,7 @@ class QCCoordinator:
             field=FieldNames.MODULE,
             value=module,
             error_code=SysErrorCodes.UDS_NOT_APPROVED,
-            visit_keys=VisitKeys(
+            visit_keys=DataIdentification.from_visit_metadata(
                 ptid=ptid,
                 visitnum=visitnum,
                 date=visitdate,
@@ -805,7 +814,9 @@ class QCCoordinator:
             if not job_id:
                 error_obj = system_error(
                     message=f"Failed to trigger gear {qc_gear_name}",
-                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                    visit_keys=DataIdentification.from_visit_metadata(
+                        ptid=ptid, visitnum=visitnum, date=visitdate
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,
@@ -824,7 +835,9 @@ class QCCoordinator:
             if not JobPoll.is_job_complete(self.__proxy, job_id):
                 error_obj = system_error(
                     message=f"Errors occurred while running gear {qc_gear_name}",
-                    visit_keys=VisitKeys(ptid=ptid, visitnum=visitnum, date=visitdate),
+                    visit_keys=DataIdentification.from_visit_metadata(
+                        ptid=ptid, visitnum=visitnum, date=visitdate
+                    ),
                 )
                 self.__update_visit_metadata_on_failure(
                     ptid=ptid,

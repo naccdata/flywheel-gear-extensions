@@ -5,12 +5,12 @@ from typing import Any, Generator
 
 import pytest
 from error_logging.error_logger import ErrorLogTemplate
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileQCModel,
     GearQCModel,
     QCStatus,
     ValidationModel,
-    VisitKeys,
 )
 from nacc_common.qc_report import (
     DictReportWriter,
@@ -47,7 +47,7 @@ class StatusReportTestModel(QCReportBaseModel):
 @pytest.fixture(scope="session")
 def test_transformer():
     def transformer(
-        gear_name: str, visit: VisitKeys, validation_model: ValidationModel
+        gear_name: str, visit: DataIdentification, validation_model: ValidationModel
     ) -> StatusReportTestModel:
         assert validation_model.state, "expect validation state to be set"
         assert visit.adcid, "expect visit adcid to be set"
@@ -64,7 +64,7 @@ def test_transformer():
 
 @pytest.fixture(scope="session")
 def visit_details():
-    yield VisitKeys(
+    yield DataIdentification.from_visit_metadata(
         adcid=999, ptid="delta01", module="UDS", date=date.today().isoformat()
     )
 
@@ -75,10 +75,12 @@ def file_project(
 ) -> Generator[MockProjectAdaptor, Any, Any]:
     project = MockProjectAdaptor("dummy_project")
     qc_model = status_file_model
-    log_filename = ErrorLogTemplate().instantiate(
-        {"ptid": visit_details.ptid, "visitdate": visit_details.date},
+    data_id = DataIdentification.from_visit_metadata(
+        ptid=visit_details.ptid,
+        date=visit_details.date,
         module=visit_details.module,
     )
+    log_filename = ErrorLogTemplate().instantiate(data_id)
     project.upload_file(
         file={"name": log_filename, "contents": "blah", "info": qc_model.model_dump()}
     )
@@ -104,8 +106,7 @@ class TestProjectReportVisitor:
 
         # Create factory function for StatusReportVisitor
         def file_visitor_factory(file, adcid):
-            visit = extract_visit_keys(file)
-            visit.adcid = adcid
+            visit = extract_visit_keys(file, adcid=adcid)
             return StatusReportVisitor(visit, test_transformer)
 
         visitor = ProjectReportVisitor(

@@ -2,28 +2,29 @@ import logging
 from typing import Any, Dict, Optional
 
 from flywheel.models.file_entry import FileEntry
-from nacc_common.error_models import (
-    VisitMetadata,
+from nacc_common.data_identification import (
+    DataIdentification,
 )
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 
 
-class VisitMetadataExtractor:
-    """Utility for extracting VisitMetadata from QC status or JSON files."""
+class DataIdentificationExtractor:
+    """Utility for extracting DataIdentification from QC status or JSON
+    files."""
 
     @staticmethod
     def from_qc_status_custom_info(
         custom_info: Dict[str, Any],
-    ) -> Optional[VisitMetadata]:
-        """Extract VisitMetadata from QC status custom info.
+    ) -> Optional[DataIdentification]:
+        """Extract DataIdentification from QC status custom info.
 
         Args:
             custom_info: Custom info from QC status log file
 
         Returns:
-            VisitMetadata instance or None if not found/invalid
+            DataIdentification instance or None if not found/invalid
         """
         if not custom_info:
             return None
@@ -33,19 +34,22 @@ class VisitMetadataExtractor:
             return None
 
         try:
-            return VisitMetadata.model_validate(visit_data)
-        except ValidationError:
+            return DataIdentification.from_visit_metadata(**visit_data)
+        except (ValidationError, TypeError):
             return None
 
     @staticmethod
-    def from_json_file_metadata(json_file: FileEntry) -> Optional[VisitMetadata]:
-        """Extract VisitMetadata from JSON file forms metadata.
+    def from_json_file_metadata(json_file: FileEntry) -> Optional[DataIdentification]:
+        """Extract DataIdentification from JSON file forms metadata.
+
+        The forms.json metadata uses normalized field names (visitdate, not
+        module-specific date fields) since it's been processed during upload.
 
         Args:
             json_file: JSON file with forms metadata
 
         Returns:
-            VisitMetadata instance or None if not found/invalid
+            DataIdentification instance or None if not found/invalid
         """
         if not json_file or not json_file.info:
             return None
@@ -54,20 +58,31 @@ class VisitMetadataExtractor:
         if not forms_json:
             return None
 
-        try:
-            # Create mapping for field name differences
-            mapped_data = {**forms_json, "date": forms_json.get("visitdate")}
-            return VisitMetadata.model_validate(mapped_data)
-        except ValidationError:
-            return None
+        return DataIdentificationExtractor.from_forms_json(forms_json)
 
     @staticmethod
-    def is_valid_for_event(visit_metadata: VisitMetadata) -> bool:
-        """Check if VisitMetadata has required fields for VisitEvent
-        creation."""
-        if not visit_metadata:
-            return False
+    def from_forms_json(forms_json: dict[str, Any]) -> Optional[DataIdentification]:
+        """Extract DataIdentification from forms.json dict.
 
-        return bool(
-            visit_metadata.ptid and visit_metadata.date and visit_metadata.module
-        )
+        Args:
+            forms_json: Dictionary with forms metadata (ptid, visitdate, module, etc.)
+
+        Returns:
+            DataIdentification instance or None if required fields are missing/invalid
+        """
+        if not forms_json:
+            return None
+
+        # Check for required fields before attempting to create DataIdentification
+        if not forms_json.get("module"):
+            return None
+
+        try:
+            # Map visitdate to date for from_visit_metadata
+            # forms.json uses normalized field names after upload processing
+            mapped_data = {**forms_json}
+            if "visitdate" in mapped_data:
+                mapped_data["date"] = mapped_data.pop("visitdate")
+            return DataIdentification.from_visit_metadata(**mapped_data)
+        except (ValidationError, TypeError, ValueError):
+            return None

@@ -3,7 +3,7 @@
 import logging
 
 from flywheel.models.file_entry import FileEntry
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 from nacc_common.qc_report import extract_visit_keys
 
 from event_capture.models import SubmitEventData
@@ -25,7 +25,7 @@ def extract_event_from_log(log_file: FileEntry) -> SubmitEventData | None:
         SubmitEventData object if extraction successful, None otherwise
     """
     # Try to get visit metadata from file custom info first (newer files)
-    visit_metadata = VisitMetadata.create(log_file)
+    visit_metadata = DataIdentification.from_visit_info(log_file)
 
     # Fall back to parsing filename if metadata not found (older files)
     if not visit_metadata:
@@ -45,7 +45,7 @@ def extract_event_from_log(log_file: FileEntry) -> SubmitEventData | None:
     )
 
 
-def _extract_from_filename(filename: str) -> VisitMetadata | None:
+def _extract_from_filename(filename: str) -> DataIdentification | None:
     """Extract visit metadata from QC status log filename.
 
     Uses the standard QC filename pattern from nacc_common.qc_report.
@@ -56,14 +56,14 @@ def _extract_from_filename(filename: str) -> VisitMetadata | None:
         filename: The QC status log filename
 
     Returns:
-        VisitMetadata if filename matches pattern, None otherwise
+        DataIdentification if filename matches pattern, None otherwise
     """
     # Create a mock file object with just the name to use extract_visit_keys
     mock_file = type("obj", (object,), {"name": filename})()
 
     try:
         visit_keys = extract_visit_keys(mock_file)
-        return VisitMetadata(
+        return DataIdentification.from_visit_metadata(
             ptid=visit_keys.ptid,
             date=visit_keys.date,
             module=visit_keys.module,

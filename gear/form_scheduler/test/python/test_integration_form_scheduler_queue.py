@@ -13,10 +13,10 @@ from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
 from gear_execution.gear_trigger import GearConfigs, GearInfo, GearInput
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     FileQCModel,
     GearQCModel,
     ValidationModel,
-    VisitMetadata,
 )
 from test_mocks.mock_event_capture import MockVisitEventCapture
 from test_mocks.mock_flywheel import (
@@ -162,7 +162,7 @@ def create_mock_qc_status_file_for_queue(
     date: str,
     module: str,
     qc_status: str = QC_STATUS_PASS,
-    visit_metadata: Optional[VisitMetadata] = None,
+    visit_metadata: Optional[DataIdentification] = None,
     modified: Optional[datetime] = None,
 ) -> FileEntry:
     """Create a mock QC-status file for queue testing.
@@ -172,7 +172,7 @@ def create_mock_qc_status_file_for_queue(
         date: Visit date
         module: Module name (e.g., "uds")
         qc_status: QC status ("PASS" or "FAIL")
-        visit_metadata: VisitMetadata to include in custom info
+        visit_metadata: DataIdentification to include in custom info
         modified: File modification timestamp
 
     Returns:
@@ -270,7 +270,7 @@ class TestFormSchedulerQueueIntegration:
         )
 
         # Create visit metadata for QC status
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="adrc1000",
             date="2025-03-19",
             visitnum="3F",
@@ -605,7 +605,7 @@ class TestFormSchedulerQueueIntegration:
         )
 
         # Create corresponding QC-status files
-        visit_metadata_1 = VisitMetadata(
+        visit_metadata_1 = DataIdentification.from_visit_metadata(
             ptid="adrc1003",
             date="2025-01-10",
             visitnum="1F",
@@ -613,7 +613,7 @@ class TestFormSchedulerQueueIntegration:
             packet="I",
         )
 
-        visit_metadata_2 = VisitMetadata(
+        visit_metadata_2 = DataIdentification.from_visit_metadata(
             ptid="adrc1004",
             date="2025-02-15",
             visitnum="2F",
@@ -779,7 +779,7 @@ class TestFormSchedulerQueueIntegration:
         )
 
         # Create visit metadata for QC status WITHOUT visitnum
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="adrc1005",
             date="2025-04-15",
             visitnum=None,  # No visitnum for milestone
@@ -920,7 +920,7 @@ class TestFormSchedulerQueueIntegration:
         )
 
         # Create visit metadata for QC status WITHOUT visitnum
-        visit_metadata = VisitMetadata(
+        visit_metadata = DataIdentification.from_visit_metadata(
             ptid="adrc1006",
             date="2025-05-20",
             visitnum=None,  # No visitnum for NP

@@ -8,6 +8,7 @@ from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from form_csv_app.main import CSVTransformVisitor
 from keys.keys import DefaultValues, SysErrorCodes
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import ValidationModel
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -262,9 +263,8 @@ class TestUDSTransform:
         # create "failed" files that already exist in the project
         records = [create_record({"naccid": f"failed-{x}"}) for x in range(3)]
         for i, record in enumerate(records):
-            file_name = ErrorLogTemplate().instantiate(
-                module=record["module"], record=record
-            )
+            data_id = DataIdentification.from_form_record(record, DATE_FIELD)
+            file_name = ErrorLogTemplate().instantiate(data_id)
             assert file_name
             form_store.add_subject(
                 subject_lbl=record["naccid"], form_data=record, file_name=file_name
@@ -297,9 +297,8 @@ class TestUDSTransform:
             data=[], cleared=[], state="PASS"
         ).model_dump(by_alias=True)
         for record in records:
-            file_name = ErrorLogTemplate().instantiate(
-                module=record["module"], record=record
-            )
+            data_id = DataIdentification.from_form_record(record, DATE_FIELD)
+            file_name = ErrorLogTemplate().instantiate(data_id)
             assert file_name
 
             file = project.get_file(file_name)

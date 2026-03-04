@@ -4,7 +4,8 @@ import logging
 from typing import Any, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.error_models import FileErrorList, QCStatus, VisitKeys, VisitMetadata
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import FileErrorList, QCStatus
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -32,7 +33,7 @@ class FileVisitAnnotator:
         self.__project = project
 
     def annotate_qc_log_file(
-        self, qc_log_filename: str, visit_metadata: VisitMetadata
+        self, qc_log_filename: str, visit_metadata: DataIdentification
     ) -> bool:
         """Add visit metadata to a QC status log file.
 
@@ -43,18 +44,6 @@ class FileVisitAnnotator:
         Returns:
             True if visit annotation was successful, False otherwise
         """
-        if (
-            not visit_metadata.ptid
-            or not visit_metadata.date
-            or not visit_metadata.module
-        ):
-            log.warning(
-                f"Insufficient visit data for annotation: "
-                f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
-                f"module={visit_metadata.module}"
-            )
-            return False
-
         try:
             # Get the QC status log file
             qc_log_file = self.__project.get_file(qc_log_filename)
@@ -78,7 +67,9 @@ class FileVisitAnnotator:
             )
             return False
 
-    def _create_visit_metadata(self, visit_metadata: VisitMetadata) -> dict[str, Any]:
+    def _create_visit_metadata(
+        self, visit_metadata: DataIdentification
+    ) -> dict[str, Any]:
         """Create visit metadata dictionary for a single visit.
 
         Args:
@@ -107,42 +98,62 @@ class QCStatusLogManager:
         self.__template = error_log_template
         self.__visit_annotator = visit_annotator
 
-    def _prepare_template_record(
-        self, visit_keys: VisitKeys
-    ) -> Optional[dict[str, Any]]:
-        """Prepare record dictionary for ErrorLogTemplate instantiation.
+    def get_qc_log_filename(
+        self, visit_keys: DataIdentification, project: ProjectAdaptor
+    ) -> Optional[str]:
+        """Get the actual QC status log filename that exists or would be
+        created.
+
+        Checks for existing files in both new and legacy formats, returning
+        whichever exists. If neither exists, returns the new format filename
+        that would be created.
 
         Args:
             visit_keys: Visit identification information
+            project: Project adaptor for checking file existence
 
         Returns:
-            Record dictionary with field names mapped for template, or None if invalid
+            The filename that exists or would be created,
+            None if filename cannot be generated
         """
-        # Use model_dump() to get visit data
-        visit_data = visit_keys.model_dump(exclude_none=True)
+        # Generate new format filename
+        new_format_filename = self.__template.instantiate(visit_keys)
+        if not new_format_filename:
+            return None
 
-        # Map VisitKeys field names to ErrorLogTemplate expected field names
-        record = visit_data.copy()
+        # Check if new format file exists
+        existing_file = project.get_file(new_format_filename)
+        if existing_file:
+            return new_format_filename
 
-        # ErrorLogTemplate expects "visitdate"
-        for date_field in ["date", "visit_date"]:
-            if date_field in record:
-                record["visitdate"] = record.pop(date_field)
-                break
+        # Generate legacy format filename
+        legacy_filename = self.__template.instantiate_legacy(visit_keys)
 
-        return record
+        # Check if legacy format file exists
+        if legacy_filename and legacy_filename != new_format_filename:
+            legacy_file = project.get_file(legacy_filename)
+            if legacy_file:
+                return legacy_filename
+
+        # Neither exists, return new format (what would be created)
+        return new_format_filename
 
     def update_qc_log(
         self,
-        visit_keys: VisitKeys,
+        visit_keys: DataIdentification,
         project: ProjectAdaptor,
         gear_name: str,
         status: QCStatus,
         errors: FileErrorList,
         reset_qc_metadata: MetadataCleanupFlag = "NA",
         add_visit_metadata: bool = False,
-    ) -> bool:
+    ) -> Optional[str]:
         """Updates or creates QC status log file at project level.
+
+        Handles both new format (with visitnum/packet) and legacy format
+        (without visitnum/packet) filenames. When updating an existing file,
+        tries new format first, then legacy format. When creating a new file,
+        uses new format only.
 
         Args:
             visit_keys: Visit identification information
@@ -154,34 +165,17 @@ class QCStatusLogManager:
             add_visit_metadata: Whether to add visit metadata (for initial creation)
 
         Returns:
-            True if QC log update was successful, False otherwise
+            The QC log filename if update was successful, None otherwise
         """
-        if not visit_keys.ptid or not visit_keys.date or not visit_keys.module:
-            log.warning(
-                "Insufficient visit information to update QC log: "
-                f"ptid={visit_keys.ptid}, date={visit_keys.date}, "
-                f"module={visit_keys.module}"
-            )
-            return False
-
-        # Prepare record for template instantiation
-        record = self._prepare_template_record(visit_keys)
-        if not record:
-            log.error("Failed to prepare template record")
-            return False
-
-        # Generate QC status log filename using ErrorLogTemplate
-        error_log_name = self.__template.instantiate(
-            record=record, module=visit_keys.module
-        )
-
+        # Get the actual filename to use (checks for existing files in both formats)
+        error_log_name = self.get_qc_log_filename(visit_keys, project)
         if not error_log_name:
             log.error(
                 f"Failed to generate QC status log filename for visit: "
                 f"ptid={visit_keys.ptid}, date={visit_keys.date}, "
                 f"module={visit_keys.module}"
             )
-            return False
+            return None
 
         log.info(f"Updating QC status log: {error_log_name}")
 
@@ -200,12 +194,8 @@ class QCStatusLogManager:
 
             # Add visit metadata if requested (for initial creation)
             if add_visit_metadata:
-                # Convert VisitKeys to VisitMetadata for annotation
-                if isinstance(visit_keys, VisitMetadata):
-                    visit_metadata = visit_keys
-                else:
-                    # Create VisitMetadata from VisitKeys (packet will be None)
-                    visit_metadata = VisitMetadata(**visit_keys.model_dump())
+                # visit_keys is already DataIdentification (VisitKeys is an alias)
+                visit_metadata = visit_keys
 
                 annotation_success = self.__visit_annotator.annotate_qc_log_file(
                     qc_log_filename=error_log_name,
@@ -217,26 +207,8 @@ class QCStatusLogManager:
                         f"Failed to add visit metadata to QC log: {error_log_name}"
                     )
                     # Don't fail the entire operation for metadata annotation failure
+
+            return error_log_name
         else:
             log.error(f"Failed to update QC status log: {error_log_name}")
-
-        return success
-
-    def get_qc_log_filename(self, visit_keys: VisitKeys) -> Optional[str]:
-        """Get the QC status log filename for a visit without creating it.
-
-        Args:
-            visit_keys: Visit identification information
-
-        Returns:
-            QC status log filename if it can be generated, None otherwise
-        """
-        if not visit_keys.ptid or not visit_keys.date or not visit_keys.module:
             return None
-
-        # Prepare record for template instantiation
-        record = self._prepare_template_record(visit_keys)
-        if not record:
-            return None
-
-        return self.__template.instantiate(record=record, module=visit_keys.module)

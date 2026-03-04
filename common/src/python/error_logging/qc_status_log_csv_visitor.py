@@ -6,7 +6,12 @@ from typing import Any, List, Optional
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
-from nacc_common.error_models import CSVLocation, FileError, QCStatus, VisitMetadata
+from nacc_common.error_models import (
+    CSVLocation,
+    DataIdentification,
+    FileError,
+    QCStatus,
+)
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
@@ -48,7 +53,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         self.__error_writer = error_writer
         self.__misc_errors = misc_errors
         self.__module_name = module_name
-        self.__processed_visits: list[VisitMetadata] = []
+        self.__processed_visits: list[DataIdentification] = []
 
     def visit_header(self, header: list[str]) -> bool:
         """Validate CSV header - no specific requirements for QC visitor.
@@ -121,14 +126,15 @@ class QCStatusLogCSVVisitor(CSVVisitor):
 
         return True
 
-    def _extract_visit_keys(self, row: dict[str, Any]) -> VisitMetadata:
+    def _extract_visit_keys(self, row: dict[str, Any]) -> DataIdentification:
         """Extract visit metadata from a CSV row.
 
         Args:
             row: CSV row data
 
         Returns:
-            VisitMetadata object with visit identification information including packet
+            DataIdentification object with visit identification information
+            including packet
         """
         date_field = self.__module_configs.date_field
 
@@ -138,7 +144,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         else:
             module = row.get(FieldNames.MODULE, "").upper()
 
-        return VisitMetadata(
+        return DataIdentification.from_visit_metadata(
             ptid=row.get(FieldNames.PTID),
             date=row.get(date_field),
             visitnum=row.get(FieldNames.VISITNUM),
@@ -147,7 +153,7 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             packet=row.get(FieldNames.PACKET),  # Include packet field from row
         )
 
-    def _is_valid_visit(self, visit_metadata: VisitMetadata) -> bool:
+    def _is_valid_visit(self, visit_metadata: DataIdentification) -> bool:
         """Check if visit metadata contains sufficient information for QC log
         creation.
 
@@ -161,10 +167,10 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             visit_metadata.ptid and visit_metadata.date and visit_metadata.module
         )
 
-    def get_processed_visits(self) -> list[VisitMetadata]:
+    def get_processed_visits(self) -> list[DataIdentification]:
         """Get the list of visits processed from the CSV file.
 
         Returns:
-            List of VisitMetadata for all successfully processed visits
+            List of DataIdentification for all successfully processed visits
         """
         return self.__processed_visits.copy()

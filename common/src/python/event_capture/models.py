@@ -20,7 +20,7 @@ of submit events with packet information and other metadata.
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from nacc_common.error_models import QCStatus, VisitMetadata
+from nacc_common.error_models import DataIdentification, QCStatus
 from pydantic import BaseModel, Field, field_validator
 
 from event_capture.visit_events import VisitEvent
@@ -69,7 +69,7 @@ class EventMatchKey(BaseModel):
         return v.upper() if v else ""
 
     @classmethod
-    def from_visit_metadata(cls, metadata: VisitMetadata) -> "EventMatchKey":
+    def from_visit_metadata(cls, metadata: DataIdentification) -> "EventMatchKey":
         """Create match key from visit metadata.
 
         Extracts the matching fields (ptid, date, module) from visit metadata
@@ -116,7 +116,7 @@ class EventMatchKey(BaseModel):
 
 
 class EventData(BaseModel):
-    visit_metadata: VisitMetadata
+    visit_metadata: DataIdentification
 
 
 class QCEventData(EventData):

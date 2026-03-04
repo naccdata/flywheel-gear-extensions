@@ -17,9 +17,9 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     GearQCModel,
     ValidationModel,
-    VisitMetadata,
 )
 from test_mocks.strategies import json_file_strategy as shared_json_strategy
 from test_mocks.strategies import visit_metadata_strategy
@@ -113,7 +113,7 @@ def json_file_strategy(draw) -> FileEntry:
 )
 @settings(max_examples=100)
 def test_event_structure_compatibility(
-    visit_metadata: VisitMetadata, qc_completion_time: datetime
+    visit_metadata: DataIdentification, qc_completion_time: datetime
 ):
     """Property test: QC-pass events maintain compatible structure and field
     names.
@@ -156,9 +156,7 @@ def test_event_structure_compatibility(
 
     error_log_template = ErrorLogTemplate()
     assert visit_metadata.module, "visit_metadata module is required"
-    qc_filename = error_log_template.instantiate(
-        record=forms_json, module=visit_metadata.module
-    )
+    qc_filename = error_log_template.instantiate(visit_metadata)
 
     # Skip if ErrorLogTemplate can't generate filename
     if not qc_filename:
@@ -265,11 +263,15 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
 
     # Create QC status file WITHOUT visit metadata in custom info (forces JSON fallback)
     from error_logging.error_logger import ErrorLogTemplate
+    from event_capture.visit_extractor import DataIdentificationExtractor
 
     forms_json = json_file.info["forms"]["json"]
     error_log_template = ErrorLogTemplate()
-    qc_filename = error_log_template.instantiate(
-        record=forms_json, module=forms_json["module"]
+
+    # Extract DataIdentification from forms_json
+    visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+    qc_filename = (
+        error_log_template.instantiate(visit_metadata) if visit_metadata else None
     )
 
     # Skip if ErrorLogTemplate can't generate filename
@@ -294,7 +296,11 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
         "Event gear_name should be 'form-scheduler'"
     )
     assert event.datatype == "form", "Event datatype should be 'form'"
-    assert event.ptid == forms_json["ptid"], "Event PTID should match JSON file"
+
+    # PTIDs are normalized (leading zeros stripped), so compare normalized values
+    expected_ptid = forms_json["ptid"].strip().lstrip("0") or forms_json["ptid"]
+    assert event.ptid == expected_ptid, "Event PTID should match JSON file (normalized)"
+
     assert event.visit_date == forms_json["visitdate"], (
         "Event visit_date should match JSON file"
     )
@@ -342,11 +348,15 @@ def test_event_structure_required_fields():
 
     # Add QC status file
     from error_logging.error_logger import ErrorLogTemplate
+    from event_capture.visit_extractor import DataIdentificationExtractor
 
     error_log_template = ErrorLogTemplate()
     forms_json = json_file.info["forms"]["json"]
-    qc_filename = error_log_template.instantiate(
-        record=forms_json, module=forms_json["module"]
+
+    # Extract DataIdentification from forms_json
+    visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+    qc_filename = (
+        error_log_template.instantiate(visit_metadata) if visit_metadata else None
     )
     assert qc_filename is not None, "ErrorLogTemplate should generate a filename"
 
@@ -421,11 +431,15 @@ def test_event_structure_s3_storage_compatibility():
 
     # Add QC status file
     from error_logging.error_logger import ErrorLogTemplate
+    from event_capture.visit_extractor import DataIdentificationExtractor
 
     error_log_template = ErrorLogTemplate()
     forms_json = json_file.info["forms"]["json"]
-    qc_filename = error_log_template.instantiate(
-        record=forms_json, module=forms_json["module"]
+
+    # Extract DataIdentification from forms_json
+    visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+    qc_filename = (
+        error_log_template.instantiate(visit_metadata) if visit_metadata else None
     )
     assert qc_filename is not None, "ErrorLogTemplate should generate a filename"
 

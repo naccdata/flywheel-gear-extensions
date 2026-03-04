@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from pydantic import (
@@ -7,13 +7,9 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
-    SerializationInfo,
-    SerializerFunctionWrapHandler,
-    ValidationError,
-    model_serializer,
 )
 
-from nacc_common.field_names import FieldNames
+from nacc_common.data_identification import DataIdentification
 
 
 class QCVisitor(ABC):
@@ -87,83 +83,8 @@ class JSONLocation(BaseModel):
     key_path: str
 
 
-class VisitKeys(BaseModel):
-    adcid: Optional[int] = None
-    ptid: Optional[str] = None
-    visitnum: Optional[str] = None
-    module: Optional[str] = None
-    date: Optional[str] = None
-    naccid: Optional[str] = None
-
-    @classmethod
-    def create_from(
-        cls, record: Dict[str, Any], date_field: Optional[str] = None
-    ) -> "VisitKeys":
-        date = record.get(date_field) if date_field is not None else None
-        return VisitKeys(
-            adcid=record.get(FieldNames.ADCID),
-            ptid=record.get(FieldNames.PTID),
-            visitnum=record.get(FieldNames.VISITNUM),
-            date=date,
-            naccid=record.get(FieldNames.NACCID),
-            module=record.get(FieldNames.MODULE),
-        )
-
-
-class VisitMetadata(VisitKeys):
-    """Extended visit metadata that includes packet information for VisitEvent
-    creation.
-
-    Extends VisitKeys with the packet field needed for form events. Only
-    includes fields actually needed for VisitEvent creation.
-    """
-
-    packet: Optional[str] = None
-
-    @model_serializer(mode="wrap")
-    def to_visit_event_fields(
-        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> Dict[str, Any]:
-        """Extract fields needed for VisitEvent creation. with proper field
-        name mapping.
-
-        Returns:
-            Dictionary with fields mapped to VisitEvent field names
-        """
-        # Use model_dump and map field names for VisitEvent
-        data = handler(self)
-        if info.mode == "raw":
-            return data
-
-        # Map field names, handling cases where keys might not exist
-        # (e.g., when exclude_none=True and the value is None)
-        if "date" in data:
-            data["visit_date"] = data.pop("date")
-        if "visitnum" in data:
-            data["visit_number"] = data.pop("visitnum")
-        return data
-
-    @classmethod
-    def create(cls, file_entry: FileEntry) -> Optional["VisitMetadata"]:
-        """Factory method to create VisitMetadata from a FileEntry.
-
-        Args:
-          file_entry: the file entry
-        Returns:
-          the VisitMetadata instance if there is visit metadata. None, otherwise.
-        """
-        file_entry = file_entry.reload()
-        if not file_entry.info:
-            return None
-
-        visit_data = file_entry.info.get("visit")
-        if not visit_data:
-            return None
-
-        try:
-            return VisitMetadata.model_validate(visit_data)
-        except ValidationError:
-            return None
+VisitKeys = DataIdentification
+VisitMetadata = DataIdentification
 
 
 class FileError(BaseModel):

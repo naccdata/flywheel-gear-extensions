@@ -19,7 +19,10 @@ from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
-from nacc_common.error_models import FileError, VisitKeys
+from nacc_common.data_identification import (
+    DataIdentification,
+)
+from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
@@ -286,14 +289,15 @@ class FormJSONUploader:
                     )
                 except (SubjectError, TypeError, UploaderError) as error:
                     log.error(error)
+                    visit_keys = DataIdentification.from_form_record_safe(
+                        record=record, date_field=visitdate_key
+                    )
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
                             message=str(error),
-                            visit_keys=VisitKeys.create_from(
-                                record=record, date_field=visitdate_key
-                            ),
+                            visit_keys=visit_keys,
                         ),
                     )
                     success = False
@@ -306,28 +310,30 @@ class FormJSONUploader:
                         visit_file_name,
                     )
                     log.error(message)
+                    visit_keys = DataIdentification.from_form_record_safe(
+                        record=record, date_field=visitdate_key
+                    )
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
                             message=str(message),
-                            visit_keys=VisitKeys.create_from(
-                                record=record, date_field=visitdate_key
-                            ),
+                            visit_keys=visit_keys,
                         ),
                     )
                     success = False
                     continue
 
                 if not update_file_info_metadata(new_file, record):
+                    visit_keys = DataIdentification.from_form_record_safe(
+                        record=record, date_field=visitdate_key
+                    )
                     self.__update_visit_error_log(
                         error_log_name=log_file,
                         status="FAIL",
                         error_obj=system_error(
                             message=f"Error in setting file {visit_file_name} metadata",
-                            visit_keys=VisitKeys.create_from(
-                                record=record, date_field=visitdate_key
-                            ),
+                            visit_keys=visit_keys,
                         ),
                     )
                     success = False
