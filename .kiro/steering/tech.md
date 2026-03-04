@@ -1,5 +1,16 @@
 # Technology Stack
 
+## Kiro Pants Power
+
+**RECOMMENDED**: This project uses the `kiro-pants-power` for automated Pants build system and devcontainer management.
+
+The power provides MCP tools that automatically handle:
+- Container lifecycle (start, stop, rebuild)
+- Pants commands (fix, lint, check, test, package)
+- Workflow orchestration (full_quality_check for complete validation)
+
+All power tools automatically ensure the devcontainer is running before execution. Manual scripts in `bin/` are available as fallback.
+
 ## Development Environment
 
 **Dev Container** - Consistent development environment using Docker
@@ -89,9 +100,46 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 ## Common Commands
 
+### Using Kiro Pants Power (Recommended)
+
+**PREFERRED METHOD**: Use the `kiro-pants-power` tools for all Pants and devcontainer operations. The power automatically manages container lifecycle.
+
+#### Code Quality Workflow
+
+```
+# Complete quality check (fix → lint → check → test)
+Use: full_quality_check tool
+
+# Individual steps
+Use: pants_fix tool      # Format code (ALWAYS run first)
+Use: pants_lint tool     # Run linters (after fix)
+Use: pants_check tool    # Type check
+Use: pants_test tool     # Run tests
+```
+
+#### Building
+
+```
+# Build all targets
+Use: pants_package tool
+
+# Build specific package (e.g., nacc-common)
+Use: pants_package tool with target="nacc-common::"
+```
+
+#### Container Management
+
+```
+Use: container_start tool    # Start container
+Use: container_stop tool     # Stop container
+Use: container_rebuild tool  # Rebuild after config changes
+```
+
+### Using Manual Scripts (Fallback)
+
 **IMPORTANT**: All commands must be executed inside the dev container. Use the wrapper scripts in `bin/` or open an interactive shell.
 
-### Setup
+#### Setup
 
 ```bash
 # Ensure container is running (always run this first)
@@ -101,7 +149,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh bash get-pants.sh
 ```
 
-### Building
+#### Building
 
 ```bash
 # Build all targets
@@ -114,7 +162,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants package nacc-common:dist
 ```
 
-### Code Quality
+#### Code Quality
 
 **IMPORTANT**: Always run `pants fix` before `pants lint` to automatically fix formatting and import issues.
 
@@ -132,7 +180,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants fix :: && pants lint :: && pants check ::
 ```
 
-### Testing
+#### Testing
 
 ```bash
 # Run all tests
@@ -145,7 +193,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants test path/to/test_file.py
 ```
 
-### Interactive Shell (Recommended for Multiple Commands)
+#### Interactive Shell (Recommended for Multiple Commands)
 
 ```bash
 # Open shell in container
@@ -158,7 +206,7 @@ pants check ::
 pants test ::
 ```
 
-### Development Workflow
+#### Development Workflow
 
 ```bash
 # Ensure container is running
