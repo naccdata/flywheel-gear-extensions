@@ -5,17 +5,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, cast
 
+from botocore.exceptions import ClientError
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
 from flywheel import FileEntry
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_adaptor.subject_adaptor import SubjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor, ProjectError
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor, SubjectError
 from fw_gear import GearContext
 from gear_execution.gear_execution import InputFileWrapper
-from identifiers.identifiers_repository import IdentifierRepository
+from identifiers.identifiers_repository import (
+    IdentifierRepository,
+    IdentifierRepositoryError,
+)
 from keys.keys import MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
@@ -25,6 +29,7 @@ from nacc_common.error_models import (
     GearTags,
     QCStatus,
 )
+from s3.s3_bucket import S3InterfaceError
 
 from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 
@@ -116,7 +121,7 @@ def run(
             )
             skipped = False
             log.info(f"Successfully looked up and stored NACCID: {naccid}")
-        except Exception as error:
+        except (IdentifierRepositoryError, SubjectError, FlywheelError) as error:
             log.error(f"Failed to lookup or update NACCID: {error}")
             success = False
             naccid = None
@@ -167,7 +172,7 @@ def run(
         else:
             log.warning("Failed to update QC status log (non-critical)")
 
-    except Exception as error:
+    except (FlywheelError, ProjectError) as error:
         # QC logging failures are non-critical - log but don't fail gear
         log.error(f"Error during QC logging (non-critical): {error}")
 
@@ -188,7 +193,7 @@ def run(
         event_capture.capture_event(visit_event)
         log.info(f"Successfully captured submission event for {ptid}")
 
-    except Exception as error:
+    except (ClientError, S3InterfaceError) as error:
         # Event capture failures are non-critical - log but don't fail gear
         log.error(f"Error during event capture (non-critical): {error}")
 
@@ -228,7 +233,7 @@ def run(
             f"{status_str} [{timestamp}]"
         )
 
-    except Exception as error:
+    except FlywheelError as error:
         # File metadata update failures are logged but don't fail gear
         log.error(f"Error updating file QC metadata (non-critical): {error}")
 

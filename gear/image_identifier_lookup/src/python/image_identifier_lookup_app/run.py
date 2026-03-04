@@ -6,7 +6,7 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 from event_capture.event_capture import VisitEventCapture
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -22,6 +22,7 @@ from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.data_identification import ImageIdentification
 from s3.s3_bucket import S3BucketInterface
 
+from image_identifier_lookup_app.dicom_utils import InvalidDicomError
 from image_identifier_lookup_app.extraction import (
     extract_dicom_metadata,
     extract_existing_naccid,
@@ -245,12 +246,14 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             # Missing required data - fail fast
             log.error(f"Failed to extract required data: {error}")
             raise GearExecutionError(f"Data extraction failed: {error}") from error
-        except Exception as error:
-            # Unexpected error during extraction
-            log.error(f"Unexpected error during data extraction: {error}")
-            raise GearExecutionError(
-                f"Unexpected error during data extraction: {error}"
-            ) from error
+        except InvalidDicomError as error:
+            # Invalid or unparseable DICOM file
+            log.error(f"Invalid DICOM file: {error}")
+            raise GearExecutionError(f"DICOM parsing failed: {error}") from error
+        except ProjectError as error:
+            # Project metadata issues (e.g., missing ADCID)
+            log.error(f"Project metadata error: {error}")
+            raise GearExecutionError(f"Project configuration error: {error}") from error
 
         log.info("Early data extraction completed successfully")
 
