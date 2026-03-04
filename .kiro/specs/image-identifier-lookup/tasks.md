@@ -163,7 +163,7 @@ Key architectural principles:
     - All error methods return FileError objects with appropriate context
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ]* 5.3 Write integration tests
+  - [x] 5.3 Write integration tests
     - Test end-to-end success flow with real DICOM file
     - Test end-to-end failure flow (lookup fails)
     - Test idempotent re-run (NACCID already exists)
