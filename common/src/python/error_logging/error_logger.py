@@ -37,6 +37,9 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
     def log_name_prefix(self) -> Optional[str]:
         """Build log name prefix from collected attributes.
 
+        Format: {ptid}_{date}[_{visitnum}]_{module}
+        Date comes before visitnum as it is present for all modules.
+
         Returns None if any required attributes (participant, date,
         data) are empty. Visit attribute is optional.
         """
@@ -48,18 +51,17 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         ):
             return None
 
-        prefix = f"{self.__participant_attribute}"
+        prefix = f"{self.__participant_attribute}_{self.__date_attribute}"
         if self.__visit_attribute:
             prefix = f"{prefix}_{self.__visit_attribute}"
-        prefix = f"{prefix}_{self.__date_attribute}"
         prefix = f"{prefix}_{self.__data_attribute}"
         return prefix
 
     @property
     def legacy_log_name_prefix(self) -> Optional[str]:
-        """Build legacy log name prefix (without visitnum and without packet).
+        """Build legacy log name prefix (without visitnum).
 
-        Legacy format: {ptid}_{date}_{module} (no visitnum, no packet)
+        Legacy format: {ptid}_{date}_{module} (no visitnum)
         Returns None if required attributes are missing.
         """
         # Check required attributes
@@ -70,11 +72,7 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         ):
             return None
 
-        # For legacy format, strip packet from data attribute if present
-        # data_attribute format is either "module" or "module_packet"
-        data_part = self.__data_attribute.split("_")[0]
-
-        return f"{self.__participant_attribute}_{self.__date_attribute}_{data_part}"
+        return f"{self.__participant_attribute}_{self.__date_attribute}_{self.__data_attribute}"
 
     def visit_participant(self, participant: ParticipantIdentification) -> None:
         """Collect participant identification (ptid)."""
@@ -85,15 +83,13 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         self.__visit_attribute = visit.visitnum
 
     def visit_form(self, form: FormIdentification) -> None:
-        """Collect form identification (module and packet).
+        """Collect form identification (module only, packet excluded).
 
         Converts to lowercase for filename compatibility.
+        Packet is intentionally excluded from the filename to avoid issues
+        when centers correct packet code mistakes.
         """
-        module = form.module.lower()
-        if form.packet is not None:
-            self.__data_attribute = f"{module}_{form.packet.lower()}"
-        else:
-            self.__data_attribute = module
+        self.__data_attribute = form.module.lower()
 
     def visit_image(self, image: ImageIdentification) -> None:
         """Collect image identification (modality).
@@ -121,9 +117,10 @@ class ErrorLogTemplate(BaseModel):
         """Generate QC log filename from DataIdentification.
 
         Creates filename that reflects the DataIdentification structure:
+        - Date comes before visitnum (date is always present)
         - Includes visitnum if present
-        - Includes packet if present (forms only)
-        - Format: {ptid}[_{visitnum}]_{date}_{module}[_{packet}]_qc-status.log
+        - Packet is excluded (not needed for unique identification)
+        - Format: {ptid}_{date}[_{visitnum}]_{module}_qc-status.log
 
         Args:
             data_id: DataIdentification with visit metadata
@@ -132,12 +129,12 @@ class ErrorLogTemplate(BaseModel):
             QC log filename, or None if required fields are missing
 
         Examples:
-            Form with visitnum and packet:
-                → 12345_001_2024-01-15_a1_i_qc-status.log
+            Form with visitnum:
+                → 12345_2024-01-15_001_uds_qc-status.log
             Form without visitnum (non-visit form):
-                → 12345_2024-01-15_np_i_qc-status.log
-            Old format (no visitnum, no packet):
-                → 12345_2024-01-15_a1_qc-status.log
+                → 12345_2024-01-15_np_qc-status.log
+            Old format (no visitnum):
+                → 12345_2024-01-15_uds_qc-status.log
         """
         visitor = ErrorLogIdentificationVisitor()
         data_id.apply(visitor)
@@ -151,7 +148,7 @@ class ErrorLogTemplate(BaseModel):
     def instantiate_legacy(self, data_id: "DataIdentification") -> Optional[str]:
         """Generate legacy QC log filename from DataIdentification.
 
-        Creates filename in legacy format (without visitnum and without packet):
+        Creates filename in legacy format (without visitnum, without packet):
         - Format: {ptid}_{date}_{module}_qc-status.log
 
         Args:
@@ -161,7 +158,7 @@ class ErrorLogTemplate(BaseModel):
             Legacy QC log filename, or None if required fields are missing
 
         Examples:
-            → 12345_2024-01-15_a1_qc-status.log
+            → 12345_2024-01-15_uds_qc-status.log
         """
         visitor = ErrorLogIdentificationVisitor()
         data_id.apply(visitor)
