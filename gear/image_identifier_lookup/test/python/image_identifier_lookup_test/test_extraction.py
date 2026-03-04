@@ -103,10 +103,10 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = "110001"
 
-        # Create dummy DICOM file (won't be read)
-        dicom_file, _ = create_test_dicom_file(tmp_path)
+        # Create metadata dict (won't be used since subject.label exists)
+        dicom_metadata = {"patient_id": "110002"}
 
-        result = extract_ptid(subject, dicom_file)
+        result = extract_ptid(subject, dicom_metadata)
 
         assert result == "110001"
 
@@ -118,25 +118,23 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = "  110001  "
 
-        # Create dummy DICOM file (won't be read)
-        dicom_file, _ = create_test_dicom_file(tmp_path)
+        # Create metadata dict (won't be used)
+        dicom_metadata = {"patient_id": "110002"}
 
-        result = extract_ptid(subject, dicom_file)
+        result = extract_ptid(subject, dicom_metadata)
 
         assert result == "110001"
 
     def test_extract_ptid_from_dicom_fallback(self, tmp_path: Path) -> None:
-        """Test extracting PTID from DICOM PatientID tag (fallback)."""
+        """Test extracting PTID from DICOM PatientID (fallback)."""
         # Create mock subject with empty label
         subject = Mock(spec=SubjectAdaptor)
         subject.label = ""
 
-        # Create DICOM file with PatientID
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.PatientID = "110002"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict with PatientID
+        dicom_metadata = {"patient_id": "110002"}
 
-        result = extract_ptid(subject, dicom_file)
+        result = extract_ptid(subject, dicom_metadata)
 
         assert result == "110002"
 
@@ -146,12 +144,10 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = ""
 
-        # Create DICOM file with PatientID containing whitespace
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.PatientID = "  110002  "
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict with PatientID containing whitespace
+        dicom_metadata = {"patient_id": "  110002  "}
 
-        result = extract_ptid(subject, dicom_file)
+        result = extract_ptid(subject, dicom_metadata)
 
         assert result == "110002"
 
@@ -163,12 +159,10 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = "110001"
 
-        # Create DICOM file with different PatientID
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.PatientID = "110002"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict with different PatientID
+        dicom_metadata = {"patient_id": "110002"}
 
-        result = extract_ptid(subject, dicom_file)
+        result = extract_ptid(subject, dicom_metadata)
 
         # Should use subject.label, not DICOM PatientID
         assert result == "110001"
@@ -180,16 +174,15 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = ""
 
-        # Create DICOM file without PatientID
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict without PatientID
+        dicom_metadata = {"patient_id": None}
 
         with pytest.raises(ValueError) as exc_info:
-            extract_ptid(subject, dicom_file)
+            extract_ptid(subject, dicom_metadata)
 
         assert "PTID not found" in str(exc_info.value)
         assert "subject.label is empty" in str(exc_info.value)
-        assert "DICOM PatientID tag is missing" in str(exc_info.value)
+        assert "DICOM PatientID is missing" in str(exc_info.value)
 
     def test_extract_ptid_fails_when_subject_label_none(self, tmp_path: Path) -> None:
         """Test that extraction fails when subject.label is None."""
@@ -197,29 +190,27 @@ class TestExtractPtid:
         subject = Mock(spec=SubjectAdaptor)
         subject.label = None
 
-        # Create DICOM file without PatientID
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict without PatientID
+        dicom_metadata = {"patient_id": None}
 
         with pytest.raises(ValueError) as exc_info:
-            extract_ptid(subject, dicom_file)
+            extract_ptid(subject, dicom_metadata)
 
         assert "PTID not found" in str(exc_info.value)
 
     def test_extract_ptid_raises_invalid_dicom_error_for_bad_file(
         self, tmp_path: Path
     ) -> None:
-        """Test that invalid DICOM file raises InvalidDicomError."""
-        # Create mock subject with empty label
-        subject = Mock(spec=SubjectAdaptor)
-        subject.label = ""
+        """Test that invalid DICOM file raises InvalidDicomError.
 
-        # Create non-DICOM file
-        invalid_file = tmp_path / "not_dicom.txt"
-        invalid_file.write_text("This is not a DICOM file")
-
-        with pytest.raises(InvalidDicomError):
-            extract_ptid(subject, invalid_file)
+        Note: This test is no longer applicable since extract_ptid now accepts
+        pre-extracted metadata instead of reading files directly. The DICOM
+        validation happens earlier in the pipeline (in extract_dicom_metadata).
+        Keeping this test stub for documentation purposes.
+        """
+        # This test is no longer applicable - DICOM validation happens
+        # in extract_dicom_metadata() which is called before extract_ptid()
+        pass
 
 
 class TestExtractExistingNaccid:
@@ -270,15 +261,15 @@ class TestExtractVisitMetadata:
     """Tests for extract_visit_metadata function."""
 
     def test_extract_visit_metadata_with_valid_dicom_data(self, tmp_path: Path) -> None:
-        """Test extracting visit metadata from valid DICOM file."""
-        # Create DICOM file with required fields
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        """Test extracting visit metadata from valid DICOM metadata."""
+        # Create metadata dict with required fields
+        dicom_metadata = {
+            "study_date": "20240115",
+            "modality": "MR",
+        }
 
         result = extract_visit_metadata(
-            file_path=dicom_file,
+            dicom_metadata=dicom_metadata,
             ptid="110001",
             adcid=42,
             naccid="NACC123456",
@@ -301,13 +292,14 @@ class TestExtractVisitMetadata:
         self, tmp_path: Path
     ) -> None:
         """Test that missing modality uses default value."""
-        # Create DICOM file without Modality tag
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.StudyDate = "20240115"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict without Modality
+        dicom_metadata = {
+            "study_date": "20240115",
+            "modality": None,
+        }
 
         result = extract_visit_metadata(
-            file_path=dicom_file,
+            dicom_metadata=dicom_metadata,
             ptid="110001",
             adcid=42,
             naccid="NACC123456",
@@ -324,14 +316,15 @@ class TestExtractVisitMetadata:
         self, tmp_path: Path
     ) -> None:
         """Test that missing StudyDate raises ValueError."""
-        # Create DICOM file without StudyDate
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.Modality = "MR"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict without StudyDate
+        dicom_metadata = {
+            "study_date": None,
+            "modality": "MR",
+        }
 
         with pytest.raises(ValueError) as exc_info:
             extract_visit_metadata(
-                file_path=dicom_file,
+                dicom_metadata=dicom_metadata,
                 ptid="110001",
                 adcid=42,
                 naccid="NACC123456",
@@ -339,19 +332,19 @@ class TestExtractVisitMetadata:
             )
 
         assert "Visit date not found" in str(exc_info.value)
-        assert "StudyDate (0008,0020) is missing" in str(exc_info.value)
+        assert "StudyDate is missing" in str(exc_info.value)
         assert "required DICOM field" in str(exc_info.value)
 
     def test_extract_visit_metadata_with_none_naccid(self, tmp_path: Path) -> None:
         """Test extracting visit metadata with None NACCID."""
-        # Create DICOM file with required fields
-        dicom_file, ds = create_test_dicom_file(tmp_path)
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        # Create metadata dict with required fields
+        dicom_metadata = {
+            "study_date": "20240115",
+            "modality": "MR",
+        }
 
         result = extract_visit_metadata(
-            file_path=dicom_file,
+            dicom_metadata=dicom_metadata,
             ptid="110001",
             adcid=42,
             naccid=None,
@@ -363,19 +356,16 @@ class TestExtractVisitMetadata:
     def test_extract_visit_metadata_raises_invalid_dicom_error_for_bad_file(
         self, tmp_path: Path
     ) -> None:
-        """Test that invalid DICOM file raises InvalidDicomError."""
-        # Create non-DICOM file
-        invalid_file = tmp_path / "not_dicom.txt"
-        invalid_file.write_text("This is not a DICOM file")
+        """Test that invalid DICOM file raises InvalidDicomError.
 
-        with pytest.raises(InvalidDicomError):
-            extract_visit_metadata(
-                file_path=invalid_file,
-                ptid="110001",
-                adcid=42,
-                naccid="NACC123456",
-                default_modality="UNKNOWN",
-            )
+        Note: This test is no longer applicable since extract_visit_metadata now
+        accepts pre-extracted metadata instead of reading files directly. The DICOM
+        validation happens earlier in the pipeline (in extract_dicom_metadata).
+        Keeping this test stub for documentation purposes.
+        """
+        # This test is no longer applicable - DICOM validation happens
+        # in extract_dicom_metadata() which is called before extract_visit_metadata()
+        pass
 
 
 class TestExtractDicomMetadata:

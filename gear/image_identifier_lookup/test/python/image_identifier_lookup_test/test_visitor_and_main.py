@@ -18,6 +18,7 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
+from image_identifier_lookup_app.extraction import extract_dicom_metadata
 from image_identifier_lookup_app.main import run as main_run
 from image_identifier_lookup_app.run import ImageIdentifierLookupVisitor
 from s3.s3_bucket import S3InterfaceError
@@ -354,12 +355,11 @@ class TestMainOrchestration:
         )
         mock_qc_manager_class.return_value = mock_qc_manager
 
+        # Extract DICOM metadata
+        dicom_metadata = extract_dicom_metadata(dicom_file)
+
         # Act
         success, _errors = main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -367,6 +367,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=dicom_metadata,
         )
 
         # Assert - processor called
@@ -433,10 +434,6 @@ class TestMainOrchestration:
 
         # Act
         success, _errors = main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -444,6 +441,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - processor NOT created (skipped)
@@ -493,10 +491,6 @@ class TestMainOrchestration:
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -504,6 +498,7 @@ class TestMainOrchestration:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         assert "NACCID conflict" in str(exc_info.value)
@@ -548,10 +543,6 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -559,6 +550,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - QC log updated with PASS status
@@ -606,10 +598,6 @@ class TestMainOrchestration:
         # Act & Assert
         with pytest.raises(IdentifierRepositoryError):
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -617,6 +605,7 @@ class TestMainOrchestration:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         # Note: QC logging happens after the exception is raised,
@@ -658,10 +647,6 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -669,6 +654,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - event captured
@@ -718,10 +704,6 @@ class TestMainOrchestration:
 
         # Act - should not raise exception
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -729,6 +711,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - event capture was attempted but failure didn't stop processing
@@ -770,10 +753,6 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -781,6 +760,7 @@ class TestMainOrchestration:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Note: File metadata updates are now handled in run.py, not main.py
@@ -790,10 +770,12 @@ class TestMainOrchestration:
 class TestVisitorRun:
     """Tests for ImageIdentifierLookupVisitor.run() method."""
 
+    @patch("image_identifier_lookup_app.extraction.extract_dicom_metadata")
     @patch("image_identifier_lookup_app.main.run")
     def test_visitor_run_calls_main_with_correct_parameters(
         self,
         mock_main_run: Mock,
+        mock_extract_metadata: Mock,
         visitor: ImageIdentifierLookupVisitor,
         mock_gear_context: Mock,
         mock_project: Mock,
@@ -807,6 +789,13 @@ class TestVisitorRun:
         mock_fw_project = Mock()
         mock_proxy.get_project_by_id.return_value = mock_fw_project
         mock_project.get_subject_by_id.return_value = mock_subject
+
+        # Mock extract_dicom_metadata to return test metadata
+        mock_extract_metadata.return_value = {
+            "patient_id": "110001",
+            "study_date": "20240115",
+            "modality": "MR",
+        }
 
         # Mock main.run() to return success
         mock_main_run.return_value = (True, [])
@@ -826,13 +815,16 @@ class TestVisitorRun:
             # Act
             visitor.run(mock_gear_context)
 
+            # Assert - extract_dicom_metadata was called
+            mock_extract_metadata.assert_called_once()
+
             # Assert - main.run() was called
             mock_main_run.assert_called_once()
             call_kwargs = mock_main_run.call_args.kwargs
-            assert call_kwargs["file_name"] == "test.dcm"
             assert call_kwargs["gear_name"] == "image-identifier-lookup"
             assert call_kwargs["naccid_field_name"] == "naccid"
             assert call_kwargs["default_modality"] == "UNKNOWN"
+            assert "dicom_metadata" in call_kwargs
 
 
 class TestIntegrationScenarios:
@@ -878,10 +870,6 @@ class TestIntegrationScenarios:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -889,6 +877,7 @@ class TestIntegrationScenarios:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert complete workflow
@@ -947,10 +936,6 @@ class TestIntegrationScenarios:
         # Act - run twice with same NACCID
         for _ in range(2):
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -958,6 +943,7 @@ class TestIntegrationScenarios:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         # Assert - both runs succeeded
@@ -1004,10 +990,6 @@ class TestIntegrationScenarios:
 
         # Act - should not raise exception
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -1015,6 +997,7 @@ class TestIntegrationScenarios:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - processing continued despite QC logging failure

@@ -191,14 +191,20 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             f"(subject: {subject.label}, project: {project.label})"
         )
 
-        # Step 2: Call main.run() to orchestrate the workflow
+        # Step 2: Extract DICOM metadata once (fail fast if invalid DICOM)
+        from image_identifier_lookup_app.extraction import extract_dicom_metadata
+
+        log.info("Extracting DICOM metadata")
+        dicom_metadata = extract_dicom_metadata(file_path)
+
+        # Step 3: Call main.run() to orchestrate the workflow
         from image_identifier_lookup_app.main import run
 
+        log.info(
+            f"Processing file: {file_obj.name} "
+            f"(subject: {subject.label}, project: {project.label})"
+        )
         success, errors = run(
-            file_path=file_path,
-            file_name=file_obj.name,
-            file_obj=file_obj,
-            input_wrapper=self.__file_input,
             project=project,
             subject=subject,
             identifiers_repository=self.__identifiers_repository,
@@ -206,6 +212,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             gear_name=self.__gear_name,
             naccid_field_name=self.__naccid_field_name,
             default_modality=self.__default_modality,
+            dicom_metadata=dicom_metadata,
         )
 
         # Step 3: Update file QC metadata and tags

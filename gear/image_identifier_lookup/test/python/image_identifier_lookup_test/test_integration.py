@@ -18,6 +18,7 @@ from gear_execution.gear_execution import (
 from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
+from image_identifier_lookup_app.extraction import extract_dicom_metadata
 from image_identifier_lookup_app.main import run as main_run
 from moto import mock_aws
 from nacc_common.data_identification import DataIdentification
@@ -225,10 +226,6 @@ class TestEndToEndSuccessFlow:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -236,6 +233,7 @@ class TestEndToEndSuccessFlow:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - processor called with correct data
@@ -310,10 +308,6 @@ class TestEndToEndFailureFlow:
         # Act & Assert
         with pytest.raises(IdentifierRepositoryError) as exc_info:
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -321,6 +315,7 @@ class TestEndToEndFailureFlow:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         assert "No matching record found" in str(exc_info.value)
@@ -376,10 +371,6 @@ class TestIdempotentRerun:
         # Act - run twice
         for _ in range(2):
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -387,6 +378,7 @@ class TestIdempotentRerun:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         # Assert - both runs succeeded
@@ -446,10 +438,6 @@ class TestNaccidConflict:
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
             main_run(
-                file_path=dicom_file,
-                file_name="test.dcm",
-                file_obj=mock_file_obj,
-                input_wrapper=mock_file_input,
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
@@ -457,6 +445,7 @@ class TestNaccidConflict:
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
+                dicom_metadata=extract_dicom_metadata(dicom_file),
             )
 
         assert "NACCID conflict" in str(exc_info.value)
@@ -495,9 +484,12 @@ class TestFailFastScenarios:
         # Act & Assert - extraction should fail
         from image_identifier_lookup_app.extraction import extract_visit_metadata
 
+        # Extract metadata first
+        dicom_metadata = extract_dicom_metadata(dicom_file)
+
         with pytest.raises(ValueError) as exc_info:
             extract_visit_metadata(
-                file_path=dicom_file,
+                dicom_metadata=dicom_metadata,
                 ptid="110001",
                 adcid=42,
                 naccid=None,
@@ -540,12 +532,15 @@ class TestFailFastScenarios:
         # Act & Assert - extraction should fail
         from image_identifier_lookup_app.extraction import extract_ptid
 
+        # Extract metadata first
+        dicom_metadata = extract_dicom_metadata(dicom_file)
+
         with pytest.raises(ValueError) as exc_info:
-            extract_ptid(subject=mock_subject, file_path=dicom_file)
+            extract_ptid(subject=mock_subject, dicom_metadata=dicom_metadata)
 
         assert "PTID not found" in str(exc_info.value)
         assert "subject.label is empty" in str(exc_info.value)
-        assert "PatientID tag is missing" in str(exc_info.value)
+        assert "PatientID is missing" in str(exc_info.value)
 
 
 class TestQCLogAndEventCapture:
@@ -595,10 +590,6 @@ class TestQCLogAndEventCapture:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -606,6 +597,7 @@ class TestQCLogAndEventCapture:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         mock_qc_manager.update_qc_log.assert_called_once()
@@ -654,10 +646,6 @@ class TestQCLogAndEventCapture:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -665,6 +653,7 @@ class TestQCLogAndEventCapture:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - event captured with correct fields
@@ -736,10 +725,6 @@ class TestMockedAWSServices:
 
         # Act
         main_run(
-            file_path=dicom_file,
-            file_name="test.dcm",
-            file_obj=mock_file_obj,
-            input_wrapper=mock_file_input,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -747,6 +732,7 @@ class TestMockedAWSServices:
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
         )
 
         # Assert - event was written to S3

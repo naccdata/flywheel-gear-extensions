@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import cast
 
 from botocore.exceptions import ClientError
@@ -10,10 +9,9 @@ from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
-from flywheel import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor, ProjectError
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, SubjectError
-from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
+from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
@@ -29,7 +27,6 @@ from s3.s3_bucket import S3InterfaceError
 
 from image_identifier_lookup_app.dicom_utils import InvalidDicomError
 from image_identifier_lookup_app.extraction import (
-    extract_dicom_metadata,
     extract_existing_naccid,
     extract_pipeline_adcid,
     extract_ptid,
@@ -42,10 +39,6 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    file_path: Path,
-    file_name: str,
-    file_obj: FileEntry,
-    input_wrapper: InputFileWrapper,
     project: ProjectAdaptor,
     subject: SubjectAdaptor,
     identifiers_repository: IdentifierRepository,
@@ -53,6 +46,7 @@ def run(
     gear_name: str,
     naccid_field_name: str,
     default_modality: str,
+    dicom_metadata: dict,
 ) -> tuple[bool, list]:
     """Runs the Image Identifier Lookup process.
 
@@ -65,10 +59,6 @@ def run(
     6. Capture submission event
 
     Args:
-        file_path: Path to the DICOM file
-        file_name: Name of the DICOM file
-        file_obj: Flywheel file object
-        input_wrapper: Input file wrapper
         project: Project adaptor
         subject: Subject adaptor
         identifiers_repository: Repository for NACCID lookups
@@ -76,6 +66,7 @@ def run(
         gear_name: Name of the gear
         naccid_field_name: Field name for NACCID in subject.info
         default_modality: Default modality if DICOM tag missing
+        dicom_metadata: Pre-extracted DICOM metadata dictionary
 
     Returns:
         Tuple of (success: bool, errors: list)
@@ -83,13 +74,9 @@ def run(
     Raises:
         GearExecutionError: If processing fails
     """
-    log.info(
-        f"Processing file: {file_name} "
-        f"(subject: {subject.label}, project: {project.label})"
-    )
 
     # Step 1: Extract all required data early (fail fast)
-    log.info("Extracting required data from project, subject, and DICOM file")
+    log.info("Extracting required data from project, subject, and DICOM metadata")
 
     try:
         # Extract pipeline ADCID from project metadata
@@ -97,7 +84,7 @@ def run(
         log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
 
         # Extract PTID from subject.label or DICOM PatientID
-        ptid = extract_ptid(subject, file_path)
+        ptid = extract_ptid(subject, dicom_metadata)
         log.info(f"Extracted PTID: {ptid}")
 
         # Extract existing NACCID from subject.info (if present)
@@ -110,7 +97,7 @@ def run(
         # Extract visit metadata from DICOM (StudyDate, modality)
         # Note: Pass None for naccid initially, will be updated after lookup
         visit_metadata = extract_visit_metadata(
-            file_path=file_path,
+            dicom_metadata=dicom_metadata,
             ptid=ptid,
             adcid=pipeline_adcid,
             naccid=existing_naccid,
@@ -123,10 +110,8 @@ def run(
             f"modality: {visit_metadata.data.modality}"
         )
 
-        # Extract comprehensive DICOM metadata for storage
-        dicom_metadata = extract_dicom_metadata(file_path)
         log.info(
-            f"Extracted DICOM metadata with {len(dicom_metadata)} fields "
+            f"Using pre-extracted DICOM metadata with {len(dicom_metadata)} fields "
             f"(StudyInstanceUID: {dicom_metadata.get('study_instance_uid', 'N/A')})"
         )
 

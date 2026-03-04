@@ -1,9 +1,9 @@
 """Early data extraction utilities for the Image Identifier Lookup gear.
 
 This module provides utilities for extracting required data from
-Flywheel objects and DICOM files as early as possible in the processing
-pipeline. All functions fail fast with clear error messages when
-required data is missing.
+Flywheel objects and pre-extracted DICOM metadata as early as possible
+in the processing pipeline. All functions fail fast with clear error
+messages when required data is missing.
 """
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from nacc_common.data_identification import DataIdentification
 
-from image_identifier_lookup_app.dicom_utils import read_dicom_tag, read_dicom_tags
+from image_identifier_lookup_app.dicom_utils import read_dicom_tags
 
 
 def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
@@ -34,36 +34,35 @@ def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
     return project.get_pipeline_adcid()
 
 
-def extract_ptid(subject: SubjectAdaptor, file_path: Path) -> str:
-    """Extract PTID from subject.label or DICOM PatientID tag.
+def extract_ptid(subject: SubjectAdaptor, dicom_metadata: dict) -> str:
+    """Extract PTID from subject.label or DICOM PatientID.
 
     Priority:
     1. subject.label (if not empty)
-    2. DICOM PatientID tag (0010,0020)
+    2. DICOM PatientID from pre-extracted metadata
 
     Args:
         subject: Subject adaptor
-        file_path: Path to DICOM file
+        dicom_metadata: Pre-extracted DICOM metadata dictionary
 
     Returns:
         PTID as string
 
     Raises:
         ValueError: If both sources are empty/missing
-        InvalidDicomError: If file is not valid DICOM
     """
     # Try subject.label first
     ptid = subject.label
     if ptid and ptid.strip():
         return ptid.strip()
 
-    # Fallback to DICOM PatientID tag
-    dicom_ptid = read_dicom_tag(file_path, (0x0010, 0x0020))
+    # Fallback to DICOM PatientID from metadata
+    dicom_ptid = dicom_metadata.get("patient_id")
     if dicom_ptid and dicom_ptid.strip():
         return dicom_ptid.strip()
 
     raise ValueError(
-        "PTID not found: subject.label is empty and DICOM PatientID tag is missing"
+        "PTID not found: subject.label is empty and DICOM PatientID is missing"
     )
 
 
@@ -83,16 +82,16 @@ def extract_existing_naccid(
 
 
 def extract_visit_metadata(
-    file_path: Path,
+    dicom_metadata: dict,
     ptid: str,
     adcid: int,
     naccid: Optional[str],
     default_modality: str,
 ) -> DataIdentification:
-    """Extract visit metadata from DICOM file.
+    """Extract visit metadata from pre-extracted DICOM metadata.
 
     Args:
-        file_path: Path to DICOM file
+        dicom_metadata: Pre-extracted DICOM metadata dictionary
         ptid: Pre-extracted PTID
         adcid: Pre-extracted pipeline ADCID
         naccid: Pre-extracted or looked-up NACCID
@@ -103,19 +102,17 @@ def extract_visit_metadata(
 
     Raises:
         ValueError: If required fields (StudyDate) are missing
-        InvalidDicomError: If file is not valid DICOM
     """
     # Extract date (required) - StudyDate is canonical per DICOM standard
-    date = read_dicom_tag(file_path, (0x0008, 0x0020))  # StudyDate (required field)
+    date = dicom_metadata.get("study_date")
 
     if not date:
         raise ValueError(
-            "Visit date not found: StudyDate (0008,0020) is missing "
-            "(required DICOM field)"
+            "Visit date not found: StudyDate is missing (required DICOM field)"
         )
 
     # Extract modality (use default if missing)
-    modality = read_dicom_tag(file_path, (0x0008, 0x0060))
+    modality = dicom_metadata.get("modality")
     if not modality:
         modality = default_modality
 
