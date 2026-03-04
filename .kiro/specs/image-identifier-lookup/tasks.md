@@ -174,7 +174,7 @@ Key architectural principles:
     - _Requirements: All requirements_
 
 - [ ] 6. Update gear configuration and dependencies
-  - [ ] 6.1 Update manifest.json
+  - [x] 6.1 Update manifest.json
     - Update `gear/image_identifier_lookup/src/docker/manifest.json`
     - Add config parameters: database_mode, naccid_field_name, default_modality, event_environment, event_bucket, admin_group, apikey_path_prefix
     - Define input_file input with type constraint: dicom
@@ -182,14 +182,14 @@ Key architectural principles:
     - Set gear metadata: name, label, version, category, suite
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
 
-  - [ ] 6.2 Update BUILD file and dependencies
-    - Update `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/BUILD`
-    - Add dependencies: pydicom, common package modules (identifiers, error_logging, event_capture, flywheel_adaptor, gear_execution, s3)
-    - Add dependencies: nacc-common (data_identification, error_models)
-    - Ensure all required modules are included
+  - [x] 6.2 Verify BUILD file configuration
+    - Verify `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/BUILD` exists
+    - Confirm Pants dependency inference is working (no explicit dependencies needed)
+    - The existing BUILD file with `python_sources()` and `pex_binary()` is sufficient
+    - Pants will automatically infer dependencies from import statements
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.10_
 
-  - [ ] 6.3 Update Dockerfile
+  - [x] 6.3 Update Dockerfile
     - Update `gear/image_identifier_lookup/src/docker/Dockerfile`
     - Ensure pydicom is installed
     - Set correct entrypoint to main.py
