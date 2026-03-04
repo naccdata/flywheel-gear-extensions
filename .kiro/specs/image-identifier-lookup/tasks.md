@@ -139,7 +139,7 @@ Key architectural principles:
     - Use mocks for all dependencies
     - _Requirements: All requirements_
 
-- [ ] 4. Checkpoint - Ensure core functionality works
+- [x] 4. Checkpoint - Ensure core functionality works
   - Run unit tests for all components
   - Verify DICOM parsing works with sample files
   - Verify early extraction and fail-fast behavior
@@ -147,13 +147,13 @@ Key architectural principles:
   - Ask the user if questions arise
 
 - [ ] 5. Create main entry point and error handling
-  - [ ] 5.1 Update main entry point
+  - [x] 5.1 Update main entry point
     - The main.py already contains the orchestration logic (run() function)
     - Entry point is in run.py's main() function which calls GearEngine
     - No additional changes needed for basic entry point
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 5.2 Implement error handling utilities
+  - [x] 5.2 Implement error handling utilities
     - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/errors.py`
     - Implement `ErrorHandler` class with centralized error handling
     - Implement `create_ptid_extraction_error(error)` method
