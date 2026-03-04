@@ -1,22 +1,28 @@
 """Defines Image Identifier Lookup."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, cast
 
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
+from flywheel import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
+from fw_gear import GearContext
+from gear_execution.gear_execution import InputFileWrapper
 from identifiers.identifiers_repository import IdentifierRepository
+from keys.keys import MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     QC_STATUS_FAIL,
     QC_STATUS_PASS,
     FileErrorList,
+    GearTags,
     QCStatus,
 )
 
@@ -27,8 +33,11 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
+    gear_context: GearContext,
     file_path: Path,
     file_name: str,
+    file_obj: FileEntry,
+    input_wrapper: InputFileWrapper,
     project: ProjectAdaptor,
     subject: SubjectAdaptor,
     identifiers_repository: IdentifierRepository,
@@ -52,8 +61,11 @@ def run(
     6. Update file QC metadata and tags
 
     Args:
+        gear_context: Flywheel gear context
         file_path: Path to the DICOM file
         file_name: Name of the DICOM file
+        file_obj: Flywheel file object
+        input_wrapper: Input file wrapper
         project: Project adaptor
         subject: Subject adaptor
         identifiers_repository: Repository for NACCID lookups
@@ -180,6 +192,44 @@ def run(
         # Event capture failures are non-critical - log but don't fail gear
         log.error(f"Error during event capture (non-critical): {error}")
 
-    # TODO: Step 5: Update file QC metadata and tags (task 3.5)
+    # Step 5: Update file QC metadata and tags
+    log.info("Updating file QC metadata and tags")
+    try:
+        # Add QC result to file metadata
+        status_str = "PASS" if success else "FAIL"
+        gear_context.metadata.add_qc_result(
+            input_wrapper.file_input,
+            name="validation",
+            state=status_str,
+            data=(
+                FileErrorList(root=errors).model_dump(by_alias=True) if errors else None
+            ),
+        )
+
+        # Set/update the validation timestamp in file.info
+        timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
+        gear_context.metadata.update_file_metadata(
+            input_wrapper.file_input,
+            container_type=gear_context.config.destination["type"],
+            info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
+        )
+
+        # Add gear tag to file (gear-PASS or gear-FAIL)
+        gear_tags = GearTags(gear_name=gear_name)
+        updated_tags = gear_tags.update_tags(tags=file_obj.tags, status=status_str)
+        gear_context.metadata.update_file_metadata(
+            input_wrapper.file_input,
+            tags=updated_tags,
+            container_type=gear_context.config.destination["type"],
+        )
+
+        log.info(
+            f"Successfully updated file QC metadata and tags: "
+            f"{status_str} [{timestamp}]"
+        )
+
+    except Exception as error:
+        # File metadata update failures are logged but don't fail gear
+        log.error(f"Error updating file QC metadata (non-critical): {error}")
 
     log.info("Image Identifier Lookup processing completed successfully")

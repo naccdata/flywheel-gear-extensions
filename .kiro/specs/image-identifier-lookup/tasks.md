@@ -119,14 +119,14 @@ Key architectural principles:
     - Handle event capture failures gracefully (log error, don't fail gear)
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10_
 
-  - [ ] 3.5 Implement file QC metadata and tagging in main.py
+  - [x] 3.5 Implement file QC metadata and tagging in main.py
     - Add QC metadata to input file with validation state (PASS or FAIL)
     - Add error information to file's QC metadata using FileErrorList format
     - Add gear tag to input file (gear-PASS or gear-FAIL)
     - Collect and report all errors in QC metadata
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ]* 3.6 Write unit tests for visitor and main orchestration
+  - [ ] 3.6 Write unit tests for visitor and main orchestration
     - Test successful end-to-end flow (extraction → lookup → update → QC → event)
     - Test idempotency (skip when NACCID already correct)
     - Test NACCID conflict detection

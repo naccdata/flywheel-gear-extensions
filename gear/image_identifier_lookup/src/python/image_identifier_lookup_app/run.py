@@ -258,8 +258,11 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         from image_identifier_lookup_app.main import run
 
         run(
+            gear_context=context,
             file_path=file_path,
             file_name=file_obj.name,
+            file_obj=file_obj,
+            input_wrapper=self.__file_input,
             project=project,
             subject=subject,
             identifiers_repository=self.__identifiers_repository,
