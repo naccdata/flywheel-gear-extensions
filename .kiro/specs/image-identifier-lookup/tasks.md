@@ -76,7 +76,7 @@ Key architectural principles:
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.3, 4.4, 4.5, 4.6, 4.7_
 
 - [ ] 3. Implement gear visitor and orchestration
-  - [ ] 3.1 Create visitor class with initialization
+  - [x] 3.1 Create visitor class with initialization
     - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/run.py`
     - Implement `ImageIdentifierLookupVisitor` class extending GearExecutionEnvironment
     - Constructor accepts: client, file_input, identifiers_repository, qc_log_manager, event_capture, gear_name, naccid_field_name, default_modality
