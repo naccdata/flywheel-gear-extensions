@@ -1,10 +1,12 @@
 """Entry script for Image Identifier Lookup."""
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from botocore.exceptions import ClientError
 from event_capture.event_capture import VisitEventCapture
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -17,9 +19,16 @@ from gear_execution.gear_execution import (
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from inputs.parameter_store import ParameterStore
 from lambdas.lambda_function import LambdaClient, create_lambda_client
+from nacc_common.data_identification import ImageIdentification
 from s3.s3_bucket import S3BucketInterface
 
-from image_identifier_lookup_app.main import run
+from image_identifier_lookup_app.extraction import (
+    extract_dicom_metadata,
+    extract_existing_naccid,
+    extract_pipeline_adcid,
+    extract_ptid,
+    extract_visit_metadata,
+)
 
 log = logging.getLogger(__name__)
 
@@ -155,17 +164,114 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
 
         1. Retrieve input file, parent subject, and project
         2. Extract all required data early (fail fast)
-        3. Check idempotency: if NACCID already exists, skip to step 6
-        4. Perform NACCID lookup
-        5. Update subject metadata with NACCID and DICOM metadata
-        6. Update QC status log
-        7. Capture submission event (required)
-        8. Update file QC metadata and tags
+        3. Call main.run() to orchestrate the workflow
 
         Args:
             context: The gear execution context
+
+        Raises:
+            GearExecutionError: If any required data is missing or processing fails
         """
-        run(proxy=self.proxy)
+        log.info("Starting Image Identifier Lookup processing")
+
+        # Step 1: Retrieve input file, parent subject, and project
+        log.info("Retrieving input file and parent containers")
+        file_obj = self.proxy.get_file(self.__file_input.file_id)
+        file_path = Path(self.__file_input.filepath)
+
+        fw_project = self.proxy.get_project_by_id(file_obj.parents.project)
+        if not fw_project:
+            raise GearExecutionError(
+                f"Failed to retrieve parent project for file {file_obj.name}"
+            )
+        project = ProjectAdaptor(project=fw_project, proxy=self.proxy)
+
+        subject = project.get_subject_by_id(file_obj.parents.subject)
+        if not subject:
+            raise GearExecutionError(
+                f"Failed to retrieve parent subject for file {file_obj.name}"
+            )
+
+        log.info(
+            f"Processing file: {file_obj.name} "
+            f"(subject: {subject.label}, project: {project.label})"
+        )
+
+        # Step 2: Extract all required data early (fail fast)
+        log.info("Extracting required data from project, subject, and DICOM file")
+
+        try:
+            # Extract pipeline ADCID from project metadata
+            pipeline_adcid = extract_pipeline_adcid(project)
+            log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
+
+            # Extract PTID from subject.label or DICOM PatientID
+            ptid = extract_ptid(subject, file_path)
+            log.info(f"Extracted PTID: {ptid}")
+
+            # Extract existing NACCID from subject.info (if present)
+            existing_naccid = extract_existing_naccid(subject, self.__naccid_field_name)
+            if existing_naccid:
+                log.info(
+                    f"Found existing NACCID in subject metadata: {existing_naccid}"
+                )
+            else:
+                log.info("No existing NACCID found in subject metadata")
+
+            # Extract visit metadata from DICOM (StudyDate, modality)
+            # Note: Pass None for naccid initially, will be updated after lookup
+            visit_metadata = extract_visit_metadata(
+                file_path=file_path,
+                ptid=ptid,
+                adcid=pipeline_adcid,
+                naccid=existing_naccid,
+                default_modality=self.__default_modality,
+            )
+            # Type assertion: we know this is ImageIdentification
+            assert isinstance(visit_metadata.data, ImageIdentification)
+            log.info(
+                f"Extracted visit metadata - date: {visit_metadata.date}, "
+                f"modality: {visit_metadata.data.modality}"
+            )
+
+            # Extract comprehensive DICOM metadata for storage
+            dicom_metadata = extract_dicom_metadata(file_path)
+            log.info(
+                f"Extracted DICOM metadata with {len(dicom_metadata)} fields "
+                f"(StudyInstanceUID: {dicom_metadata.get('study_instance_uid', 'N/A')})"
+            )
+
+        except ValueError as error:
+            # Missing required data - fail fast
+            log.error(f"Failed to extract required data: {error}")
+            raise GearExecutionError(f"Data extraction failed: {error}") from error
+        except Exception as error:
+            # Unexpected error during extraction
+            log.error(f"Unexpected error during data extraction: {error}")
+            raise GearExecutionError(
+                f"Unexpected error during data extraction: {error}"
+            ) from error
+
+        log.info("Early data extraction completed successfully")
+
+        # Step 3: Call main.run() to orchestrate the workflow
+        from image_identifier_lookup_app.main import run
+
+        run(
+            file_path=file_path,
+            file_name=file_obj.name,
+            project=project,
+            subject=subject,
+            identifiers_repository=self.__identifiers_repository,
+            event_capture=self.__event_capture,
+            gear_name=self.__gear_name,
+            naccid_field_name=self.__naccid_field_name,
+            pipeline_adcid=pipeline_adcid,
+            ptid=ptid,
+            existing_naccid=existing_naccid,
+            visit_metadata=visit_metadata,
+            dicom_metadata=dicom_metadata,
+        )
 
 
 def main():

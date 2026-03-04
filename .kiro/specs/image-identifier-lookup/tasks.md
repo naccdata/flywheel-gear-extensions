@@ -5,9 +5,10 @@
 This implementation plan converts the image identifier lookup design into actionable coding tasks. The gear performs NACCID lookups for DICOM images (one file = one lookup), using the refactored DataIdentification architecture with ImageIdentification. The implementation modifies existing template code in `gear/image_identifier_lookup` and maximizes code reuse from the `common/` package.
 
 Key architectural principles:
-- Early data extraction with fail-fast validation
-- Idempotency checks to handle re-runs gracefully
-- Separation of concerns: visitor handles orchestration, processor handles business logic
+- Standard gear pattern: run.py handles setup, main.py orchestrates workflow, processor.py contains business logic
+- Early data extraction with fail-fast validation in run.py
+- Idempotency checks to handle re-runs gracefully in main.py
+- Separation of concerns: visitor handles Flywheel setup, main.py orchestrates, processor handles business logic
 - Required event capture (gear fails if not configured)
 - Comprehensive DICOM metadata extraction and storage
 
@@ -79,16 +80,15 @@ Key architectural principles:
   - [x] 3.1 Create visitor class with initialization
     - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/run.py`
     - Implement `ImageIdentifierLookupVisitor` class extending GearExecutionEnvironment
-    - Constructor accepts: client, file_input, identifiers_repository, qc_log_manager, event_capture, gear_name, naccid_field_name, default_modality
+    - Constructor accepts: client, file_input, identifiers_repository, event_capture, gear_name, naccid_field_name, default_modality
     - Implement `create(context, parameter_store)` factory method
     - Extract configuration: database_mode, naccid_field_name, default_modality, event_environment, event_bucket, admin_group
     - Initialize ClientWrapper (GearBotClient), InputFileWrapper, IdentifiersLambdaRepository
-    - Initialize QCStatusLogManager with ErrorLogTemplate and FileVisitAnnotator
     - Initialize VisitEventCapture (required - fail if event_environment or event_bucket missing)
     - Verify S3 bucket accessibility during initialization
     - _Requirements: 7.1, 7.2, 7.3, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
 
-  - [x] 3.2 Implement main execution flow with early extraction
+  - [x] 3.2 Implement early data extraction in visitor run() method
     - Implement `run(context)` method in ImageIdentifierLookupVisitor
     - Retrieve input file, parent subject, and parent project
     - Extract all required data early (fail fast):
@@ -98,17 +98,19 @@ Key architectural principles:
       - Visit metadata from DICOM (StudyDate, modality)
       - Comprehensive DICOM metadata for storage
     - Fail immediately if any required data is missing
+    - Call main.run() with all extracted data
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.9, 6.10, 6.11_
 
-  - [ ] 3.3 Implement idempotency check and processing
-    - After early extraction, check if NACCID already exists in subject.info
-    - If NACCID exists with correct value: skip lookup and update, set skipped flag
-    - If NACCID exists with different value: fail with conflict error
-    - If no NACCID: perform lookup using ImageIdentifierLookupProcessor
-    - Update subject metadata with NACCID and DICOM metadata
+  - [x] 3.3 Implement main orchestration function
+    - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/main.py`
+    - Implement `run()` function that orchestrates the workflow
+    - Accept all pre-extracted data as parameters (no Flywheel object access)
+    - Check idempotency: if NACCID already exists, skip lookup
+    - If no NACCID: create ImageIdentifierLookupProcessor and perform lookup
+    - Update subject metadata with NACCID and DICOM metadata via processor
     - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 11.1, 11.2, 11.3, 11.4, 11.5_
 
-  - [ ] 3.4 Implement QC logging and event capture
+  - [ ] 3.4 Implement QC logging and event capture in main.py
     - Create DataIdentification with ImageIdentification using extracted metadata
     - Update QC status log using QCStatusLogManager (PASS or FAIL)
     - Add visit metadata to log file on initial creation
@@ -117,14 +119,14 @@ Key architectural principles:
     - Handle event capture failures gracefully (log error, don't fail gear)
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10_
 
-  - [ ] 3.5 Implement file QC metadata and tagging
+  - [ ] 3.5 Implement file QC metadata and tagging in main.py
     - Add QC metadata to input file with validation state (PASS or FAIL)
     - Add error information to file's QC metadata using FileErrorList format
     - Add gear tag to input file (gear-PASS or gear-FAIL)
     - Collect and report all errors in QC metadata
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ]* 3.6 Write unit tests for visitor
+  - [ ]* 3.6 Write unit tests for visitor and main orchestration
     - Test successful end-to-end flow (extraction → lookup → update → QC → event)
     - Test idempotency (skip when NACCID already correct)
     - Test NACCID conflict detection
@@ -145,13 +147,10 @@ Key architectural principles:
   - Ask the user if questions arise
 
 - [ ] 5. Create main entry point and error handling
-  - [ ] 5.1 Create main execution function
-    - Create `gear/image_identifier_lookup/src/python/image_identifier_lookup_app/main.py`
-    - Implement `run()` function as main entry point
-    - Initialize GearToolkitContext
-    - Create ParameterStore for AWS SSM access
-    - Call ImageIdentifierLookupVisitor.create() and run()
-    - Handle top-level exceptions and log errors
+  - [ ] 5.1 Update main entry point
+    - The main.py already contains the orchestration logic (run() function)
+    - Entry point is in run.py's main() function which calls GearEngine
+    - No additional changes needed for basic entry point
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
   - [ ] 5.2 Implement error handling utilities
