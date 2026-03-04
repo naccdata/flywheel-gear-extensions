@@ -126,7 +126,7 @@ Key architectural principles:
     - Collect and report all errors in QC metadata
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 3.6 Write unit tests for visitor and main orchestration
+  - [x] 3.6 Write unit tests for visitor and main orchestration
     - Test successful end-to-end flow (extraction → lookup → update → QC → event)
     - Test idempotency (skip when NACCID already correct)
     - Test NACCID conflict detection
