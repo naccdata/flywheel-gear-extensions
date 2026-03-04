@@ -1,12 +1,11 @@
 """Defines Image Identifier Lookup."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import cast
 
 from botocore.exceptions import ClientError
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
@@ -14,23 +13,28 @@ from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
 from flywheel import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor, ProjectError
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, SubjectError
-from fw_gear import GearContext
-from gear_execution.gear_execution import InputFileWrapper
+from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
-from keys.keys import MetadataKeys
-from nacc_common.data_identification import DataIdentification
+from nacc_common.data_identification import DataIdentification, ImageIdentification
 from nacc_common.error_models import (
     QC_STATUS_FAIL,
     QC_STATUS_PASS,
     FileErrorList,
-    GearTags,
     QCStatus,
 )
 from s3.s3_bucket import S3InterfaceError
 
+from image_identifier_lookup_app.dicom_utils import InvalidDicomError
+from image_identifier_lookup_app.extraction import (
+    extract_dicom_metadata,
+    extract_existing_naccid,
+    extract_pipeline_adcid,
+    extract_ptid,
+    extract_visit_metadata,
+)
 from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 
 log = logging.getLogger(__name__)
@@ -38,7 +42,6 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    gear_context: GearContext,
     file_path: Path,
     file_name: str,
     file_obj: FileEntry,
@@ -49,24 +52,19 @@ def run(
     event_capture: VisitEventCapture,
     gear_name: str,
     naccid_field_name: str,
-    pipeline_adcid: int,
-    ptid: str,
-    existing_naccid: Optional[str],
-    visit_metadata: DataIdentification,
-    dicom_metadata: dict[str, Any],
-) -> None:
+    default_modality: str,
+) -> tuple[bool, list]:
     """Runs the Image Identifier Lookup process.
 
     This function orchestrates the identifier lookup workflow:
-    1. Check idempotency (skip if NACCID already correct)
-    2. Perform NACCID lookup if needed
-    3. Update subject metadata
-    4. Update QC status log
-    5. Capture submission event
-    6. Update file QC metadata and tags
+    1. Extract all required data early (fail fast)
+    2. Check idempotency (skip if NACCID already correct)
+    3. Perform NACCID lookup if needed
+    4. Update subject metadata
+    5. Update QC status log
+    6. Capture submission event
 
     Args:
-        gear_context: Flywheel gear context
         file_path: Path to the DICOM file
         file_name: Name of the DICOM file
         file_obj: Flywheel file object
@@ -77,11 +75,10 @@ def run(
         event_capture: Event capture for submission events
         gear_name: Name of the gear
         naccid_field_name: Field name for NACCID in subject.info
-        pipeline_adcid: Pre-extracted pipeline ADCID
-        ptid: Pre-extracted participant identifier
-        existing_naccid: Pre-extracted existing NACCID (if any)
-        visit_metadata: Pre-extracted visit metadata (DataIdentification)
-        dicom_metadata: Comprehensive DICOM metadata to store
+        default_modality: Default modality if DICOM tag missing
+
+    Returns:
+        Tuple of (success: bool, errors: list)
 
     Raises:
         GearExecutionError: If processing fails
@@ -91,11 +88,68 @@ def run(
         f"(subject: {subject.label}, project: {project.label})"
     )
 
+    # Step 1: Extract all required data early (fail fast)
+    log.info("Extracting required data from project, subject, and DICOM file")
+
+    try:
+        # Extract pipeline ADCID from project metadata
+        pipeline_adcid = extract_pipeline_adcid(project)
+        log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
+
+        # Extract PTID from subject.label or DICOM PatientID
+        ptid = extract_ptid(subject, file_path)
+        log.info(f"Extracted PTID: {ptid}")
+
+        # Extract existing NACCID from subject.info (if present)
+        existing_naccid = extract_existing_naccid(subject, naccid_field_name)
+        if existing_naccid:
+            log.info(f"Found existing NACCID in subject metadata: {existing_naccid}")
+        else:
+            log.info("No existing NACCID found in subject metadata")
+
+        # Extract visit metadata from DICOM (StudyDate, modality)
+        # Note: Pass None for naccid initially, will be updated after lookup
+        visit_metadata = extract_visit_metadata(
+            file_path=file_path,
+            ptid=ptid,
+            adcid=pipeline_adcid,
+            naccid=existing_naccid,
+            default_modality=default_modality,
+        )
+        # Type assertion: we know this is ImageIdentification
+        assert isinstance(visit_metadata.data, ImageIdentification)
+        log.info(
+            f"Extracted visit metadata - date: {visit_metadata.date}, "
+            f"modality: {visit_metadata.data.modality}"
+        )
+
+        # Extract comprehensive DICOM metadata for storage
+        dicom_metadata = extract_dicom_metadata(file_path)
+        log.info(
+            f"Extracted DICOM metadata with {len(dicom_metadata)} fields "
+            f"(StudyInstanceUID: {dicom_metadata.get('study_instance_uid', 'N/A')})"
+        )
+
+    except ValueError as error:
+        # Missing required data - fail fast
+        log.error(f"Failed to extract required data: {error}")
+        raise GearExecutionError(f"Data extraction failed: {error}") from error
+    except InvalidDicomError as error:
+        # Invalid or unparseable DICOM file
+        log.error(f"Invalid DICOM file: {error}")
+        raise GearExecutionError(f"DICOM parsing failed: {error}") from error
+    except ProjectError as error:
+        # Project metadata issues (e.g., missing ADCID)
+        log.error(f"Project metadata error: {error}")
+        raise GearExecutionError(f"Project configuration error: {error}") from error
+
+    log.info("Early data extraction completed successfully")
+
     # Track processing success and errors
     success = True
     errors: list = []
 
-    # Step 1: Check idempotency - if NACCID already exists, skip lookup
+    # Step 2: Check idempotency - if NACCID already exists, skip lookup
     if existing_naccid:
         log.info(
             f"NACCID already exists in subject metadata: {existing_naccid}. "
@@ -104,7 +158,7 @@ def run(
         naccid = existing_naccid
         skipped = True
     else:
-        # Step 2: Perform NACCID lookup and update subject metadata
+        # Step 3: Perform NACCID lookup and update subject metadata
         log.info("No existing NACCID found. Performing lookup.")
         processor = ImageIdentifierLookupProcessor(
             identifiers_repository=identifiers_repository,
@@ -141,7 +195,7 @@ def run(
         visitnum=None,  # Images typically don't have visit numbers
     )
 
-    # Step 3: Update QC status log
+    # Step 4: Update QC status log
     log.info("Updating QC status log")
     try:
         # Initialize QC status log manager
@@ -176,7 +230,7 @@ def run(
         # QC logging failures are non-critical - log but don't fail gear
         log.error(f"Error during QC logging (non-critical): {error}")
 
-    # Step 4: Capture submission event
+    # Step 5: Capture submission event
     log.info("Capturing submission event")
     try:
         visit_event = VisitEvent(
@@ -197,44 +251,6 @@ def run(
         # Event capture failures are non-critical - log but don't fail gear
         log.error(f"Error during event capture (non-critical): {error}")
 
-    # Step 5: Update file QC metadata and tags
-    log.info("Updating file QC metadata and tags")
-    try:
-        # Add QC result to file metadata
-        status_str = "PASS" if success else "FAIL"
-        gear_context.metadata.add_qc_result(
-            input_wrapper.file_input,
-            name="validation",
-            state=status_str,
-            data=(
-                FileErrorList(root=errors).model_dump(by_alias=True) if errors else None
-            ),
-        )
-
-        # Set/update the validation timestamp in file.info
-        timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
-        gear_context.metadata.update_file_metadata(
-            input_wrapper.file_input,
-            container_type=gear_context.config.destination["type"],
-            info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
-        )
-
-        # Add gear tag to file (gear-PASS or gear-FAIL)
-        gear_tags = GearTags(gear_name=gear_name)
-        updated_tags = gear_tags.update_tags(tags=file_obj.tags, status=status_str)
-        gear_context.metadata.update_file_metadata(
-            input_wrapper.file_input,
-            tags=updated_tags,
-            container_type=gear_context.config.destination["type"],
-        )
-
-        log.info(
-            f"Successfully updated file QC metadata and tags: "
-            f"{status_str} [{timestamp}]"
-        )
-
-    except FlywheelError as error:
-        # File metadata update failures are logged but don't fail gear
-        log.error(f"Error updating file QC metadata (non-critical): {error}")
-
     log.info("Image Identifier Lookup processing completed successfully")
+
+    return success, errors

@@ -13,7 +13,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from nacc_common.data_identification import DataIdentification
 
-from image_identifier_lookup_app.dicom_utils import read_dicom_tag
+from image_identifier_lookup_app.dicom_utils import read_dicom_tag, read_dicom_tags
 
 
 def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
@@ -143,8 +143,6 @@ def extract_dicom_metadata(file_path: Path) -> dict[str, Any]:
     Raises:
         InvalidDicomError: If file is not valid DICOM
     """
-    from image_identifier_lookup_app.dicom_utils import read_dicom_tags
-
     # Define all tags to read in a single operation
     tags = {
         # Identifier fields

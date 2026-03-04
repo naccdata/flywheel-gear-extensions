@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Optional
 
 from botocore.exceptions import ClientError
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from event_capture.event_capture import VisitEventCapture
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
+from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -18,18 +19,10 @@ from gear_execution.gear_execution import (
 )
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from inputs.parameter_store import ParameterStore
+from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from nacc_common.data_identification import ImageIdentification
+from nacc_common.error_models import FileErrorList, GearTags
 from s3.s3_bucket import S3BucketInterface
-
-from image_identifier_lookup_app.dicom_utils import InvalidDicomError
-from image_identifier_lookup_app.extraction import (
-    extract_dicom_metadata,
-    extract_existing_naccid,
-    extract_pipeline_adcid,
-    extract_ptid,
-    extract_visit_metadata,
-)
 
 log = logging.getLogger(__name__)
 
@@ -164,8 +157,8 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         """Main execution method.
 
         1. Retrieve input file, parent subject, and project
-        2. Extract all required data early (fail fast)
-        3. Call main.run() to orchestrate the workflow
+        2. Call main.run() to orchestrate the workflow
+        3. Update file QC metadata and tags
 
         Args:
             context: The gear execution context
@@ -198,70 +191,10 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             f"(subject: {subject.label}, project: {project.label})"
         )
 
-        # Step 2: Extract all required data early (fail fast)
-        log.info("Extracting required data from project, subject, and DICOM file")
-
-        try:
-            # Extract pipeline ADCID from project metadata
-            pipeline_adcid = extract_pipeline_adcid(project)
-            log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
-
-            # Extract PTID from subject.label or DICOM PatientID
-            ptid = extract_ptid(subject, file_path)
-            log.info(f"Extracted PTID: {ptid}")
-
-            # Extract existing NACCID from subject.info (if present)
-            existing_naccid = extract_existing_naccid(subject, self.__naccid_field_name)
-            if existing_naccid:
-                log.info(
-                    f"Found existing NACCID in subject metadata: {existing_naccid}"
-                )
-            else:
-                log.info("No existing NACCID found in subject metadata")
-
-            # Extract visit metadata from DICOM (StudyDate, modality)
-            # Note: Pass None for naccid initially, will be updated after lookup
-            visit_metadata = extract_visit_metadata(
-                file_path=file_path,
-                ptid=ptid,
-                adcid=pipeline_adcid,
-                naccid=existing_naccid,
-                default_modality=self.__default_modality,
-            )
-            # Type assertion: we know this is ImageIdentification
-            assert isinstance(visit_metadata.data, ImageIdentification)
-            log.info(
-                f"Extracted visit metadata - date: {visit_metadata.date}, "
-                f"modality: {visit_metadata.data.modality}"
-            )
-
-            # Extract comprehensive DICOM metadata for storage
-            dicom_metadata = extract_dicom_metadata(file_path)
-            log.info(
-                f"Extracted DICOM metadata with {len(dicom_metadata)} fields "
-                f"(StudyInstanceUID: {dicom_metadata.get('study_instance_uid', 'N/A')})"
-            )
-
-        except ValueError as error:
-            # Missing required data - fail fast
-            log.error(f"Failed to extract required data: {error}")
-            raise GearExecutionError(f"Data extraction failed: {error}") from error
-        except InvalidDicomError as error:
-            # Invalid or unparseable DICOM file
-            log.error(f"Invalid DICOM file: {error}")
-            raise GearExecutionError(f"DICOM parsing failed: {error}") from error
-        except ProjectError as error:
-            # Project metadata issues (e.g., missing ADCID)
-            log.error(f"Project metadata error: {error}")
-            raise GearExecutionError(f"Project configuration error: {error}") from error
-
-        log.info("Early data extraction completed successfully")
-
-        # Step 3: Call main.run() to orchestrate the workflow
+        # Step 2: Call main.run() to orchestrate the workflow
         from image_identifier_lookup_app.main import run
 
-        run(
-            gear_context=context,
+        success, errors = run(
             file_path=file_path,
             file_name=file_obj.name,
             file_obj=file_obj,
@@ -272,12 +205,84 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             event_capture=self.__event_capture,
             gear_name=self.__gear_name,
             naccid_field_name=self.__naccid_field_name,
-            pipeline_adcid=pipeline_adcid,
-            ptid=ptid,
-            existing_naccid=existing_naccid,
-            visit_metadata=visit_metadata,
-            dicom_metadata=dicom_metadata,
+            default_modality=self.__default_modality,
         )
+
+        # Step 3: Update file QC metadata and tags
+        log.info("Updating file QC metadata and tags")
+        self._update_file_metadata(
+            context=context,
+            file_obj=file_obj,
+            success=success,
+            errors=errors,
+        )
+
+    def _update_file_metadata(
+        self,
+        *,
+        context: GearContext,
+        file_obj,
+        success: bool,
+        errors: list,
+    ) -> None:
+        """Update file QC metadata and tags.
+
+        This method updates the file with:
+        - QC result (PASS/FAIL)
+        - Validation timestamp
+        - Gear tags
+
+        Args:
+            context: Gear context
+            file_obj: Flywheel file object
+            success: Whether processing succeeded
+            errors: List of errors encountered
+
+        Note:
+            Failures in this method are logged but do not fail the gear
+            as metadata updates are considered non-critical.
+        """
+        try:
+            from datetime import datetime, timezone
+
+            # Add QC result to file metadata
+            status_str = "PASS" if success else "FAIL"
+            context.metadata.add_qc_result(
+                self.__file_input.file_input,
+                name="validation",
+                state=status_str,
+                data=(
+                    FileErrorList(root=errors).model_dump(by_alias=True)
+                    if errors
+                    else None
+                ),
+            )
+
+            # Set/update the validation timestamp in file.info
+            timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
+            context.metadata.update_file_metadata(
+                self.__file_input.file_input,
+                container_type=context.config.destination["type"],
+                info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
+            )
+
+            # Add gear tag to file (gear-PASS or gear-FAIL)
+            gear_tags = GearTags(gear_name=self.__gear_name)
+            updated_tags = gear_tags.update_tags(tags=file_obj.tags, status=status_str)
+            context.metadata.update_file_metadata(
+                self.__file_input.file_input,
+                tags=updated_tags,
+                container_type=context.config.destination["type"],
+            )
+
+            log.info(
+                f"Successfully updated file QC metadata and tags: "
+                f"{status_str} [{timestamp}]"
+            )
+
+        except FlywheelError as error:
+            # File metadata update failures are logged but don't fail gear
+            log.error(f"Error updating file QC metadata (non-critical): {error}")
 
 
 def main():
