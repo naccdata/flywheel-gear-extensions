@@ -1,13 +1,24 @@
 """Defines Image Identifier Lookup."""
 
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
+from error_logging.error_logger import ErrorLogTemplate
+from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
+from event_capture.visit_events import ACTION_SUBMIT, VisitEvent
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import (
+    QC_STATUS_FAIL,
+    QC_STATUS_PASS,
+    FileErrorList,
+    QCStatus,
+)
 
 from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 
@@ -27,7 +38,7 @@ def run(
     pipeline_adcid: int,
     ptid: str,
     existing_naccid: Optional[str],
-    visit_metadata: Any,
+    visit_metadata: DataIdentification,
     dicom_metadata: dict[str, Any],
 ) -> None:
     """Runs the Image Identifier Lookup process.
@@ -63,6 +74,10 @@ def run(
         f"(subject: {subject.label}, project: {project.label})"
     )
 
+    # Track processing success and errors
+    success = True
+    errors: list = []
+
     # Step 1: Check idempotency - if NACCID already exists, skip lookup
     if existing_naccid:
         log.info(
@@ -80,18 +95,91 @@ def run(
             naccid_field_name=naccid_field_name,
         )
 
-        naccid = processor.lookup_and_update(
-            ptid=ptid,
-            adcid=pipeline_adcid,
-            existing_naccid=existing_naccid,
-            dicom_metadata=dicom_metadata,
-        )
-        skipped = False
+        try:
+            naccid = processor.lookup_and_update(
+                ptid=ptid,
+                adcid=pipeline_adcid,
+                existing_naccid=existing_naccid,
+                dicom_metadata=dicom_metadata,
+            )
+            skipped = False
+            log.info(f"Successfully looked up and stored NACCID: {naccid}")
+        except Exception as error:
+            log.error(f"Failed to lookup or update NACCID: {error}")
+            success = False
+            naccid = None
+            skipped = False
+            # Error will be captured in QC log
+            raise
 
     log.info(f"NACCID for processing: {naccid} (skipped={skipped})")
 
-    # TODO: Step 3: Update QC status log (task 3.4)
-    # TODO: Step 4: Capture submission event (task 3.4)
+    # Update visit_metadata with the NACCID (create new instance with updated NACCID)
+    data_identification = DataIdentification.from_visit_metadata(
+        ptid=ptid,
+        date=visit_metadata.date,
+        modality=visit_metadata.data.modality,  # type: ignore
+        adcid=pipeline_adcid,
+        naccid=naccid,
+        visitnum=None,  # Images typically don't have visit numbers
+    )
+
+    # Step 3: Update QC status log
+    log.info("Updating QC status log")
+    try:
+        # Initialize QC status log manager
+        error_log_template = ErrorLogTemplate()
+        visit_annotator = FileVisitAnnotator(project=project)
+        qc_log_manager = QCStatusLogManager(
+            error_log_template=error_log_template,
+            visit_annotator=visit_annotator,
+        )
+
+        # Determine QC status (use QCStatus type with cast)
+        qc_status: QCStatus = cast(
+            QCStatus, QC_STATUS_PASS if success else QC_STATUS_FAIL
+        )
+
+        # Update QC status log
+        qc_log_filename = qc_log_manager.update_qc_log(
+            visit_keys=data_identification,
+            project=project,
+            gear_name=gear_name,
+            status=qc_status,
+            errors=FileErrorList(root=errors),
+            add_visit_metadata=True,  # Add metadata on initial creation
+        )
+
+        if qc_log_filename:
+            log.info(f"Successfully updated QC status log: {qc_log_filename}")
+        else:
+            log.warning("Failed to update QC status log (non-critical)")
+
+    except Exception as error:
+        # QC logging failures are non-critical - log but don't fail gear
+        log.error(f"Error during QC logging (non-critical): {error}")
+
+    # Step 4: Capture submission event
+    log.info("Capturing submission event")
+    try:
+        visit_event = VisitEvent(
+            action=ACTION_SUBMIT,
+            study="adrc",
+            project_label=project.label,
+            center_label=project.group,  # Use group as center label
+            gear_name=gear_name,
+            data_identification=data_identification,
+            datatype="dicom",
+            timestamp=datetime.now(),
+        )
+
+        event_capture.capture_event(visit_event)
+        log.info(f"Successfully captured submission event for {ptid}")
+
+    except Exception as error:
+        # Event capture failures are non-critical - log but don't fail gear
+        log.error(f"Error during event capture (non-critical): {error}")
+
     # TODO: Step 5: Update file QC metadata and tags (task 3.5)
 
     log.info("Image Identifier Lookup processing completed successfully")

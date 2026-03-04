@@ -110,7 +110,7 @@ Key architectural principles:
     - Update subject metadata with NACCID and DICOM metadata via processor
     - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 11.1, 11.2, 11.3, 11.4, 11.5_
 
-  - [ ] 3.4 Implement QC logging and event capture in main.py
+  - [x] 3.4 Implement QC logging and event capture in main.py
     - Create DataIdentification with ImageIdentification using extracted metadata
     - Update QC status log using QCStatusLogManager (PASS or FAIL)
     - Add visit metadata to log file on initial creation
