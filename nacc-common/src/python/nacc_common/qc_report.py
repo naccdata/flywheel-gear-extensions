@@ -224,8 +224,7 @@ class ErrorReportVisitor(FileQCReportVisitor):
         table of this visitor.
 
         Args:
-          file: the QC log file
-          adcid: the ADRC ID
+          visit: DataIdentification with visit metadata
           transformer: callable to transform gear name and file error object
           to a report object.
         """
