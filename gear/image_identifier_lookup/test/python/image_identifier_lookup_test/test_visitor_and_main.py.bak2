@@ -1,13 +1,14 @@
 """Unit tests for ImageIdentifierLookupVisitor and main orchestration."""
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
 from event_capture.event_capture import VisitEventCapture
 from flywheel import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -20,56 +21,7 @@ from identifiers.identifiers_repository import (
 )
 from image_identifier_lookup_app.main import run as main_run
 from image_identifier_lookup_app.run import ImageIdentifierLookupVisitor
-from s3.s3_bucket import S3InterfaceError
-
-
-def create_test_dicom_file(
-    tmp_path: Path,
-    patient_id: str = "110001",
-    study_date: str = "20240115",
-    modality: str = "MR",
-    filename: str = "test.dcm",
-) -> Path:
-    """Create a test DICOM file with specified metadata.
-
-    Args:
-        tmp_path: Temporary directory path
-        patient_id: PatientID tag value
-        study_date: StudyDate tag value (YYYYMMDD format)
-        modality: Modality tag value
-        filename: Output filename
-
-    Returns:
-        Path to created DICOM file
-    """
-    from pydicom.dataset import Dataset, FileMetaDataset
-
-    # Create a minimal DICOM dataset
-    ds = Dataset()
-
-    # File Meta Information
-    file_meta = FileMetaDataset()
-    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # type: ignore[assignment]
-    file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7.8.9"  # type: ignore[assignment]
-    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # type: ignore[assignment]
-    file_meta.ImplementationClassUID = "1.2.3.4"  # type: ignore[assignment]
-    ds.file_meta = file_meta
-
-    # Required DICOM tags
-    ds.PatientID = patient_id
-    ds.StudyDate = study_date
-    ds.Modality = modality
-    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-    ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
-    ds.StudyInstanceUID = "1.2.840.113619.2.1.1.1"
-    ds.SeriesInstanceUID = "1.2.840.113619.2.1.1.2"
-    ds.SeriesNumber = "5"
-
-    # Save DICOM file
-    dicom_file = tmp_path / filename
-    ds.save_as(str(dicom_file), write_like_original=False)
-
-    return dicom_file
+from nacc_common.data_identification import DataIdentification
 
 
 @pytest.fixture
@@ -124,10 +76,6 @@ def mock_project() -> Mock:
     project.label = "test-project"
     project.group = "test-center"
     project.id = "project_id"
-    # Use a real dict (not Mock) for info to avoid Pydantic validation errors
-    project.info = {"pipeline_adcid": 42}
-    # Mock the get_pipeline_adcid method to return the integer value
-    project.get_pipeline_adcid = Mock(return_value=42)
     return project
 
 
@@ -151,6 +99,32 @@ def mock_file_obj() -> Mock:
     file_obj.parents.project = "project_id"
     file_obj.parents.subject = "subject_id"
     return file_obj
+
+
+@pytest.fixture
+def sample_dicom_metadata() -> dict[str, Any]:
+    """Create sample DICOM metadata."""
+    return {
+        "patient_id": "110001",
+        "study_instance_uid": "1.2.840.113619.2.1.1.1",
+        "series_instance_uid": "1.2.840.113619.2.1.1.2",
+        "series_number": "5",
+        "study_date": "20240115",
+        "modality": "MR",
+        "manufacturer": "Siemens",
+    }
+
+
+@pytest.fixture
+def sample_visit_metadata() -> DataIdentification:
+    """Create sample visit metadata."""
+    return DataIdentification.from_visit_metadata(
+        date="2024-01-15",
+        modality="MR",
+        adcid=42,
+        naccid=None,
+        visitnum=None,
+    )
 
 
 @pytest.fixture
@@ -309,7 +283,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -317,29 +290,14 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test successful end-to-end flow: extraction → lookup → update → QC →
         event."""
-        # Arrange - create a real DICOM file
-        from pydicom.dataset import Dataset, FileMetaDataset
-
-        ds = Dataset()
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # type: ignore[assignment]
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7.8.9"  # type: ignore[assignment]
-        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # type: ignore[assignment]
-        file_meta.ImplementationClassUID = "1.2.3.4"  # type: ignore[assignment]
-        ds.file_meta = file_meta
-        ds.PatientID = "110001"
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
-        ds.StudyInstanceUID = "1.2.840.113619.2.1.1.1"
-
-        dicom_file = tmp_path / "test.dcm"
-        ds.save_as(str(dicom_file), write_like_original=False)
-
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -355,8 +313,9 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        success, _errors = main_run(
-            file_path=dicom_file,
+        main_run(
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -370,10 +329,9 @@ class TestMainOrchestration:
         )
 
         # Assert - processor called
-        mock_processor.lookup_and_update.assert_called_once()
-        call_kwargs = mock_processor.lookup_and_update.call_args.kwargs
-        assert call_kwargs["ptid"] == "110001"
-        assert call_kwargs["adcid"] == 42
+        mock_processor.lookup_and_update.assert_called_once_with(
+            adcid=adcid,
+        )
 
         # Assert - QC log updated
         assert mock_qc_manager.update_qc_log.called
@@ -381,9 +339,9 @@ class TestMainOrchestration:
         # Assert - event captured
         assert mock_event_capture.capture_event.called
 
-        # Assert - success
-        assert success is True
-        assert _errors == []
+        # Assert - file metadata updated
+        assert mock_gear_context.metadata.add_qc_result.called
+        assert mock_gear_context.metadata.update_file_metadata.called
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -391,7 +349,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -399,30 +356,14 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test idempotency: skip lookup when NACCID already correct."""
-        # Arrange - create a real DICOM file
-        from pydicom.dataset import Dataset, FileMetaDataset
-
-        ds = Dataset()
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # type: ignore[assignment]
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7.8.9"  # type: ignore[assignment]
-        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # type: ignore[assignment]
-        file_meta.ImplementationClassUID = "1.2.3.4"  # type: ignore[assignment]
-        ds.file_meta = file_meta
-        ds.PatientID = "110001"
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
-        ds.StudyInstanceUID = "1.2.840.113619.2.1.1.1"
-
-        dicom_file = tmp_path / "test.dcm"
-        ds.save_as(str(dicom_file), write_like_original=False)
-
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         existing_naccid = "NACC123456"
-        mock_subject.info = {"naccid": existing_naccid}
 
         # Mock QC manager
         mock_qc_manager = Mock()
@@ -432,8 +373,9 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        success, _errors = main_run(
-            file_path=dicom_file,
+        main_run(
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -455,8 +397,8 @@ class TestMainOrchestration:
         # Assert - event still captured
         assert mock_event_capture.capture_event.called
 
-        # Assert - success
-        assert success is True
+        # Assert - file metadata still updated
+        assert mock_gear_context.metadata.add_qc_result.called
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -464,7 +406,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -472,15 +413,15 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test NACCID conflict detection when existing differs from lookup."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
+        # Arrange
         ptid = "110001"
-        _adcid = 42
+        adcid = 42
+        # Pass None to trigger lookup (conflict happens during lookup)
+        existing_naccid = None
 
         # Mock processor to raise conflict error
         mock_processor = Mock()
@@ -493,7 +434,8 @@ class TestMainOrchestration:
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
             main_run(
-                file_path=dicom_file,
+                gear_context=mock_gear_context,
+                file_path=Path("/test/test.dcm"),
                 file_name="test.dcm",
                 file_obj=mock_file_obj,
                 input_wrapper=mock_file_input,
@@ -515,7 +457,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -523,15 +464,13 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test QC logging on successful processing."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -548,7 +487,8 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -574,7 +514,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -582,15 +521,13 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test QC logging on processing failure."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
 
         # Mock processor to raise error
         mock_processor = Mock()
@@ -606,7 +543,8 @@ class TestMainOrchestration:
         # Act & Assert
         with pytest.raises(IdentifierRepositoryError):
             main_run(
-                file_path=dicom_file,
+                gear_context=mock_gear_context,
+                file_path=Path("/test/test.dcm"),
                 file_name="test.dcm",
                 file_obj=mock_file_obj,
                 input_wrapper=mock_file_input,
@@ -628,7 +566,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -636,15 +573,13 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test event capture on successful processing."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -658,7 +593,8 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -685,7 +621,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -693,15 +628,13 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test that event capture failure doesn't fail the gear."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -713,12 +646,13 @@ class TestMainOrchestration:
         mock_qc_manager = Mock()
         mock_qc_manager_class.return_value = mock_qc_manager
 
-        # Mock event capture to fail with S3InterfaceError
-        mock_event_capture.capture_event.side_effect = S3InterfaceError("S3 error")
+        # Mock event capture to fail
+        mock_event_capture.capture_event.side_effect = Exception("S3 error")
 
         # Act - should not raise exception
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -733,6 +667,8 @@ class TestMainOrchestration:
 
         # Assert - event capture was attempted but failure didn't stop processing
         mock_event_capture.capture_event.assert_called_once()
+        # File metadata should still be updated
+        assert mock_gear_context.metadata.add_qc_result.called
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -740,7 +676,6 @@ class TestMainOrchestration:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -748,15 +683,13 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test file QC metadata and tagging."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -770,7 +703,8 @@ class TestMainOrchestration:
 
         # Act
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -783,16 +717,32 @@ class TestMainOrchestration:
             default_modality="UNKNOWN",
         )
 
-        # Note: File metadata updates are now handled in run.py, not main.py
-        # This test would need to test the visitor.run() method instead
+        # Assert - QC result added
+        mock_gear_context.metadata.add_qc_result.assert_called_once()
+        qc_call = mock_gear_context.metadata.add_qc_result.call_args
+        assert qc_call.kwargs["name"] == "validation"
+        assert qc_call.kwargs["state"] == "PASS"
+
+        # Assert - file metadata updated (called twice: timestamp and tags)
+        assert mock_gear_context.metadata.update_file_metadata.call_count == 2
 
 
 class TestVisitorRun:
     """Tests for ImageIdentifierLookupVisitor.run() method."""
 
     @patch("image_identifier_lookup_app.main.run")
-    def test_visitor_run_calls_main_with_correct_parameters(
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.extract_visit_metadata")
+    @patch("image_identifier_lookup_app.run.extract_existing_naccid")
+    @patch("image_identifier_lookup_app.run.extract_ptid")
+    @patch("image_identifier_lookup_app.run.extract_pipeline_adcid")
+    def test_visitor_run_fail_fast_on_missing_adcid(
         self,
+        mock_extract_adcid: Mock,
+        mock_extract_ptid: Mock,
+        mock_extract_naccid: Mock,
+        mock_extract_visit: Mock,
+        mock_extract_dicom: Mock,
         mock_main_run: Mock,
         visitor: ImageIdentifierLookupVisitor,
         mock_gear_context: Mock,
@@ -800,39 +750,244 @@ class TestVisitorRun:
         mock_subject: Mock,
         mock_file_obj: Mock,
     ) -> None:
-        """Test that visitor.run() calls main.run() with correct parameters."""
+        """Test visitor run fails fast when ADCID is missing."""
         # Arrange - mock the proxy property
         mock_proxy = Mock()
         mock_proxy.get_file.return_value = mock_file_obj
-        mock_fw_project = Mock()
-        mock_proxy.get_project_by_id.return_value = mock_fw_project
+        mock_proxy.get_project_by_id.return_value = Mock()
         mock_project.get_subject_by_id.return_value = mock_subject
 
-        # Mock main.run() to return success
-        mock_main_run.return_value = (True, [])
-
-        with (
-            patch.object(
-                type(visitor),
-                "proxy",
-                new_callable=PropertyMock,
-                return_value=mock_proxy,
-            ),
-            patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+        with patch.object(
+            type(visitor), "proxy", new_callable=PropertyMock, return_value=mock_proxy
         ):
+            # Mock ADCID extraction to fail
+            mock_extract_adcid.side_effect = ValueError("Pipeline ADCID missing")
+
+            # Act & Assert
+            with pytest.raises(GearExecutionError) as exc_info:
+                visitor.run(mock_gear_context)
+
+            assert "Data extraction failed" in str(exc_info.value)
+            assert "Pipeline ADCID missing" in str(exc_info.value)
+
+            # Assert - main_run not called
+            mock_main_run.assert_not_called()
+
+    @patch("image_identifier_lookup_app.main.run")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.extract_visit_metadata")
+    @patch("image_identifier_lookup_app.run.extract_existing_naccid")
+    @patch("image_identifier_lookup_app.run.extract_ptid")
+    @patch("image_identifier_lookup_app.run.extract_pipeline_adcid")
+    def test_visitor_run_fail_fast_on_missing_ptid(
+        self,
+        mock_extract_adcid: Mock,
+        mock_extract_ptid: Mock,
+        mock_extract_naccid: Mock,
+        mock_extract_visit: Mock,
+        mock_extract_dicom: Mock,
+        mock_main_run: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_file_obj: Mock,
+    ) -> None:
+        """Test visitor run fails fast when PTID is missing."""
+        # Arrange - mock the proxy property
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_proxy.get_project_by_id.return_value = Mock()
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        with patch.object(
+            type(visitor), "proxy", new_callable=PropertyMock, return_value=mock_proxy
+        ):
+            # Mock successful ADCID extraction
+            mock_extract_adcid.return_value = 42
+
+            # Mock PTID extraction to fail
+            mock_extract_ptid.side_effect = ValueError(
+                "PTID not found: subject.label is empty and DICOM PatientID tag is "
+                "missing"
+            )
+
+            # Act & Assert
+            with pytest.raises(GearExecutionError) as exc_info:
+                visitor.run(mock_gear_context)
+
+            assert "Data extraction failed" in str(exc_info.value)
+            assert "PTID not found" in str(exc_info.value)
+
+            # Assert - main_run not called
+            mock_main_run.assert_not_called()
+
+    @patch("image_identifier_lookup_app.main.run")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.extract_visit_metadata")
+    @patch("image_identifier_lookup_app.run.extract_existing_naccid")
+    @patch("image_identifier_lookup_app.run.extract_ptid")
+    @patch("image_identifier_lookup_app.run.extract_pipeline_adcid")
+    def test_visitor_run_fail_fast_on_missing_study_date(
+        self,
+        mock_extract_adcid: Mock,
+        mock_extract_ptid: Mock,
+        mock_extract_naccid: Mock,
+        mock_extract_visit: Mock,
+        mock_extract_dicom: Mock,
+        mock_main_run: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_file_obj: Mock,
+    ) -> None:
+        """Test visitor run fails fast when StudyDate is missing."""
+        # Arrange - mock the proxy property
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_proxy.get_project_by_id.return_value = Mock()
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        with patch.object(
+            type(visitor), "proxy", new_callable=PropertyMock, return_value=mock_proxy
+        ):
+            # Mock successful extractions
+            mock_extract_adcid.return_value = 42
+            mock_extract_ptid.return_value = "110001"
+            mock_extract_naccid.return_value = None
+
+            # Mock visit metadata extraction to fail (missing StudyDate)
+            mock_extract_visit.side_effect = ValueError(
+                "Visit date not found: StudyDate (0008,0020) is missing "
+                "(required DICOM field)"
+            )
+
+            # Act & Assert
+            with pytest.raises(GearExecutionError) as exc_info:
+                visitor.run(mock_gear_context)
+
+            assert "Data extraction failed" in str(exc_info.value)
+            assert "StudyDate" in str(exc_info.value)
+
+            # Assert - main_run not called
+            mock_main_run.assert_not_called()
+
+    @patch("image_identifier_lookup_app.main.run")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.extract_visit_metadata")
+    @patch("image_identifier_lookup_app.run.extract_existing_naccid")
+    @patch("image_identifier_lookup_app.run.extract_ptid")
+    @patch("image_identifier_lookup_app.run.extract_pipeline_adcid")
+    def test_visitor_run_successful_extraction_and_orchestration(
+        self,
+        mock_extract_adcid: Mock,
+        mock_extract_ptid: Mock,
+        mock_extract_naccid: Mock,
+        mock_extract_visit: Mock,
+        mock_extract_dicom: Mock,
+        mock_main_run: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_file_obj: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
+    ) -> None:
+        """Test visitor run with successful extraction and orchestration."""
+        # Arrange - mock the proxy property
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_proxy.get_project_by_id.return_value = Mock()
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        with patch.object(
+            type(visitor), "proxy", new_callable=PropertyMock, return_value=mock_proxy
+        ):
+            # Mock successful extractions
+            mock_extract_adcid.return_value = 42
+            mock_extract_ptid.return_value = "110001"
+            mock_extract_naccid.return_value = None
+            mock_extract_visit.return_value = sample_visit_metadata
+            mock_extract_dicom.return_value = sample_dicom_metadata
+
             # Act
             visitor.run(mock_gear_context)
 
-            # Assert - main.run() was called
+            # Assert - all extractions called
+            mock_extract_adcid.assert_called_once()
+            mock_extract_ptid.assert_called_once()
+            mock_extract_naccid.assert_called_once()
+            mock_extract_visit.assert_called_once()
+            mock_extract_dicom.assert_called_once()
+
+            # Assert - main_run called with extracted data
             mock_main_run.assert_called_once()
             call_kwargs = mock_main_run.call_args.kwargs
-            assert call_kwargs["file_name"] == "test.dcm"
-            assert call_kwargs["gear_name"] == "image-identifier-lookup"
-            assert call_kwargs["naccid_field_name"] == "naccid"
-            assert call_kwargs["default_modality"] == "UNKNOWN"
+            assert call_kwargs["pipeline_adcid"] == 42
+            assert call_kwargs["ptid"] == "110001"
+            assert call_kwargs["existing_naccid"] is None
+            assert call_kwargs["visit_metadata"] == sample_visit_metadata
+            assert call_kwargs["dicom_metadata"] == sample_dicom_metadata
+
+    @patch("image_identifier_lookup_app.main.run")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.extract_visit_metadata")
+    @patch("image_identifier_lookup_app.run.extract_existing_naccid")
+    @patch("image_identifier_lookup_app.run.extract_ptid")
+    @patch("image_identifier_lookup_app.run.extract_pipeline_adcid")
+    def test_visitor_run_with_existing_naccid(
+        self,
+        mock_extract_adcid: Mock,
+        mock_extract_ptid: Mock,
+        mock_extract_naccid: Mock,
+        mock_extract_visit: Mock,
+        mock_extract_dicom: Mock,
+        mock_main_run: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_file_obj: Mock,
+        sample_dicom_metadata: dict[str, Any],
+    ) -> None:
+        """Test visitor run when NACCID already exists."""
+        # Arrange - mock the proxy property
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_proxy.get_project_by_id.return_value = Mock()
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        existing_naccid = "NACC123456"
+
+        with patch.object(
+            type(visitor), "proxy", new_callable=PropertyMock, return_value=mock_proxy
+        ):
+            # Mock successful extractions with existing NACCID
+            mock_extract_adcid.return_value = 42
+            mock_extract_ptid.return_value = "110001"
+            mock_extract_naccid.return_value = existing_naccid
+
+            # Create visit metadata with existing NACCID
+            visit_metadata_with_naccid = DataIdentification.from_visit_metadata(
+                date="2024-01-15",
+                modality="MR",
+                adcid=42,
+                naccid=existing_naccid,
+                visitnum=None,
+            )
+            mock_extract_visit.return_value = visit_metadata_with_naccid
+            mock_extract_dicom.return_value = sample_dicom_metadata
+
+            # Act
+            visitor.run(mock_gear_context)
+
+            # Assert - main_run called with existing NACCID
+            mock_main_run.assert_called_once()
+            call_kwargs = mock_main_run.call_args.kwargs
+            assert call_kwargs["existing_naccid"] == existing_naccid
+            assert call_kwargs["visit_metadata"].participant.naccid == existing_naccid
 
 
 class TestIntegrationScenarios:
@@ -844,7 +999,6 @@ class TestIntegrationScenarios:
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -852,14 +1006,12 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test complete success scenario with all components working
         together."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
+        # Arrange
         ptid = "110001"
         adcid = 42
         naccid = "NACC123456"
@@ -878,7 +1030,8 @@ class TestIntegrationScenarios:
 
         # Act
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -894,10 +1047,9 @@ class TestIntegrationScenarios:
         # Assert complete workflow
         # 1. Processor created and lookup performed
         mock_processor_class.assert_called_once()
-        mock_processor.lookup_and_update.assert_called_once()
-        call_kwargs = mock_processor.lookup_and_update.call_args.kwargs
-        assert call_kwargs["ptid"] == ptid
-        assert call_kwargs["adcid"] == adcid
+        mock_processor.lookup_and_update.assert_called_once_with(
+            adcid=adcid,
+        )
 
         # 2. QC log updated with PASS status
         mock_qc_manager.update_qc_log.assert_called_once()
@@ -911,11 +1063,18 @@ class TestIntegrationScenarios:
         assert event.action == "submit"
         assert event.datatype == "dicom"
 
+        # 4. File QC metadata updated
+        mock_gear_context.metadata.add_qc_result.assert_called_once()
+        qc_result_call = mock_gear_context.metadata.add_qc_result.call_args.kwargs
+        assert qc_result_call["state"] == "PASS"
+
+        # 5. File metadata updated (timestamp and tags)
+        assert mock_gear_context.metadata.update_file_metadata.call_count == 2
+
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     def test_idempotent_rerun_scenario(
         self,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -923,19 +1082,14 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test idempotent re-run scenario where NACCID already exists."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         existing_naccid = "NACC123456"
-
-        # Set existing NACCID in subject
-        mock_subject.info = {"naccid": existing_naccid}
 
         # Mock QC manager
         mock_qc_manager = Mock()
@@ -947,7 +1101,8 @@ class TestIntegrationScenarios:
         # Act - run twice with same NACCID
         for _ in range(2):
             main_run(
-                file_path=dicom_file,
+                gear_context=mock_gear_context,
+                file_path=Path("/test/test.dcm"),
                 file_name="test.dcm",
                 file_obj=mock_file_obj,
                 input_wrapper=mock_file_input,
@@ -967,13 +1122,15 @@ class TestIntegrationScenarios:
         # Event captured twice (once per run)
         assert mock_event_capture.capture_event.call_count == 2
 
+        # File metadata updated twice (once per run)
+        assert mock_gear_context.metadata.add_qc_result.call_count == 2
+
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
     def test_qc_logging_failure_does_not_stop_processing(
         self,
         mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
-        tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
@@ -981,15 +1138,13 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        sample_visit_metadata: DataIdentification,
+        sample_dicom_metadata: dict[str, Any],
     ) -> None:
         """Test that QC logging failure doesn't stop processing."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        _ptid = "110001"
-        _adcid = 42
+        # Arrange
+        ptid = "110001"
+        adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -997,14 +1152,15 @@ class TestIntegrationScenarios:
         mock_processor.lookup_and_update.return_value = naccid
         mock_processor_class.return_value = mock_processor
 
-        # Mock QC manager to fail with FlywheelError
+        # Mock QC manager to fail
         mock_qc_manager = Mock()
-        mock_qc_manager.update_qc_log.side_effect = FlywheelError("QC log error")
+        mock_qc_manager.update_qc_log.side_effect = Exception("QC log error")
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act - should not raise exception
         main_run(
-            file_path=dicom_file,
+            gear_context=mock_gear_context,
+            file_path=Path("/test/test.dcm"),
             file_name="test.dcm",
             file_obj=mock_file_obj,
             input_wrapper=mock_file_input,
@@ -1020,3 +1176,5 @@ class TestIntegrationScenarios:
         # Assert - processing continued despite QC logging failure
         # Event capture still happened
         mock_event_capture.capture_event.assert_called_once()
+        # File metadata still updated
+        assert mock_gear_context.metadata.add_qc_result.called
