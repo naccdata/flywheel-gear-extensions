@@ -105,21 +105,17 @@ def test_qc_status_log_matching_success(
         return
 
     # Build filename based on what fields are present (new format)
-    # Format: {ptid}[_{visitnum}]_{date}_{module}[_{packet}]_qc-status.log
-    filename_parts = [ptid]
+    # Format: {ptid}_{date}[_{visitnum}]_{module}_qc-status.log (packet excluded)
+    filename_parts = [ptid, normalized_date]
 
-    # Add visitnum if present
+    # Add visitnum if present (after date)
     visitnum = forms_metadata.get("visitnum")
     if visitnum:
         filename_parts.append(visitnum)
 
-    filename_parts.append(normalized_date)
     filename_parts.append(module.lower())
 
-    # Add packet if present
-    packet = forms_metadata.get("packet")
-    if packet:
-        filename_parts.append(packet.lower())
+    # Packet is excluded from filename per PR #372 review feedback
 
     expected_qc_log_name = "_".join(filename_parts) + "_qc-status.log"
 

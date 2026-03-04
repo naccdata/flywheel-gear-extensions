@@ -11,7 +11,10 @@ from nacc_common.data_identification import (
 
 
 def test_form_data_from_visit():
-    """Test log name prefix for form data from a visit."""
+    """Test log name prefix for form data from a visit.
+
+    Note: Packet is excluded from filename per PR #372 review feedback.
+    """
     visitor = ErrorLogIdentificationVisitor()
 
     data_id = DataIdentification(
@@ -23,10 +26,10 @@ def test_form_data_from_visit():
 
     data_id.apply(visitor)
 
-    # Full prefix includes visitnum and packet
-    assert visitor.log_name_prefix == "12345_001_2024-01-15_a1_i"
+    # Format: {ptid}_{date}_{visitnum}_{module} (packet excluded)
+    assert visitor.log_name_prefix == "12345_2024-01-15_001_a1"
 
-    # Legacy prefix excludes visitnum AND packet
+    # Legacy prefix excludes visitnum (packet also excluded)
     assert visitor.legacy_log_name_prefix == "12345_2024-01-15_a1"
 
 
@@ -43,12 +46,16 @@ def test_form_data_from_visit_no_packet():
 
     data_id.apply(visitor)
 
-    assert visitor.log_name_prefix == "12345_002_2024-01-15_b1"
+    # Format: {ptid}_{date}_{visitnum}_{module}
+    assert visitor.log_name_prefix == "12345_2024-01-15_002_b1"
     assert visitor.legacy_log_name_prefix == "12345_2024-01-15_b1"
 
 
 def test_form_data_outside_visit():
-    """Test log name prefix for form data outside of a visit."""
+    """Test log name prefix for form data outside of a visit.
+
+    Note: Packet is excluded from filename per PR #372 review feedback.
+    """
     visitor = ErrorLogIdentificationVisitor()
 
     data_id = DataIdentification(
@@ -60,10 +67,10 @@ def test_form_data_outside_visit():
 
     data_id.apply(visitor)
 
-    # New format includes packet (no visitnum since visit=None)
-    assert visitor.log_name_prefix == "67890_2024-02-20_np_i"
+    # Format: {ptid}_{date}_{module} (no visitnum, packet excluded)
+    assert visitor.log_name_prefix == "67890_2024-02-20_np"
 
-    # Legacy format excludes packet
+    # Legacy format is the same (no visitnum, no packet)
     assert visitor.legacy_log_name_prefix == "67890_2024-02-20_np"
 
 
@@ -97,7 +104,8 @@ def test_image_data():
 
     data_id.apply(visitor)
 
-    assert visitor.log_name_prefix == "99999_003_2024-04-05_mr"
+    # Format: {ptid}_{date}_{visitnum}_{modality}
+    assert visitor.log_name_prefix == "99999_2024-04-05_003_mr"
     assert visitor.legacy_log_name_prefix == "99999_2024-04-05_mr"
 
 
@@ -137,7 +145,10 @@ def test_ptid_normalization():
 
 
 def test_module_case_normalization():
-    """Test that module is normalized to lowercase."""
+    """Test that module is normalized to lowercase.
+
+    Note: Packet is excluded from filename per PR #372 review feedback.
+    """
     visitor = ErrorLogIdentificationVisitor()
 
     data_id = DataIdentification(
@@ -149,8 +160,9 @@ def test_module_case_normalization():
 
     data_id.apply(visitor)
 
-    # Module and packet should be lowercase in new format
-    assert visitor.log_name_prefix == "12345_2024-07-01_a1_f"
+    # Module should be lowercase, packet excluded
+    # Format: {ptid}_{date}_{module}
+    assert visitor.log_name_prefix == "12345_2024-07-01_a1"
 
     # Legacy format excludes packet
     assert visitor.legacy_log_name_prefix == "12345_2024-07-01_a1"

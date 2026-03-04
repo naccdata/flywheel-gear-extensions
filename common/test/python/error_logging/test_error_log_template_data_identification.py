@@ -14,7 +14,10 @@ class TestErrorLogTemplateDataIdentification:
     """Test ErrorLogTemplate.instantiate_from_data_identification method."""
 
     def test_form_with_visitnum_and_packet(self):
-        """Test filename generation for form with visitnum and packet."""
+        """Test filename generation for form with visitnum and packet.
+
+        Note: Packet is excluded from filename per PR #372 review feedback.
+        """
         template = ErrorLogTemplate()
         data_id = DataIdentification(
             participant=ParticipantIdentification(
@@ -27,10 +30,14 @@ class TestErrorLogTemplateDataIdentification:
 
         filename = template.instantiate(data_id)
 
-        assert filename == "12345_001_2024-01-15_a1_i_qc-status.log"
+        # Format: {ptid}_{date}_{visitnum}_{module}_qc-status.log (packet excluded)
+        assert filename == "12345_2024-01-15_001_a1_qc-status.log"
 
     def test_form_without_visitnum(self):
-        """Test filename generation for non-visit form (no visitnum)."""
+        """Test filename generation for non-visit form (no visitnum).
+
+        Note: Packet is excluded from filename per PR #372 review feedback.
+        """
         template = ErrorLogTemplate()
         data_id = DataIdentification(
             participant=ParticipantIdentification(adcid=1, ptid="12345"),
@@ -41,7 +48,8 @@ class TestErrorLogTemplateDataIdentification:
 
         filename = template.instantiate(data_id)
 
-        assert filename == "12345_2024-01-15_np_i_qc-status.log"
+        # Format: {ptid}_{date}_{module}_qc-status.log (no visitnum, packet excluded)
+        assert filename == "12345_2024-01-15_np_qc-status.log"
 
     def test_form_with_visitnum_no_packet(self):
         """Test filename generation for form with visitnum but no packet."""
@@ -55,7 +63,8 @@ class TestErrorLogTemplateDataIdentification:
 
         filename = template.instantiate(data_id)
 
-        assert filename == "12345_001_2024-01-15_a1_qc-status.log"
+        # Format: {ptid}_{date}_{visitnum}_{module}_qc-status.log
+        assert filename == "12345_2024-01-15_001_a1_qc-status.log"
 
     def test_legacy_format_backward_compatible(self):
         """Test backward compatible legacy format (no visitnum, no packet)."""
@@ -142,11 +151,15 @@ class TestErrorLogTemplateDataIdentification:
 
         filename = template.instantiate(data_id)
 
-        # Leading zeros should be stripped
-        assert filename == "12345_001_2024-01-15_a1_i_qc-status.log"
+        # Leading zeros should be stripped, packet excluded
+        # Format: {ptid}_{date}_{visitnum}_{module}_qc-status.log
+        assert filename == "12345_2024-01-15_001_a1_qc-status.log"
 
     def test_module_and_packet_lowercase(self):
-        """Test that module and packet are converted to lowercase."""
+        """Test that module is converted to lowercase.
+
+        Note: Packet is excluded from filename per PR #372 review feedback.
+        """
         template = ErrorLogTemplate()
         data_id = DataIdentification(
             participant=ParticipantIdentification(adcid=1, ptid="12345"),
@@ -157,9 +170,9 @@ class TestErrorLogTemplateDataIdentification:
 
         filename = template.instantiate(data_id)
 
-        # Module and packet should be lowercase
+        # Module should be lowercase, packet not in filename
         assert filename is not None
         assert "a1" in filename
-        assert "i" in filename
         assert "A1" not in filename
-        assert "I" not in filename
+        # Packet is not included in filename
+        assert filename == "12345_2024-01-15_001_a1_qc-status.log"

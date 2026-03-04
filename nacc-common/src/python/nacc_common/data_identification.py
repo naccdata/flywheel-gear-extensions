@@ -230,7 +230,8 @@ class DataIdentification(BaseModel):
             naccid: Participant identifier (NACC-assigned) - optional
             visitnum: Visit sequence number - optional (not present for non-visit data)
             date: Visit date or collection date - required
-            module: Module identifier (UDS, LBD, FTLD, NP, etc.) - required unless modality is provided
+            module: Module identifier (UDS, LBD, FTLD, NP, etc.) - required unless
+                modality is provided
             packet: Form packet (I/F/T) - optional
             modality: Imaging modality - required unless module is provided
 

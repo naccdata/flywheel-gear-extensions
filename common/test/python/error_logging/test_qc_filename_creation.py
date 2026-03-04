@@ -10,10 +10,14 @@ from nacc_common.data_identification import (
 
 
 def test_new_filename_formats():
-    """Test the new instantiate_from_data_identification method."""
+    """Test the new instantiate_from_data_identification method.
+
+    Note: Packet is excluded from filename per PR #372 review feedback.
+    Date comes before visitnum.
+    """
     template = ErrorLogTemplate()
 
-    # Test 1: Form with visitnum and packet (most complete)
+    # Test 1: Form with visitnum and packet (packet excluded from filename)
     data_id = DataIdentification(
         participant=ParticipantIdentification(adcid=1, ptid="12345", naccid="NACC123"),
         date="2024-01-15",
@@ -22,9 +26,10 @@ def test_new_filename_formats():
     )
     filename = template.instantiate(data_id)
     print(f"Form with visitnum and packet: {filename}")
-    assert filename == "12345_001_2024-01-15_a1_i_qc-status.log"
+    # Format: {ptid}_{date}_{visitnum}_{module}_qc-status.log (packet excluded)
+    assert filename == "12345_2024-01-15_001_a1_qc-status.log"
 
-    # Test 2: Form with packet but no visitnum (non-visit form)
+    # Test 2: Form with packet but no visitnum (packet excluded from filename)
     data_id = DataIdentification(
         participant=ParticipantIdentification(adcid=1, ptid="12345"),
         date="2024-01-15",
@@ -33,7 +38,8 @@ def test_new_filename_formats():
     )
     filename = template.instantiate(data_id)
     print(f"Form without visitnum: {filename}")
-    assert filename == "12345_2024-01-15_np_i_qc-status.log"
+    # Format: {ptid}_{date}_{module}_qc-status.log (no visitnum, packet excluded)
+    assert filename == "12345_2024-01-15_np_qc-status.log"
 
     # Test 3: Form with visitnum but no packet
     data_id = DataIdentification(
@@ -44,7 +50,8 @@ def test_new_filename_formats():
     )
     filename = template.instantiate(data_id)
     print(f"Form with visitnum, no packet: {filename}")
-    assert filename == "12345_001_2024-01-15_a1_qc-status.log"
+    # Format: {ptid}_{date}_{visitnum}_{module}_qc-status.log
+    assert filename == "12345_2024-01-15_001_a1_qc-status.log"
 
     # Test 4: Old format (no visitnum, no packet) - backward compatible
     data_id = DataIdentification(
@@ -55,6 +62,7 @@ def test_new_filename_formats():
     )
     filename = template.instantiate(data_id)
     print(f"Old format (backward compatible): {filename}")
+    # Format: {ptid}_{date}_{module}_qc-status.log
     assert filename == "12345_2024-01-15_a1_qc-status.log"
 
     print("\n✓ All tests passed!")

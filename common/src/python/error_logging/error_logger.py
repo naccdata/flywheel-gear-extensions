@@ -61,8 +61,8 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
     def legacy_log_name_prefix(self) -> Optional[str]:
         """Build legacy log name prefix (without visitnum).
 
-        Legacy format: {ptid}_{date}_{module} (no visitnum)
-        Returns None if required attributes are missing.
+        Legacy format: {ptid}_{date}_{module} (no visitnum) Returns None
+        if required attributes are missing.
         """
         # Check required attributes
         if (
@@ -72,7 +72,10 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         ):
             return None
 
-        return f"{self.__participant_attribute}_{self.__date_attribute}_{self.__data_attribute}"
+        return (
+            f"{self.__participant_attribute}_{self.__date_attribute}"
+            f"_{self.__data_attribute}"
+        )
 
     def visit_participant(self, participant: ParticipantIdentification) -> None:
         """Collect participant identification (ptid)."""
@@ -85,9 +88,9 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
     def visit_form(self, form: FormIdentification) -> None:
         """Collect form identification (module only, packet excluded).
 
-        Converts to lowercase for filename compatibility.
-        Packet is intentionally excluded from the filename to avoid issues
-        when centers correct packet code mistakes.
+        Converts to lowercase for filename compatibility. Packet is
+        intentionally excluded from the filename to avoid issues when
+        centers correct packet code mistakes.
         """
         self.__data_attribute = form.module.lower()
 
