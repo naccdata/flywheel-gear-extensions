@@ -2,7 +2,7 @@ file(name="manifest", source="manifest.json")
 file(name="requirements", source="dbt-requirements.txt")
 
 docker_image(
-    name="dbt-runner",
+    name="nacc-dbt-runner",
     source="Dockerfile",
     dependencies=[
         ":requirements",
