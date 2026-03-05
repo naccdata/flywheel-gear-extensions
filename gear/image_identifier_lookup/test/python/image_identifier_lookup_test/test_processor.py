@@ -88,7 +88,6 @@ class TestImageIdentifierLookupProcessor:
         result_naccid = processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -98,6 +97,53 @@ class TestImageIdentifierLookupProcessor:
         mock_subject.update.assert_called_once_with(
             info={"naccid": expected_naccid, "dicom_metadata": sample_dicom_metadata}
         )
+
+    def test_dry_run_skips_metadata_update(
+        self,
+        mock_repository: Mock,
+        mock_subject: Mock,
+        sample_dicom_metadata: dict[str, Any],
+    ) -> None:
+        """Test that dry_run mode performs lookup but skips metadata update.
+
+        Note: This tests the processor level. Integration tests verify that
+        dry_run also skips QC logging and event capture at the main.run() level.
+        """
+        # Arrange
+        processor = ImageIdentifierLookupProcessor(
+            identifiers_repository=mock_repository,
+            subject=mock_subject,
+            naccid_field_name="naccid",
+            dry_run=True,
+        )
+
+        ptid = "110001"
+        adcid = 42
+        expected_naccid = "NACC123456"
+
+        # Mock successful lookup
+        identifier = IdentifierObject(
+            adcid=adcid,
+            ptid=ptid,
+            naccid=expected_naccid,
+            guid="test_guid",
+            naccadc=1,
+            active=True,
+        )
+        mock_repository.get.return_value = identifier
+
+        # Act
+        result_naccid = processor.lookup_and_update(
+            ptid=ptid,
+            adcid=adcid,
+            dicom_metadata=sample_dicom_metadata,
+        )
+
+        # Assert
+        assert result_naccid == expected_naccid
+        mock_repository.get.assert_called_once_with(adcid=adcid, ptid=ptid)
+        # Verify metadata update was NOT called in dry run mode
+        mock_subject.update.assert_not_called()
 
     def test_lookup_failure_no_matching_record(
         self,
@@ -119,7 +165,6 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                
                 dicom_metadata=sample_dicom_metadata,
             )
 
@@ -151,7 +196,6 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                
                 dicom_metadata=sample_dicom_metadata,
             )
 
@@ -187,7 +231,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -229,7 +272,6 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                
                 dicom_metadata=sample_dicom_metadata,
             )
 
@@ -271,7 +313,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -315,7 +356,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=minimal_metadata,
         )
 
@@ -354,7 +394,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=empty_metadata,
         )
 
@@ -391,7 +430,6 @@ class TestImageIdentifierLookupProcessor:
         result_naccid = processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -427,7 +465,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -462,7 +499,6 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            
             dicom_metadata=sample_dicom_metadata,
         )
 

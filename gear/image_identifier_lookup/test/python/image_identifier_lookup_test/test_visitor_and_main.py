@@ -456,13 +456,12 @@ class TestMainOrchestration:
         # Assert - success
         assert success is True
 
-    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
-    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
+    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     def test_qc_logging_on_success(
         self,
-        mock_processor_class: Mock,
         mock_qc_manager_class: Mock,
+        mock_processor_class: Mock,
         tmp_path: Path,
         mock_gear_context: Mock,
         mock_project: Mock,

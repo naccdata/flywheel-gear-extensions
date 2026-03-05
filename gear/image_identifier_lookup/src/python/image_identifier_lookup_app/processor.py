@@ -8,7 +8,7 @@ easier to test and reason about.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.identifiers_repository import (
@@ -33,6 +33,7 @@ class ImageIdentifierLookupProcessor:
         identifiers_repository: IdentifierRepository,
         subject: SubjectAdaptor,
         naccid_field_name: str,
+        dry_run: bool = False,
     ):
         """Initialize processor with minimal dependencies.
 
@@ -40,10 +41,12 @@ class ImageIdentifierLookupProcessor:
             identifiers_repository: Repository for NACCID lookups
             subject: Subject adaptor for metadata updates
             naccid_field_name: Field name for NACCID in subject.info
+            dry_run: If True, skip metadata updates (testing mode)
         """
         self.__identifiers_repository = identifiers_repository
         self.__subject = subject
         self.__naccid_field_name = naccid_field_name
+        self.__dry_run = dry_run
 
     def lookup_and_update(
         self,
@@ -64,13 +67,19 @@ class ImageIdentifierLookupProcessor:
         Raises:
             IdentifierRepositoryError: If no matching record found or lookup
                 service unavailable
-            ApiException: If metadata update fails
+            ApiException: If metadata update fails (when not in dry_run mode)
         """
         # Look up NACCID using PTID and ADCID
         naccid = self._lookup_naccid(ptid, adcid)
 
-        # Update subject metadata with NACCID and DICOM metadata
-        self._update_subject_metadata(naccid, dicom_metadata)
+        # Update subject metadata with NACCID and DICOM metadata (unless dry run)
+        if self.__dry_run:
+            log.info(
+                f"DRY RUN: Skipping metadata update for NACCID: {naccid}. "
+                "Subject metadata will not be modified."
+            )
+        else:
+            self._update_subject_metadata(naccid, dicom_metadata)
 
         return naccid
 

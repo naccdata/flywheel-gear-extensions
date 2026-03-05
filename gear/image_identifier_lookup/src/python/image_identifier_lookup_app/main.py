@@ -37,6 +37,102 @@ from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 log = logging.getLogger(__name__)
 
 
+def _update_qc_status_log(
+    *,
+    project: ProjectAdaptor,
+    data_identification: DataIdentification,
+    gear_name: str,
+    success: bool,
+    errors: list,
+) -> None:
+    """Update QC status log for the processed image.
+
+    Args:
+        project: Project adaptor
+        data_identification: Visit identification data
+        gear_name: Name of the gear
+        success: Whether processing succeeded
+        errors: List of errors encountered
+
+    Note:
+        Failures are logged but do not raise exceptions (non-critical).
+    """
+    log.info("Updating QC status log")
+    try:
+        # Initialize QC status log manager
+        error_log_template = ErrorLogTemplate()
+        visit_annotator = FileVisitAnnotator(project=project)
+        qc_log_manager = QCStatusLogManager(
+            error_log_template=error_log_template,
+            visit_annotator=visit_annotator,
+        )
+
+        # Determine QC status (use QCStatus type with cast)
+        qc_status: QCStatus = cast(
+            QCStatus, QC_STATUS_PASS if success else QC_STATUS_FAIL
+        )
+
+        # Update QC status log
+        qc_log_filename = qc_log_manager.update_qc_log(
+            visit_keys=data_identification,
+            project=project,
+            gear_name=gear_name,
+            status=qc_status,
+            errors=FileErrorList(root=errors),
+            add_visit_metadata=True,  # Add metadata on initial creation
+        )
+
+        if qc_log_filename:
+            log.info(f"Successfully updated QC status log: {qc_log_filename}")
+        else:
+            log.warning("Failed to update QC status log (non-critical)")
+
+    except (FlywheelError, ProjectError) as error:
+        # QC logging failures are non-critical - log but don't fail gear
+        log.error(f"Error during QC logging (non-critical): {error}")
+
+
+def _capture_submission_event(
+    *,
+    project: ProjectAdaptor,
+    event_capture: VisitEventCapture,
+    gear_name: str,
+    data_identification: DataIdentification,
+    ptid: str,
+) -> None:
+    """Capture submission event to S3.
+
+    Args:
+        project: Project adaptor
+        event_capture: Event capture service
+        gear_name: Name of the gear
+        data_identification: Visit identification data
+        ptid: Participant identifier for logging
+
+    Note:
+        Failures are logged but do not raise exceptions (non-critical).
+    """
+    log.info("Capturing submission event")
+    try:
+        visit_event = VisitEvent(
+            action=ACTION_SUBMIT,
+            study="adrc",
+            project_label=project.label,
+            center_label=project.group,  # Use group as center label
+            gear_name=gear_name,
+            data_identification=data_identification,
+            datatype="dicom",
+            timestamp=datetime.now(),
+        )
+
+        event_capture.capture_event(visit_event)
+        log.info(f"Successfully captured submission event for {ptid}")
+
+    except (ClientError, S3InterfaceError) as error:
+        # Event capture failures are non-critical - log but don't fail gear
+        log.error(f"Error during event capture (non-critical): {error}")
+
+
 def run(
     *,
     project: ProjectAdaptor,
@@ -44,6 +140,7 @@ def run(
     identifiers_repository: IdentifierRepository,
     event_capture: VisitEventCapture,
     gear_name: str,
+    dry_run: bool = False,
     naccid_field_name: str,
     default_modality: str,
     dicom_metadata: dict,
@@ -54,9 +151,9 @@ def run(
     1. Extract all required data early (fail fast)
     2. Check idempotency (skip if NACCID already correct)
     3. Perform NACCID lookup if needed
-    4. Update subject metadata
-    5. Update QC status log
-    6. Capture submission event
+    4. Update subject metadata (unless dry_run=True)
+    5. Update QC status log (unless dry_run=True)
+    6. Capture submission event (unless dry_run=True)
 
     Args:
         project: Project adaptor
@@ -64,6 +161,7 @@ def run(
         identifiers_repository: Repository for NACCID lookups
         event_capture: Event capture for submission events
         gear_name: Name of the gear
+        dry_run: If True, skip all side effects (metadata, QC logs, events)
         naccid_field_name: Field name for NACCID in subject.info
         default_modality: Default modality if DICOM tag missing
         dicom_metadata: Pre-extracted DICOM metadata dictionary
@@ -149,6 +247,7 @@ def run(
             identifiers_repository=identifiers_repository,
             subject=subject,
             naccid_field_name=naccid_field_name,
+            dry_run=dry_run,
         )
 
         try:
@@ -179,61 +278,29 @@ def run(
         visitnum=None,  # Images typically don't have visit numbers
     )
 
-    # Step 4: Update QC status log
-    log.info("Updating QC status log")
-    try:
-        # Initialize QC status log manager
-        error_log_template = ErrorLogTemplate()
-        visit_annotator = FileVisitAnnotator(project=project)
-        qc_log_manager = QCStatusLogManager(
-            error_log_template=error_log_template,
-            visit_annotator=visit_annotator,
-        )
-
-        # Determine QC status (use QCStatus type with cast)
-        qc_status: QCStatus = cast(
-            QCStatus, QC_STATUS_PASS if success else QC_STATUS_FAIL
-        )
-
-        # Update QC status log
-        qc_log_filename = qc_log_manager.update_qc_log(
-            visit_keys=data_identification,
+    # Step 4: Update QC status log (skip in dry run mode)
+    if dry_run:
+        log.info("DRY RUN: Skipping QC status log update")
+    else:
+        _update_qc_status_log(
             project=project,
+            data_identification=data_identification,
             gear_name=gear_name,
-            status=qc_status,
-            errors=FileErrorList(root=errors),
-            add_visit_metadata=True,  # Add metadata on initial creation
+            success=success,
+            errors=errors,
         )
 
-        if qc_log_filename:
-            log.info(f"Successfully updated QC status log: {qc_log_filename}")
-        else:
-            log.warning("Failed to update QC status log (non-critical)")
-
-    except (FlywheelError, ProjectError) as error:
-        # QC logging failures are non-critical - log but don't fail gear
-        log.error(f"Error during QC logging (non-critical): {error}")
-
-    # Step 5: Capture submission event
-    log.info("Capturing submission event")
-    try:
-        visit_event = VisitEvent(
-            action=ACTION_SUBMIT,
-            study="adrc",
-            project_label=project.label,
-            center_label=project.group,  # Use group as center label
+    # Step 5: Capture submission event (skip in dry run mode)
+    if dry_run:
+        log.info("DRY RUN: Skipping event capture")
+    else:
+        _capture_submission_event(
+            project=project,
+            event_capture=event_capture,
             gear_name=gear_name,
             data_identification=data_identification,
-            datatype="dicom",
-            timestamp=datetime.now(),
+            ptid=ptid,
         )
-
-        event_capture.capture_event(visit_event)
-        log.info(f"Successfully captured submission event for {ptid}")
-
-    except (ClientError, S3InterfaceError) as error:
-        # Event capture failures are non-critical - log but don't fail gear
-        log.error(f"Error during event capture (non-critical): {error}")
 
     log.info("Image Identifier Lookup processing completed successfully")
 
