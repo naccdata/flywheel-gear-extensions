@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.3
+
+* Updates `nacc-attribute-deriver` to `2.2.0` which has significant refactoring, but minimum change to the gear itself
+
 ## 1.3.2
 
 * Updates `nacc-attribute-deriver` to `2.1.4` for another round of fixes
