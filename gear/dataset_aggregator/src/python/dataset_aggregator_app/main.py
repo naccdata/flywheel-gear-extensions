@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import date
 from pathlib import Path
 
 from fw_gear import GearContext
@@ -55,13 +56,17 @@ def run(
     """
     Due to how large these parquets get it's better to process
     each table one at a time
-        1. Aggregate data
+        1. Aggregate data, also adds snapshot_date column
         2. Handle duplicate transfers
-        3. Upload to S3
-        4. Remove local aggregate file when done
+        4. Upload to S3
+        5. Remove local aggregate file when done
     """
+    snapshot_date = date.today().isoformat()
+
     for table in aggregate.tables:
-        aggregate_file = aggregate.aggregate_table(table, aggregate_dir)
+        aggregate_file = aggregate.aggregate_table(
+            table, aggregate_dir, snapshot_date=snapshot_date
+        )
         transfer_handler.handle(aggregate_file)
         target_prefix = f"{prefix}/tables/{table}"
 
