@@ -1,8 +1,25 @@
 # Dev Container Workflow
 
-This project uses dev containers for consistent development environments. When executing commands, use the devcontainer scripts in the `bin/` directory.
+This project uses dev containers for consistent development environments.
 
-## Running Commands in the Dev Container
+## Kiro Pants Power (Recommended)
+
+**PREFERRED METHOD**: Use the `kiro-pants-power` for automated devcontainer and Pants command execution. The power automatically manages container lifecycle and wraps all Pants commands.
+
+Available power tools:
+- `pants_fix` - Format code and auto-fix linting issues
+- `pants_lint` - Run linters on code
+- `pants_check` - Run type checking with mypy
+- `pants_test` - Run tests
+- `pants_package` - Build packages
+- `full_quality_check` - Run complete workflow (fix → lint → check → test)
+- `container_start`, `container_stop`, `container_rebuild` - Container lifecycle management
+
+The power handles all container management automatically, ensuring the container is running before executing commands.
+
+## Manual Scripts (Fallback)
+
+If the power is unavailable, use the devcontainer scripts in the `bin/` directory.
 
 **IMPORTANT**: All Pants commands and setup scripts should be executed inside the running dev container, not on the host machine.
 
@@ -95,7 +112,17 @@ The dev container provides Python 3.12 pre-installed. No need for pyenv or manua
 
 ## Kiro AI Assistant Workflow
 
-When executing commands as Kiro:
+### Using Kiro Pants Power (Recommended)
+
+When the `kiro-pants-power` is available:
+
+1. Use power tools directly (e.g., `pants_fix`, `pants_lint`, `pants_test`)
+2. The power automatically manages container lifecycle
+3. Use `full_quality_check` for complete validation workflow
+
+### Using Manual Scripts (Fallback)
+
+When the power is unavailable:
 
 1. **ALWAYS** run `./bin/start-devcontainer.sh` first to ensure the container is running
 2. Then execute the desired command with `./bin/exec-in-devcontainer.sh`
