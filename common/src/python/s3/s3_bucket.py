@@ -282,7 +282,10 @@ class S3BucketInterface:
             aws_access_key_id=parameters["accesskey"],
             aws_secret_access_key=parameters["secretkey"],
             region_name=parameters["region"],
-            config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
+            config=Config(
+                max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS,
+                retries={"max_attempts": 5, "mode": "adaptive"},
+            ),
         )
 
         return S3BucketInterface(boto_client=client, bucket_name=parameters["bucket"])
@@ -308,7 +311,10 @@ class S3BucketInterface:
             aws_access_key_id=access_id,
             aws_secret_access_key=secret_key,
             region_name=region,
-            config=Config(max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS),
+            config=Config(
+                max_pool_connections=DefaultValues.MAX_POOL_CONNECTIONS,
+                retries={"max_attempts": 5, "mode": "adaptive"},
+            ),
         )
 
         return S3BucketInterface(boto_client=client, bucket_name=s3bucket)
