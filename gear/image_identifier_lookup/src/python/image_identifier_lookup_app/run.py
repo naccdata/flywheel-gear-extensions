@@ -77,7 +77,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         - default_modality: fallback modality (default: "UNKNOWN")
         - event_environment: environment prefix for event capture (required)
         - event_bucket: S3 bucket for event storage (required)
-        - admin_group: NACC admin group ID (default: "nacc")
 
         Initializes:
         - ClientWrapper (GearBotClient)

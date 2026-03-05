@@ -73,11 +73,6 @@
             "description": "S3 bucket name for event capture; required for event logging",
             "type": "string"
         },
-        "admin_group": {
-            "description": "Name of the NACC admin group",
-            "type": "string",
-            "default": "nacc"
-        },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter gearbot path prefix",
             "type": "string",
