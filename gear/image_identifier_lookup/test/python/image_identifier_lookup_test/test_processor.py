@@ -88,7 +88,7 @@ class TestImageIdentifierLookupProcessor:
         result_naccid = processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -119,7 +119,7 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                existing_naccid=None,
+                
                 dicom_metadata=sample_dicom_metadata,
             )
 
@@ -151,52 +151,11 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                existing_naccid=None,
+                
                 dicom_metadata=sample_dicom_metadata,
             )
 
         assert "Service unavailable" in str(exc_info.value)
-        mock_repository.get.assert_called_once_with(adcid=adcid, ptid=ptid)
-        mock_subject.update.assert_not_called()
-
-    def test_naccid_conflict_detection(
-        self,
-        processor: ImageIdentifierLookupProcessor,
-        mock_repository: Mock,
-        mock_subject: Mock,
-        sample_dicom_metadata: dict[str, Any],
-    ) -> None:
-        """Test NACCID conflict detection when existing differs from lookup."""
-        # Arrange
-        ptid = "110001"
-        adcid = 42
-        existing_naccid = "NACC111111"
-        lookup_naccid = "NACC222222"
-
-        # Mock lookup returning different NACCID
-        identifier = IdentifierObject(
-            adcid=adcid,
-            ptid=ptid,
-            naccid=lookup_naccid,
-            guid="test_guid",
-            naccadc=1,
-            active=True,
-        )
-        mock_repository.get.return_value = identifier
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            processor.lookup_and_update(
-                ptid=ptid,
-                adcid=adcid,
-                existing_naccid=existing_naccid,
-                dicom_metadata=sample_dicom_metadata,
-            )
-
-        assert "NACCID conflict" in str(exc_info.value)
-        assert f"PTID={ptid}" in str(exc_info.value)
-        assert f"existing={existing_naccid}" in str(exc_info.value)
-        assert f"lookup result={lookup_naccid}" in str(exc_info.value)
         mock_repository.get.assert_called_once_with(adcid=adcid, ptid=ptid)
         mock_subject.update.assert_not_called()
 
@@ -228,7 +187,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -270,53 +229,13 @@ class TestImageIdentifierLookupProcessor:
             processor.lookup_and_update(
                 ptid=ptid,
                 adcid=adcid,
-                existing_naccid=None,
+                
                 dicom_metadata=sample_dicom_metadata,
             )
 
         assert "Internal Server Error" in str(exc_info.value)
         mock_repository.get.assert_called_once_with(adcid=adcid, ptid=ptid)
         mock_subject.update.assert_called_once()
-
-    def test_existing_naccid_matches_lookup_result(
-        self,
-        processor: ImageIdentifierLookupProcessor,
-        mock_repository: Mock,
-        mock_subject: Mock,
-        sample_dicom_metadata: dict[str, Any],
-    ) -> None:
-        """Test that existing NACCID matching lookup result proceeds
-        normally."""
-        # Arrange
-        ptid = "110001"
-        adcid = 42
-        existing_naccid = "NACC123456"
-
-        # Mock lookup returning same NACCID
-        identifier = IdentifierObject(
-            adcid=adcid,
-            ptid=ptid,
-            naccid=existing_naccid,
-            guid="test_guid",
-            naccadc=1,
-            active=True,
-        )
-        mock_repository.get.return_value = identifier
-
-        # Act
-        result_naccid = processor.lookup_and_update(
-            ptid=ptid,
-            adcid=adcid,
-            existing_naccid=existing_naccid,
-            dicom_metadata=sample_dicom_metadata,
-        )
-
-        # Assert - should proceed normally and update metadata
-        assert result_naccid == existing_naccid
-        mock_repository.get.assert_called_once_with(adcid=adcid, ptid=ptid)
-        mock_subject.update.assert_called_once_with(
-            info={"naccid": existing_naccid, "dicom_metadata": sample_dicom_metadata}
-        )
 
     def test_custom_naccid_field_name(
         self,
@@ -352,7 +271,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -396,7 +315,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=minimal_metadata,
         )
 
@@ -435,7 +354,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=empty_metadata,
         )
 
@@ -472,7 +391,7 @@ class TestImageIdentifierLookupProcessor:
         result_naccid = processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -508,7 +427,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 
@@ -543,7 +462,7 @@ class TestImageIdentifierLookupProcessor:
         processor.lookup_and_update(
             ptid=ptid,
             adcid=adcid,
-            existing_naccid=None,
+            
             dicom_metadata=sample_dicom_metadata,
         )
 

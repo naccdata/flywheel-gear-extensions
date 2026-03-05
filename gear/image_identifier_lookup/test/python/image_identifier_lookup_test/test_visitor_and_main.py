@@ -457,53 +457,6 @@ class TestMainOrchestration:
         assert success is True
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
-    @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
-    def test_naccid_conflict_detection(
-        self,
-        mock_processor_class: Mock,
-        mock_qc_manager_class: Mock,
-        tmp_path: Path,
-        mock_gear_context: Mock,
-        mock_project: Mock,
-        mock_subject: Mock,
-        mock_file_obj: Mock,
-        mock_file_input: Mock,
-        mock_repository: Mock,
-        mock_event_capture: Mock,
-    ) -> None:
-        """Test NACCID conflict detection when existing differs from lookup."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
-        )
-
-        ptid = "110001"
-        _adcid = 42
-
-        # Mock processor to raise conflict error
-        mock_processor = Mock()
-        mock_processor.lookup_and_update.side_effect = ValueError(
-            f"NACCID conflict for PTID={ptid}: existing=NACC111111, "
-            "lookup result=NACC222222"
-        )
-        mock_processor_class.return_value = mock_processor
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            main_run(
-                project=mock_project,
-                subject=mock_subject,
-                identifiers_repository=mock_repository,
-                event_capture=mock_event_capture,
-                gear_name="image-identifier-lookup",
-                naccid_field_name="naccid",
-                default_modality="UNKNOWN",
-                dicom_metadata=extract_dicom_metadata(dicom_file),
-            )
-
-        assert "NACCID conflict" in str(exc_info.value)
-        mock_processor.lookup_and_update.assert_called_once()
-
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
     def test_qc_logging_on_success(
