@@ -49,7 +49,6 @@ class ImageIdentifierLookupProcessor:
         self,
         ptid: str,
         adcid: int,
-        existing_naccid: Optional[str],
         dicom_metadata: dict[str, Any],
     ) -> str:
         """Look up NACCID and update subject metadata.
@@ -57,27 +56,18 @@ class ImageIdentifierLookupProcessor:
         Args:
             ptid: Pre-extracted participant identifier
             adcid: Pre-extracted pipeline ADCID
-            existing_naccid: Pre-extracted existing NACCID (if any)
             dicom_metadata: Comprehensive DICOM metadata to store
 
         Returns:
-            The NACCID (either looked up or existing)
+            The looked-up NACCID
 
         Raises:
-            ValueError: If existing_naccid differs from lookup result
             IdentifierRepositoryError: If no matching record found or lookup
                 service unavailable
             ApiException: If metadata update fails
         """
         # Look up NACCID using PTID and ADCID
         naccid = self._lookup_naccid(ptid, adcid)
-
-        # Check for NACCID conflict
-        if existing_naccid and existing_naccid != naccid:
-            raise ValueError(
-                f"NACCID conflict for PTID={ptid}: "
-                f"existing={existing_naccid}, lookup result={naccid}"
-            )
 
         # Update subject metadata with NACCID and DICOM metadata
         self._update_subject_metadata(naccid, dicom_metadata)

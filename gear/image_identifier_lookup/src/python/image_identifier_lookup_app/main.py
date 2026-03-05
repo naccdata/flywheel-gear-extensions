@@ -155,7 +155,6 @@ def run(
             naccid = processor.lookup_and_update(
                 ptid=ptid,
                 adcid=pipeline_adcid,
-                existing_naccid=existing_naccid,
                 dicom_metadata=dicom_metadata,
             )
             skipped = False
