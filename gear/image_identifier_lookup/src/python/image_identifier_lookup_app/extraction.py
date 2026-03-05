@@ -6,6 +6,7 @@ in the processing pipeline. All functions fail fast with clear error
 messages when required data is missing.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
@@ -14,6 +15,8 @@ from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from nacc_common.data_identification import DataIdentification
 
 from image_identifier_lookup_app.dicom_utils import read_dicom_tags
+
+log = logging.getLogger(__name__)
 
 
 def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
@@ -114,6 +117,11 @@ def extract_visit_metadata(
     # Extract modality (use default if missing)
     modality = dicom_metadata.get("modality")
     if not modality:
+        log.warning(
+            f"DICOM Modality tag (0008,0060) is missing for PTID={ptid}. "
+            f"Using default modality: '{default_modality}'. "
+            "This may indicate a data quality issue with the DICOM file."
+        )
         modality = default_modality
 
     return DataIdentification.from_visit_metadata(
