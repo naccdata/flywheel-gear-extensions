@@ -2,6 +2,7 @@ USERHOME=/home/vscode
 USERBIN=${USERHOME}/bin
 bash get-pants.sh -d ${USERBIN}
 
+export FW_SITE_URL=https://flywheel.naccdata.org
 export FW_CLI_INSTALL_DIR=${USERBIN}
 curl https://storage.googleapis.com/flywheel-dist/fw-cli/stable/install.sh | bash
 
