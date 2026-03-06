@@ -260,4 +260,3 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
           project: the page project metadata
         """
         self.visit_project(project)
-

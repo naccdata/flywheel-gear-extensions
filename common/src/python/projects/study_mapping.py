@@ -91,14 +91,34 @@ class StudyMapper(ABC):
     def map_study_pipelines(self) -> None:
         """Maps the study to study level groups and projects."""
 
+    def _project_label(self, label: str) -> str:
+        """Creates a project label with the study suffix.
+
+        Args:
+            label: the base label for the project
+        Returns:
+            the project label with study suffix
+        """
+        return f"{label}{self.study.project_suffix()}"
+
     def accepted_label(self) -> str:
-        return f"accepted{self.study.project_suffix()}"
+        return self._project_label("accepted")
 
     def dashboard_label(self, dashboard_name: str) -> str:
-        return f"dashboard-{dashboard_name}{self.study.project_suffix()}"
+        return self._project_label(f"dashboard-{dashboard_name}")
+
+    def page_label(self, page_name: str) -> str:
+        """Creates the label for a page project.
+
+        Args:
+            page_name: the name of the page
+        Returns:
+            the project label for the page
+        """
+        return self._project_label(f"page-{page_name}")
 
     def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
-        return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
+        return self._project_label(f"{pipeline}-{datatype.lower()}")
 
     def __add_dashboard(
         self,

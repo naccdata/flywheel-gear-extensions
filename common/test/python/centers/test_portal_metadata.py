@@ -374,7 +374,6 @@ class TestDashboardMetadataOperations:
             assert False, error  # noqa: B011
 
 
-
 # pylint: disable=(redefined-outer-name)
 @pytest.fixture
 def page_project():
@@ -420,9 +419,7 @@ class TestPageProjectMetadataSerialization:
 
     def test_page_project_primary_study(self, page_project_primary):
         """Tests serialization of page project for primary study."""
-        project_dump = page_project_primary.model_dump(
-            by_alias=True, exclude_none=True
-        )
+        project_dump = page_project_primary.model_dump(by_alias=True, exclude_none=True)
         assert project_dump
         assert project_dump["page-name"] == "data-entry"
         assert project_dump["project-label"] == "page-data-entry"

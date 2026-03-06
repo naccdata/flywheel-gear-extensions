@@ -139,7 +139,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
   - Place after `visit_dashboard_project()` method
   - _Requirements: 4.3, 4.4_
 
-- [ ] 4. Implement visit_page_project in GatherIngestDatatypesVisitor
+- [x] 4. Implement visit_page_project in GatherIngestDatatypesVisitor
   - **Dependencies:** Tasks 2.1, 3
   - Add `visit_page_project()` method to GatherIngestDatatypesVisitor in `common/src/python/centers/center_group.py`
   - Implement as no-op (pass) since page projects don't contain datatypes
@@ -151,10 +151,10 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
   - Test that visit_page_project() is callable and doesn't affect datatype gathering
   - _Requirements: 4.5_
 
-- [ ] 5. Extend CenterStudyMetadata for page storage
+- [x] 5. Extend CenterStudyMetadata for page storage
   - **Dependencies:** Task 2.1 (needs PageProjectMetadata type)
   - **Blocks:** Task 8
-  - [ ] 5.1 Add page_projects field and methods to CenterStudyMetadata
+  - [x] 5.1 Add page_projects field and methods to CenterStudyMetadata
     - **Dependencies:** Task 2.1
     - **Blocks:** Tasks 5.2, 5.3, 5.4, 8
     - Add `page_projects: Optional[Dict[str, PageProjectMetadata]] = {}` field
@@ -199,10 +199,10 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
   - Verify no regressions in existing functionality
   - Ask user if questions arise
 
-- [ ] 7. Add page creation logic to StudyMapper
+- [x] 7. Add page creation logic to StudyMapper
   - **Dependencies:** Task 1 (needs StudyModel.pages field)
   - **Blocks:** Task 8
-  - [ ] 7.1 Add page_label() method to StudyMapper
+  - [x] 7.1 Add page_label() method to StudyMapper
     - **Dependencies:** Task 1
     - **Blocks:** Tasks 7.2, 7.3, 7.4, 8
     - Create method that returns `f"page-{page_name}{self.study.project_suffix()}"`
