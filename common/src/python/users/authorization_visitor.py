@@ -10,6 +10,7 @@ from centers.center_group import (
     DistributionProjectMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
+    PageProjectMetadata,
     ProjectMetadata,
     REDCapFormProjectMetadata,
 )
@@ -251,3 +252,12 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
           project: the dashboard project metadata
         """
         self.visit_project(project)
+
+    def visit_page_project(self, project: PageProjectMetadata) -> None:
+        """Assigns user roles to the page project.
+
+        Args:
+          project: the page project metadata
+        """
+        self.visit_project(project)
+

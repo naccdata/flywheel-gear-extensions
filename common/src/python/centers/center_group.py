@@ -476,6 +476,10 @@ class AbstractCenterMetadataVisitor(ABC):
     def visit_dashboard_project(self, project: "DashboardProjectMetadata") -> None:
         pass
 
+    @abstractmethod
+    def visit_page_project(self, project: "PageProjectMetadata") -> None:
+        pass
+
 
 class ProjectMetadata(BaseModel):
     """Metadata for a center project. Set datatype for ingest projects.
@@ -504,6 +508,15 @@ class DashboardProjectMetadata(ProjectMetadata):
 
     def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
         visitor.visit_project(self)
+
+
+class PageProjectMetadata(ProjectMetadata):
+    """Metadata for a page project of a center."""
+
+    page_name: str
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_page_project(self)
 
 
 class DistributionProjectMetadata(ProjectMetadata):
@@ -613,6 +626,7 @@ class CenterStudyMetadata(BaseModel):
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     dashboard_projects: Optional[Dict[str, DashboardProjectMetadata]] = {}
+    page_projects: Optional[Dict[str, PageProjectMetadata]] = {}
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
 
     def add_accepted(self, project: ProjectMetadata) -> None:
@@ -667,6 +681,30 @@ class CenterStudyMetadata(BaseModel):
             return None
 
         return self.dashboard_projects.get(project_label, None)
+
+    def add_page(self, project: PageProjectMetadata) -> None:
+        """Adds the page project to the study metadata.
+
+        Args:
+            project: the page project metadata
+        """
+        self.page_projects = (
+            self.page_projects if self.page_projects is not None else {}
+        )
+        self.page_projects[project.project_label] = project
+
+    def get_page(self, project_label: str) -> Optional[PageProjectMetadata]:
+        """Gets the page project metadata for the project label.
+
+        Args:
+            project_label: the project label
+        Returns:
+            the page project metadata for the project label
+        """
+        if self.page_projects is None:
+            return None
+
+        return self.page_projects.get(project_label, None)
 
     def get_distribution(
         self, project_label: str
@@ -830,4 +868,7 @@ class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
         pass
 
     def visit_dashboard_project(self, project: DashboardProjectMetadata) -> None:
+        pass
+
+    def visit_page_project(self, project: PageProjectMetadata) -> None:
         pass
