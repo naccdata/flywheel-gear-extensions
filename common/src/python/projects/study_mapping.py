@@ -88,6 +88,12 @@ class StudyMapper(ABC):
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
 
+        if center.is_active() and self.study.pages is not None and self.study.pages:
+            for page_name in self.study.pages:
+                self.__add_page(
+                    center=center, study_info=study_info, page_name=page_name
+                )
+
     @abstractmethod
     def map_study_pipelines(self) -> None:
         """Maps the study to study level groups and projects."""

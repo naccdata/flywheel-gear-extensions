@@ -268,10 +268,10 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Test error handling
     - _Requirements: 2.1, 5.2, 5.3_
 
-- [ ] 9. Update map_center_pipelines() to create page projects
+- [x] 9. Update map_center_pipelines() to create page projects
   - **Dependencies:** Task 8.1 (needs __add_page method)
   - **Blocks:** Task 11
-  - [ ] 9.1 Add page creation logic to map_center_pipelines()
+  - [x] 9.1 Add page creation logic to map_center_pipelines()
     - **Dependencies:** Task 8.1
     - **Blocks:** Tasks 9.2, 9.3, 9.4, 9.5, 11
     - Add code block after dashboard creation logic
