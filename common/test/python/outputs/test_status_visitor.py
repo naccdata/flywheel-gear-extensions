@@ -2,11 +2,11 @@ from typing import Callable
 
 import pytest
 from nacc_common.error_models import (
+    DataIdentification,
     FileQCModel,
     GearQCModel,
     QCStatus,
     ValidationModel,
-    VisitKeys,
 )
 from nacc_common.qc_report import (
     QCReportBaseModel,
@@ -24,7 +24,7 @@ class StatusReportTestModel(QCReportBaseModel):
 @pytest.fixture(scope="session")
 def test_transformer():
     def transformer(
-        gear_name: str, visit: VisitKeys, validation_model: ValidationModel
+        gear_name: str, visit: DataIdentification, validation_model: ValidationModel
     ) -> StatusReportTestModel:
         assert validation_model.state, "expect validation state to be set"
         assert visit.ptid, "expect visit ptid to be set"
@@ -59,8 +59,7 @@ class TestStatusVisitor:
         self, mock_file, test_transformer: Callable[..., StatusReportTestModel]
     ):
         qc_model = FileQCModel(qc={})
-        visit = extract_visit_keys(mock_file)
-        visit.adcid = 999
+        visit = extract_visit_keys(mock_file, adcid=999)
         visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 
@@ -68,8 +67,7 @@ class TestStatusVisitor:
 
     def test_status(self, mock_file, status_file_model, test_transformer):
         qc_model = status_file_model
-        visit = extract_visit_keys(mock_file)
-        visit.adcid = 999
+        visit = extract_visit_keys(mock_file, adcid=999)
         visitor = StatusReportVisitor(visit, transformer=test_transformer)
         qc_model.apply(visitor)
 

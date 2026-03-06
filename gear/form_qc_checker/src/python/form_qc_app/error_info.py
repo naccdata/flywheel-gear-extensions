@@ -5,7 +5,10 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from keys.keys import RuleLabels
-from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.data_identification import (
+    DataIdentification,
+)
+from nacc_common.error_models import CSVLocation, FileError, JSONLocation
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
@@ -495,6 +498,9 @@ class ErrorComposer:
             "or contact the system administrator."
         )
         log.error(self.__dict_errors)
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=self.__input_data, date_field=self.__date_field
+        )
         for field, err_list in self.__dict_errors.items():
             for error_msg in err_list:
                 self.__error_writer.write(
@@ -503,9 +509,7 @@ class ErrorComposer:
                         error_location=CSVLocation(line=line_number, column_name=field)
                         if line_number
                         else JSONLocation(key_path=field),
-                        visit_keys=VisitKeys.create_from(
-                            record=self.__input_data, date_field=self.__date_field
-                        ),
+                        visit_keys=visit_keys,
                     )
                 )
 

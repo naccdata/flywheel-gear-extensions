@@ -2821,13 +2821,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "0c710af92def29c8352ceadff0c3fe340ace27cf5af1bbe46fb71275bcd2831c",
-              "url": "https://files.pythonhosted.org/packages/1c/4c/cc276ce57e572c102d9542d383b2cfd551276581dc60004cb94fe8774c11/responses-0.25.8-py3-none-any.whl"
+              "hash": "03ec4409088cd5c66b71ecbbbd27fe2c58ddfad801c66203457b3e6a04868c37",
+              "url": "https://files.pythonhosted.org/packages/ce/04/7f73d05b556da048923e31a0cc878f03be7c5425ed1f268082255c75d872/responses-0.26.0-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "9374d047a575c8f781b94454db5cab590b6029505f488d12899ddb10a4af1cf4",
-              "url": "https://files.pythonhosted.org/packages/0e/95/89c054ad70bfef6da605338b009b2e283485835351a9935c7bfbfaca7ffc/responses-0.25.8.tar.gz"
+              "hash": "c7f6923e6343ef3682816ba421c006626777893cb0d5e1434f674b649bac9eb4",
+              "url": "https://files.pythonhosted.org/packages/9f/b4/b7e040379838cc71bf5aabdb26998dfbe5ee73904c92c1c161faf5de8866/responses-0.26.0.tar.gz"
             }
           ],
           "project_name": "responses",
@@ -2848,7 +2848,7 @@
             "urllib3<3.0,>=1.25.10"
           ],
           "requires_python": ">=3.8",
-          "version": "0.25.8"
+          "version": "0.26.0"
         },
         {
           "artifacts": [
@@ -3307,13 +3307,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "5111e36e91086ece91f93268bb39b4a35c1e6f1feac762c9c822ded0a4e322dc",
-              "url": "https://files.pythonhosted.org/packages/ad/e4/8d97cca767bcc1be76d16fb76951608305561c6e056811587f36cb1316a8/werkzeug-3.1.5-py3-none-any.whl"
+              "hash": "7ddf3357bb9564e407607f988f683d72038551200c704012bb9a4c523d42f131",
+              "url": "https://files.pythonhosted.org/packages/4d/ec/d58832f89ede95652fd01f4f24236af7d32b70cab2196dfcc2d2fd13c5c2/werkzeug-3.1.6-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "6a548b0e88955dd07ccb25539d7d0cc97417ee9e179677d22c7041c8f078ce67",
-              "url": "https://files.pythonhosted.org/packages/5a/70/1469ef1d3542ae7c2c7b72bd5e3a4e6ee69d7978fa8a3af05a38eca5becf/werkzeug-3.1.5.tar.gz"
+              "hash": "210c6bede5a420a913956b4791a7f4d6843a43b6fcee4dfa08a65e93007d0d25",
+              "url": "https://files.pythonhosted.org/packages/61/f1/ee81806690a87dab5f5653c1f146c92bc066d7f4cebc603ef88eb9e13957/werkzeug-3.1.6.tar.gz"
             }
           ],
           "project_name": "werkzeug",
@@ -3322,7 +3322,7 @@
             "watchdog>=2.3; extra == \"watchdog\""
           ],
           "requires_python": ">=3.9",
-          "version": "3.1.5"
+          "version": "3.1.6"
         },
         {
           "artifacts": [

@@ -4,7 +4,12 @@ import logging
 from typing import Any, List, Literal, Optional
 
 from keys.keys import SysErrorCodes
-from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import (
+    CSVLocation,
+    DataIdentification,
+    FileError,
+    JSONLocation,
+)
 
 log = logging.getLogger(__name__)
 
@@ -135,7 +140,7 @@ def identifier_error(
     value: str,
     field: str = "ptid",
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for an unrecognized PTID error in a CSV file.
 
@@ -202,7 +207,7 @@ def empty_field_error(
     field: str | set[str],
     line: Optional[int] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for empty field(s)."""
     error_message = message if message else f"Required field(s) {field} cannot be blank"
@@ -236,7 +241,7 @@ def unexpected_value_error(
     expected: str,
     line: Optional[int] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -280,7 +285,7 @@ def system_error(
     message: str,
     error_location: Optional[CSVLocation | JSONLocation] = None,
     error_type: Literal["alert", "error", "warning"] = "error",
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError object for a system error.
 
@@ -304,7 +309,7 @@ def system_error(
 
 
 def previous_visit_failed_error(
-    prev_visit: str, visit_keys: Optional[VisitKeys] = None
+    prev_visit: str, visit_keys: Optional[DataIdentification] = None
 ) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
@@ -336,7 +341,7 @@ def preprocessing_error(
     line: Optional[int] = None,
     error_code: Optional[str] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
     extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.

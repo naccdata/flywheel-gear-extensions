@@ -71,6 +71,7 @@ def uds_pp_context():
         "visitdate": "2025-01-01",
         "packet": "I",
         "formver": "4.0",
+        "module": "UDS",
     }
 
     return PreprocessingContext(
@@ -125,6 +126,7 @@ def np_pp_context():
         "npformdate": "2025-10-10",
         "packet": "NP",
         "formver": "11.0",
+        "module": "NP",
     }
 
     return PreprocessingContext(
