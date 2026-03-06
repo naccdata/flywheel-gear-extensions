@@ -236,10 +236,10 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Test label generation for affiliated studies
     - _Requirements: 2.2, 2.3, 8.1, 8.2, 8.4, 8.5_
 
-- [ ] 8. Implement __add_page() method in StudyMapper
+- [x] 8. Implement __add_page() method in StudyMapper
   - **Dependencies:** Tasks 5.1 (needs CenterStudyMetadata.add_page), 7.1 (needs page_label)
   - **Blocks:** Task 9
-  - [ ] 8.1 Create __add_page() private method
+  - [x] 8.1 Create __add_page() private method
     - **Dependencies:** Tasks 5.1, 7.1
     - **Blocks:** Tasks 8.2, 8.3, 9
     - Accept center, study_info, and page_name parameters

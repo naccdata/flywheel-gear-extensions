@@ -36,6 +36,7 @@ from centers.center_group import (
     DashboardProjectMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
+    PageProjectMetadata,
     ProjectMetadata,
 )
 from flywheel.models.access_permission import AccessPermission
@@ -142,6 +143,36 @@ class StudyMapper(ABC):
             center=center,
             pipeline_label=self.dashboard_label(dashboard_name),
             update_study=update_dashboard,
+        )
+
+    def __add_page(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        page_name: str,
+    ) -> None:
+        """Adds a page project to the center group.
+
+        Args:
+            center: the center group
+            study_info: the metadata object to track center projects
+            page_name: the name of the page
+        """
+
+        def update_page(project: ProjectAdaptor) -> None:
+            study_info.add_page(
+                PageProjectMetadata(
+                    study_id=self.study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    page_name=page_name,
+                )
+            )
+
+        self.add_pipeline(
+            center=center,
+            pipeline_label=self.page_label(page_name),
+            update_study=update_page,
         )
 
     def add_pipeline(
