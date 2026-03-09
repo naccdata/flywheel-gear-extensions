@@ -89,12 +89,21 @@ package-name/
 │       ├── BUILD
 │       └── *.py
 └── test/python/
-    └── package_name/       # Tests mirror src structure
+    └── package_name_test/  # Tests use _test suffix to avoid namespace conflicts
         ├── BUILD
+        ├── __init__.py     # Required when using conftest.py
+        ├── conftest.py     # Pytest fixtures (optional)
         └── test_*.py
 ```
 
 **Note**: Package CHANGELOGs are located in `docs/{package-name}/CHANGELOG.md`, NOT in the package directory itself.
+
+**CRITICAL - Test Directory Naming**: Test directories MUST use the `_test` suffix (e.g., `projects_test`, `users_test`) to avoid namespace conflicts:
+- **Problem**: When adding `conftest.py` to a test directory, mypy encounters a naming conflict if the test directory name matches the source package name
+- **Wrong Solution**: Adding `__init__.py` to fix mypy causes pytest import errors for the source package
+- **Correct Solution**: Name test directories with `_test` suffix to keep test and source namespaces distinct
+- **Example**: For source `common/src/python/projects/`, use test directory `common/test/python/projects_test/` (not `projects/`)
+- **Templates**: The cookiecutter templates enforce this pattern for new packages
 
 ### Gear Structure
 
