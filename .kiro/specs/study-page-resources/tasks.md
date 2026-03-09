@@ -56,7 +56,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
 
 ## Tasks
 
-- [ ] 1. Extend StudyModel to accept pages field
+- [x] 1. Extend StudyModel to accept pages field
   - **Dependencies:** None (can start immediately)
   - **Blocks:** Task 7, Task 12
   - Add `pages: Optional[List[str]] = None` field to StudyModel class in `common/src/python/projects/study.py`
@@ -83,7 +83,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
   - Minimum 100 iterations
   - Tag: `Feature: study-page-resources, Property 2: Invalid Page Names Rejected`
 
-- [ ]* 1.3 Write unit tests for StudyModel pages field
+- [x] 1.3 Write unit tests for StudyModel pages field
   - **Dependencies:** Task 1
   - **Can run in parallel with:** Tasks 1.1, 1.2
   - Test parsing YAML with pages field
@@ -124,7 +124,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 10: Visitor Pattern Invocation`
 
-  - [ ]* 2.4 Write unit tests for PageProjectMetadata
+  - [x] 2.4 Write unit tests for PageProjectMetadata
     - **Dependencies:** Task 2.1
     - **Can run in parallel with:** Tasks 2.2, 2.3
     - Test creation with all required fields
@@ -146,7 +146,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
   - Place after `visit_dashboard_project()` method (around line 832)
   - _Requirements: 4.5_
 
-- [ ]* 4.1 Write unit test for GatherIngestDatatypesVisitor
+- [x] 4.1 Write unit test for GatherIngestDatatypesVisitor
   - **Dependencies:** Task 4
   - Test that visit_page_project() is callable and doesn't affect datatype gathering
   - _Requirements: 4.5_
@@ -183,7 +183,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 14: Multiple Page Projects Stored`
 
-  - [ ]* 5.4 Write unit tests for CenterStudyMetadata page methods
+  - [x] 5.4 Write unit tests for CenterStudyMetadata page methods
     - **Dependencies:** Task 5.1
     - **Can run in parallel with:** Tasks 5.2, 5.3
     - Test add_page() method
@@ -192,7 +192,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Test multiple pages storage
     - _Requirements: 3.1, 3.6, 3.7, 7.2, 7.3_
 
-- [ ] 6. Checkpoint - Ensure all tests pass
+- [x] 6. Checkpoint - Ensure all tests pass
   - **Dependencies:** Tasks 1-5 and their sub-tasks
   - **Blocks:** Task 7
   - Run all unit tests and property tests created so far
@@ -229,7 +229,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 5: Affiliated Study Label Format`
 
-  - [ ]* 7.4 Write unit tests for page_label() method
+  - [x] 7.4 Write unit tests for page_label() method
     - **Dependencies:** Task 7.1
     - **Can run in parallel with:** Tasks 7.2, 7.3
     - Test label generation for primary studies
@@ -260,7 +260,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 12: Page Creation Method Called for Each Page`
 
-  - [ ]* 8.3 Write unit tests for __add_page() method
+  - [x] 8.3 Write unit tests for __add_page() method
     - **Dependencies:** Task 8.1
     - **Can run in parallel with:** Task 8.2
     - Test page project creation
@@ -312,7 +312,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 11: Page Projects Created During Mapping`
 
-  - [ ]* 9.5 Write unit tests for map_center_pipelines() with pages
+  - [x] 9.5 Write unit tests for map_center_pipelines() with pages
     - **Dependencies:** Task 9.1
     - **Can run in parallel with:** Tasks 9.2, 9.3, 9.4
     - Test page creation for studies with pages
@@ -320,14 +320,14 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Test inactive center handling
     - _Requirements: 2.1, 2.4, 2.5, 5.1, 5.5_
 
-- [ ] 10. Checkpoint - Ensure all tests pass
+- [x] 10. Checkpoint - Ensure all tests pass
   - **Dependencies:** Tasks 7-9 and their sub-tasks
   - **Blocks:** Task 11
   - Run complete test suite including all property tests
   - Verify all 16 correctness properties pass with minimum 100 iterations each
   - Ask user if questions arise
 
-- [ ] 11. Add integration tests
+- [x] 11. Add integration tests
   - **Dependencies:** Task 9.1 (needs complete implementation)
   - [ ]* 11.1 Write property test for Flywheel project existence
     - **Dependencies:** Task 9.1
@@ -370,7 +370,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Minimum 100 iterations
     - Tag: `Feature: study-page-resources, Property 16: Multiple Study Types Handled`
 
-  - [ ]* 11.5 Write end-to-end integration test
+  - [x] 11.5 Write end-to-end integration test
     - **Dependencies:** Task 9.1
     - **Can run in parallel with:** Tasks 11.1-11.4, 11.6, 11.7
     - Create test study YAML with pages field
@@ -379,7 +379,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Verify metadata stored correctly
     - _Requirements: 2.1, 2.6, 3.1, 5.1, 5.5_
 
-  - [ ]* 11.6 Write multi-study integration test
+  - [x] 11.6 Write multi-study integration test
     - **Dependencies:** Task 9.1
     - **Can run in parallel with:** Tasks 11.1-11.5, 11.7
     - Create primary study with pages
@@ -389,7 +389,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Verify no label conflicts
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ]* 11.7 Write error recovery integration test
+  - [x] 11.7 Write error recovery integration test
     - **Dependencies:** Task 9.1
     - **Can run in parallel with:** Tasks 11.1-11.6
     - Simulate Flywheel API failures during page creation
@@ -398,10 +398,10 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Verify system remains in consistent state
     - _Requirements: 5.4_
 
-- [ ] 12. Create test data builders and mock factories
+- [x] 12. Create test data builders and mock factories
   - **Dependencies:** Task 1 (needs StudyModel)
   - **Can run in parallel with:** Tasks 2-11 (after Task 1 completes)
-  - [ ]* 12.1 Create StudyModelBuilder for test data
+  - [x] 12.1 Create StudyModelBuilder for test data
     - **Dependencies:** Task 1
     - **Can run in parallel with:** Tasks 12.2, 12.3
     - Implement builder with fluent interface
@@ -409,7 +409,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Provide sensible defaults
     - Place in test utilities module
 
-  - [ ]* 12.2 Create PageProjectMetadataBuilder for test data
+  - [x] 12.2 Create PageProjectMetadataBuilder for test data
     - **Dependencies:** Task 2.1
     - **Can run in parallel with:** Tasks 12.1, 12.3
     - Implement builder with fluent interface
@@ -417,7 +417,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Provide sensible defaults
     - Place in test utilities module
 
-  - [ ]* 12.3 Create mock factories for Flywheel components
+  - [x] 12.3 Create mock factories for Flywheel components
     - **Dependencies:** None (uses existing types)
     - **Can run in parallel with:** Tasks 12.1, 12.2
     - Create mock_flywheel_proxy fixture
@@ -425,7 +425,7 @@ Task 12 (Test builders) can start after Task 1 and run in parallel with other ta
     - Create create_mock_center() factory
     - Centralize in conftest.py or test utilities
 
-- [ ] 13. Final checkpoint - Ensure all tests pass
+- [x] 13. Final checkpoint - Ensure all tests pass
   - **Dependencies:** All tasks (1-12)
   - Run complete test suite with all unit, property, and integration tests
   - Verify all 16 correctness properties pass with minimum 100 iterations
