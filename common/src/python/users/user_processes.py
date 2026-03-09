@@ -8,8 +8,11 @@ from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 
-from users.authorization_visitor import CenterAuthorizationVisitor
-from users.authorizations import Authorizations, StudyAuthorizations
+from users.authorization_visitor import (
+    CenterAuthorizationVisitor,
+    GeneralAuthorizationVisitor,
+)
+from users.authorizations import Authorizations, PageResource, StudyAuthorizations
 from users.event_models import (
     EventCategory,
     EventType,
@@ -344,9 +347,46 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __authorize_user(
         self, *, user: User, email: str, authorizations: Authorizations
     ) -> None:
-        """Applies authorizations to give access to general resources."""
-        # TODO: implement applying authorizations to general resources
-        pass
+        """Applies authorizations to give access to general resources.
+
+        Processes general authorizations (not tied to specific centers) by creating
+        a GeneralAuthorizationVisitor and dispatching page resource activities to it.
+
+        Args:
+            user: The Flywheel user to authorize
+            email: The user's email address
+            authorizations: The general authorizations containing activities
+        """
+        # Check if authorizations have any activities
+        if not authorizations.activities:
+            log.info("No general authorizations for user %s", user.id)
+            return
+
+        try:
+            # Retrieve admin_group from environment
+            admin_group = self.__env.admin_group
+
+            # Create GeneralAuthorizationVisitor
+            visitor = GeneralAuthorizationVisitor(
+                user=user,
+                authorizations=authorizations,
+                auth_map=self.__env.authorization_map,
+                nacc_group=admin_group,
+                collector=self.collector,
+            )
+
+            # Iterate through activities and process page resources
+            for activity in authorizations.activities.values():
+                if isinstance(activity.resource, PageResource):
+                    visitor.visit_page_resource(activity.resource)
+        except Exception as error:
+            # Catch unexpected exceptions, log error, don't propagate
+            log.error(
+                "Unexpected error during general authorization for user %s: %s",
+                user.id,
+                str(error),
+                exc_info=True,
+            )
 
     def __update_email(self, *, user: User, email: str) -> None:
         """Updates user email on FW instance if email is different.
