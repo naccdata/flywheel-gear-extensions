@@ -4,7 +4,15 @@ All notable changes to this gear are documented in this file.
 
 ## Unreleased
 
-* none
+* Implements general authorization support for non-center-specific resources
+  * Enables users to receive Flywheel project access for ADRC Portal pages based on directory permissions
+  * Processes page resources and assigns roles to page stub projects in nacc admin group
+  * Collects error events for missing projects and authorization map entries
+  * Continues processing when errors occur, preventing single failures from blocking other authorizations
+* Implements dashboard authorization support for study-specific dashboards
+  * Enables users to receive Flywheel project access for dashboard resources based on directory permissions
+  * Processes dashboard resources and assigns roles to dashboard stub projects in center groups
+  * Completes authorization flow for dashboard resources parsed in version 4.0.0
 
 ## 4.0.3
 
