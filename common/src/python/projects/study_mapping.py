@@ -78,17 +78,13 @@ class StudyMapper(ABC):
           center: the center group
           study_info: the metadata object to track center projects
         """
-        if (
-            center.is_active()
-            and self.study.dashboards is not None
-            and self.study.dashboards
-        ):
+        if center.is_active() and self.study.dashboards:
             for dashboard_name in self.study.dashboards:
                 self.__add_dashboard(
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
 
-        if center.is_active() and self.study.pages is not None and self.study.pages:
+        if center.is_active() and self.study.pages:
             for page_name in self.study.pages:
                 self.__add_page(
                     center=center, study_info=study_info, page_name=page_name
