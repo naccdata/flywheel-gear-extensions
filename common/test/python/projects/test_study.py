@@ -148,6 +148,99 @@ class TestStudy:
         )
         assert study.dashboards == ["enrollment", "qc-status"]
 
+    def test_study_with_pages(self):
+        """Test study creation with pages field."""
+        study = StudyModel(
+            name="Project with Pages",  # pyright: ignore[reportCallIssue]
+            study_id="project-pages",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            pages=["overview", "data-entry", "reports"],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.pages == ["overview", "data-entry", "reports"]
+
+    def test_study_without_pages(self):
+        """Test study creation without pages field (should default to None)."""
+        study = StudyModel(
+            name="Project without Pages",  # pyright: ignore[reportCallIssue]
+            study_id="project-no-pages",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.pages is None
+
+    def test_study_with_empty_pages(self):
+        """Test study creation with empty pages list."""
+        study = StudyModel(
+            name="Project with Empty Pages",  # pyright: ignore[reportCallIssue]
+            study_id="project-empty-pages",
+            centers=[StudyCenterModel(center_id="ac")],
+            datatypes=["form"],
+            pages=[],
+            mode="aggregation",
+            published=False,
+            study_type="primary",
+            legacy=True,
+        )
+        assert study.pages == []
+
+    def test_study_pages_from_dict(self):
+        """Test study creation from dict with pages."""
+        study = StudyModel.create(
+            {
+                "study": "Project Alpha",
+                "study-id": "project-alpha",
+                "centers": ["ac"],
+                "datatypes": ["form"],
+                "pages": ["overview", "data-entry", "reports"],
+                "mode": "aggregation",
+                "published": False,
+                "study-type": "primary",
+            }
+        )
+        assert study.pages == ["overview", "data-entry", "reports"]
+
+    def test_study_pages_validation_rejects_invalid_types(self):
+        """Test that validation rejects invalid page types."""
+        # Test with non-string items in list
+        with pytest.raises(StudyError):
+            StudyModel.create(
+                {
+                    "study": "Project Invalid Pages",
+                    "study-id": "project-invalid",
+                    "centers": ["ac"],
+                    "datatypes": ["form"],
+                    "pages": ["valid-page", 123, "another-page"],
+                    "mode": "aggregation",
+                    "published": False,
+                    "study-type": "primary",
+                }
+            )
+
+    def test_study_pages_validation_rejects_non_list(self):
+        """Test that validation rejects non-list pages value."""
+        with pytest.raises(StudyError):
+            StudyModel.create(
+                {
+                    "study": "Project Invalid Pages Type",
+                    "study-id": "project-invalid-type",
+                    "centers": ["ac"],
+                    "datatypes": ["form"],
+                    "pages": "not-a-list",
+                    "mode": "aggregation",
+                    "published": False,
+                    "study-type": "primary",
+                }
+            )
+
 
 class TestStudyCenterModel:
     def test_validation(self):
