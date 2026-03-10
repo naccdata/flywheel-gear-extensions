@@ -104,27 +104,46 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 **PREFERRED METHOD**: Use the `kiro-pants-power` tools for all Pants and devcontainer operations. The power automatically manages container lifecycle.
 
+The power now supports intent-based parameters for simpler usage:
+- `scope`: 'all' (entire codebase), 'directory' (specific directory), or 'file' (single file)
+- `path`: Directory or file path (required for 'directory' and 'file' scopes)
+- `recursive`: Include subdirectories (default: true, only for 'directory' scope)
+- `test_filter`: Filter tests by name pattern (pytest-style, only for pants_test)
+
 #### Code Quality Workflow
 
 ```
 # Complete quality check (fix → lint → check → test)
 Use: full_quality_check tool
 
-# Individual steps
-Use: pants_fix tool      # Format code (ALWAYS run first)
-Use: pants_lint tool     # Run linters (after fix)
-Use: pants_check tool    # Type check
-Use: pants_test tool     # Run tests
+# Individual steps - all code
+Use: pants_fix tool with scope="all"
+Use: pants_lint tool with scope="all"
+Use: pants_check tool with scope="all"
+Use: pants_test tool with scope="all"
+
+# Individual steps - specific directory
+Use: pants_fix tool with scope="directory", path="common/src/python"
+Use: pants_lint tool with scope="directory", path="common/src/python"
+
+# Individual steps - single file
+Use: pants_check tool with scope="file", path="common/src/python/users/models.py"
+
+# Run specific tests by name
+Use: pants_test tool with scope="directory", path="common/test/python", test_filter="test_create"
 ```
 
 #### Building
 
 ```
-# Build all targets
-Use: pants_package tool
+# Build all packages
+Use: pants_package tool with scope="all"
 
-# Build specific package (e.g., nacc-common)
-Use: pants_package tool with target="nacc-common::"
+# Build specific directory (e.g., nacc-common)
+Use: pants_package tool with scope="directory", path="nacc-common"
+
+# Build single file/target
+Use: pants_package tool with scope="file", path="gear/user_management/src/docker/BUILD"
 ```
 
 #### Container Management
@@ -133,6 +152,14 @@ Use: pants_package tool with target="nacc-common::"
 Use: container_start tool    # Start container
 Use: container_stop tool     # Stop container
 Use: container_rebuild tool  # Rebuild after config changes
+```
+
+#### Legacy Target Syntax (Deprecated)
+
+The old `target` parameter still works but is deprecated:
+```
+Use: pants_fix tool with target="::"              # All code
+Use: pants_test tool with target="common/test/python::"  # Specific directory
 ```
 
 ### Using Manual Scripts (Fallback)

@@ -54,6 +54,10 @@ This is a Pants-managed monorepo with multiple packages and gears organized by f
   - `index.md` - Main documentation index
   - Subdirectories for each gear and process
   - Published to GitHub Pages
+  - **IMPORTANT**: Each gear and package has its CHANGELOG.md in `docs/{component_name}/CHANGELOG.md`
+    - Example: `docs/user_management/CHANGELOG.md`
+    - Example: `docs/nacc_common/CHANGELOG.md`
+    - Example: `docs/form_qc_checker/CHANGELOG.md`
 
 ### Templates
 
@@ -78,17 +82,28 @@ Standard layout for Python packages:
 ```
 package-name/
 ├── BUILD                    # Pants build file
-├── pyproject.toml          # Package metadata (if distributed)
+├── pyproject.toml          # Package metadata (if distributed) - contains version
 ├── README.md
 ├── src/python/
 │   └── package_name/       # Python module
 │       ├── BUILD
 │       └── *.py
 └── test/python/
-    └── package_name/       # Tests mirror src structure
+    └── package_name_test/  # Tests use _test suffix to avoid namespace conflicts
         ├── BUILD
+        ├── __init__.py     # Required when using conftest.py
+        ├── conftest.py     # Pytest fixtures (optional)
         └── test_*.py
 ```
+
+**Note**: Package CHANGELOGs are located in `docs/{package-name}/CHANGELOG.md`, NOT in the package directory itself.
+
+**CRITICAL - Test Directory Naming**: Test directories MUST use the `_test` suffix (e.g., `projects_test`, `users_test`) to avoid namespace conflicts:
+- **Problem**: When adding `conftest.py` to a test directory, mypy encounters a naming conflict if the test directory name matches the source package name
+- **Wrong Solution**: Adding `__init__.py` to fix mypy causes pytest import errors for the source package
+- **Correct Solution**: Name test directories with `_test` suffix to keep test and source namespaces distinct
+- **Example**: For source `common/src/python/projects/`, use test directory `common/test/python/projects_test/` (not `projects/`)
+- **Templates**: The cookiecutter templates enforce this pattern for new packages
 
 ### Gear Structure
 
@@ -98,7 +113,8 @@ gear/gear-name/
 ├── src/
 │   ├── docker/
 │   │   ├── BUILD
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── manifest.json   # Contains version number
 │   └── python/
 │       └── app_name/
 │           ├── BUILD
@@ -109,6 +125,8 @@ gear/gear-name/
 └── data/
     └── *.yaml              # Test data
 ```
+
+**Note**: Gear CHANGELOGs are located in `docs/{gear-name}/CHANGELOG.md`, NOT in the gear directory itself.
 
 ### BUILD Files
 

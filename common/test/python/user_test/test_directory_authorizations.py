@@ -1,5 +1,9 @@
-from users.authorizations import Activity, StudyAuthorizations
-from users.nacc_directory import ActiveUserEntry, DirectoryAuthorizations, UserEntry
+from users.authorizations import Activity, DatatypeResource, StudyAuthorizations
+from users.nacc_directory import (
+    CenterUserEntry,
+    DirectoryAuthorizations,
+    UserEntry,
+)
 
 
 class TestDirectoryAuthorizations:
@@ -37,8 +41,8 @@ class TestDirectoryAuthorizations:
                 "email": "user@institution.edu",
                 "contact_company_name": "an institution",
                 "adresearchctr": "999",
+                "adcid": "999",
                 "archive_contact": "1",
-                "nacc_data_platform_access_information_complete": "2",
             },
             by_alias=True,
         )
@@ -81,52 +85,72 @@ class TestDirectoryAuthorizations:
             "email": "user@institution.edu",
             "contact_company_name": "an institution",
             "adresearchctr": "999",
+            "adcid": "999",
             "archive_contact": "0",
-            "nacc_data_platform_access_information_complete": "2",
         },
         by_alias=True,
     )
     assert auths
     assert not auths.inactive
-    assert auths.complete
     assert "LEADS" not in auths.affiliated_study
-    assert auths.dlbc_form_access_level == "NoAccess"
+    assert auths.dlbc_datatype_form_access_level == "NoAccess"
 
     user_entry = auths.to_user_entry()
-    assert user_entry and isinstance(user_entry, ActiveUserEntry)
+    assert user_entry and isinstance(user_entry, CenterUserEntry)
     assert user_entry.active
     assert user_entry.adcid == 999
-    assert len(user_entry.authorizations) == 4
+    assert len(user_entry.study_authorizations) == 4
 
     # using dict to manage authorizations to avoid ordering issues in comparing lists
-    user_authorizations = {auth.study_id: auth for auth in user_entry.authorizations}  # noqa: RUF012
+    user_authorizations = {  # noqa: RUF012
+        auth.study_id: auth for auth in user_entry.study_authorizations
+    }
 
     assert user_authorizations.get("adrc") == StudyAuthorizations(
         study_id="adrc",
         activities={
-            "enrollment": Activity(datatype="enrollment", action="view"),
-            "form": Activity(datatype="form", action="submit-audit"),
-            "dicom": Activity(datatype="dicom", action="submit-audit"),
+            DatatypeResource(datatype="enrollment"): Activity(
+                resource=DatatypeResource(datatype="enrollment"), action="view"
+            ),
+            DatatypeResource(datatype="form"): Activity(
+                resource=DatatypeResource(datatype="form"), action="submit-audit"
+            ),
+            DatatypeResource(datatype="dicom"): Activity(
+                resource=DatatypeResource(datatype="dicom"), action="submit-audit"
+            ),
         },
     )
     assert user_authorizations.get("clariti") == StudyAuthorizations(
         study_id="clariti",
-        activities={"biomarker": Activity(datatype="biomarker", action="view")},
+        activities={
+            DatatypeResource(datatype="biomarker"): Activity(
+                resource=DatatypeResource(datatype="biomarker"), action="view"
+            )
+        },
     )
     assert user_authorizations.get("ncrad") == StudyAuthorizations(
         study_id="ncrad",
         activities={
-            "biomarker": Activity(datatype="biomarker", action="submit-audit"),
-            "apoe": Activity(datatype="apoe", action="view"),
+            DatatypeResource(datatype="biomarker"): Activity(
+                resource=DatatypeResource(datatype="biomarker"), action="submit-audit"
+            ),
+            DatatypeResource(datatype="apoe"): Activity(
+                resource=DatatypeResource(datatype="apoe"), action="view"
+            ),
         },
     )
     assert user_authorizations.get("niagads") == StudyAuthorizations(
         study_id="niagads",
         activities={
-            "gwas": Activity(datatype="gwas", action="view"),
-            "genetic-availability": Activity(
-                datatype="genetic-availability", action="view"
+            DatatypeResource(datatype="gwas"): Activity(
+                resource=DatatypeResource(datatype="gwas"), action="view"
             ),
-            "imputation": Activity(datatype="imputation", action="view"),
+            DatatypeResource(datatype="genetic-availability"): Activity(
+                resource=DatatypeResource(datatype="genetic-availability"),
+                action="view",
+            ),
+            DatatypeResource(datatype="imputation"): Activity(
+                resource=DatatypeResource(datatype="imputation"), action="view"
+            ),
         },
     )

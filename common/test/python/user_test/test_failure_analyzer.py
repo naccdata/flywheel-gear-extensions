@@ -4,7 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
-from users.user_entry import PersonName, RegisteredUserEntry
+from users.authorizations import Authorizations
+from users.user_entry import CenterUserEntry, PersonName
 from users.user_registry import RegistryPerson
 
 
@@ -30,8 +31,12 @@ class TestFailureAnalyzer:
 
     @pytest.fixture
     def sample_registered_entry(self):
-        """Create a sample RegisteredUserEntry for testing."""
-        return RegisteredUserEntry(
+        """Create a sample CenterUserEntry with registry_person for testing."""
+        # Create a mock RegistryPerson
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg123"
+
+        entry = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email="john.auth@example.com",
@@ -39,9 +44,11 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
-            registry_id="reg123",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        entry.register(mock_registry_person)
+        return entry
 
     @pytest.fixture
     def sample_flywheel_error(self):
@@ -167,7 +174,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create different user entry
-        different_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg456"
+
+        different_entry = CenterUserEntry(
             name=PersonName(first_name="Jane", last_name="Smith"),
             email="jane.smith@example.com",
             auth_email="jane.auth@example.com",
@@ -175,9 +185,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Different Center",
             adcid=456,
-            authorizations=[],
-            registry_id="reg456",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        different_entry.register(mock_registry_person)
 
         # Setup mock to return no existing user
         mock_environment.proxy.find_user.return_value = None
@@ -234,7 +245,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create entry without auth_email
-        entry_no_auth = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg123"
+
+        entry_no_auth = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email=None,  # No auth email
@@ -242,9 +256,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
-            registry_id="reg123",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        entry_no_auth.register(mock_registry_person)
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
@@ -320,7 +335,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create different user entry
-        different_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg789"
+
+        different_entry = CenterUserEntry(
             name=PersonName(first_name="Alice", last_name="Johnson"),
             email="alice.johnson@example.com",
             auth_email="alice.auth@example.com",
@@ -328,9 +346,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Another Center",
             adcid=789,
-            authorizations=[],
-            registry_id="reg789",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        different_entry.register(mock_registry_person)
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
@@ -462,7 +481,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create entry with full user context data
-        full_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg999"
+
+        full_entry = CenterUserEntry(
             name=PersonName(first_name="Full", last_name="Context"),
             email="full.context@example.com",
             auth_email="full.auth@example.com",
@@ -470,9 +492,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Full Context Center",
             adcid=999,
-            authorizations=[],
-            registry_id="reg999",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        full_entry.register(mock_registry_person)
 
         # Setup mocks
         mock_environment.proxy.find_user.return_value = None

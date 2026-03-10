@@ -27,7 +27,7 @@ from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
 from users.event_models import UserEventCollector
-from users.user_entry import ActiveUserEntry, UserEntry
+from users.user_entry import UserEntry, UserEntryList
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (
     NotificationClient,
@@ -203,7 +203,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         if not auth_filepath:
             raise GearExecutionError("No user role file provided")
 
-        return user_filepath, auth_filepath
+        return Path(user_filepath), Path(auth_filepath)
 
     @staticmethod
     def _parse_support_emails(emails_str: str) -> list[str]:
@@ -458,17 +458,15 @@ class UserManagementVisitor(GearExecutionEnvironment):
         if not object_list:
             raise GearExecutionError("No users found in user file")
 
-        user_list: UserQueue[UserEntry] = UserQueue()
-        for user_doc in object_list:
-            try:
-                if not user_doc.get("active"):
-                    user_entry = UserEntry.model_validate(user_doc)
-                else:
-                    user_entry = ActiveUserEntry.model_validate(user_doc)
-            except ValidationError as error:
-                log.error("Error creating user entry: %s", error)
-                continue
+        try:
+            user_entry_list = UserEntryList.model_validate(object_list)
+        except ValidationError as error:
+            raise GearExecutionError(
+                f"Error validating user entries: {error}"
+            ) from error
 
+        user_list: UserQueue[UserEntry] = UserQueue()
+        for user_entry in user_entry_list:
             if not user_entry.approved:
                 log.warning("Skipping unapproved user with email %s", user_entry.email)
                 continue

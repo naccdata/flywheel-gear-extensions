@@ -19,7 +19,7 @@ from projects.template_project import TemplateProject
 from pydantic import AliasGenerator, BaseModel, ConfigDict, RootModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository, REDCapProject
 from serialization.case import kebab_case
-from users.authorizations import Activity
+from users.authorizations import Activity, DatatypeResource
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_info import CenterInfo
@@ -476,6 +476,10 @@ class AbstractCenterMetadataVisitor(ABC):
     def visit_dashboard_project(self, project: "DashboardProjectMetadata") -> None:
         pass
 
+    @abstractmethod
+    def visit_page_project(self, project: "PageProjectMetadata") -> None:
+        pass
+
 
 class ProjectMetadata(BaseModel):
     """Metadata for a center project. Set datatype for ingest projects.
@@ -504,6 +508,15 @@ class DashboardProjectMetadata(ProjectMetadata):
 
     def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
         visitor.visit_project(self)
+
+
+class PageProjectMetadata(ProjectMetadata):
+    """Metadata for a page project of a center."""
+
+    page_name: str
+
+    def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
+        visitor.visit_page_project(self)
 
 
 class DistributionProjectMetadata(ProjectMetadata):
@@ -542,7 +555,9 @@ class REDCapFormProjectMetadata(BaseModel):
     def get_submission_activity(self) -> Activity:
         datatype: DatatypeNameType = "enrollment" if self.is_enrollment() else "form"
 
-        return Activity(datatype=datatype, action="submit-audit")
+        return Activity(
+            resource=DatatypeResource(datatype=datatype), action="submit-audit"
+        )
 
     def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
         visitor.visit_redcap_form_project(self)
@@ -611,6 +626,7 @@ class CenterStudyMetadata(BaseModel):
     ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
     accepted_project: Optional[ProjectMetadata] = None
     dashboard_projects: Optional[Dict[str, DashboardProjectMetadata]] = {}
+    page_projects: Optional[Dict[str, PageProjectMetadata]] = {}
     distribution_projects: Dict[str, DistributionProjectMetadata] = {}
 
     def add_accepted(self, project: ProjectMetadata) -> None:
@@ -665,6 +681,30 @@ class CenterStudyMetadata(BaseModel):
             return None
 
         return self.dashboard_projects.get(project_label, None)
+
+    def add_page(self, project: PageProjectMetadata) -> None:
+        """Adds the page project to the study metadata.
+
+        Args:
+            project: the page project metadata
+        """
+        self.page_projects = (
+            self.page_projects if self.page_projects is not None else {}
+        )
+        self.page_projects[project.project_label] = project
+
+    def get_page(self, project_label: str) -> Optional[PageProjectMetadata]:
+        """Gets the page project metadata for the project label.
+
+        Args:
+            project_label: the project label
+        Returns:
+            the page project metadata for the project label
+        """
+        if self.page_projects is None:
+            return None
+
+        return self.page_projects.get(project_label, None)
 
     def get_distribution(
         self, project_label: str
@@ -828,4 +868,7 @@ class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
         pass
 
     def visit_dashboard_project(self, project: DashboardProjectMetadata) -> None:
+        pass
+
+    def visit_page_project(self, project: PageProjectMetadata) -> None:
         pass

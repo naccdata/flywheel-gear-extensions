@@ -10,14 +10,28 @@ from centers.center_group import (
     DistributionProjectMetadata,
     FormIngestProjectMetadata,
     IngestProjectMetadata,
+    PageProjectMetadata,
     ProjectMetadata,
     REDCapFormProjectMetadata,
 )
+from centers.nacc_group import NACCGroup
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import ProjectError
 from redcap_api.redcap_project import REDCapRoles
 
-from users.authorizations import AuthMap, StudyAuthorizations
+from users.authorizations import (
+    AuthMap,
+    Authorizations,
+    PageResource,
+    StudyAuthorizations,
+)
+from users.event_models import (
+    EventCategory,
+    EventType,
+    UserContext,
+    UserEventCollector,
+    UserProcessEvent,
+)
 
 log = logging.getLogger(__name__)
 
@@ -251,3 +265,154 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
           project: the dashboard project metadata
         """
         self.visit_project(project)
+
+    def visit_page_project(self, project: PageProjectMetadata) -> None:
+        """Assigns user roles to the page project.
+
+        Args:
+          project: the page project metadata
+        """
+        self.visit_project(project)
+
+
+class GeneralAuthorizationVisitor:
+    """Assigns roles to a user for general (non-center) resources based on
+    authorizations.
+
+    Follows the visitor pattern established by CenterAuthorizationVisitor.
+    Handles page resources by assigning roles on page projects in the nacc admin group.
+
+    This visitor processes general authorizations (not tied to specific centers) and
+    assigns appropriate Flywheel roles to users for page projects. It collects error
+    events for missing projects, missing roles, and role assignment failures to enable
+    notification and troubleshooting without blocking processing.
+    """
+
+    def __init__(
+        self,
+        user: User,
+        authorizations: "Authorizations",
+        auth_map: AuthMap,
+        nacc_group: "NACCGroup",
+        collector: "UserEventCollector",
+    ) -> None:
+        """Initialize the general authorization visitor.
+
+        Args:
+            user: The Flywheel user to authorize
+            authorizations: The general authorizations containing activities
+            auth_map: The authorization map for looking up roles
+            nacc_group: The NACC admin group containing page projects
+            collector: Event collector for error tracking
+        """
+        self.__user = user
+        self.__authorizations = authorizations
+        self.__auth_map = auth_map
+        self.__nacc_group = nacc_group
+        self.__collector = collector
+
+    def _create_user_context(self) -> UserContext:
+        """Create UserContext from the current user.
+
+        Returns:
+            UserContext with user's email, name, and registry ID
+        """
+        return UserContext(
+            email=self.__user.email,
+            name=f"{self.__user.firstname} {self.__user.lastname}"  # type: ignore
+            if self.__user.firstname  # type: ignore
+            else "Unknown",
+            registry_id=self.__user.id,
+        )
+
+    def visit_page_resource(self, page_resource: "PageResource") -> None:
+        """Assigns user roles for a page resource.
+
+        Constructs the project label as "page-{page_name}", retrieves the project
+        from the NACC admin group, queries the authorization map for roles, and
+        assigns the roles to the user.
+
+        Handles errors gracefully by logging and collecting error events without
+        raising exceptions, allowing processing to continue for other resources.
+
+        Args:
+            page_resource: The page resource to process
+        """
+        # Construct project label
+        project_label = f"page-{page_resource.name}"
+
+        # Retrieve project from NACC admin group
+        project = self.__nacc_group.get_project(project_label)
+        if not project:
+            log.warning(
+                "Page project not found: %s/%s", self.__nacc_group.id, project_label
+            )
+            # Create and collect error event
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.FLYWHEEL_ERROR,
+                user_context=self._create_user_context(),
+                message=(
+                    f"Page project not found: {self.__nacc_group.id}/{project_label}"
+                ),
+                action_needed="create_page_project_or_update_authorization_config",
+            )
+            self.__collector.collect(error_event)
+            return
+
+        # Create temporary StudyAuthorizations for auth_map lookup
+        study_authorizations = StudyAuthorizations(
+            study_id="general", activities=self.__authorizations.activities
+        )
+
+        # Query authorization map for roles
+        roles = self.__auth_map.get(
+            project_label=project_label, authorizations=study_authorizations
+        )
+
+        if not roles:
+            log.warning(
+                "No roles found for user %s in page project %s",
+                self.__user.id,
+                project_label,
+            )
+            # Create and collect error event
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.INSUFFICIENT_PERMISSIONS,
+                user_context=self._create_user_context(),
+                message=(
+                    f"No roles found for user {self.__user.id} "
+                    f"in page project {project_label}"
+                ),
+                action_needed="update_authorization_map_for_page_project",
+            )
+            self.__collector.collect(error_event)
+            return
+
+        # Assign roles to user
+        try:
+            project.add_user_roles(user=self.__user, roles=roles)
+            log.info(
+                "Added roles for user %s to page project %s/%s",
+                self.__user.id,
+                self.__nacc_group.id,
+                project_label,
+            )
+        except ProjectError as error:
+            log.error(
+                "Failed to assign roles to page project %s: %s",
+                project_label,
+                str(error),
+            )
+            # Create and collect error event
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.FLYWHEEL_ERROR,
+                user_context=self._create_user_context(),
+                message=(
+                    f"Failed to assign roles to page project {project_label}: {error!s}"
+                ),
+                action_needed="check_flywheel_permissions_and_project_state",
+            )
+            self.__collector.collect(error_event)

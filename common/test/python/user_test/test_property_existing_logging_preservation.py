@@ -10,8 +10,9 @@ from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from users.authorizations import Authorizations
 from users.event_models import UserEventCollector
-from users.user_entry import ActiveUserEntry, PersonName, RegisteredUserEntry
+from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName
 from users.user_processes import (
     ActiveUserProcess,
     ClaimedUserProcess,
@@ -62,9 +63,9 @@ class LogCapture:
 
 @st.composite
 def active_user_entry_strategy(draw):
-    """Generate random ActiveUserEntry for testing."""
+    """Generate random CenterUserEntry for testing."""
     # Use simple, direct generation to avoid filtering
-    return ActiveUserEntry(
+    return CenterUserEntry(
         name=PersonName(first_name="TestFirst", last_name="TestLast"),
         email="test@example.com",
         auth_email=draw(st.one_of(st.none(), st.just("auth@example.com"))),
@@ -72,15 +73,24 @@ def active_user_entry_strategy(draw):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
 
 @st.composite
 def registered_user_entry_strategy(draw):
-    """Generate random RegisteredUserEntry for testing."""
+    """Generate random CenterUserEntry with registry_person for testing."""
+    from unittest.mock import Mock
+
+    from users.user_registry import RegistryPerson
+
+    # Create a mock RegistryPerson
+    mock_registry_person = Mock(spec=RegistryPerson)
+    mock_registry_person.registry_id.return_value = "test123"
+
     # Use simple, direct generation to avoid filtering
-    return RegisteredUserEntry(
+    entry = CenterUserEntry(
         name=PersonName(first_name="TestFirst", last_name="TestLast"),
         email="test@example.com",
         auth_email=draw(st.one_of(st.none(), st.just("auth@example.com"))),
@@ -88,9 +98,11 @@ def registered_user_entry_strategy(draw):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
-        registry_id="test123",
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
+    entry.register(mock_registry_person)
+    return entry
 
 
 @st.composite
@@ -239,8 +251,8 @@ def test_active_user_process_preserves_info_logging_for_new_users(entry, mock_en
 def test_update_user_process_preserves_existing_logging_with_error_handling(
     entry, mock_env
 ):
-    """Property test: UpdateUserProcess maintains all existing log messages
-    while adding error event capture.
+    """Property test: UpdateCenterUserProcess maintains all existing log
+    messages while adding error event capture.
 
     **Feature: automated-error-handling, Property 6: Existing Logging Preservation**
     **Validates: Requirements 1a.8**
@@ -248,31 +260,36 @@ def test_update_user_process_preserves_existing_logging_with_error_handling(
     For any user processing operation, the system should maintain all existing
     log messages while adding error event capture.
     """
+    from users.user_processes import UpdateCenterUserProcess
+
     collector = UserEventCollector()
 
-    # Test scenario: Missing claimed user (should log error)
-    mock_env.user_registry.find_by_registry_id.return_value = None
-    mock_env.get_from_registry.return_value = []  # For failure analyzer
-    mock_env.user_registry.get_bad_claim.return_value = []  # No bad claims
+    # Test scenario: Missing registry email (should log error)
+    # Set the email_address to None on the entry's registry_person
+    entry.registry_person.email_address = None
 
-    process = UpdateUserProcess(mock_env, collector)
+    # Set fw_user on the entry (required by UpdateCenterUserProcess)
+    mock_fw_user = Mock()
+    mock_fw_user.email = entry.email
+    entry.set_fw_user(mock_fw_user)
+
+    process = UpdateCenterUserProcess(mock_env, collector)
 
     with LogCapture(level=logging.ERROR) as log_capture:
         process.visit(entry)
 
     # Assert - Existing log message should be preserved
     expected_log_message = (
-        f"Failed to find a claimed user with Registry ID {entry.registry_id} "
-        f"and email {entry.email}"
+        f"Registry record does not have email address: {entry.registry_id}"
     )
     assert expected_log_message in log_capture.text, (
         f"Expected log message '{expected_log_message}' should be preserved "
         f"when error handling is integrated. Actual logs: {log_capture.text}"
     )
 
-    # Assert - Error event should also be created (error handling integration)
-    assert collector.has_errors(), (
-        "Error event should be created when error handling is integrated"
+    # Assert - No error event created (this is a defensive check)
+    assert not collector.has_errors(), (
+        "No error event should be created for defensive checks"
     )
 
 
@@ -293,15 +310,14 @@ def test_update_user_process_preserves_info_logging_for_successful_updates(
     collector = UserEventCollector()
 
     # Setup for successful update scenario
-    mock_registry_person = Mock(spec=RegistryPerson)
-    mock_registry_person.email_address = Mock()
-    mock_registry_person.email_address.mail = "registry@example.com"
+    # Set up the email on the entry's registry_person
+    entry.registry_person.email_address = Mock()
+    entry.registry_person.email_address.mail = "registry@example.com"
 
     mock_fw_user = Mock()
     mock_fw_user.email = entry.email
     mock_fw_user.id = "user123"
 
-    mock_env.user_registry.find_by_registry_id.return_value = mock_registry_person
     mock_env.proxy.find_user.return_value = mock_fw_user
 
     process = UpdateUserProcess(mock_env, collector)
@@ -314,9 +330,6 @@ def test_update_user_process_preserves_info_logging_for_successful_updates(
     )
 
     # Assert - Existing functionality should be preserved
-    mock_env.user_registry.find_by_registry_id.assert_called_once_with(
-        entry.registry_id
-    )
     mock_env.proxy.find_user.assert_called_once_with(entry.registry_id)
 
 
@@ -336,7 +349,7 @@ def test_claimed_user_process_preserves_existing_logging_with_error_handling(
     """
     collector = UserEventCollector()
 
-    claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
+    claimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
 
     # Test scenario: User creation needed (should log info)
     mock_env.proxy.find_user.side_effect = [
@@ -386,7 +399,7 @@ def test_collector_does_not_interfere_with_logging(mock_env):
     collector = UserEventCollector()
 
     # Create a simple entry that will trigger logging
-    entry = ActiveUserEntry(
+    entry = CenterUserEntry(
         name=PersonName(first_name="Test", last_name="User"),
         email="test@example.com",
         auth_email=None,  # This will trigger error logging
@@ -394,7 +407,8 @@ def test_collector_does_not_interfere_with_logging(mock_env):
         approved=True,
         org_name="Test Center",
         adcid=123,
-        authorizations=[],
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
     # Test with error collector

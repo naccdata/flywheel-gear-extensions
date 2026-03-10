@@ -1,6 +1,7 @@
 """Defines components related to user authorizations."""
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Any, Literal, Self, Union, get_args
 
 from flywheel.models.role_output import RoleOutput
@@ -20,6 +21,230 @@ log = logging.getLogger(__name__)
 ActionType = Literal["submit-audit", "view"]
 
 
+class Resource(ABC, BaseModel):
+    """Abstract base class for authorization resources.
+
+    Resources represent the target of an authorization activity. They can be
+    datatypes (e.g., form, enrollment) or dashboards (e.g., reports).
+
+    Resources are frozen (immutable) and hashable, allowing them to be used as
+    dictionary keys in authorization mappings.
+
+    String representation follows the pattern: "{prefix}-{name}"
+    Examples: "datatype-form", "dashboard-reports"
+
+    Subclasses must implement:
+        - name: property returning the resource identifier
+        - prefix(): class method returning the resource type prefix
+        - field_name(): class method returning the field name for validation
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    def __str__(self) -> str:
+        """Return string representation in format: {prefix}-{name}."""
+        return f"{self.prefix()}-{self.name}"
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the resource identifier (e.g., 'form', 'reports')."""
+        pass
+
+    @classmethod
+    @abstractmethod
+    def prefix(cls) -> str:
+        """Return the string prefix for this resource type.
+
+        Examples: 'datatype', 'dashboard'
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def field_name(cls) -> str:
+        """Return the field name for the resource value.
+
+        Used during validation to construct the appropriate field dictionary.
+        Examples: 'datatype', 'dashboard'
+        """
+        pass
+
+    @classmethod
+    def _try_subclasses(cls, value: Any, value_type: str) -> Self:
+        """Try to validate value with each Resource subclass.
+
+        Iterates through all Resource subclasses and attempts validation with each.
+        Returns the first successful validation result.
+
+        Args:
+            value: The value to validate (string or dict)
+            value_type: Description of value type for error message ("string" or "dict")
+
+        Returns:
+            Validated Resource instance from successful subclass
+
+        Raises:
+            ValueError: If no subclass can validate the value
+        """
+        errors = []
+        for resource_cls in cls.__subclasses__():
+            try:
+                return resource_cls.model_validate(value)
+            except ValidationError as e:
+                errors.append(f"{resource_cls.__name__}: {e!s}")
+                continue
+
+        raise ValueError(
+            f"Could not parse resource {value_type} '{value}'. "
+            f"Tried: {', '.join(errors)}"
+        )
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def string_validator(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        """Validate Resource from string, dict, or Resource instance.
+
+        Supports multiple input formats:
+        - Resource instance: pass through
+        - Dict: validate normally or try all subclasses for base Resource
+        - String: parse prefixed format (e.g., "datatype-form" -> DatatypeResource)
+
+        For string inputs to subclasses, expects format: "{prefix}-{value}"
+        For string inputs to base Resource, tries all subclasses.
+
+        Args:
+            value: Input value to validate
+            handler: Pydantic validation handler
+
+        Returns:
+            Validated Resource instance
+
+        Raises:
+            ValueError: If string format is invalid or no subclass matches
+            TypeError: If value type is unexpected
+        """
+        if isinstance(value, cls):
+            return handler(value)
+
+        if isinstance(value, dict):
+            # For base Resource class with dict input, try each subclass
+            if cls is Resource:
+                return cls._try_subclasses(value, "dict")
+            # For subclasses with dict, pass through to normal validation
+            return handler(value)
+
+        if not isinstance(value, str):
+            return handler(value)
+
+        # For base Resource class with string, try all subclasses
+        if cls is Resource:
+            return cls._try_subclasses(value, "string")
+
+        # For subclasses, parse the prefixed string
+        expected_prefix = f"{cls.prefix()}-"
+        if value.startswith(expected_prefix):
+            field_value = value[len(expected_prefix) :]
+            return handler({cls.field_name(): field_value})
+
+        # No prefix match, pass through (will likely fail validation)
+        return handler(value)
+
+
+class DatatypeResource(Resource):
+    """Resource representing a data type (e.g., form, enrollment, scan-
+    analysis).
+
+    Used for authorization activities related to data processing pipelines.
+
+    String format: "datatype-{datatype}"
+    Examples: "datatype-form", "datatype-enrollment", "datatype-scan-analysis"
+
+    Attributes:
+        datatype: The data type identifier (validated against DatatypeNameType)
+    """
+
+    datatype: DatatypeNameType
+
+    @property
+    def name(self) -> str:
+        """Return the datatype identifier."""
+        return self.datatype
+
+    @classmethod
+    def prefix(cls) -> str:
+        """Return 'datatype' as the prefix for this resource type."""
+        return "datatype"
+
+    @classmethod
+    def field_name(cls) -> str:
+        """Return 'datatype' as the field name for validation."""
+        return "datatype"
+
+
+class DashboardResource(Resource):
+    """Resource representing a dashboard (e.g., reports, analytics).
+
+    Used for authorization activities related to dashboard access and viewing.
+
+    String format: "dashboard-{dashboard}"
+    Examples: "dashboard-reports", "dashboard-analytics"
+
+    Attributes:
+        dashboard: The dashboard identifier (any string)
+    """
+
+    dashboard: str
+
+    @property
+    def name(self) -> str:
+        """Return the dashboard identifier."""
+        return self.dashboard
+
+    @classmethod
+    def prefix(cls) -> str:
+        """Return 'dashboard' as the prefix for this resource type."""
+        return "dashboard"
+
+    @classmethod
+    def field_name(cls) -> str:
+        """Return 'dashboard' as the field name for validation."""
+        return "dashboard"
+
+
+class PageResource(Resource):
+    """Resource representing a portal page.
+
+    Used for authorization related to portal page access and viewing.
+
+    String format: "page-{page-name}"
+    Example: For a page named "community-resources", the format would be
+    "page-community-resources"
+
+    Attributes:
+        page: The page identifier (any string)
+    """
+
+    page: str
+
+    @property
+    def name(self) -> str:
+        """Return the page identifier."""
+        return self.page
+
+    @classmethod
+    def prefix(cls) -> str:
+        """Return 'page' as the prefix for this resource type."""
+        return "page"
+
+    @classmethod
+    def field_name(cls) -> str:
+        """Return 'page' as the field name for validation."""
+        return "page"
+
+
 class Activity(BaseModel):
     """Data model representing an user activity for authorization.
 
@@ -28,11 +253,11 @@ class Activity(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    datatype: DatatypeNameType
+    resource: Resource
     action: ActionType
 
     def __str__(self) -> str:
-        return f"{self.action}-{self.datatype}"
+        return f"{self.action}-{self.resource}"
 
     @model_serializer
     def string_activity(self) -> str:
@@ -41,7 +266,7 @@ class Activity(BaseModel):
         Returns:
           string representation of activity
         """
-        return f"{self.action}-{self.datatype}"
+        return f"{self.action}-{self.resource}"
 
     @model_validator(mode="wrap")
     @classmethod
@@ -55,55 +280,186 @@ class Activity(BaseModel):
         if not isinstance(activity, str):
             raise TypeError(f"Unexpected type for activity: {type(activity)}")
 
-        datatype = ""
+        resource_string = ""
         action_string = ""
         tokens = activity.split("-")
         for index, token in enumerate(tokens):
             action_string = f"{action_string}-{token}" if action_string else token
             if action_string in get_args(ActionType):
-                datatype = "-".join(tokens[index + 1 :])
+                resource_string = "-".join(tokens[index + 1 :])
                 break
 
-        return handler({"datatype": datatype, "action": action_string})
+        if not action_string:
+            raise ValueError(f"No valid action found in: {activity}")
+        if not resource_string:
+            raise ValueError(f"No resource found in: {activity}")
+
+        resource = Resource.model_validate(resource_string)
+
+        return handler({"resource": resource, "action": action_string})
 
 
-class StudyAuthorizations(BaseModel):
-    """Type class for authorizations."""
-
-    study_id: str
-    activities: dict[DatatypeNameType, Activity] = {}
+class Activities(BaseModel):
+    activities: dict[Resource, Activity] = {}
 
     def __str__(self) -> str:
-        activity_str = ",".join(
-            [str(activity) for activity in self.activities.values()]
-        )
-        return f"study_id='{self.study_id}' activities=[{activity_str}]"
+        return ",".join([str(activity) for activity in self.activities.values()])
 
-    def add(self, datatype: DatatypeNameType, action: ActionType) -> None:
+    @model_serializer
+    def serialize_model(self) -> dict[str, Any]:
+        return {
+            str(resource): str(activity)
+            for resource, activity in self.activities.items()
+        }
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def validate_activities(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        """Validate activities dict, converting string keys to Resource
+        objects."""
+        if isinstance(value, cls):
+            return handler(value)
+
+        # Handle when value is the full model dict with "activities" key
+        if isinstance(value, dict):
+            activities_dict = value.get("activities", value)
+
+        converted = {}
+        for key, val in activities_dict.items():
+            if isinstance(key, str):
+                resource = Resource.model_validate(key)
+                activity = Activity.model_validate(val)
+                converted[resource] = activity
+            else:
+                converted[key] = val
+
+        value = {"activities": converted}
+
+        return handler(value)
+
+    def add(self, resource: Resource, activity: Activity):
+        self.activities[resource] = activity
+
+    def __contains__(self, item: Union[str, Activity, Resource]) -> bool:
+        """Check if an activity or resource exists in this Activities
+        collection.
+
+        Args:
+            item: Can be a Resource (checks dict keys), an Activity object,
+                or a string representation of an Activity.
+
+        Returns:
+            True if the item exists, False otherwise.
+            Invalid strings that cannot be parsed as Activities return False
+            rather than raising an exception, following Python's convention
+            for the 'in' operator.
+        """
+        if isinstance(item, Resource):
+            return item in self.activities
+
+        # Check if item is an Activity or string representation of Activity
+        try:
+            input_activity = (
+                Activity.model_validate(item) if isinstance(item, str) else item
+            )
+        except ValidationError:
+            return False
+
+        resource_activity = self.activities.get(input_activity.resource)
+        if resource_activity is None:
+            return False
+
+        return input_activity.action == resource_activity.action
+
+    # Dictionary-like methods to make Activities behave like dict[Resource, Activity]
+
+    def __getitem__(self, key: Resource) -> Activity:
+        """Get activity by resource key."""
+        return self.activities[key]
+
+    def __setitem__(self, key: Resource, value: Activity) -> None:
+        """Set activity for a resource key."""
+        self.activities[key] = value
+
+    def __delitem__(self, key: Resource) -> None:
+        """Delete activity for a resource key."""
+        del self.activities[key]
+
+    def __len__(self) -> int:
+        """Return number of activities."""
+        return len(self.activities)
+
+    def __iter__(self):
+        """Iterate over resource keys."""
+        return iter(self.activities)
+
+    def keys(self):
+        """Return view of resource keys."""
+        return self.activities.keys()
+
+    def values(self):
+        """Return view of activity values."""
+        return self.activities.values()
+
+    def items(self):
+        """Return view of (resource, activity) pairs."""
+        return self.activities.items()
+
+    def get(self, key: Resource, default: Activity | None = None) -> Activity | None:
+        """Get activity for resource, returning default if not found."""
+        return self.activities.get(key, default)
+
+
+class Authorizations(BaseModel):
+    activities: Activities = Activities()
+
+    def __str__(self) -> str:
+        return f"activities=[{self.activities}]"
+
+    def add_datatype(self, datatype: DatatypeNameType, action: ActionType) -> None:
         """Adds an activity with the datatype and action to the authorizations.
 
         Args:
           datatype: the datatype
           action: the action
         """
-        self.activities[datatype] = Activity(datatype=datatype, action=action)
+        resource = DatatypeResource(datatype=datatype)
+        self.add(resource=resource, action=action)
+
+    def add(self, resource: Resource, action: ActionType) -> None:
+        self.activities.add(
+            resource=resource, activity=Activity(resource=resource, action=action)
+        )
 
     def __contains__(self, activity: Union[str, Activity]) -> bool:
-        try:
-            input_activity = (
-                Activity.model_validate(activity)
-                if isinstance(activity, str)
-                else activity
-            )
-        except ValidationError:
-            # TODO: needs to raise error
-            return False
+        return activity in self.activities
 
-        datatype_activity = self.activities.get(input_activity.datatype)
-        if datatype_activity is None:
-            return False
 
-        return input_activity.action == datatype_activity.action
+class StudyAuthorizations(Authorizations):
+    """Type class for authorizations."""
+
+    study_id: str
+
+    def __str__(self) -> str:
+        return f"study_id='{self.study_id}' activities=[{self.activities}]"
+
+    @model_serializer
+    def serialize_model(self) -> dict[str, Any]:
+        """Serialize StudyAuthorizations with Resource keys converted to
+        strings.
+
+        Converts the activities dict from {Resource: Activity} to {str: str}
+        format for proper serialization to YAML/JSON.
+
+        Returns:
+            Dictionary with study_id and activities with string keys/values
+        """
+        return {
+            "study_id": self.study_id,
+            "activities": self.activities.model_dump(),
+        }
 
 
 class AuthMap(BaseModel):
@@ -122,10 +478,30 @@ class AuthMap(BaseModel):
     ) -> list[RoleOutput]:
         role_map: dict[str, RoleOutput] = {}
         activity_map = self.project_authorizations.get(label, {})
-        for activity in authorizations.activities.values():
-            role_list = activity_map.get(activity, [])
-            for role in role_list:
-                role_map[role.label] = role
+
+        # Flatten the list of role lists for submit-audit activities
+        submit_roles = [
+            role
+            for activity in authorizations.activities.values()
+            if str(activity).startswith("submit-audit-")
+            for role in activity_map.get(activity, [])
+        ]
+        for role in submit_roles:
+            role_map[role.label] = role
+
+        # Flatten the list of role lists for view activities
+        view_roles = [
+            role
+            for activity in authorizations.activities.values()
+            if not str(activity).startswith("submit-audit-")
+            for role in activity_map.get(activity, [])
+        ]
+        for role in view_roles:
+            if submit_roles and role.label != self.read_only_role.label:
+                continue
+
+            role_map[role.label] = role
+
         return list(role_map.values())
 
     def get(

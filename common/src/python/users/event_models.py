@@ -17,7 +17,7 @@ from pydantic import (
     model_serializer,
 )
 
-from users.user_entry import PersonName, UserEntry
+from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName
 
 
 class EventType(Enum):
@@ -97,31 +97,22 @@ class UserContext(BaseModel):
         return str(center_id) if center_id is not None else None
 
     @classmethod
-    def from_user_entry(cls, entry: UserEntry) -> "UserContext":
-        """Create UserContext from a UserEntry object.
+    def from_user_entry(cls, entry: ActiveUserEntry) -> "UserContext":
+        """Create UserContext from an ActiveUserEntry object.
 
         Args:
-            entry: The user entry to extract context from
+            entry: The center user entry to extract context from
 
         Returns:
             UserContext with information from the user entry
         """
-        # Extract center_id from adcid if available (ActiveUserEntry)
-        center_id = None
-        if hasattr(entry, "adcid"):
-            center_id = entry.adcid
-
-        # Extract registry_id if available (RegisteredUserEntry)
-        registry_id = None
-        if hasattr(entry, "registry_id"):
-            registry_id = entry.registry_id
-
+        adcid = entry.adcid if isinstance(entry, CenterUserEntry) else None
         return cls(
             email=entry.email,
             name=entry.name.as_str() if entry.name else None,
             auth_email=entry.auth_email,
-            center_id=center_id,
-            registry_id=registry_id,
+            center_id=adcid,
+            registry_id=entry.registry_id,
         )
 
 

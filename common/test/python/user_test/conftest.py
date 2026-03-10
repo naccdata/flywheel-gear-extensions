@@ -1,10 +1,11 @@
-"""Test fixtures for RegistryPerson tests.
+"""Test fixtures for user tests.
 
-This module provides pytest fixtures and Hypothesis strategies for
-generating test data for RegistryPerson tests.
+This module provides pytest fixtures and builders for generating test
+data for user authorization tests.
 """
 
 from typing import Callable, List, Optional
+from unittest.mock import Mock
 
 import pytest
 from coreapi_client.models.co_person import CoPerson
@@ -14,9 +15,322 @@ from coreapi_client.models.email_address import EmailAddress
 from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
+from flywheel.models.role_output import RoleOutput
+from flywheel.models.user import User
 from hypothesis import strategies as st
+from users.authorizations import (
+    ActionType,
+    Activities,
+    Activity,
+    AuthMap,
+    Authorizations,
+    PageResource,
+    Resource,
+)
+from users.event_models import UserEventCollector
 
-# Pytest fixtures that return factory functions for building test objects
+# Test Builders
+
+
+class UserBuilder:
+    """Builder for creating test User objects."""
+
+    def __init__(self):
+        self._id = "test-user-id"
+        self._email = "test@example.com"
+        self._firstname = "Test"
+        self._lastname = "User"
+
+    def with_id(self, user_id: str) -> "UserBuilder":
+        """Set the user ID.
+
+        Args:
+            user_id: The user ID
+
+        Returns:
+            Self for method chaining
+        """
+        self._id = user_id
+        return self
+
+    def with_email(self, email: str) -> "UserBuilder":
+        """Set the user email.
+
+        Args:
+            email: The email address
+
+        Returns:
+            Self for method chaining
+        """
+        self._email = email
+        return self
+
+    def with_name(self, firstname: str, lastname: str) -> "UserBuilder":
+        """Set the user name.
+
+        Args:
+            firstname: The first name
+            lastname: The last name
+
+        Returns:
+            Self for method chaining
+        """
+        self._firstname = firstname
+        self._lastname = lastname
+        return self
+
+    def build(self) -> User:
+        """Build the User object.
+
+        Returns:
+            A mock User object with configured attributes
+        """
+        user = Mock(spec=User)
+        user.id = self._id
+        user.email = self._email
+        user.firstname = self._firstname
+        user.lastname = self._lastname
+        return user
+
+
+class AuthorizationsBuilder:
+    """Builder for creating test Authorizations objects."""
+
+    def __init__(self):
+        self._activities = Activities()
+
+    def with_page_resource(
+        self, page_name: str, action: ActionType = "view"
+    ) -> "AuthorizationsBuilder":
+        """Add a page resource activity.
+
+        Args:
+            page_name: The page name
+            action: The action type (default: "view")
+
+        Returns:
+            Self for method chaining
+        """
+        resource = PageResource(page=page_name)
+        activity = Activity(resource=resource, action=action)
+        self._activities.add(resource, activity)
+        return self
+
+    def with_activity(
+        self, resource: Resource, action: ActionType
+    ) -> "AuthorizationsBuilder":
+        """Add a custom activity.
+
+        Args:
+            resource: The resource
+            action: The action type
+
+        Returns:
+            Self for method chaining
+        """
+        activity = Activity(resource=resource, action=action)
+        self._activities.add(resource, activity)
+        return self
+
+    def build(self) -> Authorizations:
+        """Build the Authorizations object.
+
+        Returns:
+            An Authorizations object with configured activities
+        """
+        return Authorizations(activities=self._activities)
+
+
+# Mock Factories
+
+
+def create_mock_project(
+    project_id: str = "test-project",
+    label: str = "page-test",
+    group: str = "nacc",
+    **kwargs,
+) -> Mock:
+    """Factory for creating mock ProjectAdaptor objects.
+
+    Args:
+        project_id: The project ID (default: "test-project")
+        label: The project label (default: "page-test")
+        group: The group ID (default: "nacc")
+        **kwargs: Additional attributes to set on the mock
+
+    Returns:
+        A mock ProjectAdaptor object
+    """
+    project = Mock()
+    project.id = project_id
+    project.label = label
+    project.group = group
+    project.add_user_roles = Mock(return_value=True)
+    for key, value in kwargs.items():
+        setattr(project, key, value)
+    return project
+
+
+def create_mock_nacc_group(group_id: str = "nacc", **kwargs) -> Mock:
+    """Factory for creating mock NACCGroup objects.
+
+    Args:
+        group_id: The group ID (default: "nacc")
+        **kwargs: Additional attributes to set on the mock
+
+    Returns:
+        A mock NACCGroup object with sensible defaults
+    """
+    group = Mock()
+    group.id = group_id
+    group.get_project = Mock(return_value=create_mock_project())
+    for key, value in kwargs.items():
+        setattr(group, key, value)
+    return group
+
+
+def create_mock_role(
+    role_id: str = "test-role-id", label: str = "read-only", **kwargs
+) -> RoleOutput:
+    """Factory for creating mock RoleOutput objects.
+
+    Args:
+        role_id: The role ID (default: "test-role-id")
+        label: The role label (default: "read-only")
+        **kwargs: Additional attributes to set on the role
+
+    Returns:
+        A RoleOutput object
+    """
+    role = RoleOutput(id=role_id, label=label)
+    for key, value in kwargs.items():
+        setattr(role, key, value)
+    return role
+
+
+def create_mock_auth_map(**kwargs) -> Mock:
+    """Factory for creating mock AuthMap objects.
+
+    Args:
+        **kwargs: Additional attributes to set on the mock
+
+    Returns:
+        A mock AuthMap object with sensible defaults
+    """
+    auth_map = Mock(spec=AuthMap)
+    auth_map.get = Mock(return_value=[create_mock_role()])
+    for key, value in kwargs.items():
+        setattr(auth_map, key, value)
+    return auth_map
+
+
+# Pytest Fixtures
+
+
+@pytest.fixture
+def build_user() -> Callable[..., User]:
+    """Fixture that returns a factory function for building User objects.
+
+    Returns:
+        A factory function that creates User objects
+    """
+
+    def _build(
+        user_id: str = "test-user-id",
+        email: str = "test@example.com",
+        firstname: str = "Test",
+        lastname: str = "User",
+    ) -> User:
+        """Build a User object for testing.
+
+        Args:
+            user_id: The user ID
+            email: The email address
+            firstname: The first name
+            lastname: The last name
+
+        Returns:
+            A mock User object
+        """
+        return (
+            UserBuilder()
+            .with_id(user_id)
+            .with_email(email)
+            .with_name(firstname, lastname)
+            .build()
+        )
+
+    return _build
+
+
+@pytest.fixture
+def build_authorizations() -> Callable[..., Authorizations]:
+    """Fixture that returns a factory function for building Authorizations
+    objects.
+
+    Returns:
+        A factory function that creates Authorizations objects
+    """
+
+    def _build(page_resources: Optional[List[str]] = None) -> Authorizations:
+        """Build an Authorizations object for testing.
+
+        Args:
+            page_resources: List of page names to add as activities
+
+        Returns:
+            An Authorizations object
+        """
+        builder = AuthorizationsBuilder()
+        if page_resources:
+            for page_name in page_resources:
+                builder.with_page_resource(page_name)
+        return builder.build()
+
+    return _build
+
+
+@pytest.fixture
+def mock_nacc_group() -> Mock:
+    """Reusable NACCGroup mock with sensible defaults.
+
+    Returns:
+        A mock NACCGroup object
+    """
+    return create_mock_nacc_group()
+
+
+@pytest.fixture
+def mock_auth_map() -> Mock:
+    """Reusable AuthMap mock with sensible defaults.
+
+    Returns:
+        A mock AuthMap object
+    """
+    return create_mock_auth_map()
+
+
+@pytest.fixture
+def mock_event_collector() -> UserEventCollector:
+    """Reusable UserEventCollector instance.
+
+    Returns:
+        A UserEventCollector instance
+    """
+    return UserEventCollector()
+
+
+@pytest.fixture
+def mock_project() -> Mock:
+    """Reusable ProjectAdaptor mock with sensible defaults.
+
+    Returns:
+        A mock ProjectAdaptor object
+    """
+    return create_mock_project()
+
+
+# Pytest fixtures for COmanage-related tests
 
 
 @pytest.fixture

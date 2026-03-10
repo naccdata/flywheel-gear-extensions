@@ -4,9 +4,15 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
-from users.authorizations import Activity, StudyAuthorizations
+from users.authorizations import (
+    Activity,
+    Authorizations,
+    DatatypeResource,
+    PageResource,
+    StudyAuthorizations,
+)
 from users.nacc_directory import (
-    ActiveUserEntry,
+    CenterUserEntry,
     DirectoryAuthorizations,
     PersonName,
     UserEntry,
@@ -17,7 +23,7 @@ from users.user_entry import UserEntryList
 def create_user_entry(entry: dict[str, Any]) -> UserEntry:
     if entry.get("active"):
         try:
-            return ActiveUserEntry.model_validate(entry)
+            return CenterUserEntry.model_validate(entry)
         except ValidationError as error:
             raise AssertionError(error) from error
 
@@ -45,6 +51,7 @@ class TestUserEntry:
                 {
                     "contact_company_name": "the center",
                     "adresearchctr": "0",
+                    "adcid": "0",
                     "firstname": "ooly",
                     "lastname": "puppy",
                     "email": "ools@that.org",
@@ -92,21 +99,34 @@ class TestUserEntry:
 
     def test_active(self):
         """Tests around creating objects."""
-        entry = ActiveUserEntry(
+        entry = CenterUserEntry(
             org_name="the center",
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=[
+            authorizations=Authorizations(
+                activities={
+                    PageResource(page="community-resources"): Activity(
+                        resource=PageResource(page="community-resources"),
+                        action="view",
+                    ),
+                },
+            ),
+            study_authorizations=[
                 StudyAuthorizations(
                     study_id="adrc",
                     activities={
-                        "enrollment": Activity(
-                            datatype="enrollment", action="submit-audit"
+                        DatatypeResource(datatype="enrollment"): Activity(
+                            resource=DatatypeResource(datatype="enrollment"),
+                            action="submit-audit",
                         ),
-                        "form": Activity(datatype="form", action="submit-audit"),
-                        "scan-analysis": Activity(
-                            datatype="scan-analysis", action="view"
+                        DatatypeResource(datatype="form"): Activity(
+                            resource=DatatypeResource(datatype="form"),
+                            action="submit-audit",
+                        ),
+                        DatatypeResource(datatype="scan-analysis"): Activity(
+                            resource=DatatypeResource(datatype="scan-analysis"),
+                            action="view",
                         ),
                     },
                 )
@@ -116,7 +136,7 @@ class TestUserEntry:
             auth_email="chip_auth@theorg.org",
         )
 
-        assert "submit-audit-form" in entry.authorizations[0]  # type: ignore
+        assert "submit-audit-datatype-form" in entry.study_authorizations[0]  # type: ignore
 
         # assumes study_id is adrc
         try:
@@ -124,13 +144,14 @@ class TestUserEntry:
                 {
                     "contact_company_name": "the center",
                     "adresearchctr": "0",
+                    "adcid": "0",
                     "firstname": "chip",
                     "lastname": "puppy",
                     "email": "chip@theorg.org",
                     "fw_email": "chip_auth@theorg.org",
                     "archive_contact": "0",
                     "flywheel_access": "1",
-                    "web_report_access": "1",
+                    "web_report_access": "Web",
                     "study_selections": "P30,AffliatedStudy",
                     "scan_dashboard_access_level": "ViewAccess",
                     "p30_naccid_enroll_access_level": "SubmitAudit",
@@ -182,18 +203,30 @@ class TestUserEntry:
             approved=True,
         )
         user_list.append(entry1)
-        entry2 = ActiveUserEntry(
+        entry2 = CenterUserEntry(
             org_name="the center",
             adcid=0,
             name=PersonName(first_name="chip", last_name="puppy"),
             email="chip@theorg.org",
-            authorizations=[
+            authorizations=Authorizations(
+                activities={
+                    PageResource(page="webinars"): Activity(
+                        resource=PageResource(page="webinars"),
+                        action="view",
+                    ),
+                },
+            ),
+            study_authorizations=[
                 StudyAuthorizations(
                     study_id="dummy",
                     activities={
-                        "form": Activity(datatype="form", action="submit-audit"),
-                        "enrollment": Activity(
-                            datatype="enrollment", action="submit-audit"
+                        DatatypeResource(datatype="form"): Activity(
+                            resource=DatatypeResource(datatype="form"),
+                            action="submit-audit",
+                        ),
+                        DatatypeResource(datatype="enrollment"): Activity(
+                            resource=DatatypeResource(datatype="enrollment"),
+                            action="submit-audit",
                         ),
                     },
                 )

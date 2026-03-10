@@ -36,6 +36,7 @@ from centers.center_group import (
     DashboardProjectMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
+    PageProjectMetadata,
     ProjectMetadata,
 )
 from flywheel.models.access_permission import AccessPermission
@@ -77,28 +78,50 @@ class StudyMapper(ABC):
           center: the center group
           study_info: the metadata object to track center projects
         """
-        if (
-            center.is_active()
-            and self.study.dashboards is not None
-            and self.study.dashboards
-        ):
+        if center.is_active() and self.study.dashboards:
             for dashboard_name in self.study.dashboards:
                 self.__add_dashboard(
                     center=center, study_info=study_info, dashboard_name=dashboard_name
+                )
+
+        if center.is_active() and self.study.pages:
+            for page_name in self.study.pages:
+                self.__add_page(
+                    center=center, study_info=study_info, page_name=page_name
                 )
 
     @abstractmethod
     def map_study_pipelines(self) -> None:
         """Maps the study to study level groups and projects."""
 
+    def _project_label(self, label: str) -> str:
+        """Creates a project label with the study suffix.
+
+        Args:
+            label: the base label for the project
+        Returns:
+            the project label with study suffix
+        """
+        return f"{label}{self.study.project_suffix()}"
+
     def accepted_label(self) -> str:
-        return f"accepted{self.study.project_suffix()}"
+        return self._project_label("accepted")
 
     def dashboard_label(self, dashboard_name: str) -> str:
-        return f"dashboard-{dashboard_name}{self.study.project_suffix()}"
+        return self._project_label(f"dashboard-{dashboard_name}")
+
+    def page_label(self, page_name: str) -> str:
+        """Creates the label for a page project.
+
+        Args:
+            page_name: the name of the page
+        Returns:
+            the project label for the page
+        """
+        return self._project_label(f"page-{page_name}")
 
     def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
-        return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
+        return self._project_label(f"{pipeline}-{datatype.lower()}")
 
     def __add_dashboard(
         self,
@@ -122,6 +145,36 @@ class StudyMapper(ABC):
             center=center,
             pipeline_label=self.dashboard_label(dashboard_name),
             update_study=update_dashboard,
+        )
+
+    def __add_page(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        page_name: str,
+    ) -> None:
+        """Adds a page project to the center group.
+
+        Args:
+            center: the center group
+            study_info: the metadata object to track center projects
+            page_name: the name of the page
+        """
+
+        def update_page(project: ProjectAdaptor) -> None:
+            study_info.add_page(
+                PageProjectMetadata(
+                    study_id=self.study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    page_name=page_name,
+                )
+            )
+
+        self.add_pipeline(
+            center=center,
+            pipeline_label=self.page_label(page_name),
+            update_study=update_page,
         )
 
     def add_pipeline(

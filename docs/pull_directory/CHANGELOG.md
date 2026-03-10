@@ -2,9 +2,24 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 3.0.1
 
-* none
+* Fixes validation error when processing directory entries with empty or 'NA' adcid values
+* Updates `DirectoryAuthorizations.convert_adcid` validator to run in `mode="before"` to handle string conversion before Pydantic type checking
+* Handles empty strings, whitespace-only strings, and 'NA' values by converting them to None
+
+## 3.0.0
+
+* Refactors directory authorization model to support generalized resources (pages, dashboards, datatypes)
+* Adds support for parsing web access and dashboard access from `web_report_access` field
+* Adds `CenterUserEntry` class with study-specific authorizations for center users
+* Adds `ActiveUserEntry` class with general authorizations for non-center users
+* Adds general authorization support for page and dashboard resources
+* Refactors `StudyAccessMap` to handle both study-specific and general authorizations
+* Removes `nacc_data_platform_access_information_complete` field from directory authorization model
+* Removes validation check for survey completion status - now relies on REDCap report filtering
+* Adds exception handling for user entry validation errors with error event tracking
+* Replaces silent failure check with assertion for better error detection during development
 
 ## 2.4.1
 
