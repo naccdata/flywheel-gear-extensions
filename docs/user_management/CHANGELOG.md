@@ -144,7 +144,7 @@ All notable changes to this gear are documented in this file.
 
 ## 3.0.2
 
-* Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed datatypes.
+* Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed data types.
   
 ## 2.1.2
 
@@ -163,6 +163,7 @@ All notable changes to this gear are documented in this file.
 * Add error handling for RegistryError errors in user management gear.
 
 ## 1.4.10
+
 * Updates to use redcap_api-0.1.1
   
 ## 1.4.9
@@ -206,7 +207,8 @@ All notable changes to this gear are documented in this file.
 * Adds error handling when adding a user fails in FW
 * Adds this CHANGELOG
 
-## 
+##
+
 ## 1.1.4 and earlier
 
 * Undocumented
