@@ -220,7 +220,8 @@ class PageResource(Resource):
     Used for authorization related to portal page access and viewing.
 
     String format: "page-{page-name}"
-    Examples: "page-webinars", "page-presentations"
+    Example: For a page named "community-resources", the format would be
+    "page-community-resources"
 
     Attributes:
         page: The page identifier (any string)
