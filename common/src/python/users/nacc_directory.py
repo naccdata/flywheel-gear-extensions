@@ -105,8 +105,9 @@ class DirectoryAuthorizations(BaseModel):
     """Data model for deserializing a json object from a directory permission
     report.
 
-    Note: web_access_level and adrc_reports_access_level both use the same source
-    field (web_report_access) for deserialization. This model is only used for
+    Note: general_page_community_resources_access_level and
+    adrc_dashboard_reports_access_level both use the same source field
+    (web_report_access) for deserialization. This model is only used for
     deserialization from REDCap reports and is never serialized.
     """
 
@@ -117,7 +118,7 @@ class DirectoryAuthorizations(BaseModel):
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
     adcid: Optional[int] = Field(alias="adcid")
-    general_page_web_access_level: AuthorizationAccessLevel = Field(
+    general_page_community_resources_access_level: AuthorizationAccessLevel = Field(
         validation_alias=AliasChoices("web_report_access")
     )
     adrc_dashboard_reports_access_level: AuthorizationAccessLevel = Field(
@@ -232,9 +233,12 @@ class DirectoryAuthorizations(BaseModel):
 
         return "NoAccess"
 
-    @field_validator("general_page_web_access_level", mode="before")
-    def convert_web_access_level(cls, value: Any) -> AuthorizationAccessLevel:
-        """Converts web_report_access checkbox field to Web access level.
+    @field_validator("general_page_community_resources_access_level", mode="before")
+    def convert_community_resources_access_level(
+        cls, value: Any
+    ) -> AuthorizationAccessLevel:
+        """Converts web_report_access checkbox field to community resources
+        access level.
 
         The field can contain: '', 'Web', 'RepDash', or 'Web,RepDash'.
         Returns ViewAccess if 'Web' is present, otherwise NoAccess.
