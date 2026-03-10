@@ -55,16 +55,18 @@ def create_test_entry(**overrides):
     return entry
 
 
-class TestGeneralPageWebAccess:
-    """Tests for general_page_web_access_level field."""
+class TestGeneralPageCommunityResourcesAccess:
+    """Tests for general_page_community_resources_access_level field."""
 
-    def test_general_page_web_creates_page_resource(self):
-        """Test that general_page_web_access_level with 'Web' creates
-        PageResource in general authorizations.
+    def test_general_page_community_resources_creates_page_resource(self):
+        """Test that general_page_community_resources_access_level with 'Web'
+        creates PageResource in general authorizations.
 
         This tests that the __parse_fields() method correctly:
-        - Parses the field name pattern: general_page_web_access_level
-        - Identifies scope='general', resource_type='page', resource_name='web'
+        - Parses the field name pattern:
+          general_page_community_resources_access_level
+        - Identifies scope='general', resource_type='page',
+          resource_name='community-resources'
         - Creates a PageResource and adds it to general authorizations
         """
         entry = create_test_entry(
@@ -78,15 +80,16 @@ class TestGeneralPageWebAccess:
         assert user_entry is not None
         assert isinstance(user_entry, CenterUserEntry)
 
-        # The general_page_web_access_level field should create a PageResource
-        web_resource = PageResource(page="web")
-        assert web_resource in user_entry.authorizations.activities
+        # The general_page_community_resources_access_level field should create
+        # a PageResource
+        community_resources_resource = PageResource(page="community-resources")
+        assert community_resources_resource in user_entry.authorizations.activities
 
-        activity = user_entry.authorizations.activities[web_resource]
+        activity = user_entry.authorizations.activities[community_resources_resource]
         assert activity.action == "view"
-        assert activity.resource == web_resource
+        assert activity.resource == community_resources_resource
 
-    def test_general_page_web_no_access_ignored(self):
+    def test_general_page_community_resources_no_access_ignored(self):
         """Test that NoAccess doesn't create page resource."""
         entry = create_test_entry(
             web_report_access="",  # Empty string converts to NoAccess
@@ -338,7 +341,7 @@ class TestMixedResourceTypes:
         assert isinstance(user_entry, CenterUserEntry)
 
         # Check general authorizations have page resource
-        assert PageResource(page="web") in user_entry.authorizations.activities
+        assert PageResource(page="community-resources") in user_entry.authorizations.activities
 
         # Check ADRC study has dashboard resource and datatypes
         adrc_auth = next(

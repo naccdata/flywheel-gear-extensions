@@ -49,17 +49,17 @@ def create_test_entry(**overrides):
 
 
 def test_web_access_not_in_authorizations():
-    """Test that general_page_web_access_level is not included in user
-    authorizations.
+    """Test that general_page_community_resources_access_level is not included
+    in user authorizations.
 
-    The general_page_web_access_level field is for general
-    webinars/presentations access and doesn't map to a study-specific
-    datatype, so it's not included in the authorizations list.
+    The general_page_community_resources_access_level field is for
+    general community resources access and doesn't map to a study-
+    specific datatype, so it's not included in the authorizations list.
     """
     entry = create_test_entry(web_report_access="Web")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
 
     user_entry = auth.to_user_entry()
     assert user_entry is not None
@@ -120,7 +120,7 @@ def test_both_web_and_reports_not_in_authorizations():
     entry = create_test_entry(web_report_access="Web,RepDash")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
     assert auth.adrc_dashboard_reports_access_level == "ViewAccess"
 
     user_entry = auth.to_user_entry()

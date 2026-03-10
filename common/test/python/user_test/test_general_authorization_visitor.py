@@ -48,14 +48,14 @@ def mock_collector():
 @pytest.fixture
 def page_resource():
     """Create a page resource for testing."""
-    return PageResource(page="web")
+    return PageResource(page="community-resources")
 
 
 @pytest.fixture
 def authorizations_with_page():
     """Create authorizations with a page resource activity."""
     authorizations = Authorizations()
-    page_resource = PageResource(page="web")
+    page_resource = PageResource(page="community-resources")
     authorizations.add(resource=page_resource, action="view")
     return authorizations
 
@@ -116,7 +116,7 @@ class TestVisitPageResourceSuccess:
         visitor.visit_page_resource(page_resource)
 
         # Verify project was retrieved with correct label
-        mock_nacc_group.get_project.assert_called_once_with("page-web")
+        mock_nacc_group.get_project.assert_called_once_with("page-community-resources")
 
         # Verify auth_map was queried
         assert mock_auth_map.get.called
@@ -154,7 +154,7 @@ class TestVisitPageResourceSuccess:
 
         # Test with different page names
         test_cases = [
-            ("web", "page-web"),
+            ("community-resources", "page-community-resources"),
             ("presentations", "page-presentations"),
             ("webinars", "page-webinars"),
         ]
@@ -203,7 +203,7 @@ class TestVisitPageResourceMissingProject:
         assert error_event.user_context.email == "test@example.com"
         assert error_event.user_context.registry_id == "test-user-id"
         assert "Page project not found" in error_event.message
-        assert "page-web" in error_event.message
+        assert "page-community-resources" in error_event.message
         assert (
             error_event.action_needed
             == "create_page_project_or_update_authorization_config"
@@ -275,7 +275,7 @@ class TestVisitPageResourceMissingRoles:
         assert error_event.user_context.email == "test@example.com"
         assert "No roles found" in error_event.message
         assert "test-user-id" in error_event.message
-        assert "page-web" in error_event.message
+        assert "page-community-resources" in error_event.message
         assert error_event.action_needed == "update_authorization_map_for_page_project"
 
     def test_missing_roles_returns_early_without_assigning_roles(
@@ -347,7 +347,7 @@ class TestVisitPageResourceRoleAssignmentFailure:
         assert error_event.category == EventCategory.FLYWHEEL_ERROR.value
         assert error_event.user_context.email == "test@example.com"
         assert "Failed to assign roles" in error_event.message
-        assert "page-web" in error_event.message
+        assert "page-community-resources" in error_event.message
         assert "Permission denied" in error_event.message
         assert (
             error_event.action_needed == "check_flywheel_permissions_and_project_state"
@@ -446,7 +446,7 @@ class TestErrorEventContent:
         # Verify message is descriptive
         assert error_event.message is not None
         assert len(error_event.message) > 0
-        assert "page-web" in error_event.message
+        assert "page-community-resources" in error_event.message
 
     def test_error_event_includes_action_needed(
         self,

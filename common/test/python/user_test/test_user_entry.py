@@ -106,8 +106,8 @@ class TestUserEntry:
             email="chip@theorg.org",
             authorizations=Authorizations(
                 activities={
-                    PageResource(page="web"): Activity(
-                        resource=PageResource(page="web"),
+                    PageResource(page="community-resources"): Activity(
+                        resource=PageResource(page="community-resources"),
                         action="view",
                     ),
                 },

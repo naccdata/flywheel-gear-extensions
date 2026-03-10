@@ -50,25 +50,27 @@ def test_web_report_access_empty_string():
     entry = create_minimal_entry(web_report_access="")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "NoAccess"
+    assert auth.general_page_community_resources_access_level == "NoAccess"
     assert auth.adrc_dashboard_reports_access_level == "NoAccess"
 
 
 def test_web_report_access_web_only():
-    """Test that 'Web' gives ViewAccess to web, NoAccess to reports."""
+    """Test that 'Web' gives ViewAccess to community resources, NoAccess to
+    reports."""
     entry = create_minimal_entry(web_report_access="Web")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
     assert auth.adrc_dashboard_reports_access_level == "NoAccess"
 
 
 def test_web_report_access_repdash_only():
-    """Test that 'RepDash' gives NoAccess to web, ViewAccess to reports."""
+    """Test that 'RepDash' gives NoAccess to community resources, ViewAccess to
+    reports."""
     entry = create_minimal_entry(web_report_access="RepDash")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "NoAccess"
+    assert auth.general_page_community_resources_access_level == "NoAccess"
     assert auth.adrc_dashboard_reports_access_level == "ViewAccess"
 
 
@@ -77,7 +79,7 @@ def test_web_report_access_both():
     entry = create_minimal_entry(web_report_access="Web,RepDash")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
     assert auth.adrc_dashboard_reports_access_level == "ViewAccess"
 
 
@@ -87,7 +89,7 @@ def test_web_report_access_case_sensitive():
     entry = create_minimal_entry(web_report_access="web,repdash")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "NoAccess"
+    assert auth.general_page_community_resources_access_level == "NoAccess"
     assert auth.adrc_dashboard_reports_access_level == "NoAccess"
 
 
@@ -96,7 +98,7 @@ def test_web_report_access_with_spaces():
     entry = create_minimal_entry(web_report_access="Web, RepDash")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
     assert auth.adrc_dashboard_reports_access_level == "ViewAccess"
 
 
@@ -105,5 +107,5 @@ def test_web_report_access_reverse_order():
     entry = create_minimal_entry(web_report_access="RepDash,Web")
     auth = DirectoryAuthorizations(**entry)
 
-    assert auth.general_page_web_access_level == "ViewAccess"
+    assert auth.general_page_community_resources_access_level == "ViewAccess"
     assert auth.adrc_dashboard_reports_access_level == "ViewAccess"
