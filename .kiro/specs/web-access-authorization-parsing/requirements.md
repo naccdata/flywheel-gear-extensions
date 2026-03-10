@@ -19,7 +19,7 @@ Requirements 1-14 have been fully implemented with comprehensive test coverage.
 - **Directory_Parser**: The system component that deserializes REDCap directory reports into DirectoryAuthorizations objects
 - **REDCap_Report**: A data export from the REDCap directory containing user authorization information
 - **Access_Level**: An enumeration with values NoAccess, ViewAccess, or SubmitAudit
-- **Web_Access**: Permission to view general webinars and presentations (not study-specific)
+- **Community_Resources_Access**: Permission to view general community resources like webinars and presentations (not study-specific)
 - **ADRC_Reports_Access**: Permission to view ADRC program reports and dashboards (ADRC members only)
 - **Checkbox_Field**: A REDCap field type that can contain multiple comma-separated values
 - **Authorization_Mapping**: The process of converting parsed access levels into Flywheel project permissions
@@ -27,7 +27,6 @@ Requirements 1-14 have been fully implemented with comprehensive test coverage.
 - **NACC_Staff**: Users associated with NACC organization who are not affiliated with a specific research center
 - **Datatype_Resource**: Study-specific data types (enrollment, form, dicom, biomarker, genetic, etc.) that follow the study_datatype_access_level pattern
 - **Dashboard_Resource**: Dashboard projects (like ADRC reports) that are project-level resources, not datatypes
-- **Webinar_Resource**: General community resources (webinars/presentations) that may not map to Flywheel projects
 - **Page_Resource**: Web pages for general community resources (webinars, presentations) that are accessible to all active users
 - **General_Authorization**: An authorization that is not tied to a specific study or center, available to all approved active users
 - **Active_User_Entry**: A user entry representing any approved active user, with or without center affiliation, who has general authorizations
@@ -39,17 +38,17 @@ Requirements 1-14 have been fully implemented with comprehensive test coverage.
 
 **User Story:** As a directory administrator, I want the system to parse the web_report_access checkbox field into separate access levels, so that different types of web access can be managed independently.
 
-**Implementation Status:** Fully implemented in `nacc_directory.py` with validators `convert_web_access_level()` and `convert_adrc_reports_access_level()`. Comprehensive test coverage in `test_web_access_parsing.py`.
+**Implementation Status:** Fully implemented in `nacc_directory.py` with validators `convert_community_resources_access_level()` and `convert_adrc_reports_access_level()`. Comprehensive test coverage in `test_web_access_parsing.py`.
 
 #### Acceptance Criteria
 
-1. ✅ WHEN the web_report_access field contains an empty string, THE Directory_Parser SHALL set web_access_level to NoAccess
+1. ✅ WHEN the web_report_access field contains an empty string, THE Directory_Parser SHALL set general_page_community_resources_access_level to NoAccess
 2. ✅ WHEN the web_report_access field contains an empty string, THE Directory_Parser SHALL set adrc_reports_access_level to NoAccess
-3. ✅ WHEN the web_report_access field contains "Web", THE Directory_Parser SHALL set web_access_level to ViewAccess
+3. ✅ WHEN the web_report_access field contains "Web", THE Directory_Parser SHALL set general_page_community_resources_access_level to ViewAccess
 4. ✅ WHEN the web_report_access field contains "Web", THE Directory_Parser SHALL set adrc_reports_access_level to NoAccess
-5. ✅ WHEN the web_report_access field contains "RepDash", THE Directory_Parser SHALL set web_access_level to NoAccess
+5. ✅ WHEN the web_report_access field contains "RepDash", THE Directory_Parser SHALL set general_page_community_resources_access_level to NoAccess
 6. ✅ WHEN the web_report_access field contains "RepDash", THE Directory_Parser SHALL set adrc_reports_access_level to ViewAccess
-7. ✅ WHEN the web_report_access field contains "Web,RepDash", THE Directory_Parser SHALL set web_access_level to ViewAccess
+7. ✅ WHEN the web_report_access field contains "Web,RepDash", THE Directory_Parser SHALL set general_page_community_resources_access_level to ViewAccess
 8. ✅ WHEN the web_report_access field contains "Web,RepDash", THE Directory_Parser SHALL set adrc_reports_access_level to ViewAccess
 
 ### Requirement 2: Handle Checkbox Field Variations ✅ SATISFIED
@@ -60,9 +59,9 @@ Requirements 1-14 have been fully implemented with comprehensive test coverage.
 
 #### Acceptance Criteria
 
-1. ✅ WHEN the web_report_access field contains "RepDash,Web", THE Directory_Parser SHALL set both web_access_level and adrc_reports_access_level to ViewAccess
-2. ✅ WHEN the web_report_access field contains "Web, RepDash" with a space after the comma, THE Directory_Parser SHALL set both web_access_level and adrc_reports_access_level to ViewAccess
-3. ✅ WHEN the web_report_access field contains "web" in lowercase, THE Directory_Parser SHALL set web_access_level to NoAccess
+1. ✅ WHEN the web_report_access field contains "RepDash,Web", THE Directory_Parser SHALL set both general_page_community_resources_access_level and adrc_reports_access_level to ViewAccess
+2. ✅ WHEN the web_report_access field contains "Web, RepDash" with a space after the comma, THE Directory_Parser SHALL set both general_page_community_resources_access_level and adrc_reports_access_level to ViewAccess
+3. ✅ WHEN the web_report_access field contains "web" in lowercase, THE Directory_Parser SHALL set general_page_community_resources_access_level to NoAccess
 4. ✅ WHEN the web_report_access field contains "repdash" in lowercase, THE Directory_Parser SHALL set adrc_reports_access_level to NoAccess
 
 ### Requirement 3: Validate Access Level Fields ✅ SATISFIED

@@ -230,7 +230,7 @@ The main work involves:
 
 1. Page projects must exist in the nacc admin group before user management runs
 2. Page projects must be created manually or via administrative script
-3. Page project naming convention: "page-{page_name}" (e.g., "page-web")
+3. Page project naming convention: "page-{page_name}" (e.g., "page-community-resources")
 
 ### Required Configuration
 
@@ -238,13 +238,13 @@ The main work involves:
 2. Authorization_Map entries must map page activities to Flywheel roles
 3. Example auth_file entry:
    ```yaml
-   page-web:
-     view-page-web: [read-only]
+   page-community-resources:
+     view-page-community-resources: [read-only]
    ```
 
 ### Coordinates With
 
-1. NACC Directory: Provides general_page_web_access_level field
+1. NACC Directory: Provides general_page_community_resources_access_level field
 2. ADRC Portal: Checks Flywheel permissions on page projects
 3. Center Authorization: Runs after general authorization in same user processing flow
 

@@ -321,7 +321,7 @@ class PageResource(Resource):
         return self.page
 ```
 
-**String Format**: `"page-{page_name}"` (e.g., "page-web")
+**String Format**: `"page-{page_name}"` (e.g., "page-community-resources")
 
 ### Activity
 
@@ -334,7 +334,7 @@ class Activity(BaseModel):
     action: ActionType  # Literal["submit-audit", "view"]
 ```
 
-**Usage**: Represents an authorization activity (e.g., "view-page-web")
+**Usage**: Represents an authorization activity (e.g., "view-page-community-resources")
 
 ### StudyAuthorizations
 
@@ -891,7 +891,7 @@ pants test --coverage common/test/python/users_test/test_general_authorization*.
 
 1. **Page Projects**: Must exist in the nacc admin group before user management runs
    - Projects must be created manually or via administrative script
-   - Naming convention: `page-{page_name}` (e.g., "page-web")
+   - Naming convention: `page-{page_name}` (e.g., "page-community-resources")
    - Projects must have appropriate permissions for role assignment
 
 2. **NACC Admin Group**: Must exist with ID "nacc"
@@ -904,13 +904,13 @@ pants test --coverage common/test/python/users_test/test_general_authorization*.
    - Format: YAML file mapping project labels to activities and roles
    - Example entry:
      ```yaml
-     page-web:
-       view-page-web: [read-only]
+     page-community-resources:
+       view-page-community-resources: [read-only]
      ```
    - Must be loaded and validated before user processing begins
 
 2. **NACC Directory**: Must provide general authorization data
-   - Field: `general_page_web_access_level` (or similar)
+   - Field: `general_page_community_resources_access_level`
    - Parsed into `PageResource` activities in user entries
    - Already implemented in directory parsing logic
 
