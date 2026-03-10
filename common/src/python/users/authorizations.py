@@ -343,7 +343,19 @@ class Activities(BaseModel):
         self.activities[resource] = activity
 
     def __contains__(self, item: Union[str, Activity, Resource]) -> bool:
-        # Check if item is a Resource (dict key check)
+        """Check if an activity or resource exists in this Activities
+        collection.
+
+        Args:
+            item: Can be a Resource (checks dict keys), an Activity object,
+                or a string representation of an Activity.
+
+        Returns:
+            True if the item exists, False otherwise.
+            Invalid strings that cannot be parsed as Activities return False
+            rather than raising an exception, following Python's convention
+            for the 'in' operator.
+        """
         if isinstance(item, Resource):
             return item in self.activities
 
@@ -353,7 +365,6 @@ class Activities(BaseModel):
                 Activity.model_validate(item) if isinstance(item, str) else item
             )
         except ValidationError:
-            # TODO: needs to raise error
             return False
 
         resource_activity = self.activities.get(input_activity.resource)
