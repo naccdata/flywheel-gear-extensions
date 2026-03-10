@@ -341,7 +341,10 @@ class TestMixedResourceTypes:
         assert isinstance(user_entry, CenterUserEntry)
 
         # Check general authorizations have page resource
-        assert PageResource(page="community-resources") in user_entry.authorizations.activities
+        assert (
+            PageResource(page="community-resources")
+            in user_entry.authorizations.activities
+        )
 
         # Check ADRC study has dashboard resource and datatypes
         adrc_auth = next(
