@@ -178,7 +178,7 @@ class DirectoryAuthorizations(BaseModel):
     clariti_dashboard_pay_access_level: AuthorizationAccessLevel = Field(
         alias="cl_pay_access_level"
     )
-    clariti_dashboard_ror_access_level: AuthorizationAccessLevel = Field(
+    clariti_datatype_participant_summary_access_level: AuthorizationAccessLevel = Field(
         alias="cl_ror_access_level"
     )
     adrc_datatype_scan_analysis_access_level: AuthorizationAccessLevel = Field(
@@ -234,6 +234,23 @@ class DirectoryAuthorizations(BaseModel):
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
+
+    @field_validator("firstname", "lastname", mode="before")
+    def strip_names(cls, value: Any) -> str:
+        """Strip leading and trailing whitespace from names.
+
+        Prevents trailing spaces from REDCap data from causing issues with
+        name matching in COManage registry and Flywheel.
+
+        Args:
+            value: the name value to strip
+
+        Returns:
+            the name with leading and trailing whitespace removed
+        """
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
     @field_validator("adcid", mode="before")
     def convert_adcid(cls, adcid: Any) -> Optional[int]:
@@ -302,7 +319,7 @@ class DirectoryAuthorizations(BaseModel):
         "clariti_datatype_dicom_access_level",
         "clariti_datatype_biomarker_access_level",
         "clariti_dashboard_pay_access_level",
-        "clariti_dashboard_ror_access_level",
+        "clariti_datatype_participant_summary_access_level",
         "adrc_datatype_scan_analysis_access_level",
         mode="before",
     )

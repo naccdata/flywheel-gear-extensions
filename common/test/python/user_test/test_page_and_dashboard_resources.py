@@ -220,9 +220,9 @@ class TestClaritiDashboardAccess:
         activity = clariti_auth.activities[pay_resource]
         assert activity.action == "view"
 
-    def test_clariti_dashboard_ror_creates_dashboard_resource(self):
-        """Test that clariti_dashboard_ror_access_level creates
-        DashboardResource."""
+    def test_clariti_participant_summary_creates_datatype_resource(self):
+        """Test that clariti_datatype_participant_summary_access_level creates
+        DatatypeResource."""
         entry = create_test_entry(
             cl_ror_access_level="ViewAccess",
             study_selections="AffiliatedStudy",
@@ -246,12 +246,13 @@ class TestClaritiDashboardAccess:
         )
         assert clariti_auth is not None
 
-        # The clariti_dashboard_ror_access_level field should create a DashboardResource
-        ror_resource = DashboardResource(dashboard="ror")
-        assert ror_resource in clariti_auth.activities
+        # The clariti_datatype_participant_summary_access_level field should
+        # create a DatatypeResource
+        participant_summary_resource = DatatypeResource(datatype="participant-summary")
+        assert participant_summary_resource in clariti_auth.activities
 
-    def test_clariti_both_dashboards_together(self):
-        """Test that both CLARiTI dashboard fields work together."""
+    def test_clariti_dashboard_and_datatype_together(self):
+        """Test that CLARiTI dashboard and datatype fields work together."""
         entry = create_test_entry(
             cl_pay_access_level="ViewAccess",
             cl_ror_access_level="ViewAccess",
@@ -276,12 +277,15 @@ class TestClaritiDashboardAccess:
         )
         assert clariti_auth is not None
 
-        # Both dashboard resources should be present
+        # Dashboard and datatype resources should both be present
         assert DashboardResource(dashboard="pay") in clariti_auth.activities
-        assert DashboardResource(dashboard="ror") in clariti_auth.activities
+        assert (
+            DatatypeResource(datatype="participant-summary") in clariti_auth.activities
+        )
 
     def test_clariti_dashboard_no_access_ignored(self):
-        """Test that NoAccess doesn't create dashboard resources."""
+        """Test that NoAccess doesn't create dashboard or datatype
+        resources."""
         entry = create_test_entry(
             cl_pay_access_level="NoAccess",
             cl_ror_access_level="NoAccess",
@@ -308,7 +312,7 @@ class TestClaritiDashboardAccess:
 
         # NoAccess should not create any resources
         assert DashboardResource(dashboard="pay") not in clariti_auth.activities
-        assert DashboardResource(dashboard="ror") not in clariti_auth.activities
+        assert DatatypeResource(datatype="participant-summary") not in clariti_auth.activities
 
 
 class TestMixedResourceTypes:
@@ -371,5 +375,5 @@ class TestMixedResourceTypes:
         )
         assert clariti_auth is not None
         assert DashboardResource(dashboard="pay") in clariti_auth.activities
-        assert DashboardResource(dashboard="ror") in clariti_auth.activities
+        assert DatatypeResource(datatype="participant-summary") in clariti_auth.activities
         assert DatatypeResource(datatype="form") in clariti_auth.activities
