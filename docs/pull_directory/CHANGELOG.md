@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 3.1.0
 
 * Adds support for CLARiTI role-based authorization mapping
 * Adds parsing of 14 CLARiTI organizational role fields from REDCap directory report
