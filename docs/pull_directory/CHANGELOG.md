@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.1.1
+
+* Reclassifies `cl_ror_access_level` field as participant-summary datatype resource instead of dashboard resource
+* Renames `clariti_dashboard_ror_access_level` to `clariti_datatype_participant_summary_access_level` to reflect correct resource type
+* Adds 'participant-summary' to supported datatype names
+* Adds name whitespace stripping to `DirectoryAuthorizations` field validator to handle REDCap data with trailing spaces
+* Improves data normalization to prevent name matching issues in COManage registry and Flywheel
+
 ## 3.1.0
 
 * Adds support for CLARiTI role-based authorization mapping
