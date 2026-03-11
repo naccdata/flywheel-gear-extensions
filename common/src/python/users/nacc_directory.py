@@ -21,6 +21,7 @@ from users.authorizations import (
     Resource,
     StudyAuthorizations,
 )
+from users.clariti_roles import map_clariti_roles_to_activities
 from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName, UserEntry
 
 log = logging.getLogger(__name__)
@@ -183,6 +184,53 @@ class DirectoryAuthorizations(BaseModel):
     adrc_datatype_scan_analysis_access_level: AuthorizationAccessLevel = Field(
         alias="scan_dashboard_access_level"
     )
+    # CLARiTI organizational roles (14 fields)
+    loc_clariti_role___u01copi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___u01copi"
+    )
+    loc_clariti_role___pi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___pi"
+    )
+    loc_clariti_role___piadmin: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___piadmin"
+    )
+    loc_clariti_role___copi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___copi"
+    )
+    loc_clariti_role___subawardadmin: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___subawardadmin"
+    )
+    loc_clariti_role___addlsubaward: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___addlsubaward"
+    )
+    loc_clariti_role___studycoord: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___studycoord"
+    )
+    loc_clariti_role___mpi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___mpi"
+    )
+    loc_clariti_role___orecore: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___orecore"
+    )
+    loc_clariti_role___crl: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___crl"
+    )
+    loc_clariti_role___advancedmri: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___advancedmri"
+    )
+    loc_clariti_role___physicist: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___physicist"
+    )
+    loc_clariti_role___addlimaging: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___addlimaging"
+    )
+    loc_clariti_role___reg: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___reg"
+    )
+    # CLARiTI individual role (1 field)
+    ind_clar_core_role___admin: Optional[bool] = Field(
+        default=None, alias="ind_clar_core_role___admin"
+    )
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
@@ -202,6 +250,39 @@ class DirectoryAuthorizations(BaseModel):
             return int(adcid)
         except ValueError:
             return None
+
+    @field_validator(
+        "loc_clariti_role___u01copi",
+        "loc_clariti_role___pi",
+        "loc_clariti_role___piadmin",
+        "loc_clariti_role___copi",
+        "loc_clariti_role___subawardadmin",
+        "loc_clariti_role___addlsubaward",
+        "loc_clariti_role___studycoord",
+        "loc_clariti_role___mpi",
+        "loc_clariti_role___orecore",
+        "loc_clariti_role___crl",
+        "loc_clariti_role___advancedmri",
+        "loc_clariti_role___physicist",
+        "loc_clariti_role___addlimaging",
+        "loc_clariti_role___reg",
+        "ind_clar_core_role___admin",
+        mode="before",
+    )
+    def convert_clariti_checkbox(cls, value: Any) -> Optional[bool]:
+        """Convert REDCap checkbox values to boolean.
+
+        REDCap checkboxes: "1" = checked, "0" or "" = unchecked.
+        Returns True for "1", None for "0", "", or None.
+        Boolean values pass through unchanged.
+        """
+        if value is None or value == "" or value == "0":
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value == "1":
+            return True
+        return None
 
     @field_validator(
         "adrc_datatype_enrollment_access_level",
@@ -417,6 +498,15 @@ class DirectoryAuthorizations(BaseModel):
                 continue
 
             log.warning("unknown resource type %s for %s", resource_type, self.email)
+
+        # Add CLARiTI role-based activities
+        clariti_activities = map_clariti_roles_to_activities(self)
+        for activity in clariti_activities:
+            study_map.add_study_access(
+                study_id="clariti",
+                access_level="ViewAccess",
+                resource=activity.resource,
+            )
 
         return study_map
 
