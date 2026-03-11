@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Guidance for using the kiro-pants-power to automate Pants build system and devcontainer operations
 ---
 
 # Kiro Pants Power Usage
