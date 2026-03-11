@@ -2,6 +2,17 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Adds support for CLARiTI role-based authorization mapping
+* Adds parsing of 14 CLARiTI organizational role fields from REDCap directory report
+* Adds parsing of CLARiTI admin core member role field
+* Maps CLARiTI payment roles to payment-tracker dashboard view access
+* Maps CLARiTI organizational roles to enrollment dashboard view access
+* Maps CLARiTI admin core member role to both payment-tracker and enrollment dashboard access
+* Creates study authorizations with `study_id="clariti"` for users with CLARiTI roles
+* Maintains backward compatibility - REDCap reports without CLARiTI fields continue to work
+
 ## 3.0.1
 
 * Fixes validation error when processing directory entries with empty or 'NA' adcid values
