@@ -312,7 +312,10 @@ class TestClaritiDashboardAccess:
 
         # NoAccess should not create any resources
         assert DashboardResource(dashboard="pay") not in clariti_auth.activities
-        assert DatatypeResource(datatype="participant-summary") not in clariti_auth.activities
+        assert (
+            DatatypeResource(datatype="participant-summary")
+            not in clariti_auth.activities
+        )
 
 
 class TestMixedResourceTypes:
@@ -375,5 +378,7 @@ class TestMixedResourceTypes:
         )
         assert clariti_auth is not None
         assert DashboardResource(dashboard="pay") in clariti_auth.activities
-        assert DatatypeResource(datatype="participant-summary") in clariti_auth.activities
+        assert (
+            DatatypeResource(datatype="participant-summary") in clariti_auth.activities
+        )
         assert DatatypeResource(datatype="form") in clariti_auth.activities
