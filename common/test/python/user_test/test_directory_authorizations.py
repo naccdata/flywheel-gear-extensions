@@ -154,3 +154,569 @@ class TestDirectoryAuthorizations:
             ),
         },
     )
+
+
+class TestCLARiTIRoleDeserialization:
+    """Tests for CLARiTI role field deserialization."""
+
+    def test_clariti_checkbox_value_1(self):
+        """Test that checkbox value "1" deserializes to True."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "1",
+                "loc_clariti_role___pi": "1",
+                "ind_clar_core_role___admin": "1",
+            },
+            by_alias=True,
+        )
+        assert auths.loc_clariti_role___u01copi is True
+        assert auths.loc_clariti_role___pi is True
+        assert auths.ind_clar_core_role___admin is True
+
+    def test_clariti_checkbox_value_0(self):
+        """Test that checkbox value "0" deserializes to None."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "0",
+                "loc_clariti_role___pi": "0",
+                "ind_clar_core_role___admin": "0",
+            },
+            by_alias=True,
+        )
+        assert auths.loc_clariti_role___u01copi is None
+        assert auths.loc_clariti_role___pi is None
+        assert auths.ind_clar_core_role___admin is None
+
+    def test_clariti_checkbox_empty_string(self):
+        """Test that empty string deserializes to None."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "",
+                "loc_clariti_role___pi": "",
+                "ind_clar_core_role___admin": "",
+            },
+            by_alias=True,
+        )
+        assert auths.loc_clariti_role___u01copi is None
+        assert auths.loc_clariti_role___pi is None
+        assert auths.ind_clar_core_role___admin is None
+
+    def test_clariti_missing_fields(self):
+        """Test that missing CLARiTI fields default to None."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+            },
+            by_alias=True,
+        )
+        # All CLARiTI role fields should default to None
+        assert auths.loc_clariti_role___u01copi is None
+        assert auths.loc_clariti_role___pi is None
+        assert auths.loc_clariti_role___piadmin is None
+        assert auths.loc_clariti_role___copi is None
+        assert auths.loc_clariti_role___subawardadmin is None
+        assert auths.loc_clariti_role___addlsubaward is None
+        assert auths.loc_clariti_role___studycoord is None
+        assert auths.loc_clariti_role___mpi is None
+        assert auths.loc_clariti_role___orecore is None
+        assert auths.loc_clariti_role___crl is None
+        assert auths.loc_clariti_role___advancedmri is None
+        assert auths.loc_clariti_role___physicist is None
+        assert auths.loc_clariti_role___addlimaging is None
+        assert auths.loc_clariti_role___reg is None
+        assert auths.ind_clar_core_role___admin is None
+
+    def test_clariti_mixed_with_non_clariti_fields(self):
+        """Test that CLARiTI fields work alongside existing fields."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "Web",
+                "study_selections": "P30",
+                "scan_dashboard_access_level": "ViewAccess",
+                "p30_naccid_enroll_access_level": "ViewAccess",
+                "p30_clin_forms_access_level": "SubmitAudit",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "CLARiTI",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "ViewAccess",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "ViewAccess",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "1",
+                "loc_clariti_role___mpi": "1",
+                "ind_clar_core_role___admin": "1",
+            },
+            by_alias=True,
+        )
+        # Verify CLARiTI fields
+        assert auths.loc_clariti_role___u01copi is True
+        assert auths.loc_clariti_role___mpi is True
+        assert auths.ind_clar_core_role___admin is True
+        # Verify existing fields still work
+        assert auths.adrc_datatype_enrollment_access_level == "ViewAccess"
+        assert auths.adrc_datatype_form_access_level == "SubmitAudit"
+        assert auths.clariti_datatype_form_access_level == "ViewAccess"
+        assert auths.clariti_dashboard_pay_access_level == "ViewAccess"
+        assert "CLARiTI" in auths.affiliated_study
+
+    def test_backward_compatibility_without_clariti_fields(self):
+        """Test that REDCap reports without CLARiTI fields still work."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "web_report_access": "1",
+                "study_selections": "P30",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "ViewAccess",
+                "p30_clin_forms_access_level": "SubmitAudit",
+                "p30_imaging_access_level": "SubmitAudit",
+                "p30_flbm_access_level": "SubmitAudit",
+                "p30_genetic_access_level": "ViewAccess",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "fw_email": "user@institution.edu",
+                "email": "user@institution.edu",
+                "contact_company_name": "an institution",
+                "adresearchctr": "999",
+                "adcid": "999",
+                "archive_contact": "0",
+            },
+            by_alias=True,
+        )
+        assert auths
+        assert not auths.inactive
+        # All CLARiTI fields should be None
+        assert auths.loc_clariti_role___u01copi is None
+        assert auths.ind_clar_core_role___admin is None
+        # Existing functionality should work
+        user_entry = auths.to_user_entry()
+        assert user_entry and isinstance(user_entry, CenterUserEntry)
+        assert user_entry.active
+        assert user_entry.adcid == 999
+
+    def test_all_organizational_roles(self):
+        """Test all 14 organizational role fields."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "1",
+                "loc_clariti_role___pi": "1",
+                "loc_clariti_role___piadmin": "1",
+                "loc_clariti_role___copi": "1",
+                "loc_clariti_role___subawardadmin": "1",
+                "loc_clariti_role___addlsubaward": "1",
+                "loc_clariti_role___studycoord": "1",
+                "loc_clariti_role___mpi": "1",
+                "loc_clariti_role___orecore": "1",
+                "loc_clariti_role___crl": "1",
+                "loc_clariti_role___advancedmri": "1",
+                "loc_clariti_role___physicist": "1",
+                "loc_clariti_role___addlimaging": "1",
+                "loc_clariti_role___reg": "1",
+            },
+            by_alias=True,
+        )
+        # Verify all 14 organizational roles
+        assert auths.loc_clariti_role___u01copi is True
+        assert auths.loc_clariti_role___pi is True
+        assert auths.loc_clariti_role___piadmin is True
+        assert auths.loc_clariti_role___copi is True
+        assert auths.loc_clariti_role___subawardadmin is True
+        assert auths.loc_clariti_role___addlsubaward is True
+        assert auths.loc_clariti_role___studycoord is True
+        assert auths.loc_clariti_role___mpi is True
+        assert auths.loc_clariti_role___orecore is True
+        assert auths.loc_clariti_role___crl is True
+        assert auths.loc_clariti_role___advancedmri is True
+        assert auths.loc_clariti_role___physicist is True
+        assert auths.loc_clariti_role___addlimaging is True
+        assert auths.loc_clariti_role___reg is True
+
+
+class TestCLARiTIStudyAccessMapIntegration:
+    """Integration tests for CLARiTI role mapping with StudyAccessMap."""
+
+    def test_clariti_activities_added_to_study_map(self):
+        """Test that CLARiTI activities are added to study_map with
+        study_id='clariti'."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "1",
+            },
+            by_alias=True,
+        )
+
+        user_entry = auths.to_user_entry()
+        assert user_entry and isinstance(user_entry, CenterUserEntry)
+
+        # Find CLARiTI study authorizations
+        clariti_auth = None
+        for auth in user_entry.study_authorizations:
+            if auth.study_id == "clariti":
+                clariti_auth = auth
+                break
+
+        assert clariti_auth is not None
+        assert clariti_auth.study_id == "clariti"
+        # Should have both payment-tracker and enrollment activities
+        # (u01copi is both a payment role and an organizational role)
+        assert len(clariti_auth.activities) == 2
+
+        from users.authorizations import DashboardResource
+
+        # Check for payment-tracker activity
+        payment_tracker_resource = DashboardResource(dashboard="payment-tracker")
+        assert payment_tracker_resource in clariti_auth.activities
+        assert clariti_auth.activities[payment_tracker_resource].action == "view"
+
+        # Check for enrollment activity
+        enrollment_resource = DashboardResource(dashboard="enrollment")
+        assert enrollment_resource in clariti_auth.activities
+        assert clariti_auth.activities[enrollment_resource].action == "view"
+
+    def test_multiple_clariti_activities_added_correctly(self):
+        """Test that multiple CLARiTI activities are added correctly."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+                "loc_clariti_role___u01copi": "1",
+                "loc_clariti_role___mpi": "1",
+            },
+            by_alias=True,
+        )
+
+        user_entry = auths.to_user_entry()
+        assert user_entry and isinstance(user_entry, CenterUserEntry)
+
+        # Find CLARiTI study authorizations
+        clariti_auth = None
+        for auth in user_entry.study_authorizations:
+            if auth.study_id == "clariti":
+                clariti_auth = auth
+                break
+
+        assert clariti_auth is not None
+        assert clariti_auth.study_id == "clariti"
+        # Should have both payment-tracker and enrollment activities
+        assert len(clariti_auth.activities) == 2
+
+        from users.authorizations import DashboardResource
+
+        # Check for payment-tracker activity
+        payment_tracker_resource = DashboardResource(dashboard="payment-tracker")
+        assert payment_tracker_resource in clariti_auth.activities
+        assert clariti_auth.activities[payment_tracker_resource].action == "view"
+
+        # Check for enrollment activity
+        enrollment_resource = DashboardResource(dashboard="enrollment")
+        assert enrollment_resource in clariti_auth.activities
+        assert clariti_auth.activities[enrollment_resource].action == "view"
+
+    def test_empty_activity_list_no_study_entry(self):
+        """Test that empty activity list doesn't create study entry."""
+        auths = DirectoryAuthorizations.model_validate(
+            {
+                "firstname": "Test",
+                "lastname": "User",
+                "email": "user@institution.edu",
+                "fw_email": "user@institution.edu",
+                "archive_contact": "0",
+                "contact_company_name": "an institution",
+                "adcid": "999",
+                "web_report_access": "",
+                "study_selections": "",
+                "scan_dashboard_access_level": "",
+                "p30_naccid_enroll_access_level": "",
+                "p30_clin_forms_access_level": "",
+                "p30_imaging_access_level": "",
+                "p30_flbm_access_level": "",
+                "p30_genetic_access_level": "",
+                "affiliated_study": "",
+                "leads_naccid_enroll_access_level": "",
+                "leads_clin_forms_access_level": "",
+                "dvcid_naccid_enroll_access_level": "",
+                "dvcid_clin_forms_access_level": "",
+                "allftd_naccid_enroll_access_level": "",
+                "allftd_clin_forms_access_level": "",
+                "dlbc_naccid_enroll_access_level": "",
+                "dlbc_clin_forms_access_level": "",
+                "cl_clin_forms_access_level": "",
+                "cl_imaging_access_level": "",
+                "cl_flbm_access_level": "",
+                "cl_pay_access_level": "",
+                "cl_ror_access_level": "",
+                "permissions_approval": "1",
+                "permissions_approval_date": "2025-08-13",
+                "permissions_approval_name": "",
+            },
+            by_alias=True,
+        )
+
+        user_entry = auths.to_user_entry()
+        assert user_entry and isinstance(user_entry, CenterUserEntry)
+
+        # Should not have CLARiTI study authorizations
+        clariti_auth = None
+        for auth in user_entry.study_authorizations:
+            if auth.study_id == "clariti":
+                clariti_auth = auth
+                break
+
+        assert clariti_auth is None

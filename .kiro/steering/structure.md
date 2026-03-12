@@ -6,6 +6,15 @@ This is a Pants-managed monorepo with multiple packages and gears organized by f
 
 ## Top-Level Directories
 
+The flywheel-gear-extensions repository contains:
+- **Gears**: Flywheel data processing gears (in `gear/` directory)
+- **Packages**: Shared Python libraries (`common/`, `nacc-common/`, `ssm_parameter_store/`)
+- **Templates**: Cookiecutter templates for creating new components
+- **Documentation**: MkDocs documentation for all components
+- **Build Configuration**: Pants build system configuration
+
+## Top-Level Directory Structure
+
 ### Core Packages
 
 - **`nacc-common/`** - Shared Python package for NACC Data Platform utilities
@@ -69,10 +78,12 @@ This is a Pants-managed monorepo with multiple packages and gears organized by f
 ### Other
 
 - **`comanage/`** - COmanage API integration
-- **`bin/`** - Utility scripts
+- **`bin/`** - Utility scripts for devcontainer management
 - **`.devcontainer/`** - VSCode dev container configuration
 - **`.github/`** - GitHub Actions workflows
 - **`mypy-stubs/`** - Type stubs for external packages
+- **`scripts/`** - Utility scripts for administrative tasks
+- **`scratch/`** - Temporary working directory (not tracked)
 
 ## Source Code Conventions
 

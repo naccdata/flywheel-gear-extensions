@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 4.1.0
 
 * Implements general authorization support for non-center-specific resources
   * Enables users to receive Flywheel project access for ADRC Portal pages based on directory permissions
@@ -13,6 +13,11 @@ All notable changes to this gear are documented in this file.
   * Enables users to receive Flywheel project access for dashboard resources based on directory permissions
   * Processes dashboard resources and assigns roles to dashboard stub projects in center groups
   * Completes authorization flow for dashboard resources parsed in version 4.0.0
+* Adds name whitespace stripping to `PersonName` and `RegistryPerson` models
+  * Adds field validator to `PersonName` to strip whitespace from first_name and last_name
+  * Adds whitespace stripping in `RegistryPerson.from_name_and_email()` and `primary_name()` property
+  * Provides defense-in-depth to ensure names are normalized throughout the system
+  * Prevents issues with name matching in COManage registry and Flywheel when REDCap data contains trailing spaces
 
 ## 4.0.3
 

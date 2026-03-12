@@ -9,6 +9,7 @@ DatatypeNameType = Literal[
     "genetic-availability",
     "gwas",
     "imputation",
+    "participant-summary",
     "scan-analysis",
 ]
 

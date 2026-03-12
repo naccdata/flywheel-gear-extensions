@@ -81,6 +81,10 @@ class RegistryPerson:
         Returns:
           the RegistryPerson with name and email
         """
+        # Strip whitespace from names to ensure consistency with registry
+        firstname = firstname.strip() if isinstance(firstname, str) else firstname
+        lastname = lastname.strip() if isinstance(lastname, str) else lastname
+
         coperson = CoPerson(co_id=coid, status="A")
         email_address = EmailAddress(mail=email, type="official", verified=True)
         role = CoPersonRole(cou_id=None, affiliation="member", status="A")
@@ -182,6 +186,8 @@ class RegistryPerson:
         """Returns the primary name of this person as a string.
 
         Concatenates firstname and lastname separated by a space.
+        Strips whitespace from individual name components to normalize names
+        that may have been stored with trailing spaces.
 
         Returns:
           String representation of full primary name. None if there is none.
@@ -191,7 +197,10 @@ class RegistryPerson:
 
         for name in self.__coperson_message.name:
             if name.primary_name:
-                return f"{name.given} {name.family}"
+                # Strip whitespace from name components for consistency
+                given = name.given.strip() if name.given else ""
+                family = name.family.strip() if name.family else ""
+                return f"{given} {family}"
 
         return None
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import NewType, Optional
 
 from flywheel.models.user import User
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
 from users.authorizations import Authorizations, StudyAuthorizations
 from users.user_registry import RegistryPerson
@@ -18,6 +18,23 @@ class PersonName(BaseModel):
 
     first_name: str
     last_name: str
+
+    @field_validator("first_name", "last_name", mode="before")
+    def strip_names(cls, value: str) -> str:
+        """Strip leading and trailing whitespace from names.
+
+        Provides defense-in-depth to ensure names are normalized even if
+        they bypass DirectoryAuthorizations validation.
+
+        Args:
+            value: the name value to strip
+
+        Returns:
+            the name with leading and trailing whitespace removed
+        """
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
     def as_str(self) -> str:
         """Returns this name as a string with first and last names separated by

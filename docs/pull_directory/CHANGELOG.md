@@ -2,6 +2,25 @@
 
 All notable changes to this gear are documented in this file.
 
+## 3.1.1
+
+* Reclassifies `cl_ror_access_level` field as participant-summary datatype resource instead of dashboard resource
+* Renames `clariti_dashboard_ror_access_level` to `clariti_datatype_participant_summary_access_level` to reflect correct resource type
+* Adds 'participant-summary' to supported datatype names
+* Adds name whitespace stripping to `DirectoryAuthorizations` field validator to handle REDCap data with trailing spaces
+* Improves data normalization to prevent name matching issues in COManage registry and Flywheel
+
+## 3.1.0
+
+* Adds support for CLARiTI role-based authorization mapping
+* Adds parsing of 14 CLARiTI organizational role fields from REDCap directory report
+* Adds parsing of CLARiTI admin core member role field
+* Maps CLARiTI payment roles to payment-tracker dashboard view access
+* Maps CLARiTI organizational roles to enrollment dashboard view access
+* Maps CLARiTI admin core member role to both payment-tracker and enrollment dashboard access
+* Creates study authorizations with `study_id="clariti"` for users with CLARiTI roles
+* Maintains backward compatibility - REDCap reports without CLARiTI fields continue to work
+
 ## 3.0.1
 
 * Fixes validation error when processing directory entries with empty or 'NA' adcid values
