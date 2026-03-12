@@ -429,9 +429,19 @@ class StudyModel(BaseModel):
     ) -> List[DatatypeConfig]:
         """Migrate from study-level mode to datatype-level modes.
 
-        Note: This method looks for the mode field in the raw input data.
-        Since datatypes is validated before mode in field order, we need to
-        access the raw input data rather than validated data.
+        IMPORTANT - Field Ordering Dependency:
+        This method relies on Pydantic's field validation order. The 'datatypes'
+        field is defined before 'mode' in the StudyModel class definition, so when
+        this validator runs, 'mode' has not been validated yet. We access it from
+        info.data which contains the raw input data.
+
+        If the field order in StudyModel changes (e.g., 'mode' is moved before
+        'datatypes'), this migration logic will break. The validator would need
+        to be updated to access the validated mode value instead.
+
+        Note: This migration path is for backward compatibility with legacy
+        configurations that use study-level mode. New configurations should
+        use datatype-level mode configuration.
         """
         # Get mode from the raw input data (not yet validated)
         # info.data contains fields that have been validated so far
