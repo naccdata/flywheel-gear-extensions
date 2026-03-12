@@ -3,17 +3,18 @@
 All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
+
+## 2.3.0
+
+* Adds support for dashboard projects in studies
+  - Studies can now define a `dashboards` field with a list of dashboard names
+  - Dashboard projects are created for active centers with naming pattern `dashboard-{name}` or `dashboard-{name}-{study_id}`
+  - Dashboard projects are tracked in center metadata and included in user authorization
 * Adds support for page projects in studies
   - Studies can now define a `pages` field with a list of page names
   - Page projects are created for active centers with naming pattern `page-{name}` or `page-{name}-{study_id}`
   - Page projects are tracked in center metadata and included in user authorization
   - Mirrors dashboard project functionality for study-specific portal pages
-
-## 2.3.0
-* Adds support for dashboard projects in studies
-  - Studies can now define a `dashboards` field with a list of dashboard names
-  - Dashboard projects are created for active centers with naming pattern `dashboard-{name}` or `dashboard-{name}-{study_id}`
-  - Dashboard projects are tracked in center metadata and included in user authorization
 
 ## 2.2.1
 Fixes loading the input file
