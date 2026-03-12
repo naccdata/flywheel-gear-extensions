@@ -658,6 +658,7 @@ class StudyMappingVisitor(StudyVisitor):
 
         This method creates dashboards and pages at the appropriate level.
         Currently only center-level dashboards are implemented.
+        Study-level dashboards are handled by separate logic (not in this method).
 
         Args:
             center: the center group
@@ -669,23 +670,15 @@ class StudyMappingVisitor(StudyVisitor):
             return
 
         # Handle dashboards by level
+        # Note: Only center-level dashboards are created here.
+        # Study-level dashboards are handled elsewhere in the system.
         if self.__study.dashboards:
             center_dashboards = self.__study.get_dashboards_by_level("center")
-            study_dashboards = self.__study.get_dashboards_by_level("study")
 
             # Create center-level dashboards
             for dashboard_name in center_dashboards:
                 self.__add_dashboard(
                     center=center, study_info=study_info, dashboard_name=dashboard_name
-                )
-
-            # Log and skip study-level dashboards (not implemented yet)
-            if study_dashboards:
-                log.info(
-                    "Skipping study-level dashboards for study %s: %s "
-                    "(study-level dashboards not implemented yet)",
-                    self.__study.study_id,
-                    study_dashboards,
                 )
 
         # Handle pages
