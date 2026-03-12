@@ -28,63 +28,63 @@ If you encounter any issues using the kiro-pants-power tools:
 
 ## Tasks
 
-- [ ] 1. Create new configuration models
-  - [ ] 1.1 Create DatatypeConfig model in common/src/python/projects/study.py
+- [x] 1. Create new configuration models
+  - [x] 1.1 Create DatatypeConfig model in common/src/python/projects/study.py
     - Define DatatypeConfig with name and mode fields
     - Add Pydantic configuration with kebab-case aliases
     - Add docstring explaining the model purpose
     - _Requirements: 1.1, 1.2_
 
-  - [ ] 1.2 Create DashboardConfig model in common/src/python/projects/study.py
+  - [x] 1.2 Create DashboardConfig model in common/src/python/projects/study.py
     - Define DashboardConfig with name and level fields
     - Set default level to "center"
     - Add Pydantic configuration with kebab-case aliases
     - Add docstring explaining the model purpose
     - _Requirements: 2.1, 2.2_
 
-- [ ] 2. Update StudyModel with new fields and helper methods
-  - [ ] 2.1 Add new fields to StudyModel
+- [x] 2. Update StudyModel with new fields and helper methods
+  - [x] 2.1 Add new fields to StudyModel
     - Modify datatypes field to accept List[str] | List[DatatypeConfig]
     - Modify dashboards field to accept Optional[List[str] | List[DashboardConfig]]
     - Add funding_organization as Optional[str]
     - Mark mode field as Optional (deprecated)
     - _Requirements: 1.1, 2.1, 3.1_
 
-  - [ ] 2.2 Implement helper methods for datatype access
+  - [x] 2.2 Implement helper methods for datatype access
     - Implement get_datatype_mode(datatype: str) method
     - Implement get_datatype_configs() method
     - Implement get_datatypes_by_mode(mode) method
     - _Requirements: 1.5_
 
-  - [ ] 2.3 Implement helper methods for dashboard access
+  - [x] 2.3 Implement helper methods for dashboard access
     - Implement get_dashboard_level(dashboard: str) method
     - Implement get_dashboard_configs() method
     - Implement get_dashboards_by_level(level) method
     - _Requirements: 2.6, 2.7_
 
-- [ ] 3. Implement validation and migration logic
-  - [ ] 3.1 Implement normalize_datatypes field validator
+- [x] 3. Implement validation and migration logic
+  - [x] 3.1 Implement normalize_datatypes field validator
     - Handle List[str] format with study-level mode migration
     - Handle List[DatatypeConfig] format
     - Validate mode values are "aggregation" or "distribution"
     - Log deprecation warning when using study-level mode
     - _Requirements: 1.2, 1.3, 7.1, 8.7_
 
-  - [ ] 3.2 Implement normalize_dashboards field validator
+  - [x] 3.2 Implement normalize_dashboards field validator
     - Handle List[str] format with default level "center"
     - Handle List[DashboardConfig] format
     - Handle None value
     - Validate level values are "center" or "study"
     - _Requirements: 2.2, 8.8_
 
-  - [ ] 3.3 Implement validate_configuration model validator
+  - [x] 3.3 Implement validate_configuration model validator
     - Validate primary studies have aggregation-only datatypes
     - Validate all datatypes have mode configuration
     - Validate all dashboard levels are valid
     - Raise clear validation errors for invalid configurations
     - _Requirements: 1.4, 9.1, 9.3, 9.4_
 
-  - [ ] 3.4 Write unit tests for StudyModel validation
+  - [x] 3.4 Write unit tests for StudyModel validation
     - Test migration from old format to new format
     - Test primary study validation (aggregation-only)
     - Test affiliated study with mixed modes
@@ -92,11 +92,11 @@ If you encounter any issues using the kiro-pants-power tools:
     - Test edge cases (empty lists, single items)
     - _Requirements: 1.2, 1.4, 7.1, 9.1, 9.2_
 
-  - [ ] 3.5 Write property test for datatype mode storage and retrieval
+  - [x] 3.5 Write property test for datatype mode storage and retrieval
     - **Property 1: Datatype Mode Storage and Retrieval**
     - **Validates: Requirements 1.1, 1.5**
 
-  - [ ] 3.6 Write property test for backward compatible mode field
+  - [x] 3.6 Write property test for backward compatible mode field
     - **Property 3: Backward Compatible Mode Field**
     - **Validates: Requirements 1.3, 7.1**
 
@@ -108,20 +108,20 @@ If you encounter any issues using the kiro-pants-power tools:
     - **Property 6: Dashboard Level Storage and Retrieval**
     - **Validates: Requirements 2.1, 2.6**
 
-- [ ] 4. Implement serialization support
-  - [ ] 4.1 Verify DatatypeConfig serialization
+- [x] 4. Implement serialization support
+  - [x] 4.1 Verify DatatypeConfig serialization
     - Test serialization to dict/JSON format
     - Test deserialization from dict/JSON format
     - Verify kebab-case aliases work correctly
     - _Requirements: 8.1, 8.2_
 
-  - [ ] 4.2 Verify DashboardConfig serialization
+  - [x] 4.2 Verify DashboardConfig serialization
     - Test serialization to dict/JSON format
     - Test deserialization from dict/JSON format
     - Verify default level "center" is applied
     - _Requirements: 8.3, 8.4_
 
-  - [ ] 4.3 Verify funding_organization serialization
+  - [x] 4.3 Verify funding_organization serialization
     - Test serialization when field is present
     - Test deserialization when field is present
     - Test handling when field is absent
@@ -139,46 +139,46 @@ If you encounter any issues using the kiro-pants-power tools:
     - **Property 8: Funding Organization Round Trip**
     - **Validates: Requirements 3.1, 3.2, 8.5, 8.6**
 
-- [ ] 5. Update StudyMappingVisitor for mixed-mode support
-  - [ ] 5.1 Modify visit_study method to group datatypes by mode
+- [x] 5. Update StudyMappingVisitor for mixed-mode support
+  - [x] 5.1 Modify visit_study method to group datatypes by mode
     - Use get_datatypes_by_mode() to separate aggregation and distribution datatypes
     - Create AggregationMapper only if aggregation datatypes exist
     - Create DistributionMapper only if distribution datatypes exist
     - _Requirements: 10.1, 10.2, 10.3_
 
-  - [ ] 5.2 Update mapper invocations to pass datatype lists
+  - [x] 5.2 Update mapper invocations to pass datatype lists
     - Pass aggregation datatypes list to AggregationMapper methods
     - Pass distribution datatypes list to DistributionMapper methods
     - Ensure both mappers can operate on the same study
     - _Requirements: 5.3, 10.3_
 
-  - [ ] 5.3 Update dashboard creation to use per-dashboard levels
+  - [x] 5.3 Update dashboard creation to use per-dashboard levels
     - Use get_dashboards_by_level("center") for center-level dashboards
     - Log and skip study-level dashboards (not implemented yet)
     - Maintain backward compatibility for old dashboard format
     - _Requirements: 2.4, 2.5, 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 5.4 Write unit tests for mixed-mode study mapping
+  - [x] 5.4 Write unit tests for mixed-mode study mapping
     - Test study with only aggregation datatypes
     - Test study with only distribution datatypes
     - Test study with mixed modes
     - Test dashboard creation at different levels
     - _Requirements: 4.1, 4.2, 5.1, 5.2, 6.1, 10.1, 10.2_
 
-- [ ] 6. Update mapper methods to accept datatype lists
-  - [ ] 6.1 Modify AggregationMapper.map_center_pipelines signature
+- [x] 6. Update mapper methods to accept datatype lists
+  - [x] 6.1 Modify AggregationMapper.map_center_pipelines signature
     - Add datatypes parameter to method signature
     - Use datatypes parameter instead of study.datatypes
     - Update all calls to this method
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-  - [ ] 6.2 Modify DistributionMapper methods to accept datatype lists
+  - [x] 6.2 Modify DistributionMapper methods to accept datatype lists
     - Add datatypes parameter to relevant methods
     - Use datatypes parameter instead of study.datatypes
     - Update all calls to these methods
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 6.3 Write unit tests for mapper datatype filtering
+  - [x] 6.3 Write unit tests for mapper datatype filtering
     - Test AggregationMapper with subset of datatypes
     - Test DistributionMapper with subset of datatypes
     - Verify correct projects are created for specified datatypes only
@@ -207,7 +207,7 @@ If you encounter any issues using the kiro-pants-power tools:
     - **Property 15: Distribution Mode Study Projects**
     - **Validates: Requirements 5.1, 5.2**
 
-  - [ ] 7.6 Write property test for mixed mode independence
+  - [x] 7.6 Write property test for mixed mode independence
     - **Property 16: Mixed Mode Independence**
     - **Validates: Requirements 5.3**
 
@@ -220,7 +220,7 @@ If you encounter any issues using the kiro-pants-power tools:
     - **Property 17: Primary Study Validation Preservation**
     - **Validates: Requirements 7.3**
 
-  - [ ] 8.2 Write property test for backward compatible project structure
+  - [x] 8.2 Write property test for backward compatible project structure
     - **Property 18: Backward Compatible Project Structure**
     - **Validates: Requirements 7.4**
 
@@ -232,7 +232,7 @@ If you encounter any issues using the kiro-pants-power tools:
     - **Property 29: Single Mode Distribution Backward Compatibility**
     - **Validates: Requirements 10.5**
 
-  - [ ] 8.5 Write unit tests with real study configurations
+  - [x] 8.5 Write unit tests with real study configurations
     - Test with actual NACC study configurations
     - Verify old format configurations still work
     - Verify project structure matches expected output
