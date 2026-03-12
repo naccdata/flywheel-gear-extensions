@@ -12,12 +12,12 @@ The changes maintain backward compatibility with existing project management log
 - **Mode**: Indicates whether data is aggregated from centers or distributed to centers (values: "aggregation" or "distribution")
 - **Datatype**: Type of data collected in a study (e.g., "form", "dicom", "csv")
 - **Dashboard**: Visualization project for study data
-- **Dashboard_Level**: Organizational level where dashboards are created (values: "center" or "study")
+- **Dashboard_Level**: Organizational level where a specific dashboard is created (values: "center" or "study")
 - **Center**: Research center participating in a study
 - **Project_Management**: System that creates Flywheel groups and projects based on study configuration
 - **AggregationMapper**: Component that creates projects for aggregation mode datatypes
 - **DistributionMapper**: Component that creates projects for distribution mode datatypes
-- **Funding_Organization**: Optional organization providing funding for a study
+- **Funding_Organization**: Optional identifier for the funding organization associated with a study
 
 ## Requirements
 
@@ -35,20 +35,22 @@ The changes maintain backward compatibility with existing project management log
 
 ### Requirement 2: Dashboard Level Configuration
 
-**User Story:** As a study administrator, I want to specify whether dashboards are created at the center level or study level, so that I can control the organizational scope of data visualizations.
+**User Story:** As a study administrator, I want to specify the level for each dashboard individually, so that I can control which dashboards are created at the center level and which at the study level.
 
 #### Acceptance Criteria
 
-1. THE StudyModel SHALL support an optional dashboard_level field with values "center" or "study"
-2. WHEN dashboard_level is not specified, THE StudyModel SHALL default to "center" for backward compatibility
-3. WHEN dashboard_level is "center", THE Project_Management SHALL create dashboard projects in center groups
-4. WHEN dashboard_level is "study", THE Project_Management SHALL skip dashboard creation (not implemented in this phase)
-5. THE StudyModel SHALL validate that dashboard_level is either "center" or "study" when provided
+1. THE StudyModel SHALL support a level field on each dashboard configuration
+2. WHEN a StudyModel is created with dashboard-level configurations, THE StudyModel SHALL validate that each dashboard has a valid level value ("center" or "study")
+3. THE StudyModel SHALL maintain the existing dashboards field as a list of strings for backward compatibility during migration
+4. WHEN a dashboard has level "center", THE Project_Management SHALL create that dashboard project in center groups
+5. WHEN a dashboard has level "study", THE Project_Management SHALL skip creation of that dashboard (not implemented in this phase)
+6. THE StudyModel SHALL provide a method to retrieve the level for a specific dashboard
+7. THE StudyModel SHALL provide a method to retrieve dashboards by level
 
 
 ### Requirement 3: Funding Organization Field
 
-**User Story:** As a study administrator, I want to record the funding organization for a study, so that I can track funding sources in the study metadata.
+**User Story:** As a study administrator, I want to record the funding organization identifier for a study, so that the study can be associated with the appropriate funding organization group.
 
 #### Acceptance Criteria
 
@@ -81,13 +83,14 @@ The changes maintain backward compatibility with existing project management log
 
 ### Requirement 6: Dashboard Creation Based on Dashboard Level
 
-**User Story:** As a system, I want to create dashboards at the appropriate organizational level, so that visualizations are available where they are needed.
+**User Story:** As a system, I want to create dashboards at the appropriate organizational level based on each dashboard's configuration, so that visualizations are available where they are needed.
 
 #### Acceptance Criteria
 
-1. WHEN dashboard_level is "center" and dashboards are configured, THE Project_Management SHALL create dashboard projects in center groups
-2. WHEN dashboard_level is "study" and dashboards are configured, THE Project_Management SHALL skip dashboard creation (deferred to future implementation)
-3. WHEN dashboard_level is not specified, THE Project_Management SHALL default to creating dashboards in center groups
+1. WHEN a dashboard has level "center", THE Project_Management SHALL create that dashboard project in center groups
+2. WHEN a dashboard has level "study", THE Project_Management SHALL skip creation of that dashboard (deferred to future implementation)
+3. WHEN a dashboard is specified without a level (old format), THE Project_Management SHALL default to creating it in center groups
+4. THE Project_Management SHALL handle dashboards with different levels within the same study
 
 ### Requirement 7: Backward Compatibility with Existing Configurations
 
@@ -109,9 +112,12 @@ The changes maintain backward compatibility with existing project management log
 
 1. THE StudyModel SHALL serialize datatype configurations with mode information to JSON/YAML format
 2. THE StudyModel SHALL deserialize datatype configurations with mode information from JSON/YAML format
-3. THE StudyModel SHALL serialize dashboard_level and funding_organization fields when present
-4. THE StudyModel SHALL deserialize dashboard_level and funding_organization fields when present
-5. WHEN deserializing a configuration without datatype-level modes, THE StudyModel SHALL apply the study-level mode to all datatypes
+3. THE StudyModel SHALL serialize dashboard configurations with level information to JSON/YAML format
+4. THE StudyModel SHALL deserialize dashboard configurations with level information from JSON/YAML format
+5. THE StudyModel SHALL serialize funding_organization field when present
+6. THE StudyModel SHALL deserialize funding_organization field when present
+7. WHEN deserializing a configuration without datatype-level modes, THE StudyModel SHALL apply the study-level mode to all datatypes
+8. WHEN deserializing a configuration without dashboard-level configurations, THE StudyModel SHALL apply level "center" to all dashboards
 
 ### Requirement 9: Validation for Mixed-Mode Studies
 
