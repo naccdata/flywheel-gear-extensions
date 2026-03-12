@@ -294,17 +294,14 @@ class TestDashboardLevelHandling:
         assert "dashboard-dashboard-a" in call_args_list
         assert "dashboard-dashboard-b" in call_args_list
 
-    def test_study_level_dashboards_are_skipped(self, mock_flywheel_proxy, caplog):
-        """Test dashboards with level 'study' are logged and skipped.
+    def test_study_level_dashboards_are_skipped(self, mock_flywheel_proxy):
+        """Test dashboards with level 'study' are not created at center level.
+
+        Study-level dashboards are handled elsewhere in the system.
 
         Validates Requirements 2.5, 6.2
         """
-        import logging
-
         from projects.study import DashboardConfig
-
-        # Set log level to capture INFO messages
-        caplog.set_level(logging.INFO)
 
         study = StudyModel(
             name="Test Study",  # pyright: ignore[reportCallIssue]
@@ -356,14 +353,9 @@ class TestDashboardLevelHandling:
         call_args_list = [call[0][0] for call in mock_center.add_project.call_args_list]
         assert "dashboard-dashboard-a" in call_args_list
 
-        # Verify study-level dashboard was NOT created
+        # Verify study-level dashboard was NOT created at center level
+        # (it's handled elsewhere in the system)
         assert "dashboard-dashboard-b" not in call_args_list
-
-        # Verify log message about skipping study-level dashboards
-        assert any(
-            "Skipping study-level dashboards" in record.message
-            for record in caplog.records
-        )
 
     def test_mixed_dashboard_levels(self, mock_flywheel_proxy):
         """Test study with dashboards at different levels.
