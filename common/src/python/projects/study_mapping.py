@@ -595,14 +595,6 @@ class StudyMappingVisitor(StudyVisitor):
         """
         assert self.__study, "study must be set"
 
-        # Check if we should skip this center for co-enrolled affiliated studies
-        if (
-            self.__aggregation_datatypes
-            and self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
-        ):
-            return
-
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
             log.warning("No group found with center ID %s", center_model.center_id)
@@ -631,8 +623,11 @@ class StudyMappingVisitor(StudyVisitor):
         # Handle dashboards and pages (common to both mappers)
         self.__handle_dashboards_and_pages(center=center, study_info=study_info)
 
-        # Call aggregation mapper if we have aggregation datatypes
-        if self.__aggregation_mapper:
+        # Skip aggregation for co-enrolled affiliated studies
+        if self.__aggregation_mapper and not (
+            self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
             self.__aggregation_mapper.map_center_pipelines(
                 center=center,
                 study_info=study_info,
