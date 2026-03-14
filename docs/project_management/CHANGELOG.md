@@ -4,6 +4,11 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.4.1
+
+* Fixes distribution projects not being created in center groups for co-enrolled affiliated studies
+  * Co-enrollment skip now only applies to aggregation pipelines, allowing distribution projects to be created for each center
+
 ## 2.4.0
 
 * Adds flexible configuration support to StudyModel
