@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.1
+
+* Fixes 409 error handling in project lookup when gear account lacks access to an existing project
+  * Logs a clear permissions warning instead of a misleading "Failed to create project" error
+* Adds project caching in GroupAdaptor to avoid repeated API calls for the same project during a single gear execution
+
 ## 4.1.0
 
 * Implements general authorization support for non-center-specific resources
