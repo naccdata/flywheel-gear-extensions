@@ -4,6 +4,24 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.4.1
+
+* Fixes distribution projects not being created in center groups for co-enrolled affiliated studies
+  * Co-enrollment skip now only applies to aggregation pipelines, allowing distribution projects to be created for each center
+
+## 2.4.0
+
+* Adds flexible configuration support to StudyModel
+  - Introduces `DatatypeConfig` model to specify per-datatype modes (aggregation/distribution)
+  - Introduces `DashboardConfig` model to specify per-dashboard levels (center/study)
+  - Enables mixed-mode studies where different datatypes can have different modes
+  - Adds helper methods: `get_datatype_mode()`, `get_datatypes_by_mode()`, `get_dashboard_level()`, `get_dashboards_by_level()`
+  - Maintains backward compatibility with existing string-based configurations
+  - Automatically migrates legacy study-level mode to datatype-level configuration
+* Updates StudyMapper to handle flexible configuration formats
+  - Refactors datatype and dashboard processing to use new config models
+  - Improves separation of concerns between aggregation and distribution mappers
+
 ## 2.3.0
 
 * Adds support for dashboard projects in studies

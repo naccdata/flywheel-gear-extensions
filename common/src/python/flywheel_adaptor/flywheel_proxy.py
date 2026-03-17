@@ -283,7 +283,14 @@ class FlywheelProxy:
         try:
             project = group.add_project(label=project_label)
         except ApiException as exc:
-            log.error("Failed to create project %s: %s", project_ref, exc)
+            if exc.status == 409:
+                log.warning(
+                    "Project %s exists but is not visible to the current user. "
+                    "Check that the gear account has access to this project.",
+                    project_ref,
+                )
+            else:
+                log.error("Failed to create project %s: %s", project_ref, exc)
             return None
         log.info("success")
 
@@ -795,6 +802,7 @@ class GroupAdaptor:
     def __init__(self, *, group: flywheel.Group, proxy: FlywheelProxy) -> None:
         self._group = group
         self._fw = proxy
+        self._project_cache: dict[str, Optional["ProjectAdaptor"]] = {}
 
     @property
     def group(self) -> flywheel.Group:
@@ -963,15 +971,20 @@ class GroupAdaptor:
     ) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given label.
 
-        Creates a new project if none exists.
+        Creates a new project if none exists. Caches results to avoid
+        repeated lookups for the same project label.
 
         Args:
           label: the label for the project
         Returns:
           the project in this group with the label
         """
+        if label in self._project_cache:
+            return self._project_cache[label]
+
         project = self._fw.get_project(group=self._group, project_label=label)
         if not project:
+            self._project_cache[label] = None
             return None
 
         adaptor = ProjectAdaptor(project=project, proxy=self._fw)
@@ -979,6 +992,7 @@ class GroupAdaptor:
         if info_update:
             adaptor.update_info(info_update)
         adaptor.add_admin_users(self.get_user_access())
+        self._project_cache[label] = adaptor
         return adaptor
 
     def get_project_by_id(self, project_id: str) -> Optional["ProjectAdaptor"]:

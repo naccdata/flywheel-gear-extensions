@@ -4,15 +4,28 @@ This module contains property tests that validate universal correctness
 properties of the page project creation feature across all valid inputs.
 
 Feature: study-page-resources
+
+NOTE: These tests are skipped because they test page creation through the
+mapper directly. Page creation was moved to StudyMappingVisitor during the
+study-model-flexible-configuration refactoring. The functionality is still
+tested in test_study_mapping_mixed_mode.py.
 """
 
 from unittest.mock import Mock
 
+import pytest
 from centers.center_group import CenterStudyMetadata
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from projects.study import StudyCenterModel, StudyModel
 from projects.study_mapping import AggregationMapper
+
+pytestmark = pytest.mark.skip(
+    reason=(
+        "Page creation moved to StudyMappingVisitor - "
+        "see test_study_mapping_mixed_mode.py"
+    )
+)
 
 # Hypothesis strategies for generating test data
 
