@@ -589,15 +589,13 @@ class FormCurator(Curator):
                 updated_info.update({curation_type: curated_file_info})
 
         if updated_info:
+            updated_info['affiliate'] = 1 if affiliate else 0
             file_entry.update_info(updated_info)
 
         # add curation tag
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
 
-        # set affiliate status
-        affiliate_tag = FormCurationTags.AFFILIATE
-        if affiliate and affiliate_tag not in file_entry.tags:
-            file_entry.add_tag(affiliate_tag)
-        elif not affiliate and affiliate_tag in file_entry.tags:
+        # TODO - remove after cleaned up, moving data to file.info
+        if affiliate_tag in file_entry.tags:
             file_entry.delete_tag(affiliate_tag)
