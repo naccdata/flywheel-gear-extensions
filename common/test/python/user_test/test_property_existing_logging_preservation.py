@@ -120,6 +120,10 @@ def mock_environment_strategy(draw):
     mock_env.user_registry.get_bad_claim = Mock(
         return_value=[]
     )  # Default to empty list
+    mock_env.user_registry.get_by_parent_domain = Mock(
+        return_value=[]
+    )  # Default to empty list
+    mock_env.user_registry.get_by_name = Mock(return_value=[])  # Default to empty list
 
     # Configure wrapper methods to delegate to proxy and user_registry
     mock_env.find_user = Mock(
