@@ -391,7 +391,7 @@ class FormCurator(Curator):
         derived = subject_table.get("derived", {})
 
         # 4. add subject tags
-        affiliate = derived.get("affiliate", 0) == 1
+        affiliate = derived.get("affiliate", None)
         self.handle_subject_tags(subject, curated_scopes, affiliate)
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
@@ -472,7 +472,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         curated_scopes: List[ScopeLiterals],
-        affiliate: bool,
+        affiliate: int,
     ) -> None:
         """Handle curation tags.
 
@@ -482,10 +482,10 @@ class FormCurator(Curator):
             affiliate: whether or not this is an affiliate subject
         """
         affiliate_tag = FormCurationTags.AFFILIATE
-        if affiliate and affiliate_tag not in subject.tags:
+        if affiliate == 1 and affiliate_tag not in subject.tags:
             log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag(affiliate_tag)
-        elif not affiliate and affiliate_tag in subject.tags:
+        elif affiliate != 1 and affiliate_tag in subject.tags:
             subject.delete_tag(affiliate_tag)
 
         # add uds-participant tag
@@ -566,7 +566,7 @@ class FormCurator(Curator):
                 file_info[category].update(result[scope])
 
     @api_retry
-    def apply_file_curation(self, file: FileModel, affiliate: bool) -> None:
+    def apply_file_curation(self, file: FileModel, affiliate: int) -> None:
         """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived (derived variables) and
@@ -588,8 +588,10 @@ class FormCurator(Curator):
             if curated_file_info:
                 updated_info.update({curation_type: curated_file_info})
 
+        if file.file_info.get('affiliate', None) != affiliate:
+            updated_info['affiliate'] = affiliate
+
         if updated_info:
-            updated_info['affiliate'] = 1 if affiliate else 0
             file_entry.update_info(updated_info)
 
         # add curation tag
@@ -597,5 +599,5 @@ class FormCurator(Curator):
             file_entry.add_tag(self.curation_tag)
 
         # TODO - remove after cleaned up, moving data to file.info
-        if affiliate_tag in file_entry.tags:
-            file_entry.delete_tag(affiliate_tag)
+        if FormCurationTags.AFFILIATE in file_entry.tags:
+            file_entry.delete_tag(FormCurationTags.AFFILIATE)
