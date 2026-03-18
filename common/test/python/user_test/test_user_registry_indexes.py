@@ -120,7 +120,7 @@ def _build_registry_with_persons(
         api_instance=mock_api,
         coid=1,
         domain_config=domain_config,
-        name_normalizer=name_normalizer,
+        name_normalizer=name_normalizer or (lambda s: " ".join(s.lower().split())),
     )
 
     # Trigger lazy population through a public method
