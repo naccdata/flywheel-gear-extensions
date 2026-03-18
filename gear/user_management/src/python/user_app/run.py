@@ -285,6 +285,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 domain_config, idp_config = self.__get_domain_config(
                     self.__domain_config_filepath
                 )
+            else:
+                log.info(
+                    "No domain config file provided; "
+                    "wrong-IdP detection will be disabled"
+                )
 
             try:
                 run(
