@@ -235,6 +235,11 @@ class IdPDomainConfig(BaseModel):
         return parent in self._fallback_set
 
 
-def default_name_normalizer(name: str) -> str:
-    """Default name normalization: lowercase, strip, collapse whitespace."""
+def normalize_person_name(name: str) -> str:
+    """Normalize a person's name for case- and whitespace-insensitive matching.
+
+    Converts to lowercase, strips leading/trailing whitespace, and
+    replaces any internal whitespace runs (spaces, tabs, newlines) with
+    a single space.
+    """
     return " ".join(name.lower().split())
