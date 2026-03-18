@@ -946,3 +946,73 @@ class TestVerifiedEmailAddressesProperty:
         assert verified_personal in verified_emails
         assert verified_work in verified_emails
         assert unverified_official not in verified_emails
+
+
+class TestCreateWithMultipleEmails:
+    """Tests for RegistryPerson.create() with list of emails.
+
+    Tests Requirements 4.1, 4.2, 4.3:
+    - Accepts a list of email addresses
+    - Creates one EmailAddress per entry with type="official"
+    - Single string backward compatibility
+    """
+
+    def test_create_with_single_string_backward_compatible(self):
+        """Test that create() with a single string still works."""
+        person = RegistryPerson.create(
+            firstname="John",
+            lastname="Doe",
+            email="john@example.com",
+            coid=1,
+        )
+
+        assert len(person.email_addresses) == 1
+        assert person.email_addresses[0].mail == "john@example.com"
+        assert person.email_addresses[0].type == "official"
+        assert person.email_addresses[0].verified is True
+
+    def test_create_with_list_of_emails(self):
+        """Test that create() with a list produces one EmailAddress per
+        entry."""
+        emails = ["john@example.com", "john@university.edu", "john@hospital.org"]
+        person = RegistryPerson.create(
+            firstname="John",
+            lastname="Doe",
+            email=emails,
+            coid=1,
+        )
+
+        assert len(person.email_addresses) == 3
+        for i, addr in enumerate(person.email_addresses):
+            assert addr.mail == emails[i]
+            assert addr.type == "official"
+            assert addr.verified is True
+
+    def test_create_with_single_element_list(self):
+        """Test that create() with a single-element list works correctly."""
+        person = RegistryPerson.create(
+            firstname="Jane",
+            lastname="Smith",
+            email=["jane@example.com"],
+            coid=1,
+        )
+
+        assert len(person.email_addresses) == 1
+        assert person.email_addresses[0].mail == "jane@example.com"
+        assert person.email_addresses[0].type == "official"
+
+    def test_create_with_two_distinct_emails(self):
+        """Test create with contact and auth email (typical use case)."""
+        person = RegistryPerson.create(
+            firstname="Alice",
+            lastname="Brown",
+            email=["alice@med.umich.edu", "alice@umich.edu"],
+            coid=1,
+        )
+
+        assert len(person.email_addresses) == 2
+        assert person.email_addresses[0].mail == "alice@med.umich.edu"
+        assert person.email_addresses[1].mail == "alice@umich.edu"
+        for addr in person.email_addresses:
+            assert addr.type == "official"
+            assert addr.verified is True
