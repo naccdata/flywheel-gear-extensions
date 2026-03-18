@@ -4,6 +4,8 @@ This module provides pytest fixtures and builders for generating test
 data for user authorization tests.
 """
 
+from __future__ import annotations
+
 from typing import Callable, List, Optional
 from unittest.mock import Mock
 
@@ -27,6 +29,7 @@ from users.authorizations import (
     PageResource,
     Resource,
 )
+from users.domain_config import DomainRelationshipConfig, IdPDomainConfig
 from users.event_models import UserEventCollector
 
 # Test Builders
@@ -715,3 +718,56 @@ def coperson_message_strategy(  # noqa: C901
         Name=names,
         CoPersonRole=None,
     )
+
+
+# Fixtures for UserProcessEnvironment with domain_config and idp_config
+
+
+@pytest.fixture
+def build_mock_environment() -> Callable[..., Mock]:
+    """Fixture that returns a factory function for building mock
+    UserProcessEnvironment objects with optional domain_config and idp_config.
+
+    Returns:
+        A factory function that creates mock UserProcessEnvironment objects
+    """
+    from users.user_process_environment import UserProcessEnvironment
+
+    def _build(
+        domain_config: Optional[DomainRelationshipConfig] = None,
+        idp_config: Optional[IdPDomainConfig] = None,
+    ) -> Mock:
+        """Build a mock UserProcessEnvironment for testing.
+
+        Args:
+            domain_config: Optional domain relationship configuration
+            idp_config: Optional IdP domain configuration
+
+        Returns:
+            A mock UserProcessEnvironment with sensible defaults
+        """
+        mock_env = Mock(spec=UserProcessEnvironment)
+        mock_env.user_registry = Mock()
+        mock_env.notification_client = Mock()
+        mock_env.proxy = Mock()
+        mock_env.domain_config = domain_config
+        mock_env.idp_config = idp_config
+
+        # Configure wrapper methods
+        mock_env.find_user = Mock(return_value=None)
+        mock_env.add_user = Mock(return_value="new-user-id")
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
+
+        # Default registry behavior: no matches
+        mock_env.user_registry.get.return_value = []
+        mock_env.user_registry.get_bad_claim.return_value = []
+        mock_env.user_registry.get_by_parent_domain.return_value = []
+        mock_env.user_registry.get_by_name.return_value = []
+        mock_env.user_registry.add.return_value = []
+        mock_env.user_registry.coid = 1
+
+        return mock_env
+
+    return _build

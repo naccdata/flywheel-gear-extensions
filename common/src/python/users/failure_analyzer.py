@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 
-from users.domain_config import DomainRelationshipConfig, IdPDomainConfig
 from users.event_models import (
     EventCategory,
     EventType,
@@ -25,23 +24,18 @@ class FailureAnalyzer:
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        idp_config: IdPDomainConfig | None = None,
-        domain_config: DomainRelationshipConfig | None = None,
     ):
         """Initialize the failure analyzer with the user process environment.
 
         Args:
             environment: The user process environment containing services
-            idp_config: Optional IdP domain configuration for wrong-IdP
-                detection. When not provided, falls back to existing
+                and optional domain/IdP configuration. When configs are
+                not available on the environment, falls back to existing
                 ORCID-name-based detection.
-            domain_config: Optional domain relationship configuration for
-                subdomain resolution during wrong-IdP detection. When not
-                provided, falls back to existing ORCID-name-based detection.
         """
         self.env = environment
-        self._idp_config = idp_config
-        self._domain_config = domain_config
+        self._idp_config = environment.idp_config
+        self._domain_config = environment.domain_config
 
     def analyze_flywheel_user_creation_failure(
         self, entry: ActiveUserEntry, error: FlywheelError
