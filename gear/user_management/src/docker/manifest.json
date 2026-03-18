@@ -45,6 +45,16 @@
                 ]
             },
             "optional": false
+        },
+        "domain_config_file": {
+            "base": "file",
+            "description": "Domain relationship and IdP configuration YAML file",
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            },
+            "optional": true
         }
     },
     "config": {
