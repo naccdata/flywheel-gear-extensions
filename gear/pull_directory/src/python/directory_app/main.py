@@ -82,9 +82,7 @@ def run(
             continue
 
         if not dir_record.signed_user_agreement:
-            log.warning(
-                "Ignoring %s: User agreement not signed", dir_record.email
-            )
+            log.warning("Ignoring %s: User agreement not signed", dir_record.email)
 
             name = f"{dir_record.firstname} {dir_record.lastname}".strip()
             error_event = UserProcessEvent(
