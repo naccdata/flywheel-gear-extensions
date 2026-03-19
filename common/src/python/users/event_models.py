@@ -38,6 +38,7 @@ class EventCategory(Enum):
     INCOMPLETE_CLAIM = "Incomplete Claims"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
+    MISSING_USER_AGREEMENT = "Missing User Agreement"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
     MISSING_REGISTRY_DATA = "Missing Registry Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"

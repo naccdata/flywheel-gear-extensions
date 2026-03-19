@@ -81,6 +81,27 @@ def run(
             collector.collect(error_event)
             continue
 
+        if not dir_record.signed_user_agreement:
+            log.warning(
+                "Ignoring %s: User agreement not signed", dir_record.email
+            )
+
+            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_USER_AGREEMENT,
+                user_context=UserContext(
+                    email=dir_record.email,
+                    name=name,
+                    center_id=dir_record.adcid,
+                    auth_email=dir_record.auth_email,
+                ),
+                message="User has not signed NACC user agreement",
+                action_needed="contact_user_to_sign_agreement",
+            )
+            collector.collect(error_event)
+            continue
+
         try:
             entry = dir_record.to_user_entry()
         except ValidationError as error:
