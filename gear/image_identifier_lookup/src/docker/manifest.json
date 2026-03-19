@@ -1,0 +1,83 @@
+{
+    "name": "image-identifier-lookup",
+    "label": "Image Identifier Lookup",
+    "description": "Performs NACCID lookups for DICOM images uploaded to the NACC Data Platform",
+    "version": "0.0.1",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/image-identifier-lookup:0.0.1"
+        },
+        "flywheel": {
+            "suite": "NACC Data Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The DICOM image file for identifier lookup",
+            "base": "file",
+            "type": {
+                "enum": [
+                    "dicom"
+                ]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Whether to do a dry run",
+            "type": "boolean",
+            "default": false
+        },
+        "database_mode": {
+            "description": "Whether to lookup identifiers from dev or prod database",
+            "type": "string",
+            "enum": [
+                "prod",
+                "dev"
+            ],
+            "default": "prod"
+        },
+        "naccid_field_name": {
+            "description": "Field name for storing NACCID in subject metadata",
+            "type": "string",
+            "default": "naccid"
+        },
+        "default_modality": {
+            "description": "Default modality to use when DICOM Modality tag is missing",
+            "type": "string",
+            "default": "UNKNOWN"
+        },
+        "event_environment": {
+            "description": "Environment for visit event capture (prod or dev); required for event logging",
+            "type": "string",
+            "enum": [
+                "prod",
+                "dev"
+            ]
+        },
+        "event_bucket": {
+            "description": "S3 bucket name for event capture; required for event logging",
+            "type": "string"
+        },
+        "apikey_path_prefix": {
+            "description": "The instance specific AWS parameter gearbot path prefix",
+            "type": "string",
+            "default": "/prod/flywheel/gearbot"
+        }
+    },
+    "command": "/bin/run"
+}

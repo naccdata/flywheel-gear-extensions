@@ -25,6 +25,7 @@
 //     "pandas>=2.1.1",
 //     "pyarrow>=22.0.0",
 //     "pydantic>=2.5.2",
+//     "pydicom>=2.4.0",
 //     "pytest-mock>=3.14.0",
 //     "pytest>=7.2.0",
 //     "python_dateutil>=2.5.3",
@@ -147,42 +148,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "7b3e0c4bfd8815a3df64fbe98fc9f87dfb12bd7a783cf63dfc2f166c66798c9d",
-              "url": "https://files.pythonhosted.org/packages/2d/2a/de34ad6c43c56fe6dd5824bff2cd7fdef5edd9de0617cbd217040318ba97/boto3-1.42.52-py3-none-any.whl"
+              "hash": "3bd32f3508a6e9851671d0ef3b1f9e8ee7e8c095aa0488bcd9e86074aef5b7eb",
+              "url": "https://files.pythonhosted.org/packages/fa/ea/08dfba25a5822a7254b20aa905a9937177ca1532dd7f47c926875dd87299/boto3-1.42.53-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "ff4a4afb832f63a1358e11fe6eb321da0f4767979c6721dd32fb02e6eabcebf5",
-              "url": "https://files.pythonhosted.org/packages/41/ed/8eacb8ec7bf264079608be5f9a2a57e31e7fed7a791bb3b15500ca9274a5/boto3-1.42.52.tar.gz"
+              "hash": "56bc79388763995852b6d3fe48023e661e63fc2e60a921273c422d0171b9fbfb",
+              "url": "https://files.pythonhosted.org/packages/62/ef/03460914019db52301a6084460f0dd738f3f9e89d2ddf5bd33cef8168e63/boto3-1.42.53.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.43.0,>=1.42.52",
+            "botocore<1.43.0,>=1.42.53",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.17.0,>=0.16.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.52"
+          "version": "1.42.53"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "3f7218e9b89344c851783d1770a469380179125a8c8864897318afcbf5aa0838",
-              "url": "https://files.pythonhosted.org/packages/22/9a/a1f69d404d60b03152b73ad7148ca1017d6b79b4c31a17f48eee8f162068/boto3_stubs-1.42.52-py3-none-any.whl"
+              "hash": "0d1c1d5e4f29fb2dfeef63db7c8f9ce45b77a4a9a3d0902bfe4b73677b07d167",
+              "url": "https://files.pythonhosted.org/packages/bf/04/782b59206be1a37f30427e6e436d0937d1f92e1c89db8e28e90205a9ca27/boto3_stubs-1.42.53-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "a199bc8d1367710d1a7870d3e81cefd8860faeb58d32b3b8d14cbc706d13297f",
-              "url": "https://files.pythonhosted.org/packages/55/56/3f2a9bbd0513840f4904d8af3e17433885dc565b4509faf67a81b96d2612/boto3_stubs-1.42.52.tar.gz"
+              "hash": "9a0abdd9e79165beb4ef37c52266f255991caf31d15ba978fcae7b5837567011",
+              "url": "https://files.pythonhosted.org/packages/0d/8e/54253937e14c2200feaa3204b08d72327a634bf5894eb27cf665b9fd1720/boto3_stubs-1.42.53.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.43.0,>=1.42.0; extra == \"full\"",
-            "boto3==1.42.52; extra == \"boto3\"",
+            "boto3==1.42.53; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"all\"",
@@ -1019,19 +1020,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.52"
+          "version": "1.42.53"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "c3a0b7138a4c5a534da0eb2444c19763b4d03ba2190c0602c49315e54efd7252",
-              "url": "https://files.pythonhosted.org/packages/94/67/bbd723d489b25ff9f94a734e734986bb8343263dd024a3846291028c26d0/botocore-1.42.52-py3-none-any.whl"
+              "hash": "1255db56bc0a284a8caa182c20966277e6c8871b6881cf816d40e993fa5da503",
+              "url": "https://files.pythonhosted.org/packages/25/dc/cf3b2ec4a419b20d2cd6ba8e1961bc59b7ec9801339628e31551dac23801/botocore-1.42.53-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "3bdef10aee4cee13ff019b6a1423a2ce3ca17352328d9918157a1829e5cc9be1",
-              "url": "https://files.pythonhosted.org/packages/c2/37/7044e09d416ff746d23c7456e8c30ddade1154ecd08814b17ab7e2c20fb0/botocore-1.42.52.tar.gz"
+              "hash": "0bc1a2e1b6ae4c8397c9bede3bb9007b4f16e159ef2ca7f24837e31d5860caac",
+              "url": "https://files.pythonhosted.org/packages/7a/b6/0b2ab38e422e93f28b7a394a29881a9d767b79831fa1957a3ccab996a70e/botocore-1.42.53.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1043,7 +1044,7 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.52"
+          "version": "1.42.53"
         },
         {
           "artifacts": [
@@ -2520,6 +2521,52 @@
           "artifacts": [
             {
               "algorithm": "sha256",
+              "hash": "db32f78b2641bd7972096b8289111ddab01fb221610de8d7afa835eb938adb41",
+              "url": "https://files.pythonhosted.org/packages/27/a6/98651e752a49f341aa99aa3f6c8ba361728dfc064242884355419df63669/pydicom-3.0.1-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "7b8be344b5b62493c9452ba6f5a299f78f8a6ab79786c729b0613698209603ec",
+              "url": "https://files.pythonhosted.org/packages/d7/6f/55ea163b344c91df2e03c007bebf94781f0817656e2c037d7c5bf86c3bfc/pydicom-3.0.1.tar.gz"
+            }
+          ],
+          "project_name": "pydicom",
+          "requires_dists": [
+            "black==24.8.0; extra == \"dev\"",
+            "matplotlib; extra == \"docs\"",
+            "mypy==1.11.2; extra == \"dev\"",
+            "numpy; extra == \"basic\"",
+            "numpy; extra == \"docs\"",
+            "numpy; extra == \"pixeldata\"",
+            "numpydoc; extra == \"docs\"",
+            "pillow; extra == \"docs\"",
+            "pillow; extra == \"pixeldata\"",
+            "pre-commit; extra == \"dev\"",
+            "pydicom-data; extra == \"dev\"",
+            "pyjpegls; extra == \"pixeldata\"",
+            "pylibjpeg[libjpeg]; extra == \"gpl-license\"",
+            "pylibjpeg[openjpeg]; extra == \"pixeldata\"",
+            "pylibjpeg[rle]; extra == \"pixeldata\"",
+            "pytest-cov; extra == \"dev\"",
+            "pytest; extra == \"dev\"",
+            "python-gdcm; extra == \"pixeldata\"",
+            "ruff==0.6.3; extra == \"dev\"",
+            "sphinx-copybutton; extra == \"docs\"",
+            "sphinx-gallery; extra == \"docs\"",
+            "sphinx; extra == \"docs\"",
+            "sphinx_rtd_theme; extra == \"docs\"",
+            "sphinxcontrib-jquery; extra == \"docs\"",
+            "sphinxcontrib-napoleon; extra == \"docs\"",
+            "types-pydicom; extra == \"basic\"",
+            "types-requests; extra == \"dev\""
+          ],
+          "requires_python": ">=3.10",
+          "version": "3.0.1"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
               "hash": "86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b",
               "url": "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl"
             },
@@ -3373,6 +3420,7 @@
     "pandas>=2.1.1",
     "pyarrow>=22.0.0",
     "pydantic>=2.5.2",
+    "pydicom>=2.4.0",
     "pytest-mock>=3.14.0",
     "pytest>=7.2.0",
     "python_dateutil>=2.5.3",
