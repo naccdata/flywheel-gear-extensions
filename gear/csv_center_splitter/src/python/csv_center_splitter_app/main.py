@@ -22,13 +22,12 @@ class CSVVisitorCenterSplitter(CSVVisitor):
     """Class for visiting each row in CSV."""
 
     def __init__(
-        self, *, adcid_key: str, include: Set[str], error_writer: ListErrorWriter, remove_duplicates: bool = True
+        self, *, adcid_key: str, include: Set[str], error_writer: ListErrorWriter
     ):
         """Initializer."""
         self.__adcid_key: str = adcid_key
         self.__include = include
         self.__error_writer: ListErrorWriter = error_writer
-        self.__remove_duplicates = remove_duplicates
 
         self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
         self.__headers: List[str] = []
@@ -105,6 +104,22 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         return True
 
 
+def handle_duplicates(adcid: str, data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Removes duplicates while preserving order."""
+    seen_rows = set({})
+    clean_data = []
+    for row in data:
+        key = tuple(sorted(row.items()))  # key for hashing
+        if key not in seen_rows:
+            seen_rows.add(key)
+            clean_data.append(row)
+
+    num_duplicates = len(data) - len(clean_data)
+    log.info(f"Removed {num_duplicates} duplicates from {adcid}")
+
+    return clean_data
+
+
 def run(
     *,
     proxy: FlywheelProxy,
@@ -147,7 +162,6 @@ def run(
         adcid_key=adcid_key,
         include=include if include else set(),
         error_writer=error_writer,
-        remove_duplicates=remove_duplicates,
     )
     success = read_csv(
         input_file=input_file,
@@ -203,6 +217,9 @@ def run(
 
         for adcid in batch:
             data = visitor.split_data[adcid]
+            if remove_duplicates:
+                data = handle_duplicates(adcid, data)
+
             project = project_map[f"adcid-{adcid}"]
             filename = f"{adcid}_{input_filename}"
 
