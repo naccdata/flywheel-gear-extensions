@@ -2,6 +2,17 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.2.0
+
+* Adds domain-aware near-miss detection to identify potential duplicate registry records by parent domain
+* Adds name-based near-miss detection to find candidates by normalized full name
+* Adds wrong-IdP detection to identify users who claimed via fallback IdP instead of their institutional IdP
+* Adds multi-email skeleton creation, passing both auth and contact emails when creating registry records
+* Adds optional `domain_config_file` gear input for domain relationship and IdP configuration
+* Adds `DomainRelationshipConfig` and `IdPDomainConfig` models for configurable domain resolution
+* Adds new event categories: Domain Near-Miss, Name Near-Miss, Combined Signal Near-Miss, Wrong IdP Selection
+* Adds parent-domain and normalized-name index lookups in `UserRegistry` for fallback matching
+
 ## 4.1.1
 
 * Fixes 409 error handling in project lookup when gear account lacks access to an existing project

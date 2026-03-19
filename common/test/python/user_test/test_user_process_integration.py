@@ -22,7 +22,7 @@ from users.user_processes import (
     UserProcessEnvironment,
     UserQueue,
 )
-from users.user_registry import RegistryPerson
+from users.user_registry import DomainCandidate, RegistryPerson
 
 
 class TestActiveUserProcessIntegration:
@@ -44,6 +44,10 @@ class TestActiveUserProcessIntegration:
         mock_env.get_from_registry = Mock(
             side_effect=lambda email: mock_env.user_registry.get(email=email)
         )
+
+        # Domain-aware and name-based fallback defaults (return no candidates)
+        mock_env.user_registry.get_by_parent_domain = Mock(return_value=[])
+        mock_env.user_registry.get_by_name = Mock(return_value=[])
 
         return mock_env
 
@@ -259,6 +263,285 @@ class TestActiveUserProcessIntegration:
         mock_environment.notification_client.send_claim_email.assert_called_once_with(
             sample_active_entry
         )
+
+    def test_active_user_process_domain_candidates_emit_near_miss_no_skeleton(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that domain-aware candidates trigger near-miss event and
+        prevent skeleton creation."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Alice", last_name="Smith"),
+            email="alice@med.umich.edu",
+            auth_email="alice@med.umich.edu",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=100,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No exact match, no bad claim
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+
+        # Domain-aware lookup returns a candidate
+        mock_candidate_person = Mock(spec=RegistryPerson)
+        mock_candidate_person.registry_id.return_value = "reg-domain-1"
+        mock_candidate_person.primary_name = "Alice Smith"
+        mock_candidate_person.email_address = Mock()
+        mock_candidate_person.email_address.mail = "alice@umich.edu"
+
+        domain_candidate = DomainCandidate(
+            person=mock_candidate_person,
+            matched_email="alice@umich.edu",
+            query_domain="med.umich.edu",
+            candidate_domain="umich.edu",
+            parent_domain="umich.edu",
+        )
+        mock_environment.user_registry.get_by_parent_domain.return_value = [
+            domain_candidate
+        ]
+        mock_environment.user_registry.get_by_name.return_value = []
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify near-miss event was emitted
+        assert collector.has_errors()
+        errors = collector.get_errors()
+        assert any(e.category == EventCategory.DOMAIN_NEAR_MISS.value for e in errors)
+
+        # Verify skeleton was NOT created
+        mock_environment.user_registry.add.assert_not_called()
+        mock_environment.notification_client.send_claim_email.assert_not_called()
+
+    def test_active_user_process_name_candidates_emit_near_miss_no_skeleton(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that name-based candidates trigger near-miss event and prevent
+        skeleton creation."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Bob", last_name="Jones"),
+            email="bob@newdomain.edu",
+            auth_email="bob@newdomain.edu",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=200,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No exact match, no bad claim, no domain candidates
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+        mock_environment.user_registry.get_by_parent_domain.return_value = []
+
+        # Name-based lookup returns a candidate
+        mock_name_person = Mock(spec=RegistryPerson)
+        mock_name_person.registry_id.return_value = "reg-name-1"
+        mock_name_person.primary_name = "Bob Jones"
+        mock_name_person.email_address = Mock()
+        mock_name_person.email_address.mail = "bob.jones@olddomain.edu"
+
+        mock_environment.user_registry.get_by_name.return_value = [mock_name_person]
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify near-miss event was emitted
+        assert collector.has_errors()
+        errors = collector.get_errors()
+        assert any(e.category == EventCategory.NAME_NEAR_MISS.value for e in errors)
+
+        # Verify skeleton was NOT created
+        mock_environment.user_registry.add.assert_not_called()
+        mock_environment.notification_client.send_claim_email.assert_not_called()
+
+    def test_active_user_process_combined_candidates_emit_combined_near_miss(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that overlapping domain and name candidates trigger combined
+        near-miss event."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Carol", last_name="White"),
+            email="carol@med.umich.edu",
+            auth_email="carol@med.umich.edu",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=300,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No exact match, no bad claim
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+
+        # Same person appears in both domain and name results
+        mock_person = Mock(spec=RegistryPerson)
+        mock_person.registry_id.return_value = "reg-combined-1"
+        mock_person.primary_name = "Carol White"
+        mock_person.email_address = Mock()
+        mock_person.email_address.mail = "carol@umich.edu"
+
+        domain_candidate = DomainCandidate(
+            person=mock_person,
+            matched_email="carol@umich.edu",
+            query_domain="med.umich.edu",
+            candidate_domain="umich.edu",
+            parent_domain="umich.edu",
+        )
+        mock_environment.user_registry.get_by_parent_domain.return_value = [
+            domain_candidate
+        ]
+        mock_environment.user_registry.get_by_name.return_value = [mock_person]
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify combined near-miss event was emitted
+        assert collector.has_errors()
+        errors = collector.get_errors()
+        assert any(e.category == EventCategory.COMBINED_NEAR_MISS.value for e in errors)
+
+        # Verify skeleton was NOT created
+        mock_environment.user_registry.add.assert_not_called()
+
+    def test_active_user_process_no_candidates_creates_skeleton(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that when no candidates are found, skeleton is still
+        created."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Dave", last_name="Brown"),
+            email="dave@brand-new.edu",
+            auth_email="dave@brand-new.edu",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=400,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No matches anywhere
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+        mock_environment.user_registry.get_by_parent_domain.return_value = []
+        mock_environment.user_registry.get_by_name.return_value = []
+        mock_environment.user_registry.add.return_value = []
+        mock_environment.user_registry.coid = 1
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify skeleton WAS created
+        mock_environment.user_registry.add.assert_called_once()
+        mock_environment.notification_client.send_claim_email.assert_called_once()
+
+        # Verify no near-miss errors
+        errors = collector.get_errors()
+        near_miss_categories = {
+            EventCategory.DOMAIN_NEAR_MISS.value,
+            EventCategory.NAME_NEAR_MISS.value,
+            EventCategory.COMBINED_NEAR_MISS.value,
+        }
+        assert not any(e.category in near_miss_categories for e in errors)
+
+    def test_add_to_registry_passes_multiple_emails_when_distinct(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that __add_to_registry passes both contact and auth email when
+        they are distinct."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Eve", last_name="Green"),
+            email="eve.contact@example.com",
+            auth_email="eve.auth@example.com",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=500,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No matches anywhere — triggers skeleton creation
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+        mock_environment.user_registry.get_by_parent_domain.return_value = []
+        mock_environment.user_registry.get_by_name.return_value = []
+        mock_environment.user_registry.add.return_value = []
+        mock_environment.user_registry.coid = 1
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify add was called
+        mock_environment.user_registry.add.assert_called_once()
+
+        # Get the RegistryPerson passed to add()
+        added_person = mock_environment.user_registry.add.call_args[0][0]
+        email_addresses = added_person.email_addresses
+
+        # Both emails should be present since they are distinct
+        email_mails = [addr.mail for addr in email_addresses]
+        assert "eve.auth@example.com" in email_mails
+        assert "eve.contact@example.com" in email_mails
+        assert len(email_addresses) == 2
+
+    def test_add_to_registry_passes_single_email_when_same(
+        self, mock_environment, collector, caplog
+    ):
+        """Test that __add_to_registry passes single email when contact and
+        auth email are the same."""
+        entry = CenterUserEntry(
+            name=PersonName(first_name="Frank", last_name="Gray"),
+            email="frank@example.com",
+            auth_email="frank@example.com",
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=600,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+
+        # No matches anywhere — triggers skeleton creation
+        mock_environment.user_registry.get.return_value = []
+        mock_environment.user_registry.get_bad_claim.return_value = []
+        mock_environment.user_registry.get_by_parent_domain.return_value = []
+        mock_environment.user_registry.get_by_name.return_value = []
+        mock_environment.user_registry.add.return_value = []
+        mock_environment.user_registry.coid = 1
+
+        process = ActiveUserProcess(mock_environment, collector)
+
+        with caplog.at_level(logging.INFO):
+            process.visit(entry)
+
+        # Verify add was called
+        mock_environment.user_registry.add.assert_called_once()
+
+        # Get the RegistryPerson passed to add()
+        added_person = mock_environment.user_registry.add.call_args[0][0]
+        email_addresses = added_person.email_addresses
+
+        # Only one email since contact and auth are the same
+        assert len(email_addresses) == 1
+        assert email_addresses[0].mail == "frank@example.com"
 
 
 class TestClaimedUserProcessIntegration:
@@ -659,6 +942,10 @@ class TestUserProcessIntegrationEndToEnd:
         mock_env.get_from_registry = Mock(
             side_effect=lambda email: mock_env.user_registry.get(email=email)
         )
+
+        # Domain-aware and name-based fallback defaults (return no candidates)
+        mock_env.user_registry.get_by_parent_domain = Mock(return_value=[])
+        mock_env.user_registry.get_by_name = Mock(return_value=[])
 
         return mock_env
 

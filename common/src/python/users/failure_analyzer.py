@@ -21,13 +21,21 @@ log = logging.getLogger(__name__)
 class FailureAnalyzer:
     """Failure analyzer for complex scenarios that require investigation."""
 
-    def __init__(self, environment: UserProcessEnvironment):
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+    ):
         """Initialize the failure analyzer with the user process environment.
 
         Args:
             environment: The user process environment containing services
+                and optional domain/IdP configuration. When configs are
+                not available on the environment, falls back to existing
+                ORCID-name-based detection.
         """
         self.env = environment
+        self._idp_config = environment.idp_config
+        self._domain_config = environment.domain_config
 
     def analyze_flywheel_user_creation_failure(
         self, entry: ActiveUserEntry, error: FlywheelError
@@ -169,13 +177,23 @@ class FailureAnalyzer:
         information such as email address. ORCID is a common identity provider that
         requires special configuration and often causes this issue.
 
+        When idp_config and domain_config are available, checks for wrong-IdP
+        selection before falling through to generic incomplete-claim detection.
+
         Args:
             entry: The user entry from the directory
             bad_claim_persons: List of RegistryPerson objects with incomplete claims
 
         Returns:
-            A UserProcessEvent with category BAD_ORCID_CLAIMS or INCOMPLETE_CLAIM
+            A UserProcessEvent with category WRONG_IDP_SELECTION,
+            BAD_ORCID_CLAIMS, or INCOMPLETE_CLAIM
         """
+        # When configs are available, check for wrong-IdP scenario first
+        if self._idp_config is not None and self._domain_config is not None:
+            wrong_idp_event = self._detect_wrong_idp(entry, bad_claim_persons)
+            if wrong_idp_event is not None:
+                return wrong_idp_event
+
         # Check if any of the bad claim persons have ORCID org identity
         has_orcid = any(
             person.org_identities(predicate=org_name_is("ORCID"))
@@ -200,3 +218,68 @@ class FailureAnalyzer:
             ),
             action_needed="verify_identity_provider_configuration_and_reclaim",
         )
+
+    def _detect_wrong_idp(
+        self, entry: ActiveUserEntry, bad_claim_persons: List[RegistryPerson]
+    ) -> Optional[UserProcessEvent]:
+        """Check if user's email domain maps to an institutional IdP but they
+        claimed via a different IdP (e.g., the fallback IdP).
+
+        Uses DomainRelationshipConfig to resolve subdomains to parent domains.
+        Uses IdPDomainConfig to look up expected IdP for the domain.
+
+        Args:
+            entry: The user entry from the directory
+            bad_claim_persons: List of RegistryPerson objects with incomplete claims
+
+        Returns:
+            A UserProcessEvent with WRONG_IDP_SELECTION category if wrong IdP
+            detected, or None if the IdP usage is correct or domain is a
+            fallback domain.
+        """
+        assert self._idp_config is not None
+        assert self._domain_config is not None
+
+        # Extract email domain from the skeleton email
+        skeleton_email = entry.auth_email or entry.email
+        if not skeleton_email or "@" not in skeleton_email:
+            return None
+
+        email_domain = skeleton_email.split("@", 1)[1]
+
+        # If domain is in fallback_domains, this is correct IdP usage
+        if self._idp_config.is_fallback_domain(email_domain, self._domain_config):
+            return None
+
+        # Look up expected IdP for this domain
+        expected_idp = self._idp_config.get_expected_idp(
+            email_domain, self._domain_config
+        )
+        if expected_idp is None:
+            # Domain not mapped to any IdP — can't determine wrong IdP
+            return None
+
+        # Check if claim was made through a different IdP
+        # by inspecting org_identities on the bad claim persons
+        fallback_idp = self._idp_config.fallback_idp
+        claimed_via_fallback = any(
+            person.org_identities(predicate=org_name_is(fallback_idp))
+            for person in bad_claim_persons
+        )
+
+        if claimed_via_fallback:
+            return UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.WRONG_IDP_SELECTION,
+                user_context=UserContext.from_user_entry(entry),
+                message=(
+                    f"User with {email_domain} email claimed via "
+                    f"{fallback_idp} instead of {expected_idp}"
+                ),
+                action_needed=(
+                    "delete_bad_record_and_reclaim_with_"
+                    f"{expected_idp.lower().replace(' ', '_')}"
+                ),
+            )
+
+        return None

@@ -26,6 +26,11 @@ from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
+from users.domain_config import (
+    DomainRelationshipConfig,
+    IdPDomainConfig,
+    normalize_person_name,
+)
 from users.event_models import UserEventCollector
 from users.user_entry import UserEntry, UserEntryList
 from users.user_process_environment import NotificationModeType
@@ -58,6 +63,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         portal_url: str,
         notification_mode: NotificationModeType = "date",
         support_emails: Optional[List[str]] = None,
+        domain_config_filepath: Optional[Path] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -70,6 +76,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__notification_mode: NotificationModeType = notification_mode
         self.__portal_url = portal_url
         self.__support_emails = support_emails or []
+        self.__domain_config_filepath = domain_config_filepath
 
     @classmethod
     def create(
@@ -88,6 +95,12 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
         # Validate and retrieve file paths
         user_filepath, auth_filepath = cls._get_input_filepaths(context)
+
+        # Optional domain config file
+        domain_config_path = context.config.get_input_path("domain_config_file")
+        domain_config_filepath = (
+            Path(domain_config_path) if domain_config_path else None
+        )
 
         # Retrieve required parameters from parameter store
         comanage_path = cls._require_config(
@@ -138,6 +151,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             notification_mode=context.config.opts.get("notification_mode", "none"),
             portal_url=portal_url["url"],
             support_emails=support_emails,
+            domain_config_filepath=domain_config_filepath,
         )
 
     @staticmethod
@@ -264,6 +278,19 @@ class UserManagementVisitor(GearExecutionEnvironment):
             admin_group = self.admin_group(admin_id=self.__admin_id)
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
 
+            # Load domain configs if file is provided
+            domain_config: DomainRelationshipConfig | None = None
+            idp_config: IdPDomainConfig | None = None
+            if self.__domain_config_filepath:
+                domain_config, idp_config = self.__get_domain_config(
+                    self.__domain_config_filepath
+                )
+            else:
+                log.info(
+                    "No domain config file provided; "
+                    "wrong-IdP detection will be disabled"
+                )
+
             try:
                 run(
                     user_queue=self.__get_user_queue(self.__user_filepath),
@@ -284,7 +311,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
                             registry=UserRegistry(
                                 api_instance=DefaultApi(comanage_client),
                                 coid=self.__comanage_coid,
+                                name_normalizer=normalize_person_name,
+                                domain_config=domain_config,
                             ),
+                            domain_config=domain_config,
+                            idp_config=idp_config,
                         ),
                         collector=collector,
                     ),
@@ -503,6 +534,55 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 f"Unexpected format in auth file {auth_file_path}: {error}"
             ) from error
         return auth_map
+
+    def __get_domain_config(
+        self, domain_config_filepath: Path
+    ) -> tuple[DomainRelationshipConfig, IdPDomainConfig]:
+        """Get domain relationship and IdP configs from the config file.
+
+        Follows the same pattern as __get_auth_map: reads a YAML file,
+        validates via Pydantic model_validate. The file contains both
+        ``domain_relationship`` and ``idp_domain`` sections as top-level
+        keys.
+
+        Args:
+            domain_config_filepath: Path to the domain config YAML file.
+        Returns:
+            Tuple of (DomainRelationshipConfig, IdPDomainConfig).
+        """
+        try:
+            with open(domain_config_filepath, "r", encoding="utf-8-sig") as config_file:
+                config_object = load_from_stream(config_file)
+        except YAMLReadError as error:
+            raise GearExecutionError(
+                f"Failed to read domain config file {domain_config_filepath}: {error}"
+            ) from error
+
+        if not config_object:
+            raise GearExecutionError(
+                f"Empty domain config file {domain_config_filepath}"
+            )
+
+        try:
+            domain_config = DomainRelationshipConfig.model_validate(
+                config_object.get("domain_relationship", {})
+            )
+        except (ValidationError, TypeError) as error:
+            raise GearExecutionError(
+                f"Invalid domain_relationship config in "
+                f"{domain_config_filepath}: {error}"
+            ) from error
+
+        try:
+            idp_config = IdPDomainConfig.model_validate(
+                config_object.get("idp_domain", {})
+            )
+        except (ValidationError, TypeError) as error:
+            raise GearExecutionError(
+                f"Invalid idp_domain config in {domain_config_filepath}: {error}"
+            ) from error
+
+        return domain_config, idp_config
 
 
 def main() -> None:

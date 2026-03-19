@@ -23,7 +23,7 @@ from users.event_models import (
 from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
-from users.user_registry import RegistryPerson
+from users.user_registry import DomainCandidate, RegistryPerson
 
 log = logging.getLogger(__name__)
 
@@ -658,6 +658,16 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     self.collector.collect(incomplete_claim_event)
                 return
 
+            # Domain-aware and name-based fallback checks
+            domain_candidates = self.__env.user_registry.get_by_parent_domain(
+                entry.auth_email
+            )
+            name_candidates = self.__env.user_registry.get_by_name(entry.full_name)
+
+            if domain_candidates or name_candidates:
+                self.__emit_near_miss_events(entry, domain_candidates, name_candidates)
+                return
+
             log.info("Active user not in registry: %s", entry.email)
             self.__add_to_registry(user_entry=entry)
             self.__env.notification_client.send_claim_email(entry)
@@ -694,8 +704,106 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         """
         return [person for person in person_list if person.is_claimed()]
 
+    def __emit_near_miss_events(
+        self,
+        entry: ActiveUserEntry,
+        domain_candidates: List[DomainCandidate],
+        name_candidates: List[RegistryPerson],
+    ) -> None:
+        """Emit near-miss diagnostic events for domain-aware and name-based
+        candidates.
+
+        Determines the appropriate category based on overlap between domain
+        and name results, then emits one event per candidate with user
+        context and candidate details.
+
+        Args:
+          entry: the active user entry being processed
+          domain_candidates: candidates found via domain-aware lookup
+          name_candidates: candidates found via name-based lookup
+        """
+        # Build sets of registry IDs (or object ids) for overlap detection
+        domain_person_ids: set[str] = set()
+        for dc in domain_candidates:
+            pid = dc.person.registry_id() or str(id(dc.person))
+            domain_person_ids.add(pid)
+
+        name_person_ids: set[str] = set()
+        for person in name_candidates:
+            pid = person.registry_id() or str(id(person))
+            name_person_ids.add(pid)
+
+        combined_ids = domain_person_ids & name_person_ids
+
+        # Determine summary category for logging
+        if combined_ids or (domain_candidates and name_candidates):
+            category = EventCategory.COMBINED_NEAR_MISS
+        elif domain_candidates:
+            category = EventCategory.DOMAIN_NEAR_MISS
+        else:
+            category = EventCategory.NAME_NEAR_MISS
+
+        user_context = UserContext.from_user_entry(entry)
+
+        # Emit events for domain candidates
+        for dc in domain_candidates:
+            pid = dc.person.registry_id() or str(id(dc.person))
+            candidate_category = (
+                EventCategory.COMBINED_NEAR_MISS
+                if pid in combined_ids
+                else EventCategory.DOMAIN_NEAR_MISS
+            )
+            event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=candidate_category,
+                user_context=user_context,
+                message=(
+                    f"Domain near-miss: candidate email={dc.matched_email}, "
+                    f"name={dc.person.primary_name}, "
+                    f"registry_id={dc.person.registry_id()}, "
+                    f"query_domain={dc.query_domain}, "
+                    f"candidate_domain={dc.candidate_domain}, "
+                    f"parent_domain={dc.parent_domain}"
+                ),
+                action_needed="review_potential_duplicate",
+            )
+            self.collector.collect(event)
+
+        # Emit events for name-only candidates (not already covered by domain)
+        for person in name_candidates:
+            pid = person.registry_id() or str(id(person))
+            if pid in domain_person_ids:
+                continue  # Already emitted as domain/combined candidate
+            candidate_email = (
+                person.email_address.mail if person.email_address else "N/A"
+            )
+            event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.NAME_NEAR_MISS,
+                user_context=user_context,
+                message=(
+                    f"Name near-miss: candidate email={candidate_email}, "
+                    f"name={person.primary_name}, "
+                    f"registry_id={person.registry_id()}"
+                ),
+                action_needed="review_potential_duplicate",
+            )
+            self.collector.collect(event)
+
+        log.info(
+            "Near-miss candidates found for %s: %d domain, %d name, category=%s",
+            entry.email,
+            len(domain_candidates),
+            len(name_candidates),
+            category.value,
+        )
+
     def __add_to_registry(self, *, user_entry: UserEntry) -> List[Identifier]:
         """Adds a user to the registry using the user entry data.
+
+        When both auth_email and contact email are available and distinct,
+        passes both to RegistryPerson.create() so the skeleton has a
+        higher chance of matching the IdP-returned email during claim.
 
         Note: the comanage API was not returning any identifiers last checked
 
@@ -705,11 +813,17 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         the list of identifiers for the new registry record
         """
         assert user_entry.auth_email, "user entry must have auth email"
+
+        # Determine email(s) to pass to skeleton creation
+        email: str | list[str] = user_entry.auth_email
+        if user_entry.email and user_entry.email != user_entry.auth_email:
+            email = [user_entry.auth_email, user_entry.email]
+
         identifier_list = self.__env.user_registry.add(
             RegistryPerson.create(
                 firstname=user_entry.first_name,
                 lastname=user_entry.last_name,
-                email=user_entry.auth_email,
+                email=email,
                 coid=self.__env.user_registry.coid,
             )
         )
