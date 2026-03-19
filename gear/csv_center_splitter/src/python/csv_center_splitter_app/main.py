@@ -22,12 +22,14 @@ class CSVVisitorCenterSplitter(CSVVisitor):
     """Class for visiting each row in CSV."""
 
     def __init__(
-        self, *, adcid_key: str, include: Set[str], error_writer: ListErrorWriter
+        self, *, adcid_key: str, include: Set[str], error_writer: ListErrorWriter, remove_duplicates: bool = True
     ):
         """Initializer."""
         self.__adcid_key: str = adcid_key
         self.__include = include
         self.__error_writer: ListErrorWriter = error_writer
+        self.__remove_duplicates = remove_duplicates
+
         self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
         self.__headers: List[str] = []
 
@@ -116,6 +118,7 @@ def run(
     include: Optional[Set[str]] = None,
     downstream_gears: Optional[List[str]] = None,
     delimiter: str = ",",
+    remove_duplicates: bool = True,
 ):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -137,12 +140,14 @@ def run(
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
         delimiter: The CSV's delimiter; defaults to ','
+        remove_duplicates: Whether or not to remove duplicates from split files
     """
     # split CSV by ADCID key
     visitor = CSVVisitorCenterSplitter(
         adcid_key=adcid_key,
         include=include if include else set(),
         error_writer=error_writer,
+        remove_duplicates=remove_duplicates,
     )
     success = read_csv(
         input_file=input_file,

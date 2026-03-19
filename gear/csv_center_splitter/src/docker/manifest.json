@@ -100,6 +100,11 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "remove_duplicates": {
+            "description": "If true, will remove duplicate rows before distributing split files",
+            "type": "boolean",
+            "default": true
         }
     },
     "command": "/bin/run"

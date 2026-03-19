@@ -48,6 +48,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         delimiter: str = ",",
         local_run: bool = False,
         email_client: Optional[EmailListClient] = None,
+        remove_duplicates: bool = True
     ):
         super().__init__(client=client)
 
@@ -60,6 +61,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__delimiter = delimiter
         self.__local_run = local_run
         self.__email_client = email_client
+        self.__remove_duplicates = remove_duplicates
 
         self.__centers = filter_include_exclude(
             [str(x) for x in self.admin_group("nacc").get_adcids()], include, exclude
@@ -88,6 +90,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         options = context.config.opts
         target_project = options.get("target_project", None)
         staging_project_id = options.get("staging_project_id", None)
+        remove_duplicates = options.get("remove_duplicates", True)
 
         if not target_project and not staging_project_id:
             raise GearExecutionError(
@@ -138,6 +141,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             delimiter=options.get("delimiter", ","),
             local_run=options.get("local_run", False),
             email_client=email_client,
+            remove_duplicates=remove_duplicates,
         )
 
     def run(self, context: GearContext) -> None:
@@ -172,6 +176,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 downstream_gears=self.__downstream_gears,
                 include=set(self.__centers),
                 delimiter=self.__delimiter,
+                remove_duplicates=self.__remove_duplicates,
             )
 
         if self.__email_client:

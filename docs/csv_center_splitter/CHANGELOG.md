@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 0.2.4
 
+* Adds option to remove duplicates
 * Adds notification to REDCap email list on pipeline completion
 * Moves `generate_project_map` to common code
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
