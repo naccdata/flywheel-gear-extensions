@@ -269,7 +269,8 @@ class FlywheelProxy:
 
         project = group.projects.find_first(f"label={project_label}")
         if project:
-            log.info("Project %s/%s exists", group.id, project_label)
+            if self.__dry_run:
+                log.info("Project %s/%s exists", group.id, project_label)
             return project
 
         project_ref = f"{group.id}/{project_label}"

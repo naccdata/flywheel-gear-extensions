@@ -231,6 +231,9 @@ class DirectoryAuthorizations(BaseModel):
     ind_clar_core_role___admin: Optional[bool] = Field(
         default=None, alias="ind_clar_core_role___admin"
     )
+    signed_user_agreement: bool = Field(
+        default=False, alias="signed_agreement_status_num_ct"
+    )
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
@@ -366,14 +369,16 @@ class DirectoryAuthorizations(BaseModel):
 
         return value_list.split(",")
 
-    @field_validator("inactive", "permissions_approval", mode="before")
+    @field_validator(
+        "inactive", "permissions_approval", "signed_user_agreement", mode="before"
+    )
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
         if not isinstance(value, str):
             raise TypeError("expecting bool or string value")
 
-        return value == "1"
+        return value.strip().isdigit() and int(value.strip()) != 0
 
     def __handle_datatype_resource(
         self,
@@ -529,6 +534,9 @@ class DirectoryAuthorizations(BaseModel):
 
     def to_user_entry(self) -> Optional[UserEntry]:
         """Converts this DirectoryAuthorizations object to a UserEntry."""
+
+        if not self.signed_user_agreement:
+            return None
 
         if not self.permissions_approval:
             return None

@@ -171,6 +171,7 @@ class TestDirectoryErrorHandlingIntegration:
             "scan_dashboard_access_level": "0",
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
@@ -214,6 +215,7 @@ class TestDirectoryErrorHandlingIntegration:
             "scan_dashboard_access_level": "0",
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
