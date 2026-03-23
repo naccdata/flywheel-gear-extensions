@@ -2,6 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.0.0
+
+* Adds signed user agreement check to directory processing
+* Rejects directory entries where the user has not signed the NACC user agreement
+* Adds `MISSING_USER_AGREEMENT` error event category for unsigned agreement tracking
+* Adds `signed_user_agreement` field to `DirectoryAuthorizations` model
+* Updates `convert_flag_string` validator to handle numeric string values beyond "1"
+* Refactors directory test fixtures to use shared `create_directory_entry` helper
+
 ## 3.1.1
 
 * Reclassifies `cl_ror_access_level` field as participant-summary datatype resource instead of dashboard resource
