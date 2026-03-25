@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.2.1
+
+* Removes domain-only near-miss detection from blocking skeleton creation, reducing false positives at large institutions
+* Requires name match (combined signal or name-only) before flagging a near-miss candidate
+* Filters self-matches from near-miss detection where case-insensitive email matches identify the user's own registry record
+* Changes near-miss event emission to only report combined signal and name-only categories, suppressing pure domain-only rows
+
 ## 4.2.0
 
 * Adds domain-aware near-miss detection to identify potential duplicate registry records by parent domain
