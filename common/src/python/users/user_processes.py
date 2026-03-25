@@ -658,13 +658,33 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
                     self.collector.collect(incomplete_claim_event)
                 return
 
-            # Domain-aware and name-based fallback checks
+            # Domain-aware and name-based fallback checks.
+            # Only block skeleton creation when there is a name match
+            # (combined signal or name-only). Domain-only hits are too
+            # noisy at large institutions and are not reported.
             domain_candidates = self.__env.user_registry.get_by_parent_domain(
                 entry.auth_email
             )
             name_candidates = self.__env.user_registry.get_by_name(entry.full_name)
 
-            if domain_candidates or name_candidates:
+            # Filter out self-matches: candidates whose email matches the
+            # query email (case-insensitive). This handles registry records
+            # stored with different casing than the directory entry.
+            query_email_lower = entry.auth_email.lower()
+            domain_candidates = [
+                dc
+                for dc in domain_candidates
+                if dc.matched_email.lower() != query_email_lower
+            ]
+            name_candidates = [
+                p
+                for p in name_candidates
+                if not any(
+                    addr.mail.lower() == query_email_lower for addr in p.email_addresses
+                )
+            ]
+
+            if name_candidates:
                 self.__emit_near_miss_events(entry, domain_candidates, name_candidates)
                 return
 
@@ -710,12 +730,13 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         domain_candidates: List[DomainCandidate],
         name_candidates: List[RegistryPerson],
     ) -> None:
-        """Emit near-miss diagnostic events for domain-aware and name-based
+        """Emit near-miss diagnostic events for combined-signal and name-only
         candidates.
 
-        Determines the appropriate category based on overlap between domain
-        and name results, then emits one event per candidate with user
-        context and candidate details.
+        Only emits events when a name match is present. Domain candidates
+        are only reported when they also appear in the name results
+        (combined signal). Pure domain-only matches are suppressed to
+        avoid noise from large institutions.
 
         Args:
           entry: the active user entry being processed
@@ -736,29 +757,24 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         combined_ids = domain_person_ids & name_person_ids
 
         # Determine summary category for logging
-        if combined_ids or (domain_candidates and name_candidates):
+        if combined_ids:
             category = EventCategory.COMBINED_NEAR_MISS
-        elif domain_candidates:
-            category = EventCategory.DOMAIN_NEAR_MISS
         else:
             category = EventCategory.NAME_NEAR_MISS
 
         user_context = UserContext.from_user_entry(entry)
 
-        # Emit events for domain candidates
+        # Emit events only for domain candidates that also matched by name
         for dc in domain_candidates:
             pid = dc.person.registry_id() or str(id(dc.person))
-            candidate_category = (
-                EventCategory.COMBINED_NEAR_MISS
-                if pid in combined_ids
-                else EventCategory.DOMAIN_NEAR_MISS
-            )
+            if pid not in combined_ids:
+                continue  # Skip domain-only matches
             event = UserProcessEvent(
                 event_type=EventType.ERROR,
-                category=candidate_category,
+                category=EventCategory.COMBINED_NEAR_MISS,
                 user_context=user_context,
                 message=(
-                    f"Domain near-miss: candidate email={dc.matched_email}, "
+                    f"Combined near-miss: candidate email={dc.matched_email}, "
                     f"name={dc.person.primary_name}, "
                     f"registry_id={dc.person.registry_id()}, "
                     f"query_domain={dc.query_domain}, "
@@ -769,11 +785,11 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             )
             self.collector.collect(event)
 
-        # Emit events for name-only candidates (not already covered by domain)
+        # Emit events for name-only candidates (not already covered by combined)
         for person in name_candidates:
             pid = person.registry_id() or str(id(person))
             if pid in domain_person_ids:
-                continue  # Already emitted as domain/combined candidate
+                continue  # Already emitted as combined candidate
             candidate_email = (
                 person.email_address.mail if person.email_address else "N/A"
             )
@@ -791,10 +807,10 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             self.collector.collect(event)
 
         log.info(
-            "Near-miss candidates found for %s: %d domain, %d name, category=%s",
+            "Near-miss candidates found for %s: %d combined, %d name-only, category=%s",
             entry.email,
-            len(domain_candidates),
-            len(name_candidates),
+            len(combined_ids),
+            len(name_candidates) - len(combined_ids),
             category.value,
         )
 
