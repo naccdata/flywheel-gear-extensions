@@ -9,7 +9,6 @@ Validates Requirements 7.1, 7.3, 7.4
 
 from unittest.mock import Mock, patch
 
-import pytest
 from projects.study import DatatypeConfig, StudyModel
 from projects.study_mapping import StudyMappingVisitor
 
@@ -285,32 +284,25 @@ class TestRealNACCStudyConfigurations:
         assert "ingest-form-dist-study" not in created_projects
         assert "sandbox-form-dist-study" not in created_projects
 
-    def test_primary_study_validation_rejects_distribution(self):
-        """Test that primary study validation rejects distribution mode.
+    def test_primary_study_allows_distribution(self):
+        """Test that primary studies now allow distribution mode datatypes.
 
-        This test verifies that existing validation rules for primary
-        studies are maintained - primary studies cannot have distribution
-        mode datatypes.
-
-        Validates Requirement 7.3
+        Primary studies support mixed-mode datatypes (both aggregation
+        and distribution).
         """
-        from projects.study import StudyError
+        # Primary study with distribution mode should now succeed
+        study = StudyModel(
+            name="Primary With Distribution",  # pyright: ignore[reportCallIssue]
+            study_id="primary-dist",
+            centers=["center-01"],
+            datatypes=["form"],
+            mode="distribution",
+            study_type="primary",
+            legacy=False,
+        )
 
-        # Attempt to create primary study with distribution mode
-        with pytest.raises((StudyError, ValueError)) as exc_info:
-            StudyModel(
-                name="Invalid Primary",  # pyright: ignore[reportCallIssue]
-                study_id="invalid",
-                centers=["center-01"],
-                datatypes=["form"],
-                mode="distribution",  # Invalid for primary
-                study_type="primary",
-                legacy=False,
-            )
-
-        # Verify error message mentions the validation issue
-        error_msg = str(exc_info.value)
-        assert "primary" in error_msg.lower() or "aggregation" in error_msg.lower()
+        assert study.study_type == "primary"
+        assert study.get_datatypes_by_mode("distribution") == ["form"]
 
     def test_new_format_with_mixed_modes(self, mock_flywheel_proxy):
         """Test new format configuration with mixed modes.

@@ -184,7 +184,6 @@ def test_primary_study_validation_property(datatypes):
     - If all datatypes are aggregation, primary study is valid
     - If any datatype is distribution, primary study is invalid
     """
-    from projects.study import StudyError
 
     study_dict = {
         "study": "Primary Study",
@@ -194,25 +193,9 @@ def test_primary_study_validation_property(datatypes):
         "study-type": "primary",
     }
 
-    # Check if all datatypes are aggregation
-    all_aggregation = all(mode == "aggregation" for _, mode in datatypes)
-
-    if all_aggregation:
-        # Should succeed
-        study = StudyModel.create(study_dict)
-        assert study.study_type == "primary"
-    else:
-        # Should fail
-        try:
-            StudyModel.create(study_dict)
-            raise AssertionError(
-                "Expected StudyError for primary study with distribution datatypes"
-            )
-        except StudyError as e:
-            # Verify error message mentions the issue
-            assert "Primary study cannot have datatype" in str(
-                e
-            ) or "mode of a primary study must be aggregation" in str(e)
+    # Primary studies now support mixed-mode datatypes
+    study = StudyModel.create(study_dict)
+    assert study.study_type == "primary"
 
 
 # Feature: study-model-flexible-configuration

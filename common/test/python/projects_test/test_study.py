@@ -319,23 +319,22 @@ class TestStudyModelValidation:
         assert study.study_type == "primary"
 
         # Invalid: primary study with distribution datatype
-        with pytest.raises(StudyError) as exc_info:
-            StudyModel.create(
-                {
-                    "study": "Invalid Primary",
-                    "study-id": "invalid",
-                    "centers": ["ac"],
-                    "datatypes": [
-                        {"name": "form", "mode": "aggregation"},
-                        {"name": "csv", "mode": "distribution"},
-                    ],
-                    "study-type": "primary",
-                }
-            )
-        assert (
-            "Primary study cannot have datatype 'csv' with mode 'distribution'"
-            in str(exc_info.value)
+        # Primary studies now support mixed-mode datatypes
+        study = StudyModel.create(
+            {
+                "study": "Mixed Primary",
+                "study-id": "mixed",
+                "centers": ["ac"],
+                "datatypes": [
+                    {"name": "form", "mode": "aggregation"},
+                    {"name": "csv", "mode": "distribution"},
+                ],
+                "study-type": "primary",
+            }
         )
+        assert study.study_type == "primary"
+        assert study.get_datatypes_by_mode("aggregation") == ["form"]
+        assert study.get_datatypes_by_mode("distribution") == ["csv"]
 
     def test_affiliated_study_with_mixed_modes(self):
         """Test that affiliated studies can have mixed modes."""

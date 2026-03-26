@@ -554,15 +554,11 @@ class StudyModel(BaseModel):
         Note: This validator checks the deprecated study-level mode field for
         backward compatibility. The validate_configuration validator handles
         the new datatype-level mode validation.
-        """
-        # Only check if mode field is explicitly set (backward compatibility)
-        if (
-            self.mode is not None
-            and self.study_type == "primary"
-            and self.mode != "aggregation"
-        ):
-            raise ValueError("The mode of a primary study must be aggregation")
 
+        Primary studies may have both aggregation and distribution datatypes
+        (mixed-mode). The study-level mode field is only used for migrating
+        legacy configurations where datatypes are specified as plain strings.
+        """
         return self
 
     @model_validator(mode="after")
@@ -570,7 +566,6 @@ class StudyModel(BaseModel):
         """Validate complete study configuration.
 
         Checks:
-        - Primary studies have aggregation-only datatypes
         - All datatypes have mode configuration
         - All dashboard levels are valid
 
@@ -580,16 +575,8 @@ class StudyModel(BaseModel):
         Raises:
             ValueError: If configuration is invalid
         """
-        # Validate primary studies have aggregation-only datatypes
-        if self.study_type == "primary":
-            datatype_configs = self.get_datatype_configs()
-            for config in datatype_configs:
-                if config.mode != "aggregation":
-                    raise ValueError(
-                        f"Primary study cannot have datatype '{config.name}' with mode "
-                        f"'{config.mode}'. All datatypes in primary studies must have "
-                        "mode 'aggregation'"
-                    )
+        # Primary studies may have mixed-mode datatypes (both aggregation
+        # and distribution). No mode restriction is enforced.
 
         # Validate all datatypes have mode configuration
         # This is already enforced by normalize_datatypes validator,
