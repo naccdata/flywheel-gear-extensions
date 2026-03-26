@@ -71,7 +71,7 @@ class FormCurator(Curator):
         self.__prev_scope = None
 
         # get expected cross-sectional derived variables by scope
-        self.__scoped_variables = {
+        self.__scope_reference = {
             scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
         }
 
@@ -81,11 +81,11 @@ class FormCurator(Curator):
         # now we are stuffing the necessary variables back into the file
         # level
         for scope, child_scopes in CHILD_SCOPES.items():
-            if scope not in self.__scoped_variables:
-                self.__scoped_variables[scope] = []
+            if scope not in self.__scope_reference:
+                self.__scope_reference[scope] = []
 
             for child_scope in child_scopes:
-                self.__scoped_variables[scope].extend(
+                self.__scope_reference[scope].extend(
                     self.__extract_attributes(child_scope)
                 )
 
@@ -391,7 +391,7 @@ class FormCurator(Curator):
         derived = subject_table.get("derived", {})
 
         # 4. add subject tags
-        affiliate = derived.get("affiliate", False)
+        affiliate = derived.get("affiliate", -4)
         self.handle_subject_tags(subject, curated_scopes, affiliate)
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
@@ -399,7 +399,6 @@ class FormCurator(Curator):
             subject,
             scoped_files,
             "derived",
-            self.__scoped_variables,
             derived.get("cross-sectional", None),
         )
 
@@ -473,7 +472,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         curated_scopes: List[ScopeLiterals],
-        affiliate: bool,
+        affiliate: int,
     ) -> None:
         """Handle curation tags.
 
@@ -483,10 +482,10 @@ class FormCurator(Curator):
             affiliate: whether or not this is an affiliate subject
         """
         affiliate_tag = FormCurationTags.AFFILIATE
-        if affiliate and affiliate_tag not in subject.tags:
+        if affiliate == 1 and affiliate_tag not in subject.tags:
             log.debug(f"Tagging affiliate: {subject.label}")
             subject.add_tag(affiliate_tag)
-        elif not affiliate and affiliate_tag in subject.tags:
+        elif affiliate != 1 and affiliate_tag in subject.tags:
             subject.delete_tag(affiliate_tag)
 
         # add uds-participant tag
@@ -502,7 +501,6 @@ class FormCurator(Curator):
         subject: Subject,
         scoped_files: Dict[ScopeLiterals, List[FileModel]],
         category: str,
-        scope_reference: Dict[str, List[str]],
         cs_variables: Dict[str, Any] | None,
     ) -> None:
         """Performs back-propagation on cross-sectional variables.
@@ -515,9 +513,6 @@ class FormCurator(Curator):
             subject: The subject
             scoped_files: The curated files, scoped
             category: The variable category (derived vs resolved)
-            scope_reference: The scope reference, i.e. which variables
-                belong to which scope. Determines which files actually
-                get the back-propagated variables.
             cs_variables: The cross-sectional variables, if any
         """
         if not cs_variables:
@@ -527,10 +522,12 @@ class FormCurator(Curator):
             )
             return
 
-        result: Dict[str, Dict[str, Any]] = {scope: {} for scope in scope_reference}
+        result: Dict[str, Dict[str, Any]] = {
+            scope: {} for scope in self.__scope_reference
+        }
 
         for k, v in cs_variables.items():
-            for scope, scoped_vars in scope_reference.items():
+            for scope, scoped_vars in self.__scope_reference.items():
                 if k in scoped_vars:
                     result[scope][k] = v
 
@@ -569,7 +566,7 @@ class FormCurator(Curator):
                 file_info[category].update(result[scope])
 
     @api_retry
-    def apply_file_curation(self, file: FileModel, affiliate: bool) -> None:
+    def apply_file_curation(self, file: FileModel, affiliate: int) -> None:
         """Applies the file-specific curated information back to FW.
 
         Grabs file.info.derived (derived variables) and
@@ -591,6 +588,9 @@ class FormCurator(Curator):
             if curated_file_info:
                 updated_info.update({curation_type: curated_file_info})
 
+        if file.file_info.get("affiliate", None) != affiliate:
+            updated_info["affiliate"] = affiliate
+
         if updated_info:
             file_entry.update_info(updated_info)
 
@@ -598,9 +598,6 @@ class FormCurator(Curator):
         if self.curation_tag not in file_entry.tags:
             file_entry.add_tag(self.curation_tag)
 
-        # set affiliate status
-        affiliate_tag = FormCurationTags.AFFILIATE
-        if affiliate and affiliate_tag not in file_entry.tags:
-            file_entry.add_tag(affiliate_tag)
-        elif not affiliate and affiliate_tag in file_entry.tags:
-            file_entry.delete_tag(affiliate_tag)
+        # TODO - remove after cleaned up, moving data to file.info
+        if FormCurationTags.AFFILIATE in file_entry.tags:
+            file_entry.delete_tag(FormCurationTags.AFFILIATE)
