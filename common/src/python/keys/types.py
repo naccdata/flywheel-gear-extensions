@@ -3,6 +3,7 @@ from typing import Literal
 DatatypeNameType = Literal[
     "apoe",
     "biomarker",
+    "data-freeze",
     "dicom",
     "enrollment",
     "form",

@@ -4,6 +4,13 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.5.0
+
+* Allows primary studies to have distribution datatypes (mixed-mode)
+  * Removes restriction that primary studies must be aggregation-only
+  * Primary studies can now have both aggregation and distribution datatypes
+* Adds `data-freeze` as a new datatype
+
 ## 2.4.1
 
 * Fixes distribution projects not being created in center groups for co-enrolled affiliated studies

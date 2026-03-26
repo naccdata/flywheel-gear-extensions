@@ -46,6 +46,10 @@ search_path = ["<PATH>", "<PYENV>"]
 
 [python-infer]
 use_rust_parser = true
+ignored_unowned_imports = [
+  "typing_extensions.Annotated",
+  "typing_extensions.Self",
+]
 
 [update-build-files]
 formatter = "ruff"
