@@ -588,8 +588,8 @@ class FormCurator(Curator):
             if curated_file_info:
                 updated_info.update({curation_type: curated_file_info})
 
-        if file.file_info.get('affiliate', None) != affiliate:
-            updated_info['affiliate'] = affiliate
+        if file.file_info.get("affiliate", None) != affiliate:
+            updated_info["affiliate"] = affiliate
 
         if updated_info:
             file_entry.update_info(updated_info)
