@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.2.2
+
+* Rebuilt for updated common libraries (adds `data-freeze` datatype, relaxes primary study mode restriction)
+
 ## 4.2.1
 
 * Removes domain-only near-miss detection from blocking skeleton creation, reducing false positives at large institutions
