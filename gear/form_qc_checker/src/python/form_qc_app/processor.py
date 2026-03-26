@@ -10,7 +10,10 @@ from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import (
     ErrorLogTemplate,
     MetadataCleanupFlag,
-    update_error_log_and_qc_metadata,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
 )
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -21,7 +24,10 @@ from flywheel_adaptor.subject_adaptor import (
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
-from nacc_common.error_models import JSONLocation, VisitKeys
+from nacc_common.data_identification import (
+    DataIdentification,
+)
+from nacc_common.error_models import JSONLocation
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
@@ -64,7 +70,7 @@ class FileProcessor(ABC):
         self._gear_name = gear_name
         self._module_configs = self._form_configs.module_configs.get(self._module)
         self._req_fields = self._set_required_fields()
-        self._errorlog_template = self._set_error_log_template()
+        self._errorlog_template = ErrorLogTemplate()
 
     @abstractmethod
     def validate_input(
@@ -131,17 +137,6 @@ class FileProcessor(ABC):
 
         return req_fields
 
-    def _set_error_log_template(self) -> ErrorLogTemplate:
-        """Get the error log naming template from module configs.
-
-        Returns:
-            ErrorLogTemplate: error log template for the module
-        """
-        if self._module_configs and self._module_configs.errorlog_template:
-            return self._module_configs.errorlog_template
-
-        return ErrorLogTemplate(id_field=FieldNames.PTID, date_field=self._date_field)
-
     def update_visit_error_log(
         self,
         *,
@@ -163,15 +158,27 @@ class FileProcessor(ABC):
         Returns:
             bool: True if error log updated successfully, else False
         """
-        error_log_name = self._errorlog_template.instantiate(
-            record=input_record, module=self._module
+        # Create DataIdentification from CSV record
+        data_id = DataIdentification.from_form_record(input_record, self._date_field)
+        if not data_id:
+            log.warning(
+                "Failed to create DataIdentification for record %s, %s",
+                input_record.get(self._pk_field),
+                input_record.get(self._date_field),
+            )
+            return False
+
+        # Use QCStatusLogManager to update QC log (handles both new and legacy formats)
+        qc_manager = QCStatusLogManager(
+            error_log_template=self._errorlog_template,
+            visit_annotator=FileVisitAnnotator(self._project),
         )
 
-        if not error_log_name or not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self._project,
+        if not qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=self._project,
             gear_name=self._gear_name,
-            state="PASS" if qc_passed else "FAIL",
+            status="PASS" if qc_passed else "FAIL",
             errors=self._error_writer.errors(),
             reset_qc_metadata=reset_qc_metadata,
         ):
@@ -257,12 +264,13 @@ class JSONFileProcessor(FileProcessor):
 
             # has a failed previous visit
             if failed_visit.visitdate < visitdate:
+                visit_keys = DataIdentification.from_form_record_safe(
+                    record=self.__input_record, date_field=self._date_field
+                )
                 self._error_writer.write(
                     previous_visit_failed_error(
                         prev_visit=failed_visit.filename,
-                        visit_keys=VisitKeys.create_from(
-                            record=self.__input_record, date_field=self._date_field
-                        ),
+                        visit_keys=visit_keys,
                     )
                 )
                 return "DIFFERENT"
@@ -302,12 +310,13 @@ class JSONFileProcessor(FileProcessor):
                 found_all = False
 
         if not found_all:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 empty_field_error(
                     field=empty_fields,
-                    visit_keys=VisitKeys.create_from(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None
@@ -320,13 +329,14 @@ class JSONFileProcessor(FileProcessor):
                 f"{subject_lbl} in project {self._project.label}"
             )
             log.error(message)
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 system_error(
                     message=message,
                     error_location=JSONLocation(key_path=self._pk_field),
-                    visit_keys=VisitKeys.create_from(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None

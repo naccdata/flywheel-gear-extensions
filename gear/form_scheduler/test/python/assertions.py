@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
 
 
 def assert_valid_qc_pass_event(
@@ -21,7 +21,7 @@ def assert_valid_qc_pass_event(
 
     Args:
         event: The VisitEvent to validate
-        expected_ptid: Expected participant ID
+        expected_ptid: Expected participant ID (will be normalized for comparison)
         expected_visit_date: Expected visit date
         expected_visit_number: Expected visit number
         expected_module: Expected module
@@ -29,6 +29,10 @@ def assert_valid_qc_pass_event(
         expected_gear_name: Expected gear name
         expected_datatype: Expected datatype
     """
+    # Normalize expected PTID to match DataIdentification normalization
+    # (strips whitespace and leading zeros)
+    normalized_expected_ptid = expected_ptid.strip().lstrip("0") or expected_ptid
+
     assert event.action == ACTION_PASS_QC, (
         f"Event action should be {ACTION_PASS_QC}, got {event.action}"
     )
@@ -38,8 +42,9 @@ def assert_valid_qc_pass_event(
     assert event.datatype == expected_datatype, (
         f"Event datatype should be '{expected_datatype}', got {event.datatype}"
     )
-    assert event.ptid == expected_ptid, (
-        f"Event PTID should be '{expected_ptid}', got {event.ptid}"
+    assert event.ptid == normalized_expected_ptid, (
+        f"Event PTID should be '{normalized_expected_ptid}' "
+        f"(normalized from '{expected_ptid}'), got {event.ptid}"
     )
     assert event.visit_date == expected_visit_date, (
         f"Event visit_date should be '{expected_visit_date}', got {event.visit_date}"
@@ -120,7 +125,7 @@ def assert_event_structure_matches(
 
 
 def assert_visit_metadata_matches(
-    actual: VisitMetadata,
+    actual: DataIdentification,
     expected_ptid: str,
     expected_date: str,
     expected_module: str,
@@ -130,32 +135,37 @@ def assert_visit_metadata_matches(
     """Assert that visit metadata matches expected values.
 
     Args:
-        actual: The VisitMetadata to validate
-        expected_ptid: Expected participant ID
+        actual: The DataIdentification to validate
+        expected_ptid: Expected participant ID (will be normalized for comparison)
         expected_date: Expected visit date
         expected_module: Expected module
         expected_visitnum: Expected visit number (optional)
         expected_packet: Expected packet (optional)
     """
-    assert actual.ptid == expected_ptid, (
-        f"VisitMetadata PTID should be '{expected_ptid}', got {actual.ptid}"
+    # Normalize expected PTID to match DataIdentification normalization
+    normalized_expected_ptid = expected_ptid.strip().lstrip("0") or expected_ptid
+
+    assert actual.ptid == normalized_expected_ptid, (
+        f"DataIdentification PTID should be '{normalized_expected_ptid}' "
+        f"(normalized from '{expected_ptid}'), got {actual.ptid}"
     )
     assert actual.date == expected_date, (
-        f"VisitMetadata date should be '{expected_date}', got {actual.date}"
+        f"DataIdentification date should be '{expected_date}', got {actual.date}"
     )
     assert actual.module == expected_module, (
-        f"VisitMetadata module should be '{expected_module}', got {actual.module}"
+        f"DataIdentification module should be '{expected_module}', got {actual.module}"
     )
 
     if expected_visitnum is not None:
         assert actual.visitnum == expected_visitnum, (
-            f"VisitMetadata visitnum should be '{expected_visitnum}', "
+            f"DataIdentification visitnum should be '{expected_visitnum}', "
             f"got {actual.visitnum}"
         )
 
     if expected_packet is not None:
         assert actual.packet == expected_packet, (
-            f"VisitMetadata packet should be '{expected_packet}', got {actual.packet}"
+            f"DataIdentification packet should be '{expected_packet}', "
+            f"got {actual.packet}"
         )
 
 

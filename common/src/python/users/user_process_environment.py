@@ -13,6 +13,7 @@ from notifications.email import (
 )
 
 from users.authorizations import AuthMap
+from users.domain_config import DomainRelationshipConfig, IdPDomainConfig
 from users.user_entry import ActiveUserEntry
 from users.user_registry import RegistryPerson, UserRegistry
 
@@ -150,12 +151,16 @@ class UserProcessEnvironment:
         proxy: FlywheelProxy,
         registry: UserRegistry,
         notification_client: NotificationClient,
+        domain_config: DomainRelationshipConfig | None = None,
+        idp_config: IdPDomainConfig | None = None,
     ) -> None:
         self.__admin_group = admin_group
         self.__authorization_map = authorization_map
         self.__proxy = proxy
         self.__registry = registry
         self.__notification_client = notification_client
+        self.__domain_config = domain_config
+        self.__idp_config = idp_config
 
     @property
     def admin_group(self) -> NACCGroup:
@@ -176,6 +181,14 @@ class UserProcessEnvironment:
     @property
     def notification_client(self) -> NotificationClient:
         return self.__notification_client
+
+    @property
+    def domain_config(self) -> DomainRelationshipConfig | None:
+        return self.__domain_config
+
+    @property
+    def idp_config(self) -> IdPDomainConfig | None:
+        return self.__idp_config
 
     def add_user(self, user: User) -> str:
         return self.proxy.add_user(user)

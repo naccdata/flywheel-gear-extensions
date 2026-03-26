@@ -8,13 +8,13 @@ from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import EventAccumulator
 from nacc_common.error_models import (
     QC_STATUS_PASS,
-    VisitMetadata,
+    DataIdentification,
 )
 from test_mocks.mock_event_capture import MockVisitEventCapture
 from test_mocks.mock_factories import (
+    DataIdentificationFactory,
     FileEntryFactory,
     QCMetadataFactory,
-    VisitMetadataFactory,
 )
 from test_mocks.mock_flywheel import (
     MockFile,
@@ -95,7 +95,7 @@ def create_mock_qc_status_file_with_visit_metadata(
     date: str,
     module: str,
     qc_metadata,
-    visit_metadata: Optional[VisitMetadata] = None,
+    visit_metadata: Optional[DataIdentification] = None,
     modified: Optional[datetime] = None,
 ) -> MockFile:
     """Create a mock QC-status file with visit metadata in custom info.
@@ -105,7 +105,7 @@ def create_mock_qc_status_file_with_visit_metadata(
         date: Visit date
         module: Module name (e.g., "uds")
         qc_metadata: FileQCModel instance
-        visit_metadata: VisitMetadata to include in custom info
+        visit_metadata: DataIdentification to include in custom info
         modified: File modification timestamp
 
     Returns:
@@ -142,8 +142,8 @@ class TestEndToEndEventLogging:
         mock_event_capture: MockVisitEventCapture,
     ) -> None:
         """Test end-to-end flow: JSON file -> QC status discovery ->
-        VisitMetadata extraction from custom info -> QC-pass event creation ->
-        S3 logging.
+        DataIdentification extraction from custom info -> QC-pass event
+        creation -> S3 logging.
 
         This tests the complete flow when visit metadata is available in
         QC status custom info (added by FileVisitAnnotator).
@@ -159,7 +159,7 @@ class TestEndToEndEventLogging:
         )
 
         # Create visit metadata for QC status custom info
-        visit_metadata = VisitMetadataFactory.create_visit_metadata(
+        visit_metadata = DataIdentificationFactory.create_visit_metadata(
             ptid="adrc1000",
             date="2025-03-19",
             visitnum="3F",
@@ -312,7 +312,7 @@ class TestEndToEndEventLogging:
         )
 
         # Create visit metadata
-        visit_metadata = VisitMetadataFactory.create_visit_metadata(
+        visit_metadata = DataIdentificationFactory.create_visit_metadata(
             ptid="adrc1002",
             date="2025-06-18",
             visitnum="2F",

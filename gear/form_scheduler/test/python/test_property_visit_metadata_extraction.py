@@ -14,12 +14,13 @@ import pytest
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.event_accumulator import (
+    DataIdentificationExtractor,
     EventAccumulator,
-    VisitMetadataExtractor,
 )
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from nacc_common.error_models import VisitMetadata
+from nacc_common.data_identification import DataIdentification
+from pydantic import ValidationError
 from test_mocks.strategies import (
     valid_visit_metadata_strategy as visit_metadata_strategy,
 )
@@ -98,7 +99,9 @@ def test_visit_metadata_extraction_priority_custom_info_first(
     # Should successfully extract from custom info if valid
     if visit_data.get("ptid") and visit_data.get("date") and visit_data.get("module"):
         assert result is not None
-        assert result.ptid == visit_data["ptid"]
+        # PTIDs are normalized (leading zeros stripped), so compare normalized values
+        expected_ptid = visit_data["ptid"].strip().lstrip("0") or visit_data["ptid"]
+        assert result.ptid == expected_ptid
         assert result.date == visit_data["date"]
         assert result.module == visit_data["module"]
         assert result.packet == visit_data.get("packet")
@@ -212,7 +215,7 @@ def test_visit_metadata_extraction_invalid_data(event_accumulator):
 
 
 def test_visit_metadata_extractor_utilities():
-    """Test the VisitMetadataExtractor utility methods.
+    """Test the DataIdentificationExtractor utility methods.
 
       **Feature: form-scheduler-event-logging-refactor,
     Property 4:
@@ -229,7 +232,7 @@ def test_visit_metadata_extractor_utilities():
         }
     }
 
-    result = VisitMetadataExtractor.from_qc_status_custom_info(custom_info)
+    result = DataIdentificationExtractor.from_qc_status_custom_info(custom_info)
     assert result is not None
     assert result.ptid == "110001"
     assert result.date == "2024-01-15"
@@ -251,19 +254,26 @@ def test_visit_metadata_extractor_utilities():
         },
     )
 
-    result = VisitMetadataExtractor.from_json_file_metadata(json_file)
+    result = DataIdentificationExtractor.from_json_file_metadata(json_file)
     assert result is not None
     assert result.ptid == "110002"
     assert result.date == "2024-01-16"  # visitdate mapped to date
     assert result.module == "LBD"
     assert result.packet == "F"
 
-    # Test is_valid_for_event
-    valid_metadata = VisitMetadata(ptid="110001", date="2024-01-15", module="UDS")
-    assert VisitMetadataExtractor.is_valid_for_event(valid_metadata) is True
+    # Test that valid metadata can be created
+    valid_metadata = DataIdentification.from_visit_metadata(
+        ptid="110001", date="2024-01-15", module="UDS"
+    )
+    assert valid_metadata is not None
+    assert valid_metadata.ptid == "110001"
 
-    invalid_metadata = VisitMetadata(ptid=None, date="2024-01-15", module="UDS")
-    assert VisitMetadataExtractor.is_valid_for_event(invalid_metadata) is False
+    # Test with invalid metadata - ptid=None should raise ValidationError
+
+    with pytest.raises(ValidationError):
+        DataIdentification.from_visit_metadata(
+            ptid=None, date="2024-01-15", module="UDS"
+        )
 
 
 def test_visit_metadata_extraction_milestone_form_without_visitnum(event_accumulator):
@@ -302,9 +312,6 @@ def test_visit_metadata_extraction_milestone_form_without_visitnum(event_accumul
     assert result.packet == "M"
     assert result.visitnum is None  # visitnum should be None for milestone forms
 
-    # Should be valid for event creation
-    assert VisitMetadataExtractor.is_valid_for_event(result) is True
-
 
 def test_visit_metadata_extraction_np_form_without_visitnum(event_accumulator):
     """Test that NP forms without visitnum can extract valid metadata.
@@ -341,9 +348,6 @@ def test_visit_metadata_extraction_np_form_without_visitnum(event_accumulator):
     assert result.module == "NP"
     assert result.packet == "N"
     assert result.visitnum is None  # visitnum should be None for NP forms
-
-    # Should be valid for event creation
-    assert VisitMetadataExtractor.is_valid_for_event(result) is True
 
 
 def test_visit_metadata_extraction_qc_status_milestone_without_visitnum(
@@ -387,6 +391,3 @@ def test_visit_metadata_extraction_qc_status_milestone_without_visitnum(
     assert result.module == "MLST"
     assert result.packet == "M"
     assert result.visitnum is None
-
-    # Should be valid for event creation
-    assert VisitMetadataExtractor.is_valid_for_event(result) is True

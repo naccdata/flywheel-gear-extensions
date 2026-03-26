@@ -2,12 +2,19 @@ import logging
 from datetime import datetime as dt
 from typing import Any, Dict, List, Literal, Optional
 
-from dates.form_dates import DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, convert_date
+from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.data_identification import (
+    AbstractIdentificationVisitor,
+    DataIdentification,
+    FormIdentification,
+    ImageIdentification,
+    ParticipantIdentification,
+    VisitIdentification,
+)
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
-from nacc_common.field_names import FieldNames
 from pydantic import BaseModel, ValidationError
 from utils.decorators import api_retry
 
@@ -16,51 +23,90 @@ log = logging.getLogger(__name__)
 MetadataCleanupFlag = Literal["ALL", "GEAR", "NA"]
 
 
-class VisitLabelTemplate(BaseModel):
-    """Template for creating a visit label for a data record."""
+class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
+    """Visitor that collects identification attributes for error log file
+    naming."""
 
-    id_field: str = FieldNames.PTID
-    date_field: str = FieldNames.DATE_COLUMN
+    def __init__(self) -> None:
+        self.__participant_attribute = ""
+        self.__visit_attribute = ""
+        self.__date_attribute = ""
+        self.__data_attribute = ""
 
-    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
-        """Instantiates this using the values for the template fields and
-        module to create a visit-label.
+    @property
+    def log_name_prefix(self) -> Optional[str]:
+        """Build log name prefix from collected attributes.
 
-        Constructs the label as "<id-field>_<date-field>_<module>".
+        Format: {ptid}_{date}[_{visitnum}]_{module}
+        Date comes before visitnum as it is present for all modules.
 
-        Args:
-          record: the data record
-          module: the module name
-        Returns:
-          the visit-label if all fields exist. None, otherwise.
+        Returns None if any required attributes (participant, date,
+        data) are empty. Visit attribute is optional.
         """
-        components = []
-        ptid = record.get(self.id_field)
-        if not ptid:
+        # Check required attributes
+        if (
+            not self.__participant_attribute
+            or not self.__date_attribute
+            or not self.__data_attribute
+        ):
             return None
 
-        cleaned_ptid = ptid.strip().lstrip("0")
-        if not cleaned_ptid:
+        prefix = f"{self.__participant_attribute}_{self.__date_attribute}"
+        if self.__visit_attribute:
+            prefix = f"{prefix}_{self.__visit_attribute}"
+        prefix = f"{prefix}_{self.__data_attribute}"
+        return prefix
+
+    @property
+    def legacy_log_name_prefix(self) -> Optional[str]:
+        """Build legacy log name prefix (without visitnum).
+
+        Legacy format: {ptid}_{date}_{module} (no visitnum) Returns None
+        if required attributes are missing.
+        """
+        # Check required attributes
+        if (
+            not self.__participant_attribute
+            or not self.__date_attribute
+            or not self.__data_attribute
+        ):
             return None
 
-        visitdate = record.get(self.date_field)
-        if not visitdate:
-            return None
-
-        normalized_date = convert_date(
-            date_string=visitdate, date_format=DEFAULT_DATE_FORMAT
+        return (
+            f"{self.__participant_attribute}_{self.__date_attribute}"
+            f"_{self.__data_attribute}"
         )
-        if not normalized_date:
-            return None
 
-        components.append(cleaned_ptid)
-        components.append(normalized_date)
-        components.append(module.lower())
+    def visit_participant(self, participant: ParticipantIdentification) -> None:
+        """Collect participant identification (ptid)."""
+        self.__participant_attribute = participant.ptid
 
-        return "_".join(components)
+    def visit_visit(self, visit: VisitIdentification) -> None:
+        """Collect visit identification (visitnum)."""
+        self.__visit_attribute = visit.visitnum
+
+    def visit_form(self, form: FormIdentification) -> None:
+        """Collect form identification (module only, packet excluded).
+
+        Converts to lowercase for filename compatibility. Packet is
+        intentionally excluded from the filename to avoid issues when
+        centers correct packet code mistakes.
+        """
+        self.__data_attribute = form.module.lower()
+
+    def visit_image(self, image: ImageIdentification) -> None:
+        """Collect image identification (modality).
+
+        Converts to lowercase for filename compatibility.
+        """
+        self.__data_attribute = image.modality.lower()
+
+    def visit_data_identification(self, data_id: DataIdentification) -> None:
+        """Collect date from data identification."""
+        self.__date_attribute = data_id.date
 
 
-class ErrorLogTemplate(VisitLabelTemplate):
+class ErrorLogTemplate(BaseModel):
     """Template for creating the name of an error log file.
 
     The file name is form using the visit label as the prefix, and
@@ -70,19 +116,58 @@ class ErrorLogTemplate(VisitLabelTemplate):
     suffix: Optional[str] = "qc-status"
     extension: Optional[str] = "log"
 
-    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
-        """Instantiates the template using the visit-label built for the record
-        and module as a prefix, and the suffix and extension fields from this
-        template.
+    def instantiate(self, data_id: "DataIdentification") -> Optional[str]:
+        """Generate QC log filename from DataIdentification.
+
+        Creates filename that reflects the DataIdentification structure:
+        - Date comes before visitnum (date is always present)
+        - Includes visitnum if present
+        - Packet is excluded (not needed for unique identification)
+        - Format: {ptid}_{date}[_{visitnum}]_{module}_qc-status.log
 
         Args:
-          record: the data record
-          module: the module name
+            data_id: DataIdentification with visit metadata
+
         Returns:
-          the file name if the visit label can be built. None, otherwise.
+            QC log filename, or None if required fields are missing
+
+        Examples:
+            Form with visitnum:
+                → 12345_2024-01-15_001_uds_qc-status.log
+            Form without visitnum (non-visit form):
+                → 12345_2024-01-15_np_qc-status.log
+            Old format (no visitnum):
+                → 12345_2024-01-15_uds_qc-status.log
         """
-        prefix = super().instantiate(record=record, module=module)
-        if not prefix:
+        visitor = ErrorLogIdentificationVisitor()
+        data_id.apply(visitor)
+
+        prefix = visitor.log_name_prefix
+        if prefix is None:
+            return None
+
+        return self.create_filename(prefix)
+
+    def instantiate_legacy(self, data_id: "DataIdentification") -> Optional[str]:
+        """Generate legacy QC log filename from DataIdentification.
+
+        Creates filename in legacy format (without visitnum, without packet):
+        - Format: {ptid}_{date}_{module}_qc-status.log
+
+        Args:
+            data_id: DataIdentification with visit metadata
+
+        Returns:
+            Legacy QC log filename, or None if required fields are missing
+
+        Examples:
+            → 12345_2024-01-15_uds_qc-status.log
+        """
+        visitor = ErrorLogIdentificationVisitor()
+        data_id.apply(visitor)
+
+        prefix = visitor.legacy_log_name_prefix
+        if prefix is None:
             return None
 
         return self.create_filename(prefix)

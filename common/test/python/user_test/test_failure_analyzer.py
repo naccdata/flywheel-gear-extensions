@@ -4,7 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelError
-from users.user_entry import PersonName, RegisteredUserEntry
+from users.authorizations import Authorizations
+from users.user_entry import CenterUserEntry, PersonName
 from users.user_registry import RegistryPerson
 
 
@@ -30,8 +31,12 @@ class TestFailureAnalyzer:
 
     @pytest.fixture
     def sample_registered_entry(self):
-        """Create a sample RegisteredUserEntry for testing."""
-        return RegisteredUserEntry(
+        """Create a sample CenterUserEntry with registry_person for testing."""
+        # Create a mock RegistryPerson
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg123"
+
+        entry = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email="john.auth@example.com",
@@ -39,9 +44,11 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
-            registry_id="reg123",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        entry.register(mock_registry_person)
+        return entry
 
     @pytest.fixture
     def sample_flywheel_error(self):
@@ -167,7 +174,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create different user entry
-        different_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg456"
+
+        different_entry = CenterUserEntry(
             name=PersonName(first_name="Jane", last_name="Smith"),
             email="jane.smith@example.com",
             auth_email="jane.auth@example.com",
@@ -175,9 +185,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Different Center",
             adcid=456,
-            authorizations=[],
-            registry_id="reg456",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        different_entry.register(mock_registry_person)
 
         # Setup mock to return no existing user
         mock_environment.proxy.find_user.return_value = None
@@ -234,7 +245,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create entry without auth_email
-        entry_no_auth = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg123"
+
+        entry_no_auth = CenterUserEntry(
             name=PersonName(first_name="John", last_name="Doe"),
             email="john.doe@example.com",
             auth_email=None,  # No auth email
@@ -242,9 +256,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Test Center",
             adcid=123,
-            authorizations=[],
-            registry_id="reg123",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        entry_no_auth.register(mock_registry_person)
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
@@ -320,7 +335,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create different user entry
-        different_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg789"
+
+        different_entry = CenterUserEntry(
             name=PersonName(first_name="Alice", last_name="Johnson"),
             email="alice.johnson@example.com",
             auth_email="alice.auth@example.com",
@@ -328,9 +346,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Another Center",
             adcid=789,
-            authorizations=[],
-            registry_id="reg789",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        different_entry.register(mock_registry_person)
 
         # Setup mock to return empty list
         mock_environment.user_registry.get.return_value = []
@@ -462,7 +481,10 @@ class TestFailureAnalyzer:
         from users.failure_analyzer import FailureAnalyzer
 
         # Create entry with full user context data
-        full_entry = RegisteredUserEntry(
+        mock_registry_person = Mock(spec=RegistryPerson)
+        mock_registry_person.registry_id.return_value = "reg999"
+
+        full_entry = CenterUserEntry(
             name=PersonName(first_name="Full", last_name="Context"),
             email="full.context@example.com",
             auth_email="full.auth@example.com",
@@ -470,9 +492,10 @@ class TestFailureAnalyzer:
             approved=True,
             org_name="Full Context Center",
             adcid=999,
-            authorizations=[],
-            registry_id="reg999",
+            authorizations=Authorizations(),
+            study_authorizations=[],
         )
+        full_entry.register(mock_registry_person)
 
         # Setup mocks
         mock_environment.proxy.find_user.return_value = None
@@ -494,3 +517,393 @@ class TestFailureAnalyzer:
             assert result.user_context.name
             assert result.user_context.name == "Full Context"
             assert result.user_context.auth_email == "full.auth@example.com"
+
+
+class TestFailureAnalyzerWithIdPConfig:
+    """Tests for FailureAnalyzer wrong-IdP detection (tasks 5.1-5.4)."""
+
+    @pytest.fixture
+    def domain_config(self):
+        """Create a DomainRelationshipConfig with parent-child mappings."""
+        from users.domain_config import DomainRelationshipConfig
+
+        return DomainRelationshipConfig(
+            parent_child=[
+                {"child": "med.umich.edu", "parent": "umich.edu"},
+                {"child": "health.ucdavis.edu", "parent": "ucdavis.edu"},
+            ],
+        )
+
+    @pytest.fixture
+    def idp_config(self):
+        """Create an IdPDomainConfig with institutional and fallback
+        domains."""
+        from users.domain_config import IdPDomainConfig
+
+        return IdPDomainConfig(
+            institutional_idp=[
+                {"domain": "umich.edu", "idp_name": "University of Michigan"},
+                {"domain": "ucdavis.edu", "idp_name": "UC Davis"},
+            ],
+            fallback_domains=["advocatehealth.org", "ccf.org"],
+            fallback_idp="ORCID",
+        )
+
+    @pytest.fixture
+    def mock_environment(self, domain_config, idp_config):
+        """Create a mock UserProcessEnvironment for testing."""
+        mock_env = Mock()
+        mock_env.proxy = Mock()
+        mock_env.user_registry = Mock()
+        mock_env.domain_config = domain_config
+        mock_env.idp_config = idp_config
+        mock_env.find_user = Mock(
+            side_effect=lambda user_id: mock_env.proxy.find_user(user_id)
+        )
+        mock_env.get_from_registry = Mock(
+            side_effect=lambda email: mock_env.user_registry.get(email=email)
+        )
+        return mock_env
+
+    @pytest.fixture
+    def make_entry(self):
+        """Factory for creating CenterUserEntry objects."""
+
+        def _make(
+            email: str = "user@umich.edu",
+            auth_email: str | None = "user@umich.edu",
+            first_name: str = "John",
+            last_name: str = "Doe",
+        ):
+            mock_rp = Mock(spec=RegistryPerson)
+            mock_rp.registry_id.return_value = "reg-test"
+            entry = CenterUserEntry(
+                name=PersonName(first_name=first_name, last_name=last_name),
+                email=email,
+                auth_email=auth_email,
+                active=True,
+                approved=True,
+                org_name="Test Center",
+                adcid=100,
+                authorizations=Authorizations(),
+                study_authorizations=[],
+            )
+            entry.register(mock_rp)
+            return entry
+
+        return _make
+
+    @pytest.fixture
+    def make_bad_claim_person(self):
+        """Factory for creating mock RegistryPerson with org identities."""
+        from coreapi_client.models.org_identity import OrgIdentity
+
+        def _make(org_name: str = "ORCID"):
+            person = Mock(spec=RegistryPerson)
+            org_id = OrgIdentity(o=org_name)
+            person.org_identities = Mock(
+                side_effect=lambda predicate=None: (
+                    [org_id] if predicate is None or predicate(org_id) else []
+                )
+            )
+            return person
+
+        return _make
+
+    # --- Initialization tests ---
+
+    def test_init_with_idp_and_domain_config(
+        self, mock_environment, idp_config, domain_config
+    ):
+        """FailureAnalyzer pulls idp_config and domain_config from
+        environment."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        analyzer = FailureAnalyzer(mock_environment)
+        assert analyzer._idp_config is idp_config  # noqa: SLF001
+        assert analyzer._domain_config is domain_config  # noqa: SLF001
+
+    def test_init_without_configs_backward_compatible(self, mock_environment):
+        """FailureAnalyzer without config on environment defaults to None."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        mock_environment.idp_config = None
+        mock_environment.domain_config = None
+        analyzer = FailureAnalyzer(mock_environment)
+        assert analyzer._idp_config is None  # noqa: SLF001
+        assert analyzer._domain_config is None  # noqa: SLF001
+
+    # --- _detect_wrong_idp tests ---
+
+    def test_detect_wrong_idp_institutional_domain_via_fallback(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When domain maps to institutional IdP and claim was via fallback
+        IdP, return WRONG_IDP_SELECTION event."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is not None
+        assert result.category == EventCategory.WRONG_IDP_SELECTION.value
+        assert "umich.edu" in result.message
+        assert "ORCID" in result.message
+        assert "University of Michigan" in result.message
+
+    def test_detect_wrong_idp_subdomain_resolves_to_parent(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """Subdomain med.umich.edu resolves to umich.edu IdP mapping."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(
+            email="user@med.umich.edu",
+            auth_email="user@med.umich.edu",
+        )
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is not None
+        assert result.category == EventCategory.WRONG_IDP_SELECTION.value
+        assert "University of Michigan" in result.message
+
+    def test_detect_wrong_idp_fallback_domain_returns_none(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When domain is in fallback_domains, return None (correct IdP)."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(
+            email="user@advocatehealth.org",
+            auth_email="user@advocatehealth.org",
+        )
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is None
+
+    def test_detect_wrong_idp_unmapped_domain_returns_none(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When domain is not mapped to any IdP, return None."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(
+            email="user@unknown.edu",
+            auth_email="user@unknown.edu",
+        )
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is None
+
+    def test_detect_wrong_idp_claimed_via_correct_idp_returns_none(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When claim was via the correct institutional IdP, return None."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        # Person claimed via institutional IdP, not ORCID
+        bad_person = make_bad_claim_person(org_name="University of Michigan")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is None
+
+    def test_detect_wrong_idp_no_email_returns_none(
+        self,
+        mock_environment,
+        make_bad_claim_person,
+    ):
+        """When entry has no usable email, return None."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        # Entry with email that has no @ sign
+        mock_rp = Mock(spec=RegistryPerson)
+        mock_rp.registry_id.return_value = "reg-test"
+        entry = CenterUserEntry(
+            name=PersonName(first_name="John", last_name="Doe"),
+            email="no-at-sign",
+            auth_email=None,
+            active=True,
+            approved=True,
+            org_name="Test Center",
+            adcid=100,
+            authorizations=Authorizations(),
+            study_authorizations=[],
+        )
+        entry.register(mock_rp)
+
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is None
+
+    # --- detect_incomplete_claim integration tests ---
+
+    def test_detect_incomplete_claim_with_configs_delegates_to_wrong_idp(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When configs are available and wrong IdP detected,
+        detect_incomplete_claim returns WRONG_IDP_SELECTION."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer.detect_incomplete_claim(entry, [bad_person])
+
+        assert result is not None
+        assert result.category == EventCategory.WRONG_IDP_SELECTION.value
+
+    def test_detect_incomplete_claim_with_configs_fallback_domain(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When configs are available but domain is fallback, falls through to
+        existing ORCID detection."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(
+            email="user@advocatehealth.org",
+            auth_email="user@advocatehealth.org",
+        )
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer.detect_incomplete_claim(entry, [bad_person])
+
+        assert result is not None
+        # Falls through to existing ORCID detection
+        assert result.category == EventCategory.BAD_ORCID_CLAIMS.value
+
+    def test_detect_incomplete_claim_without_configs_backward_compatible(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """Without configs, detect_incomplete_claim uses existing ORCID
+        detection."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        # No configs provided
+        mock_environment.idp_config = None
+        mock_environment.domain_config = None
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer.detect_incomplete_claim(entry, [bad_person])
+
+        assert result is not None
+        # Without configs, falls through to existing BAD_ORCID_CLAIMS
+        assert result.category == EventCategory.BAD_ORCID_CLAIMS.value
+
+    def test_detect_incomplete_claim_without_configs_non_orcid(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """Without configs and non-ORCID claim, returns INCOMPLETE_CLAIM."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        bad_person = make_bad_claim_person(org_name="Some Other IdP")
+
+        mock_environment.idp_config = None
+        mock_environment.domain_config = None
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer.detect_incomplete_claim(entry, [bad_person])
+
+        assert result is not None
+        assert result.category == EventCategory.INCOMPLETE_CLAIM.value
+
+    def test_detect_wrong_idp_action_needed_contains_expected_idp(
+        self,
+        mock_environment,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """The action_needed field references the expected institutional
+        IdP."""
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(
+            email="user@ucdavis.edu",
+            auth_email="user@ucdavis.edu",
+        )
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer._detect_wrong_idp(entry, [bad_person])  # noqa: SLF001
+
+        assert result is not None
+        assert result.action_needed is not None
+        assert "uc_davis" in result.action_needed
+
+    def test_detect_incomplete_claim_only_idp_config_no_domain_config(
+        self,
+        mock_environment,
+        idp_config,
+        make_entry,
+        make_bad_claim_person,
+    ):
+        """When only idp_config is provided (no domain_config), falls through
+        to existing detection."""
+        from users.event_models import EventCategory
+        from users.failure_analyzer import FailureAnalyzer
+
+        entry = make_entry(email="user@umich.edu", auth_email="user@umich.edu")
+        bad_person = make_bad_claim_person(org_name="ORCID")
+
+        # Only idp_config, no domain_config
+        mock_environment.domain_config = None
+        analyzer = FailureAnalyzer(mock_environment)
+        result = analyzer.detect_incomplete_claim(entry, [bad_person])
+
+        assert result is not None
+        # Without both configs, skips wrong-IdP check
+        assert result.category == EventCategory.BAD_ORCID_CLAIMS.value

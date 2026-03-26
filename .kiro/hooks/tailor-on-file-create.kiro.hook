@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Auto-tailor BUILD Files",
+  "description": "Runs pants tailor to generate or update BUILD files when new Python files are created",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new Python file was just created. Run pants tailor using the kiro-pants-power to automatically generate or update BUILD files for the new code. Use the pants_tailor tool with scope='directory' and the path to the directory containing the new file, or scope='all' if multiple files were created in different locations. Report what BUILD files were created or updated."
+  }
+}

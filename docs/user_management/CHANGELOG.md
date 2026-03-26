@@ -2,9 +2,111 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 4.2.1
 
-* none
+* Removes domain-only near-miss detection from blocking skeleton creation, reducing false positives at large institutions
+* Requires name match (combined signal or name-only) before flagging a near-miss candidate
+* Filters self-matches from near-miss detection where case-insensitive email matches identify the user's own registry record
+* Changes near-miss event emission to only report combined signal and name-only categories, suppressing pure domain-only rows
+
+## 4.2.0
+
+* Adds domain-aware near-miss detection to identify potential duplicate registry records by parent domain
+* Adds name-based near-miss detection to find candidates by normalized full name
+* Adds wrong-IdP detection to identify users who claimed via fallback IdP instead of their institutional IdP
+* Adds multi-email skeleton creation, passing both auth and contact emails when creating registry records
+* Adds optional `domain_config_file` gear input for domain relationship and IdP configuration
+* Adds `DomainRelationshipConfig` and `IdPDomainConfig` models for configurable domain resolution
+* Adds new event categories: Domain Near-Miss, Name Near-Miss, Combined Signal Near-Miss, Wrong IdP Selection
+* Adds parent-domain and normalized-name index lookups in `UserRegistry` for fallback matching
+
+## 4.1.1
+
+* Fixes 409 error handling in project lookup when gear account lacks access to an existing project
+  * Logs a clear permissions warning instead of a misleading "Failed to create project" error
+* Adds project caching in GroupAdaptor to avoid repeated API calls for the same project during a single gear execution
+
+## 4.1.0
+
+* Implements general authorization support for non-center-specific resources
+  * Enables users to receive Flywheel project access for ADRC Portal pages based on directory permissions
+  * Processes page resources and assigns roles to page stub projects in nacc admin group
+  * Collects error events for missing projects and authorization map entries
+  * Continues processing when errors occur, preventing single failures from blocking other authorizations
+* Implements dashboard authorization support for study-specific dashboards
+  * Enables users to receive Flywheel project access for dashboard resources based on directory permissions
+  * Processes dashboard resources and assigns roles to dashboard stub projects in center groups
+  * Completes authorization flow for dashboard resources parsed in version 4.0.0
+* Adds name whitespace stripping to `PersonName` and `RegistryPerson` models
+  * Adds field validator to `PersonName` to strip whitespace from first_name and last_name
+  * Adds whitespace stripping in `RegistryPerson.from_name_and_email()` and `primary_name()` property
+  * Provides defense-in-depth to ensure names are normalized throughout the system
+  * Prevents issues with name matching in COManage registry and Flywheel when REDCap data contains trailing spaces
+
+## 4.0.3
+
+* Fixes Path type handling in input file path retrieval
+  * Wraps `context.config.get_input_path()` return values with `Path()` to ensure Path objects
+  * Resolves `AttributeError: 'str' object has no attribute 'stem'` when generating error filenames
+  * Addresses type mismatch where `fw-gear` library returns strings despite Path type hint
+
+## 4.0.2
+
+* Fixes user entry validation to correctly handle polymorphic user types
+  * Updates `UserEntryList` to use union type `list[CenterUserEntry | ActiveUserEntry | UserEntry]`
+  * Removes incorrect conditional logic that assumed all active users are center users
+  * Enables Pydantic to automatically discriminate between user types based on fields present
+  * Allows active users without center affiliation (missing `org_name`, `adcid`, `study_authorizations`) to validate as `ActiveUserEntry`
+* Fixes authorization role assignment to prevent `read-only` from overriding custom roles
+  * Modifies `AuthMap.__get_roles` to exclude `read-only` from view activities when submit-audit roles are present
+  * Prevents Flywheel tools issue where `read-only` role overrides custom roles like `upload` and `curate`
+  * Fixes logic bug where empty `submit_roles` list was blocking all view role assignments
+
+## 4.0.1
+
+* Skipped
+
+## 4.0.0
+
+* **BREAKING CHANGE**: Refactors user entry model hierarchy to support general authorizations
+  * Renames `ActiveUserEntry` to `CenterUserEntry` for center-affiliated users
+  * Creates new `ActiveUserEntry` base class for users with general authorizations
+  * Changes `CenterUserEntry` to extend `ActiveUserEntry` and adds `study_authorizations` field
+  * Removes `RegisteredUserEntry` class - registration state now tracked via `registry_person` field
+* Adds support for general (non-study-specific) authorizations
+  * Introduces `Authorizations` model for general resource access
+  * Adds `PageResource` and `DashboardResource` types alongside existing `DatatypeResource`
+  * Enables authorization parsing for web pages and dashboards at general and study scopes
+* Refactors authorization field naming in `DirectoryAuthorizations` for clarity
+  * Renames fields to follow pattern: `{scope}_{resource_type}_{resource_name}_access_level`
+  * Changes datatype fields (e.g., `adrc_enrollment_access_level` → `adrc_datatype_enrollment_access_level`)
+  * Splits `web_report_access` checkbox into separate `general_page_web_access_level` and `adrc_dashboard_reports_access_level`
+  * Adds dashboard fields (e.g., `clariti_dashboard_pay_access_level`, `clariti_dashboard_ror_access_level`)
+* Improves `StudyAccessMap` to handle multiple resource types
+  * Adds `add_general_access()` method for general authorizations
+  * Renames `add()` to `add_study_access()` for clarity
+  * Adds `get_authorizations()` for general authorizations and `get_study_authorizations()` for study-specific
+  * Changes internal storage from `access_level_map` to `study_access_level_map`
+* Enhances user registration workflow
+  * Changes registration from creating new object to mutating existing entry via `register()` method
+  * Stores full `RegistryPerson` object instead of just registry ID string
+  * Adds `is_registered` property and `registry_id` property for cleaner access
+  * Adds `set_fw_user()` method to attach Flywheel user object to entry
+* Refactors user processing pipeline
+  * Splits `UpdateUserProcess` into general user updates and `UpdateCenterUserProcess` for center-specific logic
+  * Changes process signatures to use `ActiveUserEntry` instead of `RegisteredUserEntry`
+  * Adds validation checks for registered state before processing
+  * Improves separation of concerns between general and center user authorization
+* Adds robust field parsing for authorization resources
+  * Implements `__handle_datatype_resource()`, `__handle_page_resource()`, and `__handle_dashboard_resource()` methods
+  * Adds support for multi-token resource names converted to kabob-case
+  * Improves genetic datatype expansion to multiple studies (NCRAD, GWAS, etc.)
+* Improves validation and error handling
+  * Adds `convert_adcid()` validator to handle empty strings and "NA" values
+  * Makes `adcid` field optional to support non-center users
+  * Adds validators for web access and ADRC reports access levels from checkbox field
+  * Removes `complete` field requirement from directory authorizations
+* Updates gear entry point to use `CenterUserEntry` instead of `ActiveUserEntry` for active users
 
 ## 3.4.1
 
@@ -71,7 +173,7 @@ All notable changes to this gear are documented in this file.
 
 ## 3.0.2
 
-* Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed datatypes.
+* Makes changes to reflect changes to the authorization scheme in the NACC directory. Adds handling of authorizations for particular studies, and expands the allowed data types.
   
 ## 2.1.2
 
@@ -90,6 +192,7 @@ All notable changes to this gear are documented in this file.
 * Add error handling for RegistryError errors in user management gear.
 
 ## 1.4.10
+
 * Updates to use redcap_api-0.1.1
   
 ## 1.4.9
@@ -133,7 +236,8 @@ All notable changes to this gear are documented in this file.
 * Adds error handling when adding a user fails in FW
 * Adds this CHANGELOG
 
-## 
+##
+
 ## 1.1.4 and earlier
 
 * Undocumented

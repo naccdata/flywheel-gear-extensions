@@ -5,7 +5,12 @@ from typing import Any
 from flywheel.models.file_entry import FileEntry
 from pydantic import SerializerFunctionWrapHandler, model_serializer
 
-from nacc_common.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import (
+    CSVLocation,
+    DataIdentification,
+    FileError,
+    JSONLocation,
+)
 from nacc_common.qc_report import (
     ErrorReportVisitor,
     QCReportBaseModel,
@@ -57,7 +62,7 @@ class ErrorReportModel(QCReportBaseModel, FileError):
 
 
 def error_transformer(
-    gear_name: str, visit: VisitKeys, file_error: FileError
+    gear_name: str, visit: DataIdentification, file_error: FileError
 ) -> ErrorReportModel:
     """Transformer for creating error report objects from a file QC validation
     model.
@@ -96,6 +101,5 @@ def error_transformer(
 
 
 def error_report_visitor_builder(file: FileEntry, adcid: int) -> ErrorReportVisitor:
-    visit = extract_visit_keys(file)
-    visit.adcid = adcid
+    visit = extract_visit_keys(file, adcid=adcid)
     return ErrorReportVisitor(visit=visit, transformer=error_transformer)

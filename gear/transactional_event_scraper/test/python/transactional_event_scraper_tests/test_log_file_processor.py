@@ -107,7 +107,7 @@ class TestExtractEventFromLog:
         assert event_data.visit_metadata.date == "2024-01-15"
         assert event_data.visit_metadata.visitnum == "001"
         assert event_data.visit_metadata.module == "UDS"
-        assert event_data.visit_metadata.packet == "z1x"
+        assert event_data.visit_metadata.packet == "Z1X"  # Normalized to uppercase
 
     def test_extract_from_file_without_visit_metadata(self):
         """Test extraction from file without info.visit (older files).
@@ -244,7 +244,7 @@ class TestExtractEventFromLog:
         assert event_data.visit_metadata.date == "2024-05-15"
         assert event_data.visit_metadata.module == "UDS"
         assert event_data.visit_metadata.visitnum == "005"
-        assert event_data.visit_metadata.packet == "z1x"
+        assert event_data.visit_metadata.packet == "Z1X"  # Normalized to uppercase
 
     def test_extract_from_file_with_empty_visit_dict(self):
         """Test extraction when visit dict exists but is empty."""

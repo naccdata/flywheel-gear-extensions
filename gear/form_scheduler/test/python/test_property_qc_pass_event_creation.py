@@ -62,11 +62,15 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
 
     # Create QC status file based on the JSON file using ErrorLogTemplate
     from error_logging.error_logger import ErrorLogTemplate
+    from event_capture.visit_extractor import DataIdentificationExtractor
 
     forms_json = json_file.info["forms"]["json"]
     error_log_template = ErrorLogTemplate()
-    qc_filename = error_log_template.instantiate(
-        record=forms_json, module=forms_json["module"]
+
+    # Extract DataIdentification from forms_json
+    visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+    qc_filename = (
+        error_log_template.instantiate(visit_metadata) if visit_metadata else None
     )
 
     # Skip if ErrorLogTemplate can't generate filename
@@ -170,11 +174,15 @@ def test_qc_pass_event_structure():
 
     # Add PASS QC status file using ErrorLogTemplate generated name
     from error_logging.error_logger import ErrorLogTemplate
+    from event_capture.visit_extractor import DataIdentificationExtractor
 
     error_log_template = ErrorLogTemplate()
     forms_json = json_file.info["forms"]["json"]
-    expected_filename = error_log_template.instantiate(
-        record=forms_json, module=forms_json["module"]
+
+    # Extract DataIdentification from forms_json
+    visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+    expected_filename = (
+        error_log_template.instantiate(visit_metadata) if visit_metadata else None
     )
     assert expected_filename is not None, "ErrorLogTemplate should generate a filename"
     mock_project.add_file(
@@ -241,11 +249,15 @@ def test_multiple_json_files_mixed_qc_status():
 
         # Add corresponding QC status file using ErrorLogTemplate
         from error_logging.error_logger import ErrorLogTemplate
+        from event_capture.visit_extractor import DataIdentificationExtractor
 
         error_log_template = ErrorLogTemplate()
         forms_json = json_file.info["forms"]["json"]
-        qc_filename = error_log_template.instantiate(
-            record=forms_json, module=forms_json["module"]
+
+        # Extract DataIdentification from forms_json
+        visit_metadata = DataIdentificationExtractor.from_forms_json(forms_json)
+        qc_filename = (
+            error_log_template.instantiate(visit_metadata) if visit_metadata else None
         )
         assert qc_filename is not None, "ErrorLogTemplate should generate a filename"
         mock_project.add_file(

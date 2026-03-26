@@ -8,7 +8,9 @@ from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import ModuleConfigs
 from dates.form_dates import build_date
-from nacc_common.error_models import VisitKeys
+from nacc_common.data_identification import (
+    DataIdentification,
+)
 from nacc_common.field_names import (
     FieldNames,
 )
@@ -81,6 +83,9 @@ class FormPreprocessorErrorHandler:
 
             log.error(stderr_msg)
 
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=input_record, date_field=self.__module_configs.date_field
+        )
         self.__error_writer.write(
             preprocessing_error(
                 field=field,
@@ -88,9 +93,7 @@ class FormPreprocessorErrorHandler:
                 line=pp_context.line_num,
                 error_code=error_code,
                 message=message,
-                visit_keys=VisitKeys.create_from(
-                    record=input_record, date_field=self.__module_configs.date_field
-                ),
+                visit_keys=visit_keys,
                 extra_args=[extra_args],
             )
         )

@@ -139,7 +139,6 @@ class TestDirectoryErrorHandlingIntegration:
             "last_name": "User",
             "adcid": 1,
             "permissions_approval": "1",  # "1" means Yes/approved
-            "complete": "2",  # "2" means complete
             "auth_email": "user@example.com",
             # Add all required fields with default values
             "firstname": "Test",
@@ -170,9 +169,9 @@ class TestDirectoryErrorHandlingIntegration:
             "cl_pay_access_level": "0",
             "cl_ror_access_level": "0",
             "scan_dashboard_access_level": "0",
-            "nacc_data_platform_access_information_complete": "2",  # "2" means complete
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
@@ -184,7 +183,6 @@ class TestDirectoryErrorHandlingIntegration:
             "last_name": "User",
             "adcid": 1,
             "permissions_approval": "0",  # "0" means No/not approved
-            "complete": "2",  # "2" means complete
             "auth_email": "unapproved@example.com",
             # Add all required fields with default values
             "firstname": "Unapproved",
@@ -215,55 +213,9 @@ class TestDirectoryErrorHandlingIntegration:
             "cl_pay_access_level": "0",
             "cl_ror_access_level": "0",
             "scan_dashboard_access_level": "0",
-            "nacc_data_platform_access_information_complete": "2",
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
-        }
-
-    @pytest.fixture
-    def incomplete_survey_record(self) -> Dict[str, Any]:
-        """Create a user record with incomplete survey."""
-        return {
-            "email": "incomplete@example.com",
-            "first_name": "Incomplete",
-            "last_name": "User",
-            "adcid": 1,
-            "permissions_approval": "1",  # "1" means Yes/approved
-            "complete": "0",  # "0" or "1" means incomplete (not "2")
-            "auth_email": "incomplete@example.com",
-            # Add all required fields with default values
-            "firstname": "Incomplete",
-            "lastname": "User",
-            "fw_email": "incomplete@example.com",
-            "archive_contact": "0",
-            "contact_company_name": "Test Center",
-            "adresearchctr": "1",
-            "web_report_access": "0",
-            "study_selections": "",
-            "p30_naccid_enroll_access_level": "0",
-            "p30_clin_forms_access_level": "0",
-            "p30_imaging_access_level": "0",
-            "p30_flbm_access_level": "0",
-            "p30_genetic_access_level": "0",
-            "affiliated_study": "",
-            "leads_naccid_enroll_access_level": "0",
-            "leads_clin_forms_access_level": "0",
-            "dvcid_naccid_enroll_access_level": "0",
-            "dvcid_clin_forms_access_level": "0",
-            "allftd_naccid_enroll_access_level": "0",
-            "allftd_clin_forms_access_level": "0",
-            "dlbc_naccid_enroll_access_level": "0",
-            "dlbc_clin_forms_access_level": "0",
-            "cl_clin_forms_access_level": "0",
-            "cl_imaging_access_level": "0",
-            "cl_flbm_access_level": "0",
-            "cl_pay_access_level": "0",
-            "cl_ror_access_level": "0",
-            "scan_dashboard_access_level": "0",
-            # "0" means incomplete
-            "nacc_data_platform_access_information_complete": "0",
-            "permissions_approval_date": "2024-01-01",
-            "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
@@ -343,49 +295,6 @@ class TestDirectoryErrorHandlingIntegration:
         assert errors[0].category == EventCategory.MISSING_DIRECTORY_PERMISSIONS.value
         assert errors[0].user_context.email == "unapproved@example.com"
 
-    def test_error_capture_for_incomplete_survey(
-        self,
-        mock_context: MockGearContext,
-        incomplete_survey_record: Dict[str, Any],
-        caplog,
-    ) -> None:
-        """Test error capture for incomplete survey.
-
-        This test verifies:
-        - Records with incomplete survey are logged
-        - Warning message matches requirement 1a.5
-        - Record is excluded from output
-        - Error event is captured in collector
-
-        Requirements: 1a.5
-        """
-        from directory_app.main import run
-        from users.event_models import UserEventCollector
-
-        user_report = [incomplete_survey_record]
-        collector = UserEventCollector()
-
-        # Process the directory
-        yaml_output = run(user_report=user_report, collector=collector)
-
-        # Verify warning was logged
-        assert any(
-            "Ignoring incomplete@example.com: Data platform survey is incomplete"
-            in record.message
-            for record in caplog.records
-        )
-
-        # Verify record was excluded from output
-        assert "incomplete@example.com" not in yaml_output
-
-        # Verify error event was captured
-        assert collector.has_errors()
-        assert collector.error_count() == 1
-        errors = collector.get_errors()
-        # Compare with string value since use_enum_values=True
-        assert errors[0].category == EventCategory.MISSING_DIRECTORY_PERMISSIONS.value
-        assert errors[0].user_context.email == "incomplete@example.com"
-
     def test_error_capture_for_validation_failures(
         self,
         mock_context: MockGearContext,
@@ -432,7 +341,6 @@ class TestDirectoryErrorHandlingIntegration:
         mock_context: MockGearContext,
         valid_user_record: Dict[str, Any],
         unapproved_permissions_record: Dict[str, Any],
-        incomplete_survey_record: Dict[str, Any],
         invalid_record: Dict[str, Any],
         caplog,
     ) -> None:
@@ -451,7 +359,6 @@ class TestDirectoryErrorHandlingIntegration:
         user_report = [
             valid_user_record,
             unapproved_permissions_record,
-            incomplete_survey_record,
             invalid_record,
         ]
         collector = UserEventCollector()
@@ -464,7 +371,6 @@ class TestDirectoryErrorHandlingIntegration:
 
         # Verify invalid records are not in output
         assert "unapproved@example.com" not in yaml_output
-        assert "incomplete@example.com" not in yaml_output
         assert "invalid@example.com" not in yaml_output
 
         # Verify appropriate warnings were logged
@@ -472,22 +378,18 @@ class TestDirectoryErrorHandlingIntegration:
             "Permissions not approved" in record.message for record in caplog.records
         )
         assert any(
-            "Data platform survey is incomplete" in record.message
-            for record in caplog.records
-        )
-        assert any(
             "Error loading user record" in record.message for record in caplog.records
         )
 
         # Verify all errors were captured
         assert collector.has_errors()
-        assert collector.error_count() == 3
+        assert collector.error_count() == 2
 
         # Verify error categories
         errors_by_category = collector.get_errors_by_category()
         assert EventCategory.MISSING_DIRECTORY_PERMISSIONS in errors_by_category
         assert EventCategory.MISSING_DIRECTORY_DATA in errors_by_category
-        assert len(errors_by_category[EventCategory.MISSING_DIRECTORY_PERMISSIONS]) == 2
+        assert len(errors_by_category[EventCategory.MISSING_DIRECTORY_PERMISSIONS]) == 1
         assert len(errors_by_category[EventCategory.MISSING_DIRECTORY_DATA]) == 1
 
     def test_duplicate_email_detection(

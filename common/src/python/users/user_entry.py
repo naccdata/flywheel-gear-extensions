@@ -5,9 +5,10 @@ from datetime import datetime
 from typing import NewType, Optional
 
 from flywheel.models.user import User
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
-from users.authorizations import StudyAuthorizations
+from users.authorizations import Authorizations, StudyAuthorizations
+from users.user_registry import RegistryPerson
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +18,23 @@ class PersonName(BaseModel):
 
     first_name: str
     last_name: str
+
+    @field_validator("first_name", "last_name", mode="before")
+    def strip_names(cls, value: str) -> str:
+        """Strip leading and trailing whitespace from names.
+
+        Provides defense-in-depth to ensure names are normalized even if
+        they bypass DirectoryAuthorizations validation.
+
+        Args:
+            value: the name value to strip
+
+        Returns:
+            the name with leading and trailing whitespace removed
+        """
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
     def as_str(self) -> str:
         """Returns this name as a string with first and last names separated by
@@ -70,43 +88,68 @@ class UserEntry(BaseModel):
 
 
 class ActiveUserEntry(UserEntry):
-    """A user entry from Flywheel access report of the NACC directory."""
+    """A user entry for a user with general authorizations.
 
-    org_name: str
-    adcid: int
-    authorizations: list[StudyAuthorizations]
+    Can be in a registered or unregistered state based on whether
+    registry_person is set.
+    """
 
-    def register(self, registry_id: str) -> "RegisteredUserEntry":
-        """Adds the registry id to this user entry.
+    model_config = ConfigDict(
+        populate_by_name=True, extra="forbid", arbitrary_types_allowed=True
+    )
 
-        Args:
-          registry_id: the registry ID
-        Returns:
-          this object with the registry ID added
-        """
-        return RegisteredUserEntry(
-            name=self.name,
-            email=self.email,
-            auth_email=self.auth_email,
-            active=self.active,
-            approved=self.approved,
-            org_name=self.org_name,
-            adcid=self.adcid,
-            authorizations=self.authorizations,
-            registry_id=registry_id,
-            registration_date=self.registration_date,
-        )
-
-
-class RegisteredUserEntry(ActiveUserEntry):
-    """User directory entry extended with a registry ID."""
-
-    registry_id: str
+    authorizations: Authorizations
+    registry_person: Optional[RegistryPerson] = Field(default=None, exclude=True)
+    fw_user: Optional[User] = Field(default=None, exclude=True)
 
     @property
-    def user_id(self) -> str:
-        """The user ID for this directory entry."""
+    def is_registered(self) -> bool:
+        """Check if this user entry has been registered.
+
+        Returns:
+            True if registry_person is set, False otherwise
+        """
+        return self.registry_person is not None
+
+    @property
+    def registry_id(self) -> Optional[str]:
+        """Get the registry ID from the registry person.
+
+        Returns:
+            The registry ID if registered, None otherwise
+        """
+        if not self.registry_person:
+            return None
+        return self.registry_person.registry_id()
+
+    @property
+    def user_id(self) -> Optional[str]:
+        """The user ID for this directory entry.
+
+        Returns:
+            The registry_id if registered, None otherwise
+        """
         return self.registry_id
+
+    def register(self, registry_person: RegistryPerson) -> None:
+        """Attaches the registry person to this user entry.
+
+        Mutates this object to add the registry person, marking it as registered.
+
+        Args:
+            registry_person: the RegistryPerson object to attach
+        """
+        self.registry_person = registry_person
+
+    def set_fw_user(self, fw_user: User) -> None:
+        """Attaches the Flywheel user to this user entry.
+
+        Mutates this object to add the Flywheel user.
+
+        Args:
+            fw_user: the Flywheel User object to attach
+        """
+        self.fw_user = fw_user
 
     def as_user(self) -> User:
         """Creates a user object from the directory entry.
@@ -114,17 +157,38 @@ class RegisteredUserEntry(ActiveUserEntry):
         Flywheel constraint (true as of version 17): the user ID and email must be
         the same even if ID is an ePPN in add_user
 
-        Args:
-        user_entry: the directory entry for the user
         Returns:
-        the User object for flywheel User created from the directory entry
+            The User object for flywheel User created from the directory entry
+
+        Raises:
+            ValueError: if the user entry is not registered
         """
+        if not self.is_registered:
+            raise ValueError(
+                f"Cannot create User from unregistered entry: {self.email}"
+            )
+
+        registry_id = self.registry_id
+        assert registry_id is not None  # for type checker
+
         return User(
-            id=self.user_id,
+            id=registry_id,
             firstname=self.first_name,
             lastname=self.last_name,
-            email=self.user_id,
+            email=registry_id,
         )
+
+
+class CenterUserEntry(ActiveUserEntry):
+    """A user entry for a user associated with a research center.
+
+    Can be in a registered or unregistered state based on whether
+    registry_person is set (inherited from ActiveUserEntry).
+    """
+
+    org_name: str
+    adcid: int
+    study_authorizations: list[StudyAuthorizations]
 
 
 class UserFormatError(Exception):
@@ -137,7 +201,7 @@ class UserEntryList(RootModel):
     Use model_dump(serialize_as_any=True)
     """
 
-    root: list[UserEntry]
+    root: list[CenterUserEntry | ActiveUserEntry | UserEntry]
 
     def __iter__(self):
         return iter(self.root)

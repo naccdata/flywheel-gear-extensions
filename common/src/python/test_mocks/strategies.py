@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from hypothesis import strategies as st
-from nacc_common.error_models import QCStatus, VisitMetadata
+from nacc_common.error_models import DataIdentification, QCStatus
 
 
 @st.composite
@@ -33,8 +33,8 @@ def ptid_strategy(draw) -> str:
 
 
 @st.composite
-def visit_metadata_strategy(draw) -> VisitMetadata:
-    """Generate random VisitMetadata for testing.
+def visit_metadata_strategy(draw) -> DataIdentification:
+    """Generate random DataIdentification for testing.
 
     PTIDs must not be all zeros or empty after stripping leading zeros.
     """
@@ -61,7 +61,7 @@ def visit_metadata_strategy(draw) -> VisitMetadata:
     module = draw(st.sampled_from(["UDS", "FTLD", "LBD", "MDS"]))
     packet = draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"])))
 
-    return VisitMetadata(
+    return DataIdentification.from_visit_metadata(
         ptid=ptid,
         date=date,
         visitnum=visitnum,
@@ -132,7 +132,12 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
                 alphabet=st.characters(whitelist_categories=["Nd"]),
             )
         ),
-        "visitdate": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
+        "visitdate": draw(
+            st.dates(
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+            ).map(lambda d: d.strftime("%Y-%m-%d"))
+        ),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
         "adcid": draw(st.integers(min_value=1, max_value=999)),
@@ -141,27 +146,40 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate valid VisitMetadata with all required fields.
+    """Generate valid DataIdentification with all required fields.
 
     PTIDs must not be all zeros or empty after stripping leading zeros.
+    The strategy ensures PTIDs remain valid after normalize_ptid
+    processing.
     """
-    # Generate PTID that won't be all zeros
+    # Generate PTID that won't become empty or change after normalization
     ptid = draw(
-        st.text(
-            min_size=1,
-            max_size=10,
-            alphabet=st.characters(whitelist_categories=("Nd", "Lu")),
+        st.one_of(
+            # Non-zero digit followed by any alphanumeric (no leading zeros)
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(
+                    whitelist_categories=["Nd", "Lu"], blacklist_characters="0"
+                ),
+            ).filter(lambda x: x and x.strip().lstrip("0") == x.strip()),
+            # Or just uppercase letters (no digits, so no zero issues)
+            st.text(
+                min_size=1,
+                max_size=10,
+                alphabet=st.characters(whitelist_categories=["Lu"]),
+            ),
         )
     )
 
-    # Ensure PTID is not all zeros (would be invalid after lstrip("0"))
-    if ptid.strip("0") == "":
-        # Replace with a valid PTID containing at least one non-zero character
-        ptid = "A" + ptid[1:] if len(ptid) > 1 else "A"
-
     return {
         "ptid": ptid,
-        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
+        "date": draw(
+            st.dates(
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+            ).map(lambda d: d.strftime("%Y-%m-%d"))
+        ),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "visitnum": draw(
             st.one_of(
@@ -181,7 +199,7 @@ def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
 
 @st.composite
 def invalid_visit_metadata_strategy(draw) -> dict[str, Any]:
-    """Generate invalid VisitMetadata missing required fields."""
+    """Generate invalid DataIdentification missing required fields."""
     # Generate metadata with at least one required field missing or None
     base_data = {
         "ptid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=10))),

@@ -37,6 +37,7 @@ study-id: <string-identifier>
 study_type: <'primary' or 'affiliated'>
 centers: <list of center details>
 datatypes: <list of datatype identifiers>
+dashboards: <optional list of dashboard names>
 mode: <whether data should be aggregated or distributed>
 published: <whether the data is published>
 ```
@@ -49,6 +50,8 @@ In the `centers` list, a center identifier is assumed to represent a center-stud
 
 The mode is a string that is either `aggregation` or `distribution`.
 The mode may be omitted for aggregating studies to support older project formats.
+
+The `dashboards` field is an optional list of dashboard names. When provided, dashboard projects will be created for each active center in the study. Dashboard projects are used as placeholders for managing access to dashboard pages within the ADRC portal. The portal uses Flywheel project roles to determine what content is shown to users.
 
 Running on the file will create a group for each center that does not already exist, which includes
 
@@ -63,6 +66,10 @@ Additional projects will be added if the study is either primary or it is affili
    For instance, `ingest-form-leads`.
    For the primary study, the study-id is dropped like `ingest-form`.
 2. An `accepted` pipeline project for an aggregating study, where data that has passed QC is accessible.
+3. Dashboard projects (if `dashboards` field is provided) for each dashboard name in the list.
+   Dashboard projects will have a name of the form `dashboard-<dashboard-name>-<study-id>`.
+   For the primary study, the study-id is dropped like `dashboard-enrollment`.
+   Dashboard projects are only created for active centers and are used to manage access to portal dashboard pages.
 
 
 Notes:
@@ -92,6 +99,9 @@ centers:
 datatypes:
   - form
   - dicom
+dashboards:
+  - enrollment
+  - qc-status
 mode: aggregation  
 published: True
 ---

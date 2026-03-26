@@ -7,13 +7,13 @@ from typing import Optional
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
-from event_capture.visit_extractor import VisitMetadataExtractor
+from event_capture.visit_extractor import DataIdentificationExtractor
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import (
     QC_STATUS_PASS,
+    DataIdentification,
     FileQCModel,
-    VisitMetadata,
 )
 from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
@@ -42,27 +42,22 @@ class EventAccumulator:
         Returns:
           the QC status file for the visit in the file.
         """
-        if not json_file.info:
-            return None
-
-        forms_json = json_file.info.get("forms", {}).get("json", {})
-        if not forms_json:
-            return None
-
-        module = forms_json.get("module")
-        if not module:
+        # Extract DataIdentification from JSON file metadata
+        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        if not data_id:
             return None
 
         # Use ErrorLogTemplate to generate expected QC status log filename
-        return self.__error_log_template.instantiate(record=forms_json, module=module)
+        return self.__error_log_template.instantiate(data_id)
 
     def find_qc_status_for_json_file(
         self, json_file: FileEntry, project: ProjectAdaptor
     ) -> Optional[FileEntry]:
         """Find the QC status log for a JSON file at project level.
 
-        Uses ErrorLogTemplate to generate the expected QC status log filename
-        from the JSON file's forms.json metadata, then looks it up in project files.
+        Uses ErrorLogTemplate to generate possible QC status log filenames
+        from the JSON file's forms.json metadata, then looks them up in project files.
+        Tries new format first, then legacy format for backward compatibility.
 
         Args:
             json_file: The JSON file from acquisition (already in queue)
@@ -71,20 +66,38 @@ class EventAccumulator:
         Returns:
             The corresponding QC status log file, or None if not found
         """
-        qc_log_name = self.create_qc_status_file_name(json_file)
-        if not qc_log_name:
+        # Extract DataIdentification from JSON file metadata
+        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        if not data_id:
             return None
 
-        # Look up the QC status log file by name in project files
-        try:
-            return project.get_file(qc_log_name)
-        except Exception:
-            # get_file might raise various exceptions depending on implementation
-            return None
+        # Try new format first (with visitnum and packet if present)
+        new_format_filename = self.__error_log_template.instantiate(data_id)
+        if new_format_filename:
+            try:
+                qc_file = project.get_file(new_format_filename)
+                if qc_file:
+                    return qc_file
+            except Exception:
+                # File not found, continue to legacy format
+                pass
+
+        # Try legacy format (without visitnum and packet)
+        legacy_filename = self.__error_log_template.instantiate_legacy(data_id)
+        if legacy_filename and legacy_filename != new_format_filename:
+            try:
+                qc_file = project.get_file(legacy_filename)
+                if qc_file:
+                    return qc_file
+            except Exception:
+                # File not found
+                pass
+
+        return None
 
     def _extract_visit_metadata(
         self, json_file: FileEntry, qc_log_file: Optional[FileEntry]
-    ) -> Optional[VisitMetadata]:
+    ) -> Optional[DataIdentification]:
         """Extract visit metadata with priority: QC status custom info, then
         JSON file.
 
@@ -93,21 +106,19 @@ class EventAccumulator:
             qc_log_file: The QC status log file (may be None)
 
         Returns:
-            VisitMetadata instance or None if extraction fails
+            DataIdentification instance or None if extraction fails
         """
         # Try QC status custom info first
         if qc_log_file and qc_log_file.info:
-            visit_metadata = VisitMetadataExtractor.from_qc_status_custom_info(
+            visit_metadata = DataIdentificationExtractor.from_qc_status_custom_info(
                 qc_log_file.info
             )
-            if visit_metadata and VisitMetadataExtractor.is_valid_for_event(
-                visit_metadata
-            ):
+            if visit_metadata:
                 return visit_metadata
 
         # Fall back to JSON file metadata
-        visit_metadata = VisitMetadataExtractor.from_json_file_metadata(json_file)
-        if visit_metadata and VisitMetadataExtractor.is_valid_for_event(visit_metadata):
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        if visit_metadata:
             return visit_metadata
 
         return None
@@ -133,11 +144,11 @@ class EventAccumulator:
     def _create_visit_event(
         self,
         *,
-        visit_metadata: VisitMetadata,
+        visit_metadata: DataIdentification,
         project: ProjectAdaptor,
         qc_completion_time: datetime,
     ) -> Optional[VisitEvent]:
-        """Create a QC-pass VisitEvent from VisitMetadata.
+        """Create a QC-pass VisitEvent from DataIdentification.
 
         Args:
             visit_metadata: The visit metadata
@@ -163,19 +174,22 @@ class EventAccumulator:
             )
             return None
 
+        visit_metadata = visit_metadata.with_updates(adcid=project.get_pipeline_adcid())
+
         return VisitEvent(
             action=ACTION_PASS_QC,
             study=pipeline_label.study_id,
-            pipeline_adcid=project.get_pipeline_adcid(),
+            # pipeline_adcid=project.get_pipeline_adcid(),
             project_label=project.label,
             center_label=project.group,
             gear_name="form-scheduler",
-            ptid=visit_metadata.ptid,
-            visit_date=visit_metadata.date,
-            visit_number=visit_metadata.visitnum,
+            # ptid=visit_metadata.ptid,
+            # date=visit_metadata.date,
+            # visitnum=visit_metadata.visitnum,
             datatype=pipeline_label.datatype,
-            module=visit_metadata.module,
-            packet=visit_metadata.packet,
+            # module=visit_metadata.module,
+            # packet=visit_metadata.packet,
+            data_identification=visit_metadata,
             timestamp=qc_completion_time,
         )
 

@@ -5,12 +5,10 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
-from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues, PreprocessingChecks
-from nacc_common.field_names import FieldNames
 from pydantic import (
     BaseModel,
     Field,
@@ -108,50 +106,6 @@ class OptionalFormsConfigs(RootModel):
 
         version_configs = self.root.get(version, {})
         return version_configs.get(packet)
-
-
-class VisitLabelTemplate(BaseModel):
-    """Template for creating a visit label for a data record."""
-
-    id_field: str = FieldNames.PTID
-    date_field: str = FieldNames.DATE_COLUMN
-
-    def instantiate(self, record: Dict[str, Any], module: str) -> Optional[str]:
-        """Instantiates this using the values for the template fields and
-        module to create a visit-label.
-
-        Constructs the label as "<id-field>_<date-field>_<module>".
-
-        Args:
-          record: the data record
-          module: the module name
-        Returns:
-          the visit-label if all fields exist. None, otherwise.
-        """
-        components = []
-        ptid = record.get(self.id_field)
-        if not ptid:
-            return None
-
-        cleaned_ptid = ptid.strip().lstrip("0")
-        if not cleaned_ptid:
-            return None
-
-        visitdate = record.get(self.date_field)
-        if not visitdate:
-            return None
-
-        normalized_date = convert_date(
-            date_string=visitdate, date_format=DEFAULT_DATE_FORMAT
-        )
-        if not normalized_date:
-            return None
-
-        components.append(cleaned_ptid)
-        components.append(normalized_date)
-        components.append(module.lower())
-
-        return "_".join(components)
 
 
 class SupplementModuleConfigs(BaseModel):

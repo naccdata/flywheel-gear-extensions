@@ -1,5 +1,16 @@
 # Technology Stack
 
+## Kiro Pants Power
+
+**RECOMMENDED**: This project uses the `kiro-pants-power` for automated Pants build system and devcontainer management.
+
+The power provides MCP tools that automatically handle:
+- Container lifecycle (start, stop, rebuild)
+- Pants commands (fix, lint, check, test, package)
+- Workflow orchestration (full_quality_check for complete validation)
+
+All power tools automatically ensure the devcontainer is running before execution. Manual scripts in `bin/` are available as fallback.
+
 ## Development Environment
 
 **Dev Container** - Consistent development environment using Docker
@@ -89,9 +100,73 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 
 ## Common Commands
 
+### Using Kiro Pants Power (Recommended)
+
+**PREFERRED METHOD**: Use the `kiro-pants-power` tools for all Pants and devcontainer operations. The power automatically manages container lifecycle.
+
+The power now supports intent-based parameters for simpler usage:
+- `scope`: 'all' (entire codebase), 'directory' (specific directory), or 'file' (single file)
+- `path`: Directory or file path (required for 'directory' and 'file' scopes)
+- `recursive`: Include subdirectories (default: true, only for 'directory' scope)
+- `test_filter`: Filter tests by name pattern (pytest-style, only for pants_test)
+
+#### Code Quality Workflow
+
+```
+# Complete quality check (fix → lint → check → test)
+Use: full_quality_check tool
+
+# Individual steps - all code
+Use: pants_fix tool with scope="all"
+Use: pants_lint tool with scope="all"
+Use: pants_check tool with scope="all"
+Use: pants_test tool with scope="all"
+
+# Individual steps - specific directory
+Use: pants_fix tool with scope="directory", path="common/src/python"
+Use: pants_lint tool with scope="directory", path="common/src/python"
+
+# Individual steps - single file
+Use: pants_check tool with scope="file", path="common/src/python/users/models.py"
+
+# Run specific tests by name
+Use: pants_test tool with scope="directory", path="common/test/python", test_filter="test_create"
+```
+
+#### Building
+
+```
+# Build all packages
+Use: pants_package tool with scope="all"
+
+# Build specific directory (e.g., nacc-common)
+Use: pants_package tool with scope="directory", path="nacc-common"
+
+# Build single file/target
+Use: pants_package tool with scope="file", path="gear/user_management/src/docker/BUILD"
+```
+
+#### Container Management
+
+```
+Use: container_start tool    # Start container
+Use: container_stop tool     # Stop container
+Use: container_rebuild tool  # Rebuild after config changes
+```
+
+#### Legacy Target Syntax (Deprecated)
+
+The old `target` parameter still works but is deprecated:
+```
+Use: pants_fix tool with target="::"              # All code
+Use: pants_test tool with target="common/test/python::"  # Specific directory
+```
+
+### Using Manual Scripts (Fallback)
+
 **IMPORTANT**: All commands must be executed inside the dev container. Use the wrapper scripts in `bin/` or open an interactive shell.
 
-### Setup
+#### Setup
 
 ```bash
 # Ensure container is running (always run this first)
@@ -101,7 +176,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh bash get-pants.sh
 ```
 
-### Building
+#### Building
 
 ```bash
 # Build all targets
@@ -114,7 +189,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants package nacc-common:dist
 ```
 
-### Code Quality
+#### Code Quality
 
 **IMPORTANT**: Always run `pants fix` before `pants lint` to automatically fix formatting and import issues.
 
@@ -132,7 +207,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants fix :: && pants lint :: && pants check ::
 ```
 
-### Testing
+#### Testing
 
 ```bash
 # Run all tests
@@ -145,7 +220,7 @@ Pants is used for all builds, testing, linting, and packaging in this monorepo.
 ./bin/exec-in-devcontainer.sh pants test path/to/test_file.py
 ```
 
-### Interactive Shell (Recommended for Multiple Commands)
+#### Interactive Shell (Recommended for Multiple Commands)
 
 ```bash
 # Open shell in container
@@ -158,7 +233,7 @@ pants check ::
 pants test ::
 ```
 
-### Development Workflow
+#### Development Workflow
 
 ```bash
 # Ensure container is running
@@ -188,62 +263,6 @@ For local development outside the container, Pants searches for Python interpret
 2. pyenv installations
 
 Ensure Python 3.12 is available via one of these methods.
-
-## Design Principles
-
-### Dependency Injection over Flag Parameters
-
-**Prefer dependency injection over boolean flags for configurable behavior.**
-
-When designing classes that need configurable behavior, use dependency injection with strategy patterns rather than boolean flag parameters.
-
-**❌ Avoid:**
-
-```python
-class MyProcessor:
-    def __init__(self, data: List[str], use_fast_mode: bool = False):
-        self.data = data
-        self.use_fast_mode = use_fast_mode
-    
-    def process(self):
-        if self.use_fast_mode:
-            return self._fast_process()
-        else:
-            return self._slow_process()
-```
-
-**✅ Prefer:**
-
-```python
-ProcessingStrategy = Callable[[List[str]], Any]
-
-def fast_strategy(data: List[str]) -> Any:
-    # Fast processing implementation
-    pass
-
-def thorough_strategy(data: List[str]) -> Any:
-    # Thorough processing implementation
-    pass
-
-class MyProcessor:
-    def __init__(self, data: List[str], strategy: ProcessingStrategy = thorough_strategy):
-        self.data = data
-        self.strategy = strategy
-    
-    def process(self):
-        return self.strategy(self.data)
-```
-
-**Benefits:**
-
-- **Extensibility**: Easy to add new strategies without modifying existing code
-- **Testability**: Each strategy can be tested independently
-- **Single Responsibility**: Each strategy focuses on one approach
-- **Open/Closed Principle**: Open for extension, closed for modification
-- **Clear Intent**: Strategy names are more descriptive than boolean flags
-
-**Example in Codebase:**
-See `AggregateCSVVisitor` in `common/src/python/inputs/csv_reader.py` which uses `strategy_builder` parameter with `short_circuit_strategy` and `visit_all_strategy` functions instead of a `short_circuit: bool` flag.
 
 ## Package Distribution
 
