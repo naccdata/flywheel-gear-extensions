@@ -1,4 +1,6 @@
+from botocore.exceptions import ClientError
 from s3.s3_bucket import S3BucketInterface
+from utils.decorators import retry_with_backoff
 
 from event_capture.visit_events import VisitEvent
 
@@ -54,6 +56,11 @@ class VisitEventCapture:
         )
         return filename
 
+    @retry_with_backoff(
+        max_retries=3,
+        backoff_factor=2.0,
+        exceptions=(ClientError, Exception),
+    )
     def capture_event(self, event: VisitEvent) -> None:
         """Captures the event.
 
