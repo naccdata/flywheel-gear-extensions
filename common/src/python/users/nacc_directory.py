@@ -27,6 +27,41 @@ from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName, UserE
 log = logging.getLogger(__name__)
 
 
+def get_directory_field_names() -> list[str]:
+    """Derives the list of REDCap field names from DirectoryAuthorizations
+    model.
+
+    Resolves Pydantic alias, validation_alias, and AliasChoices to determine
+    the correct REDCap field name for each model field.
+
+    Returns:
+        List of unique REDCap field names corresponding to all
+        DirectoryAuthorizations fields.
+    """
+    seen: set[str] = set()
+    field_names: list[str] = []
+
+    for name, field_info in DirectoryAuthorizations.model_fields.items():
+        redcap_name: str
+
+        # Check for validation_alias with AliasChoices first
+        if field_info.validation_alias is not None and isinstance(
+            field_info.validation_alias, AliasChoices
+        ):
+            first_choice = field_info.validation_alias.choices[0]
+            redcap_name = str(first_choice)
+        elif field_info.alias is not None:
+            redcap_name = field_info.alias
+        else:
+            redcap_name = name
+
+        if redcap_name not in seen:
+            seen.add(redcap_name)
+            field_names.append(redcap_name)
+
+    return field_names
+
+
 AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
 
