@@ -18,6 +18,20 @@ from users.user_entry import UserEntryList
 log = logging.getLogger(__name__)
 
 
+def filter_approved_records(
+    records: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Filters records to retain only those with permissions_approval == '1'.
+
+    Args:
+        records: Raw records from REDCap export.
+
+    Returns:
+        Records where permissions_approval field equals '1'.
+    """
+    return [record for record in records if record.get("permissions_approval") == "1"]
+
+
 def run(
     *, user_report: List[Dict[str, Any]], collector: Optional[UserEventCollector] = None
 ) -> str:
