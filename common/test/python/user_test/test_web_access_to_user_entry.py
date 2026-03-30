@@ -16,8 +16,7 @@ def test_web_access_not_in_authorizations():
     specific datatype, so it's not included in the authorizations list.
     """
     entry = create_directory_entry(
-        web_report_access="Web",
-        study_selections="P30",
+        web_report_access___web="1",
         p30_naccid_enroll_access_level="ViewAccess",
         p30_clin_forms_access_level="ViewAccess",
     )
@@ -55,8 +54,7 @@ def test_adrc_reports_not_in_authorizations():
     logic.
     """
     entry = create_directory_entry(
-        web_report_access="RepDash",
-        study_selections="P30",
+        web_report_access___repdash="1",
         p30_naccid_enroll_access_level="ViewAccess",
         p30_clin_forms_access_level="ViewAccess",
     )
@@ -87,8 +85,8 @@ def test_adrc_reports_not_in_authorizations():
 def test_both_web_and_reports_not_in_authorizations():
     """Test that both web and reports access don't create authorizations."""
     entry = create_directory_entry(
-        web_report_access="Web,RepDash",
-        study_selections="P30",
+        web_report_access___web="1",
+        web_report_access___repdash="1",
         p30_naccid_enroll_access_level="ViewAccess",
         p30_clin_forms_access_level="ViewAccess",
     )

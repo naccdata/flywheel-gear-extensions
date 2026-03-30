@@ -30,8 +30,7 @@ class TestGeneralPageCommunityResourcesAccess:
         """
         entry = create_directory_entry(
             adcid="1",
-            web_report_access="Web",
-            study_selections="P30",
+            web_report_access___web="1",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -52,8 +51,6 @@ class TestGeneralPageCommunityResourcesAccess:
     def test_general_page_community_resources_no_access_ignored(self):
         """Test that NoAccess doesn't create page resource."""
         entry = create_directory_entry(
-            web_report_access="",  # Empty string converts to NoAccess
-            study_selections="P30",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -80,8 +77,7 @@ class TestAdrcDashboardReportsAccess:
         - Creates a DashboardResource and adds it to ADRC study authorizations
         """
         entry = create_directory_entry(
-            web_report_access="RepDash",
-            study_selections="P30",
+            web_report_access___repdash="1",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -112,8 +108,6 @@ class TestAdrcDashboardReportsAccess:
     def test_adrc_dashboard_reports_no_access_ignored(self):
         """Test that NoAccess doesn't create dashboard resource."""
         entry = create_directory_entry(
-            web_report_access="",  # Empty string converts to NoAccess
-            study_selections="P30",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -152,8 +146,6 @@ class TestClaritiDashboardAccess:
         """
         entry = create_directory_entry(
             cl_pay_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -185,8 +177,6 @@ class TestClaritiDashboardAccess:
         DatatypeResource."""
         entry = create_directory_entry(
             cl_ror_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -216,8 +206,6 @@ class TestClaritiDashboardAccess:
         entry = create_directory_entry(
             cl_pay_access_level="ViewAccess",
             cl_ror_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -249,8 +237,6 @@ class TestClaritiDashboardAccess:
         entry = create_directory_entry(
             cl_pay_access_level="NoAccess",
             cl_ror_access_level="NoAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -290,13 +276,12 @@ class TestMixedResourceTypes:
         """
         entry = create_directory_entry(
             # General page resource
-            web_report_access="Web,RepDash",  # Creates both page and dashboard
+            web_report_access___web="1",
+            web_report_access___repdash="1",
             # ADRC study resources
-            study_selections="P30,AffiliatedStudy",
             p30_naccid_enroll_access_level="ViewAccess",
             p30_clin_forms_access_level="SubmitAudit",
             # CLARiTI study resources
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
             cl_pay_access_level="ViewAccess",
             cl_ror_access_level="ViewAccess",

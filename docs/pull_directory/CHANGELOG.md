@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.0.2
+
+* Fixes handling of REDCap checkbox fields (`web_report_access`, `study_selections`, `affiliated_study`) for `export_records` format
+* Maps expanded checkbox columns (`web_report_access___web`, `web_report_access___repdash`) directly to model fields instead of parsing comma-separated strings
+* Removes unused `study_selections` and `affiliated_study` fields from `DirectoryAuthorizations` model
+
 ## 4.0.1
 
 * Fixes missing CLARiTI role fields by switching from REDCap report-based retrieval to `export_records` with explicit field list derived from the directory authorization model
