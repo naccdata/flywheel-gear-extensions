@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.0.1
+
+* Fixes missing CLARiTI role fields by switching from REDCap report-based retrieval to `export_records` with explicit field list derived from the directory authorization model
+* Pre-filters exported records to retain only approved entries before processing
+
 ## 4.0.0
 
 * Adds signed user agreement check to directory processing
