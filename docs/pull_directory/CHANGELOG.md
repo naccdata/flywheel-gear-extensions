@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.0.3
+
+* Fixes REDCap `export_records` field list to use base field names for checkbox fields, allowing REDCap to return expanded columns automatically
+
 ## 4.0.2
 
 * Fixes handling of REDCap checkbox fields (`web_report_access`, `study_selections`, `affiliated_study`) for `export_records` format
