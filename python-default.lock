@@ -32,7 +32,7 @@
 //     "pyyaml>=6.0.1",
 //     "ratelimit-types>=0.0.1",
 //     "ratelimit>=2.2.1",
-//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl",
+//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.5/redcap_api-0.1.5-py3-none-any.whl",
 //     "requests-oauthlib>=2.0.0",
 //     "requests>=2.18.4",
 //     "setuptools>=68.3.0",
@@ -146,42 +146,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "63c6779c814847016b89ae1b72ed968f8a63d80e589ba337511aa6fc1b59585e",
-              "url": "https://files.pythonhosted.org/packages/f0/dc/21b3dfb135125eb7e3a46b9aab0aede847726f239fc8f39474742a87ebb0/boto3-1.42.76-py3-none-any.whl"
+              "hash": "480a34a077484a5ca60124dfd150ba3ea6517fc89963a679e45b30c6db614d26",
+              "url": "https://files.pythonhosted.org/packages/57/bb/1f6dade1f1e86858bef7bd332bc8106c445f2dbabec7b32ab5d7d118c9b6/boto3-1.42.78-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "aa2b1973eee8973a9475d24bb579b1dee7176595338d4e4f7880b5c6189b8814",
-              "url": "https://files.pythonhosted.org/packages/f1/13/33c8b8704d677fcaf5555ba8c6cc39468fc7b9a0c6b6c496e008cd5557fc/boto3-1.42.76.tar.gz"
+              "hash": "cef2ebdb9be5c0e96822f8d3941ac4b816c90a5737a7ffb901d664c808964b63",
+              "url": "https://files.pythonhosted.org/packages/a8/2b/ebdad075934cf6bb78bf81fe31d83339bcd804ad6c856f7341376cbc88b6/boto3-1.42.78.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.43.0,>=1.42.76",
+            "botocore<1.43.0,>=1.42.78",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.17.0,>=0.16.0"
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.76"
+          "version": "1.42.78"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "6a56ab2838bac7891c58f19c533cdf25dfaadee49ee1d58c4551363291cb59f9",
-              "url": "https://files.pythonhosted.org/packages/b3/46/e51cb3cf6ec14780ad14fbf16faf36fd794ac5c09e39fb4b20c7630928b3/boto3_stubs-1.42.76-py3-none-any.whl"
+              "hash": "6ed07e734174751da8d01031d9ede8d81a88e4338d9e6b00ce7a6bc870075372",
+              "url": "https://files.pythonhosted.org/packages/22/d5/bdedd4951c795899ac5a1f0b88d81b9e2c6333cb87457f2edd11ef3b7b7b/boto3_stubs-1.42.78-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "13863d2dc56a3df2f7e35b6cc5b9fe6dcc9024c24357ad470648f60ad4a7c9b7",
-              "url": "https://files.pythonhosted.org/packages/68/80/78461434f660ce8f2f5160f8fd6eda2152d5ea6b8abbc6a72741d19a6551/boto3_stubs-1.42.76.tar.gz"
+              "hash": "423335b8ce9a935e404054978589cdb98d9fa1d4bd46073d6821bf1c3fad8ca7",
+              "url": "https://files.pythonhosted.org/packages/03/16/4bdb3c1f69bf7b97dd8b22fe5b007e9da67ba3f00ed10e47146f5fd9d0ff/boto3_stubs-1.42.78.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.43.0,>=1.42.0; extra == \"full\"",
-            "boto3==1.42.76; extra == \"boto3\"",
+            "boto3==1.42.78; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.43.0,>=1.42.0; extra == \"all\"",
@@ -1028,19 +1028,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.76"
+          "version": "1.42.78"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "151e714ae3c32f68ea0b4dc60751401e03f84a87c6cf864ea0ee64aa10eb4607",
-              "url": "https://files.pythonhosted.org/packages/f5/63/7429d68876b7718ab5c4b8a44414de7907f5ba6bb27ccfad384df14fb277/botocore-1.42.76-py3-none-any.whl"
+              "hash": "038ab63c7f898e8b5db58cb6a45e4da56c31dd984e7e995839a3540c735564ea",
+              "url": "https://files.pythonhosted.org/packages/54/72/94bba1a375d45c685b00e051b56142359547837086a83861d76f6aec26f4/botocore-1.42.78-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "c553fa0ae29e36a5c407f74da78b78404b81b74b15fb62bf640a3cd9385f0874",
-              "url": "https://files.pythonhosted.org/packages/70/62/a982acb81c5e0312f90f841b790abad65622c08aad356eed7008ea3d475b/botocore-1.42.76.tar.gz"
+              "hash": "61cbd49728e23f68cfd945406ab40044d49abed143362f7ffa4a4f4bd4311791",
+              "url": "https://files.pythonhosted.org/packages/67/8e/cdb34c8ca71216d214e049ada2148ee08bcda12b1ac72af3a720dea300ff/botocore-1.42.78.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1052,7 +1052,7 @@
             "urllib3<1.27,>=1.25.4; python_version < \"3.10\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.42.76"
+          "version": "1.42.78"
         },
         {
           "artifacts": [
@@ -2724,8 +2724,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "0632db71cb577238ef6b57cd3ba7a3e6dad1b37a010988d6c96421d6110c7402",
-              "url": "https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl"
+              "hash": "d0936bc8758c89c404f65af56fd9a0c898e579c31d63ea13e1cbdc770e9c2447",
+              "url": "https://github.com/naccdata/redcap-api/releases/download/v0.1.5/redcap_api-0.1.5-py3-none-any.whl"
             }
           ],
           "project_name": "redcap-api",
@@ -2735,7 +2735,7 @@
             "requests>=2.18.4"
           ],
           "requires_python": "==3.12.*",
-          "version": "0.1.4"
+          "version": "0.1.5"
         },
         {
           "artifacts": [
@@ -3178,13 +3178,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "f83ef2deb284fe99a249b8b0b0a3e4b9809e01ff456063c4df0aac7670c07ab9",
-              "url": "https://files.pythonhosted.org/packages/5b/5a/ce5999f9bd72c7fac681d26cd0a5782b379053bfc2214e2a3fbe30852c9e/types_requests-2.32.4.20260324-py3-none-any.whl"
+              "hash": "fde0712be6d7c9a4d490042d6323115baf872d9a71a22900809d0432de15776e",
+              "url": "https://files.pythonhosted.org/packages/8c/55/951e733616c92cb96b57554746d2f65f4464d080cc2cc093605f897aba89/types_requests-2.33.0.20260327-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "33a2a9ccb1de7d4e4da36e347622c35418f6761269014cc32857acabd5df739e",
-              "url": "https://files.pythonhosted.org/packages/6c/b1/66bafdc85965e5aa3db42e1b9128bf8abe252edd7556d00a07ef437a3e0e/types_requests-2.32.4.20260324.tar.gz"
+              "hash": "f4f74f0b44f059e3db420ff17bd1966e3587cdd34062fe38a23cda97868f8dd8",
+              "url": "https://files.pythonhosted.org/packages/02/5f/2e3dbae6e21be6ae026563bad96cbf76602d73aa85ea09f13419ddbdabb4/types_requests-2.33.0.20260327.tar.gz"
             }
           ],
           "project_name": "types-requests",
@@ -3192,7 +3192,7 @@
             "urllib3>=2"
           ],
           "requires_python": ">=3.10",
-          "version": "2.32.4.20260324"
+          "version": "2.33.0.20260327"
         },
         {
           "artifacts": [
@@ -3394,7 +3394,7 @@
     "pyyaml>=6.0.1",
     "ratelimit-types>=0.0.1",
     "ratelimit>=2.2.1",
-    "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.4/redcap_api-0.1.4-py3-none-any.whl",
+    "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.1.5/redcap_api-0.1.5-py3-none-any.whl",
     "requests-oauthlib>=2.0.0",
     "requests>=2.18.4",
     "setuptools>=68.3.0",
