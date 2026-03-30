@@ -34,6 +34,10 @@ def get_directory_field_names() -> list[str]:
     Resolves Pydantic alias, validation_alias, and AliasChoices to determine
     the correct REDCap field name for each model field.
 
+    For checkbox fields (names containing ``___``), the base field name
+    before the separator is used since REDCap's ``export_records`` API
+    expects the base name and returns the expanded columns automatically.
+
     Returns:
         List of unique REDCap field names corresponding to all
         DirectoryAuthorizations fields.
@@ -54,6 +58,10 @@ def get_directory_field_names() -> list[str]:
             redcap_name = field_info.alias
         else:
             redcap_name = name
+
+        # Use base field name for checkbox fields (REDCap expands them)
+        if "___" in redcap_name:
+            redcap_name = redcap_name.split("___")[0]
 
         if redcap_name not in seen:
             seen.add(redcap_name)
