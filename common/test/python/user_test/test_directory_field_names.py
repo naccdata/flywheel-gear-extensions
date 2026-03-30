@@ -16,14 +16,13 @@ EXPECTED_REDCAP_FIELDS = [
     "archive_contact",
     "contact_company_name",
     "adcid",
-    "web_report_access",
-    "study_selections",
+    "web_report_access___web",
+    "web_report_access___repdash",
     "p30_naccid_enroll_access_level",
     "p30_clin_forms_access_level",
     "p30_imaging_access_level",
     "p30_flbm_access_level",
     "p30_genetic_access_level",
-    "affiliated_study",
     "leads_naccid_enroll_access_level",
     "leads_clin_forms_access_level",
     "dvcid_naccid_enroll_access_level",
@@ -70,15 +69,6 @@ class TestGetDirectoryFieldNames:
         result_set = set(result)
         for field in EXPECTED_REDCAP_FIELDS:
             assert field in result_set, f"Missing expected field: {field}"
-
-    def test_web_report_access_appears_once(self):
-        """Test that web_report_access appears exactly once (deduplication of
-        two Python fields sharing the same alias)."""
-        result = get_directory_field_names()
-        count = result.count("web_report_access")
-        assert count == 1, (
-            f"web_report_access should appear exactly once, found {count}"
-        )
 
     def test_no_duplicates(self):
         """Test that the returned list has no duplicate entries."""

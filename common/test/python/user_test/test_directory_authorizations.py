@@ -11,14 +11,11 @@ class TestDirectoryAuthorizations:
     def test_validation(self):
         auths = DirectoryAuthorizations.model_validate(
             create_directory_entry(
-                web_report_access="",
-                study_selections="P30,AffiliatedStudy",
                 scan_dashboard_access_level="ViewAccess",
                 p30_clin_forms_access_level="SubmitAudit",
                 p30_imaging_access_level="ViewAccess",
                 p30_flbm_access_level="ViewAccess",
                 p30_genetic_access_level="ViewAccess",
-                affiliated_study="CLARiTI,LEADS,DVCID,ALLFTD,DLBC",
                 leads_clin_forms_access_level="SubmitAudit",
                 contact_company_name="an institution",
                 archive_contact="1",
@@ -33,14 +30,11 @@ class TestDirectoryAuthorizations:
 
     auths = DirectoryAuthorizations.model_validate(
         create_directory_entry(
-            web_report_access="1",
-            study_selections="P30,AffiliatedStudy",
             p30_naccid_enroll_access_level="ViewAccess",
             p30_clin_forms_access_level="SubmitAudit",
             p30_imaging_access_level="SubmitAudit",
             p30_flbm_access_level="SubmitAudit",
             p30_genetic_access_level="ViewAccess",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="NoAccess",
             cl_imaging_access_level="NoAccess",
             cl_flbm_access_level="ViewAccess",
@@ -53,7 +47,6 @@ class TestDirectoryAuthorizations:
     )
     assert auths
     assert not auths.inactive
-    assert "LEADS" not in auths.affiliated_study
     assert auths.dlbc_datatype_form_access_level == "NoAccess"
 
     user_entry = auths.to_user_entry()
@@ -195,12 +188,10 @@ class TestCLARiTIRoleDeserialization:
         """Test that CLARiTI fields work alongside existing fields."""
         auths = DirectoryAuthorizations.model_validate(
             create_directory_entry(
-                web_report_access="Web",
-                study_selections="P30",
+                web_report_access___web="1",
                 scan_dashboard_access_level="ViewAccess",
                 p30_naccid_enroll_access_level="ViewAccess",
                 p30_clin_forms_access_level="SubmitAudit",
-                affiliated_study="CLARiTI",
                 cl_clin_forms_access_level="ViewAccess",
                 cl_pay_access_level="ViewAccess",
                 **{
@@ -220,14 +211,11 @@ class TestCLARiTIRoleDeserialization:
         assert auths.adrc_datatype_form_access_level == "SubmitAudit"
         assert auths.clariti_datatype_form_access_level == "ViewAccess"
         assert auths.clariti_dashboard_pay_access_level == "ViewAccess"
-        assert "CLARiTI" in auths.affiliated_study
 
     def test_backward_compatibility_without_clariti_fields(self):
         """Test that REDCap reports without CLARiTI fields still work."""
         auths = DirectoryAuthorizations.model_validate(
             create_directory_entry(
-                web_report_access="1",
-                study_selections="P30",
                 p30_naccid_enroll_access_level="ViewAccess",
                 p30_clin_forms_access_level="SubmitAudit",
                 p30_imaging_access_level="SubmitAudit",
