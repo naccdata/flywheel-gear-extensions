@@ -116,15 +116,10 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         )
 
         if not qc_success:
-            log.warning(
-                f"Failed to create QC status log for visit: "
-                f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
-                f"module={visit_metadata.module}"
-            )
             # Add system error to misc_errors for QC log creation failure
             self.__misc_errors.append(
                 system_error(
-                    message=f"Failed to create QC status log for visit: "
+                    message=f"Failed to create/update QC status log for visit: "
                     f"ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
                     f"module={visit_metadata.module}",
                     error_location=CSVLocation(line=line_num, column_name=""),

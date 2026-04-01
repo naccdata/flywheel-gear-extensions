@@ -1231,6 +1231,26 @@ class ProjectAdaptor:
             )
             return None
 
+    def delete_file(self, filename: str) -> bool:
+        """Delete the specified file from enclosed project.
+
+        Args:
+            filename: the file name
+
+        Returns:
+            bool: True if file successfully deleted
+        """
+        try:
+            self.delete_file(filename)
+        except ApiException as error:
+            log.error(
+                f"Failed to delete file {filename} from "
+                f"{self.group}/{self.label}: {error}"
+            )
+            return False
+
+        return True
+
     def get_user_roles(self, user_id: str) -> List[str]:
         """Gets the list of user role ids in this project.
 
