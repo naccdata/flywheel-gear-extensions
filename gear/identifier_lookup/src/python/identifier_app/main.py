@@ -153,7 +153,6 @@ class NACCIDLookupVisitor(CSVVisitor):
             adcid = int(row[FieldNames.ADCID])
             if adcid not in self.__identifiers_cache:
                 self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
-
         except (ValueError, TypeError):
             self.__error_writer.write(
                 unexpected_value_error(
@@ -161,7 +160,7 @@ class NACCIDLookupVisitor(CSVVisitor):
                     value=row[FieldNames.ADCID],
                     expected="valid ADCID",
                     line=line_num,
-                    message="invalid ADCID",
+                    message="Invalid ADCID",
                 )
             )
             return False

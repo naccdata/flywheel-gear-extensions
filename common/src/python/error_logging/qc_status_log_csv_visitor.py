@@ -15,6 +15,7 @@ from nacc_common.error_models import (
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
+from pydantic import ValidationError
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 
@@ -77,9 +78,17 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             True if processing was successful, False otherwise
         """
         # Extract visit information for QC log creation
-        visit_metadata = self._extract_visit_keys(row)
-        if not visit_metadata or not self._is_valid_visit(visit_metadata):
-            log.debug(f"Skipping row {line_num} - insufficient visit data")
+        try:
+            visit_metadata = self._extract_visit_keys(row)
+        except ValidationError as err:
+            message = f"Failed to create QC status log for row {line_num}: {err}"
+            log.debug(message)
+            self.__misc_errors.append(
+                system_error(
+                    message=message,
+                    error_location=CSVLocation(line=line_num, column_name=""),
+                )
+            )
             return True  # Don't fail processing for incomplete visits
 
         # Store visit metadata for later file metadata enhancement
