@@ -1,5 +1,21 @@
 # Versioning and Changelog Guidelines
 
+## Changelog Locations
+
+**IMPORTANT**: CHANGELOGs are located in the `docs/` directory, NOT with the source code.
+
+- Gear changelogs: `docs/{gear-name}/CHANGELOG.md`
+  - Example: `docs/user_management/CHANGELOG.md`
+  - Example: `docs/form_qc_checker/CHANGELOG.md`
+- Package changelogs: `docs/{package-name}/CHANGELOG.md`
+  - Example: `docs/nacc_common/CHANGELOG.md`
+
+## Version Number Locations
+
+- **Gears**: Version is in `gear/{gear-name}/src/docker/manifest.json` (both `version` field and `custom.gear-builder.image` field)
+- **Gears**: Image tag is also in `gear/{gear-name}/src/docker/BUILD` file (`image_tags` parameter)
+- **Packages**: Version is in `{package-name}/pyproject.toml`
+
 ## Version Number Management
 
 **CRITICAL RULE: Never automatically bump version numbers in CHANGELOG files.**

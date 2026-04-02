@@ -1,8 +1,10 @@
 """Defines repository as interface to user registry."""
 
+import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.exceptions import ApiException
@@ -17,6 +19,13 @@ from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
 from pydantic import ValidationError
+
+from users.domain_config import (
+    DomainRelationshipConfig,
+    canonicalize_domain,
+)
+
+log = logging.getLogger(__name__)
 
 
 def org_name_is(name: str) -> Callable[[OrgIdentity], bool]:
@@ -67,22 +76,39 @@ class RegistryPerson:
 
     @classmethod
     def create(
-        cls, *, firstname: str, lastname: str, email: str, coid: int
+        cls,
+        *,
+        firstname: str,
+        lastname: str,
+        email: "Union[str, List[str]]",
+        coid: int,
     ) -> "RegistryPerson":
-        """Creates a RegistryPerson object with the name and email.
+        """Creates a RegistryPerson object with the name and email(s).
 
-        Note: the coid must match that of the registry
+        Note: the coid must match that of the registry.
+        Accepts a single email string (backward compatible) or a list of
+        email strings. Each email produces an EmailAddress with type="official".
 
         Args:
           firstname: the first (given) name of person
           lastname: the last (family) name of the person
-          email: the email address of the person
+          email: a single email address or list of email addresses
           coid: the CO ID for the COManage registry
         Returns:
-          the RegistryPerson with name and email
+          the RegistryPerson with name and email(s)
         """
+        # Strip whitespace from names to ensure consistency with registry
+        firstname = firstname.strip() if isinstance(firstname, str) else firstname
+        lastname = lastname.strip() if isinstance(lastname, str) else lastname
+
+        # Normalize single string to list for uniform handling
+        email_list = [email] if isinstance(email, str) else email
+
         coperson = CoPerson(co_id=coid, status="A")
-        email_address = EmailAddress(mail=email, type="official", verified=True)
+        email_addresses = [
+            EmailAddress(mail=addr, type="official", verified=True)
+            for addr in email_list
+        ]
         role = CoPersonRole(cou_id=None, affiliation="member", status="A")
         name = Name(
             given=firstname, family=lastname, type="official", primary_name=True
@@ -90,7 +116,7 @@ class RegistryPerson:
         return RegistryPerson(
             coperson_message=CoPersonMessage(
                 CoPerson=coperson,
-                EmailAddress=[email_address],
+                EmailAddress=email_addresses,
                 CoPersonRole=[role],
                 Name=[name],
             )
@@ -182,6 +208,8 @@ class RegistryPerson:
         """Returns the primary name of this person as a string.
 
         Concatenates firstname and lastname separated by a space.
+        Strips whitespace from individual name components to normalize names
+        that may have been stored with trailing spaces.
 
         Returns:
           String representation of full primary name. None if there is none.
@@ -191,7 +219,10 @@ class RegistryPerson:
 
         for name in self.__coperson_message.name:
             if name.primary_name:
-                return f"{name.given} {name.family}"
+                # Strip whitespace from name components for consistency
+                given = name.given.strip() if name.given else ""
+                family = name.family.strip() if name.family else ""
+                return f"{given} {family}"
 
         return None
 
@@ -306,6 +337,45 @@ class RegistryPerson:
         )
         return bool(identifiers)
 
+    def _has_oidcsub(self) -> bool:
+        """Check whether the record has any oidcsub identifier from
+        cilogon.org.
+
+        Returns:
+          True if the record has at least one oidcsub identifier from cilogon.org.
+        """
+
+        def is_cilogon_oidcsub(identifier: Identifier) -> bool:
+            return identifier.type == "oidcsub" and identifier.identifier.startswith(
+                "http://cilogon.org"
+            )
+
+        return bool(self.identifiers(predicate=is_cilogon_oidcsub))
+
+    def is_incomplete_claim(self) -> bool:
+        """Indicates whether the CoPerson record is an incomplete claim.
+
+        An incomplete claim represents a user who logged in via an IdP
+        (has an oidcsub identifier) but the IdP did not return an email
+        address, so the record has no verified email.
+
+        Returns:
+          True if the record has an oidcsub identifier but no verified email.
+          False otherwise.
+        """
+        return self._has_oidcsub() and not self.verified_email_addresses
+
+    def is_unclaimed(self) -> bool:
+        """Indicates whether the CoPerson record is unclaimed.
+
+        An unclaimed record has no oidcsub identifier, meaning the user
+        has never logged in to claim their account.
+
+        Returns:
+          True if the record has no oidcsub identifier. False otherwise.
+        """
+        return not self._has_oidcsub()
+
     def __get_claim_org(self) -> Optional[OrgIdentity]:
         """Returns the first claimed organizational identity.
 
@@ -389,15 +459,37 @@ class RegistryPerson:
         return None
 
 
+@dataclass
+class DomainCandidate:
+    """A candidate record found via domain-aware lookup."""
+
+    person: RegistryPerson
+    matched_email: str
+    query_domain: str
+    candidate_domain: str
+    parent_domain: str
+
+
 class UserRegistry:
     """Repository class for COManage user registry."""
 
-    def __init__(self, api_instance: DefaultApi, coid: int):
+    def __init__(
+        self,
+        api_instance: DefaultApi,
+        coid: int,
+        name_normalizer: Callable[[str], str],
+        domain_config: Optional[DomainRelationshipConfig] = None,
+    ):
         self.__api_instance = api_instance
         self.__coid = coid
+        self.__loaded = False
         self.__registry_map: Dict[str, List[RegistryPerson]] = {}
         self.__bad_claims: Dict[str, List[RegistryPerson]] = {}
         self.__registry_map_by_id: Dict[str, RegistryPerson] = {}
+        self.__parent_domain_map: Dict[str, List[RegistryPerson]] = {}
+        self.__name_map: Dict[str, List[RegistryPerson]] = {}
+        self.__domain_config = domain_config or DomainRelationshipConfig()
+        self.__name_normalizer = name_normalizer
 
     @property
     def coid(self) -> int:
@@ -432,7 +524,7 @@ class UserRegistry:
         Returns:
           the list of person objects with the email address
         """
-        if not self.__registry_map:
+        if not self.__loaded:
             self.__list()
 
         return self.__registry_map[email]
@@ -447,7 +539,7 @@ class UserRegistry:
           the registry person objects if a match found, else None
         """
 
-        if not self.__registry_map_by_id:
+        if not self.__loaded:
             self.__list()
 
         return self.__registry_map_by_id.get(registry_id)
@@ -463,7 +555,7 @@ class UserRegistry:
         Returns:
           True if the name corresponds to an incomplete claim
         """
-        if not self.__registry_map:
+        if not self.__loaded:
             self.__list()
 
         return name in self.__bad_claims
@@ -477,10 +569,76 @@ class UserRegistry:
         Returns:
           the list of RegistryPerson objects with incomplete claims, empty list if none
         """
-        if not self.__registry_map:
+        if not self.__loaded:
             self.__list()
 
         return self.__bad_claims.get(name, [])
+
+    def get_by_parent_domain(self, email: str) -> List[DomainCandidate]:
+        """Fallback lookup: find candidates sharing the same parent domain.
+
+        Extracts the domain from the query email, resolves its parent domain
+        via the DomainRelationshipConfig, and returns all RegistryPerson
+        records indexed under that parent domain with match context.
+
+        Args:
+          email: the query email address
+        Returns:
+          list of DomainCandidate objects with match context
+        """
+        if not self.__loaded:
+            self.__list()
+
+        if "@" not in email:
+            return []
+
+        query_domain = canonicalize_domain(email.split("@")[-1])
+        query_parent = self.__domain_config.resolve_parent(query_domain)
+
+        candidates = self.__parent_domain_map.get(query_parent, [])
+        results: List[DomainCandidate] = []
+        seen: set[str] = set()
+
+        for person in candidates:
+            person_key = person.registry_id() or str(id(person))
+            if person_key in seen:
+                continue
+            seen.add(person_key)
+
+            for addr in person.email_addresses:
+                addr_domain = (
+                    canonicalize_domain(addr.mail.split("@")[-1])
+                    if "@" in addr.mail
+                    else ""
+                )
+                addr_parent = self.__domain_config.resolve_parent(addr_domain)
+                if addr_parent == query_parent:
+                    results.append(
+                        DomainCandidate(
+                            person=person,
+                            matched_email=addr.mail,
+                            query_domain=query_domain,
+                            candidate_domain=addr_domain,
+                            parent_domain=query_parent,
+                        )
+                    )
+                    break
+
+        return results
+
+    def get_by_name(self, full_name: str) -> List[RegistryPerson]:
+        """Lookup candidates by normalized full name.
+
+        Args:
+          full_name: the full name to search for
+        Returns:
+          list of RegistryPerson objects with matching normalized name
+        """
+        if not self.__loaded:
+            self.__list()
+
+        normalized = self.__name_normalizer(full_name)
+        return self.__name_map.get(normalized, [])
 
     def __list(self) -> None:
         """Returns the dictionary of RegistryPerson objects for records in the
@@ -492,9 +650,12 @@ class UserRegistry:
         Returns:
           the dictionary of email addresses RegistryPerson objects
         """
+        self.__loaded = True
         self.__registry_map = defaultdict(list)
         self.__bad_claims = defaultdict(list)
         self.__registry_map_by_id = {}
+        self.__parent_domain_map = defaultdict(list)
+        self.__name_map = defaultdict(list)
 
         limit = 100
         page_index = 1
@@ -522,13 +683,34 @@ class UserRegistry:
     def __add_person(self, person: RegistryPerson) -> None:
         """Adds the person from the comanage registry to this registry object.
 
-        To be added the person must have email addresses and be claimed.
+        Indexes the person by registry ID (always), by email (if
+        present), by parent domain (if domain_config available), and by
+        name (if present). Records without email that are claimed go to
+        __bad_claims.
         """
+        # Always index by registry ID regardless of email
+        registry_id = person.registry_id()
+        if registry_id:
+            self.__registry_map_by_id[registry_id] = person
+
+        # Index by normalized name if present
+        name = person.primary_name
+        if name:
+            try:
+                normalized = self.__name_normalizer(name)
+                if normalized:
+                    self.__name_map.setdefault(normalized, []).append(person)
+            except (TypeError, ValueError):
+                log.warning(
+                    "Name normalizer failed for '%s', skipping name index",
+                    name,
+                    exc_info=True,
+                )
+
         if not person.email_addresses:
             if not person.is_claimed():
                 return
 
-            name = person.primary_name
             if name:
                 self.__bad_claims[name].append(person)
 
@@ -537,9 +719,11 @@ class UserRegistry:
         for address in person.email_addresses:
             self.__registry_map[address.mail].append(person)
 
-        registry_id = person.registry_id()
-        if registry_id:
-            self.__registry_map_by_id[registry_id] = person
+            # Index by parent domain
+            email_domain = address.mail.split("@")[-1] if "@" in address.mail else ""
+            if email_domain:
+                parent = self.__domain_config.resolve_parent(email_domain)
+                self.__parent_domain_map.setdefault(parent, []).append(person)
 
     def __person_count(self) -> int:
         """Returns the count of coperson objects in the comanage registry.

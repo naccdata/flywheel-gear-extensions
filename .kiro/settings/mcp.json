@@ -1,0 +1,31 @@
+{
+  "mcpServers": {},
+  "powers": {
+    "mcpServers": {
+      "power-kiro-pants-power-pants-devcontainer-power": {
+        "command": "uvx",
+        "args": [
+          "--from",
+          "git+https://github.com/naccdata/kiro-pants-power",
+          "pants-devcontainer-power"
+        ],
+        "env": {},
+        "autoApprove": [
+          "pants_fix",
+          "pants_lint",
+          "pants_check",
+          "pants_test",
+          "pants_package",
+          "pants_tailor",
+          "pants_workflow",
+          "full_quality_check",
+          "pants_clear_cache",
+          "container_start",
+          "container_stop",
+          "container_rebuild",
+          "container_exec"
+        ]
+      }
+    }
+  }
+}

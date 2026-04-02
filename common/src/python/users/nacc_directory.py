@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any, Literal, Optional, get_args
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     Field,
     field_validator,
@@ -12,12 +13,61 @@ from pydantic import (
 
 from users.authorizations import (
     ActionType,
+    Authorizations,
+    DashboardResource,
     DatatypeNameType,
+    DatatypeResource,
+    PageResource,
+    Resource,
     StudyAuthorizations,
 )
-from users.user_entry import ActiveUserEntry, PersonName, UserEntry
+from users.clariti_roles import map_clariti_roles_to_activities
+from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName, UserEntry
 
 log = logging.getLogger(__name__)
+
+
+def get_directory_field_names() -> list[str]:
+    """Derives the list of REDCap field names from DirectoryAuthorizations
+    model.
+
+    Resolves Pydantic alias, validation_alias, and AliasChoices to determine
+    the correct REDCap field name for each model field.
+
+    For checkbox fields (names containing ``___``), the base field name
+    before the separator is used since REDCap's ``export_records`` API
+    expects the base name and returns the expanded columns automatically.
+
+    Returns:
+        List of unique REDCap field names corresponding to all
+        DirectoryAuthorizations fields.
+    """
+    seen: set[str] = set()
+    field_names: list[str] = []
+
+    for name, field_info in DirectoryAuthorizations.model_fields.items():
+        redcap_name: str
+
+        # Check for validation_alias with AliasChoices first
+        if field_info.validation_alias is not None and isinstance(
+            field_info.validation_alias, AliasChoices
+        ):
+            first_choice = field_info.validation_alias.choices[0]
+            redcap_name = str(first_choice)
+        elif field_info.alias is not None:
+            redcap_name = field_info.alias
+        else:
+            redcap_name = name
+
+        # Use base field name for checkbox fields (REDCap expands them)
+        if "___" in redcap_name:
+            redcap_name = redcap_name.split("___")[0]
+
+        if redcap_name not in seen:
+            seen.add(redcap_name)
+            field_names.append(redcap_name)
+
+    return field_names
 
 
 AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
@@ -49,38 +99,59 @@ class StudyAccessMap(BaseModel):
     DirectoryAuthorizations object.
     """
 
-    access_level_map: dict[str, StudyAuthorizations] = {}
+    study_access_level_map: dict[str, StudyAuthorizations] = {}
+    general_authorizations: Authorizations = Authorizations()
 
-    def add(
+    def add_study_access(
         self,
         study_id: str,
         access_level: AuthorizationAccessLevel,
-        datatype: DatatypeNameType,
+        resource: Resource,
     ) -> None:
-        """Adds the datatype to this map for the study id at the access level.
+        """Adds the resource to this map for the study id at the access level.
 
         Args:
           study_id: the study id
           access_level: the access level
-          datatype: the datatype
+          resource: the resource (DatatypeResource, DashboardResource, etc.)
         """
-        authorizations = self.access_level_map.get(study_id)
+        authorizations = self.study_access_level_map.get(study_id)
         if authorizations is None:
             authorizations = StudyAuthorizations(study_id=study_id)
         action = get_activity_prefix(access_level)
         if action is not None:
-            authorizations.add(datatype=datatype, action=action)
-        self.access_level_map[study_id] = authorizations
+            authorizations.add(resource=resource, action=action)
+        self.study_access_level_map[study_id] = authorizations
 
-    def get_authorizations(self) -> list[StudyAuthorizations]:
+    def add_general_access(
+        self, access_level: AuthorizationAccessLevel, resource: Resource
+    ) -> None:
+        """Adds the resource to general authorizations at the access level.
+
+        Args:
+          access_level: the access level
+          resource: the resource (PageResource, DashboardResource, etc.)
+        """
+        action = get_activity_prefix(access_level)
+        if action is not None:
+            self.general_authorizations.add(resource=resource, action=action)
+
+    def get_authorizations(self) -> Authorizations:
+        return self.general_authorizations
+
+    def get_study_authorizations(self) -> list[StudyAuthorizations]:
         """Returns the list of Authorizations objects from this study access
         map."""
-        return list(self.access_level_map.values())
+        return list(self.study_access_level_map.values())
 
 
 class DirectoryAuthorizations(BaseModel):
-    """Data model for deserializing a json object from a directory permission
-    report."""
+    """Data model for deserializing a record from a REDCap directory export.
+
+    REDCap checkbox fields are exported as separate columns with ``___``
+    suffixes (e.g., ``web_report_access___web``). Each model field maps
+    directly to its corresponding expanded column.
+    """
 
     firstname: str
     lastname: str
@@ -88,92 +159,214 @@ class DirectoryAuthorizations(BaseModel):
     auth_email: str = Field(alias="fw_email")
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
-    adcid: int = Field(alias="adresearchctr")
-    web_report_access: bool
-    study_selections: list[str]
-    adrc_enrollment_access_level: AuthorizationAccessLevel = Field(
+    adcid: Optional[int] = Field(alias="adcid")
+    general_page_community_resources_access_level: AuthorizationAccessLevel = Field(
+        validation_alias=AliasChoices(
+            "web_report_access___web", "web_report_access___Web"
+        )
+    )
+    adrc_dashboard_reports_access_level: AuthorizationAccessLevel = Field(
+        validation_alias=AliasChoices(
+            "web_report_access___repdash", "web_report_access___RepDash"
+        )
+    )
+    adrc_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="p30_naccid_enroll_access_level"
     )
-    adrc_form_access_level: AuthorizationAccessLevel = Field(
+    adrc_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="p30_clin_forms_access_level"
     )
-    adrc_dicom_access_level: AuthorizationAccessLevel = Field(
+    adrc_datatype_dicom_access_level: AuthorizationAccessLevel = Field(
         alias="p30_imaging_access_level"
     )
-    ncrad_biomarker_access_level: AuthorizationAccessLevel = Field(
+    ncrad_datatype_biomarker_access_level: AuthorizationAccessLevel = Field(
         alias="p30_flbm_access_level"
     )
-    niagads_genetic_access_level: AuthorizationAccessLevel = Field(
+    niagads_datatype_genetic_access_level: AuthorizationAccessLevel = Field(
         alias="p30_genetic_access_level"
     )
-    affiliated_study: list[str]
-    leads_enrollment_access_level: AuthorizationAccessLevel = Field(
+    leads_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="leads_naccid_enroll_access_level"
     )
-    leads_form_access_level: AuthorizationAccessLevel = Field(
+    leads_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="leads_clin_forms_access_level"
     )
-    dvcid_enrollment_access_level: AuthorizationAccessLevel = Field(
+    dvcid_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="dvcid_naccid_enroll_access_level"
     )
-    dvcid_form_access_level: AuthorizationAccessLevel = Field(
+    dvcid_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="dvcid_clin_forms_access_level"
     )
-    allftd_enrollment_access_level: AuthorizationAccessLevel = Field(
+    allftd_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="allftd_naccid_enroll_access_level"
     )
-    allftd_form_access_level: AuthorizationAccessLevel = Field(
+    allftd_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="allftd_clin_forms_access_level"
     )
-    dlbc_enrollment_access_level: AuthorizationAccessLevel = Field(
+    dlbc_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="dlbc_naccid_enroll_access_level"
     )
-    dlbc_form_access_level: AuthorizationAccessLevel = Field(
+    dlbc_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="dlbc_clin_forms_access_level"
     )
-    clariti_form_access_level: AuthorizationAccessLevel = Field(
+    clariti_datatype_form_access_level: AuthorizationAccessLevel = Field(
         alias="cl_clin_forms_access_level"
     )
-    clariti_dicom_access_level: AuthorizationAccessLevel = Field(
+    clariti_datatype_dicom_access_level: AuthorizationAccessLevel = Field(
         alias="cl_imaging_access_level"
     )
-    clariti_biomarker_access_level: AuthorizationAccessLevel = Field(
+    clariti_datatype_biomarker_access_level: AuthorizationAccessLevel = Field(
         alias="cl_flbm_access_level"
     )
-    clariti_pay_access_level: AuthorizationAccessLevel = Field(
+    clariti_dashboard_pay_access_level: AuthorizationAccessLevel = Field(
         alias="cl_pay_access_level"
     )
-    clariti_ror_access_level: AuthorizationAccessLevel = Field(
+    clariti_datatype_participant_summary_access_level: AuthorizationAccessLevel = Field(
         alias="cl_ror_access_level"
     )
-    adrc_scan_access_level: AuthorizationAccessLevel = Field(
+    adrc_datatype_scan_analysis_access_level: AuthorizationAccessLevel = Field(
         alias="scan_dashboard_access_level"
     )
-    complete: bool = Field(alias="nacc_data_platform_access_information_complete")
+    # CLARiTI organizational roles (14 fields)
+    loc_clariti_role___u01copi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___u01copi"
+    )
+    loc_clariti_role___pi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___pi"
+    )
+    loc_clariti_role___piadmin: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___piadmin"
+    )
+    loc_clariti_role___copi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___copi"
+    )
+    loc_clariti_role___subawardadmin: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___subawardadmin"
+    )
+    loc_clariti_role___addlsubaward: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___addlsubaward"
+    )
+    loc_clariti_role___studycoord: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___studycoord"
+    )
+    loc_clariti_role___mpi: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___mpi"
+    )
+    loc_clariti_role___orecore: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___orecore"
+    )
+    loc_clariti_role___crl: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___crl"
+    )
+    loc_clariti_role___advancedmri: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___advancedmri"
+    )
+    loc_clariti_role___physicist: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___physicist"
+    )
+    loc_clariti_role___addlimaging: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___addlimaging"
+    )
+    loc_clariti_role___reg: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___reg"
+    )
+    # CLARiTI individual role (1 field)
+    ind_clar_core_role___admin: Optional[bool] = Field(
+        default=None, alias="ind_clar_core_role___admin"
+    )
+    signed_user_agreement: bool = Field(
+        default=False, alias="signed_agreement_status_num_ct"
+    )
     permissions_approval: bool
     permissions_approval_date: date
     permissions_approval_name: str
 
+    @field_validator("firstname", "lastname", mode="before")
+    def strip_names(cls, value: Any) -> str:
+        """Strip leading and trailing whitespace from names.
+
+        Prevents trailing spaces from REDCap data from causing issues with
+        name matching in COManage registry and Flywheel.
+
+        Args:
+            value: the name value to strip
+
+        Returns:
+            the name with leading and trailing whitespace removed
+        """
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("adcid", mode="before")
+    def convert_adcid(cls, adcid: Any) -> Optional[int]:
+        if isinstance(adcid, int):
+            return adcid
+        if not isinstance(adcid, str):
+            return adcid
+
+        # Handle empty strings and non-numeric values
+        if not adcid or adcid.strip() == "" or adcid.upper() == "NA":
+            return None
+
+        try:
+            return int(adcid)
+        except ValueError:
+            return None
+
     @field_validator(
-        "adrc_enrollment_access_level",
-        "adrc_form_access_level",
-        "adrc_dicom_access_level",
-        "ncrad_biomarker_access_level",
-        "niagads_genetic_access_level",
-        "leads_enrollment_access_level",
-        "leads_form_access_level",
-        "dvcid_enrollment_access_level",
-        "dvcid_form_access_level",
-        "allftd_enrollment_access_level",
-        "allftd_form_access_level",
-        "dlbc_enrollment_access_level",
-        "dlbc_form_access_level",
-        "clariti_form_access_level",
-        "clariti_dicom_access_level",
-        "clariti_biomarker_access_level",
-        "clariti_pay_access_level",
-        "clariti_ror_access_level",
-        "adrc_scan_access_level",
+        "loc_clariti_role___u01copi",
+        "loc_clariti_role___pi",
+        "loc_clariti_role___piadmin",
+        "loc_clariti_role___copi",
+        "loc_clariti_role___subawardadmin",
+        "loc_clariti_role___addlsubaward",
+        "loc_clariti_role___studycoord",
+        "loc_clariti_role___mpi",
+        "loc_clariti_role___orecore",
+        "loc_clariti_role___crl",
+        "loc_clariti_role___advancedmri",
+        "loc_clariti_role___physicist",
+        "loc_clariti_role___addlimaging",
+        "loc_clariti_role___reg",
+        "ind_clar_core_role___admin",
+        mode="before",
+    )
+    def convert_clariti_checkbox(cls, value: Any) -> Optional[bool]:
+        """Convert REDCap checkbox values to boolean.
+
+        REDCap checkboxes: "1" = checked, "0" or "" = unchecked.
+        Returns True for "1", None for "0", "", or None.
+        Boolean values pass through unchanged.
+        """
+        if value is None or value == "" or value == "0":
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value == "1":
+            return True
+        return None
+
+    @field_validator(
+        "adrc_datatype_enrollment_access_level",
+        "adrc_datatype_form_access_level",
+        "adrc_datatype_dicom_access_level",
+        "ncrad_datatype_biomarker_access_level",
+        "niagads_datatype_genetic_access_level",
+        "leads_datatype_enrollment_access_level",
+        "leads_datatype_form_access_level",
+        "dvcid_datatype_enrollment_access_level",
+        "dvcid_datatype_form_access_level",
+        "allftd_datatype_enrollment_access_level",
+        "allftd_datatype_form_access_level",
+        "dlbc_datatype_enrollment_access_level",
+        "dlbc_datatype_form_access_level",
+        "clariti_datatype_form_access_level",
+        "clariti_datatype_dicom_access_level",
+        "clariti_datatype_biomarker_access_level",
+        "clariti_dashboard_pay_access_level",
+        "clariti_datatype_participant_summary_access_level",
+        "adrc_datatype_scan_analysis_access_level",
         mode="before",
     )
     def convert_access_level(cls, access_level: str) -> AuthorizationAccessLevel:
@@ -184,17 +377,23 @@ class DirectoryAuthorizations(BaseModel):
 
         return "NoAccess"
 
-    @field_validator("study_selections", "affiliated_study", mode="before")
-    def convert_string_list(cls, value_list: Any) -> list[str]:
-        if isinstance(value_list, list):
-            return value_list
-        if not isinstance(value_list, str):
-            raise TypeError("expecting string with list of values")
+    @field_validator(
+        "general_page_community_resources_access_level",
+        "adrc_dashboard_reports_access_level",
+        mode="before",
+    )
+    def convert_checkbox_access_level(cls, value: Any) -> AuthorizationAccessLevel:
+        """Converts a REDCap checkbox value to an access level.
 
-        return value_list.split(",")
+        REDCap exports checkboxes as "1" (checked) or "0" (unchecked).
+        Returns ViewAccess if checked, otherwise NoAccess.
+        """
+        if isinstance(value, str) and value == "1":
+            return "ViewAccess"
+        return "NoAccess"
 
     @field_validator(
-        "web_report_access", "inactive", "permissions_approval", mode="before"
+        "inactive", "permissions_approval", "signed_user_agreement", mode="before"
     )
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
@@ -202,23 +401,101 @@ class DirectoryAuthorizations(BaseModel):
         if not isinstance(value, str):
             raise TypeError("expecting bool or string value")
 
-        return value == "1"
+        return value.strip().isdigit() and int(value.strip()) != 0
 
-    @field_validator("complete", mode="before")
-    def convert_complete(cls, value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if not isinstance(value, str):
-            raise TypeError("expecting form completion value")
+    def __handle_datatype_resource(
+        self,
+        study_map: StudyAccessMap,
+        scope: str,
+        resource_name: str,
+        access_level: AuthorizationAccessLevel,
+    ) -> None:
+        """Handle datatype resource parsing and addition to study map."""
+        # Validate datatype
+        if resource_name != "genetic" and resource_name not in get_args(
+            DatatypeNameType
+        ):
+            log.warning(
+                "the data type %s is ignored for %s",
+                resource_name,
+                self.email,
+            )
+            return
 
-        return value == "2"
+        # Handle genetic datatype expansion
+        if resource_name == "genetic":
+            # Genetic expands to multiple datatypes across studies
+            study_map.add_study_access(
+                study_id="ncrad",
+                access_level=access_level,
+                resource=DatatypeResource(datatype="apoe"),
+            )
+            study_map.add_study_access(
+                study_id=scope,
+                access_level=access_level,
+                resource=DatatypeResource(datatype="gwas"),
+            )
+            study_map.add_study_access(
+                study_id=scope,
+                access_level=access_level,
+                resource=DatatypeResource(datatype="genetic-availability"),
+            )
+            study_map.add_study_access(
+                study_id=scope,
+                access_level=access_level,
+                resource=DatatypeResource(datatype="imputation"),
+            )
+        else:
+            study_map.add_study_access(
+                study_id=scope,
+                access_level=access_level,
+                resource=DatatypeResource(datatype=resource_name),  # type: ignore
+            )
+
+    def __handle_page_resource(
+        self,
+        study_map: StudyAccessMap,
+        scope: str,
+        resource_name: str,
+        access_level: AuthorizationAccessLevel,
+    ) -> None:
+        """Handle page resource parsing and addition to study map."""
+        resource = PageResource(page=resource_name)
+        if scope == "general":
+            study_map.add_general_access(access_level=access_level, resource=resource)
+        else:
+            study_map.add_study_access(
+                study_id=scope, access_level=access_level, resource=resource
+            )
+
+    def __handle_dashboard_resource(
+        self,
+        study_map: StudyAccessMap,
+        scope: str,
+        resource_name: str,
+        access_level: AuthorizationAccessLevel,
+    ) -> None:
+        """Handle dashboard resource parsing and addition to study map."""
+        resource = DashboardResource(dashboard=resource_name)
+        if scope == "general":
+            study_map.add_general_access(access_level=access_level, resource=resource)
+        else:
+            study_map.add_study_access(
+                study_id=scope, access_level=access_level, resource=resource
+            )
 
     def __parse_fields(self) -> StudyAccessMap:
         """Parses the fields of this object for access level permissions and
-        constructs a mapping study -> access-level -> datatypes.
+        constructs a mapping study -> access-level -> resources.
+
+        Field pattern: {scope}_{resource_type}_{resource_name}_access_level
+        - scope: study ID (e.g., "adrc", "clariti") or "general"
+        - resource_type: "datatype", "dashboard", or "page"
+        - resource_name: one or more tokens converted to kabob-case
+        - suffix: "_access_level"
 
         Returns:
-          the mapping of study and access level to datatype
+          the mapping of study and access level to resource
         """
         study_map = StudyAccessMap()
         field_names = DirectoryAuthorizations.model_fields.keys()
@@ -230,38 +507,61 @@ class DirectoryAuthorizations(BaseModel):
             if access_level == "NoAccess":
                 continue
 
-            temp_list = field_name.split("_")
-            if len(temp_list) != 4:
+            # Parse field name: {scope}_{resource_type}_{resource_name}_access_level
+            tokens = field_name.split("_")
+            # Remove "access" and "level" from end
+            if len(tokens) < 4 or tokens[-2:] != ["access", "level"]:
                 continue
-            study, datatype, *tail = temp_list
-            datatype = "scan-analysis" if datatype == "scan" else datatype
-            if datatype != "genetic" and datatype not in get_args(DatatypeNameType):
-                log.warning("the data type %s is ignored for %s", datatype, self.email)
+            tokens = tokens[:-2]
+
+            # Must have at least scope, resource_type, and resource_name
+            if len(tokens) < 3:
                 continue
 
-            datatypes = [(study, datatype)]
-            if datatype == "genetic":
-                datatypes = [
-                    ("ncrad", "apoe"),
-                    (study, "gwas"),
-                    (study, "genetic-availability"),
-                    (study, "imputation"),
-                ]
-            for datatype_t in datatypes:
-                study_map.add(
-                    study_id=datatype_t[0],
-                    access_level=access_level,
-                    datatype=datatype_t[1],  # type: ignore
+            scope = tokens[0]
+            resource_type = tokens[1]
+            resource_name_parts = tokens[2:]
+            resource_name = "-".join(resource_name_parts)
+
+            # Handle different resource types
+            if resource_type == "datatype":
+                self.__handle_datatype_resource(
+                    study_map, scope, resource_name, access_level
                 )
+                continue
+
+            if resource_type == "page":
+                self.__handle_page_resource(
+                    study_map, scope, resource_name, access_level
+                )
+                continue
+
+            if resource_type == "dashboard":
+                self.__handle_dashboard_resource(
+                    study_map, scope, resource_name, access_level
+                )
+                continue
+
+            log.warning("unknown resource type %s for %s", resource_type, self.email)
+
+        # Add CLARiTI role-based activities
+        clariti_activities = map_clariti_roles_to_activities(self)
+        for activity in clariti_activities:
+            study_map.add_study_access(
+                study_id="clariti",
+                access_level="ViewAccess",
+                resource=activity.resource,
+            )
 
         return study_map
 
     def to_user_entry(self) -> Optional[UserEntry]:
         """Converts this DirectoryAuthorizations object to a UserEntry."""
 
-        if not self.permissions_approval:
+        if not self.signed_user_agreement:
             return None
-        if not self.complete:
+
+        if not self.permissions_approval:
             return None
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
@@ -277,13 +577,25 @@ class DirectoryAuthorizations(BaseModel):
             )
 
         authorizations = self.__parse_fields().get_authorizations()
-        return ActiveUserEntry(
+        if self.adcid is None:
+            return ActiveUserEntry(
+                name=name,
+                email=email,
+                auth_email=auth_email,
+                active=True,
+                approved=self.permissions_approval,
+                authorizations=authorizations,
+            )
+
+        study_authorizations = self.__parse_fields().get_study_authorizations()
+        return CenterUserEntry(
             org_name=self.org_name,
             adcid=int(self.adcid),
             name=name,
             email=email,
             auth_email=auth_email,
             authorizations=authorizations,
+            study_authorizations=study_authorizations,
             active=True,
             approved=self.permissions_approval,
         )

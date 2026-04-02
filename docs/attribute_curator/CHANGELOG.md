@@ -2,6 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.3
+
+* Updates `nacc-attribute-deriver` to `2.2.0` which has significant refactoring, but minimum change to the gear itself
+* Moves file-level `affiliate` to be metadata instead of a tag for better compatibility with the ETL process
+* Tweaks to support BDS now being actively curated
+
+## 1.3.2
+
+* Updates `nacc-attribute-deriver` to `2.1.4` for another round of fixes
+
 ## 1.3.1
 
 * Updates `nacc-attribute-deriver` to `2.1.3` for B1a support and a multitude of other fixes

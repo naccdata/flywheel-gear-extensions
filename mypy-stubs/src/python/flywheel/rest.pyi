@@ -1,2 +1,3 @@
 class ApiException(Exception):
+    status: int
     ...

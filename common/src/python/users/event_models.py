@@ -17,7 +17,7 @@ from pydantic import (
     model_serializer,
 )
 
-from users.user_entry import PersonName, UserEntry
+from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName
 
 
 class EventType(Enum):
@@ -38,11 +38,20 @@ class EventCategory(Enum):
     INCOMPLETE_CLAIM = "Incomplete Claims"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
+    MISSING_USER_AGREEMENT = "Missing User Agreement"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
     MISSING_REGISTRY_DATA = "Missing Registry Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
     FLYWHEEL_ERROR = "Flywheel Errors"
+
+    # Near-miss categories
+    DOMAIN_NEAR_MISS = "Domain Near-Miss"
+    NAME_NEAR_MISS = "Name Near-Miss"
+    COMBINED_NEAR_MISS = "Combined Signal Near-Miss"
+
+    # Wrong-IdP category
+    WRONG_IDP_SELECTION = "Wrong IdP Selection"
 
     def to_field_name(self) -> str:
         """Convert category to template field name (snake_case).
@@ -97,31 +106,22 @@ class UserContext(BaseModel):
         return str(center_id) if center_id is not None else None
 
     @classmethod
-    def from_user_entry(cls, entry: UserEntry) -> "UserContext":
-        """Create UserContext from a UserEntry object.
+    def from_user_entry(cls, entry: ActiveUserEntry) -> "UserContext":
+        """Create UserContext from an ActiveUserEntry object.
 
         Args:
-            entry: The user entry to extract context from
+            entry: The center user entry to extract context from
 
         Returns:
             UserContext with information from the user entry
         """
-        # Extract center_id from adcid if available (ActiveUserEntry)
-        center_id = None
-        if hasattr(entry, "adcid"):
-            center_id = entry.adcid
-
-        # Extract registry_id if available (RegisteredUserEntry)
-        registry_id = None
-        if hasattr(entry, "registry_id"):
-            registry_id = entry.registry_id
-
+        adcid = entry.adcid if isinstance(entry, CenterUserEntry) else None
         return cls(
             email=entry.email,
             name=entry.name.as_str() if entry.name else None,
             auth_email=entry.auth_email,
-            center_id=center_id,
-            registry_id=registry_id,
+            center_id=adcid,
+            registry_id=entry.registry_id,
         )
 
 

@@ -94,3 +94,70 @@ Allowable values are
 - `none` - don't send any follow up messages
 - `date` - send a follow up at 7 day intervals up to 3 times
 - `force` - send all follow up messages
+
+## Domain configuration (optional)
+
+The gear accepts an optional `domain_config_file` input containing domain relationship and identity provider (IdP) configuration.
+When provided, the gear uses this configuration to:
+
+- detect near-miss duplicates by matching users across related email domains (e.g., `med.umich.edu` and `umich.edu`),
+- detect near-miss duplicates by matching users with the same normalized name,
+- identify users who claimed their account through the wrong IdP (e.g., ORCID instead of their institutional IdP).
+
+When the file is not provided, the gear falls back to existing behavior with no domain-aware or IdP-aware checks.
+
+The file is a YAML document with two top-level keys: `domain_relationship` and `idp_domain`.
+
+```yaml
+---
+domain_relationship:
+  parent_child:
+    - child: med.umich.edu
+      parent: umich.edu
+    - child: health.ucdavis.edu
+      parent: ucdavis.edu
+  affiliated_groups:
+    - name: pitt
+      domains:
+        - pitt.edu
+        - upmc.edu
+
+idp_domain:
+  institutional_idp:
+    - domain: umich.edu
+      idp_name: University of Michigan
+    - domain: ucdavis.edu
+      idp_name: UC Davis
+  fallback_domains:
+    - advocatehealth.org
+    - ccf.org
+  fallback_idp: ORCID
+```
+
+### Domain relationships
+
+The `domain_relationship` section defines how email domains relate to each other.
+
+`parent_child` maps a domain to another domain that should be treated as equivalent for duplicate detection.
+The typical case is subdomains: `med.umich.edu` maps to `umich.edu` so that users at both domains are compared against each other.
+It also works for alias domains that aren't subdomains, such as mapping `jh.edu` and `jhmi.edu` to `jhu.edu`.
+
+Domains not listed in `parent_child` fall back to default resolution, which extracts the last two segments (e.g., `dept.school.example.edu` resolves to `example.edu`).
+
+`affiliated_groups` lists groups of domains that share users but are not in a parent-child relationship.
+Each group must contain at least two domains.
+A domain may not appear in more than one affiliated group.
+
+### IdP domain mapping
+
+The `idp_domain` section maps email domains to expected identity providers.
+
+`institutional_idp` lists domains and their expected institutional IdP name.
+When a user with one of these domains claims their account through a different IdP (e.g., the fallback), the gear flags it as a wrong-IdP selection.
+
+`fallback_domains` lists domains where users are expected to use the fallback IdP (e.g., ORCID).
+Users from these domains are not flagged for wrong-IdP usage.
+
+`fallback_idp` is the name of the fallback identity provider (defaults to `ORCID`).
+
+A domain may not appear in both `institutional_idp` and `fallback_domains`.

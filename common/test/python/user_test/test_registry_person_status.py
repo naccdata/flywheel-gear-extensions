@@ -678,3 +678,277 @@ class TestIsClaimedWithVerifiedEmailRequirement:
 
         # Should be claimed with verified emails
         assert person.is_claimed() is True
+
+
+class TestIsIncompleteClaimMethod:
+    """Tests for is_incomplete_claim method.
+
+    Tests Requirements 3.1, 3.4:
+    - Returns True when record has oidcsub but no verified email
+    - Returns False when record has oidcsub AND verified email (claimed)
+    - Returns False when record has no oidcsub (unclaimed)
+    """
+
+    def test_returns_true_with_oidcsub_but_no_verified_email(
+        self,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test incomplete claim: oidcsub present, no verified email."""
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=None,
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_incomplete_claim() is True
+
+    def test_returns_true_with_oidcsub_and_unverified_email(
+        self,
+        build_email_address,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test incomplete claim: oidcsub present, only unverified emails."""
+        email = build_email_address(mail="user@example.com", verified=False)
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_incomplete_claim() is True
+
+    def test_returns_false_when_claimed(
+        self,
+        build_email_address,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_incomplete_claim returns False for a fully claimed
+        record."""
+        email = build_email_address(mail="user@example.com", verified=True)
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_incomplete_claim() is False
+
+    def test_returns_false_when_unclaimed(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_incomplete_claim returns False when no oidcsub."""
+        email = build_email_address(mail="user@example.com", verified=True)
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=None,
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_incomplete_claim() is False
+
+
+class TestIsUnclaimedMethod:
+    """Tests for is_unclaimed method.
+
+    Tests Requirements 3.2:
+    - Returns True when record has no oidcsub identifier
+    - Returns False when record has oidcsub identifier
+    """
+
+    def test_returns_true_with_no_identifiers(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test unclaimed: no identifiers at all."""
+        email = build_email_address(mail="user@example.com")
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=None,
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_unclaimed() is True
+
+    def test_returns_true_with_non_oidcsub_identifiers(
+        self,
+        build_email_address,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test unclaimed: has identifiers but none are oidcsub."""
+        email = build_email_address(mail="user@example.com")
+        naccid = build_identifier(
+            identifier="NACC123456",
+            identifier_type="naccid",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=[naccid],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_unclaimed() is True
+
+    def test_returns_false_with_oidcsub(
+        self,
+        build_email_address,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_unclaimed returns False when oidcsub exists."""
+        email = build_email_address(mail="user@example.com")
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_unclaimed() is False
+
+
+class TestClaimStateTrichotomy:
+    """Tests that exactly one of is_claimed, is_incomplete_claim, is_unclaimed
+    is True for any active record.
+
+    Tests Requirements 3.1, 3.2, 3.3, 3.4.
+    """
+
+    def test_claimed_record_trichotomy(
+        self,
+        build_email_address,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Fully claimed: only is_claimed is True."""
+        email = build_email_address(mail="user@example.com", verified=True)
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        states = [
+            person.is_claimed(),
+            person.is_incomplete_claim(),
+            person.is_unclaimed(),
+        ]
+        assert sum(states) == 1
+        assert person.is_claimed() is True
+
+    def test_incomplete_claim_trichotomy(
+        self,
+        build_identifier,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Incomplete claim: only is_incomplete_claim is True."""
+        oidcsub = build_identifier(
+            identifier="http://cilogon.org/serverA/users/1234",
+            identifier_type="oidcsub",
+            status="A",
+        )
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=None,
+            identifiers=[oidcsub],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        states = [
+            person.is_claimed(),
+            person.is_incomplete_claim(),
+            person.is_unclaimed(),
+        ]
+        assert sum(states) == 1
+        assert person.is_incomplete_claim() is True
+
+    def test_unclaimed_record_trichotomy(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Unclaimed: only is_unclaimed is True."""
+        email = build_email_address(mail="user@example.com", verified=True)
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+            identifiers=None,
+        )
+
+        person = RegistryPerson(coperson_msg)
+        states = [
+            person.is_claimed(),
+            person.is_incomplete_claim(),
+            person.is_unclaimed(),
+        ]
+        assert sum(states) == 1
+        assert person.is_unclaimed() is True

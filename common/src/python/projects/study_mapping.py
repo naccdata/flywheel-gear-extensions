@@ -36,6 +36,7 @@ from centers.center_group import (
     DashboardProjectMetadata,
     DistributionProjectMetadata,
     IngestProjectMetadata,
+    PageProjectMetadata,
     ProjectMetadata,
 )
 from flywheel.models.access_permission import AccessPermission
@@ -68,37 +69,54 @@ class StudyMapper(ABC):
     def proxy(self):
         return self.__proxy
 
+    @abstractmethod
     def map_center_pipelines(
         self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
     ) -> None:
         """Maps the study to pipelines within a center.
 
+        Note: Dashboards and pages are handled by the StudyMappingVisitor to avoid
+        duplication in mixed-mode studies. Subclasses should implement mode-specific
+        project creation.
+
         Args:
           center: the center group
           study_info: the metadata object to track center projects
+          pipeline_adcid: the ADCID for ingest pipelines
         """
-        if (
-            center.is_active()
-            and self.study.dashboards is not None
-            and self.study.dashboards
-        ):
-            for dashboard_name in self.study.dashboards:
-                self.__add_dashboard(
-                    center=center, study_info=study_info, dashboard_name=dashboard_name
-                )
 
     @abstractmethod
     def map_study_pipelines(self) -> None:
         """Maps the study to study level groups and projects."""
 
+    def _project_label(self, label: str) -> str:
+        """Creates a project label with the study suffix.
+
+        Args:
+            label: the base label for the project
+        Returns:
+            the project label with study suffix
+        """
+        return f"{label}{self.study.project_suffix()}"
+
     def accepted_label(self) -> str:
-        return f"accepted{self.study.project_suffix()}"
+        return self._project_label("accepted")
 
     def dashboard_label(self, dashboard_name: str) -> str:
-        return f"dashboard-{dashboard_name}{self.study.project_suffix()}"
+        return self._project_label(f"dashboard-{dashboard_name}")
+
+    def page_label(self, page_name: str) -> str:
+        """Creates the label for a page project.
+
+        Args:
+            page_name: the name of the page
+        Returns:
+            the project label for the page
+        """
+        return self._project_label(f"page-{page_name}")
 
     def pipeline_label(self, pipeline: str, datatype: DatatypeNameType) -> str:
-        return f"{pipeline}-{datatype.lower()}{self.study.project_suffix()}"
+        return self._project_label(f"{pipeline}-{datatype.lower()}")
 
     def __add_dashboard(
         self,
@@ -122,6 +140,36 @@ class StudyMapper(ABC):
             center=center,
             pipeline_label=self.dashboard_label(dashboard_name),
             update_study=update_dashboard,
+        )
+
+    def __add_page(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        page_name: str,
+    ) -> None:
+        """Adds a page project to the center group.
+
+        Args:
+            center: the center group
+            study_info: the metadata object to track center projects
+            page_name: the name of the page
+        """
+
+        def update_page(project: ProjectAdaptor) -> None:
+            study_info.add_page(
+                PageProjectMetadata(
+                    study_id=self.study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    page_name=page_name,
+                )
+            )
+
+        self.add_pipeline(
+            center=center,
+            pipeline_label=self.page_label(page_name),
+            update_study=update_page,
         )
 
     def add_pipeline(
@@ -169,7 +217,11 @@ class AggregationMapper(StudyMapper):
         self.__release_group: Optional[GroupAdaptor] = None
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        pipeline_adcid: int,
+        datatypes: Optional[List[str]] = None,
     ) -> None:
         """Creates accepted, ingest and retrospective projects in the group.
         Updates the study metadata.
@@ -178,15 +230,23 @@ class AggregationMapper(StudyMapper):
           center: the center group
           study_info: the study metadata
           pipeline_adcid: the ADCID for ingest pipelines
+          datatypes: list of datatype names to process (defaults to all
+            aggregation datatypes)
         """
+        # Use provided datatypes or default to all aggregation datatypes
+        if datatypes is None:
+            datatypes = [
+                config.name
+                for config in self.study.get_datatype_configs()
+                if config.mode == "aggregation"
+            ]
 
-        super().map_center_pipelines(
-            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
-        )
         self.__add_accepted(center=center, study_info=study_info)
         if center.is_active():
             for pipeline in self.__pipelines:
-                for datatype in self.study.datatypes:
+                for datatype_str in datatypes:
+                    # Cast to DatatypeNameType for type safety
+                    datatype: DatatypeNameType = datatype_str  # type: ignore[assignment]
                     self.__add_ingest(
                         center=center,
                         study_info=study_info,
@@ -201,10 +261,12 @@ class AggregationMapper(StudyMapper):
             )
             return
 
-        for datatype in self.study.datatypes:
+        for datatype_str_retro in datatypes:
+            # Cast to DatatypeNameType for type safety
+            datatype_retro: DatatypeNameType = datatype_str_retro  # type: ignore[assignment]
             self.__add_retrospective(
                 center=center,
-                datatype=datatype,
+                datatype=datatype_retro,
                 study_info=study_info,
                 pipeline_adcid=pipeline_adcid,
             )
@@ -369,30 +431,53 @@ class DistributionMapper(StudyMapper):
         super().__init__(study=study, proxy=proxy)
 
     def map_center_pipelines(
-        self, center: CenterGroup, study_info: CenterStudyMetadata, pipeline_adcid: int
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        pipeline_adcid: int,
+        datatypes: Optional[List[str]] = None,
     ) -> None:
         """Adds distribution projects for the study to the group.
 
         Args:
           center: the center group
           study_info: the study metadata
+          pipeline_adcid: the ADCID for ingest pipelines
+          datatypes: list of datatype names to process (defaults to all
+            distribution datatypes)
         """
-        super().map_center_pipelines(
-            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
-        )
+        # Use provided datatypes or default to all distribution datatypes
+        if datatypes is None:
+            datatypes = [
+                config.name
+                for config in self.study.get_datatype_configs()
+                if config.mode == "distribution"
+            ]
 
-        for datatype in self.study.datatypes:
+        for datatype_str in datatypes:
+            # Cast to DatatypeNameType for type safety
+            datatype: DatatypeNameType = datatype_str  # type: ignore[assignment]
             self.__add_distribution(
                 center=center, study_info=study_info, datatype=datatype
             )
 
-    def map_study_pipelines(self) -> None:
+    def map_study_pipelines(self, datatypes: Optional[List[str]] = None) -> None:
         """Maps the study to study level groups and projects.
 
-        Not implemented for distribution groups.
+        Args:
+          datatypes: list of datatype names to process (defaults to all
+            distribution datatypes)
         """
+        # Use provided datatypes or default to all distribution datatypes
+        if datatypes is None:
+            datatypes = [
+                config.name
+                for config in self.study.get_datatype_configs()
+                if config.mode == "distribution"
+            ]
+
         study_group = StudyGroup.create(study=self.study, proxy=self.proxy)
-        for datatype in self.study.datatypes:
+        for datatype in datatypes:
             self.__add_ingest(study_group=study_group, datatype=datatype)
 
     def __add_distribution(
@@ -448,7 +533,10 @@ class StudyMappingVisitor(StudyVisitor):
         self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
         self.__study: Optional[StudyModel] = None
-        self.__mapper: Optional[StudyMapper] = None
+        self.__aggregation_mapper: Optional[AggregationMapper] = None
+        self.__distribution_mapper: Optional[DistributionMapper] = None
+        self.__aggregation_datatypes: List[str] = []
+        self.__distribution_datatypes: List[str] = []
 
     def visit_study(self, study: StudyModel) -> None:
         """Creates FW containers for the study.
@@ -464,21 +552,40 @@ class StudyMappingVisitor(StudyVisitor):
             return
 
         self.__study = study
-        if study.mode == "aggregation":
-            self.__mapper = AggregationMapper(
+
+        # Group datatypes by mode for mixed-mode support
+        aggregation_datatypes = study.get_datatypes_by_mode("aggregation")
+        distribution_datatypes = study.get_datatypes_by_mode("distribution")
+
+        # Create mappers based on which modes are present
+        aggregation_mapper: Optional[AggregationMapper] = None
+        distribution_mapper: Optional[DistributionMapper] = None
+
+        if aggregation_datatypes:
+            aggregation_mapper = AggregationMapper(
                 proxy=self.__fw,
                 admin_access=self.__admin_permissions,
                 study=study,
                 pipelines=["ingest", "sandbox"],
             )
-        if study.mode == "distribution":
-            self.__mapper = DistributionMapper(study=study, proxy=self.__fw)
+
+        if distribution_datatypes:
+            distribution_mapper = DistributionMapper(study=study, proxy=self.__fw)
+
+        # Store mappers for use in visit_center
+        self.__aggregation_mapper = aggregation_mapper
+        self.__distribution_mapper = distribution_mapper
+        self.__aggregation_datatypes = aggregation_datatypes
+        self.__distribution_datatypes = distribution_datatypes
 
         for center in study.centers:
             self.visit_center(center)
 
-        assert self.__mapper
-        self.__mapper.map_study_pipelines()
+        # Map study-level pipelines for each mapper
+        if aggregation_mapper:
+            aggregation_mapper.map_study_pipelines()
+        if distribution_mapper:
+            distribution_mapper.map_study_pipelines(datatypes=distribution_datatypes)
 
     def visit_center(self, center_model: StudyCenterModel) -> None:
         """Creates projects within the center for the study.
@@ -487,14 +594,6 @@ class StudyMappingVisitor(StudyVisitor):
           center: the center study model
         """
         assert self.__study, "study must be set"
-        assert self.__mapper, "mapper must be set"
-
-        if (
-            self.__study.mode == "aggregation"
-            and self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
-        ):
-            return
 
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
@@ -521,11 +620,170 @@ class StudyMappingVisitor(StudyVisitor):
             )
             portal_info.add(study_info)
 
-        self.__mapper.map_center_pipelines(
-            center=center, study_info=study_info, pipeline_adcid=pipeline_adcid
-        )
+        # Handle dashboards and pages (common to both mappers)
+        self.__handle_dashboards_and_pages(center=center, study_info=study_info)
+
+        # Skip aggregation for co-enrolled affiliated studies
+        if self.__aggregation_mapper and not (
+            self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
+            self.__aggregation_mapper.map_center_pipelines(
+                center=center,
+                study_info=study_info,
+                pipeline_adcid=pipeline_adcid,
+                datatypes=self.__aggregation_datatypes,
+            )
+
+        # Call distribution mapper if we have distribution datatypes
+        if self.__distribution_mapper:
+            self.__distribution_mapper.map_center_pipelines(
+                center=center,
+                study_info=study_info,
+                pipeline_adcid=pipeline_adcid,
+                datatypes=self.__distribution_datatypes,
+            )
 
         center.update_project_info(portal_info)
+
+    def __handle_dashboards_and_pages(
+        self, center: CenterGroup, study_info: CenterStudyMetadata
+    ) -> None:
+        """Handle dashboard and page creation for the study.
+
+        This method creates dashboards and pages at the appropriate level.
+        Currently only center-level dashboards are implemented.
+        Study-level dashboards are handled by separate logic (not in this method).
+
+        Args:
+            center: the center group
+            study_info: the study metadata
+        """
+        assert self.__study, "study must be set"
+
+        if not center.is_active():
+            return
+
+        # Handle dashboards by level
+        # Note: Only center-level dashboards are created here.
+        # Study-level dashboards are handled elsewhere in the system.
+        if self.__study.dashboards:
+            center_dashboards = self.__study.get_dashboards_by_level("center")
+
+            # Create center-level dashboards
+            for dashboard_name in center_dashboards:
+                self.__add_dashboard(
+                    center=center, study_info=study_info, dashboard_name=dashboard_name
+                )
+
+        # Handle pages
+        if self.__study.pages:
+            for page_name in self.__study.pages:
+                self.__add_page(
+                    center=center, study_info=study_info, page_name=page_name
+                )
+
+    def __add_dashboard(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        dashboard_name: str,
+    ) -> None:
+        """Adds a dashboard project to the center group.
+
+        Args:
+            center: the center group
+            study_info: the study metadata
+            dashboard_name: the name of the dashboard
+        """
+        assert self.__study, "study must be set"
+
+        def update_dashboard(project: ProjectAdaptor) -> None:
+            assert self.__study, "study must be set"
+            study_info.add_dashboard(
+                DashboardProjectMetadata(
+                    study_id=self.__study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    dashboard_name=dashboard_name,
+                )
+            )
+
+        dashboard_label = self.__project_label(f"dashboard-{dashboard_name}")
+        self.__add_pipeline(
+            center=center,
+            pipeline_label=dashboard_label,
+            update_study=update_dashboard,
+        )
+
+    def __add_page(
+        self,
+        center: CenterGroup,
+        study_info: CenterStudyMetadata,
+        page_name: str,
+    ) -> None:
+        """Adds a page project to the center group.
+
+        Args:
+            center: the center group
+            study_info: the study metadata
+            page_name: the name of the page
+        """
+        assert self.__study, "study must be set"
+
+        def update_page(project: ProjectAdaptor) -> None:
+            assert self.__study, "study must be set"
+            study_info.add_page(
+                PageProjectMetadata(
+                    study_id=self.__study.study_id,
+                    project_id=project.id,
+                    project_label=project.label,
+                    page_name=page_name,
+                )
+            )
+
+        page_label = self.__project_label(f"page-{page_name}")
+        self.__add_pipeline(
+            center=center,
+            pipeline_label=page_label,
+            update_study=update_page,
+        )
+
+    def __add_pipeline(
+        self,
+        center: CenterGroup,
+        pipeline_label: str,
+        update_study: Callable[[ProjectAdaptor], None],
+    ) -> None:
+        """Adds a pipeline project with the label to the group.
+
+        Calls the update function if the project is successfully created.
+        Logs an error if the project could not be created.
+
+        Args:
+            center: the center group
+            pipeline_label: the label for the project
+            update_study: function called post-creation
+        """
+        project = center.add_project(pipeline_label)
+        if not project:
+            log.error("Failed to create pipeline %s/%s", center.id, pipeline_label)
+            return
+
+        update_study(project)
+
+    def __project_label(self, label: str) -> str:
+        """Creates a project label with the study suffix.
+
+        Args:
+            label: the base label for the project
+        Returns:
+            the project label with study suffix
+        """
+        assert self.__study, "study must be set"
+        if self.__study.is_primary():
+            return label
+        return f"{label}-{self.__study.study_id}"
 
     def visit_datatype(self, datatype: str) -> None:
         """Not implemented."""

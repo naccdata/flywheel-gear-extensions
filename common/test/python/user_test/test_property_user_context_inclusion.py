@@ -219,13 +219,14 @@ def test_user_context_from_user_entry_preserves_information(user_context):
     For any user entry, UserContext.from_user_entry should preserve all available
     user information from the entry.
     """
-    from users.user_entry import ActiveUserEntry, PersonName
+    from users.authorizations import Authorizations
+    from users.user_entry import CenterUserEntry, PersonName
 
     # Create a mock user entry with the same information as user_context
     # Note: We're testing the preservation of information, so we create an entry
     # with known values and verify they're preserved in the UserContext
 
-    # ActiveUserEntry requires a PersonName, so create one from user_context.name
+    # CenterUserEntry requires a PersonName, so create one from user_context.name
     if user_context.name is not None:
         # Parse the string name back into first and last name
         name_parts = user_context.name.split(" ", 1)
@@ -235,15 +236,16 @@ def test_user_context_from_user_entry_preserves_information(user_context):
     else:
         entry_name = PersonName(first_name="Test", last_name="User")
 
-    user_entry = ActiveUserEntry(
+    user_entry = CenterUserEntry(
         name=entry_name,
         email=user_context.email,
         auth_email=user_context.auth_email,
         active=True,
         approved=True,
         org_name="Test Organization",
-        adcid=user_context.center_id or 1,  # ActiveUserEntry requires adcid
-        authorizations=[],
+        adcid=user_context.center_id or 1,  # CenterUserEntry requires adcid
+        authorizations=Authorizations(),
+        study_authorizations=[],
     )
 
     # Create UserContext from the user entry
