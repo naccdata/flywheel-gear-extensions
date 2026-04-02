@@ -739,8 +739,8 @@ class TestMainOrchestration:
 class TestVisitorRun:
     """Tests for ImageIdentifierLookupVisitor.run() method."""
 
-    @patch("image_identifier_lookup_app.extraction.extract_dicom_metadata")
-    @patch("image_identifier_lookup_app.main.run")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.run")
     def test_visitor_run_calls_main_with_correct_parameters(
         self,
         mock_main_run: Mock,

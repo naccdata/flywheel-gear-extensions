@@ -1,6 +1,7 @@
 """Entry script for Image Identifier Lookup."""
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,8 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
+from image_identifier_lookup_app.extraction import extract_dicom_metadata
+from image_identifier_lookup_app.main import run
 from inputs.parameter_store import ParameterStore
 from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
@@ -191,19 +194,10 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         )
 
         # Step 2: Extract DICOM metadata once (fail fast if invalid DICOM)
-        from image_identifier_lookup_app.extraction import extract_dicom_metadata
-
         log.info("Extracting DICOM metadata")
         dicom_metadata = extract_dicom_metadata(file_path)
 
         # Step 3: Call main.run() to orchestrate the workflow
-        from image_identifier_lookup_app.main import run
-
-        log.info(
-            f"Processing file: {file_obj.name} "
-            f"(subject: {subject.label}, project: {project.label})"
-        )
-
         file_id = self.__file_input.file_id
         error_writer = ListErrorWriter(
             container_id=file_id,
@@ -222,7 +216,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             error_writer=error_writer,
         )
 
-        # Step 3: Update file QC metadata and tags
+        # Step 4: Update file QC metadata and tags
         log.info("Updating file QC metadata and tags")
         self._update_file_metadata(
             context=context,
@@ -257,8 +251,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             as metadata updates are considered non-critical.
         """
         try:
-            from datetime import datetime, timezone
-
             # Add QC result to file metadata
             status_str = "PASS" if success else "FAIL"
             context.metadata.add_qc_result(
