@@ -90,7 +90,6 @@ def extract_visit_metadata(
     ptid: str,
     adcid: int,
     naccid: Optional[str],
-    default_modality: str,
 ) -> DataIdentification:
     """Extract visit metadata from pre-extracted DICOM metadata.
 
@@ -99,13 +98,12 @@ def extract_visit_metadata(
         ptid: Pre-extracted PTID
         adcid: Pre-extracted pipeline ADCID
         naccid: Pre-extracted or looked-up NACCID
-        default_modality: Default modality if DICOM tag missing
 
     Returns:
         DataIdentification instance with ImageIdentification
 
     Raises:
-        ValueError: If required fields (StudyDate) are missing
+        ValueError: If required fields (StudyDate, Modality) are missing
     """
     # Extract date (required) - StudyDate is canonical per DICOM standard
     date = dicom_metadata.get("study_date")
@@ -115,15 +113,13 @@ def extract_visit_metadata(
             "Visit date not found: StudyDate is missing (required DICOM field)"
         )
 
-    # Extract modality (use default if missing)
+    # Extract modality (required) - Type 1 tag in DICOM standard
     modality = dicom_metadata.get("modality")
     if not modality:
-        log.warning(
-            f"DICOM Modality tag (0008,0060) is missing for PTID={ptid}. "
-            f"Using default modality: '{default_modality}'. "
-            "This may indicate a data quality issue with the DICOM file."
+        raise ValueError(
+            "Modality not found: DICOM Modality tag (0008,0060) is missing "
+            "(required DICOM field)"
         )
-        modality = default_modality
 
     return DataIdentification.from_visit_metadata(
         ptid=ptid,

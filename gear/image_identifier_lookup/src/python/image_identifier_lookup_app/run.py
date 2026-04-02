@@ -41,7 +41,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         gear_name: str,
         dry_run: bool = False,
         naccid_field_name: str = "naccid",
-        default_modality: str = "UNKNOWN",
     ):
         """Initialize the visitor with dependencies.
 
@@ -53,7 +52,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             gear_name: Name of the gear
             dry_run: Whether to perform a dry run (no metadata updates)
             naccid_field_name: Field name for NACCID in subject.info
-            default_modality: Default modality if DICOM tag missing
         """
         super().__init__(client=client)
         self.__file_input = file_input
@@ -62,7 +60,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         self.__gear_name = gear_name
         self.__dry_run = dry_run
         self.__naccid_field_name = naccid_field_name
-        self.__default_modality = default_modality
 
     @classmethod
     def create(
@@ -75,7 +72,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         Extracts configuration:
         - database_mode: prod/dev for identifier repository
         - naccid_field_name: subject metadata field name (default: "naccid")
-        - default_modality: fallback modality (default: "UNKNOWN")
         - event_environment: environment prefix for event capture (required)
         - event_bucket: S3 bucket for event storage (required)
 
@@ -112,7 +108,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         dry_run = options.get("dry_run", False)
         database_mode = options.get("database_mode", "prod")
         naccid_field_name = options.get("naccid_field_name", "naccid")
-        default_modality = options.get("default_modality", "UNKNOWN")
         event_environment = options.get("event_environment")
         event_bucket_name = options.get("event_bucket")
 
@@ -155,7 +150,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             gear_name=gear_name,
             dry_run=dry_run,
             naccid_field_name=naccid_field_name,
-            default_modality=default_modality,
         )
 
     def run(self, context: GearContext) -> None:
@@ -224,7 +218,6 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             gear_name=self.__gear_name,
             dry_run=self.__dry_run,
             naccid_field_name=self.__naccid_field_name,
-            default_modality=self.__default_modality,
             dicom_metadata=dicom_metadata,
             error_writer=error_writer,
         )

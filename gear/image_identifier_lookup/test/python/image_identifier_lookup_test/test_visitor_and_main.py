@@ -83,7 +83,6 @@ def mock_gear_context() -> Mock:
     context.config.opts = {
         "database_mode": "prod",
         "naccid_field_name": "naccid",
-        "default_modality": "MR",
         "event_environment": "test",
         "event_bucket": "test-bucket",
     }
@@ -177,7 +176,6 @@ def visitor(
         event_capture=mock_event_capture,
         gear_name="image-identifier-lookup",
         naccid_field_name="naccid",
-        default_modality="UNKNOWN",
     )
 
 
@@ -202,7 +200,6 @@ class TestImageIdentifierLookupVisitorCreate:
         context.config.opts = {
             "database_mode": "prod",
             "naccid_field_name": "naccid",
-            "default_modality": "MR",
             "event_environment": "test",
             "event_bucket": "test-bucket",
         }
@@ -375,7 +372,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=dicom_metadata,
             error_writer=error_writer,
         )
@@ -451,7 +447,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -514,7 +509,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -570,7 +564,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -627,7 +620,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -686,7 +678,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -737,7 +728,6 @@ class TestMainOrchestration:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -802,7 +792,6 @@ class TestVisitorRun:
             call_kwargs = mock_main_run.call_args.kwargs
             assert call_kwargs["gear_name"] == "image-identifier-lookup"
             assert call_kwargs["naccid_field_name"] == "naccid"
-            assert call_kwargs["default_modality"] == "UNKNOWN"
             assert "dicom_metadata" in call_kwargs
 
 
@@ -856,7 +845,6 @@ class TestIntegrationScenarios:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -924,7 +912,6 @@ class TestIntegrationScenarios:
                 event_capture=mock_event_capture,
                 gear_name="image-identifier-lookup",
                 naccid_field_name="naccid",
-                default_modality="UNKNOWN",
                 dicom_metadata=extract_dicom_metadata(dicom_file),
                 error_writer=error_writer,
             )
@@ -980,7 +967,6 @@ class TestIntegrationScenarios:
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )

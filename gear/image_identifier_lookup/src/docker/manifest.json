@@ -56,11 +56,6 @@
             "type": "string",
             "default": "naccid"
         },
-        "default_modality": {
-            "description": "Default modality to use when DICOM Modality tag is missing",
-            "type": "string",
-            "default": "UNKNOWN"
-        },
         "event_environment": {
             "description": "Environment for visit event capture (prod or dev); required for event logging",
             "type": "string",

@@ -90,7 +90,6 @@ def mock_gear_context() -> Mock:
     context.config.opts = {
         "database_mode": "prod",
         "naccid_field_name": "naccid",
-        "default_modality": "MR",
         "event_environment": "test",
         "event_bucket": "test-bucket",
     }
@@ -241,7 +240,6 @@ class TestEndToEndSuccessFlow:
             gear_name="image-identifier-lookup",
             dry_run=False,
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -324,7 +322,6 @@ class TestEndToEndFailureFlow:
             gear_name="image-identifier-lookup",
             dry_run=False,
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -392,7 +389,6 @@ class TestIdempotentRerun:
                 gear_name="image-identifier-lookup",
                 dry_run=False,
                 naccid_field_name="naccid",
-                default_modality="UNKNOWN",
                 dicom_metadata=extract_dicom_metadata(dicom_file),
                 error_writer=error_writer,
             )
@@ -443,7 +439,6 @@ class TestFailFastScenarios:
                 ptid="110001",
                 adcid=42,
                 naccid=None,
-                default_modality="UNKNOWN",
             )
 
         assert "StudyDate" in str(exc_info.value)
@@ -548,7 +543,6 @@ class TestQCLogAndEventCapture:
             gear_name="image-identifier-lookup",
             dry_run=False,
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -607,7 +601,6 @@ class TestQCLogAndEventCapture:
             gear_name="image-identifier-lookup",
             dry_run=False,
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )
@@ -689,7 +682,6 @@ class TestMockedAWSServices:
             gear_name="image-identifier-lookup",
             dry_run=False,
             naccid_field_name="naccid",
-            default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
         )

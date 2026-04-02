@@ -144,7 +144,6 @@ def run(
     gear_name: str,
     dry_run: bool = False,
     naccid_field_name: str,
-    default_modality: str,
     dicom_metadata: dict,
     error_writer: ListErrorWriter,
 ) -> tuple[bool, FileErrorList]:
@@ -166,7 +165,6 @@ def run(
         gear_name: Name of the gear
         dry_run: If True, skip all side effects (metadata, QC logs, events)
         naccid_field_name: Field name for NACCID in subject.info
-        default_modality: Default modality if DICOM tag missing
         dicom_metadata: Pre-extracted DICOM metadata dictionary
         error_writer: Error writer for collecting processing errors
 
@@ -203,7 +201,6 @@ def run(
             ptid=ptid,
             adcid=pipeline_adcid,
             naccid=existing_naccid,
-            default_modality=default_modality,
         )
         # Type assertion: we know this is ImageIdentification
         assert isinstance(visit_metadata.data, ImageIdentification)
