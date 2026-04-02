@@ -22,6 +22,7 @@ from image_identifier_lookup_app.extraction import extract_dicom_metadata
 from image_identifier_lookup_app.main import run as main_run
 from moto import mock_aws
 from nacc_common.data_identification import DataIdentification
+from outputs.error_writer import ListErrorWriter
 from pydicom.dataset import Dataset
 
 
@@ -163,6 +164,12 @@ def mock_event_capture() -> Mock:
     return Mock(spec=VisitEventCapture)
 
 
+@pytest.fixture
+def error_writer() -> ListErrorWriter:
+    """Create a ListErrorWriter for testing."""
+    return ListErrorWriter(container_id="test_file_id", fw_path="test/path")
+
+
 class TestEndToEndSuccessFlow:
     """Test end-to-end success flow with real DICOM file."""
 
@@ -180,6 +187,7 @@ class TestEndToEndSuccessFlow:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test complete success flow with real DICOM file."""
         # Arrange - create real DICOM file
@@ -235,6 +243,7 @@ class TestEndToEndSuccessFlow:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - processor called with correct data
@@ -275,6 +284,7 @@ class TestEndToEndFailureFlow:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test failure flow when no matching identifier record found."""
         # Arrange - create real DICOM file
@@ -305,21 +315,23 @@ class TestEndToEndFailureFlow:
 
         _dicom_metadata = {"patient_id": "999999", "study_date": "20240115"}
 
-        # Act & Assert
-        with pytest.raises(IdentifierRepositoryError) as exc_info:
-            main_run(
-                project=mock_project,
-                subject=mock_subject,
-                identifiers_repository=mock_repository,
-                event_capture=mock_event_capture,
-                gear_name="image-identifier-lookup",
-                dry_run=False,
-                naccid_field_name="naccid",
-                default_modality="UNKNOWN",
-                dicom_metadata=extract_dicom_metadata(dicom_file),
-            )
+        # Act - error is now captured, not raised
+        success, errors = main_run(
+            project=mock_project,
+            subject=mock_subject,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            dry_run=False,
+            naccid_field_name="naccid",
+            default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
+        )
 
-        assert "No matching record found" in str(exc_info.value)
+        # Assert - failure captured
+        assert success is False
+        assert error_writer.has_errors()
         mock_processor.lookup_and_update.assert_called_once()
 
 
@@ -338,6 +350,7 @@ class TestIdempotentRerun:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test that lookup is skipped when NACCID already exists with correct
         value."""
@@ -381,6 +394,7 @@ class TestIdempotentRerun:
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
                 dicom_metadata=extract_dicom_metadata(dicom_file),
+                error_writer=error_writer,
             )
 
         # Assert - both runs succeeded
@@ -496,6 +510,7 @@ class TestQCLogAndEventCapture:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test that QC log is created with visit metadata."""
         # Arrange
@@ -535,6 +550,7 @@ class TestQCLogAndEventCapture:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         mock_qc_manager.update_qc_log.assert_called_once()
@@ -556,6 +572,7 @@ class TestQCLogAndEventCapture:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test that event is captured with correct datatype."""
         # Arrange
@@ -592,6 +609,7 @@ class TestQCLogAndEventCapture:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - event captured with correct fields
@@ -621,6 +639,7 @@ class TestMockedAWSServices:
         mock_file_obj: Mock,
         mock_file_input: Mock,
         mock_repository: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test event capture with mocked S3 bucket."""
         import boto3
@@ -672,6 +691,7 @@ class TestMockedAWSServices:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - event was written to S3

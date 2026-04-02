@@ -21,6 +21,8 @@ from identifiers.identifiers_repository import (
 from image_identifier_lookup_app.extraction import extract_dicom_metadata
 from image_identifier_lookup_app.main import run as main_run
 from image_identifier_lookup_app.run import ImageIdentifierLookupVisitor
+from nacc_common.error_models import FileErrorList
+from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3InterfaceError
 
 
@@ -152,6 +154,12 @@ def mock_file_obj() -> Mock:
     file_obj.parents.project = "project_id"
     file_obj.parents.subject = "subject_id"
     return file_obj
+
+
+@pytest.fixture
+def error_writer() -> ListErrorWriter:
+    """Create a ListErrorWriter for testing."""
+    return ListErrorWriter(container_id="test_file_id", fw_path="test/path")
 
 
 @pytest.fixture
@@ -318,6 +326,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test successful end-to-end flow: extraction → lookup → update → QC →
         event."""
@@ -368,6 +377,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=dicom_metadata,
+            error_writer=error_writer,
         )
 
         # Assert - processor called
@@ -384,7 +394,7 @@ class TestMainOrchestration:
 
         # Assert - success
         assert success is True
-        assert _errors == []
+        assert not _errors
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -400,6 +410,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test idempotency: skip lookup when NACCID already correct."""
         # Arrange - create a real DICOM file
@@ -442,6 +453,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - processor NOT created (skipped)
@@ -470,6 +482,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test QC logging on successful processing."""
         # Arrange - create real DICOM file
@@ -503,6 +516,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - QC log updated with PASS status
@@ -526,6 +540,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test QC logging on processing failure."""
         # Arrange - create real DICOM file
@@ -547,21 +562,27 @@ class TestMainOrchestration:
         mock_qc_manager = Mock()
         mock_qc_manager_class.return_value = mock_qc_manager
 
-        # Act & Assert
-        with pytest.raises(IdentifierRepositoryError):
-            main_run(
-                project=mock_project,
-                subject=mock_subject,
-                identifiers_repository=mock_repository,
-                event_capture=mock_event_capture,
-                gear_name="image-identifier-lookup",
-                naccid_field_name="naccid",
-                default_modality="UNKNOWN",
-                dicom_metadata=extract_dicom_metadata(dicom_file),
-            )
+        # Act - error is now captured, not raised
+        success, errors = main_run(
+            project=mock_project,
+            subject=mock_subject,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            naccid_field_name="naccid",
+            default_modality="UNKNOWN",
+            dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
+        )
 
-        # Note: QC logging happens after the exception is raised,
-        # so it won't be called in this test
+        # Assert - failure captured in errors
+        assert success is False
+        assert error_writer.has_errors()
+
+        # Assert - QC log updated with FAIL status
+        mock_qc_manager.update_qc_log.assert_called_once()
+        qc_call = mock_qc_manager.update_qc_log.call_args.kwargs
+        assert qc_call["status"] == "FAIL"
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -577,6 +598,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test event capture on successful processing."""
         # Arrange - create real DICOM file
@@ -607,6 +629,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - event captured
@@ -631,6 +654,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test that event capture failure doesn't fail the gear."""
         # Arrange - create real DICOM file
@@ -664,6 +688,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - event capture was attempted but failure didn't stop processing
@@ -683,6 +708,7 @@ class TestMainOrchestration:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test file QC metadata and tagging."""
         # Arrange - create real DICOM file
@@ -713,6 +739,7 @@ class TestMainOrchestration:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Note: File metadata updates are now handled in run.py, not main.py
@@ -750,7 +777,7 @@ class TestVisitorRun:
         }
 
         # Mock main.run() to return success
-        mock_main_run.return_value = (True, [])
+        mock_main_run.return_value = (True, FileErrorList([]))
 
         with (
             patch.object(
@@ -796,6 +823,7 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test complete success scenario with all components working
         together."""
@@ -830,6 +858,7 @@ class TestIntegrationScenarios:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert complete workflow
@@ -864,6 +893,7 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test idempotent re-run scenario where NACCID already exists."""
         # Arrange - create real DICOM file
@@ -896,6 +926,7 @@ class TestIntegrationScenarios:
                 naccid_field_name="naccid",
                 default_modality="UNKNOWN",
                 dicom_metadata=extract_dicom_metadata(dicom_file),
+                error_writer=error_writer,
             )
 
         # Assert - both runs succeeded
@@ -919,6 +950,7 @@ class TestIntegrationScenarios:
         mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
     ) -> None:
         """Test that QC logging failure doesn't stop processing."""
         # Arrange - create real DICOM file
@@ -950,6 +982,7 @@ class TestIntegrationScenarios:
             naccid_field_name="naccid",
             default_modality="UNKNOWN",
             dicom_metadata=extract_dicom_metadata(dicom_file),
+            error_writer=error_writer,
         )
 
         # Assert - processing continued despite QC logging failure

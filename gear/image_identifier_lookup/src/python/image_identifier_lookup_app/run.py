@@ -22,6 +22,7 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.error_models import FileErrorList, GearTags
+from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
@@ -208,6 +209,13 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             f"Processing file: {file_obj.name} "
             f"(subject: {subject.label}, project: {project.label})"
         )
+
+        file_id = self.__file_input.file_id
+        error_writer = ListErrorWriter(
+            container_id=file_id,
+            fw_path=self.proxy.get_lookup_path(file_obj),
+        )
+
         success, errors = run(
             project=project,
             subject=subject,
@@ -218,6 +226,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             naccid_field_name=self.__naccid_field_name,
             default_modality=self.__default_modality,
             dicom_metadata=dicom_metadata,
+            error_writer=error_writer,
         )
 
         # Step 3: Update file QC metadata and tags
@@ -235,7 +244,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         context: GearContext,
         file_obj,
         success: bool,
-        errors: list,
+        errors: FileErrorList,
     ) -> None:
         """Update file QC metadata and tags.
 
@@ -248,7 +257,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             context: Gear context
             file_obj: Flywheel file object
             success: Whether processing succeeded
-            errors: List of errors encountered
+            errors: Accumulated file errors
 
         Note:
             Failures in this method are logged but do not fail the gear
@@ -263,11 +272,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
                 self.__file_input.file_input,
                 name="validation",
                 state=status_str,
-                data=(
-                    FileErrorList(root=errors).model_dump(by_alias=True)
-                    if errors
-                    else None
-                ),
+                data=(errors.model_dump(by_alias=True) if errors else None),
             )
 
             # Set/update the validation timestamp in file.info

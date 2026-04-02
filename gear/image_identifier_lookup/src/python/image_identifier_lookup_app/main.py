@@ -23,6 +23,8 @@ from nacc_common.error_models import (
     FileErrorList,
     QCStatus,
 )
+from outputs.error_writer import ListErrorWriter
+from outputs.errors import system_error
 from s3.s3_bucket import S3InterfaceError
 
 from image_identifier_lookup_app.dicom_utils import InvalidDicomError
@@ -43,7 +45,7 @@ def _update_qc_status_log(
     data_identification: DataIdentification,
     gear_name: str,
     success: bool,
-    errors: list,
+    errors: FileErrorList,
 ) -> None:
     """Update QC status log for the processed image.
 
@@ -52,7 +54,7 @@ def _update_qc_status_log(
         data_identification: Visit identification data
         gear_name: Name of the gear
         success: Whether processing succeeded
-        errors: List of errors encountered
+        errors: Accumulated file errors
 
     Note:
         Failures are logged but do not raise exceptions (non-critical).
@@ -78,7 +80,7 @@ def _update_qc_status_log(
             project=project,
             gear_name=gear_name,
             status=qc_status,
-            errors=FileErrorList(root=errors),
+            errors=errors,
             add_visit_metadata=True,  # Add metadata on initial creation
         )
 
@@ -144,7 +146,8 @@ def run(
     naccid_field_name: str,
     default_modality: str,
     dicom_metadata: dict,
-) -> tuple[bool, list]:
+    error_writer: ListErrorWriter,
+) -> tuple[bool, FileErrorList]:
     """Runs the Image Identifier Lookup process.
 
     This function orchestrates the identifier lookup workflow:
@@ -165,9 +168,10 @@ def run(
         naccid_field_name: Field name for NACCID in subject.info
         default_modality: Default modality if DICOM tag missing
         dicom_metadata: Pre-extracted DICOM metadata dictionary
+        error_writer: Error writer for collecting processing errors
 
     Returns:
-        Tuple of (success: bool, errors: list)
+        Tuple of (success: bool, errors: FileErrorList)
 
     Raises:
         GearExecutionError: If processing fails
@@ -228,9 +232,8 @@ def run(
 
     log.info("Early data extraction completed successfully")
 
-    # Track processing success and errors
+    # Track processing success
     success = True
-    errors: list = []
 
     # Step 2: Check idempotency - if NACCID already exists, skip lookup
     if existing_naccid:
@@ -261,10 +264,9 @@ def run(
         except (IdentifierRepositoryError, SubjectError, FlywheelError) as error:
             log.error(f"Failed to lookup or update NACCID: {error}")
             success = False
+            error_writer.write(system_error(message=str(error)))
             naccid = None
             skipped = False
-            # Error will be captured in QC log
-            raise
 
     log.info(f"NACCID for processing: {naccid} (skipped={skipped})")
 
@@ -287,7 +289,7 @@ def run(
             data_identification=data_identification,
             gear_name=gear_name,
             success=success,
-            errors=errors,
+            errors=error_writer.errors(),
         )
 
     # Step 5: Capture submission event (skip in dry run mode)
@@ -304,4 +306,4 @@ def run(
 
     log.info("Image Identifier Lookup processing completed successfully")
 
-    return success, errors
+    return success, error_writer.errors()
