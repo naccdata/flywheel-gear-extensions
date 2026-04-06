@@ -215,6 +215,9 @@ def test_qc_status_determination_boundary_case_empty_visit():
 
     # Assert - Verify no QC log was created for incomplete visit
     assert result is True, "visit_row should return True (graceful handling)"
+    assert len(misc_errors) > 0, (
+        "QC log should not be created for incomplete visit data"
+    )
     assert not mock_qc_creator.update_qc_log.called, (
         "QC log should not be created for incomplete visit data"
     )

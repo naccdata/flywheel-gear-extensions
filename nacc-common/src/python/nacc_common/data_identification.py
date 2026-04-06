@@ -115,8 +115,10 @@ class FormIdentification(BaseModel):
     not all forms have packets.
     """
 
-    module: str  # Module is UDS, LBD, FTLD, NP, etc. (not the form name) - required
-    packet: Optional[str] = None  # I=Initial, F=Followup, T=Telephone - optional
+    # Module is UDS, LBD, FTLD, NP, etc. (not the form name) - required
+    module: str
+    # I=Initial, F=Followup, T=Telephone - optional
+    packet: Optional[str] = None
 
     @classmethod
     def from_form_record(cls, record: dict[str, Any]) -> Self:
@@ -214,7 +216,7 @@ class DataIdentification(BaseModel):
         ptid: Optional[str] = Field(None, max_length=10, pattern=PTID_PATTERN),
         naccid: Optional[str] = None,
         visitnum: Optional[str] = None,
-        date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        date: Optional[str] = None,
         module: Optional[str] = None,
         packet: Optional[str] = None,
         modality: Optional[str] = None,
@@ -258,6 +260,16 @@ class DataIdentification(BaseModel):
             data = FormIdentification(module=module, packet=packet)
         else:
             raise ValueError("Either module or modality must be provided")
+
+        if date:
+            # normalize the date to YYYY-MM-DD
+            normalized_date = convert_date(
+                date_string=date.strip(), date_format=DEFAULT_DATE_FORMAT
+            )
+            if not normalized_date:
+                raise ValueError(f"Invalid date {date}")
+
+            date = normalized_date
 
         return cls(participant=participant, date=date, visit=visit, data=data)
 
