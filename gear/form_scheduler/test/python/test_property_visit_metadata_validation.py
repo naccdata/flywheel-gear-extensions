@@ -113,12 +113,13 @@ def test_visit_metadata_validation_edge_cases():
     assert not (empty_metadata.ptid and empty_metadata.date and empty_metadata.module)
 
     # Test with whitespace-only strings - normalize_ptid strips them to empty
-    whitespace_metadata = DataIdentification.from_visit_metadata(
-        ptid="   ", date="   ", module="   "
-    )
-    # After normalization, ptid becomes empty
-    assert whitespace_metadata.ptid == ""
-    assert not whitespace_metadata.ptid  # Empty string is falsy
+    with pytest.raises(ValueError):
+        whitespace_metadata = DataIdentification.from_visit_metadata(
+            ptid="   ", date="   ", module="   "
+        )
+        # After normalization, ptid becomes empty
+        assert whitespace_metadata.ptid == ""
+        assert not whitespace_metadata.ptid  # Empty string is falsy
 
     # Test with None values (should raise ValidationError)
     from pydantic import ValidationError

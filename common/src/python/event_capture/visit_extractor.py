@@ -35,7 +35,7 @@ class DataIdentificationExtractor:
 
         try:
             return DataIdentification.from_visit_metadata(**visit_data)
-        except (ValidationError, TypeError):
+        except (ValidationError, ValueError, TypeError):
             return None
 
     @staticmethod
@@ -84,5 +84,5 @@ class DataIdentificationExtractor:
             if "visitdate" in mapped_data:
                 mapped_data["date"] = mapped_data.pop("visitdate")
             return DataIdentification.from_visit_metadata(**mapped_data)
-        except (ValidationError, TypeError, ValueError):
+        except (ValidationError, ValueError, TypeError):
             return None

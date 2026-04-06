@@ -3,13 +3,17 @@
 import logging
 from typing import Any, Optional
 
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.data_identification import DataIdentification
-from nacc_common.error_models import FileErrorList, QCStatus
+from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
+from pydantic import ValidationError
 
 from error_logging.error_logger import (
     ErrorLogTemplate,
     MetadataCleanupFlag,
+    get_log_contents,
     update_error_log_and_qc_metadata,
     update_file_info,
 )
@@ -133,7 +137,12 @@ class QCStatusLogManager:
         if legacy_filename and legacy_filename != new_format_filename:
             legacy_file = project.get_file(legacy_filename)
             if legacy_file:
-                return legacy_filename
+                # copy to the new naming format and delete the existing log file
+                return self.replace_legacy_log_file(
+                    legacy_file=legacy_file,
+                    new_log_name=new_format_filename,
+                    project=project,
+                )
 
         # Neither exists, return new format (what would be created)
         return new_format_filename
@@ -212,3 +221,48 @@ class QCStatusLogManager:
         else:
             log.error(f"Failed to update QC status log: {error_log_name}")
             return None
+
+    def replace_legacy_log_file(
+        self, *, legacy_file: FileEntry, new_log_name: str, project: ProjectAdaptor
+    ) -> str:
+        """Replace the legacy error log file with new naming format. Copy the
+        contents of legacy file to a new file and delete the existing file.
+
+        Args:
+            legacy_file: existing log file object
+            new_log_name: log file name in new format
+            project: Flywheel project adaptor
+
+        Returns:
+            Log filename in new format if replace was successful, else old filename
+        """
+
+        contents = get_log_contents(legacy_file)
+        qc_info: FileQCModel = FileQCModel(qc={})
+
+        try:
+            qc_info = FileQCModel.create(legacy_file)
+        except ValidationError as error:
+            log.warning(
+                "Error loading QC metadata for file %s: %s", legacy_file.name, error
+            )
+
+        new_file = project.upload_file_contents(
+            filename=new_log_name, contents=contents, content_type="text"
+        )
+
+        if new_file is None:
+            return legacy_file.name
+
+        try:
+            update_file_info(
+                file=new_file, custom_info=qc_info.model_dump(by_alias=True)
+            )
+        except ApiException as error:
+            log.warning(
+                f"Error in setting QC metadata in log file {new_log_name}: {error}"
+            )
+
+        project.delete_file(legacy_file.name)
+
+        return new_log_name
