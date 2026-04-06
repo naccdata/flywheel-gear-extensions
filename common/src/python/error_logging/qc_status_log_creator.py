@@ -238,7 +238,7 @@ class QCStatusLogManager:
         """
 
         contents = get_log_contents(legacy_file)
-        qc_info: Optional[FileQCModel] = FileQCModel(qc={})
+        qc_info: FileQCModel = FileQCModel(qc={})
 
         try:
             qc_info = FileQCModel.create(legacy_file)
