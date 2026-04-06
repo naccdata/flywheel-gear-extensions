@@ -5,6 +5,7 @@
 """
 
 import csv
+from datetime import datetime
 from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
@@ -38,7 +39,12 @@ def csv_data_strategy(draw):
 
     for _i in range(num_visits):
         ptid = f"P{draw(st.integers(min_value=1, max_value=999)):03d}"
-        date = draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
+        date = draw(
+            st.dates(
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+            ).map(lambda d: d.strftime("%Y-%m-%d"))
+        )
         visitnum = draw(st.integers(min_value=1, max_value=99).map(str))
 
         visits.append(
@@ -67,6 +73,7 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
     For any CSV processing requiring QC logging, the system should use
     QCStatusLogCSVVisitor to create visit-specific QC status logs.
     """
+
     # Arrange - Create identifiers for all PTIDs in the CSV data
     identifiers = {}
     for i, visit in enumerate(csv_data):

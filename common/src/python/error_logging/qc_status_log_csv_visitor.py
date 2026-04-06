@@ -80,9 +80,15 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         # Extract visit information for QC log creation
         try:
             visit_metadata = self._extract_visit_keys(row)
-        except ValidationError as err:
-            message = f"Failed to create QC status log for row {line_num}: {err}"
-            log.debug(message)
+        except (ValidationError, ValueError) as err:
+            visit_metadata = None
+            log.debug(
+                f"Skipping row {line_num} - insufficient/incorrect visit data: {err}"
+            )
+
+        if not visit_metadata or not self._is_valid_visit(visit_metadata):
+            message = f"Failed to create QC status log for row {line_num}"
+            log.warning(message)
             self.__misc_errors.append(
                 system_error(
                     message=message,

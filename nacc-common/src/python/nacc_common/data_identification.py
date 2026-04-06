@@ -259,11 +259,17 @@ class DataIdentification(BaseModel):
         elif module is not None:
             data = FormIdentification(module=module, packet=packet)
         else:
-            raise ValidationError("Either module or modality must be provided")
+            raise ValueError("Either module or modality must be provided")
 
         if date:
             # normalize the date to YYYY-MM-DD
-            date = convert_date(date_string=date, date_format=DEFAULT_DATE_FORMAT)
+            normalized_date = convert_date(
+                date_string=date.strip(), date_format=DEFAULT_DATE_FORMAT
+            )
+            if not normalized_date:
+                raise ValueError(f"Invalid date {date}")
+
+            date = normalized_date
 
         return cls(participant=participant, date=date, visit=visit, data=data)
 

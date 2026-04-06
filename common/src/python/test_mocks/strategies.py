@@ -132,7 +132,12 @@ def json_file_forms_metadata_strategy(draw) -> dict[str, Any]:
                 alphabet=st.characters(whitelist_categories=["Nd"]),
             )
         ),
-        "visitdate": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
+        "visitdate": draw(
+            st.dates(
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+            ).map(lambda d: d.strftime("%Y-%m-%d"))
+        ),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "packet": draw(st.one_of(st.none(), st.sampled_from(["I", "F", "T"]))),
         "adcid": draw(st.integers(min_value=1, max_value=999)),
@@ -169,7 +174,12 @@ def valid_visit_metadata_strategy(draw) -> dict[str, Any]:
 
     return {
         "ptid": ptid,
-        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),
+        "date": draw(
+            st.dates(
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+            ).map(lambda d: d.strftime("%Y-%m-%d"))
+        ),
         "module": draw(st.sampled_from(["UDS", "LBD", "FTLD", "MDS"])),
         "visitnum": draw(
             st.one_of(
