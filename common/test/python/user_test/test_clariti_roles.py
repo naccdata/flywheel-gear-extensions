@@ -338,10 +338,16 @@ class TestCLARiTIPropertyTests:
         from hypothesis import given, settings
         from hypothesis import strategies as st
 
+        fast_email = st.builds(
+            lambda user, domain: f"{user}@{domain}.edu",
+            st.from_regex(r"[a-z]{1,10}", fullmatch=True),
+            st.from_regex(r"[a-z]{1,10}", fullmatch=True),
+        )
+
         @given(
             firstname=st.text(min_size=1, max_size=50),
             lastname=st.text(min_size=1, max_size=50),
-            email=st.emails(),
+            email=fast_email,
             adcid=st.integers(min_value=1, max_value=999),
             p30_access=st.sampled_from(["NoAccess", "ViewAccess", "SubmitAudit"]),
         )
