@@ -4,7 +4,6 @@ specialized subject wrappers."""
 import logging
 from typing import Any, Dict, List, Optional
 
-from dates.form_dates import DATE_PATTERN
 from flywheel.file_spec import FileSpec
 from flywheel.finder import Finder
 from flywheel.models.file_entry import FileEntry
@@ -12,9 +11,8 @@ from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
 from keys.keys import MetadataKeys
-from nacc_common.field_names import FieldNames
-from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
-from serialization.case import kebab_case
+from pydantic import ValidationError
+from submissions.models import VisitInfo
 from uploads.acquisition import upload_to_acquisition
 from utils.decorators import api_retry
 
@@ -23,74 +21,6 @@ log = logging.getLogger(__name__)
 
 class SubjectError(Exception):
     """Exception class for errors related Flywheel subject."""
-
-
-class VisitInfo(BaseModel):
-    """Class to represent file information for a participant visit."""
-
-    model_config = ConfigDict(
-        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
-    )
-
-    filename: str
-    file_id: Optional[str] = None  # Flywheel File ID
-    visitdate: str = Field(pattern=DATE_PATTERN)
-    visitnum: Optional[str] = None
-    validated_timestamp: Optional[str] = None
-
-
-class ParticipantVisits(BaseModel):
-    """Class to represent visits for a given participant for a given module."""
-
-    model_config = ConfigDict(
-        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
-    )
-
-    participant: str  # Flywheel subject label
-    module: str  # module label (Flywheel acquisition label)
-    visits: List[VisitInfo]
-
-    @classmethod
-    def create_from_visit_data(
-        cls,
-        *,
-        filename: str,
-        file_id: str,
-        input_record: Dict[str, Any],
-        visitdate_key: str = FieldNames.DATE_COLUMN,
-    ) -> "ParticipantVisits":
-        """Create from input data and visit file details.
-
-        Args:
-            filename: Flywheel acquisition file name
-            file_id: Flywheel acquisition file ID
-            input_record: input visit data
-            visitdate_key: Key to get visitdate from - defaults to `visitdate`
-
-        Returns:
-            ParticipantVisits object
-        """
-        visit_info = VisitInfo(
-            filename=filename,
-            file_id=file_id,
-            visitdate=input_record[visitdate_key],
-        )
-        return ParticipantVisits(
-            participant=input_record[FieldNames.NACCID],
-            module=input_record[FieldNames.MODULE].upper(),
-            visits=[visit_info],
-        )
-
-    def add_visit(self, *, filename: str, file_id: str, visitdate: str):
-        """Add a new visit to the list of visits for this participant.
-
-        Args:
-            filename: Flywheel acquisition file name
-            file_id: Flywheel acquisition file ID
-            visitdate: visit date
-        """
-        visit_info = VisitInfo(filename=filename, file_id=file_id, visitdate=visitdate)
-        self.visits.append(visit_info)
 
 
 class SubjectAdaptor:

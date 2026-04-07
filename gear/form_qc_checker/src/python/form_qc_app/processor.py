@@ -20,7 +20,6 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
-    VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
@@ -37,6 +36,7 @@ from outputs.errors import (
     previous_visit_failed_error,
     system_error,
 )
+from submissions.models import VisitInfo
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.validate import RecordValidator

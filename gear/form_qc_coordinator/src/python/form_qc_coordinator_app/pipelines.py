@@ -6,7 +6,6 @@ from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineTy
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
-    ParticipantVisits,
     SubjectAdaptor,
     SubjectError,
 )
@@ -14,6 +13,7 @@ from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues, MetadataKeys
+from submissions.models import ParticipantVisits
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 from form_qc_coordinator_app.visits import VisitsLookupHelper

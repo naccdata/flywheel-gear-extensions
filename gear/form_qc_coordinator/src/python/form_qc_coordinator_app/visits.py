@@ -3,10 +3,11 @@ from typing import Any, Dict, List, Literal, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import SubjectAdaptor, VisitInfo
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
+from submissions.models import VisitInfo
 
 log = logging.getLogger(__name__)
 

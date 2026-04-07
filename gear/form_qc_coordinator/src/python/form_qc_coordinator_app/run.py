@@ -10,11 +10,7 @@ from configs.ingest_configs import (
 )
 from flywheel import Subject
 from flywheel.rest import ApiException
-from flywheel_adaptor.subject_adaptor import (
-    ParticipantVisits,
-    SubjectAdaptor,
-    VisitInfo,
-)
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -30,6 +26,7 @@ from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 from pydantic import ValidationError
+from submissions.models import ParticipantVisits, VisitInfo
 
 from form_qc_coordinator_app.coordinator import QCGearConfigs
 from form_qc_coordinator_app.main import run

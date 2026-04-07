@@ -22,10 +22,7 @@ from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
-from flywheel_adaptor.subject_adaptor import (
-    SubjectAdaptor,
-    VisitInfo,
-)
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from fw_gear import GearContext
 from fw_gear.metadata import Metadata, create_qc_result_dict
 from gear_execution.gear_execution import GearExecutionError
@@ -48,6 +45,7 @@ from outputs.errors import (
     system_error,
 )
 from pydantic import ValidationError
+from submissions.models import VisitInfo
 
 from form_qc_coordinator_app.visits import VisitsLookupHelper
 
