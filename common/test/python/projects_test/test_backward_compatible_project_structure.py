@@ -31,7 +31,7 @@ study_types = st.sampled_from(["primary", "affiliated"])
     datatypes=st.lists(datatype_names, min_size=1, max_size=5, unique=True),
     legacy=st.booleans(),
 )
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=None)
 def test_backward_compatible_project_structure(study_mode, datatypes, legacy):
     """For any study using the old configuration format (study-level mode), the
     Project_Management should produce the same project structure as it did

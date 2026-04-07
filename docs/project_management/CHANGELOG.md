@@ -4,6 +4,10 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.5.1
+
+* Fixes project management failures due to Flywheel exceptions in edge cases related to projects that were not found or permissions assigned to non-users.
+
 ## 2.5.0
 
 * Allows primary studies to have distribution datatypes (mixed-mode)
