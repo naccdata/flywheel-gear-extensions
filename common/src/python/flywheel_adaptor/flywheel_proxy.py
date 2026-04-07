@@ -988,7 +988,18 @@ class GroupAdaptor:
             self._project_cache[label] = None
             return None
 
-        adaptor = ProjectAdaptor(project=project, proxy=self._fw)
+        try:
+            adaptor = ProjectAdaptor(project=project, proxy=self._fw)
+        except ApiException as error:
+            log.warning(
+                "Unable to access project %s in group %s: %s",
+                label,
+                self._group.id,
+                error,
+            )
+            self._project_cache[label] = None
+            return None
+
         adaptor.add_tags(self.get_tags())
         if info_update:
             adaptor.update_info(info_update)
@@ -1383,9 +1394,17 @@ class ProjectAdaptor:
             permission.id for permission in permissions if permission.access == "admin"
         ]
         for user_id in admin_users:
-            self.add_user_role_assignments(
-                RolesRoleAssignment(id=user_id, role_ids=[admin_role.id])
-            )
+            try:
+                self.add_user_role_assignments(
+                    RolesRoleAssignment(id=user_id, role_ids=[admin_role.id])
+                )
+            except ProjectError:
+                log.warning(
+                    "Unable to add admin user %s to project %s, user may not"
+                    " exist on this instance",
+                    user_id,
+                    self._project.label,
+                )
 
     def get_gear_rules(self) -> List[GearRule]:
         """Gets the gear rules for this project.
