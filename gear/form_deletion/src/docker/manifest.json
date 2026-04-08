@@ -50,6 +50,16 @@
             "description": "The instance specific AWS parameter path prefix for apikey",
             "type": "string",
             "default": "/prod/flywheel/gearbot"
+        },
+        "database_mode": {
+            "description": "Whether to pull identifiers from dev or prod database",
+            "type": "string",
+            "default": "prod"
+        },
+        "sender_email": {
+            "description": "The source email to send the email notification",
+            "type": "string",
+            "default": "nacchelp@uw.edu"
         }
     },
     "command": "/bin/run"

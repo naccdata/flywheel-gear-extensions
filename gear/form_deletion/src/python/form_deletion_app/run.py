@@ -15,7 +15,9 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
+from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
+from lambdas.lambda_function import LambdaClient, create_lambda_client
 from pydantic import ValidationError
 from submissions.models import DeleteRequest
 
@@ -33,6 +35,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         request_file_input: InputFileWrapper,
         form_configs_input: InputFileWrapper,
+        identifiers_mode: IdentifiersMode,
     ):
         """
         Args:
@@ -43,6 +46,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
 
         self.__request_file_input = request_file_input
         self.__form_configs_input = form_configs_input
+        self.__identifiers_mode: IdentifiersMode = identifiers_mode
         super().__init__(client=client)
 
     @classmethod
@@ -77,6 +81,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             client=client,
             request_file_input=delete_request_input,
             form_configs_input=form_configs_input,
+            identifiers_mode=context.config.opts.get("database_mode", "prod"),
         )
 
     def run(self, context: GearContext) -> None:
@@ -113,11 +118,23 @@ class FormDeletionVisitor(GearExecutionEnvironment):
         parent_project = self.__request_file_input.get_parent_project(self.proxy)
         project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
 
+        try:
+            adcid = project.get_pipeline_adcid()
+        except ProjectError as error:
+            raise GearExecutionError(error) from error
+
+        identifiers_repo = IdentifiersLambdaRepository(
+            client=LambdaClient(client=create_lambda_client()),
+            mode=self.__identifiers_mode,
+        )
+
         run(
-            proxy=self.proxy,
             project=project,
+            adcid=adcid,
             delete_request=delete_request,
             module_configs=module_configs,
+            identifiers_repo=identifiers_repo,
+            sender_email=context.config.opts.get("sender_email", "nacchelp@uw.edu"),
         )
 
 
