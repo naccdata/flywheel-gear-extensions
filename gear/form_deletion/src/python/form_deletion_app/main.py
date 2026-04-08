@@ -1,14 +1,22 @@
-"""Defines Delete Form Submission."""
+"""Defines Form Deletion."""
 
 import logging
 
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from configs.ingest_configs import ModuleConfigs
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from submissions.models import DeleteRequest
 
 log = logging.getLogger(__name__)
 
 
-def run(*, proxy: FlywheelProxy):
-    """Runs the Delete Form Submission process.
+def run(
+    *,
+    proxy: FlywheelProxy,
+    project: ProjectAdaptor,
+    delete_request: DeleteRequest,
+    module_configs: ModuleConfigs,
+):
+    """Runs the Form Deletion process.
 
     Args:
         proxy: the proxy for the Flywheel instance

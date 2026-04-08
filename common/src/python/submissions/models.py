@@ -1,6 +1,6 @@
-"""Data models for form data upload or delete requests.
-"""
+"""Data models for form data upload or delete requests."""
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from dates.form_dates import DATE_PATTERN
@@ -12,8 +12,9 @@ from serialization.case import kebab_case
 class VisitInfo(BaseModel):
     """Class to represent file information for a participant visit."""
 
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     filename: str
     file_id: Optional[str] = None  # Flywheel File ID
@@ -25,8 +26,9 @@ class VisitInfo(BaseModel):
 class ParticipantVisits(BaseModel):
     """Class to represent visits for a given participant for a given module."""
 
-    model_config = ConfigDict(populate_by_name=True,
-                              alias_generator=AliasGenerator(alias=kebab_case))
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
 
     participant: str  # Flywheel subject label
     module: str  # module label (Flywheel acquisition label)
@@ -71,7 +73,20 @@ class ParticipantVisits(BaseModel):
             file_id: Flywheel acquisition file ID
             visitdate: visit date
         """
-        visit_info = VisitInfo(filename=filename,
-                               file_id=file_id,
-                               visitdate=visitdate)
+        visit_info = VisitInfo(filename=filename, file_id=file_id, visitdate=visitdate)
         self.visits.append(visit_info)
+
+
+class DeleteRequest(BaseModel):
+    """Class to represent a form visit delete request."""
+
+    model_config = ConfigDict(
+        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
+    )
+
+    ptid: str
+    module: str
+    visitdate: str = Field(pattern=DATE_PATTERN)
+    visitnum: Optional[str] = None
+    timestamp: datetime
+    requested_by: str
