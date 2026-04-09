@@ -7,6 +7,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_naccid
 from notifications.email import EmailClient, create_ses_client
+from outputs.error_writer import ListErrorWriter
 from submissions.models import DeleteRequest
 
 from form_deletion_app.delete import FormDeletionProcessor
@@ -25,9 +26,9 @@ def send_email(sender_email: str, delete_request: DeleteRequest, status: str) ->
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
     subject = (
-        f"NACC Data Platform - Delete Request for {delete_request.ptid} - {status}"
+        f"[NACC Data Platform] Delete Request for PTID {delete_request.ptid} - {status}"
     )
-    body = "TODO"
+    body = f"\n\nForm data delete request details: \n\n{delete_request}\n\n"
 
     target_email = delete_request.requested_by
     client.send_raw(destinations=[target_email], subject=subject, body=body)
@@ -40,6 +41,7 @@ def run(
     delete_request: DeleteRequest,
     module_configs: ModuleConfigs,
     identifiers_repo: IdentifierRepository,
+    error_writer: ListErrorWriter,
     sender_email: str,
 ):
     """Process the form data delete request.
@@ -62,6 +64,7 @@ def run(
         adcid=adcid,
         delete_request=delete_request,
         module_configs=module_configs,
+        error_writer=error_writer,
         naccid=naccid,
     )
 

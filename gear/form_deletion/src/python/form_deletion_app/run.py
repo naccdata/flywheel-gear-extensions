@@ -18,6 +18,7 @@ from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepositor
 from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from lambdas.lambda_function import LambdaClient, create_lambda_client
+from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from submissions.models import DeleteRequest
 
@@ -115,7 +116,10 @@ class FormDeletionVisitor(GearExecutionEnvironment):
                 f"Failed to find the configurations for module {module}"
             )
 
-        parent_project = self.__request_file_input.get_parent_project(self.proxy)
+        file = self.__request_file_input.file_entry(context=context)
+        parent_project = self.__request_file_input.get_parent_project(
+            proxy=self.proxy, file=file
+        )
         project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
 
         try:
@@ -128,12 +132,17 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             mode=self.__identifiers_mode,
         )
 
+        error_writer = ListErrorWriter(
+            container_id=file.file_id, fw_path=self.proxy.get_lookup_path(file)
+        )
+
         run(
             project=project,
             adcid=adcid,
             delete_request=delete_request,
             module_configs=module_configs,
             identifiers_repo=identifiers_repo,
+            error_writer=error_writer,
             sender_email=context.config.opts.get("sender_email", "nacchelp@uw.edu"),
         )
 
