@@ -2,7 +2,7 @@
 
 import logging
 
-from configs.ingest_configs import ModuleConfigs
+from configs.ingest_configs import FormProjectConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_naccid
@@ -39,7 +39,7 @@ def run(
     project: ProjectAdaptor,
     adcid: int,
     delete_request: DeleteRequest,
-    module_configs: ModuleConfigs,
+    form_configs: FormProjectConfigs,
     identifiers_repo: IdentifierRepository,
     error_writer: ListErrorWriter,
     sender_email: str,
@@ -63,7 +63,7 @@ def run(
         project=project,
         adcid=adcid,
         delete_request=delete_request,
-        module_configs=module_configs,
+        form_configs=form_configs,
         error_writer=error_writer,
         naccid=naccid,
     )

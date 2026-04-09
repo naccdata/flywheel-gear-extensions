@@ -110,8 +110,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             ) from error
 
         module = delete_request.module.upper()
-        module_configs = form_project_configs.module_configs.get(module)
-        if not module_configs:
+        if not form_project_configs.module_configs.get(module):
             raise GearExecutionError(
                 f"Failed to find the configurations for module {module}"
             )
@@ -140,7 +139,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             project=project,
             adcid=adcid,
             delete_request=delete_request,
-            module_configs=module_configs,
+            form_configs=form_project_configs,
             identifiers_repo=identifiers_repo,
             error_writer=error_writer,
             sender_email=context.config.opts.get("sender_email", "nacchelp@uw.edu"),
