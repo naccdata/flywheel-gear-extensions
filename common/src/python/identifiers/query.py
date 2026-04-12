@@ -3,8 +3,11 @@
 import logging
 from typing import Optional
 
-from identifiers_repository import IdentifierRepository, IdentifierRepositoryError
-from model import clean_ptid
+from identifiers.identifiers_repository import (
+    IdentifierRepository,
+    IdentifierRepositoryError,
+)
+from identifiers.model import clean_ptid
 
 log = logging.getLogger(__name__)
 

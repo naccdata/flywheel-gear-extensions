@@ -780,6 +780,57 @@ class FlywheelProxy:
     def get_subject_by_label(self, label: str) -> list[Subject]:
         return self.__fw.subjects.find(f"label={label}")
 
+    def delete_acquisition(self, acquisition_id: str) -> bool:
+        """Deletes the acquisition with the given ID.
+
+        Args:
+            acquisition_id: the Flywheel acquisition ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_acquisition(acquisition_id)
+        except ApiException as error:
+            log.error("Failed to delete acquisition %s: %s", acquisition_id, error)
+            return False
+
+        return True
+
+    def delete_session(self, session_id: str) -> bool:
+        """Deletes the session with the given ID.
+
+        Args:
+            session_id: the Flywheel session ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_session(session_id)
+        except ApiException as error:
+            log.error("Failed to delete session %s: %s", session_id, error)
+            return False
+
+        return True
+
+    def delete_subject(self, subject_id: str) -> bool:
+        """Deletes the subject with the given ID.
+
+        Args:
+            subject_id: the Flywheel subject ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_subject(subject_id)
+        except ApiException as error:
+            log.error("Failed to delete subject %s: %s", subject_id, error)
+            return False
+
+        return True
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
