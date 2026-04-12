@@ -1,8 +1,7 @@
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
-from datastore.forms_store import FormsStore
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
@@ -10,11 +9,12 @@ from error_logging.qc_status_log_creator import (
 )
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
 from submissions.models import DeleteRequest
+
+from form_deletion_app.helpers import AcquisitionRemover
 
 log = logging.getLogger(__name__)
 
@@ -34,11 +34,12 @@ class FormDeletionProcessor:
     ):
         """
         Args:
-            project (ProjectAdaptor): _description_
-            adcid (int): _description_
-            delete_request (DeleteRequest): _description_
-            module_configs (ModuleConfigs): _description_
-            naccid:
+            project: FLywheel project adaptor
+            adcid: Center's ADCID
+            delete_request: delete request object
+            form_configs: form ingest configs
+            error_writer: Error writer to record any errors
+            naccid: NACCID if exists
         """
         self.__project = project
         self.__adcid = adcid
@@ -52,24 +53,28 @@ class FormDeletionProcessor:
             module=self.__module
         )
 
-        self.__forms_store = FormsStore(ingest_project=project)
-
         self.__qc_log_manager = QCStatusLogManager(
             error_log_template=ErrorLogTemplate(),
             visit_annotator=FileVisitAnnotator(project),
         )
 
-    def __get_subject(self) -> Optional[SubjectAdaptor]:
-        """Returns the subject whose label matches naccid, or None."""
-        if not self.__naccid:
-            return None
-        return self.__project.find_subject(self.__naccid)
+        self.__deleted_items: Dict[str, List[str]] = {
+            "logs": [],
+            "subjects": [],
+            "sessions": [],
+            "acquisitions": [],
+        }
+
+    @property
+    def deleted_items(self) -> Dict[str, List[str]]:
+        """Returns the items deleted while processing the delete request."""
+        return self.__deleted_items
 
     def __get_error_log_name(self, module: str) -> Optional[str]:
         """Returns the QC errorlog filename for this delete request.
 
         Args:
-            module (str): module name
+            module: module name
 
         Returns:
             Optional[str]: errorlog filename for the module or None.
@@ -83,17 +88,9 @@ class FormDeletionProcessor:
             module=module,
         )
 
-        error_log_name = self.__qc_log_manager.get_qc_log_filename(
+        return self.__qc_log_manager.get_qc_log_filename(
             visit_keys=visit_keys, project=self.__project
         )
-
-        if not error_log_name:
-            self.__add_delete_failed_error(
-                "Failed to find the respective log file name for"
-                " the visit to be deleted"
-            )
-
-        return error_log_name
 
     def __is_log_modified_after_request(self, log_file: FileEntry) -> bool:
         """Returns True if the log file was last modified after the delete
@@ -149,42 +146,55 @@ class FormDeletionProcessor:
         Returns:
             True if all deletions succeeded, False if any failed
         """
-        success = self.__delete_error_log(filename=error_log_name)
-        if not success:
+        success = True
+        # Remove any associated module log files first
+        if self.__dependent_modules:
+            log.info(f"Checking for associated module log files for {error_log_name}")
+            for dep_module in self.__dependent_modules:
+                dep_module_log_name = self.__get_error_log_name(module=dep_module)
+                if not dep_module_log_name:
+                    self.__add_delete_failed_error(
+                        f"Failed to derive the error log name for module {dep_module}"
+                    )
+                    success = False
+                    continue
+
+                errorlog_file = self.__project.get_file(name=dep_module_log_name)
+                if not errorlog_file:  # this is possible
+                    log.info(f"No {dep_module} log file found for this delete request")
+                    continue
+
+                # No need to check the return value or add an error
+                # Dependent modules will be deleted anyway
+                # Calling the method to add a log entry
+                self.__is_log_modified_after_request(errorlog_file)
+
+                if not self.__delete_error_log(filename=dep_module_log_name):
+                    self.__add_delete_failed_error(
+                        "Failed to delete the log file for the"
+                        f" associated module {dep_module}"
+                    )
+                    success = False
+                    continue
+
+                self.__deleted_items["logs"].append(dep_module_log_name)
+
+        if not self.__delete_error_log(filename=error_log_name):
             self.__add_delete_failed_error(
                 "Failed to delete the log file for the requested visit"
             )
+            return False
 
-        if not self.__dependent_modules:
-            return success
-
-        log.info("Checking for associated module log files")
-        for dep_module in self.__dependent_modules:
-            dep_module_log_name = self.__get_error_log_name(module=dep_module)
-            if not dep_module_log_name:
-                continue
-
-            errorlog_file = self.__project.get_file(name=dep_module_log_name)
-            if not errorlog_file:
-                log.info("No %s visit found for this delete request", dep_module)
-                continue
-
-            # No need to check the return value or add an error
-            # Dependent modules will be deleted anyway
-            self.__is_log_modified_after_request(errorlog_file)
-
-            if not self.__delete_error_log(filename=dep_module_log_name):
-                self.__add_delete_failed_error(
-                    "Failed to delete the log file for the"
-                    f" associated module {dep_module}"
-                )
-                success = False
+        self.__deleted_items["logs"].append(error_log_name)
 
         return success
 
     def process_request(self) -> bool:
         error_log_name = self.__get_error_log_name(module=self.__module)
         if not error_log_name:
+            self.__add_delete_failed_error(
+                f"Failed to derive the error log name for module {self.__module}"
+            )
             return False
 
         errorlog_file = self.__project.get_file(name=error_log_name)
@@ -200,5 +210,23 @@ class FormDeletionProcessor:
                 " the delete request was submitted"
             )
             return False
+
+        # If subject exists in the project, remove the respective acquisitions
+        if self.__naccid and self.__project.find_subject(self.__naccid):
+            acq_remover = AcquisitionRemover(
+                proxy=self.__project.proxy,
+                module=self.__module,
+                naccid=self.__naccid,
+                form_configs=self.__form_configs,
+                delete_request=self.__delete_request,
+                deleted_items=self.__deleted_items,
+                dependent_modules=self.__dependent_modules,
+            )
+
+            if not acq_remover.cleanup_acquisitions():
+                self.__add_delete_failed_error(
+                    "Failed to remove the acquisition files for this delete request"
+                )
+                return False
 
         return self.__cleanup_log_files(error_log_name=error_log_name)
