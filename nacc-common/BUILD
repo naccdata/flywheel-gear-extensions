@@ -10,7 +10,6 @@ python_distribution(
         ":license",
         "nacc-common/src/python/nacc_common:nacc-common-lib",
         "nacc-common/src/python/nacc_common:py_typed",
-        "mypy-stubs/src/python/flywheel:lib",
     ],
     wheel=True,
     sdist=True,
