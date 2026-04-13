@@ -1,4 +1,4 @@
-from dates.form_dates import DATE_FORMATS, DateFormatException, parse_date
+from nacc_common.form_dates import DATE_FORMATS, DateFormatException, parse_date
 
 
 class TestDateParsing:
