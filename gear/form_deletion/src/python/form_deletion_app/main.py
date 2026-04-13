@@ -12,7 +12,7 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_naccid
-from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
+from nacc_common.error_models import FileErrorList
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
 from submissions.models import DeleteRequest
