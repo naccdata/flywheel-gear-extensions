@@ -17,7 +17,7 @@ from pydantic import (
     model_validator,
 )
 
-PipelineType = Literal["submission", "finalization"]
+PipelineType = Literal["submission", "finalization", "deletion"]
 
 
 class ConfigsError(Exception):

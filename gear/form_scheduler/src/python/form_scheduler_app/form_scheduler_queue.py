@@ -2,8 +2,8 @@
 
 This module implements a queue-based system for scheduling and
 processing form pipelines in Flywheel. It manages multiple pipelines
-(submission, finalization) and ensures files are processed in the
-correct order with proper coordination between pipeline stages.
+(submission, finalization, deletion) and ensures files are processed in
+the correct order with proper coordination between pipeline stages.
 """
 
 import json
@@ -248,6 +248,49 @@ class SubmissionQueueBuilder(PipelineQueueBuilder):
         return module_map
 
 
+class DeletionQueueBuilder(PipelineQueueBuilder):
+    """Builder for deletion pipeline queues.
+
+    Deletion pipelines process files at the PROJECT level. Files are
+    identified by tags and extensions, with module names extracted from
+    the filename pattern (e.g., "delete_ptid_uds.json" -> module "uds").
+    """
+
+    def find_matching_visits_for_the_pipeline(
+        self, project: ProjectAdaptor
+    ) -> dict[str, list[FileEntry]]:
+        """Find project-level files matching pipeline criteria.
+
+        Returns:
+            Dictionary mapping module names to lists of matching files
+        """
+        # Filter project files by tags and extensions
+        files = [
+            file_entry for file_entry in project.files if self.file_match(file_entry)
+        ]
+
+        # Group files by module extracted from filename
+        # Pattern: "delete_<visit info>_<module>.<ext>"
+        # e.g. "delete_ptid_date_[visitnum]_uds.json"
+        module_map: dict[str, list[FileEntry]] = defaultdict(list)
+        fname_pattern = (
+            f"^delete_.*_([{DefaultValues.MODULE_PATTERN.replace('_', '')}]+)(\\..+)$"
+        )
+        for file in files:
+            match = re.search(fname_pattern, file.name.lower())
+            if not match:
+                log.warning(
+                    "File %s is incorrectly tagged with one or more tags %s",
+                    file.name,
+                    self.tags,
+                )
+                continue
+
+            module = match.group(1)
+            module_map[module].append(file)
+        return module_map
+
+
 class FinalizationQueueBuilder(PipelineQueueBuilder):
     """Builder for finalization pipeline queues.
 
@@ -369,6 +412,8 @@ def create_queue_builder(pipeline: Pipeline) -> Optional[PipelineQueueBuilder]:
     queues: dict[str, list[FileEntry]] = {k: [] for k in pipeline.modules}
 
     # Return appropriate builder based on pipeline type
+    if pipeline.name == "deletion":
+        return DeletionQueueBuilder(pipeline=pipeline, queues=queues)
     if pipeline.name == "finalization":
         return FinalizationQueueBuilder(pipeline=pipeline, queues=queues)
     if pipeline.name == "submission":
