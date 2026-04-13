@@ -42,11 +42,31 @@ def send_email(
     subject = (
         f"[NACC Data Platform] Delete Request for PTID {delete_request.ptid} - {status}"
     )
-    visits_section = f"\n\nDeleted visits:\n{deleted_visits}" if deleted_visits else ""
+
     body = (
-        f"\n\nForm data delete request details: \n\n"
-        f"{delete_request}\n\n{visits_section}"
+        f"\n\nDelete request details:\n\n"
+        f"PTID: {delete_request.ptid}\n"
+        f"MODULE: {delete_request.module.upper()}\n"
+        f"DATE: {delete_request.visitdate}\n"
     )
+
+    if delete_request.visitnum:
+        body += f"VISITNUM: {delete_request.visitdate}\n\n"
+
+    if success and deleted_visits:
+        body += (
+            "Form data delete request listed above was successfully processed.\n"
+            "List of deleted forms/modules:\n"
+            f"{deleted_visits}\n\n"
+            "If you need to resubmit this data, "
+            "please make sure to re-upload all associated modules.\n\n"
+            "Please contact nacchelp@uw.edu if you have any questions\n\n"
+        )
+    else:
+        body += (
+            "Errors occurred while processing the above form data delete request.\n"
+            "Please contact nacchelp@uw.edu for assistance\n\n"
+        )
 
     target_email = delete_request.requested_by
     client.send_raw(destinations=[target_email], subject=subject, body=body)
