@@ -3,14 +3,34 @@
 Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
-* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
-# v2.1.0
+# v3.0.0
 
-* Adds QC status constants (`QC_STATUS_PASS`, `QC_STATUS_FAIL`, `QC_STATUS_IN_REVIEW`) to `error_models` module for consistent status value handling.
-* Refactors `ProjectReportVisitor` to use factory pattern instead of stateful `set_visit()` method, improving code maintainability and thread safety.
-* Updates `StatusReportVisitor` and `ErrorReportVisitor` constructors to extract visit details from filenames automatically.
-* Maintains full backward compatibility for public APIs including `get_status_data()` and `get_error_data()` functions.
+### Breaking Changes
+
+* Replaces `VisitKeys`/`VisitMetadata` with `DataIdentification` using a composition pattern (`ParticipantIdentification`, `VisitIdentification`, `FormIdentification`, `ImageIdentification`).
+* Removes bundled Flywheel type stubs from the distribution.
+* Requires `python-dateutil`, `pydantic>=2.5.2,<3`, and `typing_extensions>=4.0.0` as explicit dependencies.
+
+### New Features
+
+* Adds `form_dates` module with date parsing and conversion utilities (moved from internal `common/dates`).
+* Adds `DataIdentification.from_form_record()`, `from_visit_metadata()`, `from_visit_info()` factory methods.
+* Adds `DataIdentification.with_updates()` for backfilling missing fields.
+* Adds visitor pattern support via `AbstractIdentificationVisitor`.
+* Adds QC status constants (`QC_STATUS_PASS`, `QC_STATUS_FAIL`, `QC_STATUS_IN_REVIEW`) to `error_models`.
+* Adds `GearTags` class for managing gear-specific file tags.
+* Adds `FileQCModel.get_file_status()` for overall file QC status.
+* Adds `ClearedAlertModel` and `ClearedAlertProvenance` models.
+
+### Improvements
+
+* Refactors `ProjectReportVisitor` to use factory pattern instead of stateful `set_visit()` method.
+* Updates `StatusReportVisitor` and `ErrorReportVisitor` to extract visit details from filenames automatically.
+* Normalizes module and packet fields to uppercase for consistent matching.
+* Normalizes date strings in `DataIdentification.from_visit_metadata()` to `YYYY-MM-DD` format.
+* Fixes handling of forms without visitnum.
+* Supports Python 3.10 through 3.12.
 
 # v2.0.1
 

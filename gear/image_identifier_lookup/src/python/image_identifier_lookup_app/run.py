@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional
 
 from botocore.exceptions import ClientError
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from fw_gear import GearContext
@@ -23,6 +22,7 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.error_models import FileErrorList, GearTags
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3BucketInterface
 

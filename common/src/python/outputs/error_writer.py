@@ -4,8 +4,8 @@ from datetime import datetime as dt
 from logging import Logger
 from typing import Any, Dict, MutableSequence, Optional, TextIO
 
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from nacc_common.error_models import FileError, FileErrorList
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 
 from outputs.outputs import CSVWriter
 
