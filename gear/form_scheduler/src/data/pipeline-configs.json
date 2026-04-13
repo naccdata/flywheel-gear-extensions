@@ -11,13 +11,13 @@
         {
             "name": "deletion",
             "modules": [
-                "UDS",
                 "FTLD",
                 "LBD",
                 "MLST",
                 "BDS",
                 "CLS",
-                "NP"
+                "NP",
+                "UDS"
             ],
             "tags": [
                 "pending-delete"
@@ -85,7 +85,13 @@
         {
             "name": "finalization",
             "modules": [
-                "UDS"
+                "UDS",
+                "FTLD",
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP"
             ],
             "tags": [
                 "submission-completed"

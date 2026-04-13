@@ -44,6 +44,10 @@ class PipelineQueue(BaseModel):
     The queue uses a round-robin approach to process files from different
     modules fairly, preventing any single module from monopolizing processing.
 
+    Order the modules are processed is defined in pipeline-configs file.
+        - For submission and finalization pipelines, UDS should be listed first
+        - For deletion, UDS should be listed last
+
     Attributes:
         index: Current position in the round-robin rotation (-1 = not started)
         pipeline: Pipeline configuration defining accepted modules and tags
