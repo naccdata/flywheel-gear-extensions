@@ -137,6 +137,27 @@ class DashboardConfig(BaseModel):
     level: Literal["center", "study"] = "center"
 
 
+class PageConfig(BaseModel):
+    """Configuration for a single page within a study.
+
+    This model pairs a page name with its organizational level,
+    enabling pages to be created at different levels (center or study).
+
+    Attributes:
+        name: The page name
+        level: The organizational level for this page ("center" or "study")
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=AliasGenerator(alias=kebab_case),
+        extra="forbid",
+    )
+
+    name: str
+    level: Literal["center", "study"] = "center"
+
+
 class StudyModel(BaseModel):
     """Data model for studies based on the model used in the project-management
     gear.
@@ -173,7 +194,7 @@ class StudyModel(BaseModel):
     mode: Optional[Literal["aggregation", "distribution"]] = None
     datatypes: List[str] | List[DatatypeConfig]
     dashboards: Optional[List[str] | List[DashboardConfig]] = None
-    pages: Optional[List[str]] = None
+    pages: List[PageConfig] | None = None
     study_type: Literal["primary", "affiliated"]
     legacy: bool = Field(True)
     published: bool = Field(False)
@@ -300,6 +321,33 @@ class StudyModel(BaseModel):
             List of dashboard names that have the specified level
         """
         configs = self.get_dashboard_configs()
+        return [config.name for config in configs if config.level == level]
+
+    def get_page_configs(self) -> list[PageConfig]:
+        """Get all page configurations.
+
+        Returns:
+            List of PageConfig objects for all pages in the study.
+            Returns empty list if no pages are configured.
+        """
+        if not self.pages:
+            return []
+
+        if isinstance(self.pages[0], PageConfig):
+            return self.pages  # type: ignore
+
+        return []
+
+    def get_pages_by_level(self, level: Literal["center", "study"]) -> list[str]:
+        """Get list of pages with the specified level.
+
+        Args:
+            level: The level to filter by ("center" or "study")
+
+        Returns:
+            List of page names that have the specified level
+        """
+        configs = self.get_page_configs()
         return [config.name for config in configs if config.level == level]
 
     @classmethod
@@ -547,6 +595,76 @@ class StudyModel(BaseModel):
             configs.append(DashboardConfig(name=item["name"], level=level))
         return configs
 
+    @field_validator("pages", mode="before")
+    @classmethod
+    def normalize_pages(
+        cls, value: Any, info: ValidationInfo
+    ) -> list[PageConfig] | None:
+        """Normalize pages to PageConfig list.
+
+        Handles:
+        - List[str] (defaults to level "center")
+        - List[PageConfig]
+        - Mixed formats
+        - None
+
+        Args:
+            value: The pages value to normalize
+            info: Validation context containing other field values
+
+        Returns:
+            List of PageConfig objects or None
+
+        Raises:
+            ValueError: If level values are invalid
+        """
+        if value is None:
+            return None
+
+        if not value:
+            return []
+
+        if not isinstance(value, list) or len(value) == 0:
+            raise ValueError(f"Invalid pages format: {type(value)}")
+
+        first_item = value[0]
+
+        if isinstance(first_item, PageConfig):
+            return cls._validate_page_configs(value)
+
+        if isinstance(first_item, dict) and "name" in first_item:
+            return cls._convert_page_dicts(value)
+
+        if isinstance(first_item, str):
+            return [PageConfig(name=pg, level="center") for pg in value]
+
+        raise ValueError(f"Invalid pages format: {type(value)}")
+
+    @classmethod
+    def _validate_page_configs(cls, configs: list[PageConfig]) -> list[PageConfig]:
+        """Validate that all page configs have valid levels."""
+        for config in configs:
+            if config.level not in ["center", "study"]:
+                raise ValueError(
+                    f"Invalid level '{config.level}' for page "
+                    f"'{config.name}'. Level must be 'center' or 'study'"
+                )
+        return configs
+
+    @classmethod
+    def _convert_page_dicts(cls, items: list[dict[str, Any]]) -> list[PageConfig]:
+        """Convert list of dicts to PageConfig objects."""
+        configs = []
+        for item in items:
+            level = item.get("level", "center")
+            if level not in ["center", "study"]:
+                raise ValueError(
+                    f"Invalid level '{level}' for page '{item['name']}'. "
+                    "Level must be 'center' or 'study'"
+                )
+            configs.append(PageConfig(name=item["name"], level=level))
+        return configs
+
     @model_validator(mode="after")
     def check_mode_consistency(self) -> Self:
         """Checks consistency within a study model.
@@ -597,6 +715,15 @@ class StudyModel(BaseModel):
                 raise ValueError(
                     f"Invalid level '{dashboard_config.level}' for dashboard "
                     f"'{dashboard_config.name}'. Level must be 'center' or 'study'"
+                )
+
+        # Validate all page levels are valid
+        page_configs = self.get_page_configs()
+        for page_config in page_configs:
+            if page_config.level not in ["center", "study"]:
+                raise ValueError(
+                    f"Invalid level '{page_config.level}' for page "
+                    f"'{page_config.name}'. Level must be 'center' or 'study'"
                 )
 
         return self
