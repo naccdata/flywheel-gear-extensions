@@ -513,10 +513,14 @@ class FormSchedulerQueue:
             if pipeline.name not in self.__pipeline_queues:
                 continue
 
-            # Only capture events for finalization pipeline
+            # Capture events for finalization (qc-pass) and deletion pipelines
             event_capture_callback = (
                 self._capture_pipeline_events
-                if pipeline.name == "finalization"
+                if pipeline.name
+                in (
+                    DefaultValues.FINALIZATION_PIPELINE,
+                    DefaultValues.DELETION_PIPELINE,
+                )
                 else None
             )
 
@@ -533,29 +537,53 @@ class FormSchedulerQueue:
                     f"Failed to process pipeline `{pipeline.name}`: {error}"
                 ) from error
 
-    def _capture_pipeline_events(self, json_file: FileEntry) -> None:
-        """Capture QC-pass events for a processed JSON file.
+    def _capture_pipeline_events(
+        self, file: FileEntry, pipeline_name: PipelineType
+    ) -> None:
+        """Capture visit events for a processed pipeline file.
+
+        Routes to the appropriate event capture method based on pipeline type:
+        - finalization: captures a qc-pass event
+        - deletion: captures a delete event
 
         Event capture failures are logged but don't stop pipeline processing.
 
         Args:
-            json_file: The JSON file that was processed
+            file: The file that was processed
+            pipeline_name: Name of the pipeline
         """
         try:
             event_accumulator = EventAccumulator(event_capture=self.__event_capture)
-            event_accumulator.capture_events(
-                json_file=json_file, project=self.__project
-            )
+
+            if pipeline_name == DefaultValues.DELETION_PIPELINE:
+                event_accumulator.capture_delete_event(
+                    request_file=file, project=self.__project
+                )
+            elif pipeline_name == DefaultValues.FINALIZATION_PIPELINE:
+                event_accumulator.capture_qc_event(
+                    json_file=file, project=self.__project
+                )
+            else:
+                log.warning(
+                    f"Event capture not defined for "
+                    f"pipeline: {pipeline_name}, file: {file.name}"
+                )
         except (ValidationError, QCTransformerError) as error:
             # Validation errors from malformed data or transformers
             log.error(
-                f"Failed to capture events for {json_file.name}: {error}",
+                (
+                    "Failed to capture events for "
+                    f"pipeline: {pipeline_name}, file: {file.name} - {error}"
+                ),
                 exc_info=True,
             )
         except Exception as error:
             # Catch any unexpected errors (network, S3, etc.)
             log.error(
-                f"Unexpected error capturing events for {json_file.name}: {error}",
+                (
+                    "Unexpected error capturing events for "
+                    f"pipeline: {pipeline_name}, file: {file.name} - {error}"
+                ),
                 exc_info=True,
             )
 
@@ -566,7 +594,9 @@ class FormSchedulerQueue:
         pipeline_queue: PipelineQueue,
         job_search: str,
         notify_user: bool,
-        event_capture_callback: Optional[Callable[[FileEntry], None]] = None,
+        event_capture_callback: Optional[
+            Callable[[FileEntry, PipelineType], None]
+        ] = None,
     ):
         """Process files in a pipeline queue using round-robin scheduling.
 
@@ -585,7 +615,7 @@ class FormSchedulerQueue:
             job_search: lookup string to find running pipelines
             notify_user: whether to notify the user about completion
             event_capture_callback: optional callback to capture events after
-                processing each file (used for finalization pipeline)
+                processing each file (used for finalization and deletion pipelines)
         """
 
         # Get the starting gear's input file configurations
@@ -692,9 +722,9 @@ class FormSchedulerQueue:
                 #    This ensures files are processed one at a time
                 JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-                # Capture events if callback provided (finalization pipeline only)
+                # Capture events if callback provided
                 if event_capture_callback:
-                    event_capture_callback(file)
+                    event_capture_callback(file, pipeline.name)
 
                 # e. Send notification email if enabled
                 #    Notifies the user who uploaded the file that processing

@@ -6,7 +6,11 @@ from typing import Optional
 
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
-from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
+from event_capture.visit_events import (
+    ACTION_DELETE,
+    ACTION_PASS_QC,
+    VisitEvent,
+)
 from event_capture.visit_extractor import DataIdentificationExtractor
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -144,16 +148,20 @@ class EventAccumulator:
     def _create_visit_event(
         self,
         *,
+        action: str,
         visit_metadata: DataIdentification,
         project: ProjectAdaptor,
-        qc_completion_time: datetime,
+        completion_time: datetime,
+        gear_name: str = "form-scheduler",
     ) -> Optional[VisitEvent]:
-        """Create a QC-pass VisitEvent from DataIdentification.
+        """Create a VisitEvent from DataIdentification.
 
         Args:
+            action: The event action (e.g. ACTION_PASS_QC, ACTION_DELETE)
             visit_metadata: The visit metadata
             project: The project
-            qc_completion_time: QC completion timestamp
+            completion_time: Event completion timestamp
+            gear_name: Name of the gear that produced the event
 
         Returns:
             VisitEvent or None if creation fails
@@ -177,23 +185,17 @@ class EventAccumulator:
         visit_metadata = visit_metadata.with_updates(adcid=project.get_pipeline_adcid())
 
         return VisitEvent(
-            action=ACTION_PASS_QC,
+            action=action,  # type: ignore
             study=pipeline_label.study_id,
-            # pipeline_adcid=project.get_pipeline_adcid(),
             project_label=project.label,
             center_label=project.group,
-            gear_name="form-scheduler",
-            # ptid=visit_metadata.ptid,
-            # date=visit_metadata.date,
-            # visitnum=visit_metadata.visitnum,
+            gear_name=gear_name,
             datatype=pipeline_label.datatype,
-            # module=visit_metadata.module,
-            # packet=visit_metadata.packet,
             data_identification=visit_metadata,
-            timestamp=qc_completion_time,
+            timestamp=completion_time,
         )
 
-    def capture_events(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
+    def capture_qc_event(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
         """Log QC-pass events for a JSON file if it passes QC validation.
 
         Args:
@@ -229,10 +231,14 @@ class EventAccumulator:
                 return
 
             # Create and log QC-pass event
+            timestamp = (
+                json_file.info.get("validated-timestamp") if json_file.info else None
+            )
             visit_event = self._create_visit_event(
+                action=ACTION_PASS_QC,
                 visit_metadata=visit_metadata,
                 project=project,
-                qc_completion_time=qc_log_file.modified,
+                completion_time=timestamp if timestamp else qc_log_file.modified,
             )
             if visit_event:
                 self.__event_capture.capture_event(visit_event)
@@ -245,4 +251,73 @@ class EventAccumulator:
             # Log error but don't fail pipeline processing
             log.error(
                 "Error logging events for %s: %s", json_file.name, e, exc_info=True
+            )
+
+    def capture_delete_event(
+        self, request_file: FileEntry, project: ProjectAdaptor
+    ) -> None:
+        """Capture a delete event when form-deletion gear succeeds.
+
+        Checks file.info.state in the input file custom info set by the
+        form-deletion gear. Only captures an event if state is 'PASS'.
+
+        Args:
+            request_file: The deletion request file processed by form-deletion
+            project: The project containing the deletion request
+        """
+        if not request_file:
+            log.warning("Request file is None, skipping delete event")
+            return
+        if not project:
+            log.warning("Project is None, skipping delete event")
+            return
+
+        try:
+            # Reload to get latest state written by form-deletion gear
+            request_file = request_file.reload()
+
+            state = request_file.info.get("state") if request_file.info else None
+            if state != "PASS":
+                log.debug(
+                    "Skipping delete event for %s (state=%s)",
+                    request_file.name,
+                    state,
+                )
+                return
+
+            data_id = DataIdentificationExtractor.from_deletion_request_file(
+                request_file=request_file,
+                adcid=project.get_pipeline_adcid(),
+            )
+            if not data_id:
+                log.warning(
+                    "Could not extract data identification for %s", request_file.name
+                )
+                return
+
+            timestamp = (
+                request_file.info.get("processed-timestamp")
+                if request_file.info
+                else None
+            )
+            visit_event = self._create_visit_event(
+                action=ACTION_DELETE,
+                visit_metadata=data_id,
+                project=project,
+                completion_time=timestamp if timestamp else request_file.modified,
+                gear_name="form-deletion",
+            )
+            if visit_event:
+                self.__event_capture.capture_event(visit_event)
+                log.info("Captured delete event for %s", request_file.name)
+                return
+
+            log.warning("Failed to create delete event for %s", request_file.name)
+
+        except Exception as e:
+            log.error(
+                "Error capturing delete event for %s: %s",
+                request_file.name,
+                e,
+                exc_info=True,
             )
