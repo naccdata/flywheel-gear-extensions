@@ -176,7 +176,7 @@ class AcquisitionRemover:
 
         session_label, acquisition_label, filename = labels
 
-        session = subject.sessions.find_first(session_label)
+        session = subject.sessions.find_first(f"label={session_label}")
         if not session:
             log.info(
                 f"Session {session_label} not found in "
@@ -325,7 +325,7 @@ class AcquisitionRemover:
         """
         log.info(
             f"Removing acquisitions for "
-            f"PTID {self.__delete_request.ptid}({self.__naccid}), "
+            f"PTID {self.__delete_request.ptid} ({self.__naccid}), "
             f"visitdate {self.__delete_request.visitdate}"
         )
 
