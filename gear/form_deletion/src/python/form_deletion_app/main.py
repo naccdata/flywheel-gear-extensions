@@ -47,24 +47,25 @@ def send_email(
         f"\n\nDelete request details:\n\n"
         f"PTID: {delete_request.ptid}\n"
         f"MODULE: {delete_request.module.upper()}\n"
-        f"DATE: {delete_request.visitdate}\n"
+        f"VISIT DATE / FORM DATE: {delete_request.visitdate}\n"
     )
 
     if delete_request.visitnum:
-        body += f"VISITNUM: {delete_request.visitdate}\n\n"
+        body += f"VISITNUM: {delete_request.visitdate}\n"
 
     if success and deleted_visits:
         body += (
-            "Form data delete request listed above was successfully processed.\n"
+            "\nForm data delete request listed above was successfully processed.\n"
             "List of deleted forms/modules:\n"
             f"{deleted_visits}\n\n"
             "If you need to resubmit this data, "
-            "please make sure to re-upload all associated modules.\n\n"
+            "please make sure to reupload any associated modules listed above.\n\n"
             "Please contact nacchelp@uw.edu if you have any questions\n\n"
         )
     else:
         body += (
-            "Errors occurred while processing the above form data delete request.\n"
+            "\nErrors occurred while processing the "
+            "form data delete request listed above.\n"
             "Please contact nacchelp@uw.edu for assistance\n\n"
         )
 
@@ -87,11 +88,14 @@ def update_file_metadata(
         deleted_items (Dict[str, List[str]]): _description_
         errors (FileErrorList): _description_
     """
-    status: QCStatus = "PASS" if success else "FAIL"
-    qc_info: FileQCModel = FileQCModel(qc={})
-    qc_info.set_errors(gear_name="form-deletion", status=status, errors=errors)
-
-    custom_info = qc_info.model_dump(by_alias=True)
+    # status: QCStatus = "PASS" if success else "FAIL"
+    # qc_info: FileQCModel = FileQCModel(qc={})
+    # qc_info.set_errors(gear_name="form-deletion", status=status, errors=errors)
+    # custom_info = qc_info.model_dump(by_alias=True)
+    custom_info = {}
+    custom_info["state"] = "PASS" if success else "FAIL"
+    if errors:
+        custom_info["errors"] = errors
     if deleted_items:
         custom_info["deleted"] = deleted_items
     timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)

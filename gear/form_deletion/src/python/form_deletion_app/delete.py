@@ -248,11 +248,19 @@ class FormDeletionProcessor:
 
         # If subject exists in the project, remove the respective acquisitions
         if self.__naccid and self.__project.find_subject(self.__naccid):
+            module_configs = self.__form_configs.module_configs.get(self.__module)
+            if not module_configs:
+                self.__add_delete_failed_error(
+                    f"No module configs found for module {self.__module}"
+                )
+                return False
+
             acq_remover = AcquisitionRemover(
                 proxy=self.__project.proxy,
                 module=self.__module,
                 naccid=self.__naccid,
                 form_configs=self.__form_configs,
+                module_configs=module_configs,
                 delete_request=self.__delete_request,
                 deleted_items=self.__deleted_items,
                 dependent_modules=self.__dependent_modules,

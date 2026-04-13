@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, List, Optional
 
-from configs.ingest_configs import FormProjectConfigs, UploadTemplateInfo
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.session import Session
@@ -25,6 +25,7 @@ class AcquisitionRemover:
         module: str,
         naccid: str,
         form_configs: FormProjectConfigs,
+        module_configs: ModuleConfigs,
         delete_request: DeleteRequest,
         dependent_modules: Optional[List[str]] = None,
         deleted_items: Dict[str, List[str]],
@@ -35,14 +36,17 @@ class AcquisitionRemover:
             module: the primary module name
             naccid: the NACC ID for the subject
             form_configs: form ingest configs
+            module_configs: ingest configs for the primary module
             delete_request: the form delete request
             dependent_modules: associated modules for the current module, if present
+            deleted_items: list of items deleted while processing this request
         """
         self.__proxy = proxy
-        self.__form_configs = form_configs
         self.__module = module
-        self.__delete_request = delete_request
         self.__naccid = naccid
+        self.__form_configs = form_configs
+        self.__module_configs = module_configs
+        self.__delete_request = delete_request
         self.__dependent_modules = dependent_modules
         self.__deleted = deleted_items
 
@@ -107,16 +111,6 @@ class AcquisitionRemover:
             Tuple of (session_label, acquisition_label, filename),
             or None if derivation fails.
         """
-
-        if (
-            hierarchy_labels.session.template.find("visitnum") != -1
-            and not self.__delete_request.visitnum
-        ):
-            log.error(
-                "Require visitnum to derive the session label for "
-                f"{subject_label}/{module}/{self.__delete_request.visitdate}"
-            )
-            return None
 
         record = {
             "module": module,
@@ -299,18 +293,13 @@ class AcquisitionRemover:
                 ):
                     success = False
 
-        module_configs = self.__form_configs.module_configs.get(self.__module)
-        if not module_configs:
-            log.error(f"No module configs found for module {self.__module}")
-            return False
-
         return (
             self.__delete_module_acquisition(
                 subject=subject,
                 project=project,
                 module=self.__module,
-                date_field=module_configs.date_field,
-                hierarchy_labels=module_configs.hierarchy_labels,
+                date_field=self.__module_configs.date_field,
+                hierarchy_labels=self.__module_configs.hierarchy_labels,
                 remove_empty_session=True,
             )
             and success
@@ -335,6 +324,17 @@ class AcquisitionRemover:
             # This is possible if a NACCID generated but no sessions created yet
             log.warning(f"Cannot find any subjects with NACCID {self.__naccid}")
             return True
+
+        if (
+            self.__module_configs.hierarchy_labels.session.template.find("visitnum")
+            != -1
+            and not self.__delete_request.visitnum
+        ):
+            log.error(
+                "Require visitnum to derive the session label for "
+                f"{self.__naccid}/{self.__module}/{self.__delete_request.visitdate}"
+            )
+            return False
 
         # List of form projects to check for matching acquisitions
         # Do not include retrospective-form here, not removing legacy data

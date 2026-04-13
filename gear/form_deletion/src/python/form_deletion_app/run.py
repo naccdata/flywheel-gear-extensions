@@ -108,12 +108,6 @@ class FormDeletionVisitor(GearExecutionEnvironment):
                 f"{self.__form_configs_input.filename}: {error}"
             ) from error
 
-        module = delete_request.module.upper()
-        if not form_project_configs.module_configs.get(module):
-            raise GearExecutionError(
-                f"Failed to find the configurations for module {module}"
-            )
-
         file = self.__request_file_input.file_entry(context=context)
         parent_project = self.__request_file_input.get_parent_project(
             proxy=self.proxy, file=file
