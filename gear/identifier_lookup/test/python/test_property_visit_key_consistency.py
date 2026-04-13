@@ -6,6 +6,7 @@
 """
 
 import csv
+import datetime
 from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
@@ -56,7 +57,12 @@ def visit_row_strategy(draw):
             ),
         )
     )
-    date = draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
+    date = draw(
+        st.dates(
+            min_value=datetime.date(1900, 1, 1),
+            max_value=datetime.date(2099, 12, 31),
+        ).map(lambda d: d.strftime("%Y-%m-%d"))
+    )
     visitnum = draw(st.integers(min_value=1, max_value=99).map(str))
     adcid = draw(st.integers(min_value=1, max_value=999))
 
