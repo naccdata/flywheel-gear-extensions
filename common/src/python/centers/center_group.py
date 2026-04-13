@@ -507,7 +507,7 @@ class DashboardProjectMetadata(ProjectMetadata):
     dashboard_name: str
 
     def apply(self, visitor: AbstractCenterMetadataVisitor) -> None:
-        visitor.visit_project(self)
+        visitor.visit_dashboard_project(self)
 
 
 class PageProjectMetadata(ProjectMetadata):
