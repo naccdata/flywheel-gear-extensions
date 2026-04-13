@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
 from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
@@ -92,7 +92,7 @@ def update_file_metadata(
     # qc_info: FileQCModel = FileQCModel(qc={})
     # qc_info.set_errors(gear_name="form-deletion", status=status, errors=errors)
     # custom_info = qc_info.model_dump(by_alias=True)
-    custom_info = {}
+    custom_info: Dict[str, Any] = {}
     custom_info["state"] = "PASS" if success else "FAIL"
     if errors:
         custom_info["errors"] = errors
