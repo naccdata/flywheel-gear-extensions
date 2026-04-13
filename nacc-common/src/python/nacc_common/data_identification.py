@@ -458,7 +458,7 @@ class DataIdentification(BaseModel):
         try:
             # Use from_visit_metadata to handle flat structure from file info
             return cls.from_visit_metadata(**visit_data)
-        except (ValidationError, TypeError):
+        except (ValidationError, ValueError, TypeError):
             return None
 
     @classmethod

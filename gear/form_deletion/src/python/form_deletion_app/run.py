@@ -18,7 +18,6 @@ from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepositor
 from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from submissions.models import DeleteRequest
 
@@ -131,17 +130,13 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             mode=self.__identifiers_mode,
         )
 
-        error_writer = ListErrorWriter(
-            container_id=file.file_id, fw_path=self.proxy.get_lookup_path(file)
-        )
-
         run(
             project=project,
             adcid=adcid,
+            input_file=file,
             delete_request=delete_request,
             form_configs=form_project_configs,
             identifiers_repo=identifiers_repo,
-            error_writer=error_writer,
             sender_email=context.config.opts.get("sender_email", "nacchelp@uw.edu"),
         )
 

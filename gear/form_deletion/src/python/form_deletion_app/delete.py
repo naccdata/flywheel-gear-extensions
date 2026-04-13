@@ -70,6 +70,36 @@ class FormDeletionProcessor:
         """Returns the items deleted while processing the delete request."""
         return self.__deleted_items
 
+    def get_deleted_visits_list(self) -> Optional[str]:
+        """Returns the list of deleted visits as a newline-joined string.
+
+        Example log file names:     Form with visitnum:         →
+        12345_2024-01-15_001_uds_qc-status.log     Form without visitnum
+        (non-visit form):         → 12345_2024-01-15_np_qc-status.log
+        Old format (no visitnum):         → 12345_2024-01-15_uds_qc-
+        status.log
+        """
+
+        visits = []
+
+        for logfile in self.deleted_items["logs"]:
+            if not logfile.endswith(".log"):
+                continue
+            segments = logfile.split("_")
+            num_segments = len(segments)
+            if num_segments < 4 or num_segments > 5:
+                continue
+            ptid = segments[0]
+            date = segments[1]
+            visitnum = segments[2] if num_segments == 5 else None
+            module = segments[-2].upper()
+            visit_str = f"ptid={ptid}, module={module}, date={date}"
+            if visitnum:
+                visit_str += f", visitnum={visitnum}"
+            visits.append(visit_str)
+
+        return "\n".join(visits) if visits else None
+
     def __get_error_log_name(self, module: str) -> Optional[str]:
         """Returns the QC errorlog filename for this delete request.
 
