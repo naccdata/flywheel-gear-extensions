@@ -144,7 +144,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Delete Form Submission."""
 
-    GearEngine().run(gear_type=FormDeletionVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=FormDeletionVisitor)
 
 
 if __name__ == "__main__":

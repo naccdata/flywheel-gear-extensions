@@ -176,6 +176,11 @@ class FormDeletionProcessor:
         Returns:
             True if all deletions succeeded, False if any failed
         """
+        log.info(
+            f"Removing log files for PTID {self.__delete_request.ptid}, "
+            f"visitdate {self.__delete_request.visitdate}"
+        )
+
         success = True
         # Remove any associated module log files first
         if self.__dependent_modules:

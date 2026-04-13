@@ -107,6 +107,17 @@ class AcquisitionRemover:
             Tuple of (session_label, acquisition_label, filename),
             or None if derivation fails.
         """
+
+        if (
+            hierarchy_labels.session.template.find("visitnum") != -1
+            and not self.__delete_request.visitnum
+        ):
+            log.error(
+                "Require visitnum to derive the session label for "
+                f"{subject_label}/{module}/{self.__delete_request.visitdate}"
+            )
+            return None
+
         record = {
             "module": module,
             date_field: self.__delete_request.visitdate,
@@ -312,6 +323,11 @@ class AcquisitionRemover:
         Returns:
             True if all deletions succeeded, False if any failed
         """
+        log.info(
+            f"Removing acquisitions for "
+            f"PTID {self.__delete_request.ptid}({self.__naccid}), "
+            f"visitdate {self.__delete_request.visitdate}"
+        )
 
         success = True
         subjects = self.__proxy.get_subject_by_label(label=self.__naccid)
