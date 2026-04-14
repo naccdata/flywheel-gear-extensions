@@ -10,13 +10,12 @@ python_distribution(
         ":license",
         "nacc-common/src/python/nacc_common:nacc-common-lib",
         "nacc-common/src/python/nacc_common:py_typed",
-        "mypy-stubs/src/python/flywheel:lib",
     ],
     wheel=True,
     sdist=True,
     provides=python_artifact(
         name="nacc-common",
-        version="2.0.1",
+        version="3.0.0",
     ),
     # Don't generate setup.py
     generate_setup=False,

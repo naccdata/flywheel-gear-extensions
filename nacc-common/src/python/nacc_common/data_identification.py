@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
-from dates.form_dates import DEFAULT_DATE_FORMAT, convert_date
-from identifiers.model import PTID_PATTERN
 from pydantic import (
     BaseModel,
     Field,
@@ -14,8 +12,15 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+from typing_extensions import Self
 
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DEFAULT_DATE_FORMAT, convert_date
+
+# Duplicated from identifiers.model to avoid coupling nacc-common
+# to the internal identifiers package. Keep in sync with
+# common/src/python/identifiers/model.py:PTID_PATTERN
+PTID_PATTERN = r"^[!-~]{1,10}$"  # printable non-whitespace characters
 
 
 class AbstractIdentificationVisitor(ABC):

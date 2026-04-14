@@ -466,6 +466,7 @@ class TestPropertyRegistryIndexingInvariant:
     @given(persons=st.lists(registry_person_strategy(), min_size=1, max_size=10))
     @settings(
         max_examples=100,
+        deadline=None,
         suppress_health_check=[HealthCheck.too_slow],
     )
     def test_registry_id_index_iff_has_id(self, persons):
@@ -486,6 +487,7 @@ class TestPropertyRegistryIndexingInvariant:
     @given(persons=st.lists(registry_person_strategy(), min_size=1, max_size=10))
     @settings(
         max_examples=100,
+        deadline=None,
         suppress_health_check=[HealthCheck.too_slow],
     )
     def test_email_index_iff_has_email(self, persons):

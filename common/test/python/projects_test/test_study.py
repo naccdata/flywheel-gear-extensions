@@ -3,7 +3,13 @@
 from typing import Optional
 
 import pytest
-from projects.study import StudyCenterModel, StudyError, StudyModel, StudyVisitor
+from projects.study import (
+    PageConfig,
+    StudyCenterModel,
+    StudyError,
+    StudyModel,
+    StudyVisitor,
+)
 
 
 class DummyVisitor(StudyVisitor):
@@ -190,7 +196,13 @@ class TestStudy:
             study_type="primary",
             legacy=True,
         )
-        assert study.pages == ["overview", "data-entry", "reports"]
+        assert study.pages is not None
+        assert len(study.pages) == 3
+        assert isinstance(study.pages[0], PageConfig)
+        assert study.pages[0].name == "overview"
+        assert study.pages[0].level == "center"
+        assert study.pages[1].name == "data-entry"
+        assert study.pages[2].name == "reports"
 
     def test_study_without_pages(self):
         """Test study creation without pages field (should default to None)."""
@@ -235,7 +247,13 @@ class TestStudy:
                 "study-type": "primary",
             }
         )
-        assert study.pages == ["overview", "data-entry", "reports"]
+        assert study.pages is not None
+        assert len(study.pages) == 3
+        assert isinstance(study.pages[0], PageConfig)
+        assert study.pages[0].name == "overview"
+        assert study.pages[0].level == "center"
+        assert study.pages[1].name == "data-entry"
+        assert study.pages[2].name == "reports"
 
     def test_study_pages_validation_rejects_invalid_types(self):
         """Test that validation rejects invalid page types."""
