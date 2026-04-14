@@ -57,7 +57,8 @@ class TestMissingConfigurationHandling:
             try:
                 # Access the private method for testing
                 queue._capture_pipeline_events(  # noqa: SLF001
-                    json_file=json_file  # type: ignore[arg-type]
+                    file=json_file,  # type: ignore[arg-type]
+                    pipeline_name="finalization",
                 )
                 # If we get here, missing configuration was handled gracefully
                 assert True
@@ -94,7 +95,9 @@ class TestMissingConfigurationHandling:
         # This should complete without any errors
         try:
             # Access the private method for testing
-            queue._capture_pipeline_events(json_file=json_file)  # noqa: SLF001
+            queue._capture_pipeline_events(  # noqa: SLF001
+                file=json_file, pipeline_name="finalization"
+            )
             # If we get here, missing configuration was handled gracefully
             assert True
         except Exception as e:
@@ -154,7 +157,9 @@ class TestMissingConfigurationHandling:
             "form_scheduler_app.form_scheduler_queue.EventAccumulator"
         ) as mock_accumulator_class:
             # Access the private method for testing
-            queue._capture_pipeline_events(json_file=json_file)  # noqa: SLF001
+            queue._capture_pipeline_events(  # noqa: SLF001
+                file=json_file, pipeline_name="finalization"
+            )
 
             # EventAccumulator should be instantiated with event_capture
             mock_accumulator_class.assert_called_once_with(

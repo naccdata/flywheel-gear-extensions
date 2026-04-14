@@ -64,7 +64,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - errors should be handled gracefully
         try:
-            accumulator.capture_events(mock_json_file, mock_project)
+            accumulator.capture_qc_event(mock_json_file, mock_project)
             # If we get here, the error was handled gracefully
             assert True
         except Exception as e:
@@ -123,7 +123,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - errors should be handled gracefully
         try:
-            accumulator.capture_events(mock_json_file, mock_project)
+            accumulator.capture_qc_event(mock_json_file, mock_project)
             # If we get here, the error was handled gracefully
             assert True
         except Exception as e:
@@ -186,7 +186,7 @@ class TestErrorResilience:
 
         # This should not raise an exception - S3 failures should be handled gracefully
         try:
-            accumulator.capture_events(mock_json_file, mock_project)
+            accumulator.capture_qc_event(mock_json_file, mock_project)
             # If we get here, the S3 error was handled gracefully
             assert True
         except Exception as e:
@@ -226,7 +226,7 @@ class TestErrorResilience:
         with patch("form_scheduler_app.event_accumulator.log") as mock_log:
             # This should not raise an exception
             try:
-                accumulator.capture_events(json_file, project)  # type: ignore[arg-type]
+                accumulator.capture_qc_event(json_file, project)  # type: ignore[arg-type]
                 # If we get here, the error was handled gracefully
                 assert True
             except Exception as e:
@@ -281,7 +281,7 @@ class TestErrorResilience:
         # This should not raise an exception - validation errors should be
         # handled gracefully
         try:
-            accumulator.capture_events(mock_json_file, mock_project)
+            accumulator.capture_qc_event(mock_json_file, mock_project)
             # If we get here, the validation errors were handled gracefully
             assert True
         except Exception as e:
