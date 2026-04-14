@@ -192,6 +192,7 @@ class Pipeline(BaseModel):
     extensions: List[str]
     starting_gear: GearInfo
     notify_user: bool = False
+    sequential: bool = True
 
     def file_match(self, file_entry: FileEntry) -> bool:
         """Indicates whether the file matches the tags and extensions for the

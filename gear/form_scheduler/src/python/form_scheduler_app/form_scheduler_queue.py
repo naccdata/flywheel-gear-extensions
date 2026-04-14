@@ -37,6 +37,23 @@ from form_scheduler_app.event_accumulator import EventAccumulator
 log = logging.getLogger(__name__)
 
 
+def get_subject_from_input_file(filename: str, pipeline: PipelineType) -> Optional[str]:
+    """Extract subject ID from the input filename."""
+    try:
+        if pipeline == DefaultValues.FINALIZATION_PIPELINE:
+            # filename format: <naccid>_<....>_<module>.json
+            return filename.split("_")[0]
+        elif pipeline == DefaultValues.DELETION_PIPELINE:
+            # filename format: delete_<ptid>_<....>_<module>.json
+            return filename.split("_")[1]
+        else:
+            log.error(f"Unsupported pipeline {pipeline}")
+            return None
+    except IndexError as error:
+        log.error(f"Unsupported filename {filename} in pipeline {pipeline}: {error}")
+        return None
+
+
 class PipelineQueue(BaseModel):
     """Class to represent a file queue for a given pipeline, with subqueues
     defined for each module accepted for the pipeline.
@@ -482,7 +499,9 @@ class FormSchedulerQueue:
 
         queue_builder = create_queue_builder(pipeline)
         if queue_builder is None:
-            raise FormSchedulerError("Pipeline with name {pipeline.name} not supported")
+            raise FormSchedulerError(
+                f"Pipeline with name {pipeline.name} not supported"
+            )
 
         file_count = queue_builder.add_pipeline_files(self.__project)
         self.__pipeline_queues[pipeline.name] = queue_builder.queue()
@@ -660,75 +679,265 @@ class FormSchedulerQueue:
                     module=module,
                 )
 
-            # a. Check if any pipelines are already running for this project
-            #    If one is found, wait for it to finish before continuing.
-            #    This prevents race conditions and ensures proper sequencing.
-            #    Note: This should rarely happen since this gear instance
-            #    should be the only one triggering pipelines, but it's a safeguard.
+            # Check if any pipelines are already running for this project
+            # If one is found, wait for it to finish before continuing.
+            # This prevents race conditions and ensures proper sequencing.
+            # Note: This should rarely happen since this gear instance
+            #       should be the only one triggering pipelines, but it's a safeguard.
             JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-            log.info(
-                "Start processing pipeline: `%s` module queue: `%s`",
-                pipeline.name,
-                module,
+            log.info(f"Start processing pipeline: {pipeline.name} for module: {module}")
+
+            # Finalization and deletion pipelines group files by subject and
+            # process each subject group in parallel. All other pipelines
+            # process files sequentially, one at a time.
+            if pipeline.sequential:
+                self._process_subqueue_sequentially(
+                    pipeline=pipeline,
+                    pipeline_queue=pipeline_queue,
+                    subqueue=subqueue,
+                    gear_input_info=gear_input_info,
+                    gear_inputs=gear_inputs,
+                    job_search=job_search,
+                    notify_user=notify_user,
+                    event_capture_callback=event_capture_callback,
+                )
+            else:
+                self._process_subqueue_by_subject(
+                    pipeline=pipeline,
+                    pipeline_queue=pipeline_queue,
+                    subqueue=subqueue,
+                    gear_input_info=gear_input_info,
+                    gear_inputs=gear_inputs,
+                    job_search=job_search,
+                    notify_user=notify_user,
+                    event_capture_callback=event_capture_callback,
+                    subject_extractor=get_subject_from_input_file,
+                )
+
+    def _process_subqueue_sequentially(
+        self,
+        *,
+        pipeline: Pipeline,
+        pipeline_queue: PipelineQueue,
+        subqueue: List[FileEntry],
+        gear_input_info: Optional[Dict[str, list]],
+        gear_inputs: Dict[str, FileEntry],
+        job_search: str,
+        notify_user: bool,
+        event_capture_callback: Optional[
+            Callable[[FileEntry, PipelineType], None]
+        ] = None,
+    ):
+        """Process all files in a module subqueue one at a time.
+
+        For each file:
+        1. Remove queue tags and reload
+        2. Set matched gear inputs
+        3. Trigger the starting gear
+        4. Wait for completion
+        5. Capture events and send email
+
+        Args:
+            pipeline: pipeline configs
+            pipeline_queue: the pipeline queue (used for tag lookup)
+            subqueue: the module's file list (modified in-place via pop)
+            gear_input_info: gear input configuration by locator type
+            gear_inputs: pre-populated fixed/module gear inputs
+            job_search: search string for running/pending pipeline jobs
+            notify_user: whether to send notification emails
+            event_capture_callback: optional callback to capture events
+        """
+        while len(subqueue) > 0:
+            # Pull the next file from subqueue and remove queue tags
+            file = subqueue.pop(0)
+            for tag in pipeline_queue.tags:
+                file.delete_tag(tag)
+
+            # Reload file to get latest state
+            # This is critical: without reload, the next gear might add
+            # the same queue tags back, causing an infinite loop
+            file = file.reload()
+
+            # Set gear inputs of type "matched"
+            # This is the actual file being processed from the queue
+            if gear_input_info and "matched" in gear_input_info:
+                set_gear_inputs(
+                    project=self.__project,
+                    gear_name=pipeline.starting_gear.gear_name,
+                    locator="matched",
+                    gear_inputs_list=gear_input_info["matched"],
+                    gear_inputs=gear_inputs,
+                    matched_file=file,
+                )
+
+            log.info("Triggering %s on %s", pipeline.starting_gear.gear_name, file.name)
+
+            # Get the file's parent container as the gear destination
+            destination = self.__proxy.get_container_by_id(
+                file.parent_ref.id  # type: ignore
+            )
+            trigger_gear(
+                proxy=self.__proxy,
+                gear_name=pipeline.starting_gear.gear_name,
+                log_args=False,
+                inputs=gear_inputs,
+                config=pipeline.starting_gear.configs.model_dump(),
+                destination=destination,
             )
 
-            # Process all files in this module's subqueue
-            while len(subqueue) > 0:
-                # b. Pull the next file from subqueue and remove queue tags
-                file = subqueue.pop(0)
-                for tag in pipeline_queue.tags:
-                    file.delete_tag(tag)
+            # Wait for the triggered pipeline to complete
+            # This ensures files are processed one at a time
+            JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
-                # Reload file to get latest state
-                # This is critical: without reload, the next gear might add
-                # the same queue tags back, causing an infinite loop
-                file = file.reload()
+            if event_capture_callback:
+                event_capture_callback(file, pipeline.name)
 
-                # Set gear inputs of type "matched"
-                # This is the actual file being processed from the queue
-                if gear_input_info and "matched" in gear_input_info:
-                    set_gear_inputs(
-                        project=self.__project,
-                        gear_name=pipeline.starting_gear.gear_name,
-                        locator="matched",
-                        gear_inputs_list=gear_input_info["matched"],
-                        gear_inputs=gear_inputs,
-                        matched_file=file,
-                    )
-
-                # c. Trigger the starting gear for this pipeline
-                log.info(
-                    "Kicking off pipeline `%s` on module %s", pipeline.name, module
-                )
-                log.info(
-                    "Triggering %s for %s", pipeline.starting_gear.gear_name, file.name
-                )
-
-                # Get the file's parent container as the gear destination
-                destination = self.__proxy.get_container_by_id(
-                    file.parent_ref.id  # type: ignore
-                )
-                trigger_gear(
+            # Send notification email if enabled
+            #    Notifies the user who uploaded the file that processing has completed
+            if notify_user and self.__email_client:
+                assert self.__portal_url, "portal URL must be set"
+                send_email(
                     proxy=self.__proxy,
-                    gear_name=pipeline.starting_gear.gear_name,
-                    log_args=False,
-                    inputs=gear_inputs,
-                    config=pipeline.starting_gear.configs.model_dump(),
-                    destination=destination,
+                    email_client=self.__email_client,
+                    file=file,
+                    project=self.__project.project,
+                    portal_url=self.__portal_url,
                 )
 
-                # d. Wait for the triggered pipeline to complete
-                #    This ensures files are processed one at a time
-                JobPoll.wait_for_pipeline(self.__proxy, job_search)
+    def _trigger_batch(
+        self,
+        *,
+        batch: List[FileEntry],
+        pipeline: Pipeline,
+        gear_input_info: Optional[Dict[str, list]],
+        gear_inputs: Dict[str, FileEntry],
+    ):
+        """Trigger the starting gear for each file in a batch.
 
-                # Capture events if callback provided
+        Each file gets its own copy of gear_inputs so the 'matched' entry
+        can be set independently without affecting other files.
+
+        Args:
+            batch: files to trigger
+            pipeline: pipeline configs
+            gear_input_info: gear input configuration by locator type
+            gear_inputs: pre-populated fixed/module gear inputs (not mutated)
+        """
+        for file in batch:
+            log.info(
+                "Triggering %s for %s",
+                pipeline.starting_gear.gear_name,
+                file.name,
+            )
+            file_gear_inputs = dict(gear_inputs)
+            if gear_input_info and "matched" in gear_input_info:
+                set_gear_inputs(
+                    project=self.__project,
+                    gear_name=pipeline.starting_gear.gear_name,
+                    locator="matched",
+                    gear_inputs_list=gear_input_info["matched"],
+                    gear_inputs=file_gear_inputs,
+                    matched_file=file,
+                )
+            destination = self.__proxy.get_container_by_id(
+                file.parent_ref.id  # type: ignore
+            )
+            trigger_gear(
+                proxy=self.__proxy,
+                gear_name=pipeline.starting_gear.gear_name,
+                log_args=False,
+                inputs=file_gear_inputs,
+                config=pipeline.starting_gear.configs.model_dump(),
+                destination=destination,
+            )
+
+    def _process_subqueue_by_subject(
+        self,
+        *,
+        pipeline: Pipeline,
+        pipeline_queue: PipelineQueue,
+        subqueue: List[FileEntry],
+        gear_input_info: Optional[Dict[str, list]],
+        gear_inputs: Dict[str, FileEntry],
+        job_search: str,
+        notify_user: bool,
+        subject_extractor: Callable[[str, PipelineType], Optional[str]],
+        event_capture_callback: Optional[
+            Callable[[FileEntry, PipelineType], None]
+        ] = None,
+    ):
+        """Process a module subqueue grouped by subject in parallel batches.
+
+        Files that belong to different subjects are independent and can be
+        processed concurrently. Within a subject, files are processed in
+        order (oldest first, as sorted by sort_subqueues).
+
+        For each round:
+        1. One file per subject is popped into a batch
+        2. All files in the batch have their queue tags removed and are
+           reloaded
+        3. The starting gear is triggered for every file in the batch
+           (no waiting between triggers)
+        4. wait_for_pipeline blocks until all batch jobs complete
+        5. Events are captured and emails sent for each file in the batch
+
+        Args:
+            pipeline: pipeline configs
+            pipeline_queue: the pipeline queue (used for tag lookup)
+            subqueue: the module's file list (modified in-place; cleared
+                after grouping so pipeline_queue.empty() stays accurate)
+            gear_input_info: gear input configuration by locator type
+            gear_inputs: pre-populated fixed/module gear inputs
+            job_search: search string for running/pending pipeline jobs
+            notify_user: whether to send notification emails
+            event_capture_callback: optional callback to capture events
+            subject_extractor: callable that extracts a subject ID from a
+                filename (differs between finalization and deletion)
+        """
+        # Group files by subject, preserving per-subject sort order
+        subject_queues: Dict[str, List[FileEntry]] = defaultdict(list)
+        for file in subqueue:
+            subject = subject_extractor(file.name, pipeline.name)
+            if not subject:
+                log.warning(
+                    "Failed to find subject id from filename "
+                    f"{file.name} for pipeline {pipeline.name}"
+                )
+                continue
+
+            subject_queues[subject].append(file)
+
+        # Clear the original subqueue so pipeline_queue.empty() is accurate
+        subqueue.clear()
+
+        while any(subject_queues.values()):
+            # Collect one file per subject for this round
+            batch: List[FileEntry] = []
+            for files in subject_queues.values():
+                if files:
+                    file = files.pop(0)
+                    for tag in pipeline_queue.tags:
+                        file.delete_tag(tag)
+                    file = file.reload()
+                    batch.append(file)
+
+            # Trigger all files in the batch before waiting
+            self._trigger_batch(
+                batch=batch,
+                pipeline=pipeline,
+                gear_input_info=gear_input_info,
+                gear_inputs=gear_inputs,
+            )
+
+            # Wait for all batch jobs to complete before the next round
+            JobPoll.wait_for_pipeline(self.__proxy, job_search)
+
+            # Capture events and send emails for the completed batch
+            for file in batch:
                 if event_capture_callback:
                     event_capture_callback(file, pipeline.name)
 
-                # e. Send notification email if enabled
-                #    Notifies the user who uploaded the file that processing
-                #    has completed
                 if notify_user and self.__email_client:
                     assert self.__portal_url, "portal URL must be set"
                     send_email(
@@ -737,12 +946,7 @@ class FormSchedulerQueue:
                         file=file,
                         project=self.__project.project,
                         portal_url=self.__portal_url,
-                    )  # type: ignore
-
-                # f. Repeat until current subqueue is empty
-
-            # Move to next subqueue in round-robin order
-            # Repeat steps a-f until all subqueues are empty
+                    )
 
 
 class FormSchedulerError(Exception):
