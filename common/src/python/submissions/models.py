@@ -3,8 +3,8 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from dates.form_dates import DATE_PATTERN
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DATE_PATTERN
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field
 from serialization.case import kebab_case
 
