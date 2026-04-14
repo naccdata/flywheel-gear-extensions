@@ -676,9 +676,14 @@ class StudyMappingVisitor(StudyVisitor):
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
 
-        # Handle pages
+        # Handle pages by level
+        # Note: Only center-level pages are created here.
+        # Study-level pages are handled elsewhere in the system.
         if self.__study.pages:
-            for page_name in self.__study.pages:
+            center_pages = self.__study.get_pages_by_level("center")
+
+            # Create center-level pages
+            for page_name in center_pages:
                 self.__add_page(
                     center=center, study_info=study_info, page_name=page_name
                 )

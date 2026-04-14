@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import update_file_info
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -13,6 +12,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_naccid
 from nacc_common.error_models import FileErrorList
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
 from submissions.models import DeleteRequest
