@@ -115,21 +115,71 @@ class UserQueue(Generic[T]):
 class InactiveUserProcess(BaseUserProcess[UserEntry]):
     """User process for user entries marked inactive."""
 
-    def __init__(self, collector: UserEventCollector) -> None:
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+        collector: UserEventCollector,
+    ) -> None:
         """Initialize the inactive user process.
 
         Args:
+            environment: The user process environment
             collector: Error collector for capturing error events
         """
         super().__init__(collector)
+        self.__env = environment
 
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
 
+        Looks up matching Flywheel users by email and disables each one.
+
         Args:
           entry: the inactive user entry
         """
-        log.info("ignoring inactive entry %s", entry.email)
+        log.info("processing inactive entry %s", entry.email)
+
+        users = self.__env.proxy.find_user_by_email(entry.email)
+        if not users:
+            log.info("no matching Flywheel users found for %s", entry.email)
+            return
+
+        center_id = entry.adcid if isinstance(entry, CenterUserEntry) else None
+        user_context = UserContext(
+            email=entry.email,
+            name=entry.name.as_str(),
+            center_id=center_id,
+        )
+
+        for user in users:
+            try:
+                self.__env.proxy.disable_user(user)
+                log.info(
+                    "disabled user %s (%s)",
+                    user.id,
+                    entry.email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.USER_DISABLED,
+                    user_context=user_context,
+                    message=f"User {user.id} disabled in Flywheel",
+                )
+                self.collector.collect(success_event)
+            except FlywheelError as error:
+                log.error(
+                    "failed to disable user %s (%s): %s",
+                    user.id,
+                    entry.email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.FLYWHEEL_ERROR,
+                    user_context=user_context,
+                    message=f"Failed to disable user {user.id}: {error}",
+                )
+                self.collector.collect(error_event)
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Applies this process to the queue.
@@ -940,4 +990,4 @@ class UserProcess(BaseUserProcess[UserEntry]):
         queue.apply(self)
 
         ActiveUserProcess(self.__env, self.collector).execute(self.__active_queue)
-        InactiveUserProcess(self.collector).execute(self.__inactive_queue)
+        InactiveUserProcess(self.__env, self.collector).execute(self.__inactive_queue)
