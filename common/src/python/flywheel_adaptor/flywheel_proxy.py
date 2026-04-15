@@ -174,6 +174,48 @@ class FlywheelProxy:
 
         self.__fw.modify_user(user.id, {"email": email})
 
+    def find_user_by_email(self, email: str) -> List[flywheel.User]:
+        """Find Flywheel users matching the given email address.
+
+        Executes the lookup regardless of dry_run mode (read-only operation).
+
+        Args:
+            email: email address to search for
+
+        Returns:
+            List of matching User objects. Empty list if none found.
+
+        Raises:
+            FlywheelError: if the Flywheel SDK call fails
+        """
+        try:
+            return self.__fw.users.find(f"email={email}")
+        except ApiException as error:
+            raise FlywheelError(
+                f"Failed to find users by email {email}: {error}"
+            ) from error
+
+    def disable_user(self, user: flywheel.User) -> None:
+        """Disable a Flywheel user account and clear permissions.
+
+        In dry_run mode, logs the intended action without calling the API.
+
+        Args:
+            user: the Flywheel user to disable
+
+        Raises:
+            FlywheelError: if the Flywheel SDK call fails
+        """
+        assert user.id
+        if self.dry_run:
+            log.info("Dry run: would disable user %s", user.id)
+            return
+
+        try:
+            self.__fw.modify_user(user.id, {"disabled": True}, clear_permissions=True)
+        except ApiException as error:
+            raise FlywheelError(f"Failed to disable user {user.id}: {error}") from error
+
     def get_file(self, file_id: str) -> FileEntry:
         """Returns file object with the file ID.
 
