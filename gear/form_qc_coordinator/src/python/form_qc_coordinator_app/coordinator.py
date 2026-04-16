@@ -561,7 +561,7 @@ class QCCoordinator:
             error_obj = system_error(
                 message=f"Error retrieving file {visit['file.name']}: {error}",
                 visit_keys=DataIdentification.from_visit_metadata(
-                    ptid=ptid, visitnum=visitnum, date=visitdate
+                    ptid=ptid, visitnum=visitnum, date=visitdate, module=self.__module
                 ),
             )
             error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
@@ -629,7 +629,11 @@ class QCCoordinator:
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
+                        naccid=naccid,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -681,6 +685,7 @@ class QCCoordinator:
                 ptid=ptid,
                 visitnum=visitnum,
                 date=visitdate,
+                module=module,
                 naccid=visit_info.get(naccid_key),
             ),
         )
@@ -827,7 +832,10 @@ class QCCoordinator:
                 error_obj = system_error(
                     message=f"Failed to trigger gear {qc_gear_name}",
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -848,7 +856,10 @@ class QCCoordinator:
                 error_obj = system_error(
                     message=f"Errors occurred while running gear {qc_gear_name}",
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
