@@ -883,6 +883,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                     ),
                 )
             )
@@ -906,6 +907,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                         naccid=record.naccid,
                     ),
                 )
@@ -938,6 +940,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                         naccid=record.naccid,
                     ),
                 )
