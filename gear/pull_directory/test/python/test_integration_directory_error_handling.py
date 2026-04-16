@@ -13,115 +13,19 @@ Requirements tested:
 - 1a.7: Error capture for directory validation errors
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
+from conftest import MockGearContext, MockParameterStore
 from gear_execution.gear_execution import ClientWrapper, GearExecutionError
 from inputs.parameter_store import ParameterError
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
 from users.user_entry import PersonName
 
 
-class MockParameterStore:
-    """Mock ParameterStore for testing."""
-
-    def __init__(
-        self,
-        redcap_params: Optional[Dict] = None,
-        support_emails: Optional[List[str]] = None,
-        sender_params: Optional[Dict] = None,
-    ):
-        self.redcap_params = redcap_params or {
-            "url": "https://redcap.test",
-            "token": "test_token",
-            "reportid": "123",  # Note: REDCap expects 'reportid' not 'report_id'
-        }
-        self.support_emails = support_emails or ["support@example.com"]
-        self.sender_params = sender_params or {"sender": "noreply@example.com"}
-
-    def get_redcap_report_parameters(self, param_path: str):
-        """Mock get_redcap_report_parameters."""
-        if not self.redcap_params:
-            raise ParameterError("REDCap parameters not found")
-        return self.redcap_params
-
-    def get_support_emails(self, path: str) -> List[str]:
-        """Mock get_support_emails."""
-        if not self.support_emails:
-            raise ParameterError("Support emails not found")
-        return self.support_emails
-
-    def get_notification_parameters(self, path: str):
-        """Mock get_notification_parameters."""
-        if not self.sender_params:
-            raise ParameterError("Notification parameters not found")
-        # Return both sender and support_emails
-        return {
-            "sender": self.sender_params.get("sender", "noreply@example.com"),
-            "support_emails": ",".join(self.support_emails),
-        }
-
-
-class MockGearContext:
-    """Mock GearContext for testing."""
-
-    def __init__(
-        self,
-        user_filename: Optional[str] = None,
-        config: Optional[Dict] = None,
-        destination: Optional[Dict] = None,
-    ):
-        self.user_filename = user_filename or "users.yaml"
-        self.config_opts = config or {
-            "parameter_path": "/directory/test",
-            "user_file": "users.yaml",
-        }
-        self.destination_dict = destination or {"type": "project", "id": "test_project"}
-        self.output_content = None
-        # Add client attribute for ContextClient.create() - use a mock object
-        self.client = Mock()
-        # Mock the Config object structure from fw_gear
-        self._config = Mock()
-        self._config.opts = self.config_opts
-        self._config.destination = self.destination_dict
-
-    @property
-    def config(self):
-        """Mock config property that returns a Config object."""
-        return self._config
-
-    def open_output(self, filename: str, mode: str = "w", encoding: str = "utf-8"):
-        """Mock open_output context manager."""
-        from io import StringIO
-
-        class MockFile:
-            def __init__(self, context):
-                self.context = context
-                self.buffer = StringIO()
-
-            def __enter__(self):
-                return self.buffer
-
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                self.context.output_content = self.buffer.getvalue()
-                self.buffer.close()
-
-        return MockFile(self)
-
-
 class TestDirectoryErrorHandlingIntegration:
     """Integration tests for directory gear error handling."""
-
-    @pytest.fixture
-    def mock_parameter_store(self) -> MockParameterStore:
-        """Create mock parameter store."""
-        return MockParameterStore()
-
-    @pytest.fixture
-    def mock_context(self) -> MockGearContext:
-        """Create mock gear context."""
-        return MockGearContext()
 
     @pytest.fixture
     def mock_client(self) -> ClientWrapper:
@@ -147,14 +51,13 @@ class TestDirectoryErrorHandlingIntegration:
             "archive_contact": "0",  # "0" means No/not archived
             "contact_company_name": "Test Center",
             "adresearchctr": "1",
-            "web_report_access": "0",  # "0" means No
-            "study_selections": "",
+            "web_report_access___web": "0",
+            "web_report_access___repdash": "0",
             "p30_naccid_enroll_access_level": "0",
             "p30_clin_forms_access_level": "0",
             "p30_imaging_access_level": "0",
             "p30_flbm_access_level": "0",
             "p30_genetic_access_level": "0",
-            "affiliated_study": "",
             "leads_naccid_enroll_access_level": "0",
             "leads_clin_forms_access_level": "0",
             "dvcid_naccid_enroll_access_level": "0",
@@ -171,6 +74,7 @@ class TestDirectoryErrorHandlingIntegration:
             "scan_dashboard_access_level": "0",
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
@@ -190,14 +94,13 @@ class TestDirectoryErrorHandlingIntegration:
             "archive_contact": "0",
             "contact_company_name": "Test Center",
             "adresearchctr": "1",
-            "web_report_access": "0",
-            "study_selections": "",
+            "web_report_access___web": "0",
+            "web_report_access___repdash": "0",
             "p30_naccid_enroll_access_level": "0",
             "p30_clin_forms_access_level": "0",
             "p30_imaging_access_level": "0",
             "p30_flbm_access_level": "0",
             "p30_genetic_access_level": "0",
-            "affiliated_study": "",
             "leads_naccid_enroll_access_level": "0",
             "leads_clin_forms_access_level": "0",
             "dvcid_naccid_enroll_access_level": "0",
@@ -214,6 +117,7 @@ class TestDirectoryErrorHandlingIntegration:
             "scan_dashboard_access_level": "0",
             "permissions_approval_date": "2024-01-01",
             "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
         }
 
     @pytest.fixture
@@ -460,13 +364,20 @@ class TestDirectoryErrorHandlingIntegration:
         """
         from directory_app.run import DirectoryPullVisitor
 
-        # Mock REDCap connection
-        mock_report_connection = Mock()
-        mock_report_connection.get_report_records = Mock(return_value=[])
+        # Mock REDCap connection, project, and export_records
+        mock_connection = Mock()
+        mock_project = Mock()
+        mock_project.export_records = Mock(return_value=[])
 
-        with patch(
-            "directory_app.run.REDCapReportConnection.create_from",
-            return_value=mock_report_connection,
+        with (
+            patch(
+                "directory_app.run.REDCapConnection.create_from",
+                return_value=mock_connection,
+            ),
+            patch(
+                "directory_app.run.REDCapProject.create",
+                return_value=mock_project,
+            ),
         ):
             # Add support staff emails path to config
             mock_context.config_opts["support_emails_path"] = "/support/emails"
@@ -593,14 +504,19 @@ class TestDirectoryErrorHandlingIntegration:
         config_no_file = {"parameter_path": "/directory/test"}
         context_no_file = MockGearContext(config=config_no_file)
 
-        # Mock REDCap connection
-        mock_report_connection = Mock()
-        mock_report_connection.get_report_records = Mock(return_value=[])
+        # Mock REDCap connection, project, and export_records
+        mock_connection = Mock()
+        mock_project = Mock()
+        mock_project.export_records = Mock(return_value=[])
 
         with (
             patch(
-                "directory_app.run.REDCapReportConnection.create_from",
-                return_value=mock_report_connection,
+                "directory_app.run.REDCapConnection.create_from",
+                return_value=mock_connection,
+            ),
+            patch(
+                "directory_app.run.REDCapProject.create",
+                return_value=mock_project,
             ),
             pytest.raises(GearExecutionError, match="No user file name provided"),
         ):
@@ -627,7 +543,7 @@ class TestDirectoryErrorHandlingIntegration:
         # Mock REDCap connection to raise error
         with (
             patch(
-                "directory_app.run.REDCapReportConnection.create_from",
+                "directory_app.run.REDCapConnection.create_from",
                 side_effect=REDCapConnectionError("Connection failed"),
             ),
             pytest.raises(
@@ -654,8 +570,8 @@ class TestDirectoryErrorHandlingIntegration:
 
         # Create parameter store that raises error when accessing parameters
         mock_param_store_error = Mock()
-        mock_param_store_error.get_redcap_report_parameters.side_effect = (
-            ParameterError("Failed to retrieve parameters")
+        mock_param_store_error.get_parameters.side_effect = ParameterError(
+            "Failed to retrieve parameters"
         )
 
         with pytest.raises(GearExecutionError, match="Parameter error"):

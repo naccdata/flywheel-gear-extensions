@@ -38,11 +38,20 @@ class EventCategory(Enum):
     INCOMPLETE_CLAIM = "Incomplete Claims"
     BAD_ORCID_CLAIMS = "Bad ORCID Claims"
     MISSING_DIRECTORY_PERMISSIONS = "Missing Directory Permissions"
+    MISSING_USER_AGREEMENT = "Missing User Agreement"
     MISSING_DIRECTORY_DATA = "Missing Directory Data"
     MISSING_REGISTRY_DATA = "Missing Registry Data"
     INSUFFICIENT_PERMISSIONS = "Insufficient Permissions"
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
     FLYWHEEL_ERROR = "Flywheel Errors"
+
+    # Near-miss categories
+    DOMAIN_NEAR_MISS = "Domain Near-Miss"
+    NAME_NEAR_MISS = "Name Near-Miss"
+    COMBINED_NEAR_MISS = "Combined Signal Near-Miss"
+
+    # Wrong-IdP category
+    WRONG_IDP_SELECTION = "Wrong IdP Selection"
 
     def to_field_name(self) -> str:
         """Convert category to template field name (snake_case).

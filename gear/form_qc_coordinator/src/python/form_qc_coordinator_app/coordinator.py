@@ -10,7 +10,6 @@ from configs.ingest_configs import (
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from error_logging.error_logger import (
     reset_error_log_metadata_for_gears,
 )
@@ -42,6 +41,7 @@ from nacc_common.error_models import (
     QCStatus,
 )
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,

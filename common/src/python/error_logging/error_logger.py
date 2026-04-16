@@ -2,7 +2,6 @@ import logging
 from datetime import datetime as dt
 from typing import Any, Dict, List, Literal, Optional
 
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -15,8 +14,9 @@ from nacc_common.data_identification import (
     VisitIdentification,
 )
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from pydantic import BaseModel, ValidationError
-from utils.decorators import api_retry
+from utils.decorators import api_retry, retry_with_backoff
 
 log = logging.getLogger(__name__)
 
@@ -246,6 +246,11 @@ def create_log_entry(*, gear_name: str, state: str, errors: FileErrorList) -> st
     return entry
 
 
+@retry_with_backoff(
+    max_retries=3,
+    backoff_factor=2.0,
+    exceptions=(ApiException, Exception),
+)
 def update_error_log_and_qc_metadata(
     *,
     error_log_name: str,

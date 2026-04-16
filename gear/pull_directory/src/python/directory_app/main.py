@@ -18,6 +18,20 @@ from users.user_entry import UserEntryList
 log = logging.getLogger(__name__)
 
 
+def filter_approved_records(
+    records: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Filters records to retain only those with permissions_approval == '1'.
+
+    Args:
+        records: Raw records from REDCap export.
+
+    Returns:
+        Records where permissions_approval field equals '1'.
+    """
+    return [record for record in records if record.get("permissions_approval") == "1"]
+
+
 def run(
     *, user_report: List[Dict[str, Any]], collector: Optional[UserEventCollector] = None
 ) -> str:
@@ -77,6 +91,25 @@ def run(
                 ),
                 message="User permissions not approved in directory",
                 action_needed="contact_center_administrator_for_approval",
+            )
+            collector.collect(error_event)
+            continue
+
+        if not dir_record.signed_user_agreement:
+            log.warning("Ignoring %s: User agreement not signed", dir_record.email)
+
+            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_USER_AGREEMENT,
+                user_context=UserContext(
+                    email=dir_record.email,
+                    name=name,
+                    center_id=dir_record.adcid,
+                    auth_email=dir_record.auth_email,
+                ),
+                message="User has not signed NACC user agreement",
+                action_needed="contact_user_to_sign_agreement",
             )
             collector.collect(error_event)
             continue

@@ -4,6 +4,44 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.6.0
+
+* Adds flexible configuration support for page projects with center/study levels
+  * Introduces `PageConfig` model to specify per-page levels (center/study), mirroring `DashboardConfig`
+  * Pages field now accepts structured configuration with name and level
+  * Adds `get_page_configs()` and `get_pages_by_level()` helper methods
+  * Maintains backward compatibility with existing string-based page lists
+* Fixes `DashboardProjectMetadata` visitor dispatch to correctly call `visit_dashboard_project()` instead of `visit_project()`
+
+## 2.5.1
+
+* Fixes project management failures due to Flywheel exceptions in edge cases related to projects that were not found or permissions assigned to non-users.
+
+## 2.5.0
+
+* Allows primary studies to have distribution datatypes (mixed-mode)
+  * Removes restriction that primary studies must be aggregation-only
+  * Primary studies can now have both aggregation and distribution datatypes
+* Adds `data-freeze` as a new datatype
+
+## 2.4.1
+
+* Fixes distribution projects not being created in center groups for co-enrolled affiliated studies
+  * Co-enrollment skip now only applies to aggregation pipelines, allowing distribution projects to be created for each center
+
+## 2.4.0
+
+* Adds flexible configuration support to StudyModel
+  - Introduces `DatatypeConfig` model to specify per-datatype modes (aggregation/distribution)
+  - Introduces `DashboardConfig` model to specify per-dashboard levels (center/study)
+  - Enables mixed-mode studies where different datatypes can have different modes
+  - Adds helper methods: `get_datatype_mode()`, `get_datatypes_by_mode()`, `get_dashboard_level()`, `get_dashboards_by_level()`
+  - Maintains backward compatibility with existing string-based configurations
+  - Automatically migrates legacy study-level mode to datatype-level configuration
+* Updates StudyMapper to handle flexible configuration formats
+  - Refactors datatype and dashboard processing to use new config models
+  - Improves separation of concerns between aggregation and distribution mappers
+
 ## 2.3.0
 
 * Adds support for dashboard projects in studies

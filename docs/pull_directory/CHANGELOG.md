@@ -2,6 +2,30 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.0.3
+
+* Fixes REDCap `export_records` field list to use base field names for checkbox fields, allowing REDCap to return expanded columns automatically
+
+## 4.0.2
+
+* Fixes handling of REDCap checkbox fields (`web_report_access`, `study_selections`, `affiliated_study`) for `export_records` format
+* Maps expanded checkbox columns (`web_report_access___web`, `web_report_access___repdash`) directly to model fields instead of parsing comma-separated strings
+* Removes unused `study_selections` and `affiliated_study` fields from `DirectoryAuthorizations` model
+
+## 4.0.1
+
+* Fixes missing CLARiTI role fields by switching from REDCap report-based retrieval to `export_records` with explicit field list derived from the directory authorization model
+* Pre-filters exported records to retain only approved entries before processing
+
+## 4.0.0
+
+* Adds signed user agreement check to directory processing
+* Rejects directory entries where the user has not signed the NACC user agreement
+* Adds `MISSING_USER_AGREEMENT` error event category for unsigned agreement tracking
+* Adds `signed_user_agreement` field to `DirectoryAuthorizations` model
+* Updates `convert_flag_string` validator to handle numeric string values beyond "1"
+* Refactors directory test fixtures to use shared `create_directory_entry` helper
+
 ## 3.1.1
 
 * Reclassifies `cl_ror_access_level` field as participant-summary datatype resource instead of dashboard resource
@@ -109,7 +133,7 @@ All notable changes to this gear are documented in this file.
 
 * Adds this CHANGELOG
 * Changes directory entry and user model to match changes to authorizations in NACC directory.
-* Updates to pull REDCap API code from library instead of common 
+* Updates to pull REDCap API code from library instead of common
 * Updates to use local ssm_parameter_store
 
 ## 1.0.3 and earlier

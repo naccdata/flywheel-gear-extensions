@@ -612,6 +612,10 @@ class TestCreateUserProcessEvent:
                 "Duplicate/Wrong User Records",
             ),
             (EventCategory.FLYWHEEL_ERROR, "Flywheel Errors"),
+            (EventCategory.DOMAIN_NEAR_MISS, "Domain Near-Miss"),
+            (EventCategory.NAME_NEAR_MISS, "Name Near-Miss"),
+            (EventCategory.COMBINED_NEAR_MISS, "Combined Signal Near-Miss"),
+            (EventCategory.WRONG_IDP_SELECTION, "Wrong IdP Selection"),
         ]
 
         for category_enum, expected_value in categories_to_test:
@@ -642,3 +646,179 @@ class TestCreateUserProcessEvent:
         # Test to_summary with empty message
         summary = error_event.to_summary()
         assert "Flywheel Errors" in summary
+
+
+class TestNearMissEventCategories:
+    """Tests for new near-miss and wrong-IdP event categories."""
+
+    def test_domain_near_miss_category_value(self):
+        """Test DOMAIN_NEAR_MISS category has correct string value."""
+        assert EventCategory.DOMAIN_NEAR_MISS.value == "Domain Near-Miss"
+
+    def test_name_near_miss_category_value(self):
+        """Test NAME_NEAR_MISS category has correct string value."""
+        assert EventCategory.NAME_NEAR_MISS.value == "Name Near-Miss"
+
+    def test_combined_near_miss_category_value(self):
+        """Test COMBINED_NEAR_MISS category has correct string value."""
+        assert EventCategory.COMBINED_NEAR_MISS.value == "Combined Signal Near-Miss"
+
+    def test_wrong_idp_selection_category_value(self):
+        """Test WRONG_IDP_SELECTION category has correct string value."""
+        assert EventCategory.WRONG_IDP_SELECTION.value == "Wrong IdP Selection"
+
+    def test_domain_near_miss_serializes_in_event(self):
+        """Test DOMAIN_NEAR_MISS serializes correctly in UserProcessEvent."""
+        user_context = UserContext(
+            email="user@med.umich.edu",
+            name="Test User",
+            center_id=123,
+        )
+        event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.DOMAIN_NEAR_MISS,
+            user_context=user_context,
+            message="Domain near-miss: candidate found",
+            action_needed="review_potential_duplicate",
+        )
+
+        assert event.category == "Domain Near-Miss"
+        event_dict = event.model_dump()
+        assert event_dict["category"] == "Domain Near-Miss"
+        assert event_dict["email"] == "user@med.umich.edu"
+        assert event_dict["message"] == "Domain near-miss: candidate found"
+
+    def test_name_near_miss_serializes_in_event(self):
+        """Test NAME_NEAR_MISS serializes correctly in UserProcessEvent."""
+        user_context = UserContext(email="user@example.com", name="John Doe")
+        event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.NAME_NEAR_MISS,
+            user_context=user_context,
+            message="Name near-miss: candidate found",
+            action_needed="review_potential_duplicate",
+        )
+
+        assert event.category == "Name Near-Miss"
+        event_dict = event.model_dump()
+        assert event_dict["category"] == "Name Near-Miss"
+
+    def test_combined_near_miss_serializes_in_event(self):
+        """Test COMBINED_NEAR_MISS serializes correctly in UserProcessEvent."""
+        user_context = UserContext(email="user@example.com", name="Jane Smith")
+        event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.COMBINED_NEAR_MISS,
+            user_context=user_context,
+            message="Combined near-miss: domain and name match",
+            action_needed="review_potential_duplicate",
+        )
+
+        assert event.category == "Combined Signal Near-Miss"
+        event_dict = event.model_dump()
+        assert event_dict["category"] == "Combined Signal Near-Miss"
+
+    def test_wrong_idp_selection_serializes_in_event(self):
+        """Test WRONG_IDP_SELECTION serializes correctly in
+        UserProcessEvent."""
+        user_context = UserContext(email="user@umich.edu", name="Test User")
+        event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.WRONG_IDP_SELECTION,
+            user_context=user_context,
+            message="Wrong IdP: expected University of Michigan, got ORCID",
+            action_needed="delete_bad_record_and_reclaim",
+        )
+
+        assert event.category == "Wrong IdP Selection"
+        event_dict = event.model_dump()
+        assert event_dict["category"] == "Wrong IdP Selection"
+
+    def test_near_miss_categories_to_field_name(self):
+        """Test to_field_name() for new categories."""
+        assert EventCategory.DOMAIN_NEAR_MISS.to_field_name() == "domain_near-miss"
+        assert EventCategory.NAME_NEAR_MISS.to_field_name() == "name_near-miss"
+        assert (
+            EventCategory.COMBINED_NEAR_MISS.to_field_name()
+            == "combined_signal_near-miss"
+        )
+        assert (
+            EventCategory.WRONG_IDP_SELECTION.to_field_name() == "wrong_idp_selection"
+        )
+
+    def test_near_miss_event_to_summary(self):
+        """Test to_summary() for near-miss events."""
+        user_context = UserContext(email="user@example.com")
+        event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.DOMAIN_NEAR_MISS,
+            user_context=user_context,
+            message="Domain near-miss found",
+        )
+        summary = event.to_summary()
+        assert "Domain Near-Miss" in summary
+        assert "user@example.com" in summary
+        assert "Domain near-miss found" in summary
+
+    def test_collector_categorizes_near_miss_events(self):
+        """Test UserEventCollector correctly categorizes near-miss events."""
+        from users.event_models import UserEventCollector
+
+        collector = UserEventCollector()
+
+        domain_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.DOMAIN_NEAR_MISS,
+            user_context=UserContext(email="user1@example.com"),
+            message="Domain near-miss",
+        )
+        name_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.NAME_NEAR_MISS,
+            user_context=UserContext(email="user2@example.com"),
+            message="Name near-miss",
+        )
+        combined_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.COMBINED_NEAR_MISS,
+            user_context=UserContext(email="user3@example.com"),
+            message="Combined near-miss",
+        )
+        wrong_idp_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.WRONG_IDP_SELECTION,
+            user_context=UserContext(email="user4@example.com"),
+            message="Wrong IdP",
+        )
+
+        collector.collect(domain_event)
+        collector.collect(name_event)
+        collector.collect(combined_event)
+        collector.collect(wrong_idp_event)
+
+        assert collector.error_count() == 4
+
+        domain_events = collector.get_events_for_category(
+            EventCategory.DOMAIN_NEAR_MISS
+        )
+        assert len(domain_events) == 1
+        assert domain_events[0].user_context.email == "user1@example.com"
+
+        name_events = collector.get_events_for_category(EventCategory.NAME_NEAR_MISS)
+        assert len(name_events) == 1
+
+        combined_events = collector.get_events_for_category(
+            EventCategory.COMBINED_NEAR_MISS
+        )
+        assert len(combined_events) == 1
+
+        wrong_idp_events = collector.get_events_for_category(
+            EventCategory.WRONG_IDP_SELECTION
+        )
+        assert len(wrong_idp_events) == 1
+
+        counts = collector.count_by_category()
+        assert counts["Domain Near-Miss"] == 1
+        assert counts["Name Near-Miss"] == 1
+        assert counts["Combined Signal Near-Miss"] == 1
+        assert counts["Wrong IdP Selection"] == 1

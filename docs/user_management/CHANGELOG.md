@@ -2,6 +2,34 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.2.2
+
+* Rebuilt for updated common libraries (adds `data-freeze` datatype, relaxes primary study mode restriction)
+
+## 4.2.1
+
+* Removes domain-only near-miss detection from blocking skeleton creation, reducing false positives at large institutions
+* Requires name match (combined signal or name-only) before flagging a near-miss candidate
+* Filters self-matches from near-miss detection where case-insensitive email matches identify the user's own registry record
+* Changes near-miss event emission to only report combined signal and name-only categories, suppressing pure domain-only rows
+
+## 4.2.0
+
+* Adds domain-aware near-miss detection to identify potential duplicate registry records by parent domain
+* Adds name-based near-miss detection to find candidates by normalized full name
+* Adds wrong-IdP detection to identify users who claimed via fallback IdP instead of their institutional IdP
+* Adds multi-email skeleton creation, passing both auth and contact emails when creating registry records
+* Adds optional `domain_config_file` gear input for domain relationship and IdP configuration
+* Adds `DomainRelationshipConfig` and `IdPDomainConfig` models for configurable domain resolution
+* Adds new event categories: Domain Near-Miss, Name Near-Miss, Combined Signal Near-Miss, Wrong IdP Selection
+* Adds parent-domain and normalized-name index lookups in `UserRegistry` for fallback matching
+
+## 4.1.1
+
+* Fixes 409 error handling in project lookup when gear account lacks access to an existing project
+  * Logs a clear permissions warning instead of a misleading "Failed to create project" error
+* Adds project caching in GroupAdaptor to avoid repeated API calls for the same project during a single gear execution
+
 ## 4.1.0
 
 * Implements general authorization support for non-center-specific resources

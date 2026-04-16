@@ -91,6 +91,8 @@ class MockUserProcessEnvironment:
         self.admin_group = admin_group or MockNACCGroup()  # type: ignore
         self.authorization_map = auth_map or MockAuthMap()  # type: ignore
         self._users: Dict[str, User] = {}
+        self.domain_config = None
+        self.idp_config = None
 
     def add_user(self, user: User) -> None:
         """Add a user to the mock environment."""

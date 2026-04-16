@@ -4,7 +4,6 @@ specialized subject wrappers."""
 import logging
 from typing import Any, Dict, List, Optional
 
-from dates.form_dates import DATE_PATTERN
 from flywheel.file_spec import FileSpec
 from flywheel.finder import Finder
 from flywheel.models.file_entry import FileEntry
@@ -13,6 +12,7 @@ from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
 from keys.keys import MetadataKeys
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DATE_PATTERN
 from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, ValidationError
 from serialization.case import kebab_case
 from uploads.acquisition import upload_to_acquisition

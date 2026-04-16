@@ -27,6 +27,49 @@ from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName, UserE
 log = logging.getLogger(__name__)
 
 
+def get_directory_field_names() -> list[str]:
+    """Derives the list of REDCap field names from DirectoryAuthorizations
+    model.
+
+    Resolves Pydantic alias, validation_alias, and AliasChoices to determine
+    the correct REDCap field name for each model field.
+
+    For checkbox fields (names containing ``___``), the base field name
+    before the separator is used since REDCap's ``export_records`` API
+    expects the base name and returns the expanded columns automatically.
+
+    Returns:
+        List of unique REDCap field names corresponding to all
+        DirectoryAuthorizations fields.
+    """
+    seen: set[str] = set()
+    field_names: list[str] = []
+
+    for name, field_info in DirectoryAuthorizations.model_fields.items():
+        redcap_name: str
+
+        # Check for validation_alias with AliasChoices first
+        if field_info.validation_alias is not None and isinstance(
+            field_info.validation_alias, AliasChoices
+        ):
+            first_choice = field_info.validation_alias.choices[0]
+            redcap_name = str(first_choice)
+        elif field_info.alias is not None:
+            redcap_name = field_info.alias
+        else:
+            redcap_name = name
+
+        # Use base field name for checkbox fields (REDCap expands them)
+        if "___" in redcap_name:
+            redcap_name = redcap_name.split("___")[0]
+
+        if redcap_name not in seen:
+            seen.add(redcap_name)
+            field_names.append(redcap_name)
+
+    return field_names
+
+
 AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
 
@@ -103,13 +146,11 @@ class StudyAccessMap(BaseModel):
 
 
 class DirectoryAuthorizations(BaseModel):
-    """Data model for deserializing a json object from a directory permission
-    report.
+    """Data model for deserializing a record from a REDCap directory export.
 
-    Note: general_page_community_resources_access_level and
-    adrc_dashboard_reports_access_level both use the same source field
-    (web_report_access) for deserialization. This model is only used for
-    deserialization from REDCap reports and is never serialized.
+    REDCap checkbox fields are exported as separate columns with ``___``
+    suffixes (e.g., ``web_report_access___web``). Each model field maps
+    directly to its corresponding expanded column.
     """
 
     firstname: str
@@ -120,12 +161,15 @@ class DirectoryAuthorizations(BaseModel):
     org_name: str = Field(alias="contact_company_name")
     adcid: Optional[int] = Field(alias="adcid")
     general_page_community_resources_access_level: AuthorizationAccessLevel = Field(
-        validation_alias=AliasChoices("web_report_access")
+        validation_alias=AliasChoices(
+            "web_report_access___web", "web_report_access___Web"
+        )
     )
     adrc_dashboard_reports_access_level: AuthorizationAccessLevel = Field(
-        validation_alias=AliasChoices("web_report_access")
+        validation_alias=AliasChoices(
+            "web_report_access___repdash", "web_report_access___RepDash"
+        )
     )
-    study_selections: list[str]
     adrc_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="p30_naccid_enroll_access_level"
     )
@@ -141,7 +185,6 @@ class DirectoryAuthorizations(BaseModel):
     niagads_datatype_genetic_access_level: AuthorizationAccessLevel = Field(
         alias="p30_genetic_access_level"
     )
-    affiliated_study: list[str]
     leads_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="leads_naccid_enroll_access_level"
     )
@@ -230,6 +273,9 @@ class DirectoryAuthorizations(BaseModel):
     # CLARiTI individual role (1 field)
     ind_clar_core_role___admin: Optional[bool] = Field(
         default=None, alias="ind_clar_core_role___admin"
+    )
+    signed_user_agreement: bool = Field(
+        default=False, alias="signed_agreement_status_num_ct"
     )
     permissions_approval: bool
     permissions_approval_date: date
@@ -331,49 +377,31 @@ class DirectoryAuthorizations(BaseModel):
 
         return "NoAccess"
 
-    @field_validator("general_page_community_resources_access_level", mode="before")
-    def convert_community_resources_access_level(
-        cls, value: Any
-    ) -> AuthorizationAccessLevel:
-        """Converts web_report_access checkbox field to community resources
-        access level.
+    @field_validator(
+        "general_page_community_resources_access_level",
+        "adrc_dashboard_reports_access_level",
+        mode="before",
+    )
+    def convert_checkbox_access_level(cls, value: Any) -> AuthorizationAccessLevel:
+        """Converts a REDCap checkbox value to an access level.
 
-        The field can contain: '', 'Web', 'RepDash', or 'Web,RepDash'.
-        Returns ViewAccess if 'Web' is present, otherwise NoAccess.
+        REDCap exports checkboxes as "1" (checked) or "0" (unchecked).
+        Returns ViewAccess if checked, otherwise NoAccess.
         """
-        if isinstance(value, str) and "Web" in value:
+        if isinstance(value, str) and value == "1":
             return "ViewAccess"
         return "NoAccess"
 
-    @field_validator("adrc_dashboard_reports_access_level", mode="before")
-    def convert_adrc_reports_access_level(cls, value: Any) -> AuthorizationAccessLevel:
-        """Converts web_report_access checkbox field to ADRC Reports access
-        level.
-
-        The field can contain: '', 'Web', 'RepDash', or 'Web,RepDash'.
-        Returns ViewAccess if 'RepDash' is present, otherwise NoAccess.
-        """
-        if isinstance(value, str) and "RepDash" in value:
-            return "ViewAccess"
-        return "NoAccess"
-
-    @field_validator("study_selections", "affiliated_study", mode="before")
-    def convert_string_list(cls, value_list: Any) -> list[str]:
-        if isinstance(value_list, list):
-            return value_list
-        if not isinstance(value_list, str):
-            raise TypeError("expecting string with list of values")
-
-        return value_list.split(",")
-
-    @field_validator("inactive", "permissions_approval", mode="before")
+    @field_validator(
+        "inactive", "permissions_approval", "signed_user_agreement", mode="before"
+    )
     def convert_flag_string(cls, value: Any) -> bool:
         if isinstance(value, bool):
             return value
         if not isinstance(value, str):
             raise TypeError("expecting bool or string value")
 
-        return value == "1"
+        return value.strip().isdigit() and int(value.strip()) != 0
 
     def __handle_datatype_resource(
         self,
@@ -529,6 +557,9 @@ class DirectoryAuthorizations(BaseModel):
 
     def to_user_entry(self) -> Optional[UserEntry]:
         """Converts this DirectoryAuthorizations object to a UserEntry."""
+
+        if not self.signed_user_agreement:
+            return None
 
         if not self.permissions_approval:
             return None

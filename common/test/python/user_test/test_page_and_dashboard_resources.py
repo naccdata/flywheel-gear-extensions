@@ -4,6 +4,7 @@ Tests the __parse_fields() method's handling of page and dashboard
 resources using the actual fields defined in the model.
 """
 
+from user_test.directory_test_utils import create_directory_entry
 from users.authorizations import (
     DashboardResource,
     DatatypeResource,
@@ -11,48 +12,6 @@ from users.authorizations import (
 )
 from users.nacc_directory import DirectoryAuthorizations
 from users.user_entry import CenterUserEntry
-
-
-def create_test_entry(**overrides):
-    """Create a minimal test directory entry."""
-    entry = {
-        "firstname": "Test",
-        "lastname": "User",
-        "email": "test@example.com",
-        "contact_company_name": "Test Center",
-        "adresearchctr": "1",
-        "adcid": "1",
-        "archive_contact": "0",
-        "fw_email": "test@example.com",
-        "nacc_data_platform_access_information_complete": "2",
-        "web_report_access": "",
-        "study_selections": "",
-        "p30_naccid_enroll_access_level": "",
-        "p30_clin_forms_access_level": "",
-        "p30_imaging_access_level": "",
-        "scan_dashboard_access_level": "",
-        "p30_flbm_access_level": "",
-        "p30_genetic_access_level": "",
-        "affiliated_study": "",
-        "leads_naccid_enroll_access_level": "",
-        "leads_clin_forms_access_level": "",
-        "dvcid_naccid_enroll_access_level": "",
-        "dvcid_clin_forms_access_level": "",
-        "allftd_naccid_enroll_access_level": "",
-        "allftd_clin_forms_access_level": "",
-        "dlbc_naccid_enroll_access_level": "",
-        "dlbc_clin_forms_access_level": "",
-        "cl_clin_forms_access_level": "",
-        "cl_imaging_access_level": "",
-        "cl_flbm_access_level": "",
-        "cl_pay_access_level": "",
-        "cl_ror_access_level": "",
-        "permissions_approval": "1",
-        "permissions_approval_name": "Test Approver",
-        "permissions_approval_date": "2025-01-01",
-    }
-    entry.update(overrides)
-    return entry
 
 
 class TestGeneralPageCommunityResourcesAccess:
@@ -69,9 +28,9 @@ class TestGeneralPageCommunityResourcesAccess:
           resource_name='community-resources'
         - Creates a PageResource and adds it to general authorizations
         """
-        entry = create_test_entry(
-            web_report_access="Web",
-            study_selections="P30",
+        entry = create_directory_entry(
+            adcid="1",
+            web_report_access___web="1",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -91,9 +50,7 @@ class TestGeneralPageCommunityResourcesAccess:
 
     def test_general_page_community_resources_no_access_ignored(self):
         """Test that NoAccess doesn't create page resource."""
-        entry = create_test_entry(
-            web_report_access="",  # Empty string converts to NoAccess
-            study_selections="P30",
+        entry = create_directory_entry(
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -119,9 +76,8 @@ class TestAdrcDashboardReportsAccess:
         - Identifies scope='adrc', resource_type='dashboard', resource_name='reports'
         - Creates a DashboardResource and adds it to ADRC study authorizations
         """
-        entry = create_test_entry(
-            web_report_access="RepDash",
-            study_selections="P30",
+        entry = create_directory_entry(
+            web_report_access___repdash="1",
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -151,9 +107,7 @@ class TestAdrcDashboardReportsAccess:
 
     def test_adrc_dashboard_reports_no_access_ignored(self):
         """Test that NoAccess doesn't create dashboard resource."""
-        entry = create_test_entry(
-            web_report_access="",  # Empty string converts to NoAccess
-            study_selections="P30",
+        entry = create_directory_entry(
             p30_naccid_enroll_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -190,10 +144,8 @@ class TestClaritiDashboardAccess:
         - Identifies scope='clariti', resource_type='dashboard', resource_name='pay'
         - Creates a DashboardResource and adds it to CLARiTI study authorizations
         """
-        entry = create_test_entry(
+        entry = create_directory_entry(
             cl_pay_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -223,10 +175,8 @@ class TestClaritiDashboardAccess:
     def test_clariti_participant_summary_creates_datatype_resource(self):
         """Test that clariti_datatype_participant_summary_access_level creates
         DatatypeResource."""
-        entry = create_test_entry(
+        entry = create_directory_entry(
             cl_ror_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -253,11 +203,9 @@ class TestClaritiDashboardAccess:
 
     def test_clariti_dashboard_and_datatype_together(self):
         """Test that CLARiTI dashboard and datatype fields work together."""
-        entry = create_test_entry(
+        entry = create_directory_entry(
             cl_pay_access_level="ViewAccess",
             cl_ror_access_level="ViewAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -286,11 +234,9 @@ class TestClaritiDashboardAccess:
     def test_clariti_dashboard_no_access_ignored(self):
         """Test that NoAccess doesn't create dashboard or datatype
         resources."""
-        entry = create_test_entry(
+        entry = create_directory_entry(
             cl_pay_access_level="NoAccess",
             cl_ror_access_level="NoAccess",
-            study_selections="AffiliatedStudy",
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
         )
         auth = DirectoryAuthorizations(**entry)
@@ -328,15 +274,14 @@ class TestMixedResourceTypes:
         handles multiple resource types (datatype, page, dashboard)
         across different scopes (general, study-specific).
         """
-        entry = create_test_entry(
+        entry = create_directory_entry(
             # General page resource
-            web_report_access="Web,RepDash",  # Creates both page and dashboard
+            web_report_access___web="1",
+            web_report_access___repdash="1",
             # ADRC study resources
-            study_selections="P30,AffiliatedStudy",
             p30_naccid_enroll_access_level="ViewAccess",
             p30_clin_forms_access_level="SubmitAudit",
             # CLARiTI study resources
-            affiliated_study="CLARiTI",
             cl_clin_forms_access_level="ViewAccess",
             cl_pay_access_level="ViewAccess",
             cl_ror_access_level="ViewAccess",

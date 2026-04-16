@@ -14,12 +14,15 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterError, ParameterStore
 from notifications.email import EmailClient, create_ses_client
-from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from redcap_api.redcap_connection import REDCapConnection, REDCapConnectionError
+from redcap_api.redcap_parameter_store import REDCapParameters
+from redcap_api.redcap_project import REDCapProject
 from users.csv_export import export_errors_to_csv
 from users.event_models import UserEventCollector
+from users.nacc_directory import get_directory_field_names
 from yaml.representer import RepresenterError
 
-from directory_app.main import run
+from directory_app.main import filter_approved_records, run
 
 log = logging.getLogger(__name__)
 
@@ -65,15 +68,18 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
             raise GearExecutionError("No parameter path")
 
         try:
-            report_parameters = parameter_store.get_redcap_report_parameters(
-                param_path=param_path
+            params = parameter_store.get_parameters(
+                param_type=REDCapParameters, parameter_path=param_path
             )
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
         try:
-            directory_proxy = REDCapReportConnection.create_from(report_parameters)
-            user_report = directory_proxy.get_report_records()
+            connection = REDCapConnection.create_from(params)
+            project = REDCapProject.create(connection)
+            records = project.export_records(fields=get_directory_field_names())
+            assert isinstance(records, list)
+            user_report = filter_approved_records(records)
         except REDCapConnectionError as error:
             raise GearExecutionError(
                 f"Failed to pull users from directory: {error.message}"
