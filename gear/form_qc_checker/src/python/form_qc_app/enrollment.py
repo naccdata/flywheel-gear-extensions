@@ -24,6 +24,7 @@ from keys.keys import DefaultValues
 from nacc_common.data_identification import (
     DataIdentification,
 )
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -144,9 +145,12 @@ class EnrollmentFormVisitor(CSVVisitor):
                 empty_fields.add(field)
                 found_all = False
 
+        row_w_module = row.copy()
+        row_w_module[FieldNames.MODULE] = DefaultValues.ENROLLMENT_MODULE
+
         if not found_all:
             visit_keys = DataIdentification.from_form_record_safe(
-                record=row, date_field=self.__date_field
+                record=row_w_module, date_field=self.__date_field
             )
             self.__error_writer.write(
                 empty_field_error(
@@ -157,7 +161,7 @@ class EnrollmentFormVisitor(CSVVisitor):
             )
             if self.__validator:
                 self.__processor.update_visit_error_log(
-                    input_record=row, qc_passed=False, reset_qc_metadata="ALL"
+                    input_record=row_w_module, qc_passed=False, reset_qc_metadata="ALL"
                 )
             return False
 
@@ -167,7 +171,7 @@ class EnrollmentFormVisitor(CSVVisitor):
                 record=row, line_number=line_num
             )
             self.__processor.update_visit_error_log(
-                input_record=row, qc_passed=valid, reset_qc_metadata="ALL"
+                input_record=row_w_module, qc_passed=valid, reset_qc_metadata="ALL"
             )
 
         if valid and self.__output_stream:
