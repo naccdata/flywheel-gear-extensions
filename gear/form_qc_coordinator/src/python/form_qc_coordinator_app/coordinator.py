@@ -138,6 +138,7 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
+        visitnum: Optional[str],
         status: str,
         error_obj: Optional[FileError] = None,
     ):
@@ -149,6 +150,7 @@ class QCCoordinator:
             visit_file: FileEntry object for the visits file
             ptid: PTID
             visitdate: visit date
+            visitnum (optional): visit number (if applicable)
             status: QC status
             error_obj (optional): FileError object with failure info
         """
@@ -193,6 +195,7 @@ class QCCoordinator:
             module=self.__module,
             ptid=ptid,
             visitdate=visitdate,
+            visitnum=visitnum,
             status=status,
             gear_name=gear_name,
             errors=error_writer.errors(),
@@ -205,6 +208,7 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
+        visitnum: Optional[str],
         status: QCStatus,
         qc_gear_name: str,
         error_obj: Optional[FileError] = None,
@@ -219,6 +223,7 @@ class QCCoordinator:
             visit_file: FileEntry object for the visits file
             ptid: PTID
             visitdate: visit date
+            visitnum (optional): visit number (if applicable)
             status: QC status
             qc_gear_name: QC gear name to reset metadata
             error_obj (optional): FileError object with failure info
@@ -273,6 +278,7 @@ class QCCoordinator:
             module=module,
             ptid=ptid,
             visitdate=visitdate,
+            visitnum=visitnum,
             status=status,
             gear_name=self.__metadata.name,  # type: ignore
             errors=error_writer.errors(),
@@ -285,6 +291,7 @@ class QCCoordinator:
         module: str,
         ptid: str,
         visitdate: str,
+        visitnum: Optional[str] = None,
         status: str,
         gear_name: str,
         errors: FileErrorList,
@@ -297,6 +304,7 @@ class QCCoordinator:
             ptid: PTID
             visitdate: visit date
             status: QC status
+            visitnum (optional): visit number (if applicable)
             gear_name: QC coordinator gear name
             errors: error object with failure info
             reset_gears (optional): list of gear names to reset QC metadata
@@ -308,6 +316,7 @@ class QCCoordinator:
         data_id = DataIdentification.from_visit_metadata(
             ptid=ptid,
             date=visitdate,
+            visitnum=visitnum,
             module=module,
         )
 
@@ -459,7 +468,7 @@ class QCCoordinator:
             visit_file: Flywheel file object for the visit
             visitdate: visit date
             error_obj: error metadata to report
-            visitnum: visit number
+            visitnum: visit number (if applicable)
         """
 
         # set the first failed visit for this run
@@ -479,6 +488,7 @@ class QCCoordinator:
             error_obj=error_obj,
             ptid=ptid,
             visitdate=visitdate,
+            visitnum=visitnum,
             status="FAIL",
         )
 
@@ -551,7 +561,7 @@ class QCCoordinator:
             error_obj = system_error(
                 message=f"Error retrieving file {visit['file.name']}: {error}",
                 visit_keys=DataIdentification.from_visit_metadata(
-                    ptid=ptid, visitnum=visitnum, date=visitdate
+                    ptid=ptid, visitnum=visitnum, date=visitdate, module=self.__module
                 ),
             )
             error_obj.timestamp = (datetime.now()).strftime(DEFAULT_DATE_TIME_FORMAT)
@@ -559,6 +569,7 @@ class QCCoordinator:
                 module=self.__module,
                 ptid=ptid,
                 visitdate=visitdate,
+                visitnum=visitnum,
                 status="FAIL",
                 gear_name=self.__metadata.name,  # type: ignore
                 errors=FileErrorList([error_obj]),
@@ -618,7 +629,11 @@ class QCCoordinator:
                     value=self.__module,
                     error_code=SysErrorCodes.UDS_NOT_APPROVED,
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate, naccid=naccid
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
+                        naccid=naccid,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -670,6 +685,7 @@ class QCCoordinator:
                 ptid=ptid,
                 visitnum=visitnum,
                 date=visitdate,
+                module=module,
                 naccid=visit_info.get(naccid_key),
             ),
         )
@@ -680,6 +696,7 @@ class QCCoordinator:
             error_obj=error_obj,
             ptid=ptid,
             visitdate=visitdate,
+            visitnum=visitnum,
             qc_gear_name=self.__qc_gear_info.gear_name,
             status="FAIL",
         )
@@ -815,7 +832,10 @@ class QCCoordinator:
                 error_obj = system_error(
                     message=f"Failed to trigger gear {qc_gear_name}",
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -836,7 +856,10 @@ class QCCoordinator:
                 error_obj = system_error(
                     message=f"Errors occurred while running gear {qc_gear_name}",
                     visit_keys=DataIdentification.from_visit_metadata(
-                        ptid=ptid, visitnum=visitnum, date=visitdate
+                        ptid=ptid,
+                        visitnum=visitnum,
+                        date=visitdate,
+                        module=self.__module,
                     ),
                 )
                 self.__update_visit_metadata_on_failure(
@@ -849,7 +872,11 @@ class QCCoordinator:
                 continue
 
             self.__update_qc_error_metadata(
-                visit_file=visit_file, ptid=ptid, visitdate=visitdate, status="PASS"
+                visit_file=visit_file,
+                ptid=ptid,
+                visitdate=visitdate,
+                visitnum=visitnum,
+                status="PASS",
             )
 
             qc_passed = self.__passed_qc_checks(visit_file, qc_gear_name)
