@@ -482,6 +482,12 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
+
+        # Get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
+
         if not self.__naccid_visit(row=row, line_num=line_num):
             return False
 
@@ -583,6 +589,11 @@ class NewEnrollmentVisitor(CSVVisitor):
         Returns:
           True if the row is a valid enrollment. False, otherwise.
         """
+        # get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
+
         if not self.__validator.check(row, line_num):
             return False
 
@@ -711,6 +722,11 @@ class ProvisioningVisitor(CSVVisitor):
 
         # processing a new row, clear previous errors if any
         self.__error_writer.clear()
+
+        # get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
 
         if not self.__validator.check(row=row, line_number=line_num):
             update_record_level_error_log(
