@@ -145,12 +145,11 @@ class EnrollmentFormVisitor(CSVVisitor):
                 empty_fields.add(field)
                 found_all = False
 
-        row_w_module = row.copy()
-        row_w_module[FieldNames.MODULE] = DefaultValues.ENROLLMENT_MODULE
+        row[FieldNames.MODULE] = DefaultValues.ENROLLMENT_MODULE
 
         if not found_all:
             visit_keys = DataIdentification.from_form_record_safe(
-                record=row_w_module, date_field=self.__date_field
+                record=row, date_field=self.__date_field
             )
             self.__error_writer.write(
                 empty_field_error(
@@ -161,7 +160,7 @@ class EnrollmentFormVisitor(CSVVisitor):
             )
             if self.__validator:
                 self.__processor.update_visit_error_log(
-                    input_record=row_w_module, qc_passed=False, reset_qc_metadata="ALL"
+                    input_record=row, qc_passed=False, reset_qc_metadata="ALL"
                 )
             return False
 
@@ -171,10 +170,13 @@ class EnrollmentFormVisitor(CSVVisitor):
                 record=row, line_number=line_num
             )
             self.__processor.update_visit_error_log(
-                input_record=row_w_module, qc_passed=valid, reset_qc_metadata="ALL"
+                input_record=row, qc_passed=valid, reset_qc_metadata="ALL"
             )
 
         if valid and self.__output_stream:
+            # for QC passed records
+            # record the row number from the input file and write to output
+            row[FieldNames.ROW_NUMBER] = line_num
             writer = self.__get_output_writer()
             writer.write(row)
             self.__valid_rows += 1
@@ -327,9 +329,8 @@ class CSVFileProcessor(FileProcessor):
                 clear_errors=True,
             )
 
-            # If only subset of records passed validation,
-            # write those to a separate output file and upload to Flywheel project
-            if not success and enrl_visitor.get_valid_record_count() > 0:
+            # Write the records passed validation to a separate output file
+            if enrl_visitor.get_valid_record_count() > 0:
                 (basename, extension) = os.path.splitext(self.__input.filename)
                 out_filename = f"{basename}_{DefaultValues.PROV_SUFFIX}{extension}"
                 file_spec = FileSpec(
