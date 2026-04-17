@@ -84,7 +84,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             )
 
         if self.__file_input.has_qc_errors(gear_name=DefaultValues.QC_GEAR):
-            log.error("input file %s has QC errors", self.__file_input.filename)
+            log.error("Input file %s has QC errors", self.__file_input.filename)
             return
 
         parent_project = self.__file_input.get_parent_project(self.proxy)

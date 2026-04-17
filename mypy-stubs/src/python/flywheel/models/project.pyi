@@ -13,7 +13,10 @@ from .roles_role_assignment import RolesRoleAssignment
 
 class Project:
 
-    def __init__(self, label: str, parents: Optional[ProjectParents] = None, group: Optional[str] = None) -> None:
+    def __init__(self,
+                 label: str,
+                 parents: Optional[ProjectParents] = None,
+                 group: Optional[str] = None) -> None:
         ...
 
     @property
@@ -47,7 +50,7 @@ class Project:
     @property
     def info(self) -> Dict[str, Any]:
         ...
-    
+
     @info.setter
     def info(self, value: Dict[str, Any]) -> None:
         ...
@@ -95,4 +98,7 @@ class Project:
         ...
 
     def add_subject(self, label: str) -> Subject:
+        ...
+
+    def delete_file(self, file_name, **kwargs):
         ...

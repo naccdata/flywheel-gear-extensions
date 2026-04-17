@@ -1309,7 +1309,7 @@ class ProjectAdaptor:
             bool: True if file successfully deleted
         """
         try:
-            self.delete_file(filename)
+            self._project.delete_file(filename)
         except ApiException as error:
             log.error(
                 f"Failed to delete file {filename} from "
