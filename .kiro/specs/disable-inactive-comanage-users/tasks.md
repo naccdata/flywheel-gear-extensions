@@ -8,28 +8,28 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
 
 ## Tasks
 
-- [ ] 1. Add `is_suspended` method to `RegistryPerson` and dry-run support to `UserRegistry`
-  - [ ] 1.1 Add `is_suspended()` method to `RegistryPerson` in `common/src/python/users/user_registry.py`
+- [x] 1. Add `is_suspended` method to `RegistryPerson` and dry-run support to `UserRegistry`
+  - [x] 1.1 Add `is_suspended()` method to `RegistryPerson` in `common/src/python/users/user_registry.py`
     - Add method that returns `True` when `CoPerson.status == "S"`, `False` otherwise
     - Follow the same pattern as the existing `is_active()` method
     - _Requirements: 4.1_
-  - [ ] 1.2 Add `dry_run` parameter to `UserRegistry.__init__` in `common/src/python/users/user_registry.py`
+  - [x] 1.2 Add `dry_run` parameter to `UserRegistry.__init__` in `common/src/python/users/user_registry.py`
     - Add `dry_run: bool = False` parameter to the constructor
     - Store as `self.__dry_run` private attribute
     - Add a `dry_run` property for read access
     - _Requirements: 5.1, 5.2_
-  - [ ]* 1.3 Write unit tests for `RegistryPerson.is_suspended()` in `common/test/python/user_test/test_registry_person_status.py`
+  - [x]* 1.3 Write unit tests for `RegistryPerson.is_suspended()` in `common/test/python/user_test/test_registry_person_status.py`
     - Test returns `True` for status `"S"`
     - Test returns `False` for status `"A"`, `"D"`, and `None`
     - Follow existing test patterns in `test_registry_person_status.py`
     - _Requirements: 4.1_
 
-- [ ] 2. Implement `UserRegistry` status update methods
-  - [ ] 2.1 Implement private `__get_person_message` method in `UserRegistry`
+- [x] 2. Implement `UserRegistry` status update methods
+  - [x] 2.1 Implement private `__get_person_message` method in `UserRegistry`
     - Retrieve the full `CoPersonMessage` for a given registry ID using `DefaultApi.get_co_person(coid, identifier=registry_id)`
     - Raise `RegistryError` if no record is found or the API call fails (`ApiException`)
     - _Requirements: 6.1, 1.1, 2.1_
-  - [ ] 2.2 Implement private `__update_status` method in `UserRegistry`
+  - [x] 2.2 Implement private `__update_status` method in `UserRegistry`
     - Accept `registry_id: str` and `target_status: str` parameters
     - Raise `RegistryError` if `registry_id` is `None` or empty
     - Call `__get_person_message` to GET the full `CoPersonMessage`
@@ -38,15 +38,15 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - In normal mode: call `DefaultApi.update_co_person(coid, identifier=registry_id, co_person_message=modified_message)`
     - Raise `RegistryError` wrapping `ApiException` if PUT fails
     - _Requirements: 1.1, 1.2, 2.1, 2.2, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3_
-  - [ ] 2.3 Implement public `suspend` method in `UserRegistry`
+  - [x] 2.3 Implement public `suspend` method in `UserRegistry`
     - Call `__update_status(registry_id, "S")`
     - Raise `RegistryError` if registry_id is missing or API calls fail
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
-  - [ ] 2.4 Implement public `re_enable` method in `UserRegistry`
+  - [x] 2.4 Implement public `re_enable` method in `UserRegistry`
     - Call `__update_status(registry_id, "A")`
     - Raise `RegistryError` if registry_id is missing or API calls fail
     - _Requirements: 2.1, 2.2, 2.3_
-  - [ ] 2.5 Write unit tests for `UserRegistry.suspend` and `re_enable`
+  - [x] 2.5 Write unit tests for `UserRegistry.suspend` and `re_enable`
     - Test suspend with valid registry ID calls GET then PUT with status `"S"`
     - Test re_enable with valid registry ID calls GET then PUT with status `"A"`
     - Test suspend with no registry ID raises `RegistryError`
@@ -55,7 +55,7 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Test re_enable when GET fails raises `RegistryError`
     - Add tests to a new file `common/test/python/user_test/test_user_registry_update.py`
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3_
-  - [ ]* 2.6 Write property test for status update round-trip preservation
+  - [x]* 2.6 Write property test for status update round-trip preservation
     - **Property 1: Status update round-trip preserves all non-status fields**
     - **Validates: Requirements 1.1, 1.2, 2.1, 2.2, 6.1, 6.2, 6.3, 6.4**
     - Generate random `CoPersonMessage` objects using the existing `coperson_message_strategy` from `conftest.py`
@@ -65,7 +65,7 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Assert all fields except `CoPerson.status` are identical between original and updated messages
     - Add to a new file `common/test/python/user_test/test_property_status_roundtrip.py`
     - Use `@settings(max_examples=100)` per project convention
-  - [ ]* 2.7 Write property test for dry-run mode
+  - [x]* 2.7 Write property test for dry-run mode
     - **Property 4: Dry-run mode skips writes but performs reads**
     - **Validates: Requirements 5.1, 5.2, 5.3**
     - Generate random registry IDs and target statuses (`"S"` or `"A"`)
@@ -74,11 +74,11 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Add to a new file `common/test/python/user_test/test_property_dry_run.py`
     - Use `@settings(max_examples=100)` per project convention
 
-- [ ] 3. Checkpoint - Ensure all tests pass
+- [x] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Extend `InactiveUserProcess` to suspend in COmanage
-  - [ ] 4.1 Modify `InactiveUserProcess.visit` in `common/src/python/users/user_processes.py`
+- [x] 4. Extend `InactiveUserProcess` to suspend in COmanage
+  - [x] 4.1 Modify `InactiveUserProcess.visit` in `common/src/python/users/user_processes.py`
     - After the existing Flywheel disable logic, add COmanage suspension logic
     - Look up the user in COmanage by email using `self.__env.user_registry.get(email=entry.email)`
     - If no matching `RegistryPerson` found, log info and continue without error
@@ -87,7 +87,7 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - On `RegistryError`, log the error and collect an error event with a message identifying COmanage and the error details
     - Flywheel disable and COmanage suspend must be independent — failure of one does not prevent the other
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
-  - [ ] 4.2 Write unit tests for `InactiveUserProcess` COmanage suspension
+  - [x] 4.2 Write unit tests for `InactiveUserProcess` COmanage suspension
     - Test that COmanage suspend is attempted after Flywheel disable
     - Test that COmanage suspend is attempted even when Flywheel disable fails
     - Test that no error when no COmanage record found for user email
@@ -95,7 +95,7 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Test that error event is collected when COmanage suspend fails
     - Add tests to `common/test/python/user_test/test_inactive_user_process.py`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
-  - [ ]* 4.3 Write property test for Flywheel/COmanage independence
+  - [x]* 4.3 Write property test for Flywheel/COmanage independence
     - **Property 2: Flywheel disable and COmanage suspend are independent**
     - **Validates: Requirements 3.1, 3.3, 3.4**
     - Generate random inactive `UserEntry` objects and random Flywheel user lists
@@ -104,15 +104,15 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Add to a new file `common/test/python/user_test/test_property_service_independence.py`
     - Use `@settings(max_examples=100)` per project convention
 
-- [ ] 5. Extend `ActiveUserProcess` to re-enable suspended users
-  - [ ] 5.1 Modify `ActiveUserProcess.visit` in `common/src/python/users/user_processes.py`
+- [x] 5. Extend `ActiveUserProcess` to re-enable suspended users
+  - [x] 5.1 Modify `ActiveUserProcess.visit` in `common/src/python/users/user_processes.py`
     - After the email lookup (`person_list = self.__env.user_registry.get(email=entry.auth_email)`) returns results, check if any `RegistryPerson` in the list has `is_suspended() == True`
     - If a suspended person is found, call `self.__env.user_registry.re_enable(registry_id)` instead of routing to claimed/unclaimed queues or creating a new record
     - On success, collect a `UserProcessEvent` with `EventType.SUCCESS`, `EventCategory.USER_DISABLED`, and message `"User {registry_id} re-enabled in COmanage"`
     - On `RegistryError`, collect an error event with failure details and continue processing
     - Only re-enable persons matched by the same email address (already guaranteed by the `get(email=...)` lookup)
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ] 5.2 Write unit tests for `ActiveUserProcess` re-enable logic
+  - [x] 5.2 Write unit tests for `ActiveUserProcess` re-enable logic
     - Test that a suspended `RegistryPerson` matched by email is re-enabled
     - Test that `add` is not called when a suspended match exists
     - Test that success event is collected on re-enable
@@ -120,7 +120,7 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Test that active (non-suspended) persons follow the existing claimed/unclaimed flow
     - Add tests to a new file `common/test/python/user_test/test_active_user_reenable.py`
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [ ]* 5.3 Write property test for re-enable instead of duplicate creation
+  - [x]* 5.3 Write property test for re-enable instead of duplicate creation
     - **Property 3: Active process re-enables suspended users instead of creating duplicates**
     - **Validates: Requirements 4.1, 4.2**
     - Generate random `ActiveUserEntry` objects and matching suspended `RegistryPerson` objects
@@ -128,13 +128,13 @@ Sub-agents executing tasks should use the `kiro-pants-power` MCP tools (`pants_f
     - Add to a new file `common/test/python/user_test/test_property_reenable_no_duplicate.py`
     - Use `@settings(max_examples=100)` per project convention
 
-- [ ] 6. Wire dry-run flag in gear entry point
-  - [ ] 6.1 Update `UserRegistry` constructor call in `gear/user_management/src/python/user_app/run.py`
+- [x] 6. Wire dry-run flag in gear entry point
+  - [x] 6.1 Update `UserRegistry` constructor call in `gear/user_management/src/python/user_app/run.py`
     - Pass `dry_run=self.proxy.dry_run` to the `UserRegistry` constructor in the `UserManagementVisitor.run` method
     - This ensures COmanage operations respect the same dry-run mode as Flywheel operations
     - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 7. Final checkpoint - Ensure all tests pass
+- [x] 7. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
