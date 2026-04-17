@@ -1,6 +1,7 @@
 """Class for accessing internal or external data sources."""
 
 import logging
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from centers.nacc_group import NACCGroup
@@ -10,7 +11,7 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, Proje
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
 from nacc_form_validator.datastore import Datastore
-from rxnav.rxnav_connection import RxCuiConnection, RxCuiStatus
+from rxnav.rxnav_connection import RxCuiConnection
 
 log = logging.getLogger(__name__)
 
@@ -543,17 +544,18 @@ class DatastoreHelper(Datastore):
             acq_id=uds_ivp_record["file.parents.acquisition"],
         )
 
-    def is_valid_rxcui(self, drugid: int) -> bool:
+    def is_valid_rxcui(self, drugid: int, target_date: Optional[date] = None) -> bool:
         """Overriding the abstract method, check whether a given drug ID is
         valid RXCUI.
 
         Args:
             drugid: provided drug ID (rxcui to validate)
+            target_date: target date to check against
 
         Returns:
             bool: True if provided drug ID is valid, else False
         """
-        return RxCuiConnection.get_rxcui_status(drugid) == RxCuiStatus.ACTIVE
+        return RxCuiConnection.is_rxcui_active(drugid, target_date)
 
     def is_valid_adcid(self, adcid: int, own: bool) -> bool:
         """Overriding the abstract method to check whether a given ADCID is
