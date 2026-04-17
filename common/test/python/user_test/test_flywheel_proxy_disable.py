@@ -13,6 +13,22 @@ from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+# Fast email strategy: avoids the slow st.emails() for property tests
+# where the actual email content doesn't matter, only its presence.
+_fast_email = st.builds(
+    lambda user, domain: f"{user}@{domain}.com",
+    st.text(
+        alphabet=st.characters(whitelist_categories=["Ll"]),
+        min_size=1,
+        max_size=8,
+    ),
+    st.text(
+        alphabet=st.characters(whitelist_categories=["Ll"]),
+        min_size=1,
+        max_size=8,
+    ),
+)
+
 
 @st.composite
 def mock_user_strategy(draw):
@@ -24,7 +40,7 @@ def mock_user_strategy(draw):
             alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")),
         )
     )
-    email = draw(st.emails())
+    email = draw(_fast_email)
     user = Mock(spec=User)
     user.id = user_id
     user.email = email
@@ -33,11 +49,7 @@ def mock_user_strategy(draw):
 
 def _build_proxy(mock_client: Mock, dry_run: bool) -> FlywheelProxy:
     """Build a FlywheelProxy with a mock client and dry_run setting."""
-    proxy = FlywheelProxy.__new__(FlywheelProxy)
-    # Access the name-mangled attributes directly
-    object.__setattr__(proxy, "_FlywheelProxy__fw", mock_client)
-    object.__setattr__(proxy, "_FlywheelProxy__dry_run", dry_run)
-    return proxy
+    return FlywheelProxy(client=mock_client, dry_run=dry_run)
 
 
 class TestDisableUserDryRunProperty:
