@@ -8,7 +8,6 @@ Covers:
 from io import StringIO
 from typing import Any, Dict, Optional
 
-import pytest
 from form_qc_app.enrollment import EnrollmentFormVisitor
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -68,6 +67,7 @@ class FailingRecordValidator:
 
 REQUIRED_FIELDS = {"ptid", "adcid", "frmdate_enrl"}
 HEADER = ["ptid", "adcid", "frmdate_enrl"]
+OUTPUT_HEADER = ["ptid", "adcid", "frmdate_enrl", "module", "row_number"]
 
 
 def _make_visitor(
@@ -100,10 +100,9 @@ def _make_row(**overrides: str) -> Dict[str, str]:
     return row
 
 
-def test_visit_row_raises_on_extra_fields_in_output():
-    """When a row passes validation and is written to the output stream, the
-    CSVWriter raises ValueError because 'module' and 'row_number' are added to
-    the row dict but are not in the header fieldnames."""
+def test_visit_row_adds_extra_fields_in_output():
+    """When a row passes validation and is written to the output stream,
+    'module' and 'row_number' are added to the output file."""
     output_stream = StringIO()
     visitor, _, _ = _make_visitor(
         validator=StubRecordValidator(),
@@ -113,8 +112,9 @@ def test_visit_row_raises_on_extra_fields_in_output():
     assert visitor.visit_header(HEADER), "Header should be accepted"
 
     row = _make_row()
-    with pytest.raises(ValueError, match="dict contains fields not in fieldnames"):
-        visitor.visit_row(row=row, line_num=1)
+    assert visitor.visit_row(row=row, line_num=1)
+
+    assert output_stream.getvalue().startswith(",".join(OUTPUT_HEADER))
 
 
 def test_visit_row_mutates_row_with_module_on_success():
@@ -127,7 +127,7 @@ def test_visit_row_mutates_row_with_module_on_success():
     row = _make_row()
     original_keys = set(row.keys())
 
-    # Without an output stream the write is skipped, so no ValueError
+    # Without an output stream the write is skipped
     visitor.visit_row(row=row, line_num=1)
 
     assert FieldNames.MODULE in row, (

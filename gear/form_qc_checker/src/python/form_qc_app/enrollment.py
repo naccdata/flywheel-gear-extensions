@@ -87,7 +87,7 @@ class EnrollmentFormVisitor(CSVVisitor):
         if not self.__output_writer:
             assert self.__output_stream, "Output stream must be provided"
             assert self.__header, "CSV header must be set before adding any data rows"
-            output_cols = self.__header
+            output_cols = self.__header.copy()
             output_cols.append(FieldNames.MODULE)
             output_cols.append(FieldNames.ROW_NUMBER)
             self.__output_writer = CSVWriter(
