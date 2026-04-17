@@ -48,7 +48,7 @@ def test_run_api_exception(mock_scraper):
     from flywheel.rest import ApiException
 
     # Make scraper raise an ApiException
-    mock_scraper.scrape_events.side_effect = ApiException("API error")
+    mock_scraper.scrape_events.side_effect = ApiException(reason="API error")
 
     with pytest.raises(ApiException, match="API error"):
         run(scraper=mock_scraper)
