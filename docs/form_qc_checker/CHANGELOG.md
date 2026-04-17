@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.8.1
+
+* Updates `nacc-form-validator` to `0.6.4` and updates to support `rxcui` validation to check against a target date
+
 ## 1.8.0
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
   
