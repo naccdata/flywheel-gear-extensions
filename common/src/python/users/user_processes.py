@@ -4,9 +4,11 @@ from collections import defaultdict, deque
 from datetime import datetime
 from typing import Dict, Generic, List, Optional, TypeVar
 
+from centers.center_group import CenterError, CenterGroup
 from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError
+from redcap_api.redcap_connection import REDCapConnectionError
 
 from users.authorization_visitor import (
     CenterAuthorizationVisitor,
@@ -21,6 +23,8 @@ from users.event_models import (
     UserProcessEvent,
 )
 from users.failure_analyzer import FailureAnalyzer
+from users.redcap_disable_visitor import REDCapDisableVisitor
+from users.redcap_user_operations import unassign_user_role
 from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
 from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
@@ -135,15 +139,270 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         super().__init__(collector)
         self.__env = environment
 
+    def __resolve_redcap_username(
+        self,
+        entry: UserEntry,
+        auth_email: Optional[str],
+    ) -> str:
+        """Resolve the REDCap username for role unassignment.
+
+        Priority: entry.auth_email > COmanage auth_email > directory email.
+
+        Args:
+            entry: The inactive user entry
+            auth_email: The resolved auth_email from COmanage lookup
+
+        Returns:
+            The resolved username string
+        """
+        if entry.auth_email:
+            return entry.auth_email
+        if auth_email:
+            return auth_email
+        return entry.email
+
+    def __unassign_redcap_project(
+        self,
+        center_group: CenterGroup,
+        pid: int,
+        username: str,
+        user_context: UserContext,
+    ) -> None:
+        """Attempt to unassign a user's role from a single REDCap project.
+
+        Args:
+            center_group: The center group providing REDCap project access
+            pid: The REDCap project ID
+            username: The REDCap username to unassign
+            user_context: The user context for event collection
+        """
+        redcap_project = center_group.get_redcap_project(pid)
+        if not redcap_project:
+            log.warning(
+                "REDCap project credentials unavailable for PID %s, skipping",
+                pid,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=f"REDCap project credentials unavailable for PID {pid}",
+            )
+            self.collector.collect(error_event)
+            return
+
+        title = redcap_project.title
+
+        if self.__env.proxy.dry_run:
+            log.info(
+                "DRY RUN: Would unassign role for %s in REDCap project %s (PID %s)",
+                username,
+                title,
+                pid,
+            )
+            success_event = UserProcessEvent(
+                event_type=EventType.SUCCESS,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"DRY RUN: Would unassign role for {username} "
+                    f"in REDCap project {title} (PID {pid})"
+                ),
+            )
+            self.collector.collect(success_event)
+            return
+
+        try:
+            unassign_user_role(redcap_project, username)
+            log.info(
+                "unassigned role for %s in REDCap project %s (PID %s)",
+                username,
+                title,
+                pid,
+            )
+            success_event = UserProcessEvent(
+                event_type=EventType.SUCCESS,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Unassigned role for {username} "
+                    f"in REDCap project {title} (PID {pid})"
+                ),
+            )
+            self.collector.collect(success_event)
+        except REDCapConnectionError as error:
+            log.error(
+                "failed to unassign role for %s in REDCap project %s (PID %s): %s",
+                username,
+                title,
+                pid,
+                error,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Failed to unassign role for {username} "
+                    f"in REDCap project {title} (PID {pid}): {error}"
+                ),
+            )
+            self.collector.collect(error_event)
+
+    def __disable_in_redcap(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+        auth_email: Optional[str],
+    ) -> None:
+        """Step 3: Remove user roles from all REDCap projects.
+
+        Iterates over all centers, finds REDCap projects via the visitor
+        pattern, and unassigns the user's role from each project.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+            auth_email: The resolved auth_email from COmanage lookup
+                in Step 2 (if found)
+        """
+        username = self.__resolve_redcap_username(entry, auth_email)
+        center_map = self.__env.admin_group.get_center_map()
+
+        for adcid in center_map.get_adcids():
+            center_group = self.__env.admin_group.get_center(adcid)
+            if not center_group:
+                log.warning(
+                    "could not retrieve center group for ADCID %s, skipping",
+                    adcid,
+                )
+                continue
+
+            project_info = center_group.get_project_info()
+            visitor = REDCapDisableVisitor()
+            project_info.apply(visitor)
+
+            for pid in visitor.redcap_pids:
+                self.__unassign_redcap_project(
+                    center_group, pid, username, user_context
+                )
+
+    def __disable_in_flywheel(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+    ) -> None:
+        """Step 1: Disable matching Flywheel users.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+        """
+        users = self.__env.proxy.find_user_by_email(entry.email)
+        if not users:
+            log.info("no matching Flywheel users found for %s", entry.email)
+            return
+
+        for user in users:
+            try:
+                self.__env.proxy.disable_user(user)
+                log.info(
+                    "disabled user %s (%s)",
+                    user.id,
+                    entry.email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.FLYWHEEL_USER_DISABLED,
+                    user_context=user_context,
+                    message=f"User {user.id} disabled in Flywheel",
+                )
+                self.collector.collect(success_event)
+            except FlywheelError as error:
+                log.error(
+                    "failed to disable user %s (%s): %s",
+                    user.id,
+                    entry.email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.FLYWHEEL_ERROR,
+                    user_context=user_context,
+                    message=f"Failed to disable user {user.id}: {error}",
+                )
+                self.collector.collect(error_event)
+
+    def __suspend_in_comanage(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+        person_list: Optional[list[RegistryPerson]],
+    ) -> None:
+        """Step 4: Suspend matching COmanage registry persons.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+            person_list: The list of registry persons from Step 2
+        """
+        if not person_list:
+            log.info("no matching COmanage registry persons for %s", entry.email)
+            return
+
+        for person in person_list:
+            registry_id = person.registry_id()
+            if not registry_id:
+                continue
+            if person.is_suspended():
+                log.info(
+                    "user %s (%s) already suspended in COmanage, skipping",
+                    registry_id,
+                    entry.email,
+                )
+                continue
+            try:
+                self.__env.user_registry.suspend(registry_id)
+                log.info(
+                    "suspended user %s (%s) in COmanage",
+                    registry_id,
+                    entry.email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.COMANAGE_USER_SUSPENDED,
+                    user_context=user_context,
+                    message=f"User {registry_id} suspended in COmanage",
+                )
+                self.collector.collect(success_event)
+            except RegistryError as error:
+                log.error(
+                    "failed to suspend user %s (%s) in COmanage: %s",
+                    registry_id,
+                    entry.email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.COMANAGE_USER_SUSPENDED,
+                    user_context=user_context,
+                    message=(
+                        f"Failed to suspend user {registry_id} in COmanage: {error}"
+                    ),
+                )
+                self.collector.collect(error_event)
+
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
 
-        1. Looks up matching Flywheel users by email and disables each one.
-        2. Looks up matching COmanage registry persons by email and suspends
-           each one.
+        Processes the entry through four independent steps:
+        1. Disable in Flywheel
+        2. COmanage lookup (resolve auth_email)
+        3. REDCap role removal
+        4. COmanage suspend
 
-        The two operations are independent — failure of either does not
-        prevent the other.
+        Each step is wrapped in its own try/except so failure of one
+        does not block the others.
 
         Args:
           entry: the inactive user entry
@@ -158,86 +417,55 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         )
 
         # Step 1: Disable in Flywheel
-        users = self.__env.proxy.find_user_by_email(entry.email)
-        if not users:
-            log.info("no matching Flywheel users found for %s", entry.email)
-        else:
-            for user in users:
-                try:
-                    self.__env.proxy.disable_user(user)
-                    log.info(
-                        "disabled user %s (%s)",
-                        user.id,
-                        entry.email,
-                    )
-                    success_event = UserProcessEvent(
-                        event_type=EventType.SUCCESS,
-                        category=EventCategory.USER_DISABLED,
-                        user_context=user_context,
-                        message=f"User {user.id} disabled in Flywheel",
-                    )
-                    self.collector.collect(success_event)
-                except FlywheelError as error:
-                    log.error(
-                        "failed to disable user %s (%s): %s",
-                        user.id,
-                        entry.email,
-                        error,
-                    )
-                    error_event = UserProcessEvent(
-                        event_type=EventType.ERROR,
-                        category=EventCategory.FLYWHEEL_ERROR,
-                        user_context=user_context,
-                        message=f"Failed to disable user {user.id}: {error}",
-                    )
-                    self.collector.collect(error_event)
+        try:
+            self.__disable_in_flywheel(entry, user_context)
+        except FlywheelError as error:
+            log.error(
+                "Step 1 (Flywheel disable) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
 
-        # Step 2: Suspend in COmanage
-        person_list = self.__env.user_registry.get(email=entry.email)
-        if not person_list:
-            log.info("no matching COmanage registry persons for %s", entry.email)
-        else:
-            for person in person_list:
-                registry_id = person.registry_id()
-                if not registry_id:
-                    continue
-                if person.is_suspended():
-                    log.info(
-                        "user %s (%s) already suspended in COmanage, skipping",
-                        registry_id,
-                        entry.email,
-                    )
-                    continue
-                try:
-                    self.__env.user_registry.suspend(registry_id)
-                    log.info(
-                        "suspended user %s (%s) in COmanage",
-                        registry_id,
-                        entry.email,
-                    )
-                    success_event = UserProcessEvent(
-                        event_type=EventType.SUCCESS,
-                        category=EventCategory.USER_DISABLED,
-                        user_context=user_context,
-                        message=f"User {registry_id} suspended in COmanage",
-                    )
-                    self.collector.collect(success_event)
-                except RegistryError as error:
-                    log.error(
-                        "failed to suspend user %s (%s) in COmanage: %s",
-                        registry_id,
-                        entry.email,
-                        error,
-                    )
-                    error_event = UserProcessEvent(
-                        event_type=EventType.ERROR,
-                        category=EventCategory.USER_DISABLED,
-                        user_context=user_context,
-                        message=(
-                            f"Failed to suspend user {registry_id} in COmanage: {error}"
-                        ),
-                    )
-                    self.collector.collect(error_event)
+        # Step 2: COmanage lookup
+        # (resolve auth_email for Step 3, person_list for Step 4)
+        auth_email: Optional[str] = None
+        person_list: Optional[list[RegistryPerson]] = None
+        try:
+            person_list = self.__env.user_registry.get(email=entry.email)
+            if not entry.auth_email and person_list:
+                first_person = person_list[0]
+                if first_person.email_address:
+                    auth_email = first_person.email_address.mail
+        except RegistryError as error:
+            log.error(
+                "Step 2 (COmanage lookup) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
+
+        # Step 3: REDCap role removal
+        try:
+            self.__disable_in_redcap(entry, user_context, auth_email)
+        except (REDCapConnectionError, CenterError) as error:
+            log.error(
+                "Step 3 (REDCap role removal) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
+
+        # Step 4: COmanage suspend
+        try:
+            self.__suspend_in_comanage(entry, user_context, person_list)
+        except RegistryError as error:
+            log.error(
+                "Step 4 (COmanage suspend) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Applies this process to the queue.

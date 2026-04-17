@@ -6,6 +6,7 @@ unit tests for COmanage suspension behavior.
 
 from unittest.mock import Mock, call
 
+from centers.center_info import CenterMapInfo
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from hypothesis import given, settings
@@ -89,7 +90,9 @@ class TestInactiveEntryProcessingProperty:
         mock_proxy = Mock(spec=FlywheelProxy)
         mock_proxy.find_user_by_email.return_value = fw_users
         mock_env.proxy = mock_proxy
+        mock_env.proxy.dry_run = False
         mock_env.user_registry.get.return_value = []
+        mock_env.admin_group.get_center_map.return_value = CenterMapInfo(centers={})
 
         collector = UserEventCollector()
         process = InactiveUserProcess(mock_env, collector)
@@ -125,8 +128,10 @@ def _build_mock_env() -> Mock:
     mock_env = Mock(spec=UserProcessEnvironment)
     mock_env.proxy = Mock(spec=FlywheelProxy)
     mock_env.proxy.find_user_by_email.return_value = []
+    mock_env.proxy.dry_run = False
     mock_env.user_registry = Mock(spec=UserRegistry)
     mock_env.user_registry.get.return_value = []
+    mock_env.admin_group.get_center_map.return_value = CenterMapInfo(centers={})
     return mock_env
 
 
@@ -236,7 +241,7 @@ class TestInactiveUserComanageSuspension:
 
         event = comanage_successes[0]
         assert event.message == "User NACC-003 suspended in COmanage"
-        assert event.category == EventCategory.USER_DISABLED.value
+        assert event.category == EventCategory.COMANAGE_USER_SUSPENDED.value
         assert event.event_type == EventType.SUCCESS.value
 
     def test_error_event_collected_when_comanage_suspend_fails(self) -> None:
@@ -263,7 +268,7 @@ class TestInactiveUserComanageSuspension:
         event = comanage_errors[0]
         assert "NACC-004" in event.message
         assert "COmanage" in event.message
-        assert event.category == EventCategory.USER_DISABLED.value
+        assert event.category == EventCategory.COMANAGE_USER_SUSPENDED.value
         assert event.event_type == EventType.ERROR.value
 
     def test_already_suspended_person_is_skipped(self) -> None:

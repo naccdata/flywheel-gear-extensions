@@ -21,7 +21,7 @@ from inputs.parameter_store import (
     ParameterStore,
 )
 from inputs.yaml import YAMLReadError, load_from_stream
-from notifications.email import EmailClient, create_ses_client
+from notifications.email import EmailClient, EmailSendError, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 from users.authorizations import AuthMap
@@ -31,7 +31,7 @@ from users.domain_config import (
     IdPDomainConfig,
     normalize_person_name,
 )
-from users.event_models import UserEventCollector
+from users.event_models import EventCategory, UserEventCollector
 from users.user_entry import UserEntry, UserEntryList
 from users.user_process_environment import NotificationModeType
 from users.user_processes import (
@@ -291,6 +291,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
                     "wrong-IdP detection will be disabled"
                 )
 
+            email_client = EmailClient(
+                client=create_ses_client(),
+                source=self.__email_source,
+            )
+
             try:
                 run(
                     user_queue=self.__get_user_queue(self.__user_filepath),
@@ -300,10 +305,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                             authorization_map=self.__get_auth_map(self.__auth_filepath),
                             notification_client=NotificationClient(
                                 configuration_set_name="user-creation-claims",
-                                email_client=EmailClient(
-                                    client=create_ses_client(),
-                                    source=self.__email_source,
-                                ),
+                                email_client=email_client,
                                 portal_url=self.__portal_url,
                                 mode=self.__notification_mode,
                             ),
@@ -326,6 +328,12 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 raise GearExecutionError(
                     f"Critical service failure - User registry error: {error}"
                 ) from error
+
+        # Send REDCap disable notification if any roles were removed
+        self.__send_redcap_disable_notification(
+            collector=collector,
+            email_client=email_client,
+        )
 
         if not collector.has_errors():
             log.info("User management completed successfully with no errors")
@@ -364,13 +372,77 @@ class UserManagementVisitor(GearExecutionEnvironment):
             context=context,
             collector=collector,
             error_filename=error_filename,
+            email_client=email_client,
         )
+
+    def __send_redcap_disable_notification(
+        self,
+        collector: UserEventCollector,
+        email_client: EmailClient,
+    ) -> None:
+        """Send a summary notification for REDCap role removals.
+
+        Queries the collector for REDCAP_USER_DISABLED success events
+        and sends a single email listing all affected users and projects.
+
+        Args:
+            collector: The event collector with REDCap disable events
+            email_client: The email client for sending notifications
+        """
+        if not self.__support_emails:
+            return
+
+        redcap_successes = [
+            e
+            for e in collector.get_events_for_category(
+                EventCategory.REDCAP_USER_DISABLED
+            )
+            if e.is_success()
+        ]
+        if not redcap_successes:
+            return
+
+        # Group by user email
+        by_user: dict[str, list[str]] = {}
+        for event in redcap_successes:
+            user_email = event.user_context.email
+            if user_email not in by_user:
+                by_user[user_email] = []
+            by_user[user_email].append(event.message)
+
+        # Build summary body
+        sections = []
+        for user_email, messages in by_user.items():
+            project_lines = "\n".join(f"  - {msg}" for msg in messages)
+            sections.append(f"{user_email}:\n{project_lines}")
+
+        body = (
+            "The following REDCap role removals were performed "
+            "for inactive users:\n\n"
+            + "\n\n".join(sections)
+            + "\n\nPlease manually suspend these users' "
+            "REDCap accounts."
+        )
+
+        try:
+            email_client.send_raw(
+                destinations=self.__support_emails,
+                subject="[REDCap] inactive users to suspend",
+                body=body,
+            )
+            log.info("Sent REDCap disable notification for %d user(s)", len(by_user))
+        except (ClientError, EmailSendError) as error:
+            log.error(
+                "Failed to send REDCap disable notification: %s",
+                error,
+            )
 
     def __send_error_notification(
         self,
         context: GearContext,
         collector: UserEventCollector,
         error_filename: str,
+        email_client: EmailClient,
     ) -> None:
         """Send simple error notification email.
 
@@ -378,6 +450,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             context: The gear context
             collector: The collector containing errors
             error_filename: The name of the error CSV file
+            email_client: The email client for sending notifications
 
         Raises:
             GearExecutionError: If email sending fails
@@ -387,11 +460,6 @@ class UserManagementVisitor(GearExecutionEnvironment):
             collector.error_count(),
         )
         try:
-            email_client = EmailClient(
-                client=create_ses_client(),
-                source=self.__email_source,
-            )
-
             # Get destination information
             destination_id = context.config.destination.get("id", "unknown")
 

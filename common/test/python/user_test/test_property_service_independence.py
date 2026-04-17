@@ -7,6 +7,7 @@ COmanage suspend are independent**
 
 from unittest.mock import Mock
 
+from centers.center_info import CenterMapInfo
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from hypothesis import given, settings
@@ -112,6 +113,7 @@ def test_flywheel_and_comanage_are_independent(
     mock_registry = Mock(spec=UserRegistry)
 
     mock_proxy.find_user_by_email.return_value = fw_users
+    mock_proxy.dry_run = False
     mock_registry.get.return_value = registry_persons
 
     if flywheel_fails and fw_users:
@@ -122,6 +124,7 @@ def test_flywheel_and_comanage_are_independent(
 
     mock_env.proxy = mock_proxy
     mock_env.user_registry = mock_registry
+    mock_env.admin_group.get_center_map.return_value = CenterMapInfo(centers={})
 
     collector = UserEventCollector()
     process = InactiveUserProcess(mock_env, collector)

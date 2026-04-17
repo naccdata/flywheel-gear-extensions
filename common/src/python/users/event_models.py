@@ -46,8 +46,10 @@ class EventCategory(Enum):
     FLYWHEEL_ERROR = "Flywheel Errors"
 
     # Disable/re-enable categories
-    USER_DISABLED = "User Disabled"
+    FLYWHEEL_USER_DISABLED = "Flywheel User Disabled"
+    COMANAGE_USER_SUSPENDED = "COmanage User Suspended"
     USER_RE_ENABLED = "User Re-Enabled"
+    REDCAP_USER_DISABLED = "REDCap User Disabled"
 
     # Near-miss categories
     DOMAIN_NEAR_MISS = "Domain Near-Miss"
