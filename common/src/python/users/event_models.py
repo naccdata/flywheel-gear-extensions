@@ -45,8 +45,9 @@ class EventCategory(Enum):
     DUPLICATE_USER_RECORDS = "Duplicate/Wrong User Records"
     FLYWHEEL_ERROR = "Flywheel Errors"
 
-    # Disable category
+    # Disable/re-enable categories
     USER_DISABLED = "User Disabled"
+    USER_RE_ENABLED = "User Re-Enabled"
 
     # Near-miss categories
     DOMAIN_NEAR_MISS = "Domain Near-Miss"
