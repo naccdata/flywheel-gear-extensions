@@ -23,7 +23,7 @@ from users.event_models import (
 from users.failure_analyzer import FailureAnalyzer
 from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
-from users.user_registry import DomainCandidate, RegistryPerson
+from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
 
 log = logging.getLogger(__name__)
 
@@ -102,7 +102,13 @@ class UserQueue(Generic[T]):
             entry = self.__dequeue()
             try:
                 process.visit(entry)
-            except (FlywheelError, ValueError, KeyError, AttributeError) as error:
+            except (
+                FlywheelError,
+                RegistryError,
+                ValueError,
+                KeyError,
+                AttributeError,
+            ) as error:
                 # Individual user processing errors should not stop the batch
                 # Log the error and continue with the next user
                 log.error(
@@ -132,17 +138,17 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
 
-        Looks up matching Flywheel users by email and disables each one.
+        1. Looks up matching Flywheel users by email and disables each one.
+        2. Looks up matching COmanage registry persons by email and suspends
+           each one.
+
+        The two operations are independent — failure of either does not
+        prevent the other.
 
         Args:
           entry: the inactive user entry
         """
         log.info("processing inactive entry %s", entry.email)
-
-        users = self.__env.proxy.find_user_by_email(entry.email)
-        if not users:
-            log.info("no matching Flywheel users found for %s", entry.email)
-            return
 
         center_id = entry.adcid if isinstance(entry, CenterUserEntry) else None
         user_context = UserContext(
@@ -151,35 +157,87 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
             center_id=center_id,
         )
 
-        for user in users:
-            try:
-                self.__env.proxy.disable_user(user)
-                log.info(
-                    "disabled user %s (%s)",
-                    user.id,
-                    entry.email,
-                )
-                success_event = UserProcessEvent(
-                    event_type=EventType.SUCCESS,
-                    category=EventCategory.USER_DISABLED,
-                    user_context=user_context,
-                    message=f"User {user.id} disabled in Flywheel",
-                )
-                self.collector.collect(success_event)
-            except FlywheelError as error:
-                log.error(
-                    "failed to disable user %s (%s): %s",
-                    user.id,
-                    entry.email,
-                    error,
-                )
-                error_event = UserProcessEvent(
-                    event_type=EventType.ERROR,
-                    category=EventCategory.FLYWHEEL_ERROR,
-                    user_context=user_context,
-                    message=f"Failed to disable user {user.id}: {error}",
-                )
-                self.collector.collect(error_event)
+        # Step 1: Disable in Flywheel
+        users = self.__env.proxy.find_user_by_email(entry.email)
+        if not users:
+            log.info("no matching Flywheel users found for %s", entry.email)
+        else:
+            for user in users:
+                try:
+                    self.__env.proxy.disable_user(user)
+                    log.info(
+                        "disabled user %s (%s)",
+                        user.id,
+                        entry.email,
+                    )
+                    success_event = UserProcessEvent(
+                        event_type=EventType.SUCCESS,
+                        category=EventCategory.USER_DISABLED,
+                        user_context=user_context,
+                        message=f"User {user.id} disabled in Flywheel",
+                    )
+                    self.collector.collect(success_event)
+                except FlywheelError as error:
+                    log.error(
+                        "failed to disable user %s (%s): %s",
+                        user.id,
+                        entry.email,
+                        error,
+                    )
+                    error_event = UserProcessEvent(
+                        event_type=EventType.ERROR,
+                        category=EventCategory.FLYWHEEL_ERROR,
+                        user_context=user_context,
+                        message=f"Failed to disable user {user.id}: {error}",
+                    )
+                    self.collector.collect(error_event)
+
+        # Step 2: Suspend in COmanage
+        person_list = self.__env.user_registry.get(email=entry.email)
+        if not person_list:
+            log.info("no matching COmanage registry persons for %s", entry.email)
+        else:
+            for person in person_list:
+                registry_id = person.registry_id()
+                if not registry_id:
+                    continue
+                if person.is_suspended():
+                    log.info(
+                        "user %s (%s) already suspended in COmanage, skipping",
+                        registry_id,
+                        entry.email,
+                    )
+                    continue
+                try:
+                    self.__env.user_registry.suspend(registry_id)
+                    log.info(
+                        "suspended user %s (%s) in COmanage",
+                        registry_id,
+                        entry.email,
+                    )
+                    success_event = UserProcessEvent(
+                        event_type=EventType.SUCCESS,
+                        category=EventCategory.USER_DISABLED,
+                        user_context=user_context,
+                        message=f"User {registry_id} suspended in COmanage",
+                    )
+                    self.collector.collect(success_event)
+                except RegistryError as error:
+                    log.error(
+                        "failed to suspend user %s (%s) in COmanage: %s",
+                        registry_id,
+                        entry.email,
+                        error,
+                    )
+                    error_event = UserProcessEvent(
+                        event_type=EventType.ERROR,
+                        category=EventCategory.USER_DISABLED,
+                        user_context=user_context,
+                        message=(
+                            f"Failed to suspend user {registry_id} in COmanage: {error}"
+                        ),
+                    )
+                    self.collector.collect(error_event)
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Applies this process to the queue.
@@ -674,6 +732,13 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         """Adds a new user to user registry, otherwise, adds the user to
         claimed or unclaimed queues.
 
+        When a matching registry person is found with status 'S' (Suspended),
+        re-enables them instead of treating them as a new user. This prevents
+        duplicate record creation for returning users.
+
+        The re-enable check happens after the email lookup but before the
+        existing claimed/unclaimed routing.
+
         Args:
           entry: the user entry
         """
@@ -748,6 +813,12 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             )
             return
 
+        # Check for suspended persons and re-enable them
+        suspended = [person for person in person_list if person.is_suspended()]
+        if suspended:
+            self.__re_enable_suspended(entry, suspended)
+            return
+
         creation_date = self.__get_creation_date(person_list)
         if not creation_date:
             log.warning("person record for %s has no creation date", entry.email)
@@ -773,6 +844,55 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
           the claimed registry person objects
         """
         return [person for person in person_list if person.is_claimed()]
+
+    def __re_enable_suspended(
+        self,
+        entry: ActiveUserEntry,
+        suspended: List[RegistryPerson],
+    ) -> None:
+        """Re-enable suspended registry persons matched by email.
+
+        For each suspended person with a registry ID, calls re_enable on
+        the user registry. Collects success or error events for each.
+
+        Args:
+          entry: the active user entry
+          suspended: list of suspended RegistryPerson objects
+        """
+        for person in suspended:
+            registry_id = person.registry_id()
+            if not registry_id:
+                continue
+            try:
+                self.__env.user_registry.re_enable(registry_id)
+                log.info(
+                    "re-enabled user %s (%s) in COmanage",
+                    registry_id,
+                    entry.auth_email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.USER_RE_ENABLED,
+                    user_context=UserContext.from_user_entry(entry),
+                    message=(f"User {registry_id} re-enabled in COmanage"),
+                )
+                self.collector.collect(success_event)
+            except RegistryError as error:
+                log.error(
+                    "failed to re-enable user %s (%s) in COmanage: %s",
+                    registry_id,
+                    entry.auth_email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.USER_RE_ENABLED,
+                    user_context=UserContext.from_user_entry(entry),
+                    message=(
+                        f"Failed to re-enable user {registry_id} in COmanage: {error}"
+                    ),
+                )
+                self.collector.collect(error_event)
 
     def __emit_near_miss_events(
         self,

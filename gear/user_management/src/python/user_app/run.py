@@ -313,6 +313,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                                 coid=self.__comanage_coid,
                                 name_normalizer=normalize_person_name,
                                 domain_config=domain_config,
+                                dry_run=self.proxy.dry_run,
                             ),
                             domain_config=domain_config,
                             idp_config=idp_config,
