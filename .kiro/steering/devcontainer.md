@@ -131,7 +131,25 @@ After changing `.devcontainer/` configuration:
 
 ## Python Environment
 
-The dev container provides Python 3.12 pre-installed. No need for pyenv or manual Python installation - the container handles this.
+### Execution (Dev Container)
+
+The dev container provides Python 3.12 pre-installed. No need for pyenv or manual Python installation — the container handles all execution (tests, linting, type checking, packaging).
+
+### IDE Support (Host .venv)
+
+A separate host-native `.venv` exists for IDE features like autocomplete, type checking, and package inspection. This venv is **not** used for execution.
+
+```bash
+# Create or refresh the host .venv
+./bin/create-host-venv.sh
+```
+
+This script:
+- Reads the required Python version from `.python-version`
+- Creates a `.venv` in the project root with dependencies from `requirements.txt`
+- Configures `.env` with `PYTHONPATH` pointing to all Pants source roots
+
+**Important**: The host `.venv` is for IDE analysis only. Always use the devcontainer (via Pants power or manual scripts) for running code, tests, and quality checks.
 
 ## Workflow Example
 
