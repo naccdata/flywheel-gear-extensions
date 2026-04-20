@@ -151,11 +151,10 @@ The input is a single CSV file, which must have columns `adcid` and `ptid`.
 
 ## Output
 
-The gear has two output files.
+The gear produces up to two output files.
 
-- A CSV file consisting of the rows of the input file for which a NACCID was found, with an additional `naccid` column if the direction is `nacc` or additional `adcid` and `ptid` columns if the direction is `center`
+- **Identifier file**: `{input_basename}_identifiers.{ext}` — a CSV file consisting of the rows of the input file for which an identifier was found, with an additional `naccid` column if the direction is `nacc` or additional `adcid` and `ptid` columns if the direction is `center`. For example, an input file named `data-uds.csv` produces `data-uds_identifiers.csv`. This file is only written if at least one row has a successful lookup.
   - Unless the configuration value `preserve_case` is set to `True`, all header keys will also be forced to lower case and spaces replaced with `_`
-- A CSV file indicating errors, and specifically information about rows for which a NACCID was not found.
-  The format of this file is determined by the FW interface for displaying errors.
+- **Error file**: a CSV file indicating errors, and specifically information about rows for which an identifier was not found. The format and naming of this file is determined by the Flywheel error UI interface.
 
 Note: Event capture, when enabled, does not produce additional output files. Events are captured directly to the configured S3 bucket and do not affect the standard CSV output files described above.

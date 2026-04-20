@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.4.1
+
+* Fix multi-center identifier lookup (Scenario 2) when `form_configs_file` is provided with `single_center: false`
+* Guard QC logging and event capture behind single center mode to prevent errors in multi-center scenarios
+* Fix `preserve_case` code default to match manifest default (`true`)
+* Fix `form_configs_file` manifest description to reflect it is optional
+
 ## 2.4.0
 
 * Rebuilt for log file naming format update
