@@ -7,8 +7,6 @@ The identifier-lookup gear reads participant IDs from a tabular (CSV) input file
 
 The gear outputs a CSV file with the looked-up identifiers appended. If any rows fail lookup, an error file is produced listing the failures.
 
-
-
 ## Environment
 
 This gear uses the AWS SSM parameter store, and expects that AWS credentials are available in environment variables within the Flywheel runtime.
@@ -50,12 +48,12 @@ The gear supports three main usage scenarios:
 - Center validation is enforced (validates ADCID matches and PTID format)
 - Module-specific field validation is performed
 - QC status logs are created
-- Visit events are captured to S3 (if event capture is configured)
+- Visit events are captured to S3
 - Output includes `naccid` and `module` columns
 
 **Event Capture**:
 
-When event capture is configured (by providing `event_environment` and `event_bucket`), the gear will create submission events for each valid visit row. These events are captured to an S3 bucket for tracking data submissions in the NACC event system.
+In single center mode with `form_configs_file`, the gear captures submission events for each valid visit row. These events are stored in an S3 bucket for tracking data submissions in the NACC event system. The `event_environment` and `event_bucket` parameters are **required** in this scenario.
 
 Event capture behavior:
 
@@ -63,11 +61,6 @@ Event capture behavior:
 - Events include visit metadata such as center, project, visit date, and packet information
 - Event capture failures do not affect the primary identifier lookup functionality
 - Events are stored in the configured S3 bucket with environment-specific prefixes
-
-Event capture configuration parameters:
-
-- **`event_environment`** (string, required for event capture): Environment for event capture. Valid values are "prod" or "dev". This determines the environment prefix used when storing events in S3.
-- **`event_bucket`** (string, required for event capture): S3 bucket name where submission events will be stored. The gear must have write access to this bucket.
 
 **When to use**: Standard form data processing pipelines where data comes from a single center.
 
@@ -93,6 +86,7 @@ Event capture configuration parameters:
 
 - Rows can have different `adcid` values
 - No center validation is performed
+- No QC logging or event capture (these require single center mode)
 - If `form_configs_file` is provided, module field validation is still performed
 - Output includes `naccid` column (and `module` if configs provided)
 
@@ -129,8 +123,8 @@ Event capture configuration parameters:
   - `"center"`: Look up center identifiers from NACCIDs
 
 - **`single_center`** (boolean, default: true): Whether to enforce single-center validation
-  - `true`: All rows must have the same `adcid` matching the project's pipeline ADCID (only applies when `form_configs_file` is provided)
-  - `false`: Allows rows with different `adcid` values, disables center validation
+  - `true`: All rows must have the same `adcid` matching the project's pipeline ADCID (only applies when `form_configs_file` is provided). Enables QC logging and event capture.
+  - `false`: Allows rows with different `adcid` values, disables center validation, QC logging, and event capture
 
 - **`module`** (string, optional): Module name for form processing (e.g., "uds", "lbd")
   - Can be inferred from filename suffix (e.g., `data-uds.csv` → module "UDS")
@@ -140,6 +134,16 @@ Event capture configuration parameters:
 - **`preserve_case`** (boolean, default: true): Whether to preserve the case of header keys in the input file
 
 - **`database_mode`** (string, default: "prod"): Whether to lookup identifiers from "dev" or "prod" database
+
+- **`event_environment`** (string, optional): Environment for visit event capture. Valid values are "prod" or "dev". Required when using nacc direction with `form_configs_file` in single center mode.
+
+- **`event_bucket`** (string, optional): S3 bucket name for event capture. Required when using nacc direction with `form_configs_file` in single center mode. The gear must have write access to this bucket.
+
+- **`dry_run`** (boolean, default: false): Whether to do a dry run
+
+- **`admin_group`** (string, default: "nacc"): Name of the admin group
+
+- **`apikey_path_prefix`** (string, default: "/prod/flywheel/gearbot"): The instance-specific AWS parameter gearbot path prefix
 
 ## Input
 
@@ -155,6 +159,3 @@ The gear has two output files.
   The format of this file is determined by the FW interface for displaying errors.
 
 Note: Event capture, when enabled, does not produce additional output files. Events are captured directly to the configured S3 bucket and do not affect the standard CSV output files described above.
-
-
-
