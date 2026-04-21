@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.0.2
+
+* Fixed gear startup crash by initializing GearEngine with parameter store for AWS SSM credential access
+
 ## 0.0.1
 
 * Initial release of image-identifier-lookup gear
