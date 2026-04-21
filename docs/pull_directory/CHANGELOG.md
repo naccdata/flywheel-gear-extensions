@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.0
+
+* Adds optional `preceding_hours` configuration for incremental pulls of recently modified records
+* When `preceding_hours` is set to a positive value, the gear computes a date range and passes it to the REDCap export API
+* Defaults to 0 (full pull), maintaining backward compatibility with existing schedules
+* Adds validation that `preceding_hours` is non-negative
+* Adds logging to indicate whether the gear is performing a full pull or an incremental pull
+
 ## 4.0.3
 
 * Fixes REDCap `export_records` field list to use base field names for checkbox fields, allowing REDCap to return expanded columns automatically
