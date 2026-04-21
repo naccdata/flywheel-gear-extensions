@@ -1,5 +1,7 @@
 # Implementation Plan: Pull Directory Date Range
 
+> **Note**: This spec is finalized. The implementation renamed `lookback_hours` to `preceding_hours` and `LookbackConfig` to `TimeWindowConfig` after this spec was written. The source code is the authoritative reference for current naming. Do not modify code to match this document.
+
 ## Overview
 
 Add an optional `lookback_hours` configuration parameter to the pull-directory gear, enabling incremental pulls of recently modified records from REDCap. Implementation creates a new `LookbackConfig` Pydantic model, updates the gear manifest, and modifies `DirectoryPullVisitor.create()` to compute and pass date ranges to `export_records()`.

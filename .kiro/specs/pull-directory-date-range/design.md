@@ -1,5 +1,7 @@
 # Design Document: Pull Directory Date Range
 
+> **Note**: This spec is finalized. The implementation renamed `lookback_hours` to `preceding_hours` and `LookbackConfig` to `TimeWindowConfig` after this spec was written. The source code is the authoritative reference for current naming. Do not modify code to match this document.
+
 ## Overview
 
 This feature adds an optional `lookback_hours` configuration parameter to the pull-directory gear, enabling incremental pulls of recently modified records from the NACC REDCap directory. When `lookback_hours` is set to a positive value, the gear computes a relative time window (`now - lookback_hours` to `now`) and passes it to `REDCapProject.export_records()` via the existing `date_range_begin` and `date_range_end` parameters. When `lookback_hours` is 0 (the default) or omitted, the gear behaves exactly as it does today — pulling all records with no date filtering.
