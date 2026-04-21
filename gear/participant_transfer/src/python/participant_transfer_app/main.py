@@ -39,9 +39,11 @@ def review_transfer_info(
         log.error(error)
         return None
 
-    transfer_record = transfer_info.transfers.get(ptid)
+    # replace "." with "_" as FW doesn't allow period in metadata keys
+    ptid_alias = ptid.replace(".", "_")
+    transfer_record = transfer_info.transfers.get(ptid_alias)
     if not transfer_record:
-        log.error(f"No transfer request found for PTID {ptid}")
+        log.error(f"No transfer request found for PTID {ptid} (alias {ptid_alias})")
         return None
 
     if transfer_record.status == "completed":

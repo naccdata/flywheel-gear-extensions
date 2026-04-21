@@ -26,8 +26,9 @@ class TransferInfo(BaseModel):
           record: the transfer record
         """
         self.transfers = self.transfers if self.transfers else {}
-        ptid = record.center_identifiers.ptid
-        self.transfers[ptid] = record
+        # replace "." with "_" as FW doesn't allow period in metadata keys
+        ptid_alias = record.center_identifiers.ptid.replace(".", "_")
+        self.transfers[ptid_alias] = record
 
     def merge(self, transfer_info: "TransferInfo") -> None:
         """Merges the passed transfer records to this object. Duplicates will
