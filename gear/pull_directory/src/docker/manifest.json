@@ -2,7 +2,7 @@
     "name": "pull-directory",
     "label": "Pull Directory",
     "description": "Pull user information from NACC directory and save to admin project",
-    "version": "4.0.3",
+    "version": "4.1.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/pull-directory:4.0.3"
+            "image": "naccdata/pull-directory:4.1.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -47,6 +47,11 @@
             "description": "Parameter path for notification configuration (sender and support emails)",
             "type": "string",
             "default": "/prod/notifications"
+        },
+        "preceding_hours": {
+            "description": "Number of hours to look back from the current time for filtering records by last modification time. 0 means no filtering (full pull).",
+            "type": "number",
+            "default": 0
         }
     },
     "command": "/bin/run"
