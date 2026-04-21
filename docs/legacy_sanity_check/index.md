@@ -24,3 +24,11 @@ and the following configuration values:
 | `sender_email` | `no-reply@naccdata.org` | Email to send error reports from |
 | `target_emails` | `nacchelp@uw.edu` | Comma-deliminated list of target emails to send error reports to |
 | `apikey_path_prefix` | `/prod/flywheel/gearbot` | The parameter store API-key path prefix for the gearbot |
+
+## File Metadata and Tagging
+
+After processing, the gear updates the input file. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used across gears.
+
+1. **File Tag**: The gear name (e.g., `"legacy-sanity-check"`) is added as a simple tag to the input file on success, indicating the file has been processed and passed sanity checks.
+
+   Note: The tag is also added in early-exit cases (e.g., when the center is inactive). If sanity checks fail, the gear raises an error and sends an email notification to the configured target emails instead of tagging the file.

@@ -118,9 +118,22 @@ A project-level log file is created with the naming pattern:
 
 Example: `12345_2024-03-15_MR_qc-status.log`
 
-### File Metadata
+### File Metadata and Tagging
 
-The processed DICOM file receives QC metadata tags indicating processing status and any errors encountered.
+After processing, the gear updates the input DICOM file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on processing outcome
+   - `data`: Error details (from `FileErrorList`) if any errors occurred
+
+2. **Validation Timestamp**: The file's `.info` metadata is updated with a `validated_timestamp` field set to the current UTC time (format: `DEFAULT_DATE_TIME_FORMAT`). This allows tracking when the file was last processed.
+
+3. **Gear Tags**: The file is tagged using the `GearTags` mechanism, which manages status-specific tags:
+   - Adds `gear-PASS` or `gear-FAIL` tag (prefixed with the gear name) based on processing status
+   - Previous gear status tags are replaced (e.g., a prior `gear-FAIL` is removed when `gear-PASS` is set)
+
+Note: Failures in metadata updates are logged but do not fail the gear, as these updates are considered non-critical.
 
 ### Event Capture
 
