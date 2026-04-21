@@ -291,7 +291,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
 def main():
     """Main method for Image Identifier Lookup."""
 
-    GearEngine().run(gear_type=ImageIdentifierLookupVisitor)
+    GearEngine.create_with_parameter_store().run(gear_type=ImageIdentifierLookupVisitor)
 
 
 if __name__ == "__main__":
