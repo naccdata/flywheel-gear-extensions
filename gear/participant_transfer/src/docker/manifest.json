@@ -49,11 +49,11 @@
             "default": "nacc"
         },
         "enrollment_project": {
-            "description": "The enrollment project flywheel path (group/project) which contain pending transfer information",
+            "description": "The enrollment project flywheel path (group/project) for the receiving center which contains the transfer request",
             "type": "string"
         },
         "participant_id": {
-            "description": "The PTID of the participant to be transferred",
+            "description": "The PTID at the receiving center for the participant to be transferred",
             "type": "string"
         },
         "copy_only": {
