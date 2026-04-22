@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.1
+
+* Improved error messages when NACCID lookup fails due to missing project configuration
+  * Reports specifically when `pipeline_adcid` is not set in project metadata, including the project group/label
+  * Reports specifically when PTID is unavailable from both subject label and DICOM PatientID
+* Changed log level from INFO to WARNING when `pipeline_adcid` is missing from project metadata
+
 ## 0.1.0
 
 * Added zip archive support for DICOM input files
