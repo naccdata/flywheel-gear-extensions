@@ -1,134 +1,195 @@
 """Early data extraction utilities for the Image Identifier Lookup gear.
 
-This module provides utilities for extracting required data from
-Flywheel objects and pre-extracted DICOM metadata as early as possible
-in the processing pipeline. All functions fail fast with clear error
-messages when required data is missing.
+This module provides the LookupContext model that accumulates all data
+needed for the identifier lookup workflow. It is built incrementally:
+first from Flywheel custom info, then optionally enriched with DICOM
+metadata if needed.
 """
 
 import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import clean_ptid
 from nacc_common.data_identification import DataIdentification
+from pydantic import BaseModel
 
 from image_identifier_lookup_app.dicom_utils import read_dicom_tags
 
 log = logging.getLogger(__name__)
 
 
-def extract_pipeline_adcid(project: ProjectAdaptor) -> int:
-    """Extract pipeline ADCID from project metadata.
+class LookupContext(BaseModel):
+    """Accumulated data for the identifier lookup workflow.
 
-    Uses ProjectAdaptor.get_pipeline_adcid() which handles fallback
-    from "pipeline_adcid" to "adcid" in project.info.
+    Built in two phases:
+    1. From Flywheel custom info (project and subject metadata)
+    2. Optionally enriched with DICOM file data if needs_dicom() is True
 
-    Args:
-        project: Project adaptor
-
-    Returns:
-        Pipeline ADCID as integer
-
-    Raises:
-        ProjectError: If ADCID missing from project metadata
+    Fields are Optional because they may not be available from custom
+    info alone.
     """
-    return project.get_pipeline_adcid()
 
+    pipeline_adcid: Optional[int] = None
+    ptid: Optional[str] = None
+    existing_naccid: Optional[str] = None
+    study_date: Optional[str] = None
+    modality: Optional[str] = None
+    naccid_field_name: str = "naccid"
+    dicom_metadata: Optional[dict[str, Any]] = None
+    visit_metadata: Optional[DataIdentification] = None
 
-def extract_ptid(subject: SubjectAdaptor, dicom_metadata: dict) -> str:
-    """Extract PTID from subject.label or DICOM PatientID.
+    model_config = {"arbitrary_types_allowed": True}
 
-    Priority:
-    1. subject.label (if not empty)
-    2. DICOM PatientID from pre-extracted metadata
+    def needs_lookup(self) -> bool:
+        """Whether a NACCID lookup is needed."""
+        return self.existing_naccid is None
 
-    Args:
-        subject: Subject adaptor
-        dicom_metadata: Pre-extracted DICOM metadata dictionary
+    def needs_dicom(self) -> bool:
+        """Whether we need to open the input file.
 
-    Returns:
-        PTID as string
+        DICOM is needed when any of the fields that come from the DICOM
+        file are missing: ptid (PatientID fallback), study_date, or
+        modality. These may already be available from custom info if a
+        previous run stored dicom_metadata in subject.info.
+        """
+        return self.ptid is None or self.study_date is None or self.modality is None
 
-    Raises:
-        ValueError: If both sources are empty/missing
-    """
-    # Try subject.label first
-    ptid = subject.label
-    if ptid and ptid.strip():
-        return clean_ptid(ptid)
+    def enrich_from_dicom(self, dicom_metadata: dict[str, Any]) -> None:
+        """Enrich context with DICOM metadata.
 
-    # Fallback to DICOM PatientID from metadata
-    dicom_ptid = dicom_metadata.get("patient_id")
-    if dicom_ptid and dicom_ptid.strip():
-        return clean_ptid(dicom_ptid)
+        Fills in any gaps from custom info using DICOM data, and
+        builds visit metadata for QC logging and event capture.
 
-    raise ValueError(
-        "PTID not found: subject.label is empty and DICOM PatientID is missing"
-    )
+        Args:
+            dicom_metadata: Extracted DICOM tag values
 
+        Raises:
+            ValueError: If required fields (PTID, StudyDate, Modality)
+                cannot be resolved from any source
+        """
+        self.dicom_metadata = dicom_metadata
 
-def extract_existing_naccid(
-    subject: SubjectAdaptor, naccid_field_name: str
-) -> Optional[str]:
-    """Extract existing NACCID from subject metadata.
+        # Fill PTID gap from DICOM PatientID
+        if not self.ptid:
+            dicom_ptid = dicom_metadata.get("patient_id")
+            if dicom_ptid and dicom_ptid.strip():
+                self.ptid = clean_ptid(dicom_ptid)
+                log.info(f"Resolved PTID from DICOM PatientID: {self.ptid}")
+            else:
+                raise ValueError(
+                    "PTID not found: subject.label is empty and "
+                    "DICOM PatientID is missing"
+                )
 
-    Args:
-        subject: Subject adaptor
-        naccid_field_name: Field name for NACCID in subject.info
+        # Fill study_date and modality from DICOM
+        if not self.study_date:
+            self.study_date = dicom_metadata.get("study_date")
+        if not self.modality:
+            self.modality = dicom_metadata.get("modality")
 
-    Returns:
-        Existing NACCID if present, None otherwise
-    """
-    return subject.info.get(naccid_field_name)
+        self.build_visit_metadata()
 
+    def build_visit_metadata(self) -> None:
+        """Build visit metadata from resolved fields.
 
-def extract_visit_metadata(
-    dicom_metadata: dict,
-    ptid: str,
-    adcid: int,
-    naccid: Optional[str],
-) -> DataIdentification:
-    """Extract visit metadata from pre-extracted DICOM metadata.
+        Should be called after all fields are populated (either from
+        custom info or DICOM enrichment). Sets visit_metadata if
+        ptid, pipeline_adcid, study_date, and modality are all present.
 
-    Args:
-        dicom_metadata: Pre-extracted DICOM metadata dictionary
-        ptid: Pre-extracted PTID
-        adcid: Pre-extracted pipeline ADCID
-        naccid: Pre-extracted or looked-up NACCID
+        Raises:
+            ValueError: If study_date or modality is missing
+        """
+        if not self.study_date:
+            raise ValueError(
+                "Visit date not found: StudyDate is missing (required DICOM field)"
+            )
+        if not self.modality:
+            raise ValueError(
+                "Modality not found: DICOM Modality tag (0008,0060) "
+                "is missing (required DICOM field)"
+            )
+        if not self.ptid or self.pipeline_adcid is None:
+            return
 
-    Returns:
-        DataIdentification instance with ImageIdentification
-
-    Raises:
-        ValueError: If required fields (StudyDate, Modality) are missing
-    """
-    # Extract date (required) - StudyDate is canonical per DICOM standard
-    date = dicom_metadata.get("study_date")
-
-    if not date:
-        raise ValueError(
-            "Visit date not found: StudyDate is missing (required DICOM field)"
+        self.visit_metadata = DataIdentification.from_visit_metadata(
+            ptid=self.ptid,
+            date=format_dicom_date(self.study_date),
+            modality=self.modality,
+            adcid=self.pipeline_adcid,
+            naccid=self.existing_naccid,
+            visitnum=None,
         )
 
-    # Extract modality (required) - Type 1 tag in DICOM standard
-    modality = dicom_metadata.get("modality")
-    if not modality:
-        raise ValueError(
-            "Modality not found: DICOM Modality tag (0008,0060) is missing "
-            "(required DICOM field)"
+    @classmethod
+    def from_flywheel(
+        cls,
+        project: ProjectAdaptor,
+        subject: SubjectAdaptor,
+        naccid_field_name: str,
+    ) -> "LookupContext":
+        """Build context from Flywheel project and subject metadata.
+
+        Collects what is available without raising on missing data.
+        The caller should check needs_dicom() to decide whether DICOM
+        extraction is needed.
+
+        Args:
+            project: Project adaptor
+            subject: Subject adaptor
+            naccid_field_name: Field name for NACCID in subject.info
+
+        Returns:
+            LookupContext with whatever fields are available
+        """
+        pipeline_adcid: Optional[int] = None
+        try:
+            pipeline_adcid = project.get_pipeline_adcid()
+            log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
+        except ProjectError:
+            log.info("Pipeline ADCID not available from project metadata")
+
+        ptid: Optional[str] = None
+        label = subject.label
+        if label and label.strip():
+            ptid = clean_ptid(label)
+            log.info(f"Extracted PTID from subject label: {ptid}")
+        else:
+            log.info("PTID not available from subject label")
+
+        existing_naccid: Optional[str] = subject.info.get(naccid_field_name)
+        if existing_naccid:
+            log.info(f"Found existing NACCID in subject metadata: {existing_naccid}")
+        else:
+            log.info("No existing NACCID found in subject metadata")
+
+        # Extract study_date and modality from previously stored dicom_metadata
+        stored_dicom: dict = subject.info.get("dicom_metadata", {})
+        study_date: Optional[str] = stored_dicom.get("study_date")
+        modality: Optional[str] = stored_dicom.get("modality")
+        if study_date and modality:
+            log.info(
+                f"Found study_date={study_date} and modality={modality} "
+                "from stored dicom_metadata"
+            )
+
+        ctx = cls(
+            pipeline_adcid=pipeline_adcid,
+            ptid=ptid,
+            existing_naccid=existing_naccid,
+            study_date=study_date,
+            modality=modality,
+            naccid_field_name=naccid_field_name,
+            dicom_metadata=stored_dicom or None,
         )
 
-    return DataIdentification.from_visit_metadata(
-        ptid=ptid,
-        date=format_dicom_date(date),  # Convert YYYYMMDD to YYYY-MM-DD
-        modality=modality,
-        adcid=adcid,
-        naccid=naccid,
-        visitnum=None,  # Images typically don't have visit numbers
-    )
+        # If all fields are present, build visit metadata now
+        if not ctx.needs_dicom() and ctx.pipeline_adcid is not None:
+            ctx.build_visit_metadata()
+
+        return ctx
 
 
 def extract_dicom_metadata(file_path: Path) -> dict[str, Any]:
@@ -145,26 +206,21 @@ def extract_dicom_metadata(file_path: Path) -> dict[str, Any]:
     Raises:
         InvalidDicomError: If file is not valid DICOM
     """
-    # Define all tags to read in a single operation
     tags = {
-        # Identifier fields
-        "patient_id": (0x0010, 0x0020),  # PatientID
-        "study_instance_uid": (0x0020, 0x000D),  # StudyInstanceUID
-        "series_instance_uid": (0x0020, 0x000E),  # SeriesInstanceUID
-        "series_number": (0x0020, 0x0011),  # SeriesNumber
-        # Date fields
-        "study_date": (0x0008, 0x0020),  # StudyDate
-        "series_date": (0x0008, 0x0021),  # SeriesDate
-        # Descriptive fields
-        "modality": (0x0008, 0x0060),  # Modality
-        "magnetic_field_strength": (0x0018, 0x0087),  # MagneticFieldStrength
-        "manufacturer": (0x0008, 0x0070),  # Manufacturer
-        "manufacturer_model_name": (0x0008, 0x1090),  # ManufacturerModelName
-        "series_description": (0x0008, 0x103E),  # SeriesDescription
-        "images_in_acquisition": (0x0020, 0x1002),  # ImagesInAcquisition
+        "patient_id": (0x0010, 0x0020),
+        "study_instance_uid": (0x0020, 0x000D),
+        "series_instance_uid": (0x0020, 0x000E),
+        "series_number": (0x0020, 0x0011),
+        "study_date": (0x0008, 0x0020),
+        "series_date": (0x0008, 0x0021),
+        "modality": (0x0008, 0x0060),
+        "magnetic_field_strength": (0x0018, 0x0087),
+        "manufacturer": (0x0008, 0x0070),
+        "manufacturer_model_name": (0x0008, 0x1090),
+        "series_description": (0x0008, 0x103E),
+        "images_in_acquisition": (0x0020, 0x1002),
     }
 
-    # Read all tags in a single file read operation
     return read_dicom_tags(file_path, tags)
 
 
