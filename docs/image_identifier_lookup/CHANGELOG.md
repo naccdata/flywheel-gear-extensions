@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.1.0
+
+* Added zip archive support for DICOM input files
+* Added short-circuit path: skips DICOM file extraction when NACCID, PTID, study date, and modality are already available from Flywheel custom info
+* Reads previously stored dicom_metadata from subject.info to avoid redundant file access on re-runs
+* Introduced LookupContext model to consolidate extracted data and drive workflow decisions
+* Refactored main orchestration into ImageIdentifierLookup class for cleaner separation of concerns
+
 ## 0.0.2
 
 * Fixed gear startup crash by initializing GearEngine with parameter store for AWS SSM credential access
