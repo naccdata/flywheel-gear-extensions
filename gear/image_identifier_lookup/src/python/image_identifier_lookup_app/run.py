@@ -7,6 +7,7 @@ from typing import Optional
 
 from botocore.exceptions import ClientError
 from event_capture.event_capture import VisitEventCapture
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -173,7 +174,12 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
 
         # Step 1: Retrieve input file, parent subject, and project
         log.info("Retrieving input file and parent containers")
-        file_obj = self.proxy.get_file(self.__file_input.file_id)
+        try:
+            file_obj = self.proxy.get_file(self.__file_input.file_id)
+        except ApiException as error:
+            raise GearExecutionError(
+                f"Failed to find the input file: {error}"
+            ) from error
         file_path = Path(self.__file_input.filepath)
 
         fw_project = self.proxy.get_project_by_id(file_obj.parents.project)
