@@ -249,11 +249,31 @@ class NACCGroup(CenterAdaptor):
         return self.__admin_project
 
     def get_all_ingest_pipeline_adcids(self) -> List[int]:
-        pipeline_adcids = []
-        centers = self.get_centers()
-        for center in centers:
-            center_metadata: CenterMetadata = center.get_project_info()
+        """Pull list of pipeline ADCIDs by traversing metadata projects for all
+        centers.
 
+        Returns:
+            List[int]: List of pipeline ADCIDs
+        """
+        pipeline_adcids = []
+
+        center_map = self.get_center_map()
+        for center in center_map.centers.values():
+            if not center.group:
+                continue
+            group_adaptor = self._fw.find_group(group_id=center.group)
+            if not group_adaptor:
+                continue
+
+            # not using CenterGroup class methods to avoid unnecessary info update calls
+            center_group = CenterGroup(
+                adcid=center.adcid,
+                active=center.active,  # type: ignore
+                group=group_adaptor.group,
+                proxy=self._fw,
+            )
+
+            center_metadata: CenterMetadata = center_group.get_project_info()
             for study_metadata in center_metadata.studies.values():
                 for project_info in study_metadata.ingest_projects.values():
                     if project_info.pipeline_adcid not in pipeline_adcids:
