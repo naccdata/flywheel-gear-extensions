@@ -149,7 +149,10 @@ class LookupContext(BaseModel):
             pipeline_adcid = project.get_pipeline_adcid()
             log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
         except ProjectError:
-            log.info("Pipeline ADCID not available from project metadata")
+            log.warning(
+                "pipeline_adcid is not set in project metadata for "
+                f"{project.group}/{project.label}"
+            )
 
         ptid: Optional[str] = None
         label = subject.label

@@ -95,9 +95,18 @@ class ImageIdentifierLookup:
             self._naccid = self._context.existing_naccid
             return
 
-        if not self._context.ptid or self._context.pipeline_adcid is None:
+        if self._context.pipeline_adcid is None:
             raise GearExecutionError(
-                "Cannot perform NACCID lookup: PTID or ADCID is missing"
+                "Cannot perform NACCID lookup: "
+                "pipeline_adcid is not set in project metadata "
+                f"for {self._project.group}/{self._project.label}"
+            )
+
+        if not self._context.ptid:
+            raise GearExecutionError(
+                "Cannot perform NACCID lookup: "
+                "PTID not available (subject label is empty "
+                "and DICOM PatientID is missing)"
             )
 
         log.info("No existing NACCID found. Performing lookup.")
