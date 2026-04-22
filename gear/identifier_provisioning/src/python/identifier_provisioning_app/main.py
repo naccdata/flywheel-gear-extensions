@@ -799,7 +799,9 @@ def send_email(
     target_emails: List[str],
     group_lbl: str,
     project_lbl: str,
+    center_id: int,
     transfer_ptids: List[str],
+    project_url: str,
 ) -> None:
     """Send a raw email notifying target emails of the transfer request(s).
 
@@ -808,15 +810,20 @@ def send_email(
         target_emails: The target email(s)
         group_lbl: Flywheel group label
         project_lbl: Flywheel project label
+        center_id: the ADCID for the center
         transfer_ptids: PTIDs pending for transfer
+        project_url: URL for the Flywheel enrollment project
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
-    subject = f"Participant Transfer Request for {group_lbl}/{project_lbl}"
+    subject = f"Participant Transfer Request for {group_lbl} [ADCID {center_id}]"
     body = (
-        "\n\nParticipant transfer request(s) submitted for PTIDs "
-        f"{transfer_ptids} in enrollment project {group_lbl}/{project_lbl}.\n"
-        "Please review the details in project Information tab under transfers.\n\n"
+        "\n\nParticipant transfer request(s) submitted in the "
+        f"enrollment project {group_lbl}/{project_lbl}.\n"
+        f"PTID(s): {transfer_ptids}\n\n"
+        "Please review the transfer details in the project Information tab "
+        "under the Custom Information.\n"
+        f"{project_url}\n\n"
     )
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
@@ -833,6 +840,7 @@ def run(
     submitter: str,
     sender_email: str,
     target_emails: List[str],
+    project_url: str,
 ):
     """Runs identifier provisioning process.
 
@@ -846,6 +854,7 @@ def run(
       submitter: User/Job uploaded the CSV file
       sender_email: The source email to send transfer request notification
       target_emails: The target email(s) that the notification to be delivered
+      project_url: URL for the Flywheel enrollment project
     """
     transfer_info = TransferInfo(transfers={})
     enrollment_batch = EnrollmentBatch()
@@ -977,7 +986,9 @@ def run(
             target_emails=target_emails,
             group_lbl=enrollment_project.group,
             project_lbl=enrollment_project.label,
+            center_id=center_id,
             transfer_ptids=list(transfer_info.transfers.keys()),
+            project_url=project_url,
         )
 
     if not success:
