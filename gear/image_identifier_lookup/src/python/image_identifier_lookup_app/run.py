@@ -27,8 +27,15 @@ from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3BucketInterface
 
-from image_identifier_lookup_app.extraction import extract_dicom_metadata
-from image_identifier_lookup_app.main import run
+from image_identifier_lookup_app.extraction import (
+    LookupContext,
+    extract_dicom_metadata,
+)
+from image_identifier_lookup_app.file_resolver import (
+    FileResolverError,
+    resolve_dicom_file,
+)
+from image_identifier_lookup_app.main import ImageIdentifierLookup
 
 log = logging.getLogger(__name__)
 
@@ -161,8 +168,10 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         """Main execution method.
 
         1. Retrieve input file, parent subject, and project
-        2. Call main.run() to orchestrate the workflow
-        3. Update file QC metadata and tags
+        2. Check custom info for short-circuit (skip DICOM if possible)
+        3. If needed, resolve input file (handle zip) and extract DICOM
+        4. Call main.run() to orchestrate the workflow
+        5. Update file QC metadata and tags
 
         Args:
             context: The gear execution context
@@ -184,6 +193,11 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
 
         fw_project = self.proxy.get_project_by_id(file_obj.parents.project)
         if not fw_project:
+            log.error(
+                "Project ID %s not found. This may be a permissions issue. "
+                "Check that the gear account has access to this project.",
+                file_obj.parents.project,
+            )
             raise GearExecutionError(
                 f"Failed to retrieve parent project for file {file_obj.name}"
             )
@@ -200,30 +214,53 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             f"(subject: {subject.label}, project: {project.label})"
         )
 
-        # Step 2: Extract DICOM metadata once (fail fast if invalid DICOM)
-        log.info("Extracting DICOM metadata")
-        dicom_metadata = extract_dicom_metadata(file_path)
+        # Step 2: Extract custom info once from Flywheel metadata
+        lookup_context = LookupContext.from_flywheel(
+            project, subject, self.__naccid_field_name
+        )
 
-        # Step 3: Call main.run() to orchestrate the workflow
+        # Step 3: If needed, resolve input file (handle zip) and enrich
+        if lookup_context.needs_dicom():
+            log.info("Resolving input file and extracting DICOM metadata")
+            try:
+                resolved_path, temp_dir = resolve_dicom_file(file_path)
+            except FileResolverError as error:
+                raise GearExecutionError(
+                    f"Failed to resolve input file: {error}"
+                ) from error
+
+            try:
+                dicom_metadata = extract_dicom_metadata(resolved_path)
+            finally:
+                if temp_dir:
+                    temp_dir.cleanup()
+
+            lookup_context.enrich_from_dicom(dicom_metadata)
+        else:
+            log.info(
+                "All required custom info present (ADCID, PTID, NACCID). "
+                "Skipping DICOM extraction."
+            )
+
+        # Step 4: Call main.run() to orchestrate the workflow
         file_id = self.__file_input.file_id
         error_writer = ListErrorWriter(
             container_id=file_id,
             fw_path=self.proxy.get_lookup_path(file_obj),
         )
 
-        success, errors = run(
+        success, errors = ImageIdentifierLookup(
+            lookup_context=lookup_context,
             project=project,
             subject=subject,
             identifiers_repository=self.__identifiers_repository,
             event_capture=self.__event_capture,
             gear_name=self.__gear_name,
             dry_run=self.__dry_run,
-            naccid_field_name=self.__naccid_field_name,
-            dicom_metadata=dicom_metadata,
             error_writer=error_writer,
-        )
+        ).run()
 
-        # Step 4: Update file QC metadata and tags
+        # Step 5: Update file QC metadata and tags
         log.info("Updating file QC metadata and tags")
         self._update_file_metadata(
             context=context,
