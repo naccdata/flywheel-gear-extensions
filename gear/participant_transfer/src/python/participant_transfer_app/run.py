@@ -105,6 +105,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         options = context.config.opts
         admin_group = self.admin_group(admin_id=self.__admin_id)
         datatypes = parse_string_to_list(options.get("datatypes", "form,scan,dicom"))
+        studies = parse_string_to_list(options.get("studies", ""))
 
         sender_email = options.get("sender_email", "nacc_dev@uw.edu")
         target_emails = options.get("target_emails", "nacchelp@uw.edu")
@@ -120,6 +121,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 ptid=self.__ptid,
                 identifiers_repo=identifiers_repo,
                 datatypes=datatypes,
+                studies=studies,
                 copy_only=self.__copy_only,
                 dry_run=self.client.dry_run,
             )

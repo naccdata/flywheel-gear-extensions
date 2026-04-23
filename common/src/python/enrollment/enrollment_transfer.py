@@ -75,7 +75,14 @@ class GenderIdentity(BaseModel):
 class Demographics(BaseModel):
     """Model for demographic data."""
 
-    years_education: int | Literal[99] = Field(ge=0, le=36)
+    @field_validator("years_education")
+    @classmethod
+    def validate_years_education(cls, v: int) -> int:
+        if not (0 <= v <= 36 or v == 99):
+            raise ValueError("years_education must be 0-36 or 99")
+        return v
+
+    years_education: int = Field(ge=0)
     birth_date: datetime
     gender_identity: GenderIdentity
 
