@@ -64,6 +64,7 @@ def validate_and_create_record(
         return None
 
     center_identifiers = CenterIdentifiers(adcid=identifier.adcid, ptid=identifier.ptid)
+    # TODO: set the end_date if identifier is not active
     record = EnrollmentRecord(
         naccid=identifier.naccid,
         guid=identifier.guid,
