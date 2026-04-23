@@ -66,6 +66,11 @@
             "type": "string",
             "default": "form,scan,dicom,apoe,biomarker,biosample,gwas,imputation,genetic-availability"
         },
+        "studies": {
+            "description": "Comma-delimited list of studies to include in the transfer (optional). If not provided, all studies in center metadata are included",
+            "type": "string",
+            "optional": true
+        },
         "sender_email": {
             "description": "The source email to send the transfer completion notification or error report",
             "type": "string",

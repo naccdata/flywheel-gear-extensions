@@ -95,6 +95,7 @@ def run(  # noqa: C901
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
+    studies: Optional[List[str]],
     copy_only: bool,
     dry_run: bool,
 ) -> bool:
@@ -107,6 +108,8 @@ def run(  # noqa: C901
         ptid: PTID to be transferred
         identifiers_repo: Identifiers lambda repository
         datatypes: List of datatypes to be transferred
+        studies: List of studies to include in the transfer (optional).
+                 If not provided, all studies in center metadata are included
         copy_only: No database update, only copy participant data.
                    Used when handling copy failure
         dry_run: Whether to do a dry run
@@ -191,6 +194,7 @@ def run(  # noqa: C901
         new_center=new_center,
         prev_center=prev_center,
         datatypes=datatypes,
+        studies=studies,
         warnings=warnings,
     )
 
