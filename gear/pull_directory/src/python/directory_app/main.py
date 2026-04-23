@@ -21,15 +21,25 @@ log = logging.getLogger(__name__)
 def filter_approved_records(
     records: list[dict[str, str]],
 ) -> list[dict[str, str]]:
-    """Filters records to retain only those with permissions_approval == '1'.
+    """Filters records to retain those that are approved or archived.
+
+    Retains records where permissions_approval == '1' OR
+    archive_contact == '1'. This allows archived contacts to pass
+    through the pre-filter regardless of their approval status.
 
     Args:
         records: Raw records from REDCap export.
 
     Returns:
-        Records where permissions_approval field equals '1'.
+        Records where permissions_approval equals '1' or
+        archive_contact equals '1'.
     """
-    return [record for record in records if record.get("permissions_approval") == "1"]
+    return [
+        record
+        for record in records
+        if record.get("permissions_approval") == "1"
+        or record.get("archive_contact") == "1"
+    ]
 
 
 def run(
@@ -75,44 +85,45 @@ def run(
             collector.collect(error_event)
             continue
 
-        if not dir_record.permissions_approval:
-            log.warning("Ignoring %s: Permissions not approved", dir_record.email)
+        if not dir_record.inactive:
+            if not dir_record.permissions_approval:
+                log.warning("Ignoring %s: Permissions not approved", dir_record.email)
 
-            # Create error event for missing permissions approval
-            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
-            error_event = UserProcessEvent(
-                event_type=EventType.ERROR,
-                category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
-                user_context=UserContext(
-                    email=dir_record.email,
-                    name=name,
-                    center_id=dir_record.adcid,
-                    auth_email=dir_record.auth_email,
-                ),
-                message="User permissions not approved in directory",
-                action_needed="contact_center_administrator_for_approval",
-            )
-            collector.collect(error_event)
-            continue
+                # Create error event for missing permissions approval
+                name = f"{dir_record.firstname} {dir_record.lastname}".strip()
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.MISSING_DIRECTORY_PERMISSIONS,
+                    user_context=UserContext(
+                        email=dir_record.email,
+                        name=name,
+                        center_id=dir_record.adcid,
+                        auth_email=dir_record.auth_email,
+                    ),
+                    message="User permissions not approved in directory",
+                    action_needed="contact_center_administrator_for_approval",
+                )
+                collector.collect(error_event)
+                continue
 
-        if not dir_record.signed_user_agreement:
-            log.warning("Ignoring %s: User agreement not signed", dir_record.email)
+            if not dir_record.signed_user_agreement:
+                log.warning("Ignoring %s: User agreement not signed", dir_record.email)
 
-            name = f"{dir_record.firstname} {dir_record.lastname}".strip()
-            error_event = UserProcessEvent(
-                event_type=EventType.ERROR,
-                category=EventCategory.MISSING_USER_AGREEMENT,
-                user_context=UserContext(
-                    email=dir_record.email,
-                    name=name,
-                    center_id=dir_record.adcid,
-                    auth_email=dir_record.auth_email,
-                ),
-                message="User has not signed NACC user agreement",
-                action_needed="contact_user_to_sign_agreement",
-            )
-            collector.collect(error_event)
-            continue
+                name = f"{dir_record.firstname} {dir_record.lastname}".strip()
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.MISSING_USER_AGREEMENT,
+                    user_context=UserContext(
+                        email=dir_record.email,
+                        name=name,
+                        center_id=dir_record.adcid,
+                        auth_email=dir_record.auth_email,
+                    ),
+                    message="User has not signed NACC user agreement",
+                    action_needed="contact_user_to_sign_agreement",
+                )
+                collector.collect(error_event)
+                continue
 
         try:
             entry = dir_record.to_user_entry()
@@ -140,7 +151,9 @@ def run(
             collector.collect(error_event)
             continue
 
-        # Should not be None since we already checked permissions_approval
+        # Should not be None: inactive records return UserEntry, and
+        # non-inactive records have permissions_approval and
+        # signed_user_agreement checked
         assert entry is not None, f"Unexpected None entry for {dir_record.email}"
 
         if entry.email in user_emails:
