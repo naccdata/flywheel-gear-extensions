@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.1
+
+* Fixes archived contacts being silently dropped by the approval and agreement filters
+* Archived contacts (`archive_contact='1'`) now bypass `permissions_approval` and `signed_user_agreement` checks at all three filtering points
+* Archived contacts appear in the output YAML with `active: false` so the user management gear can process them as inactive users
+* Non-archived contact filtering behavior is unchanged
+
 ## 4.1.0
 
 * Adds optional `preceding_hours` configuration for incremental pulls of recently modified records
