@@ -29,9 +29,13 @@ Using these defaults, files will be written in the project `nacc/project-admin` 
 
 ### Incremental Pulls
 
-By default (`preceding_hours: 0`), the gear pulls all approved records from the directory. To perform an incremental pull of only recently modified records, set `preceding_hours` to a positive value. For example, `preceding_hours: 6` pulls records modified in the last 6 hours.
+By default (`preceding_hours: 0`), the gear pulls all approved and archived records from the directory. To perform an incremental pull of only recently modified records, set `preceding_hours` to a positive value. For example, `preceding_hours: 6` pulls records modified in the last 6 hours.
 
-The gear computes a date range from `now - preceding_hours` to `now` and passes it to the REDCap export API. Records are still filtered by approval status regardless of the time window.
+The gear computes a date range from `now - preceding_hours` to `now` and passes it to the REDCap export API. Records are still filtered by approval or archive status regardless of the time window.
+
+### Archived Contacts
+
+Records with `archive_contact = '1'` bypass the approval and agreement checks at all filtering stages. They flow through the pipeline and appear in the output YAML with `active: false`. This allows the user management gear to process them as inactive users. Non-archived records without approval or a signed user agreement are excluded as before.
 
 ## Error Handling
 
