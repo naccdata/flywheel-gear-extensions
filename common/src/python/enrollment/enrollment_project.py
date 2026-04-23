@@ -74,7 +74,7 @@ class EnrollmentProject(ProjectAdaptor):
         except ValidationError as error:
             raise EnrollmentError(
                 f"{MetadataKeys.TRANSFERS} metadata in {self.group}/{self.label} "
-                "does not match expected format"
+                f"does not match the expected format: {error}"
             ) from error
 
     def update_transfer_info(self, transfer_info: TransferInfo) -> None:
