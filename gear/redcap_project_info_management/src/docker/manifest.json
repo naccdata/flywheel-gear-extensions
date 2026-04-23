@@ -1,53 +1,53 @@
 {
-    "name": "redcap-project-info-management",
-    "label": "REDCap Project Info Management",
-    "description": "Manages metadata for REDCap form projects",
-    "version": "1.1.1",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions/redcap_project_info_management",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "redcap-project-info-management",
+  "label": "REDCap Project Info Management",
+  "description": "Manages metadata for REDCap form projects",
+  "version": "1.1.1",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/redcap_project_info_management/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/redcap_project_info_management",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/redcap-project-info-management:1.1.1"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/redcap-project-info-management:1.1.1"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "input_file": {
-            "description": "The REDCap project YAML file",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            },
-            "optional": false
-        }
+    "input_file": {
+      "description": "The REDCap project YAML file",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      },
+      "optional": false
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
     },
-    "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        }
-    },
-    "command": "/bin/run"
+    "admin_group": {
+      "description": "Name of the admin group",
+      "type": "string",
+      "default": "nacc"
+    }
+  },
+  "command": "/bin/run"
 }

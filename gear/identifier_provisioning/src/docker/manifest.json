@@ -7,8 +7,8 @@
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/identifier_provisioning/",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/identifier_provisioning",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
     },
