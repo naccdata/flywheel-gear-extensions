@@ -1,72 +1,72 @@
 {
-    "name": "identifier-provisioning",
-    "label": "Identifier Provisioning",
-    "description": "Gear for provisioning NACCIDs from Enrollment forms",
-    "version": "2.2.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "identifier-provisioning",
+  "label": "Identifier Provisioning",
+  "description": "Gear for provisioning NACCIDs from Enrollment forms",
+  "version": "2.2.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/identifier_provisioning/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/identifier_provisioning",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/identifier-provisioning:2.2.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/identifier-provisioning:2.2.0"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "input_file": {
-            "description": "The CSV input file with data from the Enrollment form",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "tabular data"
-                ]
-            }
-        }
+    "input_file": {
+      "description": "The CSV input file with data from the Enrollment form",
+      "base": "file",
+      "type": {
+        "enum": [
+          "tabular data"
+        ]
+      }
+    }
+  },
+  "config": {
+    "database_mode": {
+      "description": "Whether to create identifiers in dev or prod database",
+      "type": "string",
+      "default": "dev"
     },
-    "config": {
-        "database_mode": {
-            "description": "Whether to create identifiers in dev or prod database",
-            "type": "string",
-            "default": "dev"
-        },
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "enrollment_module": {
-            "description": "Enrollment form module name",
-            "type": "string",
-            "default": "enroll"
-        },
-        "sender_email": {
-            "description": "The source email to send the transfer pending notification",
-            "type": "string",
-            "default": "nacc_dev@uw.edu"
-        },
-        "target_emails": {
-            "description": "Comma-delimited list of destination emails to send the notification to",
-            "type": "string",
-            "default": "nacchelp@uw.edu"
-        }
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
     },
-    "command": "/bin/run"
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "enrollment_module": {
+      "description": "Enrollment form module name",
+      "type": "string",
+      "default": "enroll"
+    },
+    "sender_email": {
+      "description": "The source email to send the transfer pending notification",
+      "type": "string",
+      "default": "nacc_dev@uw.edu"
+    },
+    "target_emails": {
+      "description": "Comma-delimited list of destination emails to send the notification to",
+      "type": "string",
+      "default": "nacchelp@uw.edu"
+    }
+  },
+  "command": "/bin/run"
 }

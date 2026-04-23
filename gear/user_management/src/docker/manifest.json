@@ -1,103 +1,103 @@
 {
-    "name": "user-management",
-    "label": "User Management",
-    "description": "Creates and updates user and user roles",
-    "version": "4.3.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions/user_management",
-    "source": "https://github.com/naccdata/flywheel-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "user-management",
+  "label": "User Management",
+  "description": "Creates and updates user and user roles",
+  "version": "4.3.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/user_management/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/user_management",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/user-management:4.3.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/user-management:4.3.0"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "user_file": {
-            "base": "file",
-            "description": "The user YAML file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            },
-            "optional": false
-        },
-        "auth_file": {
-            "base": "file",
-            "description": "The role YAML file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            },
-            "optional": false
-        },
-        "domain_config_file": {
-            "base": "file",
-            "description": "Domain relationship and IdP configuration YAML file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            },
-            "optional": true
-        }
+    "user_file": {
+      "base": "file",
+      "description": "The user YAML file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      },
+      "optional": false
     },
-    "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter gearbot path prefix",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "comanage_parameter_path": {
-            "description": "Parameter path for CoManage API",
-            "type": "string",
-            "default": "/prod/comanage/api"
-        },
-        "notifications_path": {
-            "description": "Parameter path for notification configuration (sender and support emails)",
-            "type": "string",
-            "default": "/prod/notifications"
-        },
-        "notification_mode": {
-            "description": "Mode for reminder notifications: date, force, none",
-            "type": "string",
-            "default": "date"
-        },
-        "redcap_parameter_path": {
-            "description": "Parameter path prefix for REDCap project credentials",
-            "type": "string",
-            "default": "/redcap/aws"
-        },
-        "portal_url_path": {
-            "description": "Parameter path for the portal URL",
-            "type": "string",
-            "default": "/prod/flywheel/portal"
-        }
+    "auth_file": {
+      "base": "file",
+      "description": "The role YAML file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      },
+      "optional": false
     },
-    "command": "/bin/run"
+    "domain_config_file": {
+      "base": "file",
+      "description": "Domain relationship and IdP configuration YAML file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      },
+      "optional": true
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
+    },
+    "admin_group": {
+      "description": "Name of the admin group",
+      "type": "string",
+      "default": "nacc"
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter gearbot path prefix",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "comanage_parameter_path": {
+      "description": "Parameter path for CoManage API",
+      "type": "string",
+      "default": "/prod/comanage/api"
+    },
+    "notifications_path": {
+      "description": "Parameter path for notification configuration (sender and support emails)",
+      "type": "string",
+      "default": "/prod/notifications"
+    },
+    "notification_mode": {
+      "description": "Mode for reminder notifications: date, force, none",
+      "type": "string",
+      "default": "date"
+    },
+    "redcap_parameter_path": {
+      "description": "Parameter path prefix for REDCap project credentials",
+      "type": "string",
+      "default": "/redcap/aws"
+    },
+    "portal_url_path": {
+      "description": "Parameter path for the portal URL",
+      "type": "string",
+      "default": "/prod/flywheel/portal"
+    }
+  },
+  "command": "/bin/run"
 }

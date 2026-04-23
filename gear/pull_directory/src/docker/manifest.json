@@ -1,58 +1,58 @@
 {
-    "name": "pull-directory",
-    "label": "Pull Directory",
-    "description": "Pull user information from NACC directory and save to admin project",
-    "version": "4.1.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions/pull_directory",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "pull-directory",
+  "label": "Pull Directory",
+  "description": "Pull user information from NACC directory and save to admin project",
+  "version": "4.1.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/pull_directory/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/pull_directory",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/pull-directory:4.1.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/pull-directory:4.1.0"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        }
+    "user_file": {
+      "description": "The name for the directory user file",
+      "type": "string",
+      "default": "nacc-directory-users.yaml"
     },
-    "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "user_file": {
-            "description": "The name for the directory user file",
-            "type": "string",
-            "default": "nacc-directory-users.yaml"
-        },
-        "parameter_path": {
-            "description": "Parameter path for NACC directory",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot/naccdirectory"
-        },
-        "notifications_path": {
-            "description": "Parameter path for notification configuration (sender and support emails)",
-            "type": "string",
-            "default": "/prod/notifications"
-        },
-        "preceding_hours": {
-            "description": "Number of hours to look back from the current time for filtering records by last modification time. 0 means no filtering (full pull).",
-            "type": "number",
-            "default": 0
-        }
+    "parameter_path": {
+      "description": "Parameter path for NACC directory",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot/naccdirectory"
     },
-    "command": "/bin/run"
+    "notifications_path": {
+      "description": "Parameter path for notification configuration (sender and support emails)",
+      "type": "string",
+      "default": "/prod/notifications"
+    },
+    "preceding_hours": {
+      "description": "Number of hours to look back from the current time for filtering records by last modification time. 0 means no filtering (full pull).",
+      "type": "number",
+      "default": 0
+    }
+  },
+  "command": "/bin/run"
 }
