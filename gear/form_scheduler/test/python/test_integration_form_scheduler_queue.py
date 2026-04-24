@@ -9,8 +9,12 @@ import pytest
 from configs.ingest_configs import Pipeline, PipelineConfigs
 from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
-from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
+from form_scheduler_app.form_scheduler_queue import (
+    FormSchedulerQueue,
+    get_subject_from_input_file,
+)
 from gear_execution.gear_trigger import GearConfigs, GearInfo, GearInput
+from keys.keys import DefaultValues
 from nacc_common.error_models import (
     QC_STATUS_PASS,
     DataIdentification,
@@ -205,6 +209,52 @@ def create_mock_qc_status_file_for_queue(
     )
 
     return file
+
+
+class TestGetSubjectFromInputFile:
+    """Unit tests for get_subject_from_input_file."""
+
+    def test_deletion_simple_ptid(self):
+        result = get_subject_from_input_file(
+            "delete_100020_2025-01-01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "100020"
+
+    def test_deletion_ptid_with_underscore(self):
+        result = get_subject_from_input_file(
+            "delete_adrc2000_01_2025-01-01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "adrc2000_01"
+
+    def test_deletion_ptid_with_underscore_and_visitnum(self):
+        result = get_subject_from_input_file(
+            "delete_adrc2000_01_2025-01-01_v01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "adrc2000_01"
+
+    def test_deletion_malformed_filename_returns_none(self):
+        result = get_subject_from_input_file(
+            "delete_badformat.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result is None
+
+    def test_finalization_simple_naccid(self):
+        result = get_subject_from_input_file(
+            "NACC123456_2025-01-01_uds.json",
+            DefaultValues.FINALIZATION_PIPELINE,
+        )
+        assert result == "NACC123456"
+
+    def test_unsupported_pipeline_returns_none(self):
+        result = get_subject_from_input_file(
+            "delete_100020_2025-01-01_uds.json",
+            "unknown-pipeline",  # type: ignore[arg-type]
+        )
+        assert result is None
 
 
 class TestFormSchedulerQueueIntegration:

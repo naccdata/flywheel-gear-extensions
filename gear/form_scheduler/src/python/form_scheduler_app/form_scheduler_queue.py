@@ -44,8 +44,10 @@ def get_subject_from_input_file(filename: str, pipeline: PipelineType) -> Option
             # filename format: <naccid>_<....>_<module>.json
             return filename.split("_")[0]
         elif pipeline == DefaultValues.DELETION_PIPELINE:
-            # filename format: delete_<ptid>_<....>_<module>.json
-            return filename.split("_")[1]
+            # filename format: delete_<ptid>_<date>_[<visitnum>_]<module>.json
+            # ptid may contain underscores; use date pattern as the delimiter
+            match = re.match(r"^delete_(.+)_\d{4}-\d{2}-\d{2}_", filename)
+            return match.group(1) if match else None
         else:
             log.error(f"Unsupported pipeline {pipeline}")
             return None
