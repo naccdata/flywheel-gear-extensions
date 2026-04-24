@@ -44,13 +44,16 @@ def filter_approved_records(
 
 def run(
     *, user_report: List[Dict[str, Any]], collector: Optional[UserEventCollector] = None
-) -> str:
+) -> Optional[str]:
     """Converts user report records to UserDirectoryEntry and saves as list of
     dictionary objects to the project.
 
     Args:
       user_report: user report records
       collector: optional event collector for error tracking
+
+    Returns:
+      YAML string of user entries, or None if no valid entries were produced
     """
     if collector is None:
         collector = UserEventCollector()
@@ -163,6 +166,9 @@ def run(
         user_emails.add(entry.email)
 
     log.info("Creating directory file with %s entries", len(user_list))
+    if len(user_list) == 0:
+        return None
+
     return yaml.safe_dump(
         data=user_list.model_dump(serialize_as_any=True, exclude_none=True),
         allow_unicode=True,

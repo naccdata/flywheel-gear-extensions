@@ -295,6 +295,10 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
                 f"Error: can't create YAML for file{self.__user_filename}: {error}"
             ) from error
 
+        if not yaml_text:
+            log.info("No valid user entries after processing - skipping file write")
+            return
+
         with context.open_output(
             self.__user_filename, mode="w", encoding="utf-8"
         ) as out_file:

@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.2
+
+* Skips writing the user file when no valid user entries are produced, preventing user-management from being triggered on empty incremental pulls
+* Returns `None` from directory processing when all records are filtered out (empty input, validation failures, missing permissions, or unsigned agreements)
+
 ## 4.1.1
 
 * Fixes archived contacts being silently dropped by the approval and agreement filters
