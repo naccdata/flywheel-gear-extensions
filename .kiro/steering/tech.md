@@ -26,6 +26,7 @@ Located in `bin/` directory:
 - `build-container.sh` - Rebuild the container after configuration changes
 - `exec-in-devcontainer.sh` - Execute a command in the running container
 - `terminal.sh` - Open an interactive shell in the container
+- `create-host-venv.sh` - Create/refresh a host-native `.venv` for IDE support (not for execution)
 
 **CRITICAL**: Always run `./bin/start-devcontainer.sh` before executing any commands to ensure the container is running.
 
@@ -255,14 +256,30 @@ pants test ::
 
 ## Python Interpreter Setup
 
-The dev container provides Python 3.12 pre-installed. No manual Python installation needed.
+### Execution Environment (Dev Container)
 
-For local development outside the container, Pants searches for Python interpreters in:
+The dev container provides Python 3.12 pre-installed. No manual Python installation needed for running code.
 
-1. System PATH
+### IDE Environment (Host .venv)
+
+A host-native `.venv` provides IDE support (autocomplete, type checking, go-to-definition) without depending on the devcontainer.
+
+```bash
+# Create or refresh the host .venv
+./bin/create-host-venv.sh
+```
+
+This script:
+- Reads the required Python version from `.python-version`
+- Finds a matching interpreter via `python3.12`, `python3`, or pyenv
+- Creates `.venv` with all dependencies from `requirements.txt`
+- Configures `.env` with `PYTHONPATH` for all Pants source roots (so the IDE resolves local packages)
+
+**Note**: The host `.venv` is for IDE analysis only. All execution (tests, linting, builds) happens in the devcontainer via Pants.
+
+For the host venv to work, ensure Python 3.12 is available on the host via:
+1. System PATH (e.g., `python3.12`)
 2. pyenv installations
-
-Ensure Python 3.12 is available via one of these methods.
 
 ## Package Distribution
 

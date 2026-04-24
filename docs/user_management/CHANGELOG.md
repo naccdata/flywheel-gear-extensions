@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.3.0
+
+* Adds inactive user disable flow across Flywheel, COmanage, and REDCap
+  * Disables matching Flywheel users when a directory entry is marked inactive
+  * Suspends matching COmanage registry persons with dry-run support
+  * Removes REDCap role assignments from all REDCap projects across all centers
+  * Each step is independent — failure of one does not block the others
+* Adds automatic re-enable of previously suspended COmanage users when they reappear as active in the directory
+* Adds summary notification email to support staff listing REDCap projects that need manual user suspension
+* Adds service-specific event categories for disable actions: Flywheel User Disabled, COmanage User Suspended, REDCap User Disabled
+* Adds `find_user_by_email` and `disable_user` to `FlywheelProxy`
+* Adds `suspend` and `re_enable` to `UserRegistry` with dry-run support
+
 ## 4.2.2
 
 * Rebuilt for updated common libraries (adds `data-freeze` datatype, relaxes primary study mode restriction)

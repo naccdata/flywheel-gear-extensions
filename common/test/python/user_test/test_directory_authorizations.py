@@ -5,6 +5,7 @@ from users.nacc_directory import (
     DirectoryAuthorizations,
     UserEntry,
 )
+from users.user_entry import ActiveUserEntry
 
 
 class TestDirectoryAuthorizations:
@@ -375,3 +376,115 @@ class TestCLARiTIStudyAccessMapIntegration:
                 break
 
         assert clariti_auth is None
+
+
+class TestToUserEntryInactiveBypass:
+    """Tests for to_user_entry() inactive bypass behavior.
+
+    Validates Requirements 3.1, 3.2, 3.3, 3.4, 5.1, 5.2, 5.3.
+    """
+
+    def test_archived_record_with_both_flags_false_produces_user_entry(self):
+        """Archived record with both flags false produces UserEntry with
+        active=False (not None).
+
+        Validates: Requirements 3.1, 5.1, 5.2, 5.3
+        """
+        auths = DirectoryAuthorizations.model_validate(
+            create_directory_entry(
+                archive_contact="1",
+                permissions_approval="0",
+                signed_agreement_status_num_ct="0",
+            ),
+            by_alias=True,
+        )
+        assert auths.inactive
+        assert not auths.permissions_approval
+        assert not auths.signed_user_agreement
+
+        user_entry = auths.to_user_entry()
+        assert user_entry is not None
+        assert isinstance(user_entry, UserEntry)
+        assert user_entry.active is False
+        assert user_entry.name.first_name == "Test"
+        assert user_entry.name.last_name == "User"
+        assert user_entry.email == "user@institution.edu"
+        assert user_entry.auth_email == "user@institution.edu"
+        assert user_entry.approved is False
+
+    def test_archived_record_produces_base_user_entry(self):
+        """Archived record produces UserEntry (not ActiveUserEntry or
+        CenterUserEntry).
+
+        Validates: Requirements 3.1, 5.1
+        """
+        auths = DirectoryAuthorizations.model_validate(
+            create_directory_entry(
+                archive_contact="1",
+                permissions_approval="1",
+                signed_agreement_status_num_ct="1",
+                contact_company_name="an institution",
+            ),
+            by_alias=True,
+        )
+        assert auths.inactive
+
+        user_entry = auths.to_user_entry()
+        assert user_entry is not None
+        assert type(user_entry) is UserEntry
+        assert not isinstance(user_entry, ActiveUserEntry)
+        assert not isinstance(user_entry, CenterUserEntry)
+        assert user_entry.active is False
+
+    def test_non_archived_with_flags_true_and_adcid_produces_center_user_entry(self):
+        """Non-archived record with both flags true and adcid produces
+        CenterUserEntry.
+
+        Validates: Requirements 3.4
+        """
+        auths = DirectoryAuthorizations.model_validate(
+            create_directory_entry(
+                archive_contact="0",
+                permissions_approval="1",
+                signed_agreement_status_num_ct="1",
+                contact_company_name="an institution",
+                adcid="999",
+            ),
+            by_alias=True,
+        )
+        assert not auths.inactive
+        assert auths.permissions_approval
+        assert auths.signed_user_agreement
+
+        user_entry = auths.to_user_entry()
+        assert user_entry is not None
+        assert isinstance(user_entry, CenterUserEntry)
+        assert user_entry.active is True
+        assert user_entry.adcid == 999
+
+    def test_non_archived_with_flags_true_and_no_adcid_produces_active_user_entry(
+        self,
+    ):
+        """Non-archived record with both flags true and no adcid produces
+        ActiveUserEntry.
+
+        Validates: Requirements 3.4
+        """
+        auths = DirectoryAuthorizations.model_validate(
+            create_directory_entry(
+                archive_contact="0",
+                permissions_approval="1",
+                signed_agreement_status_num_ct="1",
+                adcid="",
+            ),
+            by_alias=True,
+        )
+        assert not auths.inactive
+        assert auths.permissions_approval
+        assert auths.signed_user_agreement
+
+        user_entry = auths.to_user_entry()
+        assert user_entry is not None
+        assert isinstance(user_entry, ActiveUserEntry)
+        assert not isinstance(user_entry, CenterUserEntry)
+        assert user_entry.active is True

@@ -14,6 +14,7 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterError, ParameterStore
 from notifications.email import EmailClient, create_ses_client
+from pydantic import ValidationError
 from redcap_api.redcap_connection import REDCapConnection, REDCapConnectionError
 from redcap_api.redcap_parameter_store import REDCapParameters
 from redcap_api.redcap_project import REDCapProject
@@ -22,6 +23,7 @@ from users.event_models import UserEventCollector
 from users.nacc_directory import get_directory_field_names
 from yaml.representer import RepresenterError
 
+from directory_app.config import TimeWindowConfig
 from directory_app.main import filter_approved_records, run
 
 log = logging.getLogger(__name__)
@@ -74,10 +76,40 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
+        # Build preceding time window configuration
+        threshold = context.config.opts.get("preceding_hours", 0)
+        try:
+            threshold_config = TimeWindowConfig(threshold=threshold)
+        except ValidationError as error:
+            raise GearExecutionError(
+                f"Invalid preceding_hours configuration: {error}"
+            ) from error
+
+        date_range = threshold_config.get_date_range()
+
+        if date_range:
+            begin_str, end_str = date_range
+            log.info(
+                "Incremental pull: preceding_hours=%s, date range %s to %s",
+                threshold_config.threshold,
+                begin_str,
+                end_str,
+            )
+        else:
+            log.info("Pulling all records (no date filtering)")
+
         try:
             connection = REDCapConnection.create_from(params)
             project = REDCapProject.create(connection)
-            records = project.export_records(fields=get_directory_field_names())
+            if date_range:
+                begin_str, end_str = date_range
+                records = project.export_records(
+                    fields=get_directory_field_names(),
+                    date_range_begin=begin_str,
+                    date_range_end=end_str,
+                )
+            else:
+                records = project.export_records(fields=get_directory_field_names())
             assert isinstance(records, list)
             user_report = filter_approved_records(records)
         except REDCapConnectionError as error:

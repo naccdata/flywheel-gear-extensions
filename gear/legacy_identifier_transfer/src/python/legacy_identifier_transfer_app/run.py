@@ -93,13 +93,11 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
     def __init__(
         self,
-        admin_id: str,
         client: ClientWrapper,
         identifiers_mode: IdentifiersMode,
         legacy_ingest_label: str,
     ):
         super().__init__(client=client)
-        self.__admin_id = admin_id
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
         self.__legacy_ingest_label = legacy_ingest_label
         self.__dry_run = client.dry_run
@@ -123,14 +121,12 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         options = context.config.opts
-        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = options.get("identifiers_mode", "prod")
         legacy_ingest_label = options.get(
             "legacy_ingest_label", DefaultValues.LEGACY_PRJ_LABEL
         )
 
         return LegacyIdentifierTransferVisitor(
-            admin_id=admin_id,
             client=client,
             identifiers_mode=mode,
             legacy_ingest_label=legacy_ingest_label,

@@ -556,17 +556,17 @@ class DirectoryAuthorizations(BaseModel):
         return study_map
 
     def to_user_entry(self) -> Optional[UserEntry]:
-        """Converts this DirectoryAuthorizations object to a UserEntry."""
+        """Converts this DirectoryAuthorizations object to a UserEntry.
 
-        if not self.signed_user_agreement:
-            return None
-
-        if not self.permissions_approval:
-            return None
+        When inactive is True, returns a UserEntry with active=False
+        immediately, bypassing the signed_user_agreement and
+        permissions_approval checks.
+        """
 
         name = PersonName(first_name=self.firstname, last_name=self.lastname)
         email = self.email
         auth_email = self.auth_email if self.auth_email else self.email
+
         if self.inactive:
             return UserEntry(
                 name=name,
@@ -575,6 +575,12 @@ class DirectoryAuthorizations(BaseModel):
                 active=False,
                 approved=self.permissions_approval,
             )
+
+        if not self.signed_user_agreement:
+            return None
+
+        if not self.permissions_approval:
+            return None
 
         authorizations = self.__parse_fields().get_authorizations()
         if self.adcid is None:

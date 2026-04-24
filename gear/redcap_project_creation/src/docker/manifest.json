@@ -1,78 +1,78 @@
 {
-    "name": "redcap-project-creation",
-    "label": "REDCap Project Creation",
-    "description": "A gear to create REDCap projects using the REDCap API",
-    "version": "1.2.1",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "redcap-project-creation",
+  "label": "REDCap Project Creation",
+  "description": "A gear to create REDCap projects using the REDCap API",
+  "version": "1.2.1",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/redcap_project_creation/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/redcap_project_creation",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/redcap-project-creation:1.2.1"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/redcap-project-creation:1.2.1"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "input_file": {
-            "description": "YAML file with REDCap project details for the study",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            },
-            "optional": false
-        }
+    "input_file": {
+      "description": "YAML file with REDCap project details for the study",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      },
+      "optional": false
+    }
+  },
+  "config": {
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
     },
-    "config": {
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "super_token_path": {
-            "description": "AWS parameter path for REDCap super api token",
-            "type": "string",
-            "default": "/redcap/aws/super"
-        },
-        "project_token_path": {
-            "description": "AWS parameter path prefix to store REDCap project api token",
-            "type": "string",
-            "default": "/redcap/aws"
-        },
-        "admin_project": {
-            "description": "Flywheel lookup string for the admin project",
-            "type": "string",
-            "default": "nacc/project-admin"
-        },
-        "use_xml_template": {
-            "description": "Use XML template to create REDCap projects",
-            "type": "boolean",
-            "default": true
-        },
-        "output_file_name": {
-            "description": "Output file name to save metadata details (will be prefixed with study id)",
-            "type": "string",
-            "default": "ingest-projects-redcap-metadata.yaml"
-        },
-        "dry_run": {
-            "description": "Whether to do a dry run (only generates the metadata file)",
-            "type": "boolean",
-            "default": false
-        }
+    "super_token_path": {
+      "description": "AWS parameter path for REDCap super api token",
+      "type": "string",
+      "default": "/redcap/aws/super"
     },
-    "command": "/bin/run"
+    "project_token_path": {
+      "description": "AWS parameter path prefix to store REDCap project api token",
+      "type": "string",
+      "default": "/redcap/aws"
+    },
+    "admin_project": {
+      "description": "Flywheel lookup string for the admin project",
+      "type": "string",
+      "default": "nacc/project-admin"
+    },
+    "use_xml_template": {
+      "description": "Use XML template to create REDCap projects",
+      "type": "boolean",
+      "default": true
+    },
+    "output_file_name": {
+      "description": "Output file name to save metadata details (will be prefixed with study id)",
+      "type": "string",
+      "default": "ingest-projects-redcap-metadata.yaml"
+    },
+    "dry_run": {
+      "description": "Whether to do a dry run (only generates the metadata file)",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
 }

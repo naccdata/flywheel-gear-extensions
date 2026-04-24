@@ -4,6 +4,16 @@ Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
 
+## v3.1.0
+
+### New Features
+
+* Adds optional `ptids` parameter to `get_error_data` and `get_status_data` for participant-level filtering (backward compatible).
+* Adds `get_submission_qc_summary` for per-submission QC status and error counts.
+* Adds `get_submission_errors` for a flat list of all errors across pipeline stages for a submission.
+* Adds `get_submission_visit_metadata` for visit metadata lookup by submission identifier.
+* Adds `list_submissions` for listing all submissions in a project with optional module and PTID filtering.
+
 ## v3.0.0
 
 ### Breaking Changes

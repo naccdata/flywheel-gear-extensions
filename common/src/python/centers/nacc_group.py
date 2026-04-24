@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 
 from centers.center_adaptor import CenterAdaptor
-from centers.center_group import CenterGroup
+from centers.center_group import CenterGroup, CenterMetadata
 from centers.center_info import CenterInfo, CenterMapInfo
 
 log = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ class NACCGroup(CenterAdaptor):
                 if adcid not in adcid_list:
                     adcid_list.append(adcid)
             except ProjectError as error:
-                log.error(error)
+                log.warning(error)
                 continue
 
         return adcid_list
@@ -247,3 +247,65 @@ class NACCGroup(CenterAdaptor):
             )
 
         return self.__admin_project
+
+    def get_all_ingest_pipeline_adcids(self) -> List[int]:
+        """Pull list of pipeline ADCIDs by traversing metadata projects for all
+        centers.
+
+        Returns:
+            List[int]: List of pipeline ADCIDs
+        """
+        pipeline_adcids = []
+
+        center_map = self.get_center_map()
+        for center in center_map.centers.values():
+            if not center.group:
+                continue
+            group_adaptor = self._fw.find_group(group_id=center.group)
+            if not group_adaptor:
+                continue
+
+            # not using CenterGroup class methods to avoid unnecessary info update calls
+            center_group = CenterGroup(
+                adcid=center.adcid,
+                active=center.active,  # type: ignore
+                group=group_adaptor.group,
+                proxy=self._fw,
+            )
+
+            center_metadata: CenterMetadata = center_group.get_project_info()
+            for study_metadata in center_metadata.studies.values():
+                for project_info in study_metadata.ingest_projects.values():
+                    if project_info.pipeline_adcid not in pipeline_adcids:
+                        pipeline_adcids.append(project_info.pipeline_adcid)
+
+        return pipeline_adcids
+
+    def get_center_by_pipeline_adcid(
+        self, pipeline_adcid: int
+    ) -> Optional[CenterGroup]:
+        """Returns the center group for the given pipeline ADCID.
+
+        Args:
+            adcid: The pipeline ADCID of the center group to retrieve.
+
+        Returns:
+            The CenterGroup for the center. None if no group is found.
+        """
+
+        # Check whether a center group exists with the pipeline ADCID
+        center = self.get_center(adcid=pipeline_adcid)
+        if center:
+            return center
+
+        # Look in center metadata projects for a matching ingest pipeline
+        centers = self.get_centers()
+        for center in centers:
+            center_metadata: CenterMetadata = center.get_project_info()
+            for study_metadata in center_metadata.studies.values():
+                for project_info in study_metadata.ingest_projects.values():
+                    if project_info.pipeline_adcid == pipeline_adcid:
+                        # return the first match, assumes pipeline ADCIDs are unique
+                        return center
+
+        return None

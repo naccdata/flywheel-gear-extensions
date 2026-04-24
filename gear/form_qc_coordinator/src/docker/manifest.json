@@ -1,75 +1,75 @@
 {
-    "name": "form-qc-coordinator",
-    "label": "Form QC Coordinator",
-    "description": "A gear to coordinate data quality checks for a given participant",
-    "version": "1.5.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "form-qc-coordinator",
+  "label": "Form QC Coordinator",
+  "description": "A gear to coordinate data quality checks for a given participant",
+  "version": "1.6.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/form_qc_coordinator/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/form_qc_coordinator",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/form-qc-coordinator:1.6.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/form-qc-coordinator:1.5.0"
-        },
-        "flywheel": {
-            "suite": "Utility",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "Utility",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "visits_file": {
-            "description": "Input file to trigger the QC process for this participant",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        },
-        "form_configs_file": {
-            "description": "A JSON file with forms module configurations",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        },
-        "qc_configs_file": {
-            "description": "JSON file with QC gear config information",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        }
+    "visits_file": {
+      "description": "Input file to trigger the QC process for this participant",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
     },
-    "config": {
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "pipeline": {
-            "description": "Pipeline that triggered this gear",
-            "type": "string",
-            "default": "submission"
-        },
-        "check_all": {
-            "description": "Whether to re-evaluate all visits for the given module for the participant",
-            "type": "boolean",
-            "default": false
-        }
+    "form_configs_file": {
+      "description": "A JSON file with forms module configurations",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
     },
-    "command": "/bin/run"
+    "qc_configs_file": {
+      "description": "JSON file with QC gear config information",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
+    }
+  },
+  "config": {
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "pipeline": {
+      "description": "Pipeline that triggered this gear",
+      "type": "string",
+      "default": "submission"
+    },
+    "check_all": {
+      "description": "Whether to re-evaluate all visits for the given module for the participant",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
 }

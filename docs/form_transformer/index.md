@@ -5,6 +5,17 @@ Reads a tabular (CSV) file containing form visit data, performs transformations 
 The JSON file is attached to a subject/session/acquisition for the participant determined by the NACCID.
 The file must have a module column.
 
+## File Metadata and Tagging
+
+After processing, the gear updates the input CSV file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether transformation succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred during transformation
+
+2. **File Tag**: The gear name (e.g., `"form-transformer"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.
+
 Current transformations filter columns based on the versions of forms.
 Data from the NACC REDCap projects will contain rows for all versions of forms, and the transformations filter out the columns specific to the versions not used.
 
