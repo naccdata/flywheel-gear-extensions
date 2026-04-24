@@ -1,87 +1,87 @@
 {
-    "name": "form-qc-checker",
-    "label": "Form QC Checker",
-    "description": "Gear to check form data as JSON with QC rule set",
-    "version": "1.8.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "form-qc-checker",
+  "label": "Form QC Checker",
+  "description": "Gear to check form data as JSON with QC rule set",
+  "version": "1.9.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/form_qc_checker/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/form_qc_checker",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/form-qc-checker:1.9.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/form-qc-checker:1.8.0"
-        },
-        "flywheel": {
-            "suite": "Curation",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "Curation",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "form_data_file": {
-            "description": "The form data file (JSON or CSV)",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code",
-                    "tabular data"
-                ]
-            }
-        },
-        "form_configs_file": {
-            "description": "A JSON file with forms module configurations",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        },
-        "supplement_data_file": {
-            "description": "Optional input file for supplement module",
-            "base": "file",
-            "optional": true,
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        }
+    "form_data_file": {
+      "description": "The form data file (JSON or CSV)",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code",
+          "tabular data"
+        ]
+      }
     },
-    "config": {
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter gearbot path prefix",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "rules_s3_bucket": {
-            "description": "QC rule definitions S3 bucket name",
-            "type": "string",
-            "default": "nacc-qc-rules"
-        },
-        "qc_checks_db_path": {
-            "description": "Parameter path for NACC QC checks database credentials",
-            "type": "string",
-            "default": "/redcap/aws/qcchecks"
-        },
-        "strict_mode": {
-            "description": "Validation mode. If false, input data variables that are not in the rule definitions are skipped from validation.",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        }
+    "form_configs_file": {
+      "description": "A JSON file with forms module configurations",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
     },
-    "command": "/bin/run"
+    "supplement_data_file": {
+      "description": "Optional input file for supplement module",
+      "base": "file",
+      "optional": true,
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
+    }
+  },
+  "config": {
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter gearbot path prefix",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "rules_s3_bucket": {
+      "description": "QC rule definitions S3 bucket name",
+      "type": "string",
+      "default": "nacc-qc-rules"
+    },
+    "qc_checks_db_path": {
+      "description": "Parameter path for NACC QC checks database credentials",
+      "type": "string",
+      "default": "/redcap/aws/qcchecks"
+    },
+    "strict_mode": {
+      "description": "Validation mode. If false, input data variables that are not in the rule definitions are skipped from validation.",
+      "type": "boolean",
+      "default": false
+    },
+    "admin_group": {
+      "description": "Name of the admin group",
+      "type": "string",
+      "default": "nacc"
+    }
+  },
+  "command": "/bin/run"
 }

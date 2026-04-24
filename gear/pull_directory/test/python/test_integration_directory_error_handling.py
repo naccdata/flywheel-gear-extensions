@@ -627,3 +627,258 @@ class TestDirectoryErrorHandlingIntegration:
         # (Full implementation in task 33)
         assert hasattr(collector, "get_errors_by_category")
         assert hasattr(collector, "get_affected_users")
+
+
+class TestArchivedContactIntegration:
+    """Integration tests for archived contact processing through run().
+
+    Requirements tested:
+    - 2.1, 2.2: Archived contacts bypass approval and agreement checks
+    - 2.3, 2.4: Non-archived contacts without approval/agreement are excluded
+    - 4.1, 4.2, 4.3: Non-archived contacts produce identical output
+    - 5.1, 5.2, 5.3: Archived contacts appear with correct active/approved values
+    """
+
+    @pytest.fixture
+    def valid_user_record(self) -> Dict[str, Any]:
+        """Create a valid non-archived user record with approval and
+        agreement."""
+        return {
+            "email": "active@example.com",
+            "first_name": "Active",
+            "last_name": "User",
+            "adcid": 1,
+            "permissions_approval": "1",
+            "auth_email": "active@example.com",
+            "firstname": "Active",
+            "lastname": "User",
+            "fw_email": "active@example.com",
+            "archive_contact": "0",
+            "contact_company_name": "Test Center",
+            "adresearchctr": "1",
+            "web_report_access___web": "0",
+            "web_report_access___repdash": "0",
+            "p30_naccid_enroll_access_level": "0",
+            "p30_clin_forms_access_level": "0",
+            "p30_imaging_access_level": "0",
+            "p30_flbm_access_level": "0",
+            "p30_genetic_access_level": "0",
+            "leads_naccid_enroll_access_level": "0",
+            "leads_clin_forms_access_level": "0",
+            "dvcid_naccid_enroll_access_level": "0",
+            "dvcid_clin_forms_access_level": "0",
+            "allftd_naccid_enroll_access_level": "0",
+            "allftd_clin_forms_access_level": "0",
+            "dlbc_naccid_enroll_access_level": "0",
+            "dlbc_clin_forms_access_level": "0",
+            "cl_clin_forms_access_level": "0",
+            "cl_imaging_access_level": "0",
+            "cl_flbm_access_level": "0",
+            "cl_pay_access_level": "0",
+            "cl_ror_access_level": "0",
+            "scan_dashboard_access_level": "0",
+            "permissions_approval_date": "2024-01-01",
+            "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
+        }
+
+    @pytest.fixture
+    def archived_no_approval_no_agreement_record(self) -> Dict[str, Any]:
+        """Create an archived record with no approval and no agreement."""
+        return {
+            "email": "archived@example.com",
+            "first_name": "Archived",
+            "last_name": "Contact",
+            "adcid": 2,
+            "permissions_approval": "0",
+            "auth_email": "archived@example.com",
+            "firstname": "Archived",
+            "lastname": "Contact",
+            "fw_email": "archived@example.com",
+            "archive_contact": "1",
+            "contact_company_name": "Old Center",
+            "adresearchctr": "2",
+            "web_report_access___web": "0",
+            "web_report_access___repdash": "0",
+            "p30_naccid_enroll_access_level": "0",
+            "p30_clin_forms_access_level": "0",
+            "p30_imaging_access_level": "0",
+            "p30_flbm_access_level": "0",
+            "p30_genetic_access_level": "0",
+            "leads_naccid_enroll_access_level": "0",
+            "leads_clin_forms_access_level": "0",
+            "dvcid_naccid_enroll_access_level": "0",
+            "dvcid_clin_forms_access_level": "0",
+            "allftd_naccid_enroll_access_level": "0",
+            "allftd_clin_forms_access_level": "0",
+            "dlbc_naccid_enroll_access_level": "0",
+            "dlbc_clin_forms_access_level": "0",
+            "cl_clin_forms_access_level": "0",
+            "cl_imaging_access_level": "0",
+            "cl_flbm_access_level": "0",
+            "cl_pay_access_level": "0",
+            "cl_ror_access_level": "0",
+            "scan_dashboard_access_level": "0",
+            "permissions_approval_date": "2024-01-01",
+            "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "0",
+        }
+
+    @pytest.fixture
+    def unapproved_non_archived_record(self) -> Dict[str, Any]:
+        """Create a non-archived record with no approval."""
+        return {
+            "email": "unapproved@example.com",
+            "first_name": "Unapproved",
+            "last_name": "User",
+            "adcid": 1,
+            "permissions_approval": "0",
+            "auth_email": "unapproved@example.com",
+            "firstname": "Unapproved",
+            "lastname": "User",
+            "fw_email": "unapproved@example.com",
+            "archive_contact": "0",
+            "contact_company_name": "Test Center",
+            "adresearchctr": "1",
+            "web_report_access___web": "0",
+            "web_report_access___repdash": "0",
+            "p30_naccid_enroll_access_level": "0",
+            "p30_clin_forms_access_level": "0",
+            "p30_imaging_access_level": "0",
+            "p30_flbm_access_level": "0",
+            "p30_genetic_access_level": "0",
+            "leads_naccid_enroll_access_level": "0",
+            "leads_clin_forms_access_level": "0",
+            "dvcid_naccid_enroll_access_level": "0",
+            "dvcid_clin_forms_access_level": "0",
+            "allftd_naccid_enroll_access_level": "0",
+            "allftd_clin_forms_access_level": "0",
+            "dlbc_naccid_enroll_access_level": "0",
+            "dlbc_clin_forms_access_level": "0",
+            "cl_clin_forms_access_level": "0",
+            "cl_imaging_access_level": "0",
+            "cl_flbm_access_level": "0",
+            "cl_pay_access_level": "0",
+            "cl_ror_access_level": "0",
+            "scan_dashboard_access_level": "0",
+            "permissions_approval_date": "2024-01-01",
+            "permissions_approval_name": "Admin",
+            "signed_agreement_status_num_ct": "1",
+        }
+
+    def test_mixed_archived_and_non_archived_records(
+        self,
+        valid_user_record: Dict[str, Any],
+        archived_no_approval_no_agreement_record: Dict[str, Any],
+        unapproved_non_archived_record: Dict[str, Any],
+    ) -> None:
+        """Test mix of archived and non-archived records through run().
+
+        Verifies output YAML contains correct entries with correct
+        active and approved values.
+
+        Requirements: 2.1, 2.2, 2.3, 4.1, 5.1, 5.2, 5.3
+        """
+        import yaml
+        from directory_app.main import run
+        from users.event_models import UserEventCollector
+
+        collector = UserEventCollector()
+        user_report = [
+            valid_user_record,
+            archived_no_approval_no_agreement_record,
+            unapproved_non_archived_record,
+        ]
+
+        yaml_output = run(user_report=user_report, collector=collector)
+        data = yaml.safe_load(yaml_output)
+
+        # Should have 2 entries: valid active + archived inactive
+        assert len(data) == 2
+
+        # Find entries by email
+        entries_by_email = {entry["email"]: entry for entry in data}
+
+        # Valid active user should be present with active=true
+        assert "active@example.com" in entries_by_email
+        active_entry = entries_by_email["active@example.com"]
+        assert active_entry["active"] is True
+
+        # Archived user should be present with active=false, approved=false
+        assert "archived@example.com" in entries_by_email
+        archived_entry = entries_by_email["archived@example.com"]
+        assert archived_entry["active"] is False
+        assert archived_entry["approved"] is False
+        assert archived_entry["name"]["first_name"] == "Archived"
+        assert archived_entry["name"]["last_name"] == "Contact"
+        assert archived_entry["auth_email"] == "archived@example.com"
+
+        # Unapproved non-archived user should NOT be in output
+        assert "unapproved@example.com" not in entries_by_email
+
+        # Should have 1 error event for the unapproved non-archived record
+        assert collector.error_count() == 1
+
+    def test_non_archived_records_regression(
+        self,
+        valid_user_record: Dict[str, Any],
+    ) -> None:
+        """Regression test: non-archived records produce identical YAML output.
+
+        Verifies that the archive contact bypass does not change the
+        output format or content for non-archived records.
+
+        Requirements: 4.3
+        """
+        import yaml
+        from directory_app.main import run
+
+        yaml_output = run(user_report=[valid_user_record])
+        data = yaml.safe_load(yaml_output)
+
+        assert len(data) == 1
+        entry = data[0]
+
+        # Verify standard fields are present and correct
+        assert entry["email"] == "active@example.com"
+        assert entry["auth_email"] == "active@example.com"
+        assert entry["active"] is True
+        assert entry["name"]["first_name"] == "Active"
+        assert entry["name"]["last_name"] == "User"
+
+    def test_archived_record_without_approval_or_agreement(
+        self,
+        archived_no_approval_no_agreement_record: Dict[str, Any],
+    ) -> None:
+        """Test archived record without approval or agreement produces entry.
+
+        Verifies that an archived record with permissions_approval='0'
+        and signed_agreement_status_num_ct='0' produces a UserEntry
+        with active=false and approved=false.
+
+        Requirements: 2.1, 2.2, 5.1, 5.3
+        """
+        import yaml
+        from directory_app.main import run
+        from users.event_models import UserEventCollector
+
+        collector = UserEventCollector()
+        yaml_output = run(
+            user_report=[archived_no_approval_no_agreement_record],
+            collector=collector,
+        )
+        data = yaml.safe_load(yaml_output)
+
+        # Archived record should appear in output
+        assert len(data) == 1
+        entry = data[0]
+
+        assert entry["email"] == "archived@example.com"
+        assert entry["active"] is False
+        assert entry["approved"] is False
+        assert entry["name"]["first_name"] == "Archived"
+        assert entry["name"]["last_name"] == "Contact"
+        assert entry["auth_email"] == "archived@example.com"
+
+        # No error events should be generated for archived records
+        assert not collector.has_errors()

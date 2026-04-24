@@ -1,57 +1,57 @@
 {
-    "name": "push-template",
-    "label": "Push Project Template",
-    "description": "Pushes template projects to center projects",
-    "version": "2.1.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions/push_template/",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "push-template",
+  "label": "Push Project Template",
+  "description": "Pushes template projects to center projects",
+  "version": "2.1.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/push_template/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/push_template",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/push-template:2.1.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/push-template:2.1.0"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        }
+    "admin_group": {
+      "description": "Name of the admin group",
+      "type": "string",
+      "default": "nacc"
     },
-    "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
-        "template_project": {
-            "description": "Label of the template project",
-            "type": "string"
-        },
-        "template_group": {
-            "description": "ID of the template group",
-            "type": "string",
-            "default": "project-templates"
-        },
-        "new_only": {
-            "description": "Only create projects for centers tagged as new",
-            "type": "boolean",
-            "default": false
-        }
+    "template_project": {
+      "description": "Label of the template project",
+      "type": "string"
     },
-    "command": "/bin/run"
+    "template_group": {
+      "description": "ID of the template group",
+      "type": "string",
+      "default": "project-templates"
+    },
+    "new_only": {
+      "description": "Only create projects for centers tagged as new",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
 }

@@ -1,80 +1,80 @@
 {
-    "name": "form-scheduler",
-    "label": "Form Scheduler",
-    "description": "Queues project files for the submission pipeline",
-    "version": "1.3.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "form-scheduler",
+  "label": "Form Scheduler",
+  "description": "Queues project files for the submission pipeline",
+  "version": "1.4.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/form_scheduler/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/form_scheduler",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/form-scheduler:1.4.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/form-scheduler:1.3.0"
-        },
-        "flywheel": {
-            "suite": "NACC Admin Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Admin Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "pipeline_configs_file": {
-            "description": "A JSON file with pipeline configurations",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        },
-        "form_configs_file": {
-            "description": "A JSON file with form module configurations",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        }
+    "pipeline_configs_file": {
+      "description": "A JSON file with pipeline configurations",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
     },
-    "config": {
-        "source_email": {
-            "description": "The source email to send the submission completion notification",
-            "type": "string",
-            "default": "nacchelp@uw.edu"
-        },
-        "portal_url_path": {
-            "description": "Parameter path for the portal URL",
-            "type": "string",
-            "default": "/prod/flywheel/portal"
-        },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "event_bucket": {
-            "description": "The S3 bucket name for visit event capture",
-            "type": "string",
-            "default": "submission-events"
-        },
-        "event_environment": {
-            "description": "The execution environment for visit event capture: prod or dev",
-            "type": "string",
-            "enum": [
-                "prod",
-                "dev"
-            ],
-            "default": "prod"
-        }
+    "form_configs_file": {
+      "description": "A JSON file with form module configurations",
+      "base": "file",
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
+    }
+  },
+  "config": {
+    "source_email": {
+      "description": "The source email to send the submission completion notification",
+      "type": "string",
+      "default": "nacchelp@uw.edu"
     },
-    "command": "/bin/run"
+    "portal_url_path": {
+      "description": "Parameter path for the portal URL",
+      "type": "string",
+      "default": "/prod/flywheel/portal"
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "event_bucket": {
+      "description": "The S3 bucket name for visit event capture",
+      "type": "string",
+      "default": "submission-events"
+    },
+    "event_environment": {
+      "description": "The execution environment for visit event capture: prod or dev",
+      "type": "string",
+      "enum": [
+        "prod",
+        "dev"
+      ],
+      "default": "prod"
+    }
+  },
+  "command": "/bin/run"
 }

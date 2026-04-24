@@ -38,3 +38,7 @@ Most package managers use a similar format to add packages directly from GitHub.
 - `nacc_common.qc_report` — QC report visitor classes for generating reports
 - `nacc_common.error_data` — Error and status data extraction from projects
 - `nacc_common.field_names` — Common field name constants
+
+## QC Metadata and Gear Tagging Conventions
+
+For detailed documentation of the QC metadata structure, gear tagging conventions, and which gears use which mechanisms, see the [QC Conventions](qc-conventions.md) reference page.
