@@ -10,7 +10,12 @@ from enrollment.enrollment_transfer import EnrollmentRecord
 from identifiers.model import CenterIdentifiers, IdentifierObject
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
-from nacc_common.form_dates import DEFAULT_DATE_FORMAT, DateFormatException, parse_date
+from nacc_common.form_dates import (
+    DEFAULT_DATE_FORMAT,
+    ENROLL_FORM_RELEASE_DATE,
+    DateFormatException,
+    parse_date,
+)
 from notifications.email import EmailClient, create_ses_client
 from pydantic import ValidationError
 from uploads.upload_error import UploaderError
@@ -42,6 +47,13 @@ class LegacyEnrollmentCollection:
         return iter(self.__records.values())
 
 
+def is_legacy_identifier(enrollment_date: datetime) -> bool:
+    """Checks whether the enrollment date is before the enrollment form release
+    date."""
+    cutoff_date = datetime.strptime(ENROLL_FORM_RELEASE_DATE, DEFAULT_DATE_FORMAT)
+    return enrollment_date < cutoff_date
+
+
 def validate_and_create_record(
     naccid: str, identifier: IdentifierObject, enrollment_date: datetime
 ) -> Optional[EnrollmentRecord]:
@@ -52,12 +64,14 @@ def validate_and_create_record(
         return None
 
     center_identifiers = CenterIdentifiers(adcid=identifier.adcid, ptid=identifier.ptid)
+    # TODO: set the end_date if identifier is not active
     record = EnrollmentRecord(
         naccid=identifier.naccid,
         guid=identifier.guid,
         center_identifier=center_identifiers,
         start_date=enrollment_date,
-        legacy=True,
+        status="active" if identifier.active else "transferred",
+        legacy=is_legacy_identifier(enrollment_date),
     )
 
     return record
