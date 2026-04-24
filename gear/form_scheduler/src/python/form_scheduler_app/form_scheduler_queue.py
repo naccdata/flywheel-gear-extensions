@@ -854,6 +854,44 @@ class FormSchedulerQueue:
                 destination=destination,
             )
 
+    def _capture_events_and_notify(
+        self,
+        *,
+        batch: List[FileEntry],
+        pipeline: Pipeline,
+        notify_user: bool,
+        event_capture_callback: Optional[
+            Callable[[FileEntry, PipelineType], None]
+        ] = None,
+    ):
+        """Capture events and send notification emails for a completed batch.
+
+        Args:
+            batch: files that were processed in this round
+            pipeline: pipeline configs (used for the pipeline name)
+            notify_user: whether to send notification emails
+            event_capture_callback: optional callback to capture events
+        """
+
+        if notify_user and not (self.__email_client and self.__portal_url):
+            log.error(
+                "Failed to send email notifications, missing email client or portal URL"
+            )
+            notify_user = False
+
+        for file in batch:
+            if event_capture_callback:
+                event_capture_callback(file, pipeline.name)
+
+            if notify_user:
+                send_email(
+                    proxy=self.__proxy,
+                    email_client=self.__email_client,  # type: ignore
+                    file=file,
+                    project=self.__project.project,
+                    portal_url=self.__portal_url,  # type: ignore
+                )
+
     def _process_subqueue_by_subject(
         self,
         *,
@@ -906,6 +944,9 @@ class FormSchedulerQueue:
                     "Failed to find subject id from filename "
                     f"{file.name} for pipeline {pipeline.name}"
                 )
+                # delete the tags to prevent revisiting the file
+                for tag in pipeline_queue.tags:
+                    file.delete_tag(tag)
                 continue
 
             subject_queues[subject].append(file)
@@ -936,19 +977,12 @@ class FormSchedulerQueue:
             JobPoll.wait_for_pipeline(self.__proxy, job_search)
 
             # Capture events and send emails for the completed batch
-            for file in batch:
-                if event_capture_callback:
-                    event_capture_callback(file, pipeline.name)
-
-                if notify_user and self.__email_client:
-                    assert self.__portal_url, "portal URL must be set"
-                    send_email(
-                        proxy=self.__proxy,
-                        email_client=self.__email_client,
-                        file=file,
-                        project=self.__project.project,
-                        portal_url=self.__portal_url,
-                    )
+            self._capture_events_and_notify(
+                batch=batch,
+                pipeline=pipeline,
+                notify_user=notify_user,
+                event_capture_callback=event_capture_callback,
+            )
 
 
 class FormSchedulerError(Exception):
