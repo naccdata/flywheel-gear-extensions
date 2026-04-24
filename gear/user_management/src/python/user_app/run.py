@@ -273,6 +273,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
         assert self.__admin_id, "Admin group ID required"
         assert self.__email_source, "Sender email address required"
 
+        user_queue = self.__get_user_queue(self.__user_filepath)
+        if len(user_queue) == 0:
+            log.info("User queue is empty - nothing to process")
+            return
+
         collector = UserEventCollector()
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
@@ -298,7 +303,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
 
             try:
                 run(
-                    user_queue=self.__get_user_queue(self.__user_filepath),
+                    user_queue=user_queue,
                     user_process=UserProcess(
                         environment=UserProcessEnvironment(
                             admin_group=admin_group,
@@ -556,7 +561,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
                 f"No users read from user file {user_file_path}: {error}"
             ) from error
         if not object_list:
-            raise GearExecutionError("No users found in user file")
+            log.info("No users found in user file - nothing to process")
+            return UserQueue()
 
         try:
             user_entry_list = UserEntryList.model_validate(object_list)
