@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.3.1
+
+* Handles empty user list gracefully instead of failing with an error
+  * Incremental pull-directory runs can produce empty user files, which is now expected
+  * Logs an informational message and exits successfully when no users are present
+  * Skips unnecessary infrastructure setup (COManage, SES, registry) for empty inputs
+* Adds `__len__` method to `UserQueue` for queue size checks
+
 ## 4.3.0
 
 * Adds inactive user disable flow across Flywheel, COmanage, and REDCap
