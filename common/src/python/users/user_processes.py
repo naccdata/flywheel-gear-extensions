@@ -77,6 +77,10 @@ class UserQueue(Generic[T]):
     def __init__(self) -> None:
         self.__queue: deque[T] = deque()
 
+    def __len__(self) -> int:
+        """Returns the number of entries in the queue."""
+        return len(self.__queue)
+
     def enqueue(self, user_entry: T) -> None:
         """Adds the user entry to the queue.
 
