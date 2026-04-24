@@ -66,6 +66,7 @@ class TestPipelineConfigs:
                         "configs": {"config1": "value1", "config2": 10},
                     },
                     "notify_user": True,
+                    "sequential": True,
                 }
             ],
         }

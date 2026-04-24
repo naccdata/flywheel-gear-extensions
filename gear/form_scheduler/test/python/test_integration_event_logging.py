@@ -1,5 +1,6 @@
 """Integration tests for end-to-end event logging flow."""
 
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -197,7 +198,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute end-to-end event logging
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify QC-pass event was created and logged
         assert len(mock_event_capture.logged_events) == 1
@@ -269,7 +270,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute end-to-end event logging
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify QC-pass event was created using JSON file metadata
         assert len(mock_event_capture.logged_events) == 1
@@ -347,7 +348,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging - should find QC file using ErrorLogTemplate
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify event was logged (confirms QC status log was found)
         assert len(mock_event_capture.logged_events) == 1
@@ -406,7 +407,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify no events were logged (QC status is not PASS)
         assert len(mock_event_capture.logged_events) == 0
@@ -438,7 +439,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify no events were logged (no QC status log found)
         assert len(mock_event_capture.logged_events) == 0
@@ -490,7 +491,7 @@ class TestEndToEndEventLogging:
         )
 
         # Execute event logging
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify no events were logged (invalid visit metadata)
         assert len(mock_event_capture.logged_events) == 0
@@ -523,7 +524,7 @@ class TestEndToEndEventLogging:
 
         # Execute event logging - should handle error gracefully
         # This should not raise an exception
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # Verify no events were logged due to error, but no exception was raised
         assert len(mock_event_capture.logged_events) == 0
@@ -557,6 +558,140 @@ class TestEndToEndEventLogging:
 
         # Execute event logging - should handle None logger gracefully
         # This should not raise an exception
-        event_accumulator.capture_events(json_file=json_file, project=project)
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
 
         # No assertions needed - the test passes if no exception is raised
+
+
+class TestCaptureDeleteEvent:
+    """Integration tests for EventAccumulator.capture_delete_event."""
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def event_accumulator(
+        self, mock_event_capture: MockVisitEventCapture
+    ) -> EventAccumulator:
+        return EventAccumulator(event_capture=mock_event_capture)
+
+    def test_capture_delete_event_pass_state_logs_event(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """State=PASS triggers a delete event to be captured."""
+        completion_time = datetime(2025, 6, 1, 12, 0, 0)
+        request_file = MockFile(
+            name="delete_100020_2025-06-01_uds.json",
+            info={"state": "PASS"},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2000",
+                    "module": "UDS",
+                    "visitdate": "2025-06-01",
+                    "visitnum": "1F",
+                    "timestamp": "2025-06-01T10:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=completion_time,
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "delete"
+        assert event.gear_name == "form-deletion"
+        assert event.ptid == "adrc2000"
+        assert event.visit_date == "2025-06-01"
+        assert event.visit_number == "1F"
+        assert event.module == "UDS"
+        assert event.packet is None
+        assert event.study == "alpha"
+        assert event.project_label == "ingest-form-alpha"
+        assert event.center_label == "dummy-center"
+        assert event.pipeline_adcid == 42
+        assert event.datatype == "form"
+        assert event.timestamp == completion_time
+
+    def test_capture_delete_event_fail_state_skips_event(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """State=FAIL skips event capture without raising an exception."""
+        request_file = MockFile(
+            name="delete_100021_2025-06-01_uds.json",
+            info={"state": "FAIL"},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2001",
+                    "module": "UDS",
+                    "visitdate": "2025-06-01",
+                    "visitnum": "1F",
+                    "timestamp": "2025-06-01T10:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=datetime(2025, 6, 1, 12, 0, 0),
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_capture_delete_event_without_visitnum(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Deletion request without visitnum captures an event with
+        visit_number=None."""
+        completion_time = datetime(2025, 7, 15, 9, 0, 0)
+        request_file = MockFile(
+            name="delete_100022_2025-07-15_mlst.json",
+            info={"state": "PASS"},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2002",
+                    "module": "MLST",
+                    "visitdate": "2025-07-15",
+                    "timestamp": "2025-07-15T08:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=completion_time,
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "delete"
+        assert event.ptid == "adrc2002"
+        assert event.visit_number is None
+        assert event.module == "MLST"

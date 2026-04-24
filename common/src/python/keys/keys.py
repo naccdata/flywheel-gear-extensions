@@ -53,6 +53,7 @@ class DefaultValues:
     UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
+    DELETION_PIPELINE = "deletion"
     FINALIZED_TAG = "submission-completed"
     MODULE_PATTERN = "a-zA-Z1-9_"
 

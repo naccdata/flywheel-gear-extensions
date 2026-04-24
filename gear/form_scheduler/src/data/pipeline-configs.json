@@ -4,9 +4,49 @@
         "identifier-lookup",
         "form-transformer",
         "form-qc-coordinator",
-        "form-qc-checker"
+        "form-qc-checker",
+        "form-deletion"
     ],
     "pipelines": [
+        {
+            "name": "deletion",
+            "modules": [
+                "FTLD",
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP",
+                "UDS"
+            ],
+            "tags": [
+                "pending-delete"
+            ],
+            "extensions": [
+                ".json"
+            ],
+            "starting_gear": {
+                "gear_name": "form-deletion",
+                "inputs": [
+                    {
+                        "label": "request_file",
+                        "file_locator": "matched"
+                    },
+                    {
+                        "label": "form_configs_file",
+                        "file_locator": "fixed",
+                        "file_name": "form-data-module-configs.json"
+                    }
+                ],
+                "configs": {
+                    "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+                    "database_mode": "dev",
+                    "sender_email": "nacchelp@uw.edu"
+                }
+            },
+            "notify_user": false,
+            "sequential": false
+        },
         {
             "name": "submission",
             "modules": [
@@ -42,12 +82,19 @@
                     "add_parents": false
                 }
             },
-            "notify_user": true
+            "notify_user": true,
+            "sequential": true
         },
         {
             "name": "finalization",
             "modules": [
-                "UDS"
+                "UDS",
+                "FTLD",
+                "LBD",
+                "MLST",
+                "BDS",
+                "CLS",
+                "NP"
             ],
             "tags": [
                 "submission-completed"
@@ -78,7 +125,9 @@
                     "pipeline": "finalization",
                     "check_all": false
                 }
-            }
+            },
+            "notify_user": false,
+            "sequential": false
         }
     ]
 }

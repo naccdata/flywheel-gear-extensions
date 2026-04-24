@@ -3,6 +3,7 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.4.0
+* Adds deletion workflow
 * Rebuilt for log file naming format update
   
 ## 1.3.0
