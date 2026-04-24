@@ -163,6 +163,7 @@ def test_process_dry_run(mock_enrollment_project, mock_form_store):
             "adcid": 123,
             "ptid": "PTID3",
             "guid": "GUID3",
+            "active": True,
             "created_on": datetime.now(),
         }
     )
