@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
+from deletions.models import DeleteRequest
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
@@ -12,7 +13,6 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
-from submissions.models import DeleteRequest
 
 from form_deletion_app.helpers import AcquisitionRemover
 

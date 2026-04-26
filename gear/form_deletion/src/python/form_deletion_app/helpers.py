@@ -4,12 +4,12 @@ import logging
 from typing import Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
+from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.session import Session
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, SubjectAdaptor
 from nacc_common.field_names import FieldNames
-from submissions.models import DeleteRequest
 
 log = logging.getLogger(__name__)
 

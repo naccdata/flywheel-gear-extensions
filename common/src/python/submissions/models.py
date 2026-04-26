@@ -1,6 +1,5 @@
-"""Data models for form data upload or delete requests."""
+"""Data models for form data upload requests."""
 
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from nacc_common.field_names import FieldNames
@@ -75,18 +74,3 @@ class ParticipantVisits(BaseModel):
         """
         visit_info = VisitInfo(filename=filename, file_id=file_id, visitdate=visitdate)
         self.visits.append(visit_info)
-
-
-class DeleteRequest(BaseModel):
-    """Class to represent a form visit delete request."""
-
-    model_config = ConfigDict(
-        populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
-    )
-
-    ptid: str
-    module: str
-    visitdate: str = Field(pattern=DATE_PATTERN)
-    visitnum: Optional[str] = None
-    timestamp: datetime
-    requested_by: str

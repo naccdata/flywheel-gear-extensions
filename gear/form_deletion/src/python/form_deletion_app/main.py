@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
+from deletions.models import DeleteRequest
 from error_logging.error_logger import update_file_info
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -15,7 +16,6 @@ from nacc_common.error_models import FileErrorList
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
-from submissions.models import DeleteRequest
 
 from form_deletion_app.delete import FormDeletionProcessor
 
@@ -51,7 +51,7 @@ def send_email(
     )
 
     if delete_request.visitnum:
-        body += f"VISITNUM: {delete_request.visitdate}\n"
+        body += f"VISITNUM: {delete_request.visitnum}\n"
 
     if success and deleted_visits:
         body += (
