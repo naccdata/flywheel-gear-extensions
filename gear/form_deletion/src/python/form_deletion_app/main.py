@@ -16,7 +16,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
-from identifiers.query import find_naccid
+from identifiers.query import find_identifier
 from nacc_common.error_models import FileErrorList
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
@@ -132,13 +132,13 @@ def run(
         sender_email: Source email to send the notification
     """
 
-    ptid = delete_request.ptid
-    naccid = find_naccid(
-        repo=identifiers_repo, adcid=adcid, ptid=ptid, active_only=False
-    )
     error_writer = ListErrorWriter(
         container_id=input_file.file_id,
         fw_path=project.proxy.get_lookup_path(input_file),
+    )
+
+    identifier = find_identifier(
+        repo=identifiers_repo, adcid=adcid, ptid=delete_request.ptid
     )
 
     processor = FormDeletionProcessor(
@@ -148,7 +148,7 @@ def run(
         request_time=input_file.modified,
         form_configs=form_configs,
         error_writer=error_writer,
-        naccid=naccid,
+        identifier=identifier,
     )
 
     success = processor.process_request()

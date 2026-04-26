@@ -11,6 +11,7 @@ from error_logging.qc_status_log_creator import (
 )
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from identifiers.model import IdentifierObject
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
@@ -32,7 +33,7 @@ class FormDeletionProcessor:
         request_time: datetime,
         form_configs: FormProjectConfigs,
         error_writer: ListErrorWriter,
-        naccid: Optional[str] = None,
+        identifier: Optional[IdentifierObject] = None,
     ):
         """
         Args:
@@ -42,7 +43,7 @@ class FormDeletionProcessor:
             request_time: delete request file timestamp
             form_configs: form ingest configs
             error_writer: Error writer to record any errors
-            naccid: NACCID if exists
+            identifier: IdentifierObject if exists
         """
         self.__project = project
         self.__adcid = adcid
@@ -50,7 +51,8 @@ class FormDeletionProcessor:
         self.__error_writer = error_writer
         self.__delete_request = delete_request
         self.__request_time = request_time
-        self.__naccid = naccid
+        self.__identifier = identifier
+        self.__naccid = identifier.naccid if identifier else None
         self.__module = delete_request.module.upper()
 
         self.__dependent_modules = form_configs.get_module_dependencies(
@@ -224,6 +226,18 @@ class FormDeletionProcessor:
         return success
 
     def process_request(self) -> bool:
+        """Process delete request.
+
+        Returns:
+            bool: True if success, else False
+        """
+
+        if self.__identifier and not self.__identifier.active:
+            self.__add_delete_failed_error(
+                f"Participant {self.__naccid} is inactive in center {self.__adcid}"
+            )
+            return False
+
         error_log_name = self.__get_error_log_name(module=self.__module)
         if not error_log_name:
             self.__add_delete_failed_error(
