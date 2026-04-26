@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs
@@ -28,6 +29,7 @@ class FormDeletionProcessor:
         project: ProjectAdaptor,
         adcid: int,
         delete_request: DeleteRequest,
+        request_time: datetime,
         form_configs: FormProjectConfigs,
         error_writer: ListErrorWriter,
         naccid: Optional[str] = None,
@@ -37,6 +39,7 @@ class FormDeletionProcessor:
             project: FLywheel project adaptor
             adcid: Center's ADCID
             delete_request: delete request object
+            request_time: delete request file timestamp
             form_configs: form ingest configs
             error_writer: Error writer to record any errors
             naccid: NACCID if exists
@@ -46,6 +49,7 @@ class FormDeletionProcessor:
         self.__form_configs = form_configs
         self.__error_writer = error_writer
         self.__delete_request = delete_request
+        self.__request_time = request_time
         self.__naccid = naccid
         self.__module = delete_request.module.upper()
 
@@ -126,9 +130,9 @@ class FormDeletionProcessor:
         Returns:
             True if the log was modified before the request timestamp
         """
-        if log_file.modified > self.__delete_request.timestamp:
+        if log_file.modified > self.__request_time:
             log.warning(
-                f"Delete request timestamp: {self.__delete_request.timestamp}, "
+                f"Delete request timestamp: {self.__request_time}, "
                 f"Log file {log_file.name} modified timestamp: {log_file.modified}"
             )
             return True

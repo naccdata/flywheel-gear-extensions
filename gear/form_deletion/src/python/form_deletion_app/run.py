@@ -85,6 +85,15 @@ class FormDeletionVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearContext) -> None:
+        """Runs the form-deletion app.
+
+        Args:
+            context: the gear execution context
+
+        Raises:
+            GearExecutionError: if errors occur while processing the request
+        """
+
         try:
             with open(
                 self.__request_file_input.filepath, mode="r", encoding="utf-8-sig"

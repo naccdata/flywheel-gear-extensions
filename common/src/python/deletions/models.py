@@ -5,7 +5,12 @@ from typing import List, Optional
 
 from nacc_common.error_models import FileError, QCStatus
 from nacc_common.form_dates import DATE_PATTERN
-from pydantic import AliasGenerator, BaseModel, ConfigDict, Field
+from pydantic import (
+    AliasGenerator,
+    BaseModel,
+    ConfigDict,
+    Field,
+)
 from serialization.case import kebab_case
 
 
@@ -20,7 +25,6 @@ class DeleteRequest(BaseModel):
     module: str
     visitdate: str = Field(pattern=DATE_PATTERN)
     visitnum: Optional[str] = None
-    timestamp: datetime
     requested_by: str
 
 

@@ -140,10 +140,12 @@ def run(
         container_id=input_file.file_id,
         fw_path=project.proxy.get_lookup_path(input_file),
     )
+
     processor = FormDeletionProcessor(
         project=project,
         adcid=adcid,
         delete_request=delete_request,
+        request_time=input_file.modified,
         form_configs=form_configs,
         error_writer=error_writer,
         naccid=naccid,
