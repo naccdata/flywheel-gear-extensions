@@ -1,10 +1,10 @@
 """Helper classes for deleting a form visit."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
-from deletions.models import DeleteRequest
+from deletions.models import DeletedItems, DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.session import Session
@@ -28,7 +28,7 @@ class AcquisitionRemover:
         module_configs: ModuleConfigs,
         delete_request: DeleteRequest,
         dependent_modules: Optional[List[str]] = None,
-        deleted_items: Dict[str, List[str]],
+        deleted_items: DeletedItems,
     ):
         """
         Args:
@@ -215,7 +215,7 @@ class AcquisitionRemover:
             )
             subject.reset_last_failed_visit(module=module)
 
-        self.__deleted["acquisitions"].append(
+        self.__deleted.acquisitions.append(
             f"{project.group}/{project.label}/{filename}"
         )
 
@@ -252,7 +252,7 @@ class AcquisitionRemover:
                 )
                 return False
 
-            self.__deleted["sessions"].append(
+            self.__deleted.sessions.append(
                 f"{project.group}/{project.label}/{subject_label}/{session_label}"
             )
 
@@ -377,7 +377,7 @@ class AcquisitionRemover:
                     success = False
                     continue
 
-                self.__deleted["subjects"].append(
+                self.__deleted.subjects.append(
                     f"{project.group}/{project.label}/{subject.label}"
                 )
 

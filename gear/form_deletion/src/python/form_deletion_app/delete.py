@@ -1,8 +1,8 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs
-from deletions.models import DeleteRequest
+from deletions.models import DeletedItems, DeleteRequest
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
@@ -58,15 +58,10 @@ class FormDeletionProcessor:
             visit_annotator=FileVisitAnnotator(project),
         )
 
-        self.__deleted_items: Dict[str, List[str]] = {
-            "logs": [],
-            "subjects": [],
-            "sessions": [],
-            "acquisitions": [],
-        }
+        self.__deleted_items: DeletedItems = DeletedItems()
 
     @property
-    def deleted_items(self) -> Dict[str, List[str]]:
+    def deleted_items(self) -> DeletedItems:
         """Returns the items deleted while processing the delete request."""
         return self.__deleted_items
 
@@ -82,7 +77,7 @@ class FormDeletionProcessor:
 
         visits = []
 
-        for logfile in self.deleted_items["logs"]:
+        for logfile in self.deleted_items.logs:
             if not logfile.endswith(".log"):
                 continue
             segments = logfile.split("_")
@@ -212,7 +207,7 @@ class FormDeletionProcessor:
                     success = False
                     continue
 
-                self.__deleted_items["logs"].append(dep_module_log_name)
+                self.__deleted_items.logs.append(dep_module_log_name)
 
         if not self.__delete_error_log(filename=error_log_name):
             self.__add_delete_failed_error(
@@ -220,7 +215,7 @@ class FormDeletionProcessor:
             )
             return False
 
-        self.__deleted_items["logs"].append(error_log_name)
+        self.__deleted_items.logs.append(error_log_name)
 
         return success
 

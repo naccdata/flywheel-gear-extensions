@@ -2,10 +2,15 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs
-from deletions.models import DeleteRequest
+from deletions.models import (
+    DeletedItems,
+    DeleteInfoModel,
+    DeleteRequest,
+    DeleteResponse,
+)
 from error_logging.error_logger import update_file_info
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -13,7 +18,6 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_naccid
 from nacc_common.error_models import FileErrorList
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
 
@@ -32,8 +36,10 @@ def send_email(
     """Send an email notifying the user the result of the delete request.
 
     Args:
-        sender_email: The sender email
-        target_email: The target email
+        sender_email: Source email to send the notification
+        delete_request: Delete request information
+        success: Status of the delete request
+        deleted_visits: Info on visits deleted while processing the request
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
@@ -77,32 +83,27 @@ def update_file_metadata(
     *,
     input_file: FileEntry,
     success: bool,
-    deleted_items: Dict[str, List[str]],
+    deleted_items: DeletedItems,
     errors: FileErrorList,
 ) -> None:
-    """_summary_
+    """Save the response details in the file.info metadata of the request file.
 
     Args:
-        input_file (FileEntry): _description_
-        success (bool): _description_
-        deleted_items (Dict[str, List[str]]): _description_
-        errors (FileErrorList): _description_
+        input_file: Delete request file
+        success: Status of the request
+        deleted_items: Information on the deleted items (if any)
+        errors: Errors occurred while processing the delete request (if any)
     """
-    # status: QCStatus = "PASS" if success else "FAIL"
-    # qc_info: FileQCModel = FileQCModel(qc={})
-    # qc_info.set_errors(gear_name="form-deletion", status=status, errors=errors)
-    # custom_info = qc_info.model_dump(by_alias=True)
-    custom_info: Dict[str, Any] = {}
-    custom_info["state"] = "PASS" if success else "FAIL"
-    if errors:
-        custom_info["errors"] = errors
-    if deleted_items:
-        custom_info["deleted"] = deleted_items
-    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
-    custom_info["processed-timestamp"] = timestamp
+
+    delete_response = DeleteResponse(
+        errors=errors.list(), deleted=deleted_items, state="PASS" if success else "FAIL"
+    )
+    delete_info = DeleteInfoModel(
+        delete_response=delete_response, processed_timestamp=datetime.now(timezone.utc)
+    )
 
     try:
-        update_file_info(file=input_file, custom_info=custom_info)
+        update_file_info(file=input_file, custom_info=delete_info.model_dump())
     except ApiException as error:
         log.error(
             f"Error in updating custom info metadata in file {input_file.name}: {error}"
@@ -122,13 +123,13 @@ def run(
     """Process the form data delete request.
 
     Args:
-        project (ProjectAdaptor): _description_
-        adcid (int): _description_
+        project: Flywheel project adaptor
+        adcid: ADCID
         input_file: FileEntry object for input file
-        delete_request (DeleteRequest): _description_
-        module_configs (ModuleConfigs): _description_
-        identifiers_repo (IdentifierRepository): _description_
-        sender_email (str): _description_
+        delete_request: Delete request details
+        form_configs: Form ingest configs
+        identifiers_repo: Identifier repository
+        sender_email: Source email to send the notification
     """
 
     ptid = delete_request.ptid
