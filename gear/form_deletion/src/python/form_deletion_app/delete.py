@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -73,29 +74,23 @@ class FormDeletionProcessor:
         return self.__deleted_items
 
     def get_deleted_visits_list(self) -> Optional[str]:
-        """Returns the list of deleted visits as a newline-joined string.
+        """Returns the list of deleted visits as a newline-joined string."""
 
-        Example log file names:     Form with visitnum:         →
-        12345_2024-01-15_001_uds_qc-status.log     Form without visitnum
-        (non-visit form):         → 12345_2024-01-15_np_qc-status.log
-        Old format (no visitnum):         → 12345_2024-01-15_uds_qc-
-        status.log
-        """
+        # Log file name format: {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}_qc-status.log
+        # Anchor on the fixed-format date to handle a ptid that contains "_".
+
+        pattern = re.compile(
+            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:(\w+)_)?(\w+)_qc-status\.log$"
+        )
 
         visits = []
 
         for logfile in self.deleted_items.logs:
-            if not logfile.endswith(".log"):
+            match = pattern.match(logfile)
+            if not match:
                 continue
-            segments = logfile.split("_")
-            num_segments = len(segments)
-            if num_segments < 4 or num_segments > 5:
-                continue
-            ptid = segments[0]
-            date = segments[1]
-            visitnum = segments[2] if num_segments == 5 else None
-            module = segments[-2].upper()
-            visit_str = f"ptid={ptid}, module={module}, date={date}"
+            ptid, date, visitnum, module = match.groups()
+            visit_str = f"ptid={ptid}, module={module.upper()}, date={date}"
             if visitnum:
                 visit_str += f", visitnum={visitnum}"
             visits.append(visit_str)
