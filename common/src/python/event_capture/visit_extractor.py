@@ -1,12 +1,10 @@
 import logging
 from typing import Any, Dict, Optional
 
+from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
-from nacc_common.data_identification import (
-    DataIdentification,
-)
+from nacc_common.data_identification import DataIdentification
 from pydantic import ValidationError
-from submissions.models import DeleteRequest
 
 log = logging.getLogger(__name__)
 

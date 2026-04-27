@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import (
@@ -276,12 +277,16 @@ class EventAccumulator:
             # Reload to get latest state written by form-deletion gear
             request_file = request_file.reload()
 
-            state = request_file.info.get("state") if request_file.info else None
-            if state != "PASS":
+            delete_info = (
+                DeleteInfoModel.model_validate(request_file.info)
+                if request_file.info
+                else None
+            )
+
+            if not delete_info or delete_info.delete_response.state != "PASS":
                 log.debug(
-                    "Skipping delete event for %s (state=%s)",
+                    "Skipping failed or incomplete delete event for %s",
                     request_file.name,
-                    state,
                 )
                 return
 
@@ -295,16 +300,13 @@ class EventAccumulator:
                 )
                 return
 
-            timestamp = (
-                request_file.info.get("processed-timestamp")
-                if request_file.info
-                else None
-            )
             visit_event = self._create_visit_event(
                 action=ACTION_DELETE,
                 visit_metadata=data_id,
                 project=project,
-                completion_time=timestamp if timestamp else request_file.modified,
+                completion_time=delete_info.processed_timestamp
+                if delete_info.processed_timestamp
+                else request_file.modified,
                 gear_name="form-deletion",
             )
             if visit_event:
@@ -313,7 +315,10 @@ class EventAccumulator:
                 return
 
             log.warning("Failed to create delete event for %s", request_file.name)
-
+        except ValidationError as error:
+            log.error(
+                "Error validating delete response for %s: %s", request_file.name, error
+            )
         except Exception as e:
             log.error(
                 "Error capturing delete event for %s: %s",
