@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from configs.ingest_configs import FormProjectConfigs
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from deletions.models import DeletedItems, DeleteRequest
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
@@ -10,8 +10,9 @@ from error_logging.qc_status_log_creator import (
     QCStatusLogManager,
 )
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, SubjectAdaptor
 from identifiers.model import IdentifierObject
+from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
@@ -225,6 +226,46 @@ class FormDeletionProcessor:
 
         return success
 
+    def __has_qc_passed_subsequent_visits(
+        self, subject: SubjectAdaptor, module_configs: ModuleConfigs
+    ) -> bool:
+        """Check whether the participant has any QC passed subsequent visits
+        after the visit requested to be deleted.
+
+        Args:
+            subject: Flywheel subject adaptor
+            module_configs: Module configs for the primary module
+
+        Returns:
+            bool: True if any subsequent visits found for the module
+        """
+        date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
+        columns = [
+            "file.name",
+            "file.file_id",
+            "file.parents.acquisition",
+            date_col_key,
+        ]
+        filters = f"acquisition.label={self.__module}"
+        filters += f",{date_col_key}>{self.__delete_request.visitdate}"
+        filters += f",file.info.qc.{DefaultValues.QC_GEAR}.validation.state=PASS"
+
+        results = self.__project.proxy.get_matching_acquisition_files_info(
+            container_id=subject.id,
+            dv_title=f"{self.__module} visits after {self.__delete_request.visitdate}",
+            columns=columns,
+            filters=filters,
+        )
+
+        if results:
+            log.warning(
+                f"Found {len(results)} {self.__module} visits after "
+                f"{self.__delete_request.visitdate} in {subject.label}"
+            )
+            return True
+
+        return False
+
     def process_request(self) -> bool:
         """Process delete request.
 
@@ -233,6 +274,8 @@ class FormDeletionProcessor:
         """
 
         if self.__identifier and not self.__identifier.active:
+            # Reject the request if participant is inactive (i.e. transferred),
+            #   need to handle this manually
             self.__add_delete_failed_error(
                 f"Participant {self.__naccid} is inactive in center {self.__adcid}"
             )
@@ -259,30 +302,48 @@ class FormDeletionProcessor:
             )
             return False
 
-        # If subject exists in the project, remove the respective acquisitions
-        if self.__naccid and self.__project.find_subject(self.__naccid):
-            module_configs = self.__form_configs.module_configs.get(self.__module)
-            if not module_configs:
-                self.__add_delete_failed_error(
-                    f"No module configs found for module {self.__module}"
-                )
-                return False
+        if self.__naccid:
+            subject = self.__project.find_subject(self.__naccid)
+            # If subject exists in the project, remove the respective acquisitions
+            if subject:
+                module_configs = self.__form_configs.module_configs.get(self.__module)
+                if not module_configs:
+                    self.__add_delete_failed_error(
+                        f"No module configs found for module {self.__module}"
+                    )
+                    return False
 
-            acq_remover = AcquisitionRemover(
-                proxy=self.__project.proxy,
-                module=self.__module,
-                naccid=self.__naccid,
-                form_configs=self.__form_configs,
-                module_configs=module_configs,
-                delete_request=self.__delete_request,
-                deleted_items=self.__deleted_items,
-                dependent_modules=self.__dependent_modules,
-            )
+                # For longitudinal modules,
+                #   check whether there are any QC passed subsequent visits.
+                # Need more info from the user to process these requests,
+                #   need to re-validate subsequent visits if the user
+                #   is not planning to resubmit the deleted visit
+                if (
+                    module_configs.longitudinal
+                    and self.__has_qc_passed_subsequent_visits(
+                        subject=subject, module_configs=module_configs
+                    )
+                ):
+                    self.__add_delete_failed_error(
+                        "Subject has QC passed subsequent visits"
+                    )
+                    return False
 
-            if not acq_remover.cleanup_acquisitions():
-                self.__add_delete_failed_error(
-                    "Failed to remove the acquisition files for this delete request"
+                acq_remover = AcquisitionRemover(
+                    proxy=self.__project.proxy,
+                    module=self.__module,
+                    naccid=self.__naccid,
+                    form_configs=self.__form_configs,
+                    module_configs=module_configs,
+                    delete_request=self.__delete_request,
+                    deleted_items=self.__deleted_items,
+                    dependent_modules=self.__dependent_modules,
                 )
-                return False
+
+                if not acq_remover.cleanup_acquisitions():
+                    self.__add_delete_failed_error(
+                        "Failed to remove the acquisition files for this delete request"
+                    )
+                    return False
 
         return self.__cleanup_log_files(error_log_name=error_log_name)
