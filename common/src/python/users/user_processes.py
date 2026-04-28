@@ -201,7 +201,10 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
             has_role = user_has_role_assignment(redcap_project, username)
         except REDCapConnectionError as error:
             log.error(
-                "failed to check role assignment for %s in REDCap project %s (PID %s): %s",
+                (
+                    "failed to check role assignment for %s in REDCap project %s "
+                    "(PID %s): %s"
+                ),
                 username,
                 title,
                 pid,
@@ -221,7 +224,10 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
 
         if not has_role:
             log.info(
-                "User %s has no role assignment in REDCap project %s (PID %s), skipping",
+                (
+                    "User %s has no role assignment in REDCap project %s "
+                    "(PID %s), skipping"
+                ),
                 username,
                 title,
                 pid,
