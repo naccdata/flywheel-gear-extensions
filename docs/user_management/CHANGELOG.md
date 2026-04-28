@@ -2,6 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.3.2
+
+* Skips REDCap role unassignment for users who have no role assignment in a project
+  * Checks `export_user_role_assignments` before attempting to unassign, avoiding unnecessary API calls
+  * No longer emits misleading success events for projects where the user was never assigned a role
+  * Reduces noise in the REDCap disable notification email sent to support staff
+  * Handles `REDCapConnectionError` from the membership check gracefully without blocking the disable flow
+* Bumps `redcap_api` to 0.3.0
+* Fixes flaky Hypothesis test in CLARiTI role property tests (slow `from_regex` strategy)
+
 ## 4.3.1
 
 * Handles empty user list gracefully instead of failing with an error
