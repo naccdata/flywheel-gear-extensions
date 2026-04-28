@@ -73,6 +73,11 @@ class EmailClient:
         self.__client = client
         self.__source = source
 
+    @property
+    def source(self) -> str:
+        """Returns the source email."""
+        return self.__source
+
     def send(
         self,
         configuration_set_name: str,

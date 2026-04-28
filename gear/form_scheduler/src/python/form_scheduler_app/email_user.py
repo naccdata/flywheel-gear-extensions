@@ -1,8 +1,12 @@
 """Handles emailing user on completion of their submission pipeline."""
 
 import logging
+from abc import abstractmethod
+from typing import ClassVar
 
-from flywheel import Project
+from configs.ingest_configs import PipelineType
+from deletions.models import DeleteInfoModel
+from flywheel import Project, User
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from inputs.parameter_store import URLParameter
@@ -11,17 +15,128 @@ from notifications.email import (
     DestinationModel,
     EmailClient,
 )
+from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 
 
-class SubmissionCompleteTemplateModel(BaseTemplateModel):
-    """Submission complete template model."""
+class PipelineNotificationTemplate(BaseTemplateModel):
+    """Base class for pipeline email template models."""
+
+    template_name: ClassVar[str]
+    configuration_set_name: ClassVar[str]
+    cc_sender: ClassVar[bool] = False  # whether to CC the sender
 
     first_name: str
-    file_name: str
     center_name: str
     portal_url: str
+
+    @classmethod
+    @abstractmethod
+    def build_template(
+        cls,
+        user: User,
+        file: FileEntry,
+        group_label: str,
+        portal_url: URLParameter,
+    ) -> "PipelineNotificationTemplate":
+        """Builds the template model for pipeline notifications."""
+
+
+class SubmissionPipelineNotificationTemplate(PipelineNotificationTemplate):
+    """Submission complete template model."""
+
+    template_name = "submission-pipeline-complete"
+    configuration_set_name = "submission-pipeline"
+
+    file_name: str
+
+    @classmethod
+    def build_template(
+        cls,
+        user: User,
+        file: FileEntry,
+        group_label: str,
+        portal_url: URLParameter,
+    ) -> "SubmissionPipelineNotificationTemplate":
+        """Builds the template model for submission pipeline notifications."""
+        return cls(
+            first_name=user.firstname,  # type: ignore
+            file_name=file.name,
+            center_name=group_label,
+            portal_url=portal_url["url"],
+        )
+
+
+class DeletePipelineNotificationTemplate(PipelineNotificationTemplate):
+    """Base class for deletion pipeline template models."""
+
+    configuration_set_name = "deletion-pipeline"
+
+    delete_request_label: str  # <ptid>_<date>_[<visitnum>_]<module>
+
+    @classmethod
+    def build_template(
+        cls,
+        user: User,
+        file: FileEntry,
+        group_label: str,
+        portal_url: URLParameter,
+    ) -> "PipelineNotificationTemplate":
+        """Builds the template model for deletion pipeline notifications.
+
+        Returns a success model if the deletion completed with PASS
+        state, otherwise returns a failure model.
+        """
+
+        # filename format: delete_<ptid>_<date>_[<visitnum>_]<module>.json
+        label = file.name.replace("delete_", "").replace(".json", "")
+
+        try:
+            delete_response_info = (
+                DeleteInfoModel.model_validate(file.info) if file.info else None
+            )
+            if (
+                delete_response_info
+                and delete_response_info.delete_response.state == "PASS"
+            ):
+                deleted_visits = delete_response_info.get_deleted_visits_list()
+                if deleted_visits:
+                    return DeleteSuccessTemplate(
+                        first_name=user.firstname,  # type: ignore
+                        center_name=group_label,
+                        portal_url=portal_url["url"],
+                        delete_request_label=label,
+                        deleted_visits=deleted_visits,
+                    )
+        except ValidationError as error:
+            log.error(
+                "Failed to extract response details for the delete request %s: %s",
+                file.name,
+                error,
+            )
+
+        return DeleteFailureTemplate(
+            first_name=user.firstname,  # type: ignore
+            center_name=group_label,
+            portal_url=portal_url["url"],
+            delete_request_label=label,
+        )
+
+
+class DeleteSuccessTemplate(DeletePipelineNotificationTemplate):
+    """Deletion request success notification template."""
+
+    template_name = "deletion-success-notification"
+
+    deleted_visits: str
+
+
+class DeleteFailureTemplate(DeletePipelineNotificationTemplate):
+    """Deletion request failure notification template."""
+
+    template_name = "deletion-failure-notification"
+    cc_sender = True
 
 
 def send_email(
@@ -30,9 +145,9 @@ def send_email(
     file: FileEntry,
     project: Project,
     portal_url: URLParameter,
+    pipeline_name: PipelineType,
 ) -> None:
-    """Sends an email notifying user that their submission pipeline has
-    completed.
+    """Sends an email notifying user that their pipeline has completed.
 
     Args:
         proxy: the proxy for the Flywheel instance
@@ -40,8 +155,9 @@ def send_email(
         file: The FileEntry object to will pull details
         project: Flywheel project container
         portal_url: The portal URL
+        pipeline_name: The name of the pipeline that completed
     """
-
+    file = file.reload()
     user_id = file.info.get("uploader")
     if not user_id:
         log.warning("Uploader ID not available in file custom info for %s", file.name)
@@ -80,18 +196,33 @@ def send_email(
     group = proxy.find_group(project.group)
     group_label = "your center" if not group else group.label
 
-    template_data = SubmissionCompleteTemplateModel(
-        first_name=user.firstname,  # type: ignore
-        file_name=file.name,
-        center_name=group_label,
-        portal_url=portal_url["url"],
-    )
+    match pipeline_name:
+        case "submission":
+            template_data: PipelineNotificationTemplate = (
+                SubmissionPipelineNotificationTemplate.build_template(
+                    user, file, group_label, portal_url
+                )
+            )
+        case "deletion":
+            template_data = DeletePipelineNotificationTemplate.build_template(
+                user, file, group_label, portal_url
+            )
+        case _:
+            log.warning(
+                "No email template configured for pipeline '%s', skipping notification",
+                pipeline_name,
+            )
+            return
 
-    destination = DestinationModel(to_addresses=[target_email])
+    receivers = [target_email]
+    if template_data.cc_sender:
+        receivers.append(email_client.source)
+
+    destination = DestinationModel(to_addresses=receivers)
 
     email_client.send(
-        configuration_set_name="submission-pipeline",
+        configuration_set_name=template_data.configuration_set_name,
         destination=destination,
-        template="submission-pipeline-complete",
+        template=template_data.template_name,
         template_data=template_data,
     )

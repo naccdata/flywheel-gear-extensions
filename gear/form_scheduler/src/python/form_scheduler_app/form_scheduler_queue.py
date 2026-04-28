@@ -797,14 +797,21 @@ class FormSchedulerQueue:
 
             # Send notification email if enabled
             #    Notifies the user who uploaded the file that processing has completed
-            if notify_user and self.__email_client:
-                assert self.__portal_url, "portal URL must be set"
+            if notify_user:
+                if not self.__email_client or not self.__portal_url:
+                    log.error(
+                        "Failed to send email notifications, "
+                        "missing email client or portal URL"
+                    )
+                    continue
+
                 send_email(
                     proxy=self.__proxy,
-                    email_client=self.__email_client,
+                    email_client=self.__email_client,  # type: ignore
                     file=file,
                     project=self.__project.project,
-                    portal_url=self.__portal_url,
+                    portal_url=self.__portal_url,  # type: ignore
+                    pipeline_name=pipeline.name,
                 )
 
     def _trigger_batch(
@@ -890,6 +897,7 @@ class FormSchedulerQueue:
                     file=file,
                     project=self.__project.project,
                     portal_url=self.__portal_url,  # type: ignore
+                    pipeline_name=pipeline.name,
                 )
 
     def _process_subqueue_by_subject(
