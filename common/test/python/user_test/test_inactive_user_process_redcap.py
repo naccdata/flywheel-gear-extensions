@@ -6,10 +6,13 @@ event collection, step independence, and four-step ordering.
 
 Requirements: 2.1, 2.2, 2.3, 2.4, 3.2, 3.4, 3.5, 3.6, 3.7,
               4.2, 4.3, 4.4, 7.1, 7.2, 7.3
+
+Preservation Properties: 3.1, 3.2, 3.3, 3.4, 3.5
 """
 
 from unittest.mock import Mock
 
+import pytest
 from centers.center_group import (
     CenterMetadata,
     CenterStudyMetadata,
@@ -81,10 +84,38 @@ def _build_registry_person(
     return person
 
 
-def _build_mock_redcap(title: str = "Test Project") -> Mock:
-    """Build a mock REDCapProject with a title."""
+def _build_mock_redcap(
+    title: str = "Test Project",
+    member_usernames: list[str] | None = None,
+) -> Mock:
+    """Build a mock REDCapProject with a title.
+
+    Args:
+        title: The project title.
+        member_usernames: Usernames to include in the role assignment
+            export.  When ``None`` (the default) the export returns a
+            mapping for every common test email so that existing tests
+            that do not care about membership continue to work.
+    """
     mock_redcap = Mock(spec=REDCapProject)
     mock_redcap.title = title
+    if member_usernames is None:
+        # Default: include common test emails so pre-existing tests
+        # that don't set export_user_role_assignments still pass the
+        # membership check.
+        member_usernames = [
+            "user@example.com",
+            "entry-auth@uni.edu",
+            "comanage-auth@uni.edu",
+            "dir@example.com",
+            "specific@example.com",
+            "looked-up@uni.edu",
+            "auth@university.edu",
+            "should-not-use@uni.edu",
+        ]
+    mock_redcap.export_user_role_assignments.return_value = [
+        {"username": u, "unique_role_name": "U-default"} for u in member_usernames
+    ]
     return mock_redcap
 
 
@@ -694,3 +725,467 @@ class TestFourStepOrdering:
         assert call_order.index("redcap_unassign") < call_order.index(
             "comanage_suspend"
         )
+
+
+# ===========================================================================
+# Bug condition exploration tests
+# Validates: Requirements 1.1, 1.2, 1.3, 2.1, 2.2
+# ===========================================================================
+
+
+class TestBugConditionExploration:
+    """Explore the bug condition where unassign_user_role is called for
+    projects where the user has no role assignment.
+
+    These tests encode the EXPECTED (correct) behavior. On unfixed code
+    they are expected to FAIL, which confirms the bug exists.
+
+    Bug condition: assign_user_role is called unconditionally for every
+    REDCap project, even when the user has no role assignment in that
+    project.
+    """
+
+    def test_non_member_user_should_not_be_unassigned(self) -> None:
+        """When a user has no role assignment in a REDCap project,
+        assign_user_role should NOT be called for that project.
+
+        Bug condition: on unfixed code assign_user_role IS called
+        unconditionally, so this assertion will fail.
+
+        Validates: Requirements 1.1, 2.1
+        """
+        mock_env = _build_mock_env()
+        mock_redcap = _build_mock_redcap(title="Test Project PID 100")
+        # Mock export_user_role_assignments to return OTHER users only
+        mock_redcap.export_user_role_assignments.return_value = [
+            {"username": "other@uni.edu", "unique_role_name": "U-role1"},
+        ]
+        metadata = _build_center_metadata_with_redcap([100])
+        _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata, "redcap_project": mock_redcap}],
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email="user@example.com")
+
+        process.visit(entry)
+
+        # Expected: assign_user_role should NOT be called because user
+        # has no role assignment in this project.
+        # Bug: on unfixed code it IS called with ("user@example.com", "")
+        mock_redcap.assign_user_role.assert_not_called()
+
+    def test_non_member_user_should_not_emit_success_event(self) -> None:
+        """When a user has no role assignment in a REDCap project, no success
+        event with REDCAP_USER_DISABLED should be emitted.
+
+        Bug condition: on unfixed code a success event IS emitted,
+        so this assertion will fail.
+
+        Validates: Requirements 1.2, 2.2
+        """
+        mock_env = _build_mock_env()
+        mock_redcap = _build_mock_redcap(title="Test Project PID 100")
+        mock_redcap.export_user_role_assignments.return_value = [
+            {"username": "other@uni.edu", "unique_role_name": "U-role1"},
+        ]
+        metadata = _build_center_metadata_with_redcap([100])
+        _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata, "redcap_project": mock_redcap}],
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email="user@example.com")
+
+        process.visit(entry)
+
+        # Expected: no success event for REDCAP_USER_DISABLED
+        # Bug: on unfixed code a success event IS emitted
+        redcap_successes = [
+            e
+            for e in collector.get_successes()
+            if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        assert len(redcap_successes) == 0, (
+            f"Expected no REDCAP_USER_DISABLED success events for non-member user, "
+            f"but got {len(redcap_successes)}: "
+            f"{[e.message for e in redcap_successes]}"
+        )
+
+    def test_mixed_membership_only_unassigns_member_projects(self) -> None:
+        """When a user is a member of PID 100 but NOT PID 200 or PID 300,
+        assign_user_role should be called exactly once (for PID 100 only).
+
+        Bug condition: on unfixed code assign_user_role is called for
+        all 3 projects, so the call count assertion will fail.
+
+        Validates: Requirements 1.3, 2.1, 2.2
+        """
+        mock_env = _build_mock_env()
+
+        # PID 100: user IS a member
+        mock_redcap_100 = _build_mock_redcap(title="Project 100")
+        mock_redcap_100.export_user_role_assignments.return_value = [
+            {"username": "user@example.com", "unique_role_name": "U-role1"},
+            {"username": "other@uni.edu", "unique_role_name": "U-role2"},
+        ]
+
+        # PID 200: user is NOT a member
+        mock_redcap_200 = _build_mock_redcap(title="Project 200")
+        mock_redcap_200.export_user_role_assignments.return_value = [
+            {"username": "someone@uni.edu", "unique_role_name": "U-role1"},
+        ]
+
+        # PID 300: user is NOT a member
+        mock_redcap_300 = _build_mock_redcap(title="Project 300")
+        mock_redcap_300.export_user_role_assignments.return_value = []
+
+        metadata = _build_center_metadata_with_redcap([100, 200, 300])
+
+        def get_redcap_project(pid: int) -> Mock:
+            return {100: mock_redcap_100, 200: mock_redcap_200, 300: mock_redcap_300}[
+                pid
+            ]
+
+        center_groups = _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata}],
+        )
+        center_groups[1].get_redcap_project.side_effect = get_redcap_project
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email="user@example.com")
+
+        process.visit(entry)
+
+        # Expected: assign_user_role called exactly once (PID 100 only)
+        # Bug: on unfixed code it is called 3 times (all projects)
+        mock_redcap_100.assign_user_role.assert_called_once()
+        mock_redcap_200.assign_user_role.assert_not_called()
+        mock_redcap_300.assign_user_role.assert_not_called()
+
+        # Expected: exactly 1 success event (for PID 100 only)
+        redcap_successes = [
+            e
+            for e in collector.get_successes()
+            if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        assert len(redcap_successes) == 1, (
+            f"Expected 1 REDCAP_USER_DISABLED success event (PID 100 only), "
+            f"but got {len(redcap_successes)}: "
+            f"{[e.message for e in redcap_successes]}"
+        )
+
+
+# ===========================================================================
+# Preservation property tests
+# Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5
+# ===========================================================================
+
+# Parameterized username/mapping combinations for property-based style tests
+_MEMBER_USER_CASES = [
+    pytest.param(
+        "alice@uni.edu",
+        [
+            {"username": "alice@uni.edu", "unique_role_name": "U-role1"},
+            {"username": "bob@uni.edu", "unique_role_name": "U-role2"},
+        ],
+        id="alice-with-two-users",
+    ),
+    pytest.param(
+        "bob@example.com",
+        [
+            {"username": "bob@example.com", "unique_role_name": "U-admin"},
+        ],
+        id="bob-sole-member",
+    ),
+    pytest.param(
+        "carol@university.edu",
+        [
+            {"username": "other@uni.edu", "unique_role_name": "U-role1"},
+            {"username": "carol@university.edu", "unique_role_name": "U-role2"},
+            {"username": "dave@uni.edu", "unique_role_name": "U-role3"},
+        ],
+        id="carol-among-three",
+    ),
+    pytest.param(
+        "user@example.com",
+        [
+            {"username": "user@example.com", "unique_role_name": ""},
+        ],
+        id="user-with-empty-role-name",
+    ),
+]
+
+
+class TestPreservationProperties:
+    """Preservation property tests: verify that existing behaviors for member
+    users, dry-run mode, error handling, and credential unavailability remain
+    unchanged.
+
+    These tests are written against the UNFIXED code and are expected to
+    PASS, establishing a baseline of behaviors that must be preserved
+    after the fix is applied.
+
+    Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5
+    """
+
+    # -----------------------------------------------------------------------
+    # Property 2a: Member user unassignment — assign_user_role is called
+    # and a success event with REDCAP_USER_DISABLED is emitted
+    # Validates: Requirements 3.1
+    # -----------------------------------------------------------------------
+
+    @pytest.mark.parametrize("username,role_mappings", _MEMBER_USER_CASES)
+    def test_member_user_is_unassigned_and_success_event_emitted(
+        self,
+        username: str,
+        role_mappings: list,
+    ) -> None:
+        """When a user IS a member of a REDCap project, assign_user_role is
+        called with (username, "") and a success event with
+        REDCAP_USER_DISABLED category is emitted.
+
+        **Validates: Requirements 3.1**
+        """
+        mock_env = _build_mock_env()
+        mock_redcap = _build_mock_redcap(title="Preservation Project")
+        mock_redcap.export_user_role_assignments.return_value = role_mappings
+        metadata = _build_center_metadata_with_redcap([100])
+        _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata, "redcap_project": mock_redcap}],
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email=username)
+
+        process.visit(entry)
+
+        # assign_user_role must be called with (username, "")
+        mock_redcap.assign_user_role.assert_called_once_with(username, "")
+
+        # A success event with REDCAP_USER_DISABLED must be emitted
+        redcap_successes = [
+            e
+            for e in collector.get_successes()
+            if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        assert len(redcap_successes) == 1
+        assert "100" in redcap_successes[0].message
+        assert "Preservation Project" in redcap_successes[0].message
+
+    # -----------------------------------------------------------------------
+    # Property 2b: Dry-run mode — assign_user_role is NOT called but a
+    # dry-run success event IS emitted
+    # Validates: Requirements 3.3
+    # -----------------------------------------------------------------------
+
+    @pytest.mark.parametrize("username,role_mappings", _MEMBER_USER_CASES)
+    def test_dry_run_member_user_not_called_but_event_emitted(
+        self,
+        username: str,
+        role_mappings: list,
+    ) -> None:
+        """In dry-run mode with a member user, assign_user_role is NOT called
+        but a dry-run success event with REDCAP_USER_DISABLED IS emitted.
+
+        **Validates: Requirements 3.3**
+        """
+        mock_env = _build_mock_env(dry_run=True)
+        mock_redcap = _build_mock_redcap(title="DryRun Project")
+        mock_redcap.export_user_role_assignments.return_value = role_mappings
+        metadata = _build_center_metadata_with_redcap([100])
+        _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata, "redcap_project": mock_redcap}],
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email=username)
+
+        process.visit(entry)
+
+        # assign_user_role must NOT be called in dry-run mode
+        mock_redcap.assign_user_role.assert_not_called()
+
+        # A dry-run success event must be emitted
+        redcap_successes = [
+            e
+            for e in collector.get_successes()
+            if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        assert len(redcap_successes) == 1
+        assert "dry run" in redcap_successes[0].message.lower()
+
+    # -----------------------------------------------------------------------
+    # Property 2c: Error handling — REDCapConnectionError from
+    # assign_user_role emits an error event and processing continues
+    # Validates: Requirements 3.4
+    # -----------------------------------------------------------------------
+
+    @pytest.mark.parametrize("username,role_mappings", _MEMBER_USER_CASES)
+    def test_connection_error_emits_error_event_and_continues(
+        self,
+        username: str,
+        role_mappings: list,
+    ) -> None:
+        """When assign_user_role raises REDCapConnectionError for a member
+        user, an error event with REDCAP_USER_DISABLED category is emitted and
+        processing continues to the next project.
+
+        **Validates: Requirements 3.4**
+        """
+        mock_env = _build_mock_env()
+
+        # First project: assign_user_role raises REDCapConnectionError
+        mock_redcap_100 = _build_mock_redcap(title="Error Project")
+        mock_redcap_100.export_user_role_assignments.return_value = role_mappings
+        mock_redcap_100.assign_user_role.side_effect = REDCapConnectionError(
+            "connection timeout"
+        )
+
+        # Second project: succeeds normally
+        mock_redcap_200 = _build_mock_redcap(title="OK Project")
+        mock_redcap_200.export_user_role_assignments.return_value = [
+            {"username": username, "unique_role_name": "U-role1"},
+        ]
+        mock_redcap_200.assign_user_role.return_value = 1
+
+        metadata = _build_center_metadata_with_redcap([100, 200])
+        center_groups = _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata}],
+        )
+        center_groups[1].get_redcap_project.side_effect = (
+            lambda pid: mock_redcap_100 if pid == 100 else mock_redcap_200
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email=username)
+
+        process.visit(entry)
+
+        # Both projects should have been attempted
+        mock_redcap_100.assign_user_role.assert_called_once()
+        mock_redcap_200.assign_user_role.assert_called_once()
+
+        # One error event for the failed project
+        redcap_events = [
+            e
+            for e in collector.get_events()
+            if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        errors = [e for e in redcap_events if e.event_type == EventType.ERROR.value]
+        successes = [
+            e for e in redcap_events if e.event_type == EventType.SUCCESS.value
+        ]
+        assert len(errors) == 1
+        assert "Error Project" in errors[0].message
+        assert len(successes) == 1
+        assert "OK Project" in successes[0].message
+
+    # -----------------------------------------------------------------------
+    # Property 2d: Credential unavailability — project is skipped with
+    # an error event when get_redcap_project returns None
+    # Validates: Requirements 3.2
+    # -----------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "username",
+        [
+            pytest.param("alice@uni.edu", id="alice"),
+            pytest.param("bob@example.com", id="bob"),
+            pytest.param("user@example.com", id="default-user"),
+        ],
+    )
+    def test_unavailable_credentials_skips_with_error_event(
+        self,
+        username: str,
+    ) -> None:
+        """When get_redcap_project returns None (credentials unavailable), the
+        project is skipped and an error event with REDCAP_USER_DISABLED
+        category is emitted.
+
+        **Validates: Requirements 3.2**
+        """
+        mock_env = _build_mock_env()
+        metadata = _build_center_metadata_with_redcap([100])
+        # get_redcap_project returns None -> credentials unavailable
+        _setup_center_map_with_centers(
+            mock_env,
+            [{"adcid": 1, "metadata": metadata, "redcap_project": None}],
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email=username)
+
+        process.visit(entry)
+
+        errors = collector.get_errors()
+        redcap_errors = [
+            e for e in errors if e.category == EventCategory.REDCAP_USER_DISABLED.value
+        ]
+        assert len(redcap_errors) == 1
+        assert "unavailable" in redcap_errors[0].message.lower()
+
+    # -----------------------------------------------------------------------
+    # Property 2e: Center iteration continues after failure
+    # Validates: Requirements 3.5
+    # -----------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "username",
+        [
+            pytest.param("alice@uni.edu", id="alice"),
+            pytest.param("user@example.com", id="default-user"),
+        ],
+    )
+    def test_processing_continues_after_center_retrieval_failure(
+        self,
+        username: str,
+    ) -> None:
+        """When a center group cannot be retrieved, processing continues to
+        remaining centers.
+
+        **Validates: Requirements 3.5**
+        """
+        mock_env = _build_mock_env()
+        metadata_good = _build_center_metadata_with_redcap([200])
+        mock_redcap = _build_mock_redcap(title="Good Project")
+        mock_redcap.export_user_role_assignments.return_value = [
+            {"username": username, "unique_role_name": "U-role1"},
+        ]
+
+        center_map = CenterMapInfo(centers={})
+        mock_env.admin_group.get_center_map.return_value = center_map
+
+        # Center 1 cannot be retrieved, center 2 works
+        center_map.add(1, CenterInfo(adcid=1, name="c1", group="g1"))
+        center_map.add(2, CenterInfo(adcid=2, name="c2", group="g2"))
+
+        mock_cg_2 = Mock()
+        mock_cg_2.get_project_info.return_value = metadata_good
+        mock_cg_2.get_redcap_project.return_value = mock_redcap
+
+        mock_env.admin_group.get_center.side_effect = (
+            lambda a: None if a == 1 else mock_cg_2
+        )
+
+        collector = UserEventCollector()
+        process = InactiveUserProcess(mock_env, collector)
+        entry = _build_entry(email=username)
+
+        process.visit(entry)
+
+        # Center 2's project should still be processed
+        mock_redcap.assign_user_role.assert_called_once()
