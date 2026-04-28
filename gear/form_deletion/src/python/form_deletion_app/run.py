@@ -140,7 +140,6 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             delete_request=delete_request,
             form_configs=form_project_configs,
             identifiers_repo=identifiers_repo,
-            sender_email=context.config.opts.get("sender_email", "nacchelp@uw.edu"),
         )
 
 

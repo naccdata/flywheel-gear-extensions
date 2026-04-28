@@ -1,5 +1,4 @@
 import logging
-import re
 from datetime import datetime
 from typing import Optional
 
@@ -72,30 +71,6 @@ class FormDeletionProcessor:
     def deleted_items(self) -> DeletedItems:
         """Returns the items deleted while processing the delete request."""
         return self.__deleted_items
-
-    def get_deleted_visits_list(self) -> Optional[str]:
-        """Returns the list of deleted visits as a newline-joined string."""
-
-        # Log file name format: {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}_qc-status.log
-        # Anchor on the fixed-format date to handle a ptid that contains "_".
-
-        pattern = re.compile(
-            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:(\w+)_)?(\w+)_qc-status\.log$"
-        )
-
-        visits = []
-
-        for logfile in self.deleted_items.logs:
-            match = pattern.match(logfile)
-            if not match:
-                continue
-            ptid, date, visitnum, module = match.groups()
-            visit_str = f"ptid={ptid}, module={module.upper()}, date={date}"
-            if visitnum:
-                visit_str += f", visitnum={visitnum}"
-            visits.append(visit_str)
-
-        return "\n".join(visits) if visits else None
 
     def __get_error_log_name(self, module: str) -> Optional[str]:
         """Returns the QC errorlog filename for this delete request.

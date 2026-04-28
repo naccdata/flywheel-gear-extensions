@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import (
@@ -18,65 +17,11 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_identifier
 from nacc_common.error_models import FileErrorList
-from notifications.email import EmailClient, create_ses_client
 from outputs.error_writer import ListErrorWriter
 
 from form_deletion_app.delete import FormDeletionProcessor
 
 log = logging.getLogger(__name__)
-
-
-# TODO - change this to use a template
-def send_email(
-    sender_email: str,
-    delete_request: DeleteRequest,
-    success: bool,
-    deleted_visits: Optional[str] = None,
-) -> None:
-    """Send an email notifying the user the result of the delete request.
-
-    Args:
-        sender_email: Source email to send the notification
-        delete_request: Delete request information
-        success: Status of the delete request
-        deleted_visits: Info on visits deleted while processing the request
-    """
-    client = EmailClient(client=create_ses_client(), source=sender_email)
-
-    status = "COMPLETE" if success else "FAILED"
-
-    subject = (
-        f"[NACC Data Platform] Delete Request for PTID {delete_request.ptid} - {status}"
-    )
-
-    body = (
-        f"\n\nDelete request details:\n\n"
-        f"PTID: {delete_request.ptid}\n"
-        f"MODULE: {delete_request.module.upper()}\n"
-        f"VISIT DATE / FORM DATE: {delete_request.visitdate}\n"
-    )
-
-    if delete_request.visitnum:
-        body += f"VISITNUM: {delete_request.visitnum}\n"
-
-    if success and deleted_visits:
-        body += (
-            "\nForm data delete request listed above was successfully processed.\n"
-            "List of deleted forms/modules:\n"
-            f"{deleted_visits}\n\n"
-            "If you need to resubmit this data, "
-            "please make sure to reupload any associated modules listed above.\n\n"
-            "Please contact nacchelp@uw.edu if you have any questions\n\n"
-        )
-    else:
-        body += (
-            "\nErrors occurred while processing the "
-            "form data delete request listed above.\n"
-            "Please contact nacchelp@uw.edu for assistance\n\n"
-        )
-
-    target_email = delete_request.requested_by
-    client.send_raw(destinations=[target_email], subject=subject, body=body)
 
 
 def update_file_metadata(
@@ -95,8 +40,9 @@ def update_file_metadata(
         errors: Errors occurred while processing the delete request (if any)
     """
 
+    status = "PASS" if success else "FAIL"
     delete_response = DeleteResponse(
-        errors=errors.list(), deleted=deleted_items, state="PASS" if success else "FAIL"
+        errors=errors.list(), deleted=deleted_items, state=status
     )
     delete_info = DeleteInfoModel(
         delete_response=delete_response, processed_timestamp=datetime.now(timezone.utc)
@@ -104,6 +50,10 @@ def update_file_metadata(
 
     try:
         update_file_info(file=input_file, custom_info=delete_info.model_dump())
+        log.info(
+            f"Saved response details in file info metadata {input_file.name}, "
+            f"status: {status}"
+        )
     except ApiException as error:
         log.error(
             f"Error in updating custom info metadata in file {input_file.name}: {error}"
@@ -118,7 +68,6 @@ def run(
     delete_request: DeleteRequest,
     form_configs: FormProjectConfigs,
     identifiers_repo: IdentifierRepository,
-    sender_email: str,
 ):
     """Process the form data delete request.
 
@@ -129,7 +78,6 @@ def run(
         delete_request: Delete request details
         form_configs: Form ingest configs
         identifiers_repo: Identifier repository
-        sender_email: Source email to send the notification
     """
 
     error_writer = ListErrorWriter(
@@ -158,12 +106,4 @@ def run(
         success=success,
         deleted_items=processor.deleted_items,
         errors=error_writer.errors().model_dump(by_alias=True),
-    )
-
-    deleted_visits_str = processor.get_deleted_visits_list() if success else None
-    send_email(
-        sender_email=sender_email,
-        delete_request=delete_request,
-        success=success,
-        deleted_visits=deleted_visits_str,
     )

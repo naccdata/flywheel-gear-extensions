@@ -25,7 +25,6 @@ class DeleteRequest(BaseModel):
     module: str
     visitdate: str = Field(pattern=DATE_PATTERN)
     visitnum: Optional[str] = None
-    requested_by: str
 
 
 class DeletedItems(BaseModel):
