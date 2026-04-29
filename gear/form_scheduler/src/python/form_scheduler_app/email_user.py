@@ -100,7 +100,7 @@ class DeletePipelineNotificationTemplate(PipelineNotificationTemplate):
             ptid, date, visitnum, module = match.groups()
             label = f"PTID: {ptid}, Module: {module.upper()}, Date: {date}"
             if visitnum:
-                label += f", Visit number: {visitnum}"
+                label += f", Visit Number: {visitnum}"
         else:
             label = file.name.replace("delete_", "", 1).replace(".json", "")
 

@@ -44,7 +44,7 @@
                     "sender_email": "nacchelp@uw.edu"
                 }
             },
-            "notify_user": false,
+            "notify_user": true,
             "sequential": false
         },
         {

@@ -78,9 +78,9 @@ class DeleteInfoModel(BaseModel):
             if not match:
                 continue
             ptid, date, visitnum, module = match.groups()
-            visit_str = f"ptid={ptid}, module={module.upper()}, date={date}"
+            visit_str = f"PTID={ptid}, Module={module.upper()}, Date={date}"
             if visitnum:
-                visit_str += f", visitnum={visitnum}"
+                visit_str += f", Visit Number={visitnum}"
             visits.append(visit_str)
 
         return "\n".join(visits) if visits else None
