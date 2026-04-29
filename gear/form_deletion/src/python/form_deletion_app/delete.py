@@ -118,6 +118,7 @@ class FormDeletionProcessor:
         Args:
             message: the error message
         """
+        log.error(message)
         self.__error_writer.write(
             delete_request_failed_error(
                 ptid=self.__delete_request.ptid,

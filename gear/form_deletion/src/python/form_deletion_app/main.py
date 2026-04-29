@@ -49,7 +49,9 @@ def update_file_metadata(
     )
 
     try:
-        update_file_info(file=input_file, custom_info=delete_info.model_dump())
+        update_file_info(
+            file=input_file, custom_info=delete_info.model_dump(by_alias=True)
+        )
         log.info(
             f"Saved response details in file info metadata {input_file.name}, "
             f"status: {status}"
@@ -105,5 +107,5 @@ def run(
         input_file=input_file,
         success=success,
         deleted_items=processor.deleted_items,
-        errors=error_writer.errors().model_dump(by_alias=True),
+        errors=error_writer.errors(),
     )
