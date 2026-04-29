@@ -187,7 +187,7 @@ class TestDirectoryErrorHandlingIntegration:
         )
 
         # Verify record was excluded from output
-        assert "unapproved@example.com" not in yaml_output
+        assert yaml_output is None or "unapproved@example.com" not in yaml_output
 
         # Verify error event was captured
         assert collector.has_errors()
@@ -228,7 +228,7 @@ class TestDirectoryErrorHandlingIntegration:
         )
 
         # Verify record was excluded from output
-        assert "invalid@example.com" not in yaml_output
+        assert yaml_output is None or "invalid@example.com" not in yaml_output
 
         # Verify error event was captured
         assert collector.has_errors()
@@ -269,6 +269,7 @@ class TestDirectoryErrorHandlingIntegration:
         yaml_output = run(user_report=user_report, collector=collector)
 
         # Verify valid record is in output
+        assert yaml_output is not None
         assert "user@example.com" in yaml_output
 
         # Verify invalid records are not in output
@@ -325,6 +326,7 @@ class TestDirectoryErrorHandlingIntegration:
         )
 
         # Verify both records are in output (warning only, not exclusion)
+        assert yaml_output is not None
         assert yaml_output.count("user@example.com") >= 1
 
     def test_empty_user_report(
@@ -336,7 +338,7 @@ class TestDirectoryErrorHandlingIntegration:
         This test verifies:
         - Empty report is handled gracefully
         - No errors are raised
-        - Output is valid YAML with empty list
+        - Output is None when no valid entries exist
         """
         from directory_app.main import run
 
@@ -345,9 +347,8 @@ class TestDirectoryErrorHandlingIntegration:
         # Process the directory
         yaml_output = run(user_report=user_report)
 
-        # Verify output is valid and empty
-        assert yaml_output is not None
-        assert len(yaml_output) > 0  # YAML representation of empty list
+        # Verify output is None for empty report
+        assert yaml_output is None
 
     def test_visitor_creation_with_error_handling_support(
         self,
@@ -791,6 +792,7 @@ class TestArchivedContactIntegration:
         ]
 
         yaml_output = run(user_report=user_report, collector=collector)
+        assert yaml_output is not None
         data = yaml.safe_load(yaml_output)
 
         # Should have 2 entries: valid active + archived inactive
@@ -834,6 +836,7 @@ class TestArchivedContactIntegration:
         from directory_app.main import run
 
         yaml_output = run(user_report=[valid_user_record])
+        assert yaml_output is not None
         data = yaml.safe_load(yaml_output)
 
         assert len(data) == 1
@@ -867,6 +870,7 @@ class TestArchivedContactIntegration:
             user_report=[archived_no_approval_no_agreement_record],
             collector=collector,
         )
+        assert yaml_output is not None
         data = yaml.safe_load(yaml_output)
 
         # Archived record should appear in output
