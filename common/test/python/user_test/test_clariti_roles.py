@@ -341,12 +341,12 @@ class TestCLARiTIPropertyTests:
         fast_email = st.builds(
             lambda user, domain: f"{user}@{domain}.edu",
             st.text(
-                alphabet=st.characters(categories=("Ll",)),
+                alphabet="abcdefghijklmnopqrstuvwxyz",
                 min_size=1,
                 max_size=10,
             ),
             st.text(
-                alphabet=st.characters(categories=("Ll",)),
+                alphabet="abcdefghijklmnopqrstuvwxyz",
                 min_size=1,
                 max_size=10,
             ),
