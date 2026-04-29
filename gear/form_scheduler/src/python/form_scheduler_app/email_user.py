@@ -1,6 +1,7 @@
 """Handles emailing user on completion of their submission pipeline."""
 
 import logging
+import re
 from abc import abstractmethod
 from typing import ClassVar
 
@@ -91,7 +92,17 @@ class DeletePipelineNotificationTemplate(PipelineNotificationTemplate):
         """
 
         # filename format: delete_<ptid>_<date>_[<visitnum>_]<module>.json
-        label = file.name.replace("delete_", "").replace(".json", "")
+        match = re.match(
+            r"^delete_(.+)_(\d{4}-\d{2}-\d{2})_(?:(\S+)_)?(\S+)\.json$",
+            file.name,
+        )
+        if match:
+            ptid, date, visitnum, module = match.groups()
+            label = f"PTID: {ptid}, Module: {module.upper()}, Date: {date}"
+            if visitnum:
+                label += f", Visit number: {visitnum}"
+        else:
+            label = file.name.replace("delete_", "", 1).replace(".json", "")
 
         try:
             delete_response_info = (
