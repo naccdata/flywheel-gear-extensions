@@ -585,7 +585,7 @@ class TestCaptureDeleteEvent:
         completion_time = datetime(2025, 6, 1, 12, 0, 0)
         request_file = MockFile(
             name="delete_100020_2025-06-01_uds.json",
-            info={"state": "PASS"},
+            info={"delete_response": {"state": "PASS"}},
             contents=json.dumps(
                 {
                     "ptid": "adrc2000",
@@ -632,7 +632,7 @@ class TestCaptureDeleteEvent:
         """State=FAIL skips event capture without raising an exception."""
         request_file = MockFile(
             name="delete_100021_2025-06-01_uds.json",
-            info={"state": "FAIL"},
+            info={"delete_response": {"state": "FAIL"}},
             contents=json.dumps(
                 {
                     "ptid": "adrc2001",
@@ -667,7 +667,7 @@ class TestCaptureDeleteEvent:
         completion_time = datetime(2025, 7, 15, 9, 0, 0)
         request_file = MockFile(
             name="delete_100022_2025-07-15_mlst.json",
-            info={"state": "PASS"},
+            info={"delete_response": {"state": "PASS"}},
             contents=json.dumps(
                 {
                     "ptid": "adrc2002",

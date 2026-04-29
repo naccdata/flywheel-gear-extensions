@@ -217,35 +217,35 @@ class TestGetSubjectFromInputFile:
     def test_deletion_simple_ptid(self):
         result = get_subject_from_input_file(
             "delete_100020_2025-01-01_uds.json",
-            DefaultValues.DELETION_PIPELINE,
+            DefaultValues.DELETION_PIPELINE,  # type: ignore
         )
         assert result == "100020"
 
     def test_deletion_ptid_with_underscore(self):
         result = get_subject_from_input_file(
             "delete_adrc2000_01_2025-01-01_uds.json",
-            DefaultValues.DELETION_PIPELINE,
+            DefaultValues.DELETION_PIPELINE,  # type: ignore
         )
         assert result == "adrc2000_01"
 
     def test_deletion_ptid_with_underscore_and_visitnum(self):
         result = get_subject_from_input_file(
             "delete_adrc2000_01_2025-01-01_v01_uds.json",
-            DefaultValues.DELETION_PIPELINE,
+            DefaultValues.DELETION_PIPELINE,  # type: ignore
         )
         assert result == "adrc2000_01"
 
     def test_deletion_malformed_filename_returns_none(self):
         result = get_subject_from_input_file(
             "delete_badformat.json",
-            DefaultValues.DELETION_PIPELINE,
+            DefaultValues.DELETION_PIPELINE,  # type: ignore
         )
         assert result is None
 
     def test_finalization_simple_naccid(self):
         result = get_subject_from_input_file(
             "NACC123456_2025-01-01_uds.json",
-            DefaultValues.FINALIZATION_PIPELINE,
+            DefaultValues.FINALIZATION_PIPELINE,  # type: ignore
         )
         assert result == "NACC123456"
 
