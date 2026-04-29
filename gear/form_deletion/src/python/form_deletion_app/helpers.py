@@ -8,7 +8,8 @@ from deletions.models import DeletedItems, DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.session import Session
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, SubjectAdaptor
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor, SubjectError
 from nacc_common.field_names import FieldNames
 
 log = logging.getLogger(__name__)
@@ -207,13 +208,16 @@ class AcquisitionRemover:
             )
             return False
 
-        lfv_info = subject.get_last_failed_visit(module=module)
-        if lfv_info and lfv_info.filename == filename:
-            log.info(
-                f"Resetting last failed visit {filename} "
-                f"in {project.group}/{project.label}"
-            )
-            subject.reset_last_failed_visit(module=module)
+        try:
+            lfv_info = subject.get_last_failed_visit(module=module)
+            if lfv_info and lfv_info.filename == filename:
+                log.info(
+                    f"Resetting last failed visit {filename} "
+                    f"in {project.group}/{project.label}"
+                )
+                subject.reset_last_failed_visit(module=module)
+        except SubjectError as error:
+            log.warning(error)
 
         self.__deleted.acquisitions.append(
             f"{project.group}/{project.label}/{filename}"
