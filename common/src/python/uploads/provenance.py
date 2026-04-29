@@ -12,13 +12,12 @@ log = logging.getLogger(__name__)
 
 
 class FileProvenance(BaseModel):
-
     file_id: str
     file_name: str
     flywheel_path: str
     modified_date: str
 
-    @field_validator('modified_date')
+    @field_validator("modified_date")
     def validate_iso_format(cls, v: str) -> str:
         """Ensure the modified date is in ISO format."""
         try:
@@ -26,7 +25,7 @@ class FileProvenance(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"Provided modified_date {v} is not in ISO format: {e}"
-            )
+            ) from e
 
         return value.isoformat()
 
