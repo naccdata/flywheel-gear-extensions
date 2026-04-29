@@ -14,6 +14,7 @@ from notifications.email import (
     BaseTemplateModel,
     DestinationModel,
     EmailClient,
+    EmailSendError,
 )
 from pydantic import ValidationError
 
@@ -220,9 +221,12 @@ def send_email(
 
     destination = DestinationModel(to_addresses=receivers)
 
-    email_client.send(
-        configuration_set_name=template_data.configuration_set_name,
-        destination=destination,
-        template=template_data.template_name,
-        template_data=template_data,
-    )
+    try:
+        email_client.send(
+            configuration_set_name=template_data.configuration_set_name,
+            destination=destination,
+            template=template_data.template_name,
+            template_data=template_data,
+        )
+    except EmailSendError as error:
+        log.error(error)
