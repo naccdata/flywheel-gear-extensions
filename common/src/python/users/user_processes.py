@@ -24,7 +24,7 @@ from users.event_models import (
 )
 from users.failure_analyzer import FailureAnalyzer
 from users.redcap_disable_visitor import REDCapDisableVisitor
-from users.redcap_user_operations import unassign_user_role
+from users.redcap_user_operations import unassign_user_role, user_has_role_assignment
 from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
 from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
@@ -196,6 +196,43 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
             return
 
         title = redcap_project.title
+
+        try:
+            has_role = user_has_role_assignment(redcap_project, username)
+        except REDCapConnectionError as error:
+            log.error(
+                (
+                    "failed to check role assignment for %s in REDCap project %s "
+                    "(PID %s): %s"
+                ),
+                username,
+                title,
+                pid,
+                error,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Failed to check role assignment for {username} "
+                    f"in REDCap project {title} (PID {pid}): {error}"
+                ),
+            )
+            self.collector.collect(error_event)
+            return
+
+        if not has_role:
+            log.info(
+                (
+                    "User %s has no role assignment in REDCap project %s "
+                    "(PID %s), skipping"
+                ),
+                username,
+                title,
+                pid,
+            )
+            return
 
         if self.__env.proxy.dry_run:
             log.info(
