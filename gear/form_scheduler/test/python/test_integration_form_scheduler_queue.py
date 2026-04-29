@@ -9,8 +9,12 @@ import pytest
 from configs.ingest_configs import Pipeline, PipelineConfigs
 from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
-from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
+from form_scheduler_app.form_scheduler_queue import (
+    FormSchedulerQueue,
+    get_subject_from_input_file,
+)
 from gear_execution.gear_trigger import GearConfigs, GearInfo, GearInput
+from keys.keys import DefaultValues
 from nacc_common.error_models import (
     QC_STATUS_PASS,
     DataIdentification,
@@ -182,7 +186,7 @@ def create_mock_qc_status_file_for_queue(
 
     # Create QC metadata
     validation_model = ValidationModel(
-        state=qc_status,
+        state=qc_status,  # type: ignore
         data=[],  # No errors for PASS status
         cleared=[],  # No cleared alerts
     )
@@ -205,6 +209,52 @@ def create_mock_qc_status_file_for_queue(
     )
 
     return file
+
+
+class TestGetSubjectFromInputFile:
+    """Unit tests for get_subject_from_input_file."""
+
+    def test_deletion_simple_ptid(self):
+        result = get_subject_from_input_file(
+            "delete_100020_2025-01-01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "100020"
+
+    def test_deletion_ptid_with_underscore(self):
+        result = get_subject_from_input_file(
+            "delete_adrc2000_01_2025-01-01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "adrc2000_01"
+
+    def test_deletion_ptid_with_underscore_and_visitnum(self):
+        result = get_subject_from_input_file(
+            "delete_adrc2000_01_2025-01-01_v01_uds.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result == "adrc2000_01"
+
+    def test_deletion_malformed_filename_returns_none(self):
+        result = get_subject_from_input_file(
+            "delete_badformat.json",
+            DefaultValues.DELETION_PIPELINE,
+        )
+        assert result is None
+
+    def test_finalization_simple_naccid(self):
+        result = get_subject_from_input_file(
+            "NACC123456_2025-01-01_uds.json",
+            DefaultValues.FINALIZATION_PIPELINE,
+        )
+        assert result == "NACC123456"
+
+    def test_unsupported_pipeline_returns_none(self):
+        result = get_subject_from_input_file(
+            "delete_100020_2025-01-01_uds.json",
+            "unknown-pipeline",  # type: ignore[arg-type]
+        )
+        assert result is None
 
 
 class TestFormSchedulerQueueIntegration:
@@ -1034,3 +1084,286 @@ class TestFormSchedulerQueueIntegration:
         assert event.module == "NP"
         assert event.packet == "N"
         assert event.study == "alpha"
+
+
+class TestSubjectParallelProcessing:
+    """Tests that files from different subjects are triggered in parallel,
+    while files from the same subject are still processed sequentially."""
+
+    @pytest.fixture
+    def mock_proxy(self) -> MockFlywheelProxy:
+        return MockFlywheelProxy()
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def finalization_pipeline_config(self) -> PipelineConfigs:
+        pipeline = Pipeline(
+            name="finalization",
+            modules=["UDS"],
+            tags=["submission-completed"],
+            extensions=[".json"],
+            starting_gear=GearInfo(
+                gear_name="form-qc-coordinator",
+                inputs=[GearInput(label="json_file", file_locator="matched")],
+                configs=GearConfigs(),
+            ),
+            notify_user=False,
+            sequential=False,
+        )
+        return PipelineConfigs(
+            gears=["form-qc-coordinator", "form-qc-checker"],
+            pipelines=[pipeline],
+        )
+
+    @pytest.fixture
+    def deletion_pipeline_config(self) -> PipelineConfigs:
+        pipeline = Pipeline(
+            name="deletion",
+            modules=["UDS"],
+            tags=["pending-delete"],
+            extensions=[".json"],
+            starting_gear=GearInfo(
+                gear_name="form-deletion",
+                inputs=[GearInput(label="request_file", file_locator="matched")],
+                configs=GearConfigs(),
+            ),
+            notify_user=False,
+            sequential=False,
+        )
+        return PipelineConfigs(
+            gears=["form-deletion"],
+            pipelines=[pipeline],
+        )
+
+    def _make_call_recorder(self):
+        """Return a list and two side-effect functions that append to it."""
+        calls = []
+        return (
+            calls,
+            lambda *a, **kw: calls.append("trigger"),
+            lambda *a, **kw: calls.append("wait"),
+        )
+
+    def _setup_finalization_dataview(self, project, files_info):
+        """Return patches for read_dataview and get_file_by_id.
+
+        Args:
+            project: the mock project to patch
+            files_info: list of (file_object, file_id, module) tuples
+        """
+        data = [
+            {"filename": f.name, "file_id": fid, "module": mod}
+            for f, fid, mod in files_info
+        ]
+        file_map = {fid: f for f, fid, _ in files_info}
+
+        class MockDataviewResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def read(self):
+                return json.dumps({"data": data}).encode()
+
+        dataview_patch = patch.object(
+            project, "read_dataview", return_value=MockDataviewResponse()
+        )
+        get_file_patch = patch.object(
+            project,
+            "get_file_by_id",
+            side_effect=lambda fid: file_map.get(fid),
+        )
+        return dataview_patch, get_file_patch
+
+    def test_finalization_different_subjects_triggered_in_parallel(
+        self,
+        mock_proxy: MockFlywheelProxy,
+        mock_event_capture: MockVisitEventCapture,
+        finalization_pipeline_config: PipelineConfigs,
+    ):
+        """Two finalization files from different subjects should be triggered
+        together in a single batch before wait_for_pipeline is called."""
+        file_a = create_mock_json_file_for_queue(
+            name="NACC100010_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc1010",
+            visitdate="2025-06-01",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+            tags=["submission-completed"],
+        )
+        file_b = create_mock_json_file_for_queue(
+            name="NACC100011_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc1011",
+            visitdate="2025-06-01",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+            tags=["submission-completed"],
+        )
+
+        project = MockProjectAdaptorForQueue(
+            label="ingest-form-alpha", project_id="project-123"
+        )
+        mock_acquisition = MagicMock()
+        mock_acquisition.id = "acquisition-123"
+        mock_proxy.add_container("acquisition-123", mock_acquisition)
+
+        scheduler = FormSchedulerQueue(
+            proxy=mock_proxy,
+            project=project,
+            pipeline_configs=finalization_pipeline_config,
+            event_capture=mock_event_capture,
+        )
+
+        call_order, trigger_se, wait_se = self._make_call_recorder()
+        dv_patch, gf_patch = self._setup_finalization_dataview(
+            project,
+            [(file_a, "file-id-a", "UDS"), (file_b, "file-id-b", "UDS")],
+        )
+
+        with (
+            patch(
+                "form_scheduler_app.form_scheduler_queue.trigger_gear",
+                side_effect=trigger_se,
+            ),
+            patch(
+                "form_scheduler_app.form_scheduler_queue.JobPoll.wait_for_pipeline",
+                side_effect=wait_se,
+            ),
+            dv_patch,
+            gf_patch,
+        ):
+            scheduler.queue_files_for_pipeline(
+                finalization_pipeline_config.pipelines[0]
+            )
+            scheduler.process_pipeline_queues()
+
+        # Pre-module wait, then both subjects triggered together, then one wait
+        assert call_order == ["wait", "trigger", "trigger", "wait"]
+
+    def test_finalization_same_subject_triggered_sequentially(
+        self,
+        mock_proxy: MockFlywheelProxy,
+        mock_event_capture: MockVisitEventCapture,
+        finalization_pipeline_config: PipelineConfigs,
+    ):
+        """Two finalization files from the same subject must be triggered in
+        separate rounds: wait → trigger → wait → trigger → wait."""
+        file_1 = create_mock_json_file_for_queue(
+            name="NACC100010_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc1010",
+            visitdate="2025-06-01",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+            tags=["submission-completed"],
+        )
+        file_2 = create_mock_json_file_for_queue(
+            name="NACC100010_FORMS-VISIT-2F_UDS.json",
+            ptid="adrc1010",
+            visitdate="2025-07-01",
+            visitnum="2F",
+            module="UDS",
+            packet="I",
+            tags=["submission-completed"],
+        )
+
+        project = MockProjectAdaptorForQueue(
+            label="ingest-form-alpha", project_id="project-123"
+        )
+        mock_acquisition = MagicMock()
+        mock_acquisition.id = "acquisition-123"
+        mock_proxy.add_container("acquisition-123", mock_acquisition)
+
+        scheduler = FormSchedulerQueue(
+            proxy=mock_proxy,
+            project=project,
+            pipeline_configs=finalization_pipeline_config,
+            event_capture=mock_event_capture,
+        )
+
+        call_order, trigger_se, wait_se = self._make_call_recorder()
+        dv_patch, gf_patch = self._setup_finalization_dataview(
+            project,
+            [(file_1, "file-id-1", "UDS"), (file_2, "file-id-2", "UDS")],
+        )
+
+        with (
+            patch(
+                "form_scheduler_app.form_scheduler_queue.trigger_gear",
+                side_effect=trigger_se,
+            ),
+            patch(
+                "form_scheduler_app.form_scheduler_queue.JobPoll.wait_for_pipeline",
+                side_effect=wait_se,
+            ),
+            dv_patch,
+            gf_patch,
+        ):
+            scheduler.queue_files_for_pipeline(
+                finalization_pipeline_config.pipelines[0]
+            )
+            scheduler.process_pipeline_queues()
+
+        # Pre-module wait, then each file in its own round (same subject)
+        assert call_order == ["wait", "trigger", "wait", "trigger", "wait"]
+
+    def test_deletion_different_subjects_triggered_in_parallel(
+        self,
+        mock_proxy: MockFlywheelProxy,
+        mock_event_capture: MockVisitEventCapture,
+        deletion_pipeline_config: PipelineConfigs,
+    ):
+        """Two deletion files from different subjects should be triggered
+        together in a single batch before wait_for_pipeline is called."""
+        file_a = MockFileForQueue(
+            name="delete_100020_2025-01-01_uds.json",
+            tags=["pending-delete"],
+        )
+        file_a.parent_ref = MockParentRef(id="acquisition-123")  # type: ignore[assignment]
+
+        file_b = MockFileForQueue(
+            name="delete_100021_2025-01-01_uds.json",
+            tags=["pending-delete"],
+        )
+        file_b.parent_ref = MockParentRef(id="acquisition-123")  # type: ignore[assignment]
+
+        project = MockProjectAdaptorForQueue(
+            label="ingest-form-alpha",
+            project_id="project-123",
+            files=[file_a, file_b],
+        )
+        mock_acquisition = MagicMock()
+        mock_acquisition.id = "acquisition-123"
+        mock_proxy.add_container("acquisition-123", mock_acquisition)
+
+        scheduler = FormSchedulerQueue(
+            proxy=mock_proxy,
+            project=project,
+            pipeline_configs=deletion_pipeline_config,
+            event_capture=mock_event_capture,
+        )
+
+        call_order, trigger_se, wait_se = self._make_call_recorder()
+
+        with (
+            patch(
+                "form_scheduler_app.form_scheduler_queue.trigger_gear",
+                side_effect=trigger_se,
+            ),
+            patch(
+                "form_scheduler_app.form_scheduler_queue.JobPoll.wait_for_pipeline",
+                side_effect=wait_se,
+            ),
+        ):
+            scheduler.queue_files_for_pipeline(deletion_pipeline_config.pipelines[0])
+            scheduler.process_pipeline_queues()
+
+        # Pre-module wait, then both subjects triggered together, then one wait
+        assert call_order == ["wait", "trigger", "trigger", "wait"]

@@ -1,5 +1,6 @@
 """Data models for form deletion requests."""
 
+import re
 from datetime import datetime
 from typing import List, Optional
 
@@ -56,3 +57,30 @@ class DeleteInfoModel(BaseModel):
 
     delete_response: DeleteResponse
     processed_timestamp: Optional[datetime] = None
+
+    def get_deleted_visits_list(self) -> Optional[str]:
+        """Returns the list of deleted visits as a newline-joined string."""
+
+        if not self.delete_response.deleted:
+            return None
+
+        # Log file name format: {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}_qc-status.log
+        # Anchor on the fixed-format date to handle a ptid that contains "_".
+
+        pattern = re.compile(
+            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:(\w+)_)?(\w+)_qc-status\.log$"
+        )
+
+        visits = []
+
+        for logfile in self.delete_response.deleted.logs:
+            match = pattern.match(logfile)
+            if not match:
+                continue
+            ptid, date, visitnum, module = match.groups()
+            visit_str = f"PTID={ptid}, Module={module.upper()}, Date={date}"
+            if visitnum:
+                visit_str += f", Visit Number={visitnum}"
+            visits.append(visit_str)
+
+        return "\n".join(visits) if visits else None
