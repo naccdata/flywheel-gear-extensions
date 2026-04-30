@@ -78,7 +78,7 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
 class NACCIDsListRequest(ListRequest):
     """Request model to search identifiers for a list of NACCIDs."""
 
-    naccids: Annotated[List[NACCIDString], Field(min_length=1)]
+    naccids: List[str]
     allow_missing: bool = True
     allow_multiple: bool = False
     active_only: bool = True
@@ -476,7 +476,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         naccids: List[str],
         allow_missing: bool = True,
         allow_multiple: bool = False,
-        active_only: bool = True
+        active_only: bool = True,
     ) -> List[IdentifierObject]:
         """Get the identifier records for the provided list of NACCIDs.
 
@@ -513,7 +513,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
                         allow_multiple=allow_multiple,
                         active_only=active_only,
                         offset=0,
-                        limit=limit
+                        limit=limit,
                     ),
                 )
             except (LambdaInvocationError, ValidationError) as error:

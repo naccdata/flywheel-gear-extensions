@@ -14,8 +14,8 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
 )
-from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from pydantic import ValidationError
 from storage.dataset import (
@@ -24,6 +24,9 @@ from storage.dataset import (
     ParquetAggregateDataset,
 )
 
+from dataset_aggregator_app.duplicates_handler import (
+    DuplicatesHandler,
+)
 from dataset_aggregator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -37,14 +40,14 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         target_project: str,
         output_uri: str,
-        identifiers_mode: IdentifiersMode,
-        freeze_date: Optional[str] = None
+        freeze_date: Optional[str] = None,
+        duplicates_criteria_json: Optional[InputFileWrapper] = None,
     ):
         super().__init__(client=client)
         self.__target_project = target_project
         self.__output_uri = output_uri
-        self.__identifiers_mode = identifiers_mode
         self.__freeze_date = freeze_date
+        self.__duplicates_criteria_json = duplicates_criteria_json
 
     @classmethod
     def create(
@@ -74,16 +77,16 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         if not output_uri:
             raise GearExecutionError("output_uri required")
 
-        identifiers_mode = options.get("identifiers_mode", "prod")
-        if identifiers_mode not in ["dev", "prod"]:
-            raise GearExecutionError(f"invalid identifiers mode: {identifiers_mode}")
+        duplicates_criteria_json = InputFileWrapper.create(
+            input_name="duplicates_criteria_json", context=context
+        )
 
         return DatasetAggregatorVisitor(
             client=client,
             target_project=target_project,
             output_uri=output_uri.rstrip("/"),
-            identifiers_mode=identifiers_mode,
-            freeze_date=options.get("freeze_date", None)
+            freeze_date=options.get("freeze_date", None),
+            duplicates_criteria_json=duplicates_criteria_json,
         )
 
     def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
@@ -150,7 +153,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearContext) -> None:
-        aggregate = self.__group_datasets(self.get_center_ids(context))
+        """Run the dataset aggregator."""
         now = datetime.now()
         etl_date = now.strftime("%Y%m%d-%H%M%S")
         if not self.__freeze_date:
@@ -159,22 +162,29 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         # make sure freeze date is correct format
         try:
             datetime.strptime(self.__freeze_date, "%Y%m%d")
-        except (ValueError, TypeError):
-            return GearExecutionError("freeze_date must be in YYYYMMDD format")
+        except (ValueError, TypeError) as e:
+            raise GearExecutionError(
+                f"freeze_date must be in YYYYMMDD format: {e}"
+            ) from e
+
+        duplicates_handler = DuplicatesHandler(
+            context.output_dir, self.__duplicates_criteria_json
+        )
+
+        aggregate = self.__group_datasets(self.get_center_ids(context))
 
         # write provenance information to file
         provenance_file = Path(context.work_dir) / "provenance.json"
         with provenance_file.open("w") as fh:
             provenance = self.get_provenance(context)
             provenance["latest_datasets"] = aggregate.latest_versions
-
             json.dump(provenance, fh, indent=4)
 
         run(
             context=context,
             aggregate=aggregate,
-            output_uri=f"{self.__output_uri}",
-            identifiers_mode=self.__identifiers_mode,
+            output_uri=self.__output_uri,
+            duplicates_handler=duplicates_handler,
             provenance_file=provenance_file,
             dry_run=self.client.dry_run,
             etl_date=etl_date,
