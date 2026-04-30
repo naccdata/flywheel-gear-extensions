@@ -38,11 +38,13 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         target_project: str,
         output_uri: str,
         identifiers_mode: IdentifiersMode,
+        snapshot_date: Optional[str] = None
     ):
         super().__init__(client=client)
         self.__target_project = target_project
         self.__output_uri = output_uri
         self.__identifiers_mode = identifiers_mode
+        self.__snapshot_date = snapshot_date
 
     @classmethod
     def create(
@@ -81,6 +83,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             target_project=target_project,
             output_uri=output_uri.rstrip("/"),
             identifiers_mode=identifiers_mode,
+            snapshot_date=options.get("snapshot_date", None)
         )
 
     def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
@@ -165,6 +168,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             identifiers_mode=self.__identifiers_mode,
             provenance_file=provenance_file,
             dry_run=self.client.dry_run,
+            snapshot_date=self.__snapshot_date,
         )
 
 

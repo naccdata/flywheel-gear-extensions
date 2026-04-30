@@ -22,6 +22,7 @@ def run(
     identifiers_mode: IdentifiersMode,
     provenance_file: Path,
     dry_run: bool = False,
+    snapshot_date: Optional[str] = None
 ):
     """Runs the Dataset Aggregator process.
 
@@ -35,6 +36,8 @@ def run(
         provenance_file: File containing provenance info
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
+        snapshot_date: Snapshot date to set snapshot_column to;
+            will use the ETL date (time of execution) if not provided
     """
     work_dir = Path(context.work_dir)
     aggregate_dir = work_dir / "aggregate"
