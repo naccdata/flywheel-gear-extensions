@@ -6,6 +6,7 @@ All notable changes to this gear are documented in this file.
 
 * Differentiate between `freeze_date` and `etl_date`
 * Update to use `search_naccids` lambda instead of querying each one-by-one
+* Update to report duplicate visits instead of resolving
 
 ## 0.1.1
 
