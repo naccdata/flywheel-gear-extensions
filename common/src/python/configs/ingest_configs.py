@@ -160,12 +160,15 @@ class FormProjectConfigs(BaseModel):
     qc_gear: Optional[str] = DefaultValues.QC_GEAR
     legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
 
-    def get_module_dependencies(self, module: str) -> Optional[List[str]]:
+    def get_module_dependencies(
+        self, module: str, exact_match: Optional[bool] = True
+    ) -> Optional[List[str]]:
         """Get the list of dependent modules for a given module.
-        Note: only returns the dependent modules that has an exact match.
 
         Args:
             module: module label
+            exact_match (optional): Only return the dependent modules
+                                    that has an exact match. Defaults to True.
 
         Returns:
             List[str](optional): list of dependent module labels if found
@@ -175,9 +178,10 @@ class FormProjectConfigs(BaseModel):
         for module_label, config in self.module_configs.items():
             if (
                 config.supplement_module
-                and config.supplement_module.exact_match
                 and config.supplement_module.label == module.upper()
             ):
+                if exact_match and not config.supplement_module.exact_match:
+                    continue
                 dependent_modules.append(module_label)
 
         return dependent_modules

@@ -60,7 +60,7 @@ class FormDeletionProcessor:
         self.__module = delete_request.module.upper()
 
         self.__dependent_modules = form_configs.get_module_dependencies(
-            module=self.__module
+            module=self.__module, exact_match=False
         )
 
         self.__qc_log_manager = QCStatusLogManager(
