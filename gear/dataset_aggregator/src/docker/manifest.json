@@ -66,8 +66,8 @@
       "type": "string",
       "optional": true
     },
-    "snapshot_date": {
-      "description": "Snapshot date to set snapshot_column to; will use the ETL date (time of execution) if not provided",
+    "freeze_date": {
+      "description": "Freeze date, in YYYYMMDD format; will use the ETL date (time of execution) if not provided",
       "type": "string",
       "optional": true
     }

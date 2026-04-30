@@ -23,7 +23,7 @@ def run(
     provenance_file: Path,
     dry_run: bool = False,
     etl_date: str,
-    snapshot_date: str,
+    freeze_date: str,
 ):
     """Runs the Dataset Aggregator process.
 
@@ -38,7 +38,7 @@ def run(
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
         etl_date: timestamp this aggregation etl was initiated
-        snapshot_date: Snapshot date to set snapshot_column to;
+        freeze_date: Date of the freeze, in YYYYMMDD format;
             will use the ETL date (time of execution) if not
             provided
     """
@@ -73,7 +73,7 @@ def run(
             table,
             aggregate_dir,
             extra_columns={
-                'snapshot_date': snapshot_date,
+                'freeze_date': freeze_date,
                 'etl_date': etl_date,
             },
         )
