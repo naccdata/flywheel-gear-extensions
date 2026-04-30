@@ -1,5 +1,6 @@
 """Unit tests for AcquisitionRemover."""
 
+from typing import Any, Dict
 from unittest.mock import MagicMock
 
 from deletions.models import DeleteRequest
@@ -321,7 +322,8 @@ class TestCleanupAcquisitions:
         proxy = make_mock_proxy(subjects=[mock_subject])
         deleted_acquisition_ids = []
         proxy.delete_acquisition.side_effect = (
-            lambda acq_id: deleted_acquisition_ids.append(acq_id) or True
+            lambda acq_id: deleted_acquisition_ids.append(acq_id)  # type: ignore
+            or True
         )
 
         dependent_modules = ["TFP"]
@@ -487,7 +489,7 @@ class TestCompareVisitDetails:
         self, form_configs, uds_module_configs, deleted_items, delete_request
     ):
         """Acquisition with empty forms.json dict passes validation."""
-        acq_info = {"forms": {"json": {}}}
+        acq_info: Dict[str, Any] = {"forms": {"json": {}}}
         result, proxy = self._run_with_acq_info(
             form_configs, uds_module_configs, deleted_items, delete_request, acq_info
         )
