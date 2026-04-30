@@ -141,16 +141,12 @@ class TransferDuplicateHandler:
         )
 
         # query NACCIDs and get the current ADCID
-        correct_mapping: Dict[str, int] = {}
-        for naccid in duplicate_naccids:
-            # for other uses we batch/sleep the lookup, but probably
-            # won't have too many in this case
-            identifier = self.__identifiers_repo.get(naccid=naccid)
-            if not identifier or not identifier.naccid or not identifier.adcid:
-                raise IdentifierRepositoryError(
-                    f"Failed to find identifiers info for {naccid}"
-                )
+        identifiers = self.__identifiers_repo.search_naccids(
+            naccids=list(duplicate_naccids),
+            allow_missing=False,
+            allow_multiple=False,
+            active_only=True,
+        )
 
-            correct_mapping[identifier.naccid] = identifier.adcid
-
+        correct_mapping = {x.naccid: x.adcid for x in identifiers}
         self.__clean_transfer_duplicates(aggregate_file, correct_mapping)
