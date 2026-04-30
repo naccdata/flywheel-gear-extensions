@@ -164,11 +164,12 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         run(
             context=context,
             aggregate=aggregate,
-            output_uri=f"{self.__output_uri}/{timestamp}",
+            output_uri=f"{self.__output_uri}",
             identifiers_mode=self.__identifiers_mode,
             provenance_file=provenance_file,
             dry_run=self.client.dry_run,
-            snapshot_date=self.__snapshot_date,
+            etl_date=timestamp,
+            snapshot_date=self.__snapshot_date if self.__snapshot_date else timestamp,
         )
 
 

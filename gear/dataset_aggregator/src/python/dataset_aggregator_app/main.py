@@ -22,7 +22,8 @@ def run(
     identifiers_mode: IdentifiersMode,
     provenance_file: Path,
     dry_run: bool = False,
-    snapshot_date: Optional[str] = None
+    etl_date: str,
+    snapshot_date: str,
 ):
     """Runs the Dataset Aggregator process.
 
@@ -36,8 +37,10 @@ def run(
         provenance_file: File containing provenance info
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
+        etl_date: timestamp this aggregation etl was initiated
         snapshot_date: Snapshot date to set snapshot_column to;
-            will use the ETL date (time of execution) if not provided
+            will use the ETL date (time of execution) if not
+            provided
     """
     work_dir = Path(context.work_dir)
     aggregate_dir = work_dir / "aggregate"
@@ -46,7 +49,9 @@ def run(
     s3_output_interface = None
     if not dry_run:
         # make sure we have access to the output location first
-        bucket, prefix = S3BucketInterface.parse_bucket_and_key(output_uri)
+        bucket, prefix = S3BucketInterface.parse_bucket_and_key(
+            f'{output_uri}/{etl_date}'
+        )
         s3_output_interface = S3BucketInterface.create_from_environment(bucket)
 
         # write provenance
@@ -64,7 +69,14 @@ def run(
         4. Remove local aggregate file when done
     """
     for table in aggregate.tables:
-        aggregate_file = aggregate.aggregate_table(table, aggregate_dir)
+        aggregate_file = aggregate.aggregate_table(
+            table,
+            aggregate_dir,
+            extra_columns={
+                'snapshot_date': snapshot_date,
+                'etl_date': etl_date,
+            },
+        )
         transfer_handler.handle(aggregate_file)
         target_prefix = f"{prefix}/tables/{table}"
 
