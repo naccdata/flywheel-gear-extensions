@@ -70,6 +70,7 @@ def run(
     delete_request: DeleteRequest,
     form_configs: FormProjectConfigs,
     identifiers_repo: IdentifierRepository,
+    check_sbsq_visits: bool,
 ):
     """Process the form data delete request.
 
@@ -80,6 +81,7 @@ def run(
         delete_request: Delete request details
         form_configs: Form ingest configs
         identifiers_repo: Identifier repository
+        check_sbsq_visits: Check whether there are any subsequent QC passed visits
     """
 
     error_writer = ListErrorWriter(
@@ -99,6 +101,7 @@ def run(
         form_configs=form_configs,
         error_writer=error_writer,
         identifier=identifier,
+        check_sbsq_visits=check_sbsq_visits,
     )
 
     success = processor.process_request()

@@ -35,6 +35,7 @@ class FormDeletionProcessor:
         form_configs: FormProjectConfigs,
         error_writer: ListErrorWriter,
         identifier: Optional[IdentifierObject] = None,
+        check_sbsq_visits: bool,
     ):
         """
         Args:
@@ -45,6 +46,7 @@ class FormDeletionProcessor:
             form_configs: form ingest configs
             error_writer: Error writer to record any errors
             identifier: IdentifierObject if exists
+            check_sbsq_visits: Check whether there are any subsequent QC passed visits
         """
         self.__project = project
         self.__adcid = adcid
@@ -54,6 +56,7 @@ class FormDeletionProcessor:
         self.__request_time = request_time
         self.__identifier = identifier
         self.__naccid = identifier.naccid if identifier else None
+        self.__check_sbsq_visits = check_sbsq_visits
         self.__module = delete_request.module.upper()
 
         self.__dependent_modules = form_configs.get_module_dependencies(
@@ -289,8 +292,10 @@ class FormDeletionProcessor:
                 # Need more info from the user to process these requests,
                 #   need to re-validate subsequent visits if the user
                 #   is not planning to resubmit the deleted visit
+                # To bypass this check, set longitudinal_check=False in gear configs
                 if (
-                    module_configs.longitudinal
+                    self.__check_sbsq_visits
+                    and module_configs.longitudinal
                     and self.__has_qc_passed_subsequent_visits(
                         subject=subject, module_configs=module_configs
                     )

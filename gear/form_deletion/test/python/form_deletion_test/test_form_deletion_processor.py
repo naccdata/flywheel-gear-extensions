@@ -45,6 +45,7 @@ def create_processor(
             form_configs=form_configs,
             error_writer=error_writer,
             identifier=identifier,
+            check_sbsq_visits=True,
         )
 
 

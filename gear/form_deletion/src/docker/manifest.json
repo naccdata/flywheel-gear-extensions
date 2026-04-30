@@ -55,6 +55,12 @@
             "description": "Whether to pull identifiers from dev or prod database",
             "type": "string",
             "default": "prod"
+        },
+        "check_subsequent_visits": {
+            "description": "Check whether there are any subsequent QC passed visits (enabled by default, set false to bypass)",
+            "type": "bool",
+            "optional": true,
+            "default": true
         }
     },
     "command": "/bin/run"

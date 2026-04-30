@@ -129,6 +129,7 @@ class TestRun:
                 delete_request=delete_request,
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
+                check_sbsq_visits=True,
             )
 
         mock_processor.process_request.assert_called_once()
@@ -169,6 +170,7 @@ class TestRun:
                 delete_request=delete_request,
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
+                check_sbsq_visits=True,
             )
 
         assert captured_kwargs.get("identifier") is None
@@ -204,6 +206,7 @@ class TestRun:
                 delete_request=delete_request,
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
+                check_sbsq_visits=True,
             )
 
         mock_update.assert_called_once()
