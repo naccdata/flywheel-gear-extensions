@@ -75,6 +75,44 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
     """Request model to search all matching identifiers for a NACCID."""
 
 
+class NACCIDsListRequest(ListRequest):
+    """Request model to search identifiers for a list of NACCIDs."""
+
+    naccids: Annotated[List[NACCIDString], Field(min_length=1)]
+    allow_missing: bool = True
+    allow_multiple: bool = False
+    active_only: bool = True
+
+    def __bool__(self) -> bool:
+        return bool(self.naccids)
+
+    def __len__(self):
+        return len(self.naccids)
+
+    @model_validator(mode="after")
+    def validate_identifier_mode(self) -> "NACCIDsListRequest":
+        """Ensures naccid prefix matches with repo mode."""
+        if not self.naccids:
+            raise ValueError("NACCIDs list cannot be empty")
+
+        unmatched = []
+        for naccid in self.naccids:
+            if self.mode == "prod":
+                if not naccid.startswith("NACC"):
+                    unmatched.append(naccid)
+            else:
+                if not naccid.startswith("TEST"):
+                    unmatched.append(naccid)
+
+        if unmatched:
+            raise ValueError(
+                f"Identifier database mode {self.mode} does not match "
+                f"with the provided NACCID(s): {', '.join(unmatched)}"
+            )
+
+        return self
+
+
 class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
     """Request model for adding/updating Identifier with known NACCID."""
 
@@ -430,6 +468,66 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             identifier_list += response_object.data
             read_length = len(response_object.data)
             index += limit
+
+        return identifier_list
+
+    def search_naccids(
+        self,
+        naccids: List[str],
+        allow_missing: bool = True,
+        allow_multiple: bool = False,
+        active_only: bool = True
+    ) -> List[IdentifierObject]:
+        """Get the identifier records for the provided list of NACCIDs.
+
+        Args:
+            naccids: list of NACCID to lookup the identifiers
+            allow_missing: allow a NACCID in the list to be missing
+            allow_multiple: allow a NACCID to have multiple identifiers
+            active_only: only return active NACCIDs
+
+        Note that allow_multiple and active_only often influence each other. If you
+        want all identifiers, both active and inactive, set allow_multiple to True
+        and active_only to Fales. If you only want the active identifier, set
+        allow_multiple to False and active_only to True.
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the list of NACCIDs
+        """
+        identifier_list: List[IdentifierObject] = []
+        limit = 100
+
+        for i in range(0, len(naccids), limit):
+            batch = naccids[i : i + limit]
+
+            try:
+                response = self.__client.invoke(
+                    name="identifier-search-naccids-lambda-function",
+                    request=NACCIDsListRequest(
+                        mode=self.__mode,
+                        naccids=batch,
+                        allow_missing=allow_missing,
+                        allow_multiple=allow_multiple,
+                        active_only=active_only,
+                        offset=0,
+                        limit=limit
+                    ),
+                )
+            except (LambdaInvocationError, ValidationError) as error:
+                raise IdentifierRepositoryError(error) from error
+
+            if response.statusCode != 200:
+                raise IdentifierRepositoryError(response.body)
+
+            try:
+                response_object = ListResponseObject.model_validate_json(response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
+            identifier_list += response_object.data
 
         return identifier_list
 
