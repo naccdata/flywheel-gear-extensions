@@ -15,7 +15,6 @@ from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationError,
 )
 from flywheel_adaptor.subject_adaptor import (
-    ParticipantVisits,
     SubjectAdaptor,
     SubjectError,
 )
@@ -26,6 +25,7 @@ from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
+from submissions.models import ParticipantVisits
 
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
 from uploads.upload_error import UploaderError
