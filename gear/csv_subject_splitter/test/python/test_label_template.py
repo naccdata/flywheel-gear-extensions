@@ -37,3 +37,14 @@ class TestLabelTemplate:
             assert False, "cannot instatiate template"  # noqa: B011
         except ValueError as error:
             assert str(error) == "Error creating label, missing column 'alpha'"
+
+    def test_multi_delimiter_template(self):
+        """Test when there are multiple delimiters."""
+        template_string = "   BIOMARKER-${collection_date}----/////      "
+        template = LabelTemplate(template=template_string, transform="upper", delimiter='-')
+        assert template.instantiate({"collection_date": "1/1/2025"}) == "BIOMARKER-1-1-2025"
+
+        # with suffix
+        template_string = "   BIOMARKER-${collection_date}.json   "
+        template = LabelTemplate(template=template_string, transform="upper", delimiter='-')
+        assert template.instantiate({"collection_date": "1/1/2025"}) == "BIOMARKER-1-1-2025.json"

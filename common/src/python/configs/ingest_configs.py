@@ -1,5 +1,6 @@
 """Form ingest configurations."""
 
+import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
@@ -18,6 +19,7 @@ from pydantic import (
 )
 
 PipelineType = Literal["submission", "finalization"]
+DELIM_CLEANER = re.compile(r'[ /\-_]+')
 
 
 class ConfigsError(Exception):
@@ -65,7 +67,9 @@ class LabelTemplate(BaseModel):
                 ) from error
 
         if self.delimiter:
-            result = result.replace(" ", self.delimiter)
+            result = DELIM_CLEANER.sub(self.delimiter, result)
+            result = re.sub(rf'{re.escape(self.delimiter)}+', self.delimiter, result)
+            result = result.strip(self.delimiter)
 
         if self.transform == "lower":
             return result.lower()
