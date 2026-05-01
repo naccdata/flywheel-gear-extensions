@@ -10,16 +10,60 @@ check results ahead of time.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_execution import GearExecutionError
-from nacc_common.error_models import QCStatus
+from nacc_common.error_models import FileError, FileErrorList, QCStatus
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
 # States recognized as valid QC outcomes
 _VALID_STATES: set[str] = {"PASS", "FAIL", "IN REVIEW"}
+
+
+class ErrorFieldMapping(BaseModel):
+    """Maps gear-specific error fields to FileError fields.
+
+    Each field value is interpreted as:
+    - If it matches a key in the source error object, the value from
+      that key is used.
+    - Otherwise, it is treated as a literal value.
+
+    Example for dicom-validator results:
+        ErrorFieldMapping(message="name", error_code="dicom-validation")
+        # "name" is a key in the source -> uses source["name"]
+        # "dicom-validation" is not a key -> used as literal
+
+    Example for jsonschema-validation results:
+        ErrorFieldMapping(
+            message="error_message",
+            error_type="error_type",
+            error_code="jsonschema-validation",
+        )
+    """
+
+    message: str
+    error_type: str = "error"
+    error_code: str = "qc-error"
+    value: Optional[str] = None
+
+
+class QCErrorConfig(BaseModel):
+    """Describes how to extract errors from a gear's QC check results.
+
+    Attributes:
+        check_name: Which check result to read errors from
+            (e.g., "dicom-validator", "validation").
+        data_key: Key within the check result holding the error list.
+            Defaults to "data".
+        field_mapping: How to map source error fields to FileError fields.
+    """
+
+    check_name: str
+    data_key: str = "data"
+    field_mapping: ErrorFieldMapping
 
 
 class GearQCResult:
@@ -59,8 +103,65 @@ class GearQCResult:
         """All field names in this check result."""
         return list(self._raw.keys())
 
+    def extract_errors(self, config: QCErrorConfig) -> FileErrorList:
+        """Extract errors from this check result using the given config.
+
+        Reads the list at self._raw[config.data_key] and maps each item
+        to a FileError using config.field_mapping.
+
+        Returns:
+            FileErrorList of extracted errors. Empty if data is None,
+            not a list, or the check_name doesn't match this result.
+        """
+        if self._name != config.check_name:
+            return FileErrorList([])
+
+        raw_data = self._raw.get(config.data_key)
+        if not raw_data or not isinstance(raw_data, list):
+            return FileErrorList([])
+
+        errors: list[FileError] = []
+        mapping = config.field_mapping
+
+        for item in raw_data:
+            if not isinstance(item, dict):
+                continue
+
+            message = _resolve_field(item, mapping.message, default="Unknown error")
+            error_type = _resolve_field(item, mapping.error_type, default="error")
+            error_code = _resolve_field(item, mapping.error_code, default="qc-error")
+            value = (
+                _resolve_field(item, mapping.value, default=None)
+                if mapping.value
+                else None
+            )
+
+            errors.append(
+                FileError(
+                    message=message,
+                    error_type=error_type,
+                    error_code=error_code,
+                    value=value,
+                )
+            )
+
+        return FileErrorList(errors)
+
     def __repr__(self) -> str:
         return f"GearQCResult(name={self._name!r}, state={self.state!r})"
+
+
+def _resolve_field(item: dict[str, Any], field: str, default: Any) -> Any:
+    """Resolve a field mapping value against a source dict.
+
+    If `field` is a key in `item`, returns item[field]. Otherwise,
+    returns `field` as a literal value. If the resolved value is None,
+    returns `default`.
+    """
+    if field in item:
+        resolved = item[field]
+        return str(resolved) if resolved is not None else default
+    return field if field is not None else default
 
 
 class GearQC:
@@ -132,6 +233,33 @@ class GearQC:
         if "IN REVIEW" in states:
             return "IN REVIEW"
         return "PASS"
+
+    def extract_errors(
+        self, error_configs: Optional[list[QCErrorConfig]] = None
+    ) -> FileErrorList:
+        """Extract errors from check results using the provided configs.
+
+        Each config targets a specific check result by name and describes
+        how to map its data into FileError objects.
+
+        Args:
+            error_configs: List of error extraction configs. If None or
+                empty, returns an empty error list.
+
+        Returns:
+            Aggregated FileErrorList from all matching configs.
+        """
+        if not error_configs:
+            return FileErrorList([])
+
+        all_errors: list[FileError] = []
+        for config in error_configs:
+            result = self.get_result(config.check_name)
+            if result is not None:
+                extracted = result.extract_errors(config)
+                all_errors.extend(extracted)
+
+        return FileErrorList(all_errors)
 
 
 def read_gear_qc_status(

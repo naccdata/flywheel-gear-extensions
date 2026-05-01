@@ -4,6 +4,8 @@
 
 - Initial release
 - Read QC outcomes from upstream gear metadata (`file.info.qc.{gear_name}`)
+- Generic QC metadata reader (`GearQC`, `GearQCResult`) independent of form-specific models
+- Config-driven error extraction (`error_configs`) with field mapping to support arbitrary upstream gear error formats
 - Update project-level QC status log attributed to the upstream gear
 - Optionally capture VisitEvent to S3 based on configurable outcome-to-action mapping
 - Support for `dry_run` mode to skip write operations

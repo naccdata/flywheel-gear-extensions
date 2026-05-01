@@ -16,9 +16,11 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 
 from pipeline_event_logger_app.main import PipelineEventLogger
+from pipeline_event_logger_app.qc_reader import QCErrorConfig
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
         upstream_gear_name: str,
         event_capture: Optional[VisitEventCapture],
         event_actions: dict[str, str],
+        error_configs: Optional[list[QCErrorConfig]] = None,
         dry_run: bool = False,
     ):
         super().__init__(client=client)
@@ -41,6 +44,7 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
         self.__upstream_gear_name = upstream_gear_name
         self.__event_capture = event_capture
         self.__event_actions = event_actions
+        self.__error_configs = error_configs
         self.__dry_run = dry_run
 
     @classmethod
@@ -57,6 +61,8 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
         - event_actions: mapping of QC outcome keys to event action strings
         - event_environment: environment for event capture (prod/dev)
         - event_bucket: S3 bucket name for event capture
+        - error_configs: list of QCErrorConfig dicts describing how to
+          extract errors from check results
 
         Args:
             context: The gear context
@@ -87,6 +93,9 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
         event_bucket_name = options.get("event_bucket")
         dry_run = options.get("dry_run", False)
 
+        # Parse error extraction configs
+        error_configs = _parse_error_configs(options.get("error_configs"))
+
         event_capture = None
         if event_actions:
             if not event_environment or not event_bucket_name:
@@ -111,6 +120,7 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
             upstream_gear_name=upstream_gear_name,
             event_capture=event_capture,
             event_actions=event_actions,
+            error_configs=error_configs,
             dry_run=dry_run,
         )
 
@@ -149,8 +159,34 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
             upstream_gear_name=self.__upstream_gear_name,
             event_capture=self.__event_capture,
             event_actions=self.__event_actions,
+            error_configs=self.__error_configs,
             dry_run=self.__dry_run,
         ).run()
+
+
+def _parse_error_configs(
+    raw_configs: Optional[list[dict]],
+) -> Optional[list[QCErrorConfig]]:
+    """Parse error_configs from gear configuration.
+
+    Args:
+        raw_configs: Raw list of config dicts from gear options, or None.
+
+    Returns:
+        List of validated QCErrorConfig objects, or None if not configured.
+
+    Raises:
+        GearExecutionError: If config is present but invalid.
+    """
+    if not raw_configs:
+        return None
+
+    try:
+        return [QCErrorConfig.model_validate(cfg) for cfg in raw_configs]
+    except ValidationError as error:
+        raise GearExecutionError(
+            f"Invalid error_configs configuration: {error}"
+        ) from error
 
 
 def main():

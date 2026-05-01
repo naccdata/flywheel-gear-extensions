@@ -13,11 +13,11 @@ from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from nacc_common.data_identification import DataIdentification
-from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
+from nacc_common.error_models import FileErrorList, QCStatus
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from pydantic import ValidationError
 
-from .qc_reader import read_gear_qc_status
+from .qc_reader import GearQC, QCErrorConfig
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class PipelineEventLogger:
         upstream_gear_name: str,
         event_capture: Optional[VisitEventCapture],
         event_actions: dict[str, str],
+        error_configs: Optional[list[QCErrorConfig]] = None,
         dry_run: bool = False,
     ):
         self._file_entry = file_entry
@@ -52,34 +53,34 @@ class PipelineEventLogger:
         self._upstream_gear_name = upstream_gear_name
         self._event_capture = event_capture
         self._event_actions = event_actions
+        self._error_configs = error_configs
         self._dry_run = dry_run
 
     def run(self) -> None:
         """Execute the pipeline event logger workflow.
 
         Steps:
-        1. Read QC metadata from file.info.qc.{upstream_gear_name}
-        2. Read DataIdentification from file.info.data_identification
-        3. Resolve event timestamp
-        4. Update project-level QC status log (non-critical)
-        5. Capture VisitEvent to S3 (non-critical)
+        1. Read GearQC from file.info.qc.{upstream_gear_name}
+        2. Derive QC status and extract errors from check results
+        3. Read DataIdentification from file.info.data_identification
+        4. Resolve event timestamp
+        5. Update project-level QC status log (non-critical)
+        6. Capture VisitEvent to S3 (non-critical)
         """
-        qc_status, errors = self._read_qc_metadata()
+        gear_qc = self._read_gear_qc()
+        qc_status = self._get_status(gear_qc)
+        errors = gear_qc.extract_errors(self._error_configs)
+        log.info("QC status: %s, errors: %d", qc_status, len(errors))
         data_identification = self._read_data_identification()
         timestamp = self._resolve_timestamp()
         self._update_qc_status_log(data_identification, qc_status, errors)
         self._capture_event(qc_status, data_identification, timestamp)
 
-    def _read_qc_metadata(self) -> tuple[QCStatus, FileErrorList]:
-        """Read QC outcome from file.info.qc.{upstream_gear_name}.
-
-        Uses the general-purpose qc_reader to aggregate status across
-        all check results. For errors, attempts to read from the
-        form-specific FileQCModel structure (validation.data). If the
-        gear doesn't follow that convention, returns an empty error list.
+    def _read_gear_qc(self) -> GearQC:
+        """Read GearQC from file.info.qc.{upstream_gear_name}.
 
         Returns:
-            Tuple of (qc_status, error_list)
+            GearQC instance for the upstream gear
 
         Raises:
             GearExecutionError: If QC metadata is missing or invalid
@@ -90,35 +91,24 @@ class PipelineEventLogger:
             self._upstream_gear_name,
             filename,
         )
+        return GearQC.from_file(self._file_entry, self._upstream_gear_name)
 
-        # Read aggregate status from all check results
-        qc_status = read_gear_qc_status(self._file_entry, self._upstream_gear_name)
+    def _get_status(self, gear_qc: GearQC) -> QCStatus:
+        """Derive aggregate QC status from the GearQC object.
 
-        # Attempt to read structured errors from form-specific model
-        errors = self._read_form_errors()
+        Returns:
+            The aggregate QCStatus
 
-        log.info("QC status: %s, errors: %d", qc_status, len(errors))
-        return qc_status, errors
-
-    def _read_form_errors(self) -> FileErrorList:
-        """Attempt to read errors from the form-specific QC model.
-
-        If the upstream gear follows the form convention
-        (qc.<gear>.validation.data contains FileError objects), returns
-        those errors. Otherwise returns an empty list.
+        Raises:
+            GearExecutionError: If no valid QC states are found
         """
-        try:
-            file_qc_model = FileQCModel.create(self._file_entry)
-            gear_qc_model = file_qc_model.get(self._upstream_gear_name)
-            if gear_qc_model is not None:
-                return FileErrorList(gear_qc_model.get_errors())
-        except (ValidationError, Exception) as error:
-            log.debug(
-                "Could not read form-specific errors for gear '%s': %s",
-                self._upstream_gear_name,
-                error,
+        status = gear_qc.status
+        if status is None:
+            raise GearExecutionError(
+                f"No QC check results with valid state found for gear "
+                f"'{self._upstream_gear_name}' on file {self._file_entry.name}"
             )
-        return FileErrorList([])
+        return status
 
     def _read_data_identification(self) -> DataIdentification:
         """Read DataIdentification from file.info.data_identification.
