@@ -1,0 +1,70 @@
+{
+  "name": "pipeline-event-logger",
+  "label": "Pipeline Event Logger",
+  "description": "Reads QC results from upstream gears and propagates them to NACC QC status logs and S3 event capture",
+  "version": "0.1.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/pipeline_event_logger",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/pipeline-event-logger:0.1.0"
+    },
+    "flywheel": {
+      "suite": "NACC Data Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    },
+    "input_file": {
+      "description": "The file processed by the upstream gear. Must have file.info.qc.{upstream_gear_name} and file.info.data_identification populated.",
+      "base": "file"
+    }
+  },
+  "config": {
+    "upstream_gear_name": {
+      "description": "Name of the upstream gear whose QC results to read",
+      "type": "string"
+    },
+    "event_actions": {
+      "description": "Maps QC outcome keys (pass, fail, in-review) to event action strings. Example: {\"pass\": \"pass-qc\", \"fail\": \"not-pass-qc\"}",
+      "type": "object",
+      "optional": true
+    },
+    "event_environment": {
+      "description": "Environment for event capture (prod or dev). Required if event_actions is non-empty.",
+      "type": "string",
+      "enum": [
+        "prod",
+        "dev"
+      ],
+      "optional": true
+    },
+    "event_bucket": {
+      "description": "S3 bucket name for event capture. Required if event_actions is non-empty.",
+      "type": "string",
+      "optional": true
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter gearbot path prefix",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "dry_run": {
+      "description": "Skip all write operations",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
+}
