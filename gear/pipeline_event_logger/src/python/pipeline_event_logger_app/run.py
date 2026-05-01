@@ -9,7 +9,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
-    GearBotClient,
+    ContextClient,
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
@@ -57,7 +57,6 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
 
         Extracts configuration:
         - upstream_gear_name: name of the upstream gear whose QC results to read
-        - apikey_path_prefix: AWS parameter path prefix for gearbot API key
         - event_actions: mapping of QC outcome keys to event action strings
         - event_environment: environment for event capture (prod/dev)
         - event_bucket: S3 bucket name for event capture
@@ -66,7 +65,7 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
 
         Args:
             context: The gear context
-            parameter_store: The parameter store
+            parameter_store: The parameter store (unused)
 
         Returns:
             The execution environment
@@ -74,9 +73,7 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
         Raises:
             GearExecutionError: If required configuration is missing or invalid
         """
-        assert parameter_store, "Parameter store expected"
-
-        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        client = ContextClient.create(context=context)
 
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "missing expected input, input_file"
@@ -191,7 +188,7 @@ def _parse_error_configs(
 
 def main():
     """Main method for Pipeline Event Logger."""
-    GearEngine.create_with_parameter_store().run(gear_type=PipelineEventLoggerVisitor)
+    GearEngine().run(gear_type=PipelineEventLoggerVisitor)
 
 
 if __name__ == "__main__":

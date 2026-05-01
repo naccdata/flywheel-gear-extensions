@@ -55,11 +55,6 @@
       "type": "string",
       "optional": true
     },
-    "apikey_path_prefix": {
-      "description": "The instance specific AWS parameter gearbot path prefix",
-      "type": "string",
-      "default": "/prod/flywheel/gearbot"
-    },
     "dry_run": {
       "description": "Skip all write operations",
       "type": "boolean",
