@@ -103,6 +103,7 @@ class SubjectAdaptor:
           SubjectError if required metadata is missing
         """
 
+        self._subject = self._subject.reload()
         module_info = self.info.get(module, {})
         last_failed = module_info.get(MetadataKeys.FAILED, None)
         if not last_failed:
@@ -126,6 +127,7 @@ class SubjectAdaptor:
 
         # make sure to load the existing metadata first and then modify
         # update_info() will replace everything under the top-level key
+        self._subject = self._subject.reload()
         module_info = self.info.get(module, {})
         module_info[MetadataKeys.FAILED] = failed_visit.model_dump()
         updates = {module: module_info}
@@ -140,12 +142,14 @@ class SubjectAdaptor:
 
         # make sure to load the existing metadata first and then modify
         # update_info() will replace everything under the top-level key
-        module_info = self.info.get(module, {})
-        module_info[MetadataKeys.FAILED] = {}
-        updates = {module: module_info}
-        # Note: have to use update_info() here for reset to take effect
-        # Using update() will not delete any existing data
-        self._subject.update_info(updates)
+        self._subject = self._subject.reload()
+        module_info = self.info.get(module)
+        if module_info and module_info.get(MetadataKeys.FAILED):
+            module_info[MetadataKeys.FAILED] = {}
+            updates = {module: module_info}
+            # Note: have to use update_info() here for reset to take effect
+            # Using update() will not delete any existing data
+            self._subject.update_info(updates)
 
     @api_retry
     def upload_file(self, file_spec: FileSpec) -> Optional[List[Dict]]:
