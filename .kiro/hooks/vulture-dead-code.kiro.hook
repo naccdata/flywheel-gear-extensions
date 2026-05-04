@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Vulture Dead Code Check",
+  "description": "Runs Vulture dead code detection on changed source directories and reports genuinely unused code. Useful before creating a PR to catch orphaned files from refactoring.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run a dead code check before PR creation. Steps:\n1. Run `git diff --name-only main` to find changed files\n2. Extract the unique source directories (e.g., common/src/python/users, gear/form_scheduler/src/python/form_scheduler_app)\n3. For each source directory, run `uvx vulture <directory> --min-confidence 80`\n4. Review the results and filter out false positives (Pydantic fields, pytest fixtures, Flywheel callbacks, __init__.py re-exports)\n5. Report any genuinely dead code, especially entire unused files that may have been orphaned during refactoring\n6. If no dead code is found, say so briefly"
+  }
+}
