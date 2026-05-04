@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Duplicate Code Check",
+  "description": "Runs jscpd duplicate code detection on changed source directories before PR creation. Finds copy-pasted code blocks that should be refactored into shared functions.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run a duplicate code check before PR creation. Steps:\n1. Run `git diff --name-only main` to find changed files\n2. Extract the unique source directories (e.g., common/src/python/users, gear/form_scheduler/src/python/form_scheduler_app)\n3. For each source directory, run `npx jscpd --pattern \"**/*.py\" --ignore \"**/test/**,**/.venv/**,**/templates/**\" --min-lines 10 --min-tokens 50 <directory>`\n4. Review the results and report any duplicated code blocks, noting the files and line ranges\n5. Suggest whether each duplicate should be refactored into a shared function or is acceptable (e.g., similar but intentionally different logic)\n6. If no duplicates are found, say so briefly"
+  }
+}
