@@ -3,7 +3,6 @@
 import logging
 import sys
 import time
-from typing import List, Optional
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -30,8 +29,8 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         file_input: InputFileWrapper,
-        accepted_modules: List[str],
-        queue_tags: List[str],
+        accepted_modules: list[str],
+        queue_tags: list[str],
         scheduler_gear: GearInfo,
         format_and_tag: bool,
         gear_name: str,
@@ -49,7 +48,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "FormScreeningVisitor":
         """Creates a gear execution object.
 

@@ -1,7 +1,6 @@
 """Defines Manage Participant Transfer."""
 
 import logging
-from typing import List, Optional
 
 from centers.nacc_group import NACCGroup
 from enrollment.enrollment_project import EnrollmentProject
@@ -21,7 +20,7 @@ def review_transfer_info(
     enroll_project: EnrollmentProject,
     ptid: str,
     admin_group: NACCGroup,
-) -> Optional[TransferRecord]:
+) -> TransferRecord | None:
     """Reviews whether the requested transfer is in approved status.
 
     Args:
@@ -94,8 +93,8 @@ def run(  # noqa: C901
     enroll_project: EnrollmentProject,
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
-    datatypes: List[str],
-    studies: Optional[List[str]],
+    datatypes: list[str],
+    studies: list[str] | None,
     copy_only: bool,
     dry_run: bool,
 ) -> bool:
@@ -152,7 +151,7 @@ def run(  # noqa: C901
         log.info("Dry run only, exit")
         return True
 
-    warnings: List[str] = []
+    warnings: list[str] = []
     transfer_processor = TransferProcessor(
         enroll_project=enroll_project,
         transfer_record=transfer_record,

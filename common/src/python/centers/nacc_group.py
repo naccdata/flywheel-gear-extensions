@@ -1,7 +1,6 @@
 """Singleton class representing NACC with a FW group."""
 
 import logging
-from typing import List, Optional
 
 from flywheel.models.group import Group
 from flywheel.models.user import User
@@ -33,8 +32,8 @@ class NACCGroup(CenterAdaptor):
 
     def __init__(self, *, group: Group, proxy: FlywheelProxy) -> None:
         super().__init__(group=group, proxy=proxy)
-        self.__admin_project: Optional[ProjectAdaptor] = None
-        self.__redcap_param_repo: Optional[REDCapParametersRepository] = None
+        self.__admin_project: ProjectAdaptor | None = None
+        self.__redcap_param_repo: REDCapParametersRepository | None = None
 
     @classmethod
     def create(cls, *, proxy: FlywheelProxy, group_id: str = "nacc") -> "NACCGroup":
@@ -54,7 +53,7 @@ class NACCGroup(CenterAdaptor):
         return admin_group
 
     @property
-    def redcap_param_repo(self) -> Optional[REDCapParametersRepository]:
+    def redcap_param_repo(self) -> REDCapParametersRepository | None:
         return self.__redcap_param_repo
 
     def set_redcap_param_repo(self, redcap_param_repo: REDCapParametersRepository):
@@ -89,9 +88,7 @@ class NACCGroup(CenterAdaptor):
         center_map.add(adcid, info)
         metadata.update_info(center_map.model_dump())
 
-    def get_center_map(
-        self, center_filter: Optional[List[str]] = None
-    ) -> CenterMapInfo:
+    def get_center_map(self, center_filter: list[str] | None = None) -> CenterMapInfo:
         """Returns the adcid-group map.
 
         Args:
@@ -124,7 +121,7 @@ class NACCGroup(CenterAdaptor):
 
         return center_map
 
-    def get_adcid(self, group_id: str) -> Optional[int]:
+    def get_adcid(self, group_id: str) -> int | None:
         """Returns the ADCID for the center group.
 
         Args:
@@ -134,7 +131,7 @@ class NACCGroup(CenterAdaptor):
         """
         return self.get_center_map().get_adcid(group_id)
 
-    def get_adcids(self) -> List[int]:
+    def get_adcids(self) -> list[int]:
         """Returns the list of ADCIDs for all centers.
 
         Returns:
@@ -142,7 +139,7 @@ class NACCGroup(CenterAdaptor):
         """
         return self.get_center_map().get_adcids()
 
-    def get_form_ingest_adcids(self) -> List[int]:
+    def get_form_ingest_adcids(self) -> list[int]:
         """Returns the list of ADCIDs for all form ingest projects.
 
         Returns:
@@ -164,7 +161,7 @@ class NACCGroup(CenterAdaptor):
 
         return adcid_list
 
-    def get_center(self, adcid: int) -> Optional[CenterGroup]:
+    def get_center(self, adcid: int) -> CenterGroup | None:
         """Returns the center group for the given ADCID.
 
         Args:
@@ -202,7 +199,7 @@ class NACCGroup(CenterAdaptor):
         """
         return self._fw.get_pipeline(adcid)
 
-    def get_centers(self) -> List[CenterGroup]:
+    def get_centers(self) -> list[CenterGroup]:
         """Returns the center groups for all centers.
 
         Returns:
@@ -248,7 +245,7 @@ class NACCGroup(CenterAdaptor):
 
         return self.__admin_project
 
-    def get_all_ingest_pipeline_adcids(self) -> List[int]:
+    def get_all_ingest_pipeline_adcids(self) -> list[int]:
         """Pull list of pipeline ADCIDs by traversing metadata projects for all
         centers.
 
@@ -281,9 +278,7 @@ class NACCGroup(CenterAdaptor):
 
         return pipeline_adcids
 
-    def get_center_by_pipeline_adcid(
-        self, pipeline_adcid: int
-    ) -> Optional[CenterGroup]:
+    def get_center_by_pipeline_adcid(self, pipeline_adcid: int) -> CenterGroup | None:
         """Returns the center group for the given pipeline ADCID.
 
         Args:

@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -37,9 +36,9 @@ class DestinationModel(BaseModel):
         populate_by_name=True, alias_generator=AliasGenerator(alias=camel_case)
     )
 
-    to_addresses: List[str]
-    cc_addresses: Optional[List[str]] = None
-    bcc_addresses: Optional[List[str]] = None
+    to_addresses: list[str]
+    cc_addresses: list[str] | None = None
+    bcc_addresses: list[str] | None = None
 
 
 class MessageComponent(BaseModel):
@@ -56,14 +55,14 @@ class MessageComponent(BaseModel):
 class BaseTemplateModel(BaseModel):
     """Base templte model for messages for the boto3 SES client."""
 
-    email_address: Optional[str] = None
+    email_address: str | None = None
 
 
 class TemplateDataModel(BaseTemplateModel):
     """Defines a model for messages for the boto3 SES client."""
 
     firstname: str
-    url: Optional[str] = None
+    url: str | None = None
 
 
 class EmailClient:
@@ -116,7 +115,7 @@ class EmailClient:
         log.info("Sent mail %s", message_id)
         return message_id
 
-    def send_raw(self, destinations: List[str], subject: str, body: str) -> str:
+    def send_raw(self, destinations: list[str], subject: str, body: str) -> str:
         """Sends a plain text raw email that doesn't require any templating.
         Mainly for internal use.
 

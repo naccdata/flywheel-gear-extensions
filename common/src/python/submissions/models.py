@@ -1,6 +1,6 @@
 """Data models for form data upload requests."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from nacc_common.field_names import FieldNames
 from nacc_common.form_dates import DATE_PATTERN
@@ -16,10 +16,10 @@ class VisitInfo(BaseModel):
     )
 
     filename: str
-    file_id: Optional[str] = None  # Flywheel File ID
+    file_id: str | None = None  # Flywheel File ID
     visitdate: str = Field(pattern=DATE_PATTERN)
-    visitnum: Optional[str] = None
-    validated_timestamp: Optional[str] = None
+    visitnum: str | None = None
+    validated_timestamp: str | None = None
 
 
 class ParticipantVisits(BaseModel):
@@ -31,7 +31,7 @@ class ParticipantVisits(BaseModel):
 
     participant: str  # Flywheel subject label
     module: str  # module label (Flywheel acquisition label)
-    visits: List[VisitInfo]
+    visits: list[VisitInfo]
 
     @classmethod
     def create_from_visit_data(
@@ -39,7 +39,7 @@ class ParticipantVisits(BaseModel):
         *,
         filename: str,
         file_id: str,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         visitdate_key: str = FieldNames.DATE_COLUMN,
     ) -> "ParticipantVisits":
         """Create from input data and visit file details.

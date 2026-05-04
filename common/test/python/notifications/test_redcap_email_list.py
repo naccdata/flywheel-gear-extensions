@@ -1,7 +1,5 @@
 """Tests REDCapEmailList."""
 
-from typing import Dict, List
-
 import pytest
 from notifications.redcap_email_list import REDCapEmailList
 from redcap_api.redcap_connection import REDCapReportConnection
@@ -19,7 +17,7 @@ def redcap_email_list():
 class MockREDCapReportConnection(REDCapReportConnection):
     """Mocks the REDCap connection for testing."""
 
-    def get_report_records(self) -> List[Dict[str, str]]:
+    def get_report_records(self) -> list[dict[str, str]]:
         """Mock getting report records."""
         return [
             {"email": "dummy_email1@dummy.org", "firstname": "Dummy1"},

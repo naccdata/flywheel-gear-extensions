@@ -1,7 +1,6 @@
 """Tests serialization of enrollment/transfer form data."""
 
 from datetime import datetime
-from typing import Dict
 
 import pytest
 from enrollment.enrollment_transfer import (
@@ -38,7 +37,7 @@ class TestEnrollmentSerialization:
     # pylint: disable=(no-self-use)
     def test_create(self):
         """Test create_from method."""
-        row: Dict[str, int | str] = {
+        row: dict[str, int | str] = {
             "adcid": 0,
             "ptid": "123456",
             "frmdate_enrl": "2024-06-10",

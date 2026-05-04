@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from flywheel.rest import ApiException
@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 
 def upload_to_flywheel(
     *,
-    visits: List[Dict[str, Any]],
-    extra_fields: List[str],
+    visits: list[dict[str, Any]],
+    extra_fields: list[str],
     filename: str,
     prj_adaptor: ProjectAdaptor,
 ):
@@ -71,7 +71,7 @@ def upload_to_flywheel(
 
 
 def reset_upload_checkbox(
-    redcap_prj: REDCapProject, visits: List[Dict[str, str]], timestamp: datetime
+    redcap_prj: REDCapProject, visits: list[dict[str, str]], timestamp: datetime
 ):
     """Reset the upload checkboxes in REDCap records.
 
@@ -106,9 +106,9 @@ def reset_upload_checkbox(
 def validate_redcap_report(
     redcap_prj: REDCapProject,
     report_id: str,
-    record: Dict[str, str],
-    schema: Dict[str, Any],
-) -> List[str]:
+    record: dict[str, str],
+    schema: dict[str, Any],
+) -> list[str]:
     """Check whether the required fields included in the report.
 
     Args:
@@ -177,7 +177,7 @@ def run(
             f"Field definitions not found in schema file {schema_file}"
         )
 
-    records_list: List[Dict[str, Any]] = []
+    records_list: list[dict[str, Any]] = []
     try:
         redcap_prj = REDCapProject.create(redcap_con)
         if isinstance(redcap_con, REDCapReportConnection):

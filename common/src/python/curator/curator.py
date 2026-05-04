@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from codecs import StreamReader
 from multiprocessing import Manager
 from multiprocessing.managers import ListProxy
-from typing import List, Optional
 
 from flywheel import Client, DataView
 from flywheel.models.subject import Subject
@@ -29,7 +28,7 @@ class Curator(ABC):
     def __init__(
         self,
         dataview: DataView,
-        curation_tag: Optional[str] = None,
+        curation_tag: str | None = None,
         force_curate: bool = False,
     ) -> None:
         self.__dataview = dataview
@@ -47,7 +46,7 @@ class Curator(ABC):
         return self.__sdk_client
 
     @property
-    def curation_tag(self) -> Optional[str]:
+    def curation_tag(self) -> str | None:
         return self.__curation_tag
 
     @property
@@ -174,7 +173,7 @@ class Curator(ABC):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        curation_list: List[FileModel],
+        curation_list: list[FileModel],
     ) -> None:
         """Run pre-curation on the entire subject. Not required.
 
@@ -189,7 +188,7 @@ class Curator(ABC):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[FileModel],
+        processed_files: list[FileModel],
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 

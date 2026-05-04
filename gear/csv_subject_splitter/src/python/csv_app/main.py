@@ -1,7 +1,7 @@
 """Defines CSV to JSON transformations."""
 
 import logging
-from typing import Any, Dict, List, Set, TextIO
+from typing import Any, TextIO
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -24,7 +24,7 @@ class CSVSplitVisitor(CSVVisitor):
         self,
         *,
         provenance: FileProvenance,
-        req_fields: Set[str],
+        req_fields: set[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
@@ -35,7 +35,7 @@ class CSVSplitVisitor(CSVVisitor):
         self.__uploader = uploader
         self.__error_writer = error_writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Prepares the visitor to process rows using the given header columns.
         If the header doesn't have required fields writes an error.
 
@@ -52,7 +52,7 @@ class CSVSplitVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Assigns the row data to the subject by NACCID.
 
         Args:
@@ -105,7 +105,7 @@ def run(
     destination: ProjectAdaptor,
     error_writer: ErrorWriter,
     preserve_case: bool,
-    req_fields: Set[str],
+    req_fields: set[str],
 ) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.

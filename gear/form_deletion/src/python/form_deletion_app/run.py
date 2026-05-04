@@ -1,7 +1,6 @@
 """Entry script for Form Deletion."""
 
 import logging
-from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs, load_form_ingest_configurations
 from deletions.models import DeleteRequest
@@ -51,7 +50,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore] = None
+        cls, context: GearContext, parameter_store: ParameterStore | None = None
     ) -> "FormDeletionVisitor":
         """Creates a Delete Form Submission execution visitor.
 
@@ -96,7 +95,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
 
         try:
             with open(
-                self.__request_file_input.filepath, mode="r", encoding="utf-8-sig"
+                self.__request_file_input.filepath, encoding="utf-8-sig"
             ) as delete_request_file:
                 delete_request = DeleteRequest.model_validate_json(
                     delete_request_file.read()

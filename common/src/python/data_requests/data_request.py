@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -47,7 +47,7 @@ class ModuleDataGatherer:
         self,
         proxy: FlywheelProxy,
         module_name: str,
-        info_paths: Optional[list[str]] = None,
+        info_paths: list[str] | None = None,
     ) -> None:
         self.__proxy = proxy
         self.__module_name = module_name
@@ -156,7 +156,7 @@ class DataRequestVisitor(CSVVisitor):
     def gatherers(self) -> list[ModuleDataGatherer]:
         return self.__gatherers
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
 
         Args:
@@ -195,7 +195,7 @@ class DataRequestVisitor(CSVVisitor):
 
         return result
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Applies this visitor to the data request row at the line number.
 
         If the data request validates, matches the subjects with the request

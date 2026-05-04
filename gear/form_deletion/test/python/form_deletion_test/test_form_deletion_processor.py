@@ -1,6 +1,6 @@
 """Unit tests for FormDeletionProcessor."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from configs.ingest_configs import FormProjectConfigs
@@ -357,7 +357,7 @@ class TestProcessRequest:
         dep_log_name = "NACC123456-TFP-2024-01-15-1.json"
         dep_log_file = MagicMock()
         dep_log_file.name = dep_log_name
-        dep_log_file.modified = datetime(2024, 1, 14, tzinfo=timezone.utc)
+        dep_log_file.modified = datetime(2024, 1, 14, tzinfo=UTC)
 
         mock_project.add_file(dep_log_file)
         mock_project.set_delete_result(dep_log_name, False)

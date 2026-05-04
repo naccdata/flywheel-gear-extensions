@@ -1,7 +1,6 @@
 """Methods to query identifiers repository."""
 
 import logging
-from typing import Optional
 
 from identifiers.identifiers_repository import (
     IdentifierRepository,
@@ -16,8 +15,8 @@ def find_naccid(
     repo: IdentifierRepository,
     adcid: int,
     ptid: str,
-    active_only: Optional[bool] = False,
-) -> Optional[str]:
+    active_only: bool | None = False,
+) -> str | None:
     """Find the NACCID for a given ADCID, PTID.
 
     Args:
@@ -48,7 +47,7 @@ def find_identifier(
     repo: IdentifierRepository,
     adcid: int,
     ptid: str,
-) -> Optional[IdentifierObject]:
+) -> IdentifierObject | None:
     """Find the identifier for a given ADCID, PTID.
 
     Args:

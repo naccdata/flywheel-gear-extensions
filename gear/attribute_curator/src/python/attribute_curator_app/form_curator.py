@@ -2,7 +2,8 @@ import copy
 import importlib.metadata
 import logging
 import typing as typing
-from typing import Any, Dict, List, MutableMapping, Optional
+from collections.abc import MutableMapping
+from typing import Any
 
 from curator.curator import Curator, ProjectCurationError
 from curator.scheduling_models import FileModel
@@ -51,7 +52,7 @@ class FormCurator(Curator):
         curation_tag: str,
         active_center: bool,
         force_curate: bool = False,
-        rxclass_concepts: Optional[MutableMapping] = None,
+        rxclass_concepts: MutableMapping | None = None,
         ignore_qc: bool = False,
     ) -> None:
         super().__init__(
@@ -98,7 +99,7 @@ class FormCurator(Curator):
                 ALL_RX_CLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
             )
 
-    def __extract_attributes(self, scope: str) -> List[str]:
+    def __extract_attributes(self, scope: str) -> list[str]:
         """Extracts the attributes for the given scope.
 
         Args:
@@ -292,7 +293,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        curation_list: List[FileModel],
+        curation_list: list[FileModel],
     ) -> None:
         """Run pre-curating on the entire subject. Clean up metadata as needed,
         and pre-compute UDS DOB.
@@ -342,7 +343,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        processed_files: List[FileModel],
+        processed_files: list[FileModel],
     ) -> None:
         """Run post-curating on the entire subject.
 
@@ -363,7 +364,7 @@ class FormCurator(Curator):
             return
 
         # hash the processed files by scope
-        scoped_files: Dict[ScopeLiterals, List[FileModel]] = {}
+        scoped_files: dict[ScopeLiterals, list[FileModel]] = {}
         for file in processed_files:
             scope = file.scope
             if not scope:  # sanity check
@@ -410,7 +411,7 @@ class FormCurator(Curator):
         self,
         subject: Subject,
         subject_table: SymbolTable,
-        curated_scopes: List[ScopeLiterals],
+        curated_scopes: list[ScopeLiterals],
     ) -> bool:
         """
         1. Cross-module derived variables need to be done at the end
@@ -471,7 +472,7 @@ class FormCurator(Curator):
     def handle_subject_tags(
         self,
         subject: Subject,
-        curated_scopes: List[ScopeLiterals],
+        curated_scopes: list[ScopeLiterals],
         affiliate: int,
     ) -> None:
         """Handle curation tags.
@@ -499,9 +500,9 @@ class FormCurator(Curator):
     def back_propagate_scopes(  # noqa: C901
         self,
         subject: Subject,
-        scoped_files: Dict[ScopeLiterals, List[FileModel]],
+        scoped_files: dict[ScopeLiterals, list[FileModel]],
         category: str,
-        cs_variables: Dict[str, Any] | None,
+        cs_variables: dict[str, Any] | None,
     ) -> None:
         """Performs back-propagation on cross-sectional variables.
 
@@ -522,7 +523,7 @@ class FormCurator(Curator):
             )
             return
 
-        result: Dict[str, Dict[str, Any]] = {
+        result: dict[str, dict[str, Any]] = {
             scope: {} for scope in self.__scope_reference
         }
 

@@ -5,7 +5,6 @@ statistics across various gears and operations.
 """
 
 import logging
-from typing import Dict
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ class ProcessingMetrics:
         self.qc_logs_created = 0
         self.qc_logs_failed = 0
         self.errors_encountered = 0
-        self.error_types: Dict[str, int] = {}
+        self.error_types: dict[str, int] = {}
         self.processing_start_time = None
         self.processing_end_time = None
 

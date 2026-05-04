@@ -1,6 +1,6 @@
 """Shared fixtures for form_deletion tests."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -132,7 +132,7 @@ def form_configs_with_dep(uds_module_configs, tfp_module_configs):
 
 @pytest.fixture
 def request_time():
-    return datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+    return datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -145,7 +145,7 @@ def old_error_log_file(error_log_name):
     """Error log file modified BEFORE the request time — valid for deletion."""
     return MockFile(
         name=error_log_name,
-        modified=datetime(2024, 1, 14, 10, 0, 0, tzinfo=timezone.utc),
+        modified=datetime(2024, 1, 14, 10, 0, 0, tzinfo=UTC),
     )
 
 
@@ -154,7 +154,7 @@ def new_error_log_file(error_log_name):
     """Error log file modified AFTER the request time — should be rejected."""
     return MockFile(
         name=error_log_name,
-        modified=datetime(2024, 1, 16, 10, 0, 0, tzinfo=timezone.utc),
+        modified=datetime(2024, 1, 16, 10, 0, 0, tzinfo=UTC),
     )
 
 

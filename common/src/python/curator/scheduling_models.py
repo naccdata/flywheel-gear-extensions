@@ -2,7 +2,7 @@
 
 import re
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from data.dataview import ColumnModel, make_builder
 from flywheel import DataView
@@ -74,16 +74,16 @@ class FileModel(BaseModel):
     # from data view execution
     filename: str
     file_id: str
-    file_info: Dict[str, Any]
-    file_tags: List[str]
+    file_info: dict[str, Any]
+    file_tags: list[str]
     session_id: str
     modified_date: date
 
     # private attributes to be computed
-    _file_date: Optional[date] = PrivateAttr(default=None)
-    _scope: Optional[ScopeLiterals] = PrivateAttr(default=None)
-    _visit_pass: Optional[VISIT_PASS_LITERALS] = PrivateAttr(default=None)
-    _uds_visitdate: Optional[str] = PrivateAttr(default=None)
+    _file_date: date | None = PrivateAttr(default=None)
+    _scope: ScopeLiterals | None = PrivateAttr(default=None)
+    _visit_pass: VISIT_PASS_LITERALS | None = PrivateAttr(default=None)
+    _uds_visitdate: str | None = PrivateAttr(default=None)
 
     @property
     def file_date(self) -> date:
@@ -95,19 +95,19 @@ class FileModel(BaseModel):
         return self._file_date
 
     @property
-    def scope(self) -> Optional[ScopeLiterals]:
+    def scope(self) -> ScopeLiterals | None:
         return self._scope
 
     @property
-    def visit_pass(self) -> Optional[VISIT_PASS_LITERALS]:
+    def visit_pass(self) -> VISIT_PASS_LITERALS | None:
         return self._visit_pass
 
     @property
-    def uds_visitdate(self) -> Optional[str]:
+    def uds_visitdate(self) -> str | None:
         return self._uds_visitdate
 
     @classmethod
-    def create_dataview(cls, filename_patterns: List[str]) -> DataView:
+    def create_dataview(cls, filename_patterns: list[str]) -> DataView:
         """Create DataView corresponding to FileModels."""
         builder = make_builder(
             label="Curation DataView",
@@ -130,7 +130,7 @@ class FileModel(BaseModel):
         return builder.build()
 
     @classmethod
-    def __check_date(cls, value: Optional[str | date]) -> Optional[date]:
+    def __check_date(cls, value: str | date | None) -> date | None:
         if not value:
             return None
 
@@ -161,7 +161,7 @@ class FileModel(BaseModel):
 
         return self
 
-    def __determine_scope(self) -> Optional[ScopeLiterals]:
+    def __determine_scope(self) -> ScopeLiterals | None:
         """Determine the file's scope."""
         if "historic_apoe_genotype" in self.filename:
             return "historic_apoe"
@@ -204,7 +204,7 @@ class FileModel(BaseModel):
         # default is just the file's actual upload/modified date
         return self.modified_date
 
-    def __determine_visit_pass(self) -> Optional[VISIT_PASS_LITERALS]:
+    def __determine_visit_pass(self) -> VISIT_PASS_LITERALS | None:
         """Returns the "pass" for the file; determining when the relative order
         of when the file should be visited.
 
@@ -282,10 +282,10 @@ class ViewResponseModel(BaseModel):
     """Defines the data model for a dataview response, and handles sanitizing
     the data."""
 
-    data: List[FileModel]
+    data: list[FileModel]
 
     @field_validator("data", mode="before")
-    def trim_data(cls, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def trim_data(cls, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Remove any rows that are completely empty, which can happen if the
         filename pattern does not match.
 
@@ -311,7 +311,7 @@ class ViewResponseModel(BaseModel):
         """
         # get UDS sessions; there should be exactly one per vistdate,
         # so sanity check that as well
-        uds_sessions: Dict[str, str] = {}
+        uds_sessions: dict[str, str] = {}
         found_visitdates = set()
         for file in self.data:
             if file.scope == FormScope.UDS:

@@ -1,11 +1,12 @@
 """Utility functions."""
 
-from typing import Any, Dict, List, MutableMapping, Optional, Tuple
+from collections.abc import MutableMapping
+from typing import Any
 
 
 def parse_string_to_list(
-    input_str: Optional[str], to_lower: bool = True, delimiter: str = ","
-) -> List[str]:
+    input_str: str | None, to_lower: bool = True, delimiter: str = ","
+) -> list[str]:
     """Parses a comma delimited string to a list.
 
     Args:
@@ -26,7 +27,7 @@ def parse_string_to_list(
 
 def flatten_dict(
     dictionary: MutableMapping, parent_key: str = "", separator: str = "."
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Flattens a dictionary recursively.
 
     Args:
@@ -37,7 +38,7 @@ def flatten_dict(
     Returns:
         Flattened dict
     """
-    items: List[Tuple[str, Any]] = []
+    items: list[tuple[str, Any]] = []
     for key, value in dictionary.items():
         new_key = parent_key + separator + key if parent_key else key
         if isinstance(value, MutableMapping):
@@ -48,8 +49,8 @@ def flatten_dict(
 
 
 def filter_include_exclude(
-    in_list: List[str], include: Optional[str] = None, exclude: Optional[str] = None
-) -> List[str]:
+    in_list: list[str], include: str | None = None, exclude: str | None = None
+) -> list[str]:
     """Filters the given list with the provided include/exclude strings.
 
     Args:

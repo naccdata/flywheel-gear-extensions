@@ -1,14 +1,14 @@
 """Defines utilities for parsing YAML input."""
 
 import logging
-from typing import Any, List
+from typing import Any
 
 import yaml
 
 log = logging.getLogger(__name__)
 
 
-def load_all_from_stream(stream) -> List[Any]:
+def load_all_from_stream(stream) -> list[Any]:
     """Gets list of objects from the IO stream.
 
     Assumes the file can have more than one document.

@@ -7,7 +7,6 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -63,7 +62,7 @@ def csv_data_strategy(draw):
 
 @given(csv_data=csv_data_strategy())
 @settings(max_examples=100)
-def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
+def test_qc_visitor_creates_visit_specific_logs(csv_data: list[dict[str, str]]):
     """Property test: QCStatusLogCSVVisitor creates visit-specific QC status
     logs.
 
@@ -107,7 +106,7 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
     )
 
     # Use QCStatusLogCSVVisitor for QC logging
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -243,7 +242,7 @@ def test_qc_visitor_usage_with_identifier_lookup():
     )
 
     # Use QCStatusLogCSVVisitor for QC logging
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

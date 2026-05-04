@@ -7,7 +7,6 @@
 
 import csv
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -71,7 +70,7 @@ def test_visitor_coordination_success_case():
     )
 
     # Use existing QCStatusLogCSVVisitor with status determination from errors
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -167,7 +166,7 @@ def test_visitor_coordination_failure_case():
     """
     # Arrange - Create test data with invalid identifiers (empty identifiers map)
     invalid_ptids = ["INVALID1", "INVALID2"]
-    identifiers: Dict[str, IdentifierObject] = {}  # Empty map causes lookup failures
+    identifiers: dict[str, IdentifierObject] = {}  # Empty map causes lookup failures
 
     # Create shared error writer for coordination
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -190,7 +189,7 @@ def test_visitor_coordination_failure_case():
     )
 
     # Use existing QCStatusLogCSVVisitor with status determination from errors
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

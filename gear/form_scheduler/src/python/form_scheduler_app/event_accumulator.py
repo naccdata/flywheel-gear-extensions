@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
@@ -39,7 +38,7 @@ class EventAccumulator:
         self.__event_capture = event_capture
         self.__error_log_template = ErrorLogTemplate()
 
-    def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:
+    def create_qc_status_file_name(self, json_file: FileEntry) -> str | None:
         """Creates the qc status log file from the form metadata for the file.
 
         Args:
@@ -57,7 +56,7 @@ class EventAccumulator:
 
     def find_qc_status_for_json_file(
         self, json_file: FileEntry, project: ProjectAdaptor
-    ) -> Optional[FileEntry]:
+    ) -> FileEntry | None:
         """Find the QC status log for a JSON file at project level.
 
         Uses ErrorLogTemplate to generate possible QC status log filenames
@@ -101,8 +100,8 @@ class EventAccumulator:
         return None
 
     def _extract_visit_metadata(
-        self, json_file: FileEntry, qc_log_file: Optional[FileEntry]
-    ) -> Optional[DataIdentification]:
+        self, json_file: FileEntry, qc_log_file: FileEntry | None
+    ) -> DataIdentification | None:
         """Extract visit metadata with priority: QC status custom info, then
         JSON file.
 
@@ -154,7 +153,7 @@ class EventAccumulator:
         project: ProjectAdaptor,
         completion_time: datetime,
         gear_name: str = "form-scheduler",
-    ) -> Optional[VisitEvent]:
+    ) -> VisitEvent | None:
         """Create a VisitEvent from DataIdentification.
 
         Args:

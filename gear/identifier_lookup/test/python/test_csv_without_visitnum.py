@@ -11,7 +11,6 @@ that don't have a visitnum column, which is common for certain form types
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -111,7 +110,7 @@ def test_csv_without_visitnum_column():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),  # Using UDS configs for simplicity
         project=mock_project,
@@ -269,7 +268,7 @@ def test_csv_with_visitnum_none_value():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

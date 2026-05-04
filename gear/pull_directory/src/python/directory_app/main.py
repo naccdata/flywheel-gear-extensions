@@ -1,7 +1,7 @@
 """Module for handling user data from directory."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import ValidationError
@@ -43,8 +43,8 @@ def filter_approved_records(
 
 
 def run(
-    *, user_report: List[Dict[str, Any]], collector: Optional[UserEventCollector] = None
-) -> Optional[str]:
+    *, user_report: list[dict[str, Any]], collector: UserEventCollector | None = None
+) -> str | None:
     """Converts user report records to UserDirectoryEntry and saves as list of
     dictionary objects to the project.
 

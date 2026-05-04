@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 from centers.center_group import REDCapProjectInput
 from fw_gear import GearContext
@@ -34,7 +33,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "REDCapProjectInfoVisitor":
         """Visit context to accumulate inputs for the gear.
 
@@ -65,7 +64,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
         )
 
     # pylint: disable=no-self-use
-    def __get_project_list(self, input_file_path: Path) -> List[REDCapProjectInput]:
+    def __get_project_list(self, input_file_path: Path) -> list[REDCapProjectInput]:
         """Get the REDCap project info objects from the input file.
 
         Args:
@@ -74,7 +73,7 @@ class REDCapProjectInfoVisitor(GearExecutionEnvironment):
             A list of REDCap project info objects.
         """
         try:
-            with open(input_file_path, mode="r", encoding="utf-8 ") as input_file:
+            with open(input_file_path, encoding="utf-8 ") as input_file:
                 object_list = load_from_stream(input_file)
         except YAMLReadError as error:
             raise GearExecutionError(

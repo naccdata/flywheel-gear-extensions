@@ -1,6 +1,6 @@
 """Unit tests for form_deletion_app.main."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from deletions.models import DeletedItems, DeleteRequest
@@ -91,7 +91,7 @@ class TestRun:
     def _make_mock_file(self):
         mock_file = MockFile(
             name="delete-request.json",
-            modified=datetime(2024, 1, 14, tzinfo=timezone.utc),
+            modified=datetime(2024, 1, 14, tzinfo=UTC),
         )
         mock_file.file_id = "file-id-123"  # type: ignore
         return mock_file

@@ -1,7 +1,6 @@
 """Entry script for batch scheduler."""
 
 import logging
-from typing import Optional
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -47,7 +46,7 @@ class BatchSchedulerVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "BatchSchedulerVisitor":
         """Creates a batch scheduler execution visitor.
 

@@ -27,7 +27,7 @@ project for managing the consolidated data.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 from centers.center_group import (
     CenterError,
@@ -207,21 +207,21 @@ class AggregationMapper(StudyMapper):
         self,
         *,
         study: StudyModel,
-        pipelines: List[str],
+        pipelines: list[str],
         proxy: FlywheelProxy,
-        admin_access: List[AccessPermission],
+        admin_access: list[AccessPermission],
     ) -> None:
         super().__init__(study=study, proxy=proxy)
         self.__pipelines = pipelines
         self.__admin_access = admin_access
-        self.__release_group: Optional[GroupAdaptor] = None
+        self.__release_group: GroupAdaptor | None = None
 
     def map_center_pipelines(
         self,
         center: CenterGroup,
         study_info: CenterStudyMetadata,
         pipeline_adcid: int,
-        datatypes: Optional[List[str]] = None,
+        datatypes: list[str] | None = None,
     ) -> None:
         """Creates accepted, ingest and retrospective projects in the group.
         Updates the study metadata.
@@ -381,7 +381,7 @@ class AggregationMapper(StudyMapper):
             update_study=update_retrospective,
         )
 
-    def __get_release_group(self) -> Optional[GroupAdaptor]:
+    def __get_release_group(self) -> GroupAdaptor | None:
         """Returns the release group for this study if it is published.
         Otherwise, returns None.
 
@@ -402,7 +402,7 @@ class AggregationMapper(StudyMapper):
             self.__release_group.add_permissions(self.__admin_access)
         return self.__release_group
 
-    def __get_master_project(self) -> Optional[ProjectAdaptor]:
+    def __get_master_project(self) -> ProjectAdaptor | None:
         """Returns the FW consolidation project for this project if it is
         published. Otherwise, returns None.
 
@@ -435,7 +435,7 @@ class DistributionMapper(StudyMapper):
         center: CenterGroup,
         study_info: CenterStudyMetadata,
         pipeline_adcid: int,
-        datatypes: Optional[List[str]] = None,
+        datatypes: list[str] | None = None,
     ) -> None:
         """Adds distribution projects for the study to the group.
 
@@ -461,7 +461,7 @@ class DistributionMapper(StudyMapper):
                 center=center, study_info=study_info, datatype=datatype
             )
 
-    def map_study_pipelines(self, datatypes: Optional[List[str]] = None) -> None:
+    def map_study_pipelines(self, datatypes: list[str] | None = None) -> None:
         """Maps the study to study level groups and projects.
 
         Args:
@@ -528,15 +528,15 @@ class DistributionMapper(StudyMapper):
 
 class StudyMappingVisitor(StudyVisitor):
     def __init__(
-        self, flywheel_proxy: FlywheelProxy, admin_permissions: List[AccessPermission]
+        self, flywheel_proxy: FlywheelProxy, admin_permissions: list[AccessPermission]
     ) -> None:
         self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
-        self.__study: Optional[StudyModel] = None
-        self.__aggregation_mapper: Optional[AggregationMapper] = None
-        self.__distribution_mapper: Optional[DistributionMapper] = None
-        self.__aggregation_datatypes: List[str] = []
-        self.__distribution_datatypes: List[str] = []
+        self.__study: StudyModel | None = None
+        self.__aggregation_mapper: AggregationMapper | None = None
+        self.__distribution_mapper: DistributionMapper | None = None
+        self.__aggregation_datatypes: list[str] = []
+        self.__distribution_datatypes: list[str] = []
 
     def visit_study(self, study: StudyModel) -> None:
         """Creates FW containers for the study.
@@ -558,8 +558,8 @@ class StudyMappingVisitor(StudyVisitor):
         distribution_datatypes = study.get_datatypes_by_mode("distribution")
 
         # Create mappers based on which modes are present
-        aggregation_mapper: Optional[AggregationMapper] = None
-        distribution_mapper: Optional[DistributionMapper] = None
+        aggregation_mapper: AggregationMapper | None = None
+        distribution_mapper: DistributionMapper | None = None
 
         if aggregation_datatypes:
             aggregation_mapper = AggregationMapper(

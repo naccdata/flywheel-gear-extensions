@@ -9,7 +9,6 @@ Logging**
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -90,7 +89,7 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

@@ -1,8 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import MutableSequence
 from datetime import datetime as dt
 from logging import Logger
-from typing import Any, Dict, MutableSequence, Optional, TextIO
+from typing import Any, TextIO
 
 from nacc_common.error_models import FileError, FileErrorList
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
@@ -99,7 +100,7 @@ class ListErrorWriter(UserErrorWriter):
         self,
         container_id: str,
         fw_path: str,
-        errors: Optional[FileErrorList] = None,
+        errors: FileErrorList | None = None,
     ) -> None:
         super().__init__(container_id, fw_path)
         self.__errors = FileErrorList([]) if errors is None else errors
@@ -143,7 +144,7 @@ class ManagerListErrorWriter(UserErrorWriter):
         self,
         container_id: str,
         fw_path: str,
-        errors: Optional[MutableSequence[Dict[str, Any]]] = None,
+        errors: MutableSequence[dict[str, Any]] | None = None,
     ) -> None:
         super().__init__(container_id, fw_path)
         self.__errors = [] if errors is None else errors
@@ -158,7 +159,7 @@ class ManagerListErrorWriter(UserErrorWriter):
         self.prepare_error(error, set_timestamp)
         self.__errors.append(error.model_dump(by_alias=True))
 
-    def errors(self) -> MutableSequence[Dict[str, Any]]:
+    def errors(self) -> MutableSequence[dict[str, Any]]:
         """Returns serialized list of accumulated file errors.
 
         Returns:

@@ -1,7 +1,7 @@
 """User process environment for user management operations."""
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from centers.nacc_group import NACCGroup
 from flywheel import User
@@ -193,7 +193,7 @@ class UserProcessEnvironment:
     def add_user(self, user: User) -> str:
         return self.proxy.add_user(user)
 
-    def find_user(self, user_id: str) -> Optional[User]:
+    def find_user(self, user_id: str) -> User | None:
         return self.proxy.find_user(user_id)
 
     def get_from_registry(self, email: str) -> list[RegistryPerson]:

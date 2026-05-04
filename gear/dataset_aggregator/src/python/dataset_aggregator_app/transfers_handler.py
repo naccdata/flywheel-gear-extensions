@@ -4,7 +4,6 @@ import logging
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional, Set
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -29,7 +28,7 @@ class TransferDuplicateHandler:
         self.__batch_size = batch_size
         self.__required_headers = {FieldNames.ADCID, FieldNames.NACCID}
 
-    def __find_duplicated_naccids(self, aggregate_file: Path) -> Optional[Set[str]]:
+    def __find_duplicated_naccids(self, aggregate_file: Path) -> set[str] | None:
         """Find NACCIDs that are duplicated across multiple ADCIDs. If so,
         likely a transfer.
 
@@ -62,7 +61,7 @@ class TransferDuplicateHandler:
         return duplicates
 
     def __clean_transfer_duplicates(
-        self, aggregate_file: Path, correct_mapping: Dict[str, int]
+        self, aggregate_file: Path, correct_mapping: dict[str, int]
     ) -> None:
         """Cleans table by removing rows that do not match the current
         mappings.
@@ -141,7 +140,7 @@ class TransferDuplicateHandler:
         )
 
         # query NACCIDs and get the current ADCID
-        correct_mapping: Dict[str, int] = {}
+        correct_mapping: dict[str, int] = {}
         for naccid in duplicate_naccids:
             # for other uses we batch/sleep the lookup, but probably
             # won't have too many in this case

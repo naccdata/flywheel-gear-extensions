@@ -2,7 +2,8 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
+from collections.abc import MutableMapping
+from typing import Any, TextIO
 
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import (
@@ -52,7 +53,7 @@ class CSVTransformVisitor(CSVVisitor):
         preprocessor: FormPreprocessor,
         module_configs: ModuleConfigs,
         gear_name: str,
-        project: Optional[ProjectAdaptor] = None,
+        project: ProjectAdaptor | None = None,
     ) -> None:
         self.__module = module
         self.__id_column = id_column
@@ -62,7 +63,7 @@ class CSVTransformVisitor(CSVVisitor):
         self.__module_configs = module_configs
         self.__gear_name = gear_name
         self.__project = project
-        self.__transformer: Optional[BaseRecordTransformer] = None
+        self.__transformer: BaseRecordTransformer | None = None
 
         self.__date_field = self.__module_configs.date_field
 
@@ -80,12 +81,12 @@ class CSVTransformVisitor(CSVVisitor):
             else ErrorLogTemplate()
         )
 
-        self.__existing_visits: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(
+        self.__existing_visits: defaultdict[str, list[dict[str, Any]]] = defaultdict(
             list
         )
-        self.__current_batch: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+        self.__current_batch: dict[str, dict[str, list[dict[str, Any]]]] = {}
 
-        self.__transformed: DefaultDict[str, Dict[str, Dict[str, Any]]] = defaultdict(
+        self.__transformed: defaultdict[str, dict[str, dict[str, Any]]] = defaultdict(
             dict
         )
 
@@ -99,7 +100,7 @@ class CSVTransformVisitor(CSVVisitor):
         """Return the transformed records."""
         return self.__transformed
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Prepares the visitor to process rows using the given header columns.
         If the header doesn't have required fields writes an error.
 
@@ -116,7 +117,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Apply necessary transformations on the given data row. Assumes all
         records in the CSV file belongs to the same module.
 
@@ -191,7 +192,7 @@ class CSVTransformVisitor(CSVVisitor):
         return True
 
     def update_existing_visits_error_log(
-        self, downstream_gears: Optional[List[str]] = None
+        self, downstream_gears: list[str] | None = None
     ) -> bool:
         """For re-submitted existing visits, pull error metadata from previous
         run.
@@ -333,7 +334,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         return success
 
-    def __get_module(self, row: Dict[str, Any]) -> str:
+    def __get_module(self, row: dict[str, Any]) -> str:
         """Returns the module from the row.
 
         Args:
@@ -343,7 +344,7 @@ class CSVTransformVisitor(CSVVisitor):
         """
         return row.get(FieldNames.MODULE, "").upper()
 
-    def __set_module(self, row: Dict[str, Any]) -> None:
+    def __set_module(self, row: dict[str, Any]) -> None:
         """Sets the module for the visitor from the row.
 
         Args:
@@ -352,7 +353,7 @@ class CSVTransformVisitor(CSVVisitor):
         if not self.__module:
             self.__module = self.__get_module(row)
 
-    def __check_module(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __check_module(self, row: dict[str, Any], line_num: int) -> bool:
         """Checks the module in the row matches the module in this visitor.
 
         Args:
@@ -384,10 +385,10 @@ class CSVTransformVisitor(CSVVisitor):
     def __update_visit_error_log(
         self,
         *,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         qc_passed: bool,
-        update: Optional[bool] = True,
-    ) -> Optional[str]:
+        update: bool | None = True,
+    ) -> str | None:
         """Update error log file for the visit and store error metadata in
         file.info.qc.
 
@@ -450,9 +451,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         return error_log_name
 
-    def __get_downstream_file(
-        self, input_record: Dict[str, Any]
-    ) -> Optional[FileEntry]:
+    def __get_downstream_file(self, input_record: dict[str, Any]) -> FileEntry | None:
         assert self.__project
         visit_file_id = input_record.get("file_id")
         if not visit_file_id:
@@ -465,9 +464,9 @@ class CSVTransformVisitor(CSVVisitor):
 
     def __copy_metadata(
         self,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         error_log_name: str,
-        downstream_gears: List[str],
+        downstream_gears: list[str],
         info: FileQCModel,
     ) -> QCStatus:
         visit_file = self.__get_downstream_file(input_record)
@@ -508,8 +507,8 @@ class CSVTransformVisitor(CSVVisitor):
     def __copy_downstream_gears_metadata(
         self,
         *,
-        input_record: Dict[str, Any],
-        downstream_gears: Optional[List[str]] = None,
+        input_record: dict[str, Any],
+        downstream_gears: list[str] | None = None,
         gear_state: QCStatus = "PASS",
     ) -> bool:
         """Copy any downstream gears metadata from visit file to error log
@@ -604,7 +603,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         return True
 
-    def __add_to_current_batch(self, subject_lbl: str, input_record: Dict[str, Any]):
+    def __add_to_current_batch(self, subject_lbl: str, input_record: dict[str, Any]):
         """Group the input records by subject and visit date to detect any
         duplicates within the current batch.
 
@@ -624,7 +623,7 @@ class CSVTransformVisitor(CSVVisitor):
         self.__current_batch[subject_lbl][visitdate].append(input_record)
 
     def __report_duplicates_within_current_batch(
-        self, subject: str, duplicate_records: List[Dict[str, Any]]
+        self, subject: str, duplicate_records: list[dict[str, Any]]
     ) -> None:
         """Report duplicate visits, if there are multiple records in the input
         file with same visit date for same participant.
@@ -683,7 +682,7 @@ def run(
     module_configs: ModuleConfigs,
     error_writer: ListErrorWriter,
     gear_name: str,
-    downstream_gears: Optional[List[str]] = None,
+    downstream_gears: list[str] | None = None,
 ) -> bool:
     """Reads records from the input file and transforms each into a JSON file.
     Uploads the JSON file to the respective acquisition in Flywheel.

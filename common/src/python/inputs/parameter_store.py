@@ -1,7 +1,8 @@
 """Module for getting proxy object for AWS SSM parameter store object."""
 
 import logging
-from typing import Dict, List, Mapping, Optional, Type, TypedDict, TypeVar
+from collections.abc import Mapping
+from typing import TypedDict, TypeVar
 
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
@@ -102,7 +103,7 @@ class ParameterStore:
             )
         )
 
-    def get_parameters(self, *, param_type: Type[P], parameter_path: str) -> P:
+    def get_parameters(self, *, param_type: type[P], parameter_path: str) -> P:
         """Pulls the parameters at the path and checks that they match the
         given TypedDict.
 
@@ -154,8 +155,8 @@ class ParameterStore:
         return apikey
 
     def get_all_redcap_parameters_at_path(
-        self, *, base_path: str, prefix: Optional[str] = None
-    ) -> Dict[str, REDCapParameters]:
+        self, *, base_path: str, prefix: str | None = None
+    ) -> dict[str, REDCapParameters]:
         """Pulls URLs and Tokens for all the REDCap projects stored under a
         base path in AWS parameter store.
 
@@ -377,7 +378,7 @@ class ParameterStore:
         """
         return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
 
-    def get_support_emails(self, param_path: str) -> List[str]:
+    def get_support_emails(self, param_path: str) -> list[str]:
         """Pulls support email addresses from the SSM parameter store at the
         given path.
 

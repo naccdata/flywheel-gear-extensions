@@ -8,7 +8,6 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -105,7 +104,7 @@ def test_success_determination_with_valid_identifiers(
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -216,7 +215,7 @@ def test_success_determination_with_invalid_identifiers(
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
 
     # Empty identifiers map causes all lookups to fail
-    identifiers: Dict[str, IdentifierObject] = {}
+    identifiers: dict[str, IdentifierObject] = {}
 
     # Create shared error writer
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -261,7 +260,7 @@ def test_success_determination_with_invalid_identifiers(
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -398,7 +397,7 @@ def test_success_determination_mixed_results():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

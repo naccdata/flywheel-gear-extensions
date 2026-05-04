@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional
 
 import yaml
 from centers.center_group import (
@@ -38,7 +37,7 @@ log = logging.getLogger(__name__)
 def get_xml_templates(
     admin_project: Project,
     study_info: StudyREDCapMetadata,
-) -> Optional[Dict[str, str]]:
+) -> dict[str, str] | None:
     """Load the REDCap XML templates for the modules from the admin project.
 
     Args:
@@ -64,7 +63,7 @@ def get_xml_templates(
     return xml_templates
 
 
-def validate_input_data(input_file_path: Path) -> Optional[StudyREDCapMetadata]:
+def validate_input_data(input_file_path: Path) -> StudyREDCapMetadata | None:
     """Validates the input file.
 
     Args:
@@ -75,7 +74,7 @@ def validate_input_data(input_file_path: Path) -> Optional[StudyREDCapMetadata]:
     """
 
     try:
-        with open(input_file_path, mode="r", encoding="utf-8 ") as input_file:
+        with open(input_file_path, encoding="utf-8 ") as input_file:
             input_data = load_from_stream(input_file)
     except YAMLReadError as error:
         log.error("Failed to read the input file - %s", error)
@@ -101,7 +100,7 @@ class REDCapProjectCreation(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "REDCapProjectCreation":
         """Creates a gear execution object.
 

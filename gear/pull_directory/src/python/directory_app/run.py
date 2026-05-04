@@ -2,7 +2,6 @@
 user management gear."""
 
 import logging
-from typing import Dict, List, Optional
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -36,10 +35,10 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         user_filename: str,
-        user_report: List[Dict[str, str]],
-        collector: Optional[UserEventCollector] = None,
-        email_source: Optional[str] = None,
-        support_emails: Optional[List[str]] = None,
+        user_report: list[dict[str, str]],
+        collector: UserEventCollector | None = None,
+        email_source: str | None = None,
+        support_emails: list[str] | None = None,
     ):
         super().__init__(client=client)
         self.__user_filename = user_filename
@@ -50,7 +49,7 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "DirectoryPullVisitor":
         """Creates directory pull execution visitor.
 

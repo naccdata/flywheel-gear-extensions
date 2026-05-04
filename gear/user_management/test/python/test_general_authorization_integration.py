@@ -9,7 +9,6 @@ functionality, including:
 - Error handling and event collection
 """
 
-from typing import Dict, Optional
 from unittest.mock import Mock
 
 import pytest
@@ -32,7 +31,7 @@ class MockProject:
     def __init__(self, project_id: str, label: str):
         self.id = project_id
         self.label = label
-        self.users_with_roles: Dict[str, list] = {}
+        self.users_with_roles: dict[str, list] = {}
 
     def add_user_roles(self, user: User, roles: list) -> None:
         """Mock add_user_roles."""
@@ -51,16 +50,16 @@ class MockNACCGroup:
 
     def __init__(self, group_id: str = "nacc"):
         self.id = group_id
-        self._projects: Dict[str, MockProject] = {}
+        self._projects: dict[str, MockProject] = {}
 
-    def add_project(self, label: str, project_id: Optional[str] = None) -> MockProject:
+    def add_project(self, label: str, project_id: str | None = None) -> MockProject:
         """Add a mock project to the group."""
         pid = project_id if project_id is not None else f"project-{label}"
         project = MockProject(pid, label)
         self._projects[label] = project
         return project
 
-    def get_project(self, label: str) -> Optional[ProjectAdaptor]:
+    def get_project(self, label: str) -> ProjectAdaptor | None:
         """Mock get_project."""
         return self._projects.get(label)  # type: ignore
 
@@ -69,7 +68,7 @@ class MockAuthMap:
     """Mock AuthMap for testing."""
 
     def __init__(self):
-        self._role_mappings: Dict[str, list] = {}
+        self._role_mappings: dict[str, list] = {}
 
     def add_mapping(self, project_label: str, roles: list) -> None:
         """Add a role mapping for a project."""
@@ -85,12 +84,12 @@ class MockUserProcessEnvironment:
 
     def __init__(
         self,
-        admin_group: Optional[MockNACCGroup] = None,
-        auth_map: Optional[MockAuthMap] = None,
+        admin_group: MockNACCGroup | None = None,
+        auth_map: MockAuthMap | None = None,
     ):
         self.admin_group = admin_group or MockNACCGroup()  # type: ignore
         self.authorization_map = auth_map or MockAuthMap()  # type: ignore
-        self._users: Dict[str, User] = {}
+        self._users: dict[str, User] = {}
         self.domain_config = None
         self.idp_config = None
 
@@ -98,7 +97,7 @@ class MockUserProcessEnvironment:
         """Add a user to the mock environment."""
         self._users[user.id] = user  # type: ignore[index]
 
-    def find_user(self, user_id: str) -> Optional[User]:
+    def find_user(self, user_id: str) -> User | None:
         """Mock find_user."""
         return self._users.get(user_id)
 

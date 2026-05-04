@@ -13,7 +13,7 @@ Requirements tested:
 - 1a.7: Error capture for directory validation errors
 """
 
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -35,7 +35,7 @@ class TestDirectoryErrorHandlingIntegration:
         return mock_client
 
     @pytest.fixture
-    def valid_user_record(self) -> Dict[str, Any]:
+    def valid_user_record(self) -> dict[str, Any]:
         """Create a valid user record."""
         return {
             "email": "user@example.com",
@@ -78,7 +78,7 @@ class TestDirectoryErrorHandlingIntegration:
         }
 
     @pytest.fixture
-    def unapproved_permissions_record(self) -> Dict[str, Any]:
+    def unapproved_permissions_record(self) -> dict[str, Any]:
         """Create a user record with unapproved permissions."""
         return {
             "email": "unapproved@example.com",
@@ -121,7 +121,7 @@ class TestDirectoryErrorHandlingIntegration:
         }
 
     @pytest.fixture
-    def invalid_record(self) -> Dict[str, Any]:
+    def invalid_record(self) -> dict[str, Any]:
         """Create an invalid user record (missing required fields)."""
         return {
             "email": "invalid@example.com",
@@ -133,7 +133,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_directory_processing_with_valid_records(
         self,
         mock_context: MockGearContext,
-        valid_user_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
     ) -> None:
         """Test directory processing with valid user records.
 
@@ -157,7 +157,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_error_capture_for_unapproved_permissions(
         self,
         mock_context: MockGearContext,
-        unapproved_permissions_record: Dict[str, Any],
+        unapproved_permissions_record: dict[str, Any],
         caplog,
     ) -> None:
         """Test error capture for unapproved permissions.
@@ -200,7 +200,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_error_capture_for_validation_failures(
         self,
         mock_context: MockGearContext,
-        invalid_record: Dict[str, Any],
+        invalid_record: dict[str, Any],
         caplog,
     ) -> None:
         """Test error capture for validation failures.
@@ -241,9 +241,9 @@ class TestDirectoryErrorHandlingIntegration:
     def test_mixed_records_processing(
         self,
         mock_context: MockGearContext,
-        valid_user_record: Dict[str, Any],
-        unapproved_permissions_record: Dict[str, Any],
-        invalid_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
+        unapproved_permissions_record: dict[str, Any],
+        invalid_record: dict[str, Any],
         caplog,
     ) -> None:
         """Test processing with mixed valid and invalid records.
@@ -298,7 +298,7 @@ class TestDirectoryErrorHandlingIntegration:
     def test_duplicate_email_detection(
         self,
         mock_context: MockGearContext,
-        valid_user_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
         caplog,
     ) -> None:
         """Test detection of duplicate email addresses.
@@ -342,7 +342,7 @@ class TestDirectoryErrorHandlingIntegration:
         """
         from directory_app.main import run
 
-        user_report: List[Dict[str, Any]] = []
+        user_report: list[dict[str, Any]] = []
 
         # Process the directory
         yaml_output = run(user_report=user_report)
@@ -396,7 +396,7 @@ class TestDirectoryErrorHandlingIntegration:
         mock_parameter_store: MockParameterStore,
         mock_context: MockGearContext,
         mock_client: ClientWrapper,
-        valid_user_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
         caplog,
     ) -> None:
         """Test gear execution in dry run mode.
@@ -440,7 +440,7 @@ class TestDirectoryErrorHandlingIntegration:
         mock_parameter_store: MockParameterStore,
         mock_context: MockGearContext,
         mock_client: ClientWrapper,
-        valid_user_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
     ) -> None:
         """Test gear execution with actual file write.
 
@@ -641,7 +641,7 @@ class TestArchivedContactIntegration:
     """
 
     @pytest.fixture
-    def valid_user_record(self) -> Dict[str, Any]:
+    def valid_user_record(self) -> dict[str, Any]:
         """Create a valid non-archived user record with approval and
         agreement."""
         return {
@@ -684,7 +684,7 @@ class TestArchivedContactIntegration:
         }
 
     @pytest.fixture
-    def archived_no_approval_no_agreement_record(self) -> Dict[str, Any]:
+    def archived_no_approval_no_agreement_record(self) -> dict[str, Any]:
         """Create an archived record with no approval and no agreement."""
         return {
             "email": "archived@example.com",
@@ -726,7 +726,7 @@ class TestArchivedContactIntegration:
         }
 
     @pytest.fixture
-    def unapproved_non_archived_record(self) -> Dict[str, Any]:
+    def unapproved_non_archived_record(self) -> dict[str, Any]:
         """Create a non-archived record with no approval."""
         return {
             "email": "unapproved@example.com",
@@ -769,9 +769,9 @@ class TestArchivedContactIntegration:
 
     def test_mixed_archived_and_non_archived_records(
         self,
-        valid_user_record: Dict[str, Any],
-        archived_no_approval_no_agreement_record: Dict[str, Any],
-        unapproved_non_archived_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
+        archived_no_approval_no_agreement_record: dict[str, Any],
+        unapproved_non_archived_record: dict[str, Any],
     ) -> None:
         """Test mix of archived and non-archived records through run().
 
@@ -823,7 +823,7 @@ class TestArchivedContactIntegration:
 
     def test_non_archived_records_regression(
         self,
-        valid_user_record: Dict[str, Any],
+        valid_user_record: dict[str, Any],
     ) -> None:
         """Regression test: non-archived records produce identical YAML output.
 
@@ -851,7 +851,7 @@ class TestArchivedContactIntegration:
 
     def test_archived_record_without_approval_or_agreement(
         self,
-        archived_no_approval_no_agreement_record: Dict[str, Any],
+        archived_no_approval_no_agreement_record: dict[str, Any],
     ) -> None:
         """Test archived record without approval or agreement produces entry.
 

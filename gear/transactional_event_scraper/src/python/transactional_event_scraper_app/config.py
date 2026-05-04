@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from event_capture.models import DateRange
 from fw_gear import GearContext
@@ -25,10 +24,10 @@ class TransactionalEventScraperConfig(BaseModel):
     event_environment: str = Field(
         default="prod", description="Environment prefix for event storage (prod/dev)"
     )
-    start_date: Optional[str] = Field(
+    start_date: str | None = Field(
         None, description="Start date for filtering files (YYYY-MM-DD format)"
     )
-    end_date: Optional[str] = Field(
+    end_date: str | None = Field(
         None, description="End date for filtering files (YYYY-MM-DD format)"
     )
     apikey_path_prefix: str = Field(
@@ -38,7 +37,7 @@ class TransactionalEventScraperConfig(BaseModel):
 
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
-    def validate_date_format(cls, value: Optional[str]) -> Optional[str]:
+    def validate_date_format(cls, value: str | None) -> str | None:
         """Validate date format is YYYY-MM-DD."""
         if value is None:
             return value
@@ -49,7 +48,7 @@ class TransactionalEventScraperConfig(BaseModel):
         except ValueError as e:
             raise ValueError(f"Date must be in YYYY-MM-DD format: {value}") from e
 
-    def get_date_range(self) -> Optional[DateRange]:
+    def get_date_range(self) -> DateRange | None:
         """Convert string dates to DateRange object.
 
         Returns:

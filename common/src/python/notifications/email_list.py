@@ -2,7 +2,6 @@
 
 import json
 import logging
-from typing import Dict, Optional
 
 from gear_execution.gear_execution import InputFileWrapper
 from inputs.parameter_store import ParameterError, ParameterStore
@@ -38,8 +37,8 @@ class EmailListConfigs(BaseModel):
     template_name: str
 
     # if using TemplateDataModel
-    firstname_key: Optional[str] = None
-    url_key: Optional[str] = None
+    firstname_key: str | None = None
+    url_key: str | None = None
 
 
 class REDCapEmailListConfigs(EmailListConfigs):
@@ -58,7 +57,7 @@ class EmailListClient(EmailClient):
     def __init__(
         self,
         client,
-        email_list: Dict[str, Dict[str, str]],
+        email_list: dict[str, dict[str, str]],
         configs: EmailListConfigs,
         dry_run: bool = False,
     ) -> None:
@@ -77,7 +76,7 @@ class EmailListClient(EmailClient):
         self.__configs = configs
         self.__dry_run = dry_run
 
-    def send_mass_email(self) -> Optional[str]:
+    def send_mass_email(self) -> str | None:
         """Sends a single email to all recipients.
 
         Assumes the template does not need to be configured per user.
@@ -100,7 +99,7 @@ class EmailListClient(EmailClient):
             template_data=template_data,
         )
 
-    def send_emails(self) -> Optional[Dict[str, str]]:
+    def send_emails(self) -> dict[str, str] | None:
         """Sends individual emails to each recipient.
 
         Assumes the template needs to be configured per user.
@@ -145,14 +144,14 @@ def get_redcap_email_list_client(
     redcap_email_configs_file: InputFileWrapper | None,
     parameter_store: ParameterStore | None,
     dry_run: bool = False,
-) -> Optional[EmailListClient]:
+) -> EmailListClient | None:
     """Get the REDCap email list client."""
     if not redcap_email_configs_file:
         return None
     if not parameter_store:
         raise EmailListError("Need parameter_store to create REDCapEmailListClient")
 
-    with open(redcap_email_configs_file.filepath, "r", encoding="utf-8-sig") as fh:
+    with open(redcap_email_configs_file.filepath, encoding="utf-8-sig") as fh:
         configs = REDCapEmailListConfigs(**json.load(fh))
         try:
             redcap_parameter_path = configs.redcap_parameter_path

@@ -3,7 +3,7 @@ form."""
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
@@ -34,7 +34,7 @@ TransferStatus = Literal["pending", "approved", "rejected", "completed", "partia
 EnrollmentStatus = Literal["active", "transferred"]
 
 
-def empty_str_to_none(value: Any) -> Optional[Any]:
+def empty_str_to_none(value: Any) -> Any | None:
     if isinstance(value, str) and value.strip() == "":
         return None
 
@@ -57,19 +57,19 @@ class GenderIdentity(BaseModel):
         "no_answer",
         mode="before",
     )
-    def convert_to_none(cls, value: Any) -> Optional[int]:
+    def convert_to_none(cls, value: Any) -> int | None:
         return empty_str_to_none(value)
 
-    man: Optional[int] = None
-    woman: Optional[int] = None
-    transgender_man: Optional[int] = None
-    transgender_woman: Optional[int] = None
-    nonbinary: Optional[int] = None
-    two_spirit: Optional[int] = None
-    other: Optional[int] = None
-    other_term: Optional[int] = None
-    dont_know: Optional[int] = None
-    no_answer: Optional[int] = None
+    man: int | None = None
+    woman: int | None = None
+    transgender_man: int | None = None
+    transgender_woman: int | None = None
+    nonbinary: int | None = None
+    two_spirit: int | None = None
+    other: int | None = None
+    other_term: int | None = None
+    dont_know: int | None = None
+    no_answer: int | None = None
 
 
 class Demographics(BaseModel):
@@ -87,7 +87,7 @@ class Demographics(BaseModel):
     gender_identity: GenderIdentity
 
     @classmethod
-    def create_from(cls, row: Dict[str, Any]) -> "Demographics":
+    def create_from(cls, row: dict[str, Any]) -> "Demographics":
         """Constructs a Demographics object from row of enrollment/transfer
         form.
 
@@ -120,7 +120,7 @@ class TransferRecord(BaseModel):
     """Model representing transfer between centers."""
 
     @field_validator("naccid", "guid", "initials", "previous_ptid", mode="before")
-    def convert_to_none(cls, value: Any) -> Optional[str]:
+    def convert_to_none(cls, value: Any) -> str | None:
         return empty_str_to_none(value)
 
     status: TransferStatus
@@ -128,12 +128,12 @@ class TransferRecord(BaseModel):
     center_identifiers: CenterIdentifiers
     updated_date: datetime
     submitter: str  # FW user who uploaded the transfer form
-    initials: Optional[str] = None
+    initials: str | None = None
     previous_adcid: int = Field(ge=0)
-    previous_ptid: Optional[str] = Field(None, max_length=10, pattern=PTID_PATTERN)
-    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
-    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
-    demographics: Optional[Demographics] = None
+    previous_ptid: str | None = Field(None, max_length=10, pattern=PTID_PATTERN)
+    naccid: str | None = Field(None, max_length=10, pattern=NACCID_PATTERN)
+    guid: str | None = Field(None, max_length=20, pattern=GUID_PATTERN)
+    demographics: Demographics | None = None
 
     def get_identifier_update_object(self, active: bool) -> IdentifierUpdateObject:
         """Creates an object for adding/modifying a record in the repository.
@@ -158,9 +158,9 @@ class EnrollmentRecord(GUIDField, OptionalNACCIDField):
 
     center_identifier: CenterIdentifiers
     start_date: datetime
-    end_date: Optional[datetime] = None
+    end_date: datetime | None = None
     status: EnrollmentStatus = "active"
-    legacy: Optional[bool] = False
+    legacy: bool | None = False
 
     def query_object(self) -> IdentifierQueryObject:
         """Creates an object for creating identifiers in the repository.
@@ -175,7 +175,7 @@ class EnrollmentRecord(GUIDField, OptionalNACCIDField):
         )
 
 
-def has_value(row: Dict[str, Any], variable: str, value: int) -> bool:
+def has_value(row: dict[str, Any], variable: str, value: int) -> bool:
     """Implements a check that the variable has the value in the row.
 
     Args:
@@ -188,7 +188,7 @@ def has_value(row: Dict[str, Any], variable: str, value: int) -> bool:
     return int(row[variable]) == value
 
 
-def is_new_enrollment(row: Dict[str, Any]) -> bool:
+def is_new_enrollment(row: dict[str, Any]) -> bool:
     """Checks if row is a new enrollment.
 
     Args:
@@ -199,7 +199,7 @@ def is_new_enrollment(row: Dict[str, Any]) -> bool:
     return has_value(row, FieldNames.ENRLTYPE, 1)
 
 
-def previously_enrolled(row: Dict[str, Any]) -> bool:
+def previously_enrolled(row: dict[str, Any]) -> bool:
     """Checks if row is has previous enrollment set.
 
     Args:
@@ -210,7 +210,7 @@ def previously_enrolled(row: Dict[str, Any]) -> bool:
     return has_value(row, FieldNames.PREVENRL, 1)
 
 
-def guid_available(row: Dict[str, Any]) -> bool:
+def guid_available(row: dict[str, Any]) -> bool:
     """Checks if row has available GUID.
 
     Args:
@@ -221,7 +221,7 @@ def guid_available(row: Dict[str, Any]) -> bool:
     return has_value(row, FieldNames.GUIDAVAIL, 1)
 
 
-def has_known_naccid(row: Dict[str, Any]) -> bool:
+def has_known_naccid(row: dict[str, Any]) -> bool:
     """Checks if row has a known NACCID.
 
     Args:
@@ -241,7 +241,7 @@ class NewPTIDRowValidator(RowValidator):
         self.__identifiers = repo
         self.__error_writer = error_writer
 
-    def check(self, row: Dict[str, Any], line_number: int) -> bool:
+    def check(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks that ADCID, PTID does not already correspond to a NACCID.
 
         Args:
@@ -290,7 +290,7 @@ class NewGUIDRowValidator(RowValidator):
         self.__identifiers = repo
         self.__error_writer = error_writer
 
-    def check(self, row: Dict[str, Any], line_number: int) -> bool:
+    def check(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks that the GUID does not already correspond to a NACCID.
 
         Args:

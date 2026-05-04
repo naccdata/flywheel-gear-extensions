@@ -2,9 +2,10 @@
 
 import json
 import logging
+from collections.abc import Mapping
 from io import StringIO
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any
 
 import yaml
 from configs.ingest_configs import ModuleConfigs
@@ -58,7 +59,7 @@ class DefinitionsLoader:
         self,
         *,
         module: str,
-        data_record: Dict[str, Any],
+        data_record: dict[str, Any],
     ) -> str:
         """Get the S3 path prefix to load the definitions.
 
@@ -79,7 +80,7 @@ class DefinitionsLoader:
 
         return s3_prefix
 
-    def __load_from_schema_json_file(self, module: str) -> Dict[str, Mapping]:
+    def __load_from_schema_json_file(self, module: str) -> dict[str, Mapping]:
         """Load the supplement module schema from project level schema json
         file.
 
@@ -109,9 +110,9 @@ class DefinitionsLoader:
     def __append_supplement_schema(
         self,
         *,
-        schema: Dict[str, Mapping],
+        schema: dict[str, Mapping],
         supplement_module: str,
-        supplement_schema: Dict[str, Mapping],
+        supplement_schema: dict[str, Mapping],
     ):
         """Append supplement schema to the given schema. Only assign the type
         and set nullable to True, any other rules defined in the supplement
@@ -146,12 +147,12 @@ class DefinitionsLoader:
     def load_definition_schemas(
         self,
         *,
-        input_data: Dict[str, Any],
+        input_data: dict[str, Any],
         module: str,
-        optional_forms: Optional[Dict[str, bool]] = None,
-        skip_forms: Optional[List[str]] = None,
-        supplement_data: Optional[Dict[str, Any]] = None,
-    ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
+        optional_forms: dict[str, bool] | None = None,
+        skip_forms: list[str] | None = None,
+        supplement_data: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Mapping], dict[str, dict] | None]:
         """Download QC rule definitions and error code mappings from S3 bucket.
 
         Args:
@@ -173,7 +174,7 @@ class DefinitionsLoader:
             f"{s3_prefix}/rules/", optional_forms, skip_forms
         )
         try:
-            codes_map: Optional[Dict[str, Dict]] = self.download_definitions_from_s3(
+            codes_map: dict[str, dict] | None = self.download_definitions_from_s3(
                 f"{s3_prefix}/codes/", optional_forms, skip_forms
             )  # type: ignore
             # TODO - validate code mapping schema
@@ -217,9 +218,9 @@ class DefinitionsLoader:
     def download_definitions_from_s3(  # noqa: C901
         self,
         prefix: str,
-        optional_forms: Optional[Dict[str, bool]] = None,
-        skip_forms: Optional[List[str]] = None,
-    ) -> Dict[str, Mapping]:
+        optional_forms: dict[str, bool] | None = None,
+        skip_forms: list[str] | None = None,
+    ) -> dict[str, Mapping]:
         """Download rule definition files from a source S3 bucket and generate
         validation schema. For optional forms, there are two definition files
         in the S3 bucket. Load the appropriate definition depending on whether
@@ -315,8 +316,8 @@ class DefinitionsLoader:
         return full_schema
 
     def get_optional_forms_submission_status(
-        self, *, input_data: Dict[str, Any], module: str
-    ) -> Optional[Dict[str, bool]]:
+        self, *, input_data: dict[str, Any], module: str
+    ) -> dict[str, bool] | None:
         """Get the list of optional forms for the module/packet from
         optional_forms.json file in rule definitions S3 bucket. Check whether
         each optional form is submitted or not using the mode variable in input

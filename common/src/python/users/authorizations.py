@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Literal, Self, Union, get_args
+from typing import Any, Literal, Self, get_args
 
 from flywheel.models.role_output import RoleOutput
 from keys.types import DatatypeNameType
@@ -342,7 +342,7 @@ class Activities(BaseModel):
     def add(self, resource: Resource, activity: Activity):
         self.activities[resource] = activity
 
-    def __contains__(self, item: Union[str, Activity, Resource]) -> bool:
+    def __contains__(self, item: str | Activity | Resource) -> bool:
         """Check if an activity or resource exists in this Activities
         collection.
 
@@ -433,7 +433,7 @@ class Authorizations(BaseModel):
             resource=resource, activity=Activity(resource=resource, action=action)
         )
 
-    def __contains__(self, activity: Union[str, Activity]) -> bool:
+    def __contains__(self, activity: str | Activity) -> bool:
         return activity in self.activities
 
 

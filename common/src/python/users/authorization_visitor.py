@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Optional
+from collections.abc import Mapping
 
 from centers.center_group import (
     AbstractCenterMetadataVisitor,
@@ -57,7 +57,7 @@ class CenterAuthorizationVisitor(AbstractCenterMetadataVisitor):
         self.__authorizations = user_authorizations
         self.__auth_map = auth_map
         self.__center = center_group
-        self.__current_authorization: Optional[StudyAuthorizations] = None
+        self.__current_authorization: StudyAuthorizations | None = None
 
     def visit_center(self, center: CenterMetadata) -> None:
         """Sets roles for the user in this authorization visitor based on the

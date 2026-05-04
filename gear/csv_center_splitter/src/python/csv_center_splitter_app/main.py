@@ -1,7 +1,7 @@
 """Defines csv_center_splitter."""
 
 import logging
-from typing import Any, Dict, List, Optional, Set, TextIO
+from typing import Any, TextIO
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
@@ -22,14 +22,14 @@ class CSVVisitorCenterSplitter(CSVVisitor):
     """Class for visiting each row in CSV."""
 
     def __init__(
-        self, *, adcid_key: str, include: Set[str], error_writer: ListErrorWriter
+        self, *, adcid_key: str, include: set[str], error_writer: ListErrorWriter
     ):
         """Initializer."""
         self.__adcid_key: str = adcid_key
         self.__include = include
         self.__error_writer: ListErrorWriter = error_writer
-        self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
-        self.__headers: List[str] = []
+        self.__split_data: dict[str, list[dict[str, Any]]] = {}
+        self.__headers: list[str] = []
 
     @property
     def adcid_key(self):
@@ -56,7 +56,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         """Return the error writer."""
         return self.__error_writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Adds the header and verifies that the header key is in it.
 
         Args:
@@ -72,7 +72,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
 
         return result
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Visit the dictionary for a row (per DictReader).
 
         TODO: Should we clean up/ignore empty rows? Or just assume
@@ -111,10 +111,10 @@ def run(
     error_writer: ListErrorWriter,
     adcid_key: str,
     batch_size: int,
-    target_project: Optional[str] = None,
-    staging_project_id: Optional[str] = None,
-    include: Optional[Set[str]] = None,
-    downstream_gears: Optional[List[str]] = None,
+    target_project: str | None = None,
+    staging_project_id: str | None = None,
+    include: set[str] | None = None,
+    downstream_gears: list[str] | None = None,
     delimiter: str = ",",
 ):
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads

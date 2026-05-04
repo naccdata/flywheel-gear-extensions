@@ -7,7 +7,7 @@
 **Validates: Requirements 4.4, 4.5**
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -24,9 +24,7 @@ from test_mocks.strategies import (
 )
 
 
-def create_mock_file_entry(
-    name: str, info: Optional[Dict[str, Any]] = None
-) -> FileEntry:
+def create_mock_file_entry(name: str, info: dict[str, Any] | None = None) -> FileEntry:
     """Create a mock FileEntry with the given info."""
     file_entry = Mock(spec=FileEntry)
     file_entry.name = name

@@ -1,9 +1,8 @@
 """Entry script for Image Identifier Lookup."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from botocore.exceptions import ClientError
 from event_capture.event_capture import VisitEventCapture
@@ -77,7 +76,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "ImageIdentifierLookupVisitor":
         """Creates an Image Identifier Lookup execution visitor.
 
@@ -305,7 +304,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             )
 
             # Set/update the validation timestamp in file.info
-            timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
+            timestamp = datetime.now(UTC).strftime(DEFAULT_DATE_TIME_FORMAT)
             context.metadata.update_file_metadata(
                 self.__file_input.file_input,
                 container_type=context.config.destination["type"],

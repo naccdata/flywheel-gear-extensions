@@ -3,7 +3,7 @@
 import logging
 from csv import DictWriter
 from pathlib import Path
-from typing import List, Optional, get_args
+from typing import get_args
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from fw_gear import GearContext
@@ -44,11 +44,11 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         admin_id: str,
         file_input: InputFileWrapper,
         output_filename: str,
-        project_names: List[str],
+        project_names: list[str],
         modules: set[ModuleName],
         study_id: str,
         file_visitor_builder: FileQCReportVisitorBuilder,
-        fieldnames: List[str],
+        fieldnames: list[str],
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -64,7 +64,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "GatherSubmissionStatusVisitor":
         """Creates a Gather Submission Status execution visitor.
 
@@ -127,7 +127,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         """
 
         input_path = Path(self.__file_input.filepath)
-        with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
+        with open(input_path, encoding="utf-8-sig") as csv_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(
                 container_id=file_id,

@@ -53,7 +53,7 @@ UpsertResult = Literal["created", "updated", "ignored", "conflicts"]
 
 class BaseUpsertResponse(BaseModel):
     id: str = Field(..., alias="_id")
-    label: Optional[str] = None
+    label: str | None = None
     upsert_result: UpsertResult
 
 
@@ -84,8 +84,8 @@ class ProjectHierarchyResponse(BaseModel):
     """Defines response object for project hierarchy upsert operation."""
 
     subject: SubjectUpsertResponse
-    session: Optional[SessionUpsertResponse] = None
-    acquisition: Optional[AcquisitionUpsertResponse] = None
+    session: SessionUpsertResponse | None = None
+    acquisition: AcquisitionUpsertResponse | None = None
 
     def has_subject_conflict(self) -> bool:
         return self.subject.upsert_result == "conflicts"
@@ -168,7 +168,7 @@ class HierarchyCreationClient:
         subject_label: str,
         session_label: str,
         acquisition_label: str,
-    ) -> Optional[SubjectHierarchy]:
+    ) -> SubjectHierarchy | None:
         """Creates a subject-session-acquisition hierarchy within the project.
 
         Args:

@@ -5,9 +5,10 @@ https://lhncbc.nlm.nih.gov/RxNav/APIs
 
 import json
 import logging
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Any, Dict, List, MutableMapping, Optional
+from typing import Any
 
 import requests
 from ratelimit import limits, sleep_and_retry
@@ -98,7 +99,7 @@ class RxNavConnection:
         return response
 
     @classmethod
-    def handle_response(cls, path: str, message: str) -> Dict[str, Any]:
+    def handle_response(cls, path: str, message: str) -> dict[str, Any]:
         """Handle the response."""
         response = RxNavConnection.get_request(path)
 
@@ -231,9 +232,9 @@ class RxClassConnection(RxNavConnection):
     @classmethod
     def get_all_rxclass_members(
         cls,
-        rx_classes: List[str],
+        rx_classes: list[str],
         rela_source: str = "ATCPROD",
-        combination_rx_classes: Optional[List[str]] = None,
+        combination_rx_classes: list[str] | None = None,
     ) -> MutableMapping:
         """Get all related members for the specified RxClasses (combo and non-
         combo classes have separate filters, so use separate lists). Assumes

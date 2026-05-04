@@ -4,7 +4,6 @@ import json
 import logging
 import sys
 from json.decoder import JSONDecodeError
-from typing import Dict, Optional, Set
 
 from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
@@ -40,9 +39,9 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         device_key: str,
         file_input: InputFileWrapper,
-        hierarchy_labels: Dict[str, str],
+        hierarchy_labels: dict[str, str],
         preserve_case: bool,
-        req_fields: Set[str],
+        req_fields: set[str],
     ) -> None:
         self.__client = client
         self.__device_key = device_key
@@ -53,7 +52,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "CsvToJsonVisitor":
         """Creates a gear execution object.
 
@@ -135,9 +134,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             environment={"filename": self.__file_input.basename},
         )
 
-        with open(
-            self.__file_input.filepath, mode="r", encoding="utf-8-sig"
-        ) as csv_file:
+        with open(self.__file_input.filepath, encoding="utf-8-sig") as csv_file:
             error_writer = ListErrorWriter(
                 container_id=file_id, fw_path=proxy.get_lookup_path(file)
             )
@@ -165,7 +162,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 tags=manifest_name if manifest_name else "csv-subject-splitter",
             )
 
-    def __load_template(self, template_list: Dict[str, str]) -> UploadTemplateInfo:
+    def __load_template(self, template_list: dict[str, str]) -> UploadTemplateInfo:
         """Creates the list of label templates from the input objects.
 
         Args:

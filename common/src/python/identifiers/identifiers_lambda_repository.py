@@ -1,7 +1,8 @@
 """Identifiers repository using AWS Lambdas."""
 
+import builtins
 from datetime import date
-from typing import List, Literal, Optional, overload
+from typing import Literal, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -39,7 +40,7 @@ class IdentifierRequest(BaseRequest, CenterIdentifiers, GUIDField):
 class IdentifierListRequest(BaseRequest):
     """Model for request to lambda."""
 
-    identifiers: List[IdentifierQueryObject]
+    identifiers: list[IdentifierQueryObject]
 
 
 class ADCIDRequest(ListRequest, ADCIDField):
@@ -79,7 +80,7 @@ class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
     """Request model for adding/updating Identifier with known NACCID."""
 
     active: bool
-    naccadc: Optional[int]
+    naccadc: int | None
 
     @classmethod
     def create_from(
@@ -101,7 +102,7 @@ class ListResponseObject(BaseModel):
 
     offset: int
     limit: int
-    data: List[IdentifierObject]
+    data: list[IdentifierObject]
 
 
 class EnrollmentDurationRequest(BaseRequest, CenterIdentifiers):
@@ -129,7 +130,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         self.__client = client
         self.__mode: Literal["dev", "prod"] = mode
 
-    def create(self, adcid: int, ptid: str, guid: Optional[str]) -> IdentifierObject:
+    def create(self, adcid: int, ptid: str, guid: str | None) -> IdentifierObject:
         """Creates an Identifier in the repository.
 
         Args:
@@ -156,7 +157,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return IdentifierObject.model_validate_json(response.body)
 
-    def create_list(self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
+    def create_list(self, identifiers: list[IdentifierQueryObject]) -> IdentifierList:
         """Creates several Identifiers in the repository.
 
         Args:
@@ -194,11 +195,11 @@ class IdentifiersLambdaRepository(IdentifierRepository):
     # pylint: disable=(arguments-differ)
     def get(
         self,
-        naccid: Optional[str] = None,
-        adcid: Optional[int] = None,
-        ptid: Optional[str] = None,
-        guid: Optional[str] = None,
-    ) -> Optional[IdentifierObject]:
+        naccid: str | None = None,
+        adcid: int | None = None,
+        ptid: str | None = None,
+        guid: str | None = None,
+    ) -> IdentifierObject | None:
         """Returns IdentifierObject object for the IDs given.
 
         Note: some valid arguments can be falsey.
@@ -227,17 +228,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise TypeError("Invalid arguments")
 
     @overload
-    def list(self, *, naccid: str) -> List[IdentifierObject]: ...
+    def list(self, *, naccid: str) -> list[IdentifierObject]: ...
 
     @overload
-    def list(self, *, adcid: int) -> List[IdentifierObject]: ...
+    def list(self, *, adcid: int) -> builtins.list[IdentifierObject]: ...
 
     @overload
-    def list(self) -> List[IdentifierObject]: ...
+    def list(self) -> builtins.list[IdentifierObject]: ...
 
     def list(
-        self, *, adcid: Optional[int] = None, naccid: Optional[str] = None
-    ) -> List[IdentifierObject]:
+        self, *, adcid: int | None = None, naccid: str | None = None
+    ) -> builtins.list[IdentifierObject]:
         """Returns the list of all identifiers in the repository.
 
         If an ADCID is given filters identifiers by the center.
@@ -269,7 +270,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         # TODO: this is not implemented by lambda
         return []
 
-    def __get_by_naccid(self, naccid: str) -> Optional[IdentifierObject]:
+    def __get_by_naccid(self, naccid: str) -> IdentifierObject | None:
         """Returns the IdentifierObject for the NACCID.
 
         Args:
@@ -296,8 +297,8 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise IdentifierRepositoryError(response.body)
 
     def __get_by_ptid(
-        self, *, adcid: int, ptid: str, guid: Optional[str]
-    ) -> Optional[IdentifierObject]:
+        self, *, adcid: int, ptid: str, guid: str | None
+    ) -> IdentifierObject | None:
         """Returns the IdentifierObject for the NACCID.
 
         Args:
@@ -326,7 +327,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
-    def __get_by_guid(self, guid: str) -> Optional[IdentifierObject]:
+    def __get_by_guid(self, guid: str) -> IdentifierObject | None:
         """Returns the IdentifierObject for the GUID.
 
         Args:
@@ -351,7 +352,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         raise IdentifierRepositoryError(response.body)
 
-    def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+    def __list_for_adcid(self, adcid: int) -> builtins.list[IdentifierObject]:
         """Get the identifier records for the provided ADCID.
 
         Args:
@@ -363,7 +364,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         Returns:
             List[IdentifierObject]: the identifiers list for the adcid
         """
-        identifier_list: List[IdentifierObject] = []
+        identifier_list: list[IdentifierObject] = []
         index = 0
         limit = 100
         read_length = limit
@@ -392,7 +393,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
         return identifier_list
 
-    def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+    def __list_for_naccid(self, naccid: str) -> builtins.list[IdentifierObject]:
         """Get the identifier records for the provided NACCID.
 
         Args:
@@ -404,7 +405,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         Returns:
             List[IdentifierObject]: the identifiers list for the naccid
         """
-        identifier_list: List[IdentifierObject] = []
+        identifier_list: list[IdentifierObject] = []
         index = 0
         limit = 100
         read_length = limit
@@ -463,7 +464,7 @@ class IdentifiersLambdaRepository(IdentifierRepository):
 
     def check_enrollment_period(
         self, date_query: DateQueryObject
-    ) -> Optional[EnrollmentDurationResponse]:
+    ) -> EnrollmentDurationResponse | None:
         """Checks whether there is a valid enrollment period in the repository
         matching with the visit date in query object.
 

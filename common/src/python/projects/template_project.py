@@ -6,7 +6,6 @@ Based on code written by David Parker, davidparker@flywheel.io
 
 import logging
 from string import Template
-from typing import Dict, List, Optional
 
 import flywheel
 from flywheel import DataView, FileEntry, FixedInput, GearRule, GearRuleInput
@@ -31,11 +30,11 @@ class TemplateProject:
         """
         self.__fw = proxy
         self.__source_project = project
-        self.__rules: List[GearRule] = []
-        self.__dataviews: List[DataView] = []
-        self.__apps: List[AttrDict] = []
+        self.__rules: list[GearRule] = []
+        self.__dataviews: list[DataView] = []
+        self.__apps: list[AttrDict] = []
 
-    def get_pattern(self) -> Optional[str]:
+    def get_pattern(self) -> str | None:
         """Returns the regex pattern for the prefix this template applies to.
 
         Removes the "-template" prefix from the project label to create the pattern.
@@ -53,7 +52,7 @@ class TemplateProject:
         return rf"^{prefix}"
 
     def copy_to(
-        self, destination: ProjectAdaptor, *, value_map: Optional[Dict[str, str]] = None
+        self, destination: ProjectAdaptor, *, value_map: dict[str, str] | None = None
     ) -> None:
         """Copies all gear rules from the source project of the template to the
         destination project.
@@ -151,7 +150,7 @@ class TemplateProject:
             destination.add_gear_rule(rule_input=gear_rule_input)
 
     def copy_description(
-        self, *, destination: ProjectAdaptor, values: Dict[str, str]
+        self, *, destination: ProjectAdaptor, values: dict[str, str]
     ) -> None:
         """Copies description from this project to the destination.
 
@@ -218,8 +217,8 @@ class TemplateProject:
                 destination.remove_gear_rule(rule=rule)
 
     def __map_fixed_inputs(
-        self, *, inputs: List[FixedInput], destination: ProjectAdaptor
-    ) -> List[FixedInput]:
+        self, *, inputs: list[FixedInput], destination: ProjectAdaptor
+    ) -> list[FixedInput]:
         """Maps the given fixed inputs to inputs for the destination project.
 
         Args:
@@ -292,7 +291,7 @@ class TemplateProject:
 
     @staticmethod
     def __create_gear_rule_input(
-        *, rule: GearRule, fixed_inputs: List[FixedInput]
+        *, rule: GearRule, fixed_inputs: list[FixedInput]
     ) -> GearRuleInput:
         """Creates a GearRuleInput object for the rule using the fixed inputs.
 

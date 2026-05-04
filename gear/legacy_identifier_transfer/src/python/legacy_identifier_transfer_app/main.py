@@ -1,8 +1,8 @@
 """Defines legacy_identifier_transfer."""
 
 import logging
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Dict, List, Mapping, Optional
 
 from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
@@ -27,7 +27,7 @@ class LegacyEnrollmentCollection:
     """Handles batch processing of legacy enrollment records."""
 
     def __init__(self) -> None:
-        self.__records: Dict[str, EnrollmentRecord] = {}
+        self.__records: dict[str, EnrollmentRecord] = {}
 
     def add(self, record: EnrollmentRecord) -> None:
         """Adds an enrollment record to the batch.
@@ -56,7 +56,7 @@ def is_legacy_identifier(enrollment_date: datetime) -> bool:
 
 def validate_and_create_record(
     naccid: str, identifier: IdentifierObject, enrollment_date: datetime
-) -> Optional[EnrollmentRecord]:
+) -> EnrollmentRecord | None:
     """Validate identifier and create an enrollment record."""
 
     if naccid != identifier.naccid:
@@ -80,7 +80,7 @@ def validate_and_create_record(
 def process_record_collection(
     record_collection: LegacyEnrollmentCollection,
     enrollment_project: EnrollmentProject,
-    failed_ids: List[str],
+    failed_ids: list[str],
     dry_run: bool,
 ) -> bool:
     """Process a collection of enrollment records.
@@ -129,7 +129,7 @@ def process_record_collection(
     return error_count == 0  # Returns True only if no errors occurred
 
 
-def get_enrollment_date(subject_id: str, forms_store: FormsStore) -> Optional[datetime]:
+def get_enrollment_date(subject_id: str, forms_store: FormsStore) -> datetime | None:
     """Lookup the enrollment date for the subject.
 
     Args:
@@ -188,7 +188,7 @@ def process_legacy_identifiers(  # noqa: C901
     identifiers: Mapping[str, IdentifierObject],
     enrollment_project: EnrollmentProject,
     forms_store: FormsStore,
-    failed_ids: List[str],
+    failed_ids: list[str],
     dry_run: bool = True,
 ) -> bool:
     """Process legacy identifiers and create enrollment records.
@@ -282,7 +282,7 @@ def process_legacy_identifiers(  # noqa: C901
 
 def send_email(
     sender_email: str,
-    target_emails: List[str],
+    target_emails: list[str],
     group_lbl: str,
     project_lbl: str,
     failed_count: int,
@@ -310,11 +310,11 @@ def send_email(
 
 def run(
     *,
-    identifiers: Dict[str, IdentifierObject],
+    identifiers: dict[str, IdentifierObject],
     enrollment_project: EnrollmentProject,
     forms_store: FormsStore,
     sender_email: str,
-    target_emails: List[str],
+    target_emails: list[str],
     dry_run: bool = True,
 ) -> bool:
     """Runs legacy identifier enrollment process.
@@ -331,7 +331,7 @@ def run(
         bool: True if processing was successful, False otherwise
     """
 
-    failed_ids: List[str] = []
+    failed_ids: list[str] = []
     success = process_legacy_identifiers(
         identifiers=identifiers,
         enrollment_project=enrollment_project,

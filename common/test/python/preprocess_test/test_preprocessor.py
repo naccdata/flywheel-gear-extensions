@@ -8,7 +8,7 @@ of time.
 """
 
 import copy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormsStore
@@ -29,17 +29,17 @@ class TestFormsStore(FormsStore):
     def is_new_subject(self, subject_lbl: str) -> bool:
         return subject_lbl == "new-subject"
 
-    def set_form_data(self, form_data: List[Dict[str, Any]]) -> None:
+    def set_form_data(self, form_data: list[dict[str, Any]]) -> None:
         """Set the form data to control what query_form_data returns."""
         self.__form_data = form_data
 
-    def set_legacy_form_data(self, legacy_data: List[Dict[str, Any]]) -> None:
+    def set_legacy_form_data(self, legacy_data: list[dict[str, Any]]) -> None:
         """Reset form data and set legacy data to control what query_form_data
         returns for legacy=True."""
         self.__form_data = None
         self.__legacy_data = legacy_data
 
-    def query_form_data(self, **kwargs) -> Optional[List[Dict[str, Any]]]:
+    def query_form_data(self, **kwargs) -> list[dict[str, Any]] | None:
         if kwargs.get("legacy"):
             return self.__legacy_data
 
@@ -48,10 +48,10 @@ class TestFormsStore(FormsStore):
     def query_form_data_with_custom_filters(
         self,
         **kwargs,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         return self.__form_data
 
-    def __reformat(self, data_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def __reformat(self, data_dict: dict[str, Any]) -> dict[str, Any]:
         new_dict = {}
         for key, value in data_dict.items():
             if key.startswith(MetadataKeys.FORM_METADATA_PATH):
@@ -62,7 +62,7 @@ class TestFormsStore(FormsStore):
         # print(f"NEW DICT: {new_dict}")
         return new_dict
 
-    def get_visit_data(self, **kwargs) -> Dict[str, Any] | None:
+    def get_visit_data(self, **kwargs) -> dict[str, Any] | None:
         form_data = self.__form_data if self.__form_data else self.__legacy_data
         if not form_data:
             return None
@@ -81,7 +81,7 @@ class TestFormPreprocessor:
         self,
         module: str,
         module_configs: ModuleConfigs,
-    ) -> Tuple[FormPreprocessor, ListErrorWriter, TestFormsStore]:
+    ) -> tuple[FormPreprocessor, ListErrorWriter, TestFormsStore]:
         """Create a generic UDS preprocessor for testing.
 
         Returns FormProcessor
@@ -113,7 +113,7 @@ class TestFormPreprocessor:
         self,
         error_writer: ListErrorWriter,
         error_code: str,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> None:
         """Ensure the correct error was set in the error writer."""
         if not message:

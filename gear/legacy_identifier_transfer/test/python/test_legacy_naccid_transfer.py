@@ -1,8 +1,8 @@
 """Tests for the legacy-identifier-transfer gear."""
 
 import logging
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Mapping
 from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 
 import pytest

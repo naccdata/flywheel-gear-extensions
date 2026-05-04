@@ -1,7 +1,6 @@
 """Configuration handling for the pull-directory gear."""
 
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -22,9 +21,7 @@ class TimeWindowConfig(BaseModel):
             raise ValueError("threshold must be non-negative")
         return value
 
-    def get_date_range(
-        self, now: Optional[datetime] = None
-    ) -> Optional[Tuple[str, str]]:
+    def get_date_range(self, now: datetime | None = None) -> tuple[str, str] | None:
         """Compute (dateRangeBegin, dateRangeEnd) or None if no filtering.
 
         Args:

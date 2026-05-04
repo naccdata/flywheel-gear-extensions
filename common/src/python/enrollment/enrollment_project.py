@@ -2,7 +2,7 @@
 center."""
 
 import logging
-from typing import Dict, override
+from typing import override
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import MetadataKeys
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 class TransferInfo(BaseModel):
     """Wrapper class for a list of transfer records."""
 
-    transfers: Dict[str, TransferRecord]
+    transfers: dict[str, TransferRecord]
 
     def add(self, record: TransferRecord) -> None:
         """Adds the record to the list of transfers.

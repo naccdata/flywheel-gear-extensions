@@ -1,7 +1,7 @@
 """Class for accessing internal or external data sources."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
@@ -76,15 +76,15 @@ class DatastoreHelper(Datastore):
         self.__current_adcids = self.__pull_adcids_list()
 
         # cache for grabbing previous records
-        self.__prev_visits: Dict[str, Any] = {}  # by subject, module, date
+        self.__prev_visits: dict[str, Any] = {}  # by subject, module, date
 
         # cache for initial visits
-        self.__initial_visits: Dict[str, Any] = {}  # by subject and module
+        self.__initial_visits: dict[str, Any] = {}  # by subject and module
 
         # cache for UDS IVP visits
-        self.__uds_ivp_visits: Dict[str, Any] = {}  # by subject
+        self.__uds_ivp_visits: dict[str, Any] = {}  # by subject
 
-    def __pull_adcids_list(self) -> Optional[List[int]]:
+    def __pull_adcids_list(self) -> list[int] | None:
         """Pull the list of ADCIDs from the admin group metadata project.
 
         Returns:
@@ -100,7 +100,7 @@ class DatastoreHelper(Datastore):
         )
         return None
 
-    def __get_legacy_project(self, legacy_label: str) -> Optional[ProjectAdaptor]:
+    def __get_legacy_project(self, legacy_label: str) -> ProjectAdaptor | None:
         """Get the legacy form project for the center group.
 
         Returns:
@@ -136,7 +136,7 @@ class DatastoreHelper(Datastore):
             )
             return None
 
-    def __validate_current_record(self, current_record: Dict[str, Any]) -> bool:
+    def __validate_current_record(self, current_record: dict[str, Any]) -> bool:
         """Validate the current record and ensure it has all required fields.
         Technically this should not happen, but run as a sanity check.
 
@@ -169,8 +169,8 @@ class DatastoreHelper(Datastore):
         return found_all
 
     def __get_previous_visits(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[List[Dict[str, Any]]]:
+        self, current_record: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
         """Retrieve the list of previous visits for the specified participant.
 
         Args:
@@ -260,8 +260,8 @@ class DatastoreHelper(Datastore):
         return legacy_visits
 
     def __get_initial_visit(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Retrieve the initial visit for the specified participant. Return the
         IVP packet for the modules that has only one initial packet, else
         return the first record sorted by visit date or form date.
@@ -327,8 +327,8 @@ class DatastoreHelper(Datastore):
         return initial_visits[0]
 
     def __get_uds_ivp_visit(
-        self, current_record: Dict[str, Any], uds_configs: ModuleConfigs
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any], uds_configs: ModuleConfigs
+    ) -> dict[str, Any] | None:
         """Retrieve the UDS IVP for the specified participant if present.
 
         Args:
@@ -382,8 +382,8 @@ class DatastoreHelper(Datastore):
         return uds_ivp_visits[0]
 
     def get_previous_record(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Overriding the abstract method, get the previous visit record for
         the specified participant.
 
@@ -406,8 +406,8 @@ class DatastoreHelper(Datastore):
 
     def __check_nonempty(
         self,
-        ignore_empty_fields: Optional[List[str]] = None,
-        visit_data: Optional[Dict[str, Any]] = None,
+        ignore_empty_fields: list[str] | None = None,
+        visit_data: dict[str, Any] | None = None,
     ) -> bool:
         """Returns whether all specified fields are not empty in visit_data.
 
@@ -424,8 +424,8 @@ class DatastoreHelper(Datastore):
         return all(visit_data.get(field) for field in ignore_empty_fields)
 
     def get_previous_nonempty_record(
-        self, current_record: Dict[str, Any], ignore_empty_fields: List[str]
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any], ignore_empty_fields: list[str]
+    ) -> dict[str, Any] | None:
         """Overriding the abstract method to return the previous record where
         all fields are NOT empty for the specified participant.
 
@@ -454,8 +454,8 @@ class DatastoreHelper(Datastore):
         return None
 
     def get_initial_record(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Overriding the abstract method, get the initial visit record for the
         specified participant.
 
@@ -497,8 +497,8 @@ class DatastoreHelper(Datastore):
         )
 
     def get_uds_ivp_record(
-        self, current_record: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, current_record: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Overriding the abstract method, get the UDS IVP record for the
         specified participant.
 

@@ -1,7 +1,7 @@
 """Mock data factories for testing."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import Mock
 
 from flywheel.models.file_entry import FileEntry
@@ -16,9 +16,7 @@ from nacc_common.error_models import (
 from .mock_flywheel import MockFile
 
 
-def create_mock_file_entry(
-    name: str, info: Optional[Dict[str, Any]] = None
-) -> FileEntry:
+def create_mock_file_entry(name: str, info: dict[str, Any] | None = None) -> FileEntry:
     """Create a mock FileEntry with the given info."""
     file_entry = Mock(spec=FileEntry)
     file_entry.name = name
@@ -33,7 +31,7 @@ class QCMetadataFactory:
 
     @staticmethod
     def create_qc_metadata_with_status(
-        gears: Dict[str, str],
+        gears: dict[str, str],
     ) -> FileQCModel:
         """Create QC metadata with specified status for each gear.
 
@@ -60,7 +58,7 @@ class QCMetadataFactory:
 
     @staticmethod
     def create_pass_qc_metadata(
-        gear_names: Optional[List[str]] = None,
+        gear_names: list[str] | None = None,
     ) -> FileQCModel:
         """Create QC metadata with PASS status for all gears.
 
@@ -84,7 +82,7 @@ class QCMetadataFactory:
     @staticmethod
     def create_fail_qc_metadata(
         failing_gear: str = "form-qc-checker",
-        gear_names: Optional[List[str]] = None,
+        gear_names: list[str] | None = None,
     ) -> FileQCModel:
         """Create QC metadata with one failing gear.
 
@@ -118,7 +116,7 @@ class FileEntryFactory:
         visitdate: str,
         visitnum: str,
         module: str,
-        packet: Optional[str] = None,
+        packet: str | None = None,
         parent_id: str = "acquisition-123",
     ) -> MockFile:
         """Create a mock JSON file with forms metadata.
@@ -161,8 +159,8 @@ class FileEntryFactory:
         date: str,
         module: str,
         qc_metadata: FileQCModel,
-        visit_metadata: Optional[DataIdentification] = None,
-        modified: Optional[datetime] = None,
+        visit_metadata: DataIdentification | None = None,
+        modified: datetime | None = None,
     ) -> MockFile:
         """Create a mock QC-status file with visit metadata in custom info.
 
@@ -194,8 +192,8 @@ class FileEntryFactory:
     def create_mock_qc_status_file_for_project(
         filename: str,
         qc_status: str,
-        custom_info: Optional[Dict[str, Any]] = None,
-        qc_completion_time: Optional[datetime] = None,
+        custom_info: dict[str, Any] | None = None,
+        qc_completion_time: datetime | None = None,
     ) -> FileEntry:
         """Create a QC status file for MockProjectAdaptor.
 
@@ -239,9 +237,9 @@ class DataIdentificationFactory:
         date: str = "2024-01-15",
         visitnum: str = "01",
         module: str = "UDS",
-        packet: Optional[str] = "I",
-        adcid: Optional[int] = None,
-        naccid: Optional[str] = None,
+        packet: str | None = "I",
+        adcid: int | None = None,
+        naccid: str | None = None,
     ) -> DataIdentification:
         """Create a DataIdentification object with specified values.
 

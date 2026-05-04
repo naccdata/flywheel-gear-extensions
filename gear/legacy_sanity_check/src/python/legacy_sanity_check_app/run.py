@@ -1,7 +1,6 @@
 """Entry script for Legacy Sanity Check."""
 
 import logging
-from typing import List, Optional
 
 from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
@@ -37,7 +36,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         form_configs_input: InputFileWrapper,
         ingest_project_label: str,
         sender_email: str,
-        target_emails: List[str],
+        target_emails: list[str],
     ):
         super().__init__(client=client)
 
@@ -51,7 +50,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "LegacySanityCheckVisitor":
         """Creates a Legacy Sanity Check execution visitor.
 
@@ -107,7 +106,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         gear_name = self.get_gear_name(context, "legacy-sanity-check")
 
         form_configs = None
-        with open(self.__form_configs_input.filepath, mode="r") as fh:
+        with open(self.__form_configs_input.filepath) as fh:
             form_configs = None
             try:
                 form_configs = FormProjectConfigs.model_validate_json(fh.read())

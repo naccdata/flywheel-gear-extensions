@@ -1,7 +1,7 @@
 """Shared fixtures for pull_directory gear tests."""
 
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -17,9 +17,9 @@ class MockParameterStore:
 
     def __init__(
         self,
-        redcap_params: Optional[Dict[str, str]] = None,
-        support_emails: Optional[List[str]] = None,
-        sender_params: Optional[Dict[str, str]] = None,
+        redcap_params: dict[str, str] | None = None,
+        support_emails: list[str] | None = None,
+        sender_params: dict[str, str] | None = None,
     ):
         self.redcap_params = redcap_params or {
             "url": "https://redcap.test",
@@ -28,19 +28,19 @@ class MockParameterStore:
         self.support_emails = support_emails or ["support@example.com"]
         self.sender_params = sender_params or {"sender": "noreply@example.com"}
 
-    def get_parameters(self, param_type: Any, parameter_path: str) -> Dict[str, str]:
+    def get_parameters(self, param_type: Any, parameter_path: str) -> dict[str, str]:
         """Mock get_parameters."""
         if not self.redcap_params:
             raise ParameterError("REDCap parameters not found")
         return self.redcap_params
 
-    def get_support_emails(self, path: str) -> List[str]:
+    def get_support_emails(self, path: str) -> list[str]:
         """Mock get_support_emails."""
         if not self.support_emails:
             raise ParameterError("Support emails not found")
         return self.support_emails
 
-    def get_notification_parameters(self, path: str) -> Dict[str, str]:
+    def get_notification_parameters(self, path: str) -> dict[str, str]:
         """Mock get_notification_parameters."""
         if not self.sender_params:
             raise ParameterError("Notification parameters not found")
@@ -58,8 +58,8 @@ class MockGearContext:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
-        destination: Optional[Dict[str, str]] = None,
+        config: dict[str, Any] | None = None,
+        destination: dict[str, str] | None = None,
     ):
         self.config_opts = config or {
             "parameter_path": "/directory/test",
@@ -70,7 +70,7 @@ class MockGearContext:
             "type": "project",
             "id": "test_project",
         }
-        self.output_content: Optional[str] = None
+        self.output_content: str | None = None
         self.client = Mock()
         self._config = Mock()
         self._config.opts = self.config_opts

@@ -1,7 +1,6 @@
 """Defines Legacy Sanity Check."""
 
 import logging
-from typing import List
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from datastore.forms_store import FormQueryArgs, FormsStore
@@ -278,7 +277,7 @@ class LegacySanityChecker:
         return self.check_duplicate_visit(subject_lbl, module, module_configs)
 
     def send_email(
-        self, sender_email: str, target_emails: List[str], group_lbl: str
+        self, sender_email: str, target_emails: list[str], group_lbl: str
     ) -> None:
         """Send a raw email notifying target emails of the error.
 

@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import Optional
 
 from configs.ingest_configs import load_form_ingest_configurations
 from fw_gear import GearContext
@@ -40,7 +39,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         config_input: InputFileWrapper,
         redcap_con: REDCapReportConnection,
         s3_client: S3BucketInterface,
-        supplement_input: Optional[InputFileWrapper] = None,
+        supplement_input: InputFileWrapper | None = None,
     ):
         """
         Args:
@@ -60,7 +59,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "FormQCCheckerVisitor":
         """Creates a form-qc-checker execution visitor.
 

@@ -3,7 +3,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 from pydantic import SerializationInfo, SerializerFunctionWrapHandler, model_serializer
@@ -27,18 +27,18 @@ class ConsolidatedNotificationData(BaseTemplateModel):
     gear_name: str
     execution_timestamp: str
     total_events: int
-    events_by_category: Dict[str, int]
-    event_summaries: List[str]
-    affected_users: List[str]
+    events_by_category: dict[str, int]
+    event_summaries: list[str]
+    affected_users: list[str]
     affected_users_count: int
-    category_details: Dict[str, List[Dict[str, str]]]
-    batch_number: Optional[int] = None
-    total_batches: Optional[int] = None
+    category_details: dict[str, list[dict[str, str]]]
+    batch_number: int | None = None
+    total_batches: int | None = None
 
     @model_serializer(mode="wrap")
     def serialize_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Serialize model, flattening category_details into top-level
         fields."""
         data = handler(self)
@@ -93,9 +93,9 @@ class UserEventNotificationGenerator:
 
     def _split_category_details(
         self,
-        category_details: Dict[str, List[Dict[str, str]]],
+        category_details: dict[str, list[dict[str, str]]],
         max_size: int,
-    ) -> List[Dict[str, List[Dict[str, str]]]]:
+    ) -> list[dict[str, list[dict[str, str]]]]:
         """Split category details into batches that fit within size limit.
 
         Args:
@@ -106,7 +106,7 @@ class UserEventNotificationGenerator:
             List of category detail dictionaries, each within size limit
         """
         batches = []
-        current_batch: Dict[str, List[Dict[str, str]]] = {}
+        current_batch: dict[str, list[dict[str, str]]] = {}
 
         # Estimate base size (without category details)
         base_size = len(
@@ -199,8 +199,8 @@ class UserEventNotificationGenerator:
 
     def _build_category_details(
         self,
-        batch_events: List[tuple[EventCategory, UserProcessEvent]],
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        batch_events: list[tuple[EventCategory, UserProcessEvent]],
+    ) -> dict[str, list[dict[str, Any]]]:
         """Build category details dictionary from batch events.
 
         Args:
@@ -209,7 +209,7 @@ class UserEventNotificationGenerator:
         Returns:
             Dictionary mapping category names to lists of event dicts
         """
-        category_details: Dict[str, List[Dict[str, Any]]] = {}
+        category_details: dict[str, list[dict[str, Any]]] = {}
         for category, event in batch_events:
             cat_value = category.value
             if cat_value not in category_details:
@@ -219,8 +219,8 @@ class UserEventNotificationGenerator:
 
     def _get_affected_users(
         self,
-        batch_events: List[tuple[EventCategory, UserProcessEvent]],
-    ) -> List[str]:
+        batch_events: list[tuple[EventCategory, UserProcessEvent]],
+    ) -> list[str]:
         """Get list of affected users from batch events.
 
         Args:
@@ -238,7 +238,7 @@ class UserEventNotificationGenerator:
         self,
         gear_name: str,
         execution_timestamp: str,
-        batch_events: List[tuple[EventCategory, UserProcessEvent]],
+        batch_events: list[tuple[EventCategory, UserProcessEvent]],
     ) -> ConsolidatedNotificationData:
         """Create a test notification to check size.
 
@@ -273,10 +273,10 @@ class UserEventNotificationGenerator:
 
     def _split_events_into_batches(
         self,
-        all_events: List[tuple[EventCategory, UserProcessEvent]],
+        all_events: list[tuple[EventCategory, UserProcessEvent]],
         gear_name: str,
         execution_timestamp: str,
-    ) -> List[List[tuple[EventCategory, UserProcessEvent]]]:
+    ) -> list[list[tuple[EventCategory, UserProcessEvent]]]:
         """Split events into batches that fit within size limit.
 
         Args:
@@ -287,8 +287,8 @@ class UserEventNotificationGenerator:
         Returns:
             List of event batches
         """
-        batches: List[List[tuple[EventCategory, UserProcessEvent]]] = []
-        current_batch_events: List[tuple[EventCategory, UserProcessEvent]] = []
+        batches: list[list[tuple[EventCategory, UserProcessEvent]]] = []
+        current_batch_events: list[tuple[EventCategory, UserProcessEvent]] = []
 
         for category, event in all_events:
             # Try adding this event to current batch
@@ -317,7 +317,7 @@ class UserEventNotificationGenerator:
         self,
         gear_name: str,
         execution_timestamp: str,
-        batch_events: List[tuple[EventCategory, UserProcessEvent]],
+        batch_events: list[tuple[EventCategory, UserProcessEvent]],
         batch_number: int,
         total_batches: int,
     ) -> ConsolidatedNotificationData:
@@ -356,7 +356,7 @@ class UserEventNotificationGenerator:
 
     def create_batched_notifications(
         self, collector: UserEventCollector, gear_name: str
-    ) -> List[ConsolidatedNotificationData]:
+    ) -> list[ConsolidatedNotificationData]:
         """Create notification data, splitting into batches if needed.
 
         Args:
@@ -381,7 +381,7 @@ class UserEventNotificationGenerator:
 
         # Flatten events from all categories
         grouped = collector.get_errors_by_category()
-        all_events: List[tuple[EventCategory, UserProcessEvent]] = []
+        all_events: list[tuple[EventCategory, UserProcessEvent]] = []
         for category, events in grouped.items():
             for event in events:
                 all_events.append((category, event))
@@ -418,9 +418,9 @@ class UserEventNotificationGenerator:
 
     def send_consolidated_notification(
         self,
-        support_emails: List[str],
+        support_emails: list[str],
         notification_data: ConsolidatedNotificationData,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Send consolidated error notification to support staff.
 
         Args:
@@ -470,8 +470,8 @@ class UserEventNotificationGenerator:
         self,
         collector: UserEventCollector,
         gear_name: str,
-        support_emails: List[str],
-    ) -> Optional[str]:
+        support_emails: list[str],
+    ) -> str | None:
         """Send error notification at end of gear run.
 
         This is the main entry point for sending notifications from gears.

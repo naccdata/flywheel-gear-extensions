@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Dict, List, Optional, Tuple
+from typing import Any, ClassVar
 
 from keys.keys import RuleLabels
 from nacc_common.data_identification import (
@@ -35,7 +35,7 @@ class ErrorDescription(BaseModel):
     full_desc: str
 
     @classmethod
-    def create(cls, entry: Dict[str, str]) -> "ErrorDescription":
+    def create(cls, entry: dict[str, str]) -> "ErrorDescription":
         """Creates ErrorDescription object from a dictionary input.
 
         Args:
@@ -52,7 +52,7 @@ class ErrorStore(ABC):
     """Base class to retrieve NACC QC checks information from a database."""
 
     # List of error cheks by error code
-    __errors_list: ClassVar[Dict[str, ErrorDescription]] = {}
+    __errors_list: ClassVar[dict[str, ErrorDescription]] = {}
 
     def __init__(self, preload: bool = False) -> None:
         """
@@ -66,7 +66,7 @@ class ErrorStore(ABC):
             self.load_error_checks()
 
     @property
-    def errors_list(self) -> Dict[str, ErrorDescription]:
+    def errors_list(self) -> dict[str, ErrorDescription]:
         """Returns errors_list."""
         return self.__errors_list
 
@@ -76,8 +76,8 @@ class ErrorStore(ABC):
 
     @abstractmethod
     def query_error_database(
-        self, error_codes: List[str]
-    ) -> Dict[str, ErrorDescription]:
+        self, error_codes: list[str]
+    ) -> dict[str, ErrorDescription]:
         """Query the error checks database for the given error codes.
 
         Args:
@@ -89,7 +89,7 @@ class ErrorStore(ABC):
 
         return {}
 
-    def get_qc_check_info(self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
+    def get_qc_check_info(self, error_codes: list[str]) -> dict[str, ErrorDescription]:
         """Retrieve QC check information by error code.
 
         Args:
@@ -99,7 +99,7 @@ class ErrorStore(ABC):
             Dict[str, ErrorDescription]: Error info for the given error codes
         """
 
-        qc_checks_list: Dict[str, ErrorDescription] = {}
+        qc_checks_list: dict[str, ErrorDescription] = {}
         if self.__preload:
             for error_code in error_codes:
                 if error_code in self.errors_list:
@@ -116,7 +116,7 @@ class REDCapErrorStore(ErrorStore):
     def __init__(
         self,
         *,
-        redcap_con: Optional[REDCapReportConnection] = None,
+        redcap_con: REDCapReportConnection | None = None,
         preload: bool = False,
     ) -> None:
         self.__redcap_con = redcap_con
@@ -144,7 +144,7 @@ class REDCapErrorStore(ErrorStore):
                     "Failed to create error description from %s: %s", record, error
                 )
 
-    def query_error_database(self, error_codes) -> Dict[str, ErrorDescription]:
+    def query_error_database(self, error_codes) -> dict[str, ErrorDescription]:
         """Query the error checks database for the given error codes.
 
         Args:
@@ -154,7 +154,7 @@ class REDCapErrorStore(ErrorStore):
             Dict[str, ErrorDescription]: Error info dictionary by error code
         """
 
-        qc_checks_list: Dict[str, ErrorDescription] = {}
+        qc_checks_list: dict[str, ErrorDescription] = {}
         record_ids = []
         for error_code in error_codes:
             if error_code in self.errors_list:
@@ -188,7 +188,7 @@ class REDCapErrorStore(ErrorStore):
         return qc_checks_list
 
 
-def replace_nullable_with_required(rule: str, code_schema: Dict[str, Dict]) -> bool:
+def replace_nullable_with_required(rule: str, code_schema: dict[str, dict]) -> bool:
     """If code mapping not found in the schema for nullable rule, use the same
     code as required rule if it is defined in the schema.
 
@@ -232,10 +232,10 @@ class ErrorComposer:
     def __init__(
         self,
         *,
-        input_data: Dict[str, str],
+        input_data: dict[str, str],
         error_store: ErrorStore,
-        dict_errors: Dict[str, List[str]],
-        error_messages: Dict[int, str],
+        dict_errors: dict[str, list[str]],
+        error_messages: dict[int, str],
         error_writer: ErrorWriter,
         date_field: str,
     ) -> None:
@@ -257,7 +257,7 @@ class ErrorComposer:
         self.__error_writer = error_writer
         self.__date_field = date_field
 
-    def get_qc_check_info(self, error_codes: List[str]) -> Dict[str, ErrorDescription]:
+    def get_qc_check_info(self, error_codes: list[str]) -> dict[str, ErrorDescription]:
         """Retrieve QC check information for the given error codes from DB.
 
         Args:
@@ -278,7 +278,7 @@ class ErrorComposer:
         error_msg: str,
         value: str,
         field: str,
-        line_number: Optional[int] = None,
+        line_number: int | None = None,
     ) -> FileError:
         """Creates a QCError object from the given input.
 
@@ -309,7 +309,7 @@ class ErrorComposer:
         )
 
     def __write_qc_error_no_code(
-        self, *, error_obj: Any, field: str, line_number: Optional[int] = None
+        self, *, error_obj: Any, field: str, line_number: int | None = None
     ):
         """Write QC error metadata when NACC QC check info not available.
 
@@ -340,8 +340,8 @@ class ErrorComposer:
         *,
         error_desc: ErrorDescription,
         value: str,
-        line_number: Optional[int] = None,
-        other_codes: Optional[str] = None,
+        line_number: int | None = None,
+        other_codes: str | None = None,
     ):
         """Write QC error metadata when NACC QC check info available.
 
@@ -368,9 +368,9 @@ class ErrorComposer:
     def __fill_error_metadata_with_qc_check_info(
         self,
         *,
-        error_codes: List[str],
-        error_info_map: Dict[str, Dict],
-        line_number: Optional[int] = None,
+        error_codes: list[str],
+        error_info_map: dict[str, dict],
+        line_number: int | None = None,
     ):
         """Pull NACC QC check info from the errors database and write detailed
         error metadata.
@@ -406,11 +406,11 @@ class ErrorComposer:
         self,
         *,
         field: str,
-        code_schema: Dict,
-        validator_errors: List[Any],
-        err_info_map: Dict[str, Dict],
-        nacc_error_codes: List[str],
-        line_number: Optional[int] = None,
+        code_schema: dict,
+        validator_errors: list[Any],
+        err_info_map: dict[str, dict],
+        nacc_error_codes: list[str],
+        line_number: int | None = None,
     ):
         """Map validator generated errors with NACC QC check code using the
         code map schema.
@@ -471,7 +471,7 @@ class ErrorComposer:
                 }
 
     # pylint: disable=(no-self-use)
-    def _split_nacc_error_codes(self, codes: str) -> Tuple[str, Optional[str]]:
+    def _split_nacc_error_codes(self, codes: str) -> tuple[str, str | None]:
         """Splits the NACC error codes list.
 
         Args:
@@ -485,7 +485,7 @@ class ErrorComposer:
 
         return codes_list[0], other
 
-    def compose_system_errors_metadata(self, line_number: Optional[int] = None):
+    def compose_system_errors_metadata(self, line_number: int | None = None):
         """Compose error metadata for system errors.
 
         Args:
@@ -513,7 +513,7 @@ class ErrorComposer:
                     )
                 )
 
-    def compose_minimal_error_metadata(self, line_number: Optional[int] = None):
+    def compose_minimal_error_metadata(self, line_number: int | None = None):
         """Compose error metadata when error code info not available, error
         message will display the library generated error string.
 
@@ -540,9 +540,9 @@ class ErrorComposer:
     def compose_detailed_error_metadata(
         self,
         *,
-        error_tree: Dict[str, Any],
-        err_code_map: Dict[str, Dict],
-        line_number: Optional[int] = None,
+        error_tree: dict[str, Any],
+        err_code_map: dict[str, dict],
+        line_number: int | None = None,
     ):
         """Compose detailed error metadata using the error code map to retrieve
         information from the NACC QC checks database.
@@ -557,8 +557,8 @@ class ErrorComposer:
             how to use the error_tree object
         """
 
-        err_info_map: Dict[str, Dict] = {}
-        nacc_error_codes: List[str] = []
+        err_info_map: dict[str, dict] = {}
+        nacc_error_codes: list[str] = []
         for field in self.__dict_errors:
             value = ""
             if field in self.__input_data:

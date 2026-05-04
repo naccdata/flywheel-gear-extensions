@@ -1,7 +1,6 @@
 """Entry script for Transactional Event Scraper."""
 
 import logging
-from typing import Optional
 
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -33,7 +32,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         config: TransactionalEventScraperConfig,
         project: ProjectAdaptor,
-        event_capture: Optional[VisitEventCapture] = None,
+        event_capture: VisitEventCapture | None = None,
     ):
         """Initialize the visitor.
 
@@ -52,7 +51,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "TransactionalEventScraperVisitor":
         """Creates a Transactional Event Scraper execution visitor.
 

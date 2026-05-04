@@ -10,7 +10,6 @@ import logging
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class FileResolverError(Exception):
 
 def resolve_dicom_file(
     file_path: Path,
-) -> tuple[Path, Optional[tempfile.TemporaryDirectory]]:
+) -> tuple[Path, tempfile.TemporaryDirectory | None]:
     """Resolve an input file to a DICOM file path.
 
     If the input is a zip archive, extracts the first DICOM file to a
@@ -98,7 +97,7 @@ def _extract_dicom_from_zip(
         ) from error
 
 
-def _find_dicom_entry(zf: zipfile.ZipFile) -> Optional[str]:
+def _find_dicom_entry(zf: zipfile.ZipFile) -> str | None:
     """Find the first DICOM file entry in a zip archive.
 
     Searches by extension (.dcm, .dicom) first, then falls back to

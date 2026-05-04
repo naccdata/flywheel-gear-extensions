@@ -11,7 +11,6 @@ Note: These are simplified integration tests that focus on verifying the
 integration points rather than full end-to-end execution.
 """
 
-from typing import Dict, Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,9 +25,9 @@ class MockParameterStore:
 
     def __init__(
         self,
-        comanage_params: Optional[Dict] = None,
-        notification_params: Optional[Dict] = None,
-        portal_url: Optional[Dict] = None,
+        comanage_params: dict | None = None,
+        notification_params: dict | None = None,
+        portal_url: dict | None = None,
     ):
         self.comanage_params = comanage_params or {
             "host": "https://comanage.test",
@@ -61,7 +60,7 @@ class MockParameterStore:
         return self.portal_url
 
     def get_all_redcap_parameters_at_path(
-        self, base_path: str, prefix: Optional[str] = None
+        self, base_path: str, prefix: str | None = None
     ):
         """Mock get_all_redcap_parameters_at_path."""
         return {}
@@ -81,9 +80,9 @@ class MockGearContext:
 
     def __init__(
         self,
-        user_file_path: Optional[str] = None,
-        auth_file_path: Optional[str] = None,
-        config: Optional[Dict] = None,
+        user_file_path: str | None = None,
+        auth_file_path: str | None = None,
+        config: dict | None = None,
     ):
         self.user_file_path = user_file_path or "/tmp/users.yaml"
         self.auth_file_path = auth_file_path or "/tmp/auth.yaml"
@@ -100,7 +99,7 @@ class MockGearContext:
         self._config.opts = self.config_opts
         self._config.get_input_path = self._get_input_path
 
-    def _get_input_path(self, input_name: str) -> Optional[str]:
+    def _get_input_path(self, input_name: str) -> str | None:
         """Mock get_input_path for the config object."""
         if input_name == "user_file":
             return self.user_file_path

@@ -11,8 +11,8 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable
 from json.decoder import JSONDecodeError
-from typing import Callable, Dict, List, Optional, Tuple
 
 from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
 from data.dataview import ColumnModel, make_builder
@@ -37,7 +37,7 @@ from form_scheduler_app.event_accumulator import EventAccumulator
 log = logging.getLogger(__name__)
 
 
-def get_subject_from_input_file(filename: str, pipeline: PipelineType) -> Optional[str]:
+def get_subject_from_input_file(filename: str, pipeline: PipelineType) -> str | None:
     """Extract subject ID from the input filename."""
     try:
         if pipeline == DefaultValues.FINALIZATION_PIPELINE:
@@ -77,22 +77,22 @@ class PipelineQueue(BaseModel):
 
     index: int = -1
     pipeline: Pipeline
-    subqueues: Dict[str, List[FileEntry]]
+    subqueues: dict[str, list[FileEntry]]
 
     @property
     def name(self) -> PipelineType:
         return self.pipeline.name
 
     @property
-    def tags(self) -> List[str]:
+    def tags(self) -> list[str]:
         return self.pipeline.tags
 
     @property
-    def modules(self) -> List[str]:
+    def modules(self) -> list[str]:
         return self.pipeline.modules
 
     @property
-    def extensions(self) -> List[str]:
+    def extensions(self) -> list[str]:
         return self.extensions
 
     def add_file_to_subqueue(self, module: str, file: FileEntry) -> bool:
@@ -128,7 +128,7 @@ class PipelineQueue(BaseModel):
         for subqueue in self.subqueues.values():
             subqueue.sort(key=lambda file: file.modified)
 
-    def next_queue(self) -> Tuple[str, List[FileEntry]]:
+    def next_queue(self) -> tuple[str, list[FileEntry]]:
         """Returns the next module queue for the pipeline using round-robin.
 
         Advances the index to the next module in a circular fashion,
@@ -169,15 +169,15 @@ class PipelineQueueBuilder(ABC):
         return self.__pipeline.name
 
     @property
-    def tags(self) -> List[str]:
+    def tags(self) -> list[str]:
         return self.__pipeline.tags
 
     @property
-    def modules(self) -> List[str]:
+    def modules(self) -> list[str]:
         return self.__pipeline.modules
 
     @property
-    def extensions(self) -> List[str]:
+    def extensions(self) -> list[str]:
         return self.__pipeline.extensions
 
     def queue(self) -> PipelineQueue:
@@ -422,7 +422,7 @@ class FinalizationQueueBuilder(PipelineQueueBuilder):
         return module_map
 
 
-def create_queue_builder(pipeline: Pipeline) -> Optional[PipelineQueueBuilder]:
+def create_queue_builder(pipeline: Pipeline) -> PipelineQueueBuilder | None:
     """Factory function to create the appropriate queue builder for a pipeline.
 
     Args:
@@ -463,8 +463,8 @@ class FormSchedulerQueue:
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
         event_capture: VisitEventCapture,
-        email_client: Optional[EmailClient] = None,
-        portal_url: Optional[URLParameter] = None,
+        email_client: EmailClient | None = None,
+        portal_url: URLParameter | None = None,
     ) -> None:
         """Initializer.
 
@@ -482,7 +482,7 @@ class FormSchedulerQueue:
         self.__event_capture = event_capture
         self.__email_client = email_client
         self.__portal_url = portal_url
-        self.__pipeline_queues: Dict[str, PipelineQueue] = {}
+        self.__pipeline_queues: dict[str, PipelineQueue] = {}
 
     def queue_files_for_pipeline(self, pipeline: Pipeline) -> int:
         """Queue the matching files for the given pipeline.
@@ -615,9 +615,7 @@ class FormSchedulerQueue:
         pipeline_queue: PipelineQueue,
         job_search: str,
         notify_user: bool,
-        event_capture_callback: Optional[
-            Callable[[FileEntry, PipelineType], None]
-        ] = None,
+        event_capture_callback: Callable[[FileEntry, PipelineType], None] | None = None,
     ):
         """Process files in a pipeline queue using round-robin scheduling.
 
@@ -648,7 +646,7 @@ class FormSchedulerQueue:
             locators=["fixed", "matched", "module"]
         )
 
-        gear_inputs: Dict[str, FileEntry] = {}
+        gear_inputs: dict[str, FileEntry] = {}
 
         # Set gear inputs of type "fixed"
         # These are project-level files with fixed filenames (e.g., "centers.csv")
@@ -722,14 +720,12 @@ class FormSchedulerQueue:
         *,
         pipeline: Pipeline,
         pipeline_queue: PipelineQueue,
-        subqueue: List[FileEntry],
-        gear_input_info: Optional[Dict[str, list]],
-        gear_inputs: Dict[str, FileEntry],
+        subqueue: list[FileEntry],
+        gear_input_info: dict[str, list] | None,
+        gear_inputs: dict[str, FileEntry],
         job_search: str,
         notify_user: bool,
-        event_capture_callback: Optional[
-            Callable[[FileEntry, PipelineType], None]
-        ] = None,
+        event_capture_callback: Callable[[FileEntry, PipelineType], None] | None = None,
     ):
         """Process all files in a module subqueue one at a time.
 
@@ -817,10 +813,10 @@ class FormSchedulerQueue:
     def _trigger_batch(
         self,
         *,
-        batch: List[FileEntry],
+        batch: list[FileEntry],
         pipeline: Pipeline,
-        gear_input_info: Optional[Dict[str, list]],
-        gear_inputs: Dict[str, FileEntry],
+        gear_input_info: dict[str, list] | None,
+        gear_inputs: dict[str, FileEntry],
     ):
         """Trigger the starting gear for each file in a batch.
 
@@ -864,12 +860,10 @@ class FormSchedulerQueue:
     def _capture_events_and_notify(
         self,
         *,
-        batch: List[FileEntry],
+        batch: list[FileEntry],
         pipeline: Pipeline,
         notify_user: bool,
-        event_capture_callback: Optional[
-            Callable[[FileEntry, PipelineType], None]
-        ] = None,
+        event_capture_callback: Callable[[FileEntry, PipelineType], None] | None = None,
     ):
         """Capture events and send notification emails for a completed batch.
 
@@ -905,15 +899,13 @@ class FormSchedulerQueue:
         *,
         pipeline: Pipeline,
         pipeline_queue: PipelineQueue,
-        subqueue: List[FileEntry],
-        gear_input_info: Optional[Dict[str, list]],
-        gear_inputs: Dict[str, FileEntry],
+        subqueue: list[FileEntry],
+        gear_input_info: dict[str, list] | None,
+        gear_inputs: dict[str, FileEntry],
         job_search: str,
         notify_user: bool,
-        subject_extractor: Callable[[str, PipelineType], Optional[str]],
-        event_capture_callback: Optional[
-            Callable[[FileEntry, PipelineType], None]
-        ] = None,
+        subject_extractor: Callable[[str, PipelineType], str | None],
+        event_capture_callback: Callable[[FileEntry, PipelineType], None] | None = None,
     ):
         """Process a module subqueue grouped by subject in parallel batches.
 
@@ -944,7 +936,7 @@ class FormSchedulerQueue:
                 filename (differs between finalization and deletion)
         """
         # Group files by subject, preserving per-subject sort order
-        subject_queues: Dict[str, List[FileEntry]] = defaultdict(list)
+        subject_queues: dict[str, list[FileEntry]] = defaultdict(list)
         for file in subqueue:
             subject = subject_extractor(file.name, pipeline.name)
             if not subject:
@@ -964,7 +956,7 @@ class FormSchedulerQueue:
 
         while any(subject_queues.values()):
             # Collect one file per subject for this round
-            batch: List[FileEntry] = []
+            batch: list[FileEntry] = []
             for files in subject_queues.values():
                 if files:
                     file = files.pop(0)

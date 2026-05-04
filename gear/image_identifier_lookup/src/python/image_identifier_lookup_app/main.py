@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional, cast
+from typing import cast
 
 from botocore.exceptions import ClientError
 from error_logging.error_logger import ErrorLogTemplate
@@ -62,7 +62,7 @@ class ImageIdentifierLookup:
         self._dry_run = dry_run
         self._error_writer = error_writer
         self._success = True
-        self._naccid: Optional[str] = None
+        self._naccid: str | None = None
 
     def run(self) -> tuple[bool, FileErrorList]:
         """Execute the identifier lookup workflow.
@@ -129,7 +129,7 @@ class ImageIdentifierLookup:
             self._success = False
             self._error_writer.write(system_error(message=str(error)))
 
-    def _build_data_identification(self) -> Optional[DataIdentification]:
+    def _build_data_identification(self) -> DataIdentification | None:
         """Build DataIdentification for QC logging and event capture.
 
         Returns None when visit metadata is unavailable.
@@ -148,7 +148,7 @@ class ImageIdentifierLookup:
         )
 
     def _handle_post_processing(
-        self, data_identification: Optional[DataIdentification]
+        self, data_identification: DataIdentification | None
     ) -> None:
         """Handle QC status log update and event capture."""
         if self._dry_run:

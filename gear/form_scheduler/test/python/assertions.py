@@ -1,7 +1,6 @@
 """Assertion helpers for event logging testing."""
 
 from datetime import datetime
-from typing import Optional
 
 from event_capture.visit_events import ACTION_PASS_QC, VisitEvent
 from nacc_common.data_identification import DataIdentification
@@ -13,7 +12,7 @@ def assert_valid_qc_pass_event(
     expected_visit_date: str,
     expected_visit_number: str,
     expected_module: str,
-    expected_packet: Optional[str] = None,
+    expected_packet: str | None = None,
     expected_gear_name: str = "form-scheduler",
     expected_datatype: str = "form",
 ) -> None:
@@ -69,7 +68,7 @@ def assert_event_structure_matches(
     expected_project_label: str,
     expected_center_label: str,
     expected_pipeline_adcid: int,
-    expected_study: Optional[str] = None,
+    expected_study: str | None = None,
 ) -> None:
     """Assert that an event has the expected structure and project information.
 
@@ -129,8 +128,8 @@ def assert_visit_metadata_matches(
     expected_ptid: str,
     expected_date: str,
     expected_module: str,
-    expected_visitnum: Optional[str] = None,
-    expected_packet: Optional[str] = None,
+    expected_visitnum: str | None = None,
+    expected_packet: str | None = None,
 ) -> None:
     """Assert that visit metadata matches expected values.
 

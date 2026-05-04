@@ -2,7 +2,7 @@
 checks."""
 
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
@@ -40,8 +40,8 @@ def run_header_test(visitor: CSVTransformVisitor, error_writer: ListErrorWriter)
 
 
 def create_uds_visitor(
-    test_header: bool = False, transform_schema: Optional[Dict[str, Any]] = None
-) -> Tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
+    test_header: bool = False, transform_schema: dict[str, Any] | None = None
+) -> tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
     Returns the visitor, mocked project, and mocked form store.
 
@@ -115,7 +115,7 @@ def create_uds_visitor(
     return visitor, project, form_store
 
 
-def create_record(data: Dict[str, Any]):
+def create_record(data: dict[str, Any]):
     """Create record with default values, then append test-specific data.
 
     Args:

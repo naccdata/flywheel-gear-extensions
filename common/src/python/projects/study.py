@@ -3,7 +3,8 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Mapping, Optional, Self
+from collections.abc import Mapping
+from typing import Any, Literal, Self
 
 from pydantic import (
     AliasGenerator,
@@ -48,7 +49,7 @@ class StudyCenterModel(BaseModel):
     )
 
     center_id: str
-    pipeline_adcid: Optional[int] = None
+    pipeline_adcid: int | None = None
     enrollment_pattern: Literal["co-enrollment", "separate"] = "co-enrollment"
 
     @model_validator(mode="after")
@@ -190,15 +191,15 @@ class StudyModel(BaseModel):
 
     name: str = Field(alias="study")
     study_id: str
-    centers: List[StudyCenterModel]
-    mode: Optional[Literal["aggregation", "distribution"]] = None
-    datatypes: List[str] | List[DatatypeConfig]
-    dashboards: Optional[List[str] | List[DashboardConfig]] = None
-    pages: List[PageConfig] | None = None
+    centers: list[StudyCenterModel]
+    mode: Literal["aggregation", "distribution"] | None = None
+    datatypes: list[str] | list[DatatypeConfig]
+    dashboards: list[str] | list[DashboardConfig] | None = None
+    pages: list[PageConfig] | None = None
     study_type: Literal["primary", "affiliated"]
     legacy: bool = Field(True)
     published: bool = Field(False)
-    funding_organization: Optional[str] = None
+    funding_organization: str | None = None
 
     def apply(self, visitor: StudyVisitor) -> None:
         """Apply visitor to this Study."""
@@ -244,7 +245,7 @@ class StudyModel(BaseModel):
                 return config.mode
         raise ValueError(f"Datatype '{datatype}' not found in study configuration")
 
-    def get_datatype_configs(self) -> List[DatatypeConfig]:
+    def get_datatype_configs(self) -> list[DatatypeConfig]:
         """Get all datatype configurations.
 
         Returns:
@@ -263,7 +264,7 @@ class StudyModel(BaseModel):
 
     def get_datatypes_by_mode(
         self, mode: Literal["aggregation", "distribution"]
-    ) -> List[str]:
+    ) -> list[str]:
         """Get list of datatypes with the specified mode.
 
         Args:
@@ -293,7 +294,7 @@ class StudyModel(BaseModel):
                 return config.level
         raise ValueError(f"Dashboard '{dashboard}' not found in study configuration")
 
-    def get_dashboard_configs(self) -> List[DashboardConfig]:
+    def get_dashboard_configs(self) -> list[DashboardConfig]:
         """Get all dashboard configurations.
 
         Returns:
@@ -311,7 +312,7 @@ class StudyModel(BaseModel):
         # This is a fallback for type safety
         return []
 
-    def get_dashboards_by_level(self, level: Literal["center", "study"]) -> List[str]:
+    def get_dashboards_by_level(self, level: Literal["center", "study"]) -> list[str]:
         """Get list of dashboards with the specified level.
 
         Args:
@@ -359,7 +360,7 @@ class StudyModel(BaseModel):
 
     @field_validator("centers", mode="before")
     @classmethod
-    def center_list(cls, centers: List[str | Dict[str, str]]) -> List[StudyCenterModel]:
+    def center_list(cls, centers: list[str | dict[str, str]]) -> list[StudyCenterModel]:
         """Allows validation of an object where centers are given as strings.
 
         Converts center-ids to CenterStudyModel with co-enrollment enrollment pattern.
@@ -371,7 +372,7 @@ class StudyModel(BaseModel):
         """
 
         def center_model(
-            value: str | Dict[str, str] | StudyCenterModel,
+            value: str | dict[str, str] | StudyCenterModel,
         ) -> StudyCenterModel:
             """Converts value to a CenterStudyModel if required.
 
@@ -385,7 +386,7 @@ class StudyModel(BaseModel):
             """
             if isinstance(value, StudyCenterModel):
                 return value
-            if isinstance(value, Dict):
+            if isinstance(value, dict):
                 return StudyCenterModel.model_validate(value)
             return StudyCenterModel(center_id=value, enrollment_pattern="co-enrollment")
 
@@ -395,7 +396,7 @@ class StudyModel(BaseModel):
     @classmethod
     def normalize_datatypes(
         cls, value: Any, info: ValidationInfo
-    ) -> List[DatatypeConfig]:
+    ) -> list[DatatypeConfig]:
         """Normalize datatypes to DatatypeConfig list.
 
         Handles:
@@ -438,8 +439,8 @@ class StudyModel(BaseModel):
 
     @classmethod
     def _validate_datatype_configs(
-        cls, configs: List[DatatypeConfig]
-    ) -> List[DatatypeConfig]:
+        cls, configs: list[DatatypeConfig]
+    ) -> list[DatatypeConfig]:
         """Validate that all datatype configs have valid modes."""
         for config in configs:
             if config.mode not in ["aggregation", "distribution"]:
@@ -452,8 +453,8 @@ class StudyModel(BaseModel):
 
     @classmethod
     def _convert_datatype_dicts(
-        cls, items: List[Dict[str, Any]]
-    ) -> List[DatatypeConfig]:
+        cls, items: list[dict[str, Any]]
+    ) -> list[DatatypeConfig]:
         """Convert list of dicts to DatatypeConfig objects."""
         configs = []
         for item in items:
@@ -473,8 +474,8 @@ class StudyModel(BaseModel):
 
     @classmethod
     def _migrate_from_study_mode(
-        cls, datatypes: List[str], info: ValidationInfo
-    ) -> List[DatatypeConfig]:
+        cls, datatypes: list[str], info: ValidationInfo
+    ) -> list[DatatypeConfig]:
         """Migrate from study-level mode to datatype-level modes.
 
         IMPORTANT - Field Ordering Dependency:
@@ -522,7 +523,7 @@ class StudyModel(BaseModel):
     @classmethod
     def normalize_dashboards(
         cls, value: Any, info: ValidationInfo
-    ) -> Optional[List[DashboardConfig]]:
+    ) -> list[DashboardConfig] | None:
         """Normalize dashboards to DashboardConfig list.
 
         Handles:
@@ -568,8 +569,8 @@ class StudyModel(BaseModel):
 
     @classmethod
     def _validate_dashboard_configs(
-        cls, configs: List[DashboardConfig]
-    ) -> List[DashboardConfig]:
+        cls, configs: list[DashboardConfig]
+    ) -> list[DashboardConfig]:
         """Validate that all dashboard configs have valid levels."""
         for config in configs:
             if config.level not in ["center", "study"]:
@@ -581,8 +582,8 @@ class StudyModel(BaseModel):
 
     @classmethod
     def _convert_dashboard_dicts(
-        cls, items: List[Dict[str, Any]]
-    ) -> List[DashboardConfig]:
+        cls, items: list[dict[str, Any]]
+    ) -> list[DashboardConfig]:
         """Convert list of dicts to DashboardConfig objects."""
         configs = []
         for item in items:

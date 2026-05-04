@@ -2,7 +2,7 @@
 
 import logging
 from datetime import date
-from typing import Any, Literal, Optional, get_args
+from typing import Any, Literal, get_args
 
 from pydantic import (
     AliasChoices,
@@ -75,7 +75,7 @@ AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
 def get_activity_prefix(
     access_level: AuthorizationAccessLevel,
-) -> Optional[ActionType]:
+) -> ActionType | None:
     """Returns the activity prefix for the access level.
 
     Args:
@@ -159,7 +159,7 @@ class DirectoryAuthorizations(BaseModel):
     auth_email: str = Field(alias="fw_email")
     inactive: bool = Field(alias="archive_contact")
     org_name: str = Field(alias="contact_company_name")
-    adcid: Optional[int] = Field(alias="adcid")
+    adcid: int | None = Field(alias="adcid")
     general_page_community_resources_access_level: AuthorizationAccessLevel = Field(
         validation_alias=AliasChoices(
             "web_report_access___web", "web_report_access___Web"
@@ -228,50 +228,50 @@ class DirectoryAuthorizations(BaseModel):
         alias="scan_dashboard_access_level"
     )
     # CLARiTI organizational roles (14 fields)
-    loc_clariti_role___u01copi: Optional[bool] = Field(
+    loc_clariti_role___u01copi: bool | None = Field(
         default=None, alias="loc_clariti_role___u01copi"
     )
-    loc_clariti_role___pi: Optional[bool] = Field(
+    loc_clariti_role___pi: bool | None = Field(
         default=None, alias="loc_clariti_role___pi"
     )
-    loc_clariti_role___piadmin: Optional[bool] = Field(
+    loc_clariti_role___piadmin: bool | None = Field(
         default=None, alias="loc_clariti_role___piadmin"
     )
-    loc_clariti_role___copi: Optional[bool] = Field(
+    loc_clariti_role___copi: bool | None = Field(
         default=None, alias="loc_clariti_role___copi"
     )
-    loc_clariti_role___subawardadmin: Optional[bool] = Field(
+    loc_clariti_role___subawardadmin: bool | None = Field(
         default=None, alias="loc_clariti_role___subawardadmin"
     )
-    loc_clariti_role___addlsubaward: Optional[bool] = Field(
+    loc_clariti_role___addlsubaward: bool | None = Field(
         default=None, alias="loc_clariti_role___addlsubaward"
     )
-    loc_clariti_role___studycoord: Optional[bool] = Field(
+    loc_clariti_role___studycoord: bool | None = Field(
         default=None, alias="loc_clariti_role___studycoord"
     )
-    loc_clariti_role___mpi: Optional[bool] = Field(
+    loc_clariti_role___mpi: bool | None = Field(
         default=None, alias="loc_clariti_role___mpi"
     )
-    loc_clariti_role___orecore: Optional[bool] = Field(
+    loc_clariti_role___orecore: bool | None = Field(
         default=None, alias="loc_clariti_role___orecore"
     )
-    loc_clariti_role___crl: Optional[bool] = Field(
+    loc_clariti_role___crl: bool | None = Field(
         default=None, alias="loc_clariti_role___crl"
     )
-    loc_clariti_role___advancedmri: Optional[bool] = Field(
+    loc_clariti_role___advancedmri: bool | None = Field(
         default=None, alias="loc_clariti_role___advancedmri"
     )
-    loc_clariti_role___physicist: Optional[bool] = Field(
+    loc_clariti_role___physicist: bool | None = Field(
         default=None, alias="loc_clariti_role___physicist"
     )
-    loc_clariti_role___addlimaging: Optional[bool] = Field(
+    loc_clariti_role___addlimaging: bool | None = Field(
         default=None, alias="loc_clariti_role___addlimaging"
     )
-    loc_clariti_role___reg: Optional[bool] = Field(
+    loc_clariti_role___reg: bool | None = Field(
         default=None, alias="loc_clariti_role___reg"
     )
     # CLARiTI individual role (1 field)
-    ind_clar_core_role___admin: Optional[bool] = Field(
+    ind_clar_core_role___admin: bool | None = Field(
         default=None, alias="ind_clar_core_role___admin"
     )
     signed_user_agreement: bool = Field(
@@ -299,7 +299,7 @@ class DirectoryAuthorizations(BaseModel):
         return value
 
     @field_validator("adcid", mode="before")
-    def convert_adcid(cls, adcid: Any) -> Optional[int]:
+    def convert_adcid(cls, adcid: Any) -> int | None:
         if isinstance(adcid, int):
             return adcid
         if not isinstance(adcid, str):
@@ -332,7 +332,7 @@ class DirectoryAuthorizations(BaseModel):
         "ind_clar_core_role___admin",
         mode="before",
     )
-    def convert_clariti_checkbox(cls, value: Any) -> Optional[bool]:
+    def convert_clariti_checkbox(cls, value: Any) -> bool | None:
         """Convert REDCap checkbox values to boolean.
 
         REDCap checkboxes: "1" = checked, "0" or "" = unchecked.
@@ -555,7 +555,7 @@ class DirectoryAuthorizations(BaseModel):
 
         return study_map
 
-    def to_user_entry(self) -> Optional[UserEntry]:
+    def to_user_entry(self) -> UserEntry | None:
         """Converts this DirectoryAuthorizations object to a UserEntry.
 
         When inactive is True, returns a UserEntry with active=False

@@ -1,7 +1,7 @@
 """Entry script for form_scheduler."""
 
 import logging
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from botocore.exceptions import ClientError
 from configs.ingest_configs import ConfigsError, PipelineConfigs
@@ -45,8 +45,8 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         form_configs_input: InputFileWrapper,
         event_bucket: S3BucketInterface,
         event_environment: Literal["prod", "dev"],
-        source_email: Optional[str] = None,
-        portal_url: Optional[URLParameter] = None,
+        source_email: str | None = None,
+        portal_url: URLParameter | None = None,
     ):
         super().__init__(client=client)
 
@@ -61,7 +61,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "FormSchedulerVisitor":
         """Creates a gear execution object.
 

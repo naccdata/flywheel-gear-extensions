@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from centers.center_group import CenterError, CenterGroup
 from coreapi_client.models.identifier import Identifier
@@ -146,7 +146,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
     def __resolve_redcap_username(
         self,
         entry: UserEntry,
-        auth_email: Optional[str],
+        auth_email: str | None,
     ) -> str:
         """Resolve the REDCap username for role unassignment.
 
@@ -294,7 +294,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         self,
         entry: UserEntry,
         user_context: UserContext,
-        auth_email: Optional[str],
+        auth_email: str | None,
     ) -> None:
         """Step 3: Remove user roles from all REDCap projects.
 
@@ -378,7 +378,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         self,
         entry: UserEntry,
         user_context: UserContext,
-        person_list: Optional[list[RegistryPerson]],
+        person_list: list[RegistryPerson] | None,
     ) -> None:
         """Step 4: Suspend matching COmanage registry persons.
 
@@ -470,8 +470,8 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
 
         # Step 2: COmanage lookup
         # (resolve auth_email for Step 3, person_list for Step 4)
-        auth_email: Optional[str] = None
-        person_list: Optional[list[RegistryPerson]] = None
+        auth_email: str | None = None
+        person_list: list[RegistryPerson] | None = None
         try:
             person_list = self.__env.user_registry.get(email=entry.email)
             if not entry.auth_email and person_list:
@@ -814,14 +814,14 @@ class ClaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
             collector: Event collector for capturing events
         """
         super().__init__(collector)
-        self.__failed_count: Dict[str, int] = defaultdict(int)
+        self.__failed_count: dict[str, int] = defaultdict(int)
         self.__claimed_queue: UserQueue[ActiveUserEntry] = claimed_queue
         self.__created_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self.__update_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self.__env = environment
         self.__failure_analyzer = FailureAnalyzer(environment)
 
-    def __add_user(self, entry: ActiveUserEntry) -> Optional[str]:
+    def __add_user(self, entry: ActiveUserEntry) -> str | None:
         """Adds a user for the entry to Flywheel.
 
         Makes three attempts, and logs the error on the third attempt.
@@ -1104,7 +1104,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
         self.__unclaimed_queue.enqueue(entry)
 
-    def __get_claimed(self, person_list: List[RegistryPerson]) -> List[RegistryPerson]:
+    def __get_claimed(self, person_list: list[RegistryPerson]) -> list[RegistryPerson]:
         """Builds the sublist of claimed members of the person list.
 
         Args:
@@ -1117,7 +1117,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __re_enable_suspended(
         self,
         entry: ActiveUserEntry,
-        suspended: List[RegistryPerson],
+        suspended: list[RegistryPerson],
     ) -> None:
         """Re-enable suspended registry persons matched by email.
 
@@ -1166,8 +1166,8 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     def __emit_near_miss_events(
         self,
         entry: ActiveUserEntry,
-        domain_candidates: List[DomainCandidate],
-        name_candidates: List[RegistryPerson],
+        domain_candidates: list[DomainCandidate],
+        name_candidates: list[RegistryPerson],
     ) -> None:
         """Emit near-miss diagnostic events for combined-signal and name-only
         candidates.
@@ -1253,7 +1253,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             category.value,
         )
 
-    def __add_to_registry(self, *, user_entry: UserEntry) -> List[Identifier]:
+    def __add_to_registry(self, *, user_entry: UserEntry) -> list[Identifier]:
         """Adds a user to the registry using the user entry data.
 
         When both auth_email and contact email are available and distinct,
@@ -1285,9 +1285,7 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
         return identifier_list
 
-    def __get_creation_date(
-        self, person_list: List[RegistryPerson]
-    ) -> Optional[datetime]:
+    def __get_creation_date(self, person_list: list[RegistryPerson]) -> datetime | None:
         """Gets the most recent creation date from the person objects in the
         list.
 

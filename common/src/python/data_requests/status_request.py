@@ -1,7 +1,7 @@
 """Defines status request type and request clustering visitor."""
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
@@ -33,7 +33,7 @@ class StatusRequestClusteringVisitor(CSVVisitor):
         self,
         proxy: FlywheelProxy,
         study_id: str,
-        project_names: List[str],
+        project_names: list[str],
         error_writer: ErrorWriter,
     ) -> None:
         self.__proxy = proxy
@@ -42,9 +42,9 @@ class StatusRequestClusteringVisitor(CSVVisitor):
         self.__project_names.extend({f"{name}-{study_id}" for name in project_names})
         self.__project_matcher = re.compile(f"^{'|'.join(self.__project_names)}$")
         self.pipeline_map: dict[int, list[ProjectAdaptor]] = {}
-        self.request_map: Dict[int, List[StatusRequest]] = {}
+        self.request_map: dict[int, list[StatusRequest]] = {}
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Checks that the header has ADCID, PTID and study keys.
 
         Args:
@@ -94,7 +94,7 @@ class StatusRequestClusteringVisitor(CSVVisitor):
         request_list.append(status_query)
         self.request_map[status_query.adcid] = request_list
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Processes a row of the status request file.
 
         Args:

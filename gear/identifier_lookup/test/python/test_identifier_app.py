@@ -2,7 +2,7 @@
 
 import csv
 from io import StringIO
-from typing import Any, List
+from typing import Any
 
 import pytest
 from identifier_app.main import NACCIDLookupVisitor, run
@@ -20,7 +20,7 @@ def empty_data_stream():
     yield StringIO()
 
 
-def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
+def write_to_stream(data: list[list[Any]], stream: StringIO) -> None:
     """Writes data to the StringIO object for use in a test.
 
     Resets stream pointer to beginning.
@@ -52,7 +52,7 @@ def no_header_stream():
 @pytest.fixture(scope="function")
 def no_ids_stream():
     """Create data stream without expected column headers."""
-    data: List[List[str | int]] = [
+    data: list[list[str | int]] = [
         ["dummy1", "dummy2", "dummy3"],
         [1, 1, 8],
         [1, 2, 99],
@@ -65,7 +65,7 @@ def no_ids_stream():
 @pytest.fixture(scope="function")
 def data_stream():
     """Create valid data stream with header row."""
-    data: List[List[str | int]] = [
+    data: list[list[str | int]] = [
         ["adcid", "ptid", "visitdate", "visitnum", "packet", "formver", "var1"],
         [1, "1", "2024-12-31", "1", "I", "4.0", 8],
         [1, "2", "2024-12-31", "1", "I", "4.0", 99],
@@ -279,7 +279,7 @@ class TestIdentifierLookup:
         fields when no module config file is provided.
         """
         # Create minimal CSV with just the essential fields
-        minimal_data: List[List[str | int]] = [
+        minimal_data: list[list[str | int]] = [
             ["adcid", "ptid"],  # Minimal header
             [1, "1"],
             [1, "2"],

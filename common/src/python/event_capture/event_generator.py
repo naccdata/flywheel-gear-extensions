@@ -1,7 +1,6 @@
 """EventGenerator for creating VisitEvent objects from extracted log data."""
 
 import logging
-from typing import Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from pipeline.pipeline_label import PipelineLabel
@@ -28,8 +27,8 @@ class EventGenerator:
             project: The project adaptor for accessing project metadata
         """
         self._project = project
-        self._pipeline_label: Optional[PipelineLabel] = None
-        self._pipeline_adcid: Optional[int] = None
+        self._pipeline_label: PipelineLabel | None = None
+        self._pipeline_adcid: int | None = None
 
         # Parse project label and extract metadata
         try:
@@ -46,9 +45,7 @@ class EventGenerator:
         except ProjectError as error:
             log.warning("Failed to get pipeline ADCID: %s", error)
 
-    def create_submission_event(
-        self, event_data: SubmitEventData
-    ) -> Optional[VisitEvent]:
+    def create_submission_event(self, event_data: SubmitEventData) -> VisitEvent | None:
         """Create a submission event from extracted log data.
 
         Args:
@@ -99,7 +96,7 @@ class EventGenerator:
             log.warning("Failed to create submission event: %s", error)
             return None
 
-    def create_qc_event(self, event_data: QCEventData) -> Optional[VisitEvent]:
+    def create_qc_event(self, event_data: QCEventData) -> VisitEvent | None:
         """Create a event from extracted log data.
 
         Only creates an event if the QC status is PASS and a completion

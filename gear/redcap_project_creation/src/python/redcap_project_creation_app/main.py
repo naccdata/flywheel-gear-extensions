@@ -1,7 +1,6 @@
 """Defines REDCap Project Creation."""
 
 import logging
-from typing import Dict, Optional, Tuple
 
 from centers.center_group import (
     CenterError,
@@ -25,7 +24,7 @@ log = logging.getLogger(__name__)
 
 def setup_new_project_elements(
     parameter_store: ParameterStore, base_path: str, token: str, url: str
-) -> Optional[int]:
+) -> int | None:
     """Set up elements required to access the new REDCap project.
 
         - Retrieve the newly created REDCap PID using the project api token.
@@ -69,8 +68,8 @@ def run(  # noqa: C901
     redcap_super_con: REDCapSuperUserConnection,
     study_info: StudyREDCapMetadata,
     use_template: bool,
-    xml_templates: Optional[Dict[str, str]],
-) -> Tuple[bool, int]:
+    xml_templates: dict[str, str] | None,
+) -> tuple[bool, int]:
     """Create REDCap projects using super API token, store project API token in
     AWS parameter store, update REDCap project info in Flywheel metadata.
 

@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 from botocore.exceptions import ClientError
 from coreapi_client.api.default_api import DefaultApi
@@ -62,8 +61,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         redcap_param_repo: REDCapParametersRepository,
         portal_url: str,
         notification_mode: NotificationModeType = "date",
-        support_emails: Optional[List[str]] = None,
-        domain_config_filepath: Optional[Path] = None,
+        support_emails: list[str] | None = None,
+        domain_config_filepath: Path | None = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -82,7 +81,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "UserManagementVisitor":
         """Visits the gear context to gather inputs.
 
@@ -554,7 +553,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             List of user objects
         """
         try:
-            with open(user_file_path, "r", encoding="utf-8-sig") as user_file:
+            with open(user_file_path, encoding="utf-8-sig") as user_file:
                 object_list = load_from_stream(user_file)
         except YAMLReadError as error:
             raise GearExecutionError(
@@ -590,7 +589,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             The authorization map
         """
         try:
-            with open(auth_file_path, "r", encoding="utf-8-sig") as auth_file:
+            with open(auth_file_path, encoding="utf-8-sig") as auth_file:
                 auth_object = load_from_stream(auth_file)
                 auth_map = AuthMap.model_validate(
                     auth_object,
@@ -626,7 +625,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             Tuple of (DomainRelationshipConfig, IdPDomainConfig).
         """
         try:
-            with open(domain_config_filepath, "r", encoding="utf-8-sig") as config_file:
+            with open(domain_config_filepath, encoding="utf-8-sig") as config_file:
                 config_object = load_from_stream(config_file)
         except YAMLReadError as error:
             raise GearExecutionError(

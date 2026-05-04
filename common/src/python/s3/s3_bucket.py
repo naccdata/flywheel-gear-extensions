@@ -5,7 +5,7 @@ import logging
 import re
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import boto3
 from botocore.config import Config
@@ -58,7 +58,7 @@ class S3BucketInterface:
         """Expose name of bucket."""
         return self.__bucket
 
-    def get_file_object(self, filename: str) -> Dict[str, Any]:
+    def get_file_object(self, filename: str) -> dict[str, Any]:
         """Get the file object.
 
         Args:
@@ -79,7 +79,7 @@ class S3BucketInterface:
         self,
         local_dir: Path,
         output_prefix: str,
-        exclude_patterns: Optional[List[str]] = None,
+        exclude_patterns: list[str] | None = None,
     ) -> None:
         """Upload local directory to S3.
 
@@ -120,7 +120,7 @@ class S3BucketInterface:
         log.info("Results uploaded successfully")
 
     def upload_file(
-        self, local_file: Path, output_prefix: str, relative_path: Optional[str] = None
+        self, local_file: Path, output_prefix: str, relative_path: str | None = None
     ) -> None:
         """Upload a single file to the S3 bucket.
 
@@ -160,7 +160,7 @@ class S3BucketInterface:
         file_obj = self.get_file_object(filename)
         return StringIO(file_obj["Body"].read().decode("utf-8"))
 
-    def read_directory(self, prefix: str) -> Dict[str, Dict]:
+    def read_directory(self, prefix: str) -> dict[str, dict]:
         """Retrieve all file objects from the directory specified by the prefix
         within the S3 bucket.
 
@@ -188,7 +188,7 @@ class S3BucketInterface:
 
         return file_objects
 
-    def list_directory(self, prefix: str, glob: Optional[str] = None) -> List[str]:
+    def list_directory(self, prefix: str, glob: str | None = None) -> list[str]:
         """Lists the directory.
 
         Args:
@@ -243,7 +243,7 @@ class S3BucketInterface:
             ) from e
 
     def download_files(
-        self, prefix: str, target_dir: Path, glob: Optional[str] = None
+        self, prefix: str, target_dir: Path, glob: str | None = None
     ) -> None:
         """Download files from the prefix to the target directory. Preserves S3
         hierarchy under prefix.
@@ -320,7 +320,7 @@ class S3BucketInterface:
         return S3BucketInterface(boto_client=client, bucket_name=s3bucket)
 
     @classmethod
-    def parse_bucket_and_key(self, s3_uri: str) -> Tuple[str, str]:
+    def parse_bucket_and_key(self, s3_uri: str) -> tuple[str, str]:
         """Parses the bucket and key from an S3 URI.
 
         Args:

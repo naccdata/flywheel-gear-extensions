@@ -1,7 +1,6 @@
 """Entry script for Attribute Curator."""
 
 import logging
-from typing import List, Optional
 
 from centers.center_group import CenterGroup
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
@@ -34,12 +33,12 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         project: ProjectAdaptor,
-        filename_patterns: List[str],
-        include_subjects: List[str],
-        exclude_subjects: List[str],
+        filename_patterns: list[str],
+        include_subjects: list[str],
+        exclude_subjects: list[str],
         curation_tag: str,
         force_curate: bool = False,
-        rxclass_concepts_file: Optional[InputFileWrapper] = None,
+        rxclass_concepts_file: InputFileWrapper | None = None,
         max_num_workers: int = 4,
         ignore_qc: bool = False,
     ):
@@ -58,7 +57,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "AttributeCuratorVisitor":
         """Creates a UDS Curator execution visitor.
 
@@ -149,7 +148,7 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
         rxclass_concepts = None
         if self.__rxclass_concepts_file:
             with open(
-                self.__rxclass_concepts_file.filepath, mode="r", encoding="utf-8-sig"
+                self.__rxclass_concepts_file.filepath, encoding="utf-8-sig"
             ) as fh:
                 rxclass_concepts = load_rxclass_concepts_from_file(fh)
 

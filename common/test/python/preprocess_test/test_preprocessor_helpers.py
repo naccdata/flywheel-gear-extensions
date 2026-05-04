@@ -1,7 +1,5 @@
 """Tests preprocessing helpers."""
 
-from typing import Optional, Tuple
-
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.error_models import CSVLocation
@@ -21,7 +19,7 @@ class TestFormPreprocessorErrorHandler:
         self,
         module: str,
         module_configs: ModuleConfigs,
-    ) -> Tuple[FormPreprocessorErrorHandler, ListErrorWriter]:
+    ) -> tuple[FormPreprocessorErrorHandler, ListErrorWriter]:
         """Create an error handler with a ListErrorWriter for testing.
 
         Args:
@@ -45,7 +43,7 @@ class TestFormPreprocessorErrorHandler:
         value: str,
         location: str,
         error_code: str,
-        message: Optional[str] = None,
+        message: str | None = None,
     ):
         """Most tests check the same thing, so generalize."""
         assert len(error_writer.errors()) == 1

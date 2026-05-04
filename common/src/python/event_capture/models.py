@@ -18,7 +18,6 @@ of submit events with packet information and other metadata.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from nacc_common.error_models import DataIdentification, QCStatus
 from pydantic import BaseModel, Field, field_validator
@@ -135,10 +134,10 @@ class SubmitEventData(EventData):
 class DateRange(BaseModel):
     """Optional configuration for filtering files by date."""
 
-    start_date: Optional[datetime] = Field(
+    start_date: datetime | None = Field(
         default=None, description="Start date for filtering files"
     )
-    end_date: Optional[datetime] = Field(
+    end_date: datetime | None = Field(
         default=None, description="End date for filtering files"
     )
 
@@ -167,7 +166,7 @@ class UnmatchedSubmitEvents:
 
     def __init__(self) -> None:
         """Initialize the unmatched events collection."""
-        self._events: Dict[EventMatchKey, VisitEvent] = {}
+        self._events: dict[EventMatchKey, VisitEvent] = {}
 
     def add(self, event: VisitEvent) -> None:
         """Add an unmatched submit event to the collection.
@@ -189,7 +188,7 @@ class UnmatchedSubmitEvents:
         # This enables efficient O(1) lookup during the matching phase.
         self._events[key] = event
 
-    def find_and_remove(self, key: EventMatchKey) -> Optional[VisitEvent]:
+    def find_and_remove(self, key: EventMatchKey) -> VisitEvent | None:
         """Find and remove a submit event by match key.
 
         This method removes the event from the collection, ensuring that
@@ -209,7 +208,7 @@ class UnmatchedSubmitEvents:
         # Returns None if the key is not found (no matching submit event).
         return self._events.pop(key, None)
 
-    def get_remaining(self) -> List[VisitEvent]:
+    def get_remaining(self) -> list[VisitEvent]:
         """Get all remaining unmatched submit events.
 
         Returns:

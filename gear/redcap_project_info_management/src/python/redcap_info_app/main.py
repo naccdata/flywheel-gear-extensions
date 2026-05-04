@@ -1,7 +1,6 @@
 """Defines REDCap Project Info Management."""
 
 import logging
-from typing import List
 
 from centers.center_group import REDCapProjectInput
 from centers.nacc_group import NACCGroup
@@ -9,7 +8,7 @@ from centers.nacc_group import NACCGroup
 log = logging.getLogger(__name__)
 
 
-def run(*, project_list: List[REDCapProjectInput], admin_group: NACCGroup):
+def run(*, project_list: list[REDCapProjectInput], admin_group: NACCGroup):
     """Adds REDCap project information from the list to the center info object.
 
     Args:

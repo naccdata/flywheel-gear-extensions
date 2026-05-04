@@ -1,7 +1,7 @@
 """Tests curator.scheduling."""
 
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pytest
 from curator.scheduling_models import FileModel, ViewResponseModel
@@ -10,13 +10,13 @@ from nacc_attribute_deriver.utils.scope import FormScope
 
 def fm(
     filename: str,
-    visitdate: Optional[str] = None,
-    study_date: Optional[str] = None,
-    scan_date: Optional[str] = None,
-    scandate: Optional[str] = None,
-    scandt: Optional[str] = None,
-    img_study_date: Optional[str] = None,
-    session_id: Optional[str] = None,
+    visitdate: str | None = None,
+    study_date: str | None = None,
+    scan_date: str | None = None,
+    scandate: str | None = None,
+    scandt: str | None = None,
+    img_study_date: str | None = None,
+    session_id: str | None = None,
 ) -> FileModel:
     """Generates a file model for testing, may need to specify dates."""
     file_info = {
@@ -200,7 +200,7 @@ class TestDetermineScope:
         assert fm("UDS_extra.json").scope is None
 
 
-def raw_fm(filename: str, **kwargs) -> Dict[str, Any]:
+def raw_fm(filename: str, **kwargs) -> dict[str, Any]:
     """Create the raw file model so it can be processed by the
     ViewResponseModel."""
     file_model = fm(filename=filename, **kwargs)

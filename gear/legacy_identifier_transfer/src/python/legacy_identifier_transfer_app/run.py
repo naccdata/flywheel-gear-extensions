@@ -1,7 +1,7 @@
 """Entry script for legacy_identifier_transfer."""
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 def get_identifiers(
     identifiers_repo: IdentifierRepository, adcid: int
-) -> Dict[str, IdentifierObject]:
+) -> dict[str, IdentifierObject]:
     """Gets all of the Identifier objects from the identifier database for the
     specified center.
 
@@ -58,7 +58,7 @@ def get_identifiers(
 
 
 # This is adapted from redcap_fw_transfer gear
-def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
+def get_destination_group_and_project(dest_container: Any) -> tuple[str, str]:
     """Find the flywheel group id and project id for the destination project.
 
     Args:
@@ -104,7 +104,7 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "LegacyIdentifierTransferVisitor":
         """Creates a legacy naccid transfer execution visitor.
 

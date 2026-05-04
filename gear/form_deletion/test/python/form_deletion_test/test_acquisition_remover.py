@@ -1,6 +1,6 @@
 """Unit tests for AcquisitionRemover."""
 
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock
 
 from deletions.models import DeleteRequest
@@ -489,7 +489,7 @@ class TestCompareVisitDetails:
         self, form_configs, uds_module_configs, deleted_items, delete_request
     ):
         """Acquisition with empty forms.json dict passes validation."""
-        acq_info: Dict[str, Any] = {"forms": {"json": {}}}
+        acq_info: dict[str, Any] = {"forms": {"json": {}}}
         result, proxy = self._run_with_acq_info(
             form_configs, uds_module_configs, deleted_items, delete_request, acq_info
         )

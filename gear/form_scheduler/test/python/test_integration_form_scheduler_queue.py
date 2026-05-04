@@ -2,7 +2,6 @@
 
 import json
 from datetime import datetime
-from typing import List, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -41,7 +40,7 @@ class MockProjectAdaptorForQueue(MockProjectAdaptor):
         project_id: str = "project-123",
         group: str = "dummy-center",
         pipeline_adcid: int = 42,
-        files: Optional[List[FileEntry]] = None,
+        files: list[FileEntry] | None = None,
     ):
         super().__init__(label)
         self.__project_id = project_id
@@ -115,11 +114,11 @@ def create_mock_json_file_for_queue(
     name: str,
     ptid: str,
     visitdate: str,
-    visitnum: Optional[str],
+    visitnum: str | None,
     module: str,
     packet: str,
     parent_id: str = "acquisition-123",
-    tags: Optional[List[str]] = None,
+    tags: list[str] | None = None,
 ) -> FileEntry:
     """Create a mock JSON file for queue testing.
 
@@ -166,8 +165,8 @@ def create_mock_qc_status_file_for_queue(
     date: str,
     module: str,
     qc_status: str = QC_STATUS_PASS,
-    visit_metadata: Optional[DataIdentification] = None,
-    modified: Optional[datetime] = None,
+    visit_metadata: DataIdentification | None = None,
+    modified: datetime | None = None,
 ) -> FileEntry:
     """Create a mock QC-status file for queue testing.
 

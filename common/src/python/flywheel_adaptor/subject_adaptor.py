@@ -2,7 +2,7 @@
 specialized subject wrappers."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flywheel.file_spec import FileSpec
 from flywheel.finder import Finder
@@ -30,7 +30,7 @@ class SubjectAdaptor:
         self._subject = subject
 
     @property
-    def info(self) -> Dict[str, Any]:
+    def info(self) -> dict[str, Any]:
         """Returns the info object for this subject."""
         self._subject = self._subject.reload()
         return self._subject.info
@@ -70,7 +70,7 @@ class SubjectAdaptor:
         """
         return self._subject.add_session(label=label)
 
-    def find_session(self, label: str) -> Optional[Session]:
+    def find_session(self, label: str) -> Session | None:
         """Finds the session with specified label.
 
         Args:
@@ -82,7 +82,7 @@ class SubjectAdaptor:
 
         return self.sessions.find_first(f"label={label}")
 
-    def update(self, info: Dict[str, Any]) -> None:
+    def update(self, info: dict[str, Any]) -> None:
         """Updates the info object for this subject.
 
         Args:
@@ -90,7 +90,7 @@ class SubjectAdaptor:
         """
         self._subject.update(info=info)
 
-    def get_last_failed_visit(self, module: str) -> Optional[VisitInfo]:
+    def get_last_failed_visit(self, module: str) -> VisitInfo | None:
         """Returns the last failed visit for this subject for the given module.
 
         Args:
@@ -148,7 +148,7 @@ class SubjectAdaptor:
         self._subject.update_info(updates)
 
     @api_retry
-    def upload_file(self, file_spec: FileSpec) -> Optional[List[Dict]]:
+    def upload_file(self, file_spec: FileSpec) -> list[dict] | None:
         """Upload a file to this subject.
 
         Args:
@@ -171,7 +171,7 @@ class SubjectAdaptor:
         contents: str,
         content_type: str,
         skip_duplicates: bool = True,
-    ) -> Optional[FileEntry]:
+    ) -> FileEntry | None:
         """Uploads a file to a given session/acquisition in this subject.
         Creates new containers if session/acquisition does not exist.
 
@@ -225,8 +225,8 @@ class SubjectAdaptor:
         *,
         session: str,
         acquisition: str,
-        extension: Optional[str] = "json",
-        connector: Optional[str] = "_",
+        extension: str | None = "json",
+        connector: str | None = "_",
     ) -> str:
         """Generate filename in desired format.
 
@@ -243,7 +243,7 @@ class SubjectAdaptor:
 
     def find_acquisition_file(
         self, *, session_label: str, acquisition_label: str, filename: str
-    ) -> Optional[FileEntry]:
+    ) -> FileEntry | None:
         """Find a file matches with given session/acquisition/filename in this
         subject.
 

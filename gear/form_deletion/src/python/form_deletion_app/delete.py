@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from deletions.models import DeletedItems, DeleteRequest
@@ -34,7 +33,7 @@ class FormDeletionProcessor:
         request_time: datetime,
         form_configs: FormProjectConfigs,
         error_writer: ListErrorWriter,
-        identifier: Optional[IdentifierObject] = None,
+        identifier: IdentifierObject | None = None,
         check_sbsq_visits: bool,
     ):
         """
@@ -75,7 +74,7 @@ class FormDeletionProcessor:
         """Returns the items deleted while processing the delete request."""
         return self.__deleted_items
 
-    def __get_error_log_name(self, module: str) -> Optional[str]:
+    def __get_error_log_name(self, module: str) -> str | None:
         """Returns the QC errorlog filename for this delete request.
 
         Args:

@@ -3,8 +3,9 @@
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Literal, Mapping, Optional
+from typing import Any, Literal
 
 from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import (
@@ -77,7 +78,7 @@ class FileProcessor(ABC):
     @abstractmethod
     def validate_input(
         self, *, input_wrapper: InputFileWrapper
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Validates the input file before proceeding with data quality checks.
 
         Args:
@@ -89,8 +90,8 @@ class FileProcessor(ABC):
 
     @abstractmethod
     def load_schema_definitions(
-        self, *, rule_def_loader: DefinitionsLoader, input_data: Dict[str, Any]
-    ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
+        self, *, rule_def_loader: DefinitionsLoader, input_data: dict[str, Any]
+    ) -> tuple[dict[str, Mapping], dict[str, dict] | None]:
         """Loads the rule definition JSON schemas for the respective
         module/version.
 
@@ -119,7 +120,7 @@ class FileProcessor(ABC):
             GearExecutionError: if errors occurred while processing the input file
         """
 
-    def _set_required_fields(self) -> List[str]:
+    def _set_required_fields(self) -> list[str]:
         """Retrieve list of required field names form module ingest configs.
 
         Returns:
@@ -142,7 +143,7 @@ class FileProcessor(ABC):
     def update_visit_error_log(
         self,
         *,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         qc_passed: bool,
         reset_qc_metadata: MetadataCleanupFlag = "NA",
     ) -> bool:
@@ -211,7 +212,7 @@ class JSONFileProcessor(FileProcessor):
         error_writer: ListErrorWriter,
         form_configs: FormProjectConfigs,
         gear_name: str,
-        supplement_data: Optional[Dict[str, Any]] = None,
+        supplement_data: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             pk_field=pk_field,
@@ -285,7 +286,7 @@ class JSONFileProcessor(FileProcessor):
 
     def validate_input(
         self, *, input_wrapper: InputFileWrapper
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Validates a JSON input file for a participant visit. Check whether
         all required fields are present in the input data. Check whether
         primary key matches with the Flywheel subject label in the project.
@@ -297,7 +298,7 @@ class JSONFileProcessor(FileProcessor):
         Returns:
             Dict[str, Any]: None if required info missing, else input record as dict
         """
-        with open(input_wrapper.filepath, mode="r", encoding="utf-8-sig") as file_obj:
+        with open(input_wrapper.filepath, encoding="utf-8-sig") as file_obj:
             try:
                 input_data = json.load(file_obj)
             except (JSONDecodeError, TypeError) as error:
@@ -354,8 +355,8 @@ class JSONFileProcessor(FileProcessor):
         return self.__input_record
 
     def load_schema_definitions(
-        self, *, rule_def_loader: DefinitionsLoader, input_data: Dict[str, Any]
-    ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
+        self, *, rule_def_loader: DefinitionsLoader, input_data: dict[str, Any]
+    ) -> tuple[dict[str, Mapping], dict[str, dict] | None]:
         """Loads the rule definition JSON schemas for the respective
         module/version. Checks for optional form submissions and loads the
         appropriate schema.

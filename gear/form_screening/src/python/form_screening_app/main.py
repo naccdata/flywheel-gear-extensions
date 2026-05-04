@@ -3,7 +3,7 @@
 import logging
 import os
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -42,8 +42,8 @@ def save_output(
     context: GearContext,
     outfilename: str,
     contents: str,
-    tags: Optional[List[str]] = None,
-    info: Optional[Dict[str, Any]] = None,
+    tags: list[str] | None = None,
+    info: dict[str, Any] | None = None,
 ):
     """Saves the output file and add tags/metadata if any.
 
@@ -75,7 +75,7 @@ def save_output(
 
 def get_scheduler_gear_inputs(
     scheduler_gear: GearInfo, project: ProjectAdaptor
-) -> Dict[str, FileEntry]:
+) -> dict[str, FileEntry]:
     """Get the input files for the form scheduler gear.
 
     Args:
@@ -87,7 +87,7 @@ def get_scheduler_gear_inputs(
     """
     gear_input_info = scheduler_gear.get_inputs_by_file_locator_type(locators=["fixed"])
 
-    gear_inputs: Dict[str, FileEntry] = {}
+    gear_inputs: dict[str, FileEntry] = {}
     # set gear inputs of file locator type fixed
     # these are the project level files with fixed filename specified in the configs
     if gear_input_info and "fixed" in gear_input_info:
@@ -144,12 +144,12 @@ def run(
     proxy: FlywheelProxy,
     context: GearContext,
     file_input: InputFileWrapper,
-    accepted_modules: List[str],
-    queue_tags: List[str],
+    accepted_modules: list[str],
+    queue_tags: list[str],
     scheduler_gear: GearInfo,
     format_and_tag: bool,
     gear_name: str,
-) -> Optional[ListErrorWriter]:
+) -> ListErrorWriter | None:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules, if the suffix does not match, report an error.
         If format_and_tag=True (only supported for CSVs):
@@ -239,7 +239,7 @@ def run(
     # open file using utf-8-sig to treat the BOM as metadata (if present)
     success = False
     try:
-        with open(file_input.filepath, mode="r", encoding="utf-8-sig") as csv_file:
+        with open(file_input.filepath, encoding="utf-8-sig") as csv_file:
             success = read_csv(
                 input_file=csv_file,
                 error_writer=error_writer,
@@ -263,7 +263,7 @@ def run(
     queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)
-    info: Dict[str, Any] = {"uploader": file.origin.id}
+    info: dict[str, Any] = {"uploader": file.origin.id}
 
     # save output file and add tags/metadata
     save_output(

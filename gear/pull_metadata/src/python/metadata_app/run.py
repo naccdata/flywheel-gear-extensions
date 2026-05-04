@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import List, Optional
 
 from flywheel import Client
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -30,13 +29,13 @@ def main():
             sys.exit(1)
 
         try:
-            s3_param_path: Optional[str] = get_config(
+            s3_param_path: str | None = get_config(
                 gear_context=gear_context, key="s3_param_path"
             )
-            destination_label: Optional[str] = get_config(
+            destination_label: str | None = get_config(
                 gear_context=gear_context, key="destination_label"
             )
-            table_list: List[str] = get_config(
+            table_list: list[str] = get_config(
                 gear_context=gear_context, key="table_list"
             )
         except ConfigParseError as error:

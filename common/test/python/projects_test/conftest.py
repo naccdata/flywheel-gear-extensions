@@ -4,7 +4,7 @@ This module provides pytest fixtures and builder classes for creating
 test data for StudyModel, PageProjectMetadata, and Flywheel components.
 """
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 from unittest.mock import Mock
 
 import pytest
@@ -65,7 +65,7 @@ class StudyModelBuilder:
         self._study_id = study_id
         return self
 
-    def with_centers(self, centers: List[str]) -> "StudyModelBuilder":
+    def with_centers(self, centers: list[str]) -> "StudyModelBuilder":
         """Set the centers list.
 
         Args:
@@ -77,7 +77,7 @@ class StudyModelBuilder:
         self._centers = [StudyCenterModel(center_id=c) for c in centers]
         return self
 
-    def with_datatypes(self, datatypes: List[str]) -> "StudyModelBuilder":
+    def with_datatypes(self, datatypes: list[str]) -> "StudyModelBuilder":
         """Set the datatypes list.
 
         Args:
@@ -89,7 +89,7 @@ class StudyModelBuilder:
         self._datatypes = datatypes
         return self
 
-    def with_dashboards(self, dashboards: Optional[List[str]]) -> "StudyModelBuilder":
+    def with_dashboards(self, dashboards: list[str] | None) -> "StudyModelBuilder":
         """Set the dashboards list.
 
         Args:
@@ -101,7 +101,7 @@ class StudyModelBuilder:
         self._dashboards = dashboards
         return self
 
-    def with_pages(self, pages: Optional[List[str]]) -> "StudyModelBuilder":
+    def with_pages(self, pages: list[str] | None) -> "StudyModelBuilder":
         """Set the pages list.
 
         Args:

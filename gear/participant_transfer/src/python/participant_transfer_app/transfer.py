@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from centers.center_group import CenterGroup
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
@@ -47,7 +46,7 @@ class TransferProcessor:
         transfer_record: TransferRecord,
         enroll_project: EnrollmentProject,
         identifiers_repo: IdentifiersLambdaRepository,
-        warnings: List[str],
+        warnings: list[str],
     ) -> None:
         """Initialize the Transfer Processor."""
         self.__transfer_record = transfer_record
@@ -55,7 +54,7 @@ class TransferProcessor:
         self.__repo = identifiers_repo
         self.__warnings = warnings
 
-    def __get_identifier_for_previous_center(self) -> Optional[IdentifierObject]:
+    def __get_identifier_for_previous_center(self) -> IdentifierObject | None:
         """Find the previous center's identifier record for this participant.
 
         Returns:
@@ -118,7 +117,7 @@ class TransferProcessor:
             log.error(message)
             return None
 
-    def find_identifier_record(self) -> Optional[IdentifierObject]:
+    def find_identifier_record(self) -> IdentifierObject | None:
         """Find the active identifier object for this participant.
 
         - check whether there is an active record for this participant in old center
@@ -206,7 +205,7 @@ class TransferProcessor:
 
         return curr_identifier
 
-    def find_identifier_for_partial_transfer(self) -> Optional[IdentifierObject]:
+    def find_identifier_for_partial_transfer(self) -> IdentifierObject | None:
         """Find the active identifier object for a partially processed
         transfer. i.e. database updated but errors occurred while copying data.
 

@@ -4,7 +4,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -76,9 +76,9 @@ class UserContext(BaseModel):
 
     email: str
     name: str = "Unknown"
-    center_id: Optional[int] = None
-    registry_id: Optional[str] = None
-    auth_email: Optional[str] = None
+    center_id: int | None = None
+    registry_id: str | None = None
+    auth_email: str | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -103,7 +103,7 @@ class UserContext(BaseModel):
         return "Unknown"
 
     @field_serializer("center_id", mode="plain")
-    def serialize_center_id(self, center_id: Optional[int]) -> Optional[str]:
+    def serialize_center_id(self, center_id: int | None) -> str | None:
         """Serialize center_id as a string for templates.
 
         Templates need string values, so convert the int to string
@@ -142,10 +142,10 @@ class UserProcessEvent(BaseModel):
     category: EventCategory
     user_context: UserContext
     message: str
-    action_needed: Optional[str] = None
+    action_needed: str | None = None
 
     @classmethod
-    def csv_fieldnames(cls) -> List[str]:
+    def csv_fieldnames(cls) -> list[str]:
         """Returns the field names for CSV export in the correct order.
 
         The CSV export flattens the user_context fields, so this method
@@ -234,7 +234,7 @@ class UserEventCollector:
 
     def __init__(self):
         """Initialize an empty event collector."""
-        self._events: Dict[EventCategory, List[UserProcessEvent]] = defaultdict(list)
+        self._events: dict[EventCategory, list[UserProcessEvent]] = defaultdict(list)
 
     def collect(self, event: UserProcessEvent) -> None:
         """Add an event to the collection, automatically categorizing it.
@@ -253,7 +253,7 @@ class UserEventCollector:
         else:
             self._events[event.category].append(event)
 
-    def get_events(self) -> List[UserProcessEvent]:
+    def get_events(self) -> list[UserProcessEvent]:
         """Get all collected events as a flat list.
 
         Returns:
@@ -264,7 +264,7 @@ class UserEventCollector:
             all_events.extend(event_list)
         return all_events
 
-    def get_errors(self) -> List[UserProcessEvent]:
+    def get_errors(self) -> list[UserProcessEvent]:
         """Get all error events.
 
         Returns:
@@ -272,7 +272,7 @@ class UserEventCollector:
         """
         return [event for event in self.get_events() if event.is_error()]
 
-    def get_successes(self) -> List[UserProcessEvent]:
+    def get_successes(self) -> list[UserProcessEvent]:
         """Get all success events.
 
         Returns:
@@ -280,7 +280,7 @@ class UserEventCollector:
         """
         return [event for event in self.get_events() if event.is_success()]
 
-    def get_events_by_category(self) -> Dict[EventCategory, List[UserProcessEvent]]:
+    def get_events_by_category(self) -> dict[EventCategory, list[UserProcessEvent]]:
         """Get events grouped by category.
 
         Returns:
@@ -288,7 +288,7 @@ class UserEventCollector:
         """
         return dict(self._events)
 
-    def get_errors_by_category(self) -> Dict[EventCategory, List[UserProcessEvent]]:
+    def get_errors_by_category(self) -> dict[EventCategory, list[UserProcessEvent]]:
         """Get error events grouped by category.
 
         Returns:
@@ -302,7 +302,7 @@ class UserEventCollector:
 
     def get_events_for_category(
         self, category: EventCategory
-    ) -> List[UserProcessEvent]:
+    ) -> list[UserProcessEvent]:
         """Get all events for a specific category.
 
         Args:
@@ -313,7 +313,7 @@ class UserEventCollector:
         """
         return self._events.get(category, []).copy()
 
-    def count_by_category(self) -> Dict[str, int]:
+    def count_by_category(self) -> dict[str, int]:
         """Count events by category.
 
         Returns:
@@ -323,7 +323,7 @@ class UserEventCollector:
             category.value: len(events) for category, events in self._events.items()
         }
 
-    def get_affected_users(self) -> List[str]:
+    def get_affected_users(self) -> list[str]:
         """Get list of unique user emails affected by events.
 
         Returns:

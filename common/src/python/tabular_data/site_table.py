@@ -3,7 +3,7 @@
 import logging
 import re
 from io import StringIO
-from typing import Dict, Optional, Set
+from typing import Optional
 
 import pandas as pd
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -19,7 +19,7 @@ class SiteTable:
     """
 
     def __init__(
-        self, *, data: pd.DataFrame, site_id_column: str, site_map: Dict[str, str]
+        self, *, data: pd.DataFrame, site_id_column: str, site_map: dict[str, str]
     ) -> None:
         self.__data_table = data
         self.__site_column = site_id_column
@@ -60,7 +60,7 @@ class SiteTable:
             data=table_data, site_id_column=site_id_name, site_map=site_map
         )
 
-    def get_adcids(self) -> Set[str]:
+    def get_adcids(self) -> set[str]:
         """Returns the set of ADCIDs for data in the table.
 
         Returns:
@@ -68,7 +68,7 @@ class SiteTable:
         """
         return set(self.__site_map.keys())
 
-    def select_site(self, adcid: str) -> Optional[str]:
+    def select_site(self, adcid: str) -> str | None:
         """Selects the rows of the table for the site.
 
         Args:
@@ -89,7 +89,7 @@ class SiteTable:
 def upload_split_table(
     *,
     table: SiteTable,
-    project_map: Dict[str, Optional[ProjectAdaptor]],
+    project_map: dict[str, ProjectAdaptor | None],
     file_name: str,
     dry_run: bool,
 ) -> None:

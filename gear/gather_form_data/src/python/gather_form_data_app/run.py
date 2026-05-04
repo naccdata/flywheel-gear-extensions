@@ -3,7 +3,7 @@
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional, get_args
+from typing import get_args
 
 from data_requests.data_request import DataRequestVisitor, ModuleDataGatherer
 from fw_gear import GearContext
@@ -47,7 +47,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "GatherFormDataVisitor":
         """Creates a Gather Form Data execution visitor.
 
@@ -98,7 +98,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             )
 
         input_path = Path(self.__file_input.filepath)
-        with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
+        with open(input_path, encoding="utf-8-sig") as request_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(
                 container_id=file_id,

@@ -4,7 +4,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from configs.ingest_configs import ModuleConfigs
 from nacc_common.data_identification import (
@@ -29,10 +29,10 @@ class PreprocessingException(Exception):
 
 @dataclass
 class PreprocessingContext:
-    input_record: Dict[str, Any]
+    input_record: dict[str, Any]
     line_num: int
-    subject_lbl: Optional[str] = None
-    ivp_record: Optional[Dict[str, Any]] = None
+    subject_lbl: str | None = None
+    ivp_record: dict[str, Any] | None = None
 
 
 class FormPreprocessorErrorHandler:
@@ -52,8 +52,8 @@ class FormPreprocessorErrorHandler:
         pp_context: PreprocessingContext,
         error_code: str,
         suppress_logs: bool = False,
-        message: Optional[str] = None,
-        extra_args: Optional[List[Any]] = None,
+        message: str | None = None,
+        extra_args: list[Any] | None = None,
     ) -> None:
         """Write a preprocessing error.
 
@@ -120,7 +120,7 @@ class FormPreprocessorErrorHandler:
         pp_context: PreprocessingContext,
         error_code: str,
         suppress_logs: bool = False,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> None:
         """Write a module-related preprocessing error."""
         self.write_preprocessing_error(
@@ -162,7 +162,7 @@ class FormPreprocessorErrorHandler:
         self,
         pp_context: PreprocessingContext,
         error_code: str,
-        date_field: Optional[str] = None,
+        date_field: str | None = None,
     ) -> None:
         """Write a date-related preprocessing error."""
         if not date_field:
@@ -179,7 +179,7 @@ class FormPreprocessorErrorHandler:
         )
 
 
-def validate_sex_reported_on_np(npsex: int, uds_record: Dict[str, Any]) -> bool:
+def validate_sex_reported_on_np(npsex: int, uds_record: dict[str, Any]) -> bool:
     """Check whether participant's sex reported on NP form and UDS IVP matches.
 
     Args:
@@ -205,7 +205,7 @@ def validate_sex_reported_on_np(npsex: int, uds_record: Dict[str, Any]) -> bool:
 
 
 def validate_age_at_death(
-    np_dod: datetime, np_dage: int, uds_record: Dict[str, Any]
+    np_dod: datetime, np_dage: int, uds_record: dict[str, Any]
 ) -> bool:
     """Check whether age at death reported on NP form matches with the age at
     death calculated using DOB reported on UDS IVP.

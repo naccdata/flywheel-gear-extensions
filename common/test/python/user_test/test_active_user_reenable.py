@@ -7,7 +7,6 @@ persons.
 """
 
 import logging
-from typing import Optional
 from unittest.mock import Mock
 
 import pytest
@@ -63,7 +62,7 @@ class TestActiveUserProcessReEnable:
             study_authorizations=[],
         )
 
-    def _make_suspended_person(self, registry_id: Optional[str] = "NACC-001") -> Mock:
+    def _make_suspended_person(self, registry_id: str | None = "NACC-001") -> Mock:
         """Create a mock suspended RegistryPerson."""
         person = Mock(spec=RegistryPerson)
         person.is_suspended.return_value = True

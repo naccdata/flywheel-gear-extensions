@@ -1,7 +1,7 @@
 import csv
 from collections import defaultdict
 from io import StringIO
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple
+from typing import Any
 
 import pytest
 from csv_app.main import CSVSplitVisitor
@@ -14,7 +14,7 @@ from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader
 
 
-def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
+def write_to_stream(data: list[list[Any]], stream: StringIO) -> None:
     """Writes data to the StringIO object for use in a test.
 
     Resets stream pointer to beginning.
@@ -107,24 +107,24 @@ def non_visit_data_stream(valid_non_visit_table):
 
 
 class MockFile(FileEntry):
-    def __init__(self, record: Dict[str, Any]):
+    def __init__(self, record: dict[str, Any]):
         self.__record = record
-        self.__info: Dict[str, Any] = {}
+        self.__info: dict[str, Any] = {}
 
-    def update_info(self, info: Dict[str, Any]) -> None:
+    def update_info(self, info: dict[str, Any]) -> None:
         self.__info.update(info)
 
 
 class MockUploader(JSONUploader):
     def __init__(self, skip_duplicates: bool = True):
-        self.__records: DefaultDict[str, List[MockFile]] = defaultdict(list)
+        self.__records: defaultdict[str, list[MockFile]] = defaultdict(list)
         self.__skip_duplicates = skip_duplicates
 
     def upload_record(
         self,
         subject_label: str,
-        record: Dict[str, Any],
-    ) -> Optional[MockFile]:
+        record: dict[str, Any],
+    ) -> MockFile | None:
         if self.__skip_duplicates and record in self.__records[subject_label]:
             return None
 
@@ -158,8 +158,8 @@ class TestCSVSplitVisitor:
     """Tests csv-subject transformation."""
 
     def __create_dummy_visitor(
-        self, uploader: Optional[MockUploader] = None
-    ) -> Tuple[CSVSplitVisitor, StringIO, StreamErrorWriter]:
+        self, uploader: MockUploader | None = None
+    ) -> tuple[CSVSplitVisitor, StringIO, StreamErrorWriter]:
         """Create dummy visitor and error writer for testing."""
         err_stream = StringIO()
         error_writer = StreamErrorWriter(

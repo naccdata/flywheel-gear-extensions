@@ -2,7 +2,8 @@
 
 import logging
 import time
-from typing import Callable, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import TypeVar
 
 from flywheel.rest import ApiException
 
@@ -34,7 +35,7 @@ def api_retry(func, max_retries: int = 3):
 def retry_with_backoff(
     max_retries: int = 3,
     backoff_factor: float = 2.0,
-    exceptions: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception,
+    exceptions: type[Exception] | tuple[type[Exception], ...] = Exception,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to retry a function with exponential backoff.
 
@@ -63,10 +64,8 @@ def retry_with_backoff(
                     retries += 1
                     if retries > max_retries:
                         log.error(
-                            (
-                                f"{func.__name__} failed after "
-                                f"{max_retries} retries: {error}"
-                            )
+                            f"{func.__name__} failed after "
+                            f"{max_retries} retries: {error}"
                         )
                         raise
 

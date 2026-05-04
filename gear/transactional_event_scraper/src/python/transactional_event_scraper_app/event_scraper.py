@@ -25,7 +25,6 @@ UnmatchedSubmitEvents collection for efficient event matching.
 """
 
 import logging
-from typing import Optional
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
@@ -72,9 +71,9 @@ class EventScraper:
     def __init__(
         self,
         project: ProjectAdaptor,
-        event_capture: Optional[VisitEventCapture] = None,
+        event_capture: VisitEventCapture | None = None,
         dry_run: bool = False,
-        date_filter: Optional[DateRange] = None,
+        date_filter: DateRange | None = None,
     ) -> None:
         """Initialize the EventScraper.
 

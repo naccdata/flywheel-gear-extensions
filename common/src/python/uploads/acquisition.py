@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.acquisition import Acquisition
@@ -13,7 +13,7 @@ from uploads.upload_error import UploaderError
 log = logging.getLogger(__name__)
 
 
-def is_duplicate_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> bool:
+def is_duplicate_dict(dict1: dict[str, Any], dict2: dict[str, Any]) -> bool:
     """Check whether the two python dicts are identical.
 
     Args:
@@ -30,7 +30,7 @@ def is_duplicate_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> bool:
 
 
 def is_duplicate_record(
-    record1: str, record2: str, content_type: Optional[str] = None
+    record1: str, record2: str, content_type: str | None = None
 ) -> bool:
     """Check whether the two records are identical.
 
@@ -56,7 +56,7 @@ def is_duplicate_record(
 
 @api_retry
 def update_file_info_metadata(
-    file: FileEntry, input_record: Dict[str, Any], modality: str = "Form"
+    file: FileEntry, input_record: dict[str, Any], modality: str = "Form"
 ) -> bool:
     """Set file modality and info.forms.json metadata.
 
@@ -99,7 +99,7 @@ def upload_to_acquisition(
     session_label: str,
     acquisition_label: str,
     skip_duplicates: bool = True,
-) -> Optional[FileEntry]:
+) -> FileEntry | None:
     if skip_duplicates:
         existing_file = acquisition.get_file(filename)
         if existing_file:

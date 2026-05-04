@@ -2,7 +2,6 @@
 
 import logging
 import time
-from typing import List, Optional
 
 from flywheel.models.job import Job
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -91,9 +90,9 @@ class JobPoll:
 
     @staticmethod
     def generate_search_string(
-        project_ids_list: Optional[List[str]] = None,
-        gears_list: Optional[List[str]] = None,
-        states_list: Optional[List[str]] = None,
+        project_ids_list: list[str] | None = None,
+        gears_list: list[str] | None = None,
+        states_list: list[str] | None = None,
     ) -> str:
         """Generates the search string for polling jobs.
 
@@ -166,8 +165,8 @@ class JobPoll:
     def wait_for_batched_group(
         cls,
         proxy: FlywheelProxy,
-        project_ids_list: List[str],
-        downstream_gears: List[str],
+        project_ids_list: list[str],
+        downstream_gears: list[str],
     ) -> None:
         """Given a batch of project IDs and downstream gears, wait for the
         batch to finish running before continuing.

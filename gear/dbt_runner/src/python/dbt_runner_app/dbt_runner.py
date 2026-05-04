@@ -7,7 +7,6 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List
 
 from gear_execution.gear_execution import (
     GearExecutionError,
@@ -42,7 +41,7 @@ class DBTRunner:
         # Recursively find all .sql files
         for sql_file in models_dir.rglob("*.sql"):
             try:
-                with open(sql_file, "r") as f:
+                with open(sql_file) as f:
                     content = f.read()
 
                 # Find all location configurations
@@ -121,7 +120,7 @@ class DBTRunner:
             # Always change back to original directory
             os.chdir(original_dir)
 
-    def __parse_external_models_from_manifest(self) -> List[dict]:
+    def __parse_external_models_from_manifest(self) -> list[dict]:
         """Parse manifest.json to extract external model configurations.
 
         Returns:
@@ -130,7 +129,7 @@ class DBTRunner:
         manifest_path = self.__target_dir / "manifest.json"
 
         try:
-            with open(manifest_path, "r") as f:
+            with open(manifest_path) as f:
                 manifest = json.load(f)
 
             log.info("Reading manifest.json to find external model outputs")
@@ -173,7 +172,7 @@ class DBTRunner:
             return Path(location)
         return self.__project_root / location
 
-    def __find_external_model_outputs(self) -> List[Path]:
+    def __find_external_model_outputs(self) -> list[Path]:
         """Find all external model outputs by reading manifest.json.
 
         This function reads the dbt manifest to find models with external

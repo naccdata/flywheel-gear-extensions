@@ -6,7 +6,7 @@ Compatibility**
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from unittest.mock import Mock
 
 from event_capture.event_capture import VisitEventCapture
@@ -29,7 +29,7 @@ class MockVisitEventCapture(VisitEventCapture):
     """Mock VisitEventCapture for testing."""
 
     def __init__(self):
-        self.logged_events: List[VisitEvent] = []
+        self.logged_events: list[VisitEvent] = []
 
     def capture_event(self, event: VisitEvent) -> None:
         """Mock capture_event that stores events."""
@@ -42,7 +42,7 @@ class MockProjectAdaptor:
     def __init__(self, label: str = "ingest-form-study001", group: str = "test-center"):
         self._label = label
         self._group = group
-        self.files: Dict[str, FileEntry] = {}
+        self.files: dict[str, FileEntry] = {}
 
     @property
     def label(self) -> str:
@@ -55,15 +55,15 @@ class MockProjectAdaptor:
     def get_pipeline_adcid(self) -> int:
         return 123
 
-    def get_file(self, filename: str) -> Optional[FileEntry]:
+    def get_file(self, filename: str) -> FileEntry | None:
         return self.files.get(filename)
 
     def add_qc_status_file(
         self,
         filename: str,
         qc_status: str,
-        custom_info: Optional[Dict[str, Any]] = None,
-        qc_completion_time: Optional[datetime] = None,
+        custom_info: dict[str, Any] | None = None,
+        qc_completion_time: datetime | None = None,
     ) -> FileEntry:
         """Add a QC status file to the mock project."""
         # Create QC model with proper structure

@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from flywheel.models.session import Session
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
@@ -26,19 +25,19 @@ class IdentifierInfoRecord(CenterFields, GUIDField, NACCIDField):
 
     update_date: datetime
     status: EnrollmentStatus = "active"
-    legacy: Optional[bool] = False
+    legacy: bool | None = False
 
 
 class EnrollmentInfo(BaseModel):
     """Wrapper for identifier record."""
 
-    enrollment: Optional[IdentifierInfoRecord]
+    enrollment: IdentifierInfoRecord | None
 
 
 class DemographicsInfo(BaseModel):
     """Wrapper for demographics record stored as info."""
 
-    demographics: Optional[Demographics]
+    demographics: Demographics | None
 
 
 class EnrollmentSubject(SubjectAdaptor):
@@ -56,7 +55,7 @@ class EnrollmentSubject(SubjectAdaptor):
         # pylint: disable=protected-access
         return EnrollmentSubject(subject=subject.subject)
 
-    def get_enrollment_info(self) -> Optional[IdentifierInfoRecord]:
+    def get_enrollment_info(self) -> IdentifierInfoRecord | None:
         """Returns the enrollment info object for this subject.
 
         Creates a new object if none exists.
@@ -132,7 +131,7 @@ class EnrollmentSubject(SubjectAdaptor):
         self.update_enrollment_info(record, update_timestamp=datetime.now())
 
     def update_enrollment_info(
-        self, record: EnrollmentRecord, update_timestamp: Optional[datetime] = None
+        self, record: EnrollmentRecord, update_timestamp: datetime | None = None
     ) -> None:
         """Update the enrollment info of this subject.
 
@@ -173,7 +172,7 @@ class EnrollmentSubject(SubjectAdaptor):
             skip_duplicates=False,
         )
 
-    def get_demographics_info(self) -> Optional[Demographics]:
+    def get_demographics_info(self) -> Demographics | None:
         """Returns the demographics info object for this subject.
 
         Return:

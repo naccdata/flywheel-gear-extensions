@@ -5,7 +5,6 @@
 **Validates: Requirements 2.4**
 """
 
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -61,7 +60,7 @@ def visit_data_strategy(draw):
 
 @given(visit_data_list=st.lists(visit_data_strategy(), min_size=2, max_size=5))
 @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
-def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]]):
+def test_qc_logging_continues_after_failure(visit_data_list: list[dict[str, str]]):
     """Property test: QC logging continues processing after individual
     failures.
 
@@ -86,7 +85,7 @@ def test_qc_logging_continues_after_failure(visit_data_list: List[Dict[str, str]
         call_count += 1
         return call_count != 1  # First call fails, subsequent calls succeed
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
 
     mock_qc_creator.update_qc_log.side_effect = update_qc_log_side_effect
 
@@ -138,7 +137,7 @@ def test_qc_logging_resilience_all_failures():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = False  # Always fail
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -225,7 +224,7 @@ def test_qc_logging_resilience_exception_handling():
 
     mock_qc_creator.update_qc_log.side_effect = update_qc_log_side_effect
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

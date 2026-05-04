@@ -1,7 +1,6 @@
 """Utilities for invoking AWS Lambda functions."""
 
 import logging
-from typing import Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -35,14 +34,14 @@ def create_lambda_client():
 class BaseRequest(BaseModel):
     """Base model for request objects with connection mode."""
 
-    mode: Optional[IdentifiersMode] = "prod"
+    mode: IdentifiersMode | None = "prod"
 
 
 class ResponseObject(BaseModel):
     """Base model for response objects."""
 
     statusCode: int
-    headers: Dict[str, str]
+    headers: dict[str, str]
     body: str
 
 
@@ -51,7 +50,7 @@ class ErrorResponseObject(BaseModel):
 
     errorMessage: str
     errorType: str
-    stackTrace: List[str]
+    stackTrace: list[str]
 
 
 # pylint: disable=(too-few-public-methods)

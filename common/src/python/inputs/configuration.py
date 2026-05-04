@@ -1,8 +1,6 @@
 """Functions to support gathering Flywheel objects based on the gear context
 config object."""
 
-from typing import Optional
-
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 from fw_gear import GearContext
 
@@ -14,7 +12,7 @@ def get_group(
     context: GearContext,
     proxy: FlywheelProxy,
     key: str,
-    default: Optional[str],
+    default: str | None,
 ) -> GroupAdaptor:
     """Returns the group determined by the context config values for the group
     key.

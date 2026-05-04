@@ -4,7 +4,6 @@ import csv
 import io
 import logging
 import re
-from typing import List, Optional
 
 from flywheel import FileEntry
 from flywheel.rest import ApiException
@@ -37,14 +36,14 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         file_input: InputFileWrapper,
-        target_project: Optional[str] = None,
-        staging_project_id: Optional[str] = None,
-        associated_csv_regex: Optional[str] = None,
+        target_project: str | None = None,
+        staging_project_id: str | None = None,
+        associated_csv_regex: str | None = None,
         adcid_key: str = FieldNames.ADCID,
         batch_size: int = 8,
-        downstream_gears: Optional[List[str]] = None,
-        include: Optional[str] = None,
-        exclude: Optional[str] = None,
+        downstream_gears: list[str] | None = None,
+        include: str | None = None,
+        exclude: str | None = None,
     ):
         super().__init__(client=client)
 
@@ -66,7 +65,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "FileDistributionVisitor":
         """Creates a File Distribution execution visitor.
 
@@ -122,7 +121,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
             exclude=options.get("exclude", None),
         )
 
-    def __find_associated_adcids(self, file: FileEntry) -> List[str]:
+    def __find_associated_adcids(self, file: FileEntry) -> list[str]:
         """Find associated ADCIDs from associated file. Searches for a file
         matching the capture regex specified by the associated csv regex.
 

@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
@@ -257,7 +256,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
 
 def create_pipeline_processor(
     pipeline: PipelineType, **kwargs
-) -> Optional[PipelineProcessor]:
+) -> PipelineProcessor | None:
     """Creates the pipeline processor for the specified pipeline.
 
     Args:

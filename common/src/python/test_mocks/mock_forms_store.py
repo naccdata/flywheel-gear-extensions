@@ -1,6 +1,6 @@
 """Mocks datastore.forms_store.FormStore."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from datastore.forms_store import FormsStore
 from keys.keys import MetadataKeys
@@ -28,7 +28,7 @@ class MockFormsStore(FormsStore):
         # maps subject to acquisition to filename to form data
         self.__subjects = {}  # type: ignore
 
-    def add_subject(self, subject_lbl: str, form_data: Dict[str, str], file_name: str):
+    def add_subject(self, subject_lbl: str, form_data: dict[str, str], file_name: str):
         """Add a local "subject."""
         if subject_lbl not in self.__subjects:
             self.__subjects[subject_lbl] = {}
@@ -48,7 +48,7 @@ class MockFormsStore(FormsStore):
 
     def query_form_data(
         self, subject_lbl: str, module: str, **kwargs
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         # TODO - mock rest of query for better testing, this
         # is basically hardcoded to return whatever passes the tests
         if subject_lbl not in self.__subjects:
@@ -73,12 +73,10 @@ class MockFormsStore(FormsStore):
 
     def query_form_data_with_custom_filters(
         self, **kwargs
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         return self.query_form_data(**kwargs)
 
-    def get_visit_data(
-        self, *, file_name: str, acq_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_visit_data(self, *, file_name: str, acq_id: str) -> dict[str, Any] | None:
         for modules in self.__subjects.values():
             for module, files in modules.items():
                 if module != acq_id:

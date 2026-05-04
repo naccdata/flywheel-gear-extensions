@@ -9,7 +9,7 @@ error messages, and QC log structures compared to the original implementation.
 
 import csv
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any
 
 from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor, run
@@ -77,7 +77,7 @@ def csv_data_strategy(draw):
 
 
 @st.composite
-def identifiers_strategy(draw, ptids: List[str]):
+def identifiers_strategy(draw, ptids: list[str]):
     """Generate identifiers map with some matching PTIDs."""
     identifiers = {}
 
@@ -96,7 +96,7 @@ def identifiers_strategy(draw, ptids: List[str]):
     return identifiers
 
 
-def create_csv_stream(csv_data: List[List[Any]]) -> StringIO:
+def create_csv_stream(csv_data: list[list[Any]]) -> StringIO:
     """Create a StringIO stream from CSV data."""
     stream = StringIO()
     writer = csv.writer(
@@ -112,12 +112,12 @@ def create_csv_stream(csv_data: List[List[Any]]) -> StringIO:
 
 
 def capture_naccid_lookup_behavior(
-    csv_data: List[List[Any]], identifiers_map: Dict[str, IdentifierObject]
-) -> Dict[str, Any]:
+    csv_data: list[list[Any]], identifiers_map: dict[str, IdentifierObject]
+) -> dict[str, Any]:
     """Capture the behavior of NACCIDLookupVisitor for comparison."""
     input_stream = create_csv_stream(csv_data)
     out_stream = StringIO()
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
 
     success = run(

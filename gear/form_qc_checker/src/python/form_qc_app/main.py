@@ -7,9 +7,9 @@ validator) for validating the inputs.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Optional
+from typing import Any
 
 from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
@@ -50,7 +50,7 @@ def update_input_file_qc_status(
     input_wrapper: InputFileWrapper,
     file: FileEntry,
     qc_passed: bool,
-    errors: Optional[FileErrorList] = None,
+    errors: FileErrorList | None = None,
 ):
     """Write validation status to input file metadata and add gear tag.
     Detailed errors for each visit is recorded in the error log for the visit.
@@ -73,7 +73,7 @@ def update_input_file_qc_status(
     )
 
     # set/update the validation timestamp in file.info
-    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+    timestamp = (datetime.now(UTC)).strftime(DEFAULT_DATE_TIME_FORMAT)
     gear_context.metadata.update_file_metadata(
         input_wrapper.file_input,
         container_type=gear_context.config.destination["type"],
@@ -95,8 +95,8 @@ def update_input_file_qc_status(
 
 def load_supplement_input(
     supplement_input: InputFileWrapper,
-) -> Optional[Dict[str, Any]]:
-    with open(supplement_input.filepath, mode="r", encoding="utf-8-sig") as file_obj:
+) -> dict[str, Any] | None:
+    with open(supplement_input.filepath, encoding="utf-8-sig") as file_obj:
         try:
             input_data = json.load(file_obj)
         except (JSONDecodeError, TypeError) as error:
@@ -118,8 +118,8 @@ def run(  # noqa: C901
     admin_group: NACCGroup,
     gear_context: GearContext,
     form_project_configs: FormProjectConfigs,
-    redcap_connection: Optional[REDCapReportConnection] = None,
-    supplement_input: Optional[InputFileWrapper] = None,
+    redcap_connection: REDCapReportConnection | None = None,
+    supplement_input: InputFileWrapper | None = None,
 ):
     """Starts QC process for input file. Depending on the input file type calls
     the appropriate file processor.

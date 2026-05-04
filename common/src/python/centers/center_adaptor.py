@@ -1,7 +1,5 @@
 """Defines common ancestor for groups representing an organization."""
 
-from typing import Optional
-
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
@@ -11,7 +9,7 @@ class CenterAdaptor(GroupAdaptor):
 
     def __init__(self, *, group: Group, proxy: FlywheelProxy) -> None:
         super().__init__(group=group, proxy=proxy)
-        self.__metadata: Optional[ProjectAdaptor] = None
+        self.__metadata: ProjectAdaptor | None = None
 
     def get_metadata(self) -> ProjectAdaptor:
         """Returns the metadata project.

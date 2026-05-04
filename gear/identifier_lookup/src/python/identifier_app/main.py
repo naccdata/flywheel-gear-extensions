@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, TextIO
 
 from gear_execution.gear_execution import GearExecutionError
 from identifiers.identifiers_repository import (
@@ -35,10 +35,10 @@ class NACCIDLookupVisitor(CSVVisitor):
         *,
         identifiers_repo: IdentifierRepository,
         output_file: TextIO,
-        module_name: Optional[str],
-        required_fields: Optional[List[str]],
+        module_name: str | None,
+        required_fields: list[str] | None,
         error_writer: ListErrorWriter,
-        validator: Optional[RowValidator] = None,
+        validator: RowValidator | None = None,
         reset_errors_per_row: bool = True,
     ) -> None:
         """
@@ -56,14 +56,14 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__error_writer = error_writer
         self.__module_name = module_name
         self.__required_fields = required_fields
-        self.__header: Optional[List[str]] = None
-        self.__writer: Optional[CSVWriter] = None
+        self.__header: list[str] | None = None
+        self.__writer: CSVWriter | None = None
         self.__validator = validator
         self.__reset_errors_per_row = reset_errors_per_row
 
-        self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
+        self.__identifiers_cache: dict[int, dict[str, IdentifierObject]] = {}
 
-    def __get_identifiers(self, adcid: int) -> Dict[str, IdentifierObject]:
+    def __get_identifiers(self, adcid: int) -> dict[str, IdentifierObject]:
         """Gets all of the Identifier objects from the identifier database for
         the specified center.
 
@@ -96,7 +96,7 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         return self.__writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Prepares the visitor to write a CSV file with the given header.
 
         If the header doesn't have required fields returns an error.
@@ -122,7 +122,7 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Finds the NACCID for the row from the PTID, and outputs a row to a
         CSV file with the NACCID inserted.
 
@@ -210,8 +210,8 @@ class CenterLookupVisitor(CSVVisitor):
         self.__identifiers_repo = identifiers_repo
         self.__output_file = output_file
         self.__error_writer = error_writer
-        self.__writer: Optional[CSVWriter] = None
-        self.__header: Optional[List[str]] = None
+        self.__writer: CSVWriter | None = None
+        self.__header: list[str] | None = None
         self.__batch_size = batch_size  # set to -1 to disable
 
     def __get_writer(self):
@@ -228,7 +228,7 @@ class CenterLookupVisitor(CSVVisitor):
 
         return self.__writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Prepares the visitor to write a CSV file with the given header.
 
         If the header doesn't have `naccid`, returns an error.
@@ -248,7 +248,7 @@ class CenterLookupVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Finds the ADCID, PTID for the row from the NACCID, and outputs a row
         to a CSV file with the ADCID and PTID inserted.
 

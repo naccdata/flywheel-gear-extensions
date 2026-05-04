@@ -1,6 +1,6 @@
 """Models representing center information and center mappings."""
 
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from collections.abc import Iterator
 
 from projects.study import StudyCenterModel, StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field, RootModel, field_validator
@@ -24,12 +24,12 @@ class CenterInfo(BaseModel):
         validation_alias=AliasChoices("center_id", "center-id", "group"),
         serialization_alias="center-id",
     )
-    active: Optional[bool] = Field(
+    active: bool | None = Field(
         validation_alias=AliasChoices("active", "is-active", "is_active"),
         serialization_alias="is-active",
         default=True,
     )
-    tags: Optional[Tuple[str, ...]] = None
+    tags: tuple[str, ...] | None = None
 
     def __repr__(self) -> str:
         return (
@@ -59,7 +59,7 @@ class CenterInfo(BaseModel):
 
     @field_validator("tags", mode="before")
     @classmethod
-    def set_tags(cls, tags: Union[str, Tuple[str], List[str]]) -> Tuple[str, ...]:
+    def set_tags(cls, tags: str | tuple[str] | list[str]) -> tuple[str, ...]:
         if isinstance(tags, str):
             return tuple(filter(lambda x: x, tags.split(",")))
         if not tags:
@@ -67,8 +67,8 @@ class CenterInfo(BaseModel):
         return tuple(tags)
 
 
-class CenterList(RootModel[List[CenterInfo]]):
-    root: List[CenterInfo]
+class CenterList(RootModel[list[CenterInfo]]):
+    root: list[CenterInfo]
 
     def __bool__(self) -> bool:
         return bool(self.root)
@@ -90,7 +90,7 @@ class CenterList(RootModel[List[CenterInfo]]):
 class CenterMapInfo(BaseModel):
     """Represents the center map in nacc/metadata project."""
 
-    centers: Dict[str, CenterInfo]
+    centers: dict[str, CenterInfo]
 
     def add(self, adcid: int, center_info: CenterInfo) -> None:
         """Adds the center info to the map.
@@ -101,7 +101,7 @@ class CenterMapInfo(BaseModel):
         """
         self.centers[str(adcid)] = center_info
 
-    def get(self, adcid: int) -> Optional[CenterInfo]:
+    def get(self, adcid: int) -> CenterInfo | None:
         """Gets the center info for the given ADCID.
 
         Args:
@@ -111,7 +111,7 @@ class CenterMapInfo(BaseModel):
         """
         return self.centers.get(str(adcid), None)
 
-    def get_adcid(self, group_id: str) -> Optional[int]:
+    def get_adcid(self, group_id: str) -> int | None:
         """Returns the ADCID for the center group.
 
         Args:
@@ -124,7 +124,7 @@ class CenterMapInfo(BaseModel):
                 return int(adcid)
         return None
 
-    def get_adcids(self) -> List[int]:
+    def get_adcids(self) -> list[int]:
         """Returns the list of ADCIDs for all centers.
 
         Returns:
@@ -132,7 +132,7 @@ class CenterMapInfo(BaseModel):
         """
         return [int(adcid) for adcid in self.centers]
 
-    def group_ids(self, center_ids: Optional[List[str]] = None) -> Set[str]:
+    def group_ids(self, center_ids: list[str] | None = None) -> set[str]:
         """Returns the set of group IDs for the centers in this center map.
 
         If center_ids is provided, restricts the result to those with a center
@@ -153,7 +153,7 @@ class CenterMapInfo(BaseModel):
             for center in [self.centers.get(key) for key in keys if key in self.centers]
         }
 
-    def active_group_ids(self, center_ids: Optional[List[str]] = None) -> Set[str]:
+    def active_group_ids(self, center_ids: list[str] | None = None) -> set[str]:
         """Returns the set of group IDs for active centers in this center map.
 
         If center_ids is provided, restricts the result to those with an ID in

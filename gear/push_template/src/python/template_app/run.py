@@ -1,7 +1,6 @@
 """Main function for running template push process."""
 
 import logging
-from typing import Optional
 
 from fw_client.client import FWClient
 from fw_gear import GearContext
@@ -43,7 +42,7 @@ class TemplatingVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "TemplatingVisitor":
         """Creates a templating execution visitor.
 

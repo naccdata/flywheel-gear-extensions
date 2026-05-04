@@ -1,7 +1,6 @@
 """Defines center management computation."""
 
 import logging
-from typing import List
 
 from centers.center_group import CenterGroup
 from centers.center_info import CenterList
@@ -17,7 +16,7 @@ def run(
     proxy: FlywheelProxy,
     admin_group: NACCGroup,
     center_list: CenterList,
-    role_names: List[str],
+    role_names: list[str],
     new_only: bool = False,
 ):
     """Runs center creation/management.

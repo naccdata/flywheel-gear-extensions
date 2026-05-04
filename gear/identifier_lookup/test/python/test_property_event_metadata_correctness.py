@@ -7,7 +7,6 @@
 
 from datetime import datetime
 from io import StringIO
-from typing import List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
@@ -134,7 +133,7 @@ def test_property_event_metadata_correctness(csv_row, metadata):
         validator=None,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=Mock(),
@@ -260,7 +259,7 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
         validator=None,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=Mock(),

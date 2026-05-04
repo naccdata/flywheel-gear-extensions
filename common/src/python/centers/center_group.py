@@ -7,7 +7,7 @@ Should be used when starting from centers already created using
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, overload
+from typing import overload
 
 import flywheel
 from flywheel.models.group import Group
@@ -34,8 +34,8 @@ class CenterGroup(CenterAdaptor):
         self, *, adcid: int, active: bool, group: flywheel.Group, proxy: FlywheelProxy
     ) -> None:
         super().__init__(group=group, proxy=proxy)
-        self.__datatypes: List[str] = []
-        self.__ingest_stages: List[PipelineStageType] = [
+        self.__datatypes: list[str] = []
+        self.__ingest_stages: list[PipelineStageType] = [
             "ingest",
             "retrospective",
             "sandbox",
@@ -43,8 +43,8 @@ class CenterGroup(CenterAdaptor):
         ]
         self.__adcid = adcid
         self.__is_active = active
-        self.__center_portal: Optional[ProjectAdaptor] = None
-        self.__redcap_param_repo: Optional[REDCapParametersRepository] = None
+        self.__center_portal: ProjectAdaptor | None = None
+        self.__redcap_param_repo: REDCapParametersRepository | None = None
 
     @classmethod
     def create_from_group(cls, *, proxy: FlywheelProxy, group: Group) -> "CenterGroup":
@@ -95,7 +95,7 @@ class CenterGroup(CenterAdaptor):
         *,
         proxy: FlywheelProxy,
         center: CenterInfo,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ) -> "CenterGroup":
         """Creates a CenterGroup from a center object.
 
@@ -182,7 +182,7 @@ class CenterGroup(CenterAdaptor):
         return self.__is_active
 
     @overload
-    def get_matching_projects(self, *, prefix: str) -> List[ProjectAdaptor]:
+    def get_matching_projects(self, *, prefix: str) -> list[ProjectAdaptor]:
         """Returns the projects for the center with labels that match the
         prefix.
 
@@ -195,7 +195,7 @@ class CenterGroup(CenterAdaptor):
         ...
 
     @overload
-    def get_matching_projects(self, *, pattern: str) -> List[ProjectAdaptor]:
+    def get_matching_projects(self, *, pattern: str) -> list[ProjectAdaptor]:
         """Returns the projects for the center with labels that match the full
         pattern.
 
@@ -208,8 +208,8 @@ class CenterGroup(CenterAdaptor):
         ...
 
     def get_matching_projects(
-        self, *, prefix: Optional[str] = None, pattern: Optional[str] = None
-    ) -> List[ProjectAdaptor]:
+        self, *, prefix: str | None = None, pattern: str | None = None
+    ) -> list[ProjectAdaptor]:
         """Returns the projects for the center with labels that match whichever
         of the prefix or pattern that is set.
 
@@ -239,7 +239,7 @@ class CenterGroup(CenterAdaptor):
         ]
 
     @classmethod
-    def get_datatype(cls, *, stage: str, label: str) -> Optional[str]:
+    def get_datatype(cls, *, stage: str, label: str) -> str | None:
         """Gets the datatype from a string with format `<stage-
         name>-<datatype>`.
 
@@ -256,7 +256,7 @@ class CenterGroup(CenterAdaptor):
 
         return match.group(1)
 
-    def get_datatypes(self) -> List[str]:
+    def get_datatypes(self) -> list[str]:
         """Returns the list of data types for the ingest projects of this
         center.
 
@@ -398,7 +398,7 @@ class CenterGroup(CenterAdaptor):
             project_info.model_dump(by_alias=True, exclude_none=True)
         )
 
-    def add_project(self, label: str) -> Optional[ProjectAdaptor]:
+    def add_project(self, label: str) -> ProjectAdaptor | None:
         """Adds a project with the label to this group and returns the
         corresponding ProjectAdaptor.
 
@@ -409,7 +409,7 @@ class CenterGroup(CenterAdaptor):
         """
         return self.get_project(label=label, info_update={"adcid": self.adcid})
 
-    def get_redcap_project(self, pid: int) -> Optional[REDCapProject]:
+    def get_redcap_project(self, pid: int) -> REDCapProject | None:
         """Returns the REDCap project for the PID."""
         if self.__redcap_param_repo is None:
             return None
@@ -547,7 +547,7 @@ class REDCapFormProjectMetadata(BaseModel):
 
     redcap_pid: int
     label: str
-    report_id: Optional[int] = None
+    report_id: int | None = None
 
     def is_enrollment(self) -> bool:
         return self.label.upper() == DefaultValues.ENROLLMENT_MODULE
@@ -571,7 +571,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
     additional attributes specific to form ingest projects.
     """
 
-    redcap_projects: Dict[str, REDCapFormProjectMetadata] = {}
+    redcap_projects: dict[str, REDCapFormProjectMetadata] = {}
 
     @classmethod
     def create_from_ingest(
@@ -600,7 +600,7 @@ class FormIngestProjectMetadata(IngestProjectMetadata):
         """
         self.redcap_projects[redcap_project.label] = redcap_project
 
-    def get(self, module_name: str) -> Optional[REDCapFormProjectMetadata]:
+    def get(self, module_name: str) -> REDCapFormProjectMetadata | None:
         """Gets the REDCap project metadata for the module name.
 
         Args:
@@ -623,11 +623,11 @@ class CenterStudyMetadata(BaseModel):
 
     study_id: str
     study_name: str
-    ingest_projects: Dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
-    accepted_project: Optional[ProjectMetadata] = None
-    dashboard_projects: Optional[Dict[str, DashboardProjectMetadata]] = {}
-    page_projects: Optional[Dict[str, PageProjectMetadata]] = {}
-    distribution_projects: Dict[str, DistributionProjectMetadata] = {}
+    ingest_projects: dict[str, (IngestProjectMetadata | FormIngestProjectMetadata)] = {}
+    accepted_project: ProjectMetadata | None = None
+    dashboard_projects: dict[str, DashboardProjectMetadata] | None = {}
+    page_projects: dict[str, PageProjectMetadata] | None = {}
+    distribution_projects: dict[str, DistributionProjectMetadata] = {}
 
     def add_accepted(self, project: ProjectMetadata) -> None:
         """Adds the accepted project to the study metadata.
@@ -658,7 +658,7 @@ class CenterStudyMetadata(BaseModel):
 
     def get_ingest(
         self, project_label: str
-    ) -> Optional[IngestProjectMetadata | FormIngestProjectMetadata]:
+    ) -> IngestProjectMetadata | FormIngestProjectMetadata | None:
         """Gets the ingest project metadata for the project label.
 
         Args:
@@ -676,7 +676,7 @@ class CenterStudyMetadata(BaseModel):
         """
         self.distribution_projects[project.project_label] = project
 
-    def get_dashboard(self, project_label: str) -> Optional[DashboardProjectMetadata]:
+    def get_dashboard(self, project_label: str) -> DashboardProjectMetadata | None:
         if self.dashboard_projects is None:
             return None
 
@@ -693,7 +693,7 @@ class CenterStudyMetadata(BaseModel):
         )
         self.page_projects[project.project_label] = project
 
-    def get_page(self, project_label: str) -> Optional[PageProjectMetadata]:
+    def get_page(self, project_label: str) -> PageProjectMetadata | None:
         """Gets the page project metadata for the project label.
 
         Args:
@@ -708,7 +708,7 @@ class CenterStudyMetadata(BaseModel):
 
     def get_distribution(
         self, project_label: str
-    ) -> Optional[DistributionProjectMetadata]:
+    ) -> DistributionProjectMetadata | None:
         """Gets the distribution project metadata for the project label.
 
         Args:
@@ -728,7 +728,7 @@ class CenterMetadata(BaseModel):
 
     adcid: int
     active: bool
-    studies: Dict[str, CenterStudyMetadata]
+    studies: dict[str, CenterStudyMetadata]
 
     def add(self, study: CenterStudyMetadata) -> None:
         """Adds study metadata to the studies.
@@ -741,7 +741,7 @@ class CenterMetadata(BaseModel):
         """
         self.studies[study.study_id] = study
 
-    def get(self, study_id: str) -> Optional[CenterStudyMetadata]:
+    def get(self, study_id: str) -> CenterStudyMetadata | None:
         """Gets the study metadata for the study id.
 
         Args:
@@ -765,13 +765,13 @@ class REDCapProjectInput(BaseModel):
     center_id: str
     study_id: str
     project_label: str
-    projects: List[REDCapFormProjectMetadata]
+    projects: list[REDCapFormProjectMetadata]
 
 
 class StudyREDCapProjectsList(RootModel):
     """List of REDCap ingest projects metadata for a given study."""
 
-    root: List[REDCapProjectInput]
+    root: list[REDCapProjectInput]
 
     def __iter__(self):
         return iter(self.root)
@@ -800,7 +800,7 @@ class REDCapModule(BaseModel):
     )
     label: str
     title: str
-    template: Optional[str] = None
+    template: str | None = None
 
 
 class REDCapProjectMapping(BaseModel):
@@ -810,7 +810,7 @@ class REDCapProjectMapping(BaseModel):
         populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
     )
     project_label: str
-    modules: List[REDCapModule]
+    modules: list[REDCapModule]
 
 
 class StudyREDCapMetadata(BaseModel):
@@ -820,15 +820,15 @@ class StudyREDCapMetadata(BaseModel):
         populate_by_name=True, alias_generator=AliasGenerator(alias=kebab_case)
     )
     study_id: str
-    centers: List[str]
-    projects: List[REDCapProjectMapping]
+    centers: list[str]
+    projects: list[REDCapProjectMapping]
 
 
 class GatherIngestDatatypesVisitor(AbstractCenterMetadataVisitor):
     """Scrapes the ingest projects of the center metadata for datatypes."""
 
     def __init__(self) -> None:
-        self.__datatypes: List[DatatypeNameType] = []
+        self.__datatypes: list[DatatypeNameType] = []
 
     @property
     def datatypes(self):

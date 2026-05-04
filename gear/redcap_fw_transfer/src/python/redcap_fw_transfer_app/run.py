@@ -2,7 +2,7 @@
 
 import logging
 import sys
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from centers.center_group import (
     CenterError,
@@ -31,7 +31,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
+def get_destination_group_and_project(dest_container: Any) -> tuple[str, str]:
     """Find the flywheel group id and project id for the destination project.
 
     Args:
@@ -63,7 +63,7 @@ def get_destination_group_and_project(dest_container: Any) -> Tuple[str, str]:
 
 def get_redcap_projects_metadata(
     *, group_adaptor: GroupAdaptor, project_label: str
-) -> Dict[str, REDCapFormProjectMetadata]:
+) -> dict[str, REDCapFormProjectMetadata]:
     """Retrieve the info on source REDCap projects to transfer the data from.
     REDCap->FW mapping info is included in each center's metadata project.
 
@@ -145,7 +145,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "REDCapFlywheelTransferVisitor":
         """Creates a redcap_fw_transfer execution visitor.
 
@@ -188,7 +188,7 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
 
     def get_redcap_connection(
         self, redcap_project: REDCapFormProjectMetadata
-    ) -> Optional[REDCapConnection]:
+    ) -> REDCapConnection | None:
         """Get API connection for the specified REDCap project.
 
         Args:

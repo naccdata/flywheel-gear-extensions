@@ -3,7 +3,6 @@
 import logging
 from collections import deque
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
     ErrorLogTemplate,
@@ -57,8 +56,8 @@ class QCGearConfigs(CredentialGearConfigs):
 
     rules_s3_bucket: str
     qc_checks_db_path: str
-    strict_mode: Optional[bool] = True
-    admin_group: Optional[str] = DefaultValues.NACC_GROUP_ID
+    strict_mode: bool | None = True
+    admin_group: str | None = DefaultValues.NACC_GROUP_ID
 
 
 class QCCoordinator:
@@ -108,7 +107,7 @@ class QCCoordinator:
         )
         self.__project = self.__proxy.get_project_by_id(self.__subject.parents.project)
         self.__visits_lookup_helper = visits_lookup_helper
-        self.__failed_visit: Optional[FileEntry] = None
+        self.__failed_visit: FileEntry | None = None
 
     def __passed_qc_checks(self, visit_file: FileEntry, gear_name: str) -> bool:
         """Check the validation status for the specified visit for the
@@ -136,9 +135,9 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
-        visitnum: Optional[str],
+        visitnum: str | None,
         status: str,
-        error_obj: Optional[FileError] = None,
+        error_obj: FileError | None = None,
     ):
         """Add error metadata to the visits file qc info section.
         Also, updates the visit error log and add qc info metadata
@@ -206,10 +205,10 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
-        visitnum: Optional[str],
+        visitnum: str | None,
         status: QCStatus,
         qc_gear_name: str,
-        error_obj: Optional[FileError] = None,
+        error_obj: FileError | None = None,
     ):
         """Reset QC gear error metadata in the visit file qc info section.
         and update the QC gear status tag.
@@ -289,11 +288,11 @@ class QCCoordinator:
         module: str,
         ptid: str,
         visitdate: str,
-        visitnum: Optional[str] = None,
+        visitnum: str | None = None,
         status: str,
         gear_name: str,
         errors: FileErrorList,
-        reset_gears: Optional[List[str]] = None,
+        reset_gears: list[str] | None = None,
     ):
         """Updates the visit error log and add qc info metadata.
 
@@ -356,7 +355,7 @@ class QCCoordinator:
         file_id: str,
         filename: str,
         visitdate: str,
-        visitnum: Optional[str] = None,
+        visitnum: str | None = None,
     ):
         """Update last failed visit details in subject metadata.
 
@@ -382,8 +381,8 @@ class QCCoordinator:
         *,
         supplement_module_info: SupplementModuleConfigs,
         visitdate: str,
-        visitnum: Optional[str],
-    ) -> Optional[FileEntry]:
+        visitnum: str | None,
+    ) -> FileEntry | None:
         """Find the matching supplement visit for the current visit (i.e.
         respective UDS visit for LBD or FTLD submission)
 
@@ -456,7 +455,7 @@ class QCCoordinator:
         visit_file: FileEntry,
         visitdate: str,
         error_obj: FileError,
-        visitnum: Optional[str] = None,
+        visitnum: str | None = None,
     ) -> None:
         """Set last failed visit and update QC error metadata. Reset QC status
         of dependent module visits if there's any.
@@ -492,7 +491,7 @@ class QCCoordinator:
 
         self.__reset_dependent_modules_qc_status(visitdate=visitdate, visitnum=visitnum)
 
-    def __is_outdated_trigger(self, visit: Dict[str, str]) -> bool:
+    def __is_outdated_trigger(self, visit: dict[str, str]) -> bool:
         """If triggered from finalization workflow, check whether the module
         file was validated after the trigger.
 
@@ -529,11 +528,11 @@ class QCCoordinator:
     def __get_visit_file_and_destination(
         self,
         *,
-        visit: Dict[str, str],
+        visit: dict[str, str],
         ptid_key: str,
         date_col_key: str,
         visitnum_key: str,
-    ) -> Tuple[Optional[FileEntry], Optional[Acquisition]]:
+    ) -> tuple[FileEntry | None, Acquisition | None]:
         """Retrieve visit file and acquisition container from visit info.
 
         Args:
@@ -588,9 +587,9 @@ class QCCoordinator:
         visit_file: FileEntry,
         ptid: str,
         visitdate: str,
-        visitnum: Optional[str] = None,
-        naccid: Optional[str] = None,
-    ) -> Optional[Dict[str, FileEntry]]:
+        visitnum: str | None = None,
+        naccid: str | None = None,
+    ) -> dict[str, FileEntry] | None:
         """Populate the inputs required for QC gear, report errors if required
         input files cannot be found.
 
@@ -648,7 +647,7 @@ class QCCoordinator:
         return inputs
 
     def __reset_module_visit_qc_status(
-        self, *, module: str, visitdate: str, visit_info: Dict[str, str]
+        self, *, module: str, visitdate: str, visit_info: dict[str, str]
     ):
         """Reset the QC metadata of the dependent module visit file and
         respective error log file.
@@ -708,7 +707,7 @@ class QCCoordinator:
         )
 
     def __reset_dependent_modules_qc_status(
-        self, *, visitdate: str, visitnum: Optional[str] = None
+        self, *, visitdate: str, visitnum: str | None = None
     ):
         """Reset the QC metadata of any module visits dependent on the failed
         visit.
@@ -761,7 +760,7 @@ class QCCoordinator:
                 module=dep_module, visitdate=visitdate, visit_info=matched_visits[0]
             )
 
-    def run_error_checks(self, *, visits: List[Dict[str, str]]) -> None:
+    def run_error_checks(self, *, visits: list[dict[str, str]]) -> None:
         """Sequentially trigger the QC checks gear on the provided visits. If a
         visit failed QC validation or error occurred while running the QC gear,
         none of the subsequent visits will be evaluated.

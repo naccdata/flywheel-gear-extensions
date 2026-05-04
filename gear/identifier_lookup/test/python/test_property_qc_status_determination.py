@@ -5,7 +5,6 @@
 **Validates: Requirements 2.2, 2.3**
 """
 
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -61,7 +60,7 @@ def visit_data_strategy(draw):
 
 @given(visit_data=visit_data_strategy())
 @settings(max_examples=100)
-def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
+def test_qc_status_pass_for_successful_processing(visit_data: dict[str, str]):
     """Property test: QC visitor creates PASS status for successful processing.
 
       **Feature: identifier-lookup-refactoring,
@@ -77,7 +76,7 @@ def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
     mock_project = Mock(spec=ProjectAdaptor)
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
 
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
@@ -110,7 +109,7 @@ def test_qc_status_pass_for_successful_processing(visit_data: Dict[str, str]):
 )
 @settings(max_examples=100)
 def test_qc_status_fail_for_failed_processing(
-    visit_data: Dict[str, str], error_message: str
+    visit_data: dict[str, str], error_message: str
 ):
     """Property test: QC visitor creates FAIL status with error details for
     failures.
@@ -139,7 +138,7 @@ def test_qc_status_fail_for_failed_processing(
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -192,7 +191,7 @@ def test_qc_status_determination_boundary_case_empty_visit():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

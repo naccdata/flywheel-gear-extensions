@@ -1,5 +1,5 @@
 from heapq import heappop, heappush
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from scheduling.comparable import Comparable
 
@@ -8,7 +8,7 @@ T = TypeVar("T", bound=Comparable)
 
 class MinHeap(Generic[T]):
     def __init__(self) -> None:
-        self.__minheap: List[T] = []
+        self.__minheap: list[T] = []
 
     def __len__(self):
         return len(self.__minheap)
@@ -16,7 +16,7 @@ class MinHeap(Generic[T]):
     def push(self, element: T) -> None:
         heappush(self.__minheap, element)
 
-    def pop(self) -> Optional[T]:
+    def pop(self) -> T | None:
         if len(self.__minheap) > 0:
             return heappop(self.__minheap)
 

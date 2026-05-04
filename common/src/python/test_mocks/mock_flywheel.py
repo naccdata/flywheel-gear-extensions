@@ -7,7 +7,7 @@ complexity.
 
 import copy
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
@@ -22,10 +22,10 @@ class MockFile(FileEntry):
         self,
         name: str,
         parent_id: str = "",
-        info: Optional[Dict[str, Any]] = None,
+        info: dict[str, Any] | None = None,
         contents: str = "",
-        created: Optional[datetime] = None,
-        modified: Optional[datetime] = None,
+        created: datetime | None = None,
+        modified: datetime | None = None,
     ) -> None:
         info = info if info else {}
         super().__init__(name=name, info=info)
@@ -44,7 +44,7 @@ class MockFile(FileEntry):
 
     @field_validator("info", mode="before")
     @classmethod
-    def deep_copy_info(cls, info: Dict[str, Any]) -> Dict[str, Any]:
+    def deep_copy_info(cls, info: dict[str, Any]) -> dict[str, Any]:
         """We need to deep copy info so it's "separated" from the local
         instance."""
         return copy.deepcopy(info)
@@ -52,7 +52,7 @@ class MockFile(FileEntry):
     def reload(self, *args, **kwargs):
         return self
 
-    def update_info(self, info: Dict[Any, Any], **kwargs) -> None:
+    def update_info(self, info: dict[Any, Any], **kwargs) -> None:
         """Update info object."""
         self.info.update(info)
 
@@ -67,7 +67,7 @@ class MockProject(BaseModel):
     id: str = "mock-project-id"
     label: str = "mock-project"
     group: str = "mock-group"
-    info: Dict[str, Any] = {}
+    info: dict[str, Any] = {}
 
     def reload(self, *args, **kwargs):
         return self
@@ -79,9 +79,9 @@ class MockProjectAdaptor(ProjectAdaptor):
     def __init__(
         self,
         label: str,
-        files: Optional[Union[dict[str, MockFile], List[FileEntry]]] = None,
-        info: Optional[dict[str, Any]] = None,
-        group: Optional[str] = None,  # Accept but ignore for compatibility
+        files: dict[str, MockFile] | list[FileEntry] | None = None,
+        info: dict[str, Any] | None = None,
+        group: str | None = None,  # Accept but ignore for compatibility
     ):
         # Set default pipeline_adcid if not provided
         project_info = info if info else {"pipeline_adcid": 123}
@@ -106,7 +106,7 @@ class MockProjectAdaptor(ProjectAdaptor):
         self.__label = label
 
     @property
-    def files(self) -> List[FileEntry]:
+    def files(self) -> list[FileEntry]:
         """Get files."""
         return list(self.__files.values())
 
@@ -122,14 +122,14 @@ class MockProjectAdaptor(ProjectAdaptor):
     def id(self) -> str:
         return self._project.id
 
-    def get_file(self, name: str) -> Optional[FileEntry]:
+    def get_file(self, name: str) -> FileEntry | None:
         """Get the file if it exists."""
         return self.__files.get(name, None)
 
     def add_file(self, file: FileEntry) -> None:
         self.__files[file.name] = file
 
-    def upload_file(self, file: Union[FileSpec, Dict[str, Any]]) -> None:
+    def upload_file(self, file: FileSpec | dict[str, Any]) -> None:
         """Add file to files; replacing as needed."""
         if isinstance(file, FileSpec):
             mock_file = MockFile(name=file.name, contents=file.contents)  # type: ignore
@@ -142,7 +142,7 @@ class MockProjectAdaptor(ProjectAdaptor):
 
     def upload_file_contents(
         self, *, filename: str, contents: str, content_type: str = "text"
-    ) -> Optional[FileEntry]:
+    ) -> FileEntry | None:
         """Uploads a file to the project using filename and string contents.
 
         Args:
@@ -157,7 +157,7 @@ class MockProjectAdaptor(ProjectAdaptor):
         self.__files[filename] = mock_file
         return mock_file
 
-    def get_matching_files(self, query: str) -> List[FileEntry]:
+    def get_matching_files(self, query: str) -> list[FileEntry]:
         """Mock implementation of get_matching_files.
 
         Supports basic filtering by name pattern for QC status logs.
@@ -179,10 +179,10 @@ class MockProjectAdaptor(ProjectAdaptor):
 class MockParents(BaseModel):
     """Mock parents object for Flywheel containers."""
 
-    session: Optional[str] = None
-    acquisition: Optional[str] = None
-    subject: Optional[str] = None
-    project: Optional[str] = None
+    session: str | None = None
+    acquisition: str | None = None
+    subject: str | None = None
+    project: str | None = None
 
 
 class MockParentRef(BaseModel):
@@ -211,7 +211,7 @@ class MockAcquisition(BaseModel):
     id: str
     label: str
     parents: MockParents
-    files: List[FileEntry] = []
+    files: list[FileEntry] = []
 
     def reload(self, *args, **kwargs):
         return self
@@ -222,7 +222,7 @@ class MockFlywheelProxy(FlywheelProxy):
 
     def __init__(self):
         """Initialize mock proxy."""
-        self._containers: Dict[str, Any] = {}
+        self._containers: dict[str, Any] = {}
 
     def add_container(self, container_id: str, container: Any) -> None:
         """Add a container to the mock proxy.
@@ -253,10 +253,10 @@ class MockFlywheelProxy(FlywheelProxy):
 def create_mock_file_with_parent(
     name: str,
     parent_id: str,
-    info: Optional[Dict[str, Any]] = None,
+    info: dict[str, Any] | None = None,
     contents: str = "",
-    created: Optional[datetime] = None,
-    modified: Optional[datetime] = None,
+    created: datetime | None = None,
+    modified: datetime | None = None,
 ) -> MockFile:
     """Create a mock file with parent reference.
 

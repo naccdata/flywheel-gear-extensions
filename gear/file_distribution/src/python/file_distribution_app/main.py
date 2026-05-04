@@ -1,7 +1,6 @@
 """Defines File Distribution."""
 
 import logging
-from typing import List, Optional
 
 from flywheel import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -19,11 +18,11 @@ def run(
     proxy: FlywheelProxy,
     error_writer: ListErrorWriter,
     file: FileEntry,
-    centers=List[str],
+    centers=list[str],
     batch_size=int,
-    target_project: Optional[str] = None,
-    staging_project_id: Optional[str] = None,
-    downstream_gears: Optional[List[str]] = None,
+    target_project: str | None = None,
+    staging_project_id: str | None = None,
+    downstream_gears: list[str] | None = None,
 ):
     """Runs the File Distribution process.
 

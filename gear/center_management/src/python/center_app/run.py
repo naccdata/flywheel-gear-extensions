@@ -10,7 +10,6 @@ array of centers:
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from centers.center_info import CenterList
 from fw_gear import GearContext
@@ -49,7 +48,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "CenterCreationVisitor":
         """Creates a center creation execution visitor.
 
@@ -85,7 +84,7 @@ class CenterCreationVisitor(GearExecutionEnvironment):
           Map of CenterInfo objects to optional list of tags
         """
         try:
-            with open(center_file_path, mode="r", encoding="utf-8-sig") as center_file:
+            with open(center_file_path, encoding="utf-8-sig") as center_file:
                 object_list = load_from_stream(center_file)
         except YAMLReadError as error:
             raise GearExecutionError(

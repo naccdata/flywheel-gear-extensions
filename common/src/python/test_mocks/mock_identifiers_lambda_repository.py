@@ -1,7 +1,7 @@
 """Mocks identifiers.identifiers_lambda_repository."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, overload
+from typing import overload
 
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
 from identifiers.identifiers_repository import (
@@ -14,7 +14,7 @@ from identifiers.model import IdentifierList, IdentifierObject
 
 
 class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
-    def __init__(self, identifiers: Dict[str, IdentifierObject]):
+    def __init__(self, identifiers: dict[str, IdentifierObject]):
         """Mock identifiers repository by manually setting identifiers. For
         testing we just assume all belong to the same ADCID.
 
@@ -23,7 +23,7 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
         """
         self.__identifiers = identifiers
 
-    def create(self, adcid: int, ptid: str, guid: Optional[str]) -> IdentifierObject:
+    def create(self, adcid: int, ptid: str, guid: str | None) -> IdentifierObject:
         """Creates an Identifier in the repository.
 
         Args:
@@ -46,7 +46,7 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
         self.__identifiers[ptid] = identifier
         return identifier
 
-    def create_list(self, identifiers: List[IdentifierQueryObject]) -> IdentifierList:
+    def create_list(self, identifiers: list[IdentifierQueryObject]) -> IdentifierList:
         """Creates several Identifiers in the repository.
 
         Args:
@@ -74,11 +74,11 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
 
     def get(
         self,
-        naccid: Optional[str] = None,
-        adcid: Optional[int] = None,
-        ptid: Optional[str] = None,
-        guid: Optional[str] = None,
-    ) -> Optional[IdentifierObject]:
+        naccid: str | None = None,
+        adcid: int | None = None,
+        ptid: str | None = None,
+        guid: str | None = None,
+    ) -> IdentifierObject | None:
         """Returns IdentifierObject object for the IDs given.
 
         Note: some valid arguments can be falsey.
@@ -107,8 +107,8 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
         raise TypeError("Invalid arguments")
 
     def list(
-        self, *, adcid: Optional[int] = None, naccid: Optional[str] = None
-    ) -> List[IdentifierObject]:
+        self, *, adcid: int | None = None, naccid: str | None = None
+    ) -> list[IdentifierObject]:
         """Returns the list of all identifiers in the repository. For testing
         we assume all belong to same ADCID, so just always return all.
 
@@ -144,6 +144,6 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
 
     def check_enrollment_period(
         self, date_query: DateQueryObject
-    ) -> Optional[EnrollmentDurationResponse]:
+    ) -> EnrollmentDurationResponse | None:
         """Not implemented for testing."""
         return None

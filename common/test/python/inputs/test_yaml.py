@@ -1,7 +1,7 @@
 """Tests for handling of YAML documents."""
 
 from io import StringIO
-from typing import Any, List
+from typing import Any
 
 import pytest
 import yaml
@@ -35,7 +35,7 @@ class TestYAML:
 
         Function called returns list of lists.
         """
-        empty_list: List[Any] = []
+        empty_list: list[Any] = []
         yaml_object = yaml.safe_dump(
             empty_list, allow_unicode=True, default_flow_style=False
         )

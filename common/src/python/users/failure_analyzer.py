@@ -1,7 +1,6 @@
 """Failure analyzer for complex user management scenarios."""
 
 import logging
-from typing import List, Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 
@@ -39,7 +38,7 @@ class FailureAnalyzer:
 
     def analyze_flywheel_user_creation_failure(
         self, entry: ActiveUserEntry, error: FlywheelError
-    ) -> Optional[UserProcessEvent]:
+    ) -> UserProcessEvent | None:
         """Analyze why Flywheel user creation failed after 3 attempts.
 
         Args:
@@ -99,7 +98,7 @@ class FailureAnalyzer:
 
     def analyze_missing_claimed_user(
         self, entry: CenterUserEntry
-    ) -> Optional[UserProcessEvent]:
+    ) -> UserProcessEvent | None:
         """Analyze why we can't find a claimed user by registry_id.
 
         This method is specifically for the scenario where:
@@ -167,8 +166,8 @@ class FailureAnalyzer:
         )
 
     def detect_incomplete_claim(
-        self, entry: ActiveUserEntry, bad_claim_persons: List[RegistryPerson]
-    ) -> Optional[UserProcessEvent]:
+        self, entry: ActiveUserEntry, bad_claim_persons: list[RegistryPerson]
+    ) -> UserProcessEvent | None:
         """Detect incomplete claims and identify if ORCID is the identity
         provider.
 
@@ -220,8 +219,8 @@ class FailureAnalyzer:
         )
 
     def _detect_wrong_idp(
-        self, entry: ActiveUserEntry, bad_claim_persons: List[RegistryPerson]
-    ) -> Optional[UserProcessEvent]:
+        self, entry: ActiveUserEntry, bad_claim_persons: list[RegistryPerson]
+    ) -> UserProcessEvent | None:
         """Check if user's email domain maps to an institutional IdP but they
         claimed via a different IdP (e.g., the fallback IdP).
 

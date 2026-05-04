@@ -3,7 +3,6 @@
 import json
 import logging
 import re
-from typing import Dict, Optional
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -45,7 +44,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "DBTRunnerVisitor":
         """Creates a DBT Runner execution visitor.
 
@@ -90,7 +89,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
 
     def __load_source_prefixes(
         self, source_prefixes_str: str
-    ) -> Dict[str, Dict[str, str]]:
+    ) -> dict[str, dict[str, str]]:
         """Load and validate source prefixes. Also splits the source prefix
         into bucket and key and groups by bucket for easiser handling later.
 
@@ -118,7 +117,7 @@ class DBTRunnerVisitor(GearExecutionEnvironment):
         if not source_prefixes:
             raise GearExecutionError("source_prefixes cannot be empty")
 
-        results: Dict[str, Dict[str, str]] = {}
+        results: dict[str, dict[str, str]] = {}
         table_names = set({})
         # make sure keys are valid
         for table, prefix in source_prefixes.items():

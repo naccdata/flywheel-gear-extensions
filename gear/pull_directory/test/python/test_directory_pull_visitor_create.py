@@ -10,7 +10,6 @@ Requirements: 1.1, 1.3, 2.2, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.4, 5.1
 
 import logging
 from contextlib import contextmanager
-from typing import Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,11 +25,11 @@ from users.nacc_directory import get_directory_field_names
 @contextmanager
 def patched_redcap(
     *,
-    connection: Optional[Mock] = None,
-    project: Optional[Mock] = None,
-    export_return: Optional[list] = None,
-    export_side_effect: Optional[Exception] = None,
-    connection_side_effect: Optional[Exception] = None,
+    connection: Mock | None = None,
+    project: Mock | None = None,
+    export_return: list | None = None,
+    export_side_effect: Exception | None = None,
+    connection_side_effect: Exception | None = None,
 ):
     """Context manager that patches REDCapConnection, REDCapProject, and
     ContextClient with configurable mocks.

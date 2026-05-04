@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import NewType, Optional
+from typing import NewType
 
 from flywheel.models.user import User
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
@@ -58,10 +58,10 @@ class UserEntry(BaseModel):
 
     name: PersonName
     email: str
-    auth_email: Optional[str] = Field(default=None)
+    auth_email: str | None = Field(default=None)
     active: bool
     approved: bool
-    registration_date: Optional[datetime] = None
+    registration_date: datetime | None = None
 
     @property
     def first_name(self) -> str:
@@ -99,8 +99,8 @@ class ActiveUserEntry(UserEntry):
     )
 
     authorizations: Authorizations
-    registry_person: Optional[RegistryPerson] = Field(default=None, exclude=True)
-    fw_user: Optional[User] = Field(default=None, exclude=True)
+    registry_person: RegistryPerson | None = Field(default=None, exclude=True)
+    fw_user: User | None = Field(default=None, exclude=True)
 
     @property
     def is_registered(self) -> bool:
@@ -112,7 +112,7 @@ class ActiveUserEntry(UserEntry):
         return self.registry_person is not None
 
     @property
-    def registry_id(self) -> Optional[str]:
+    def registry_id(self) -> str | None:
         """Get the registry ID from the registry person.
 
         Returns:
@@ -123,7 +123,7 @@ class ActiveUserEntry(UserEntry):
         return self.registry_person.registry_id()
 
     @property
-    def user_id(self) -> Optional[str]:
+    def user_id(self) -> str | None:
         """The user ID for this directory entry.
 
         Returns:

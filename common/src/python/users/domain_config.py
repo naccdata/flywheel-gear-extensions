@@ -5,7 +5,7 @@ domain mapping, and name normalization. All domain strings are
 canonicalized on load (lowercased, stripped, trailing dots removed).
 """
 
-from typing import Annotated, Optional, Self
+from typing import Annotated, Self
 
 from pydantic import AfterValidator, BaseModel, field_validator, model_validator
 
@@ -132,7 +132,7 @@ class DomainRelationshipConfig(BaseModel):
             result.update(self._children_lookup[parent])
 
         # Add affiliated domains
-        group_name: Optional[str] = None
+        group_name: str | None = None
         # Check if canonical domain or its parent is in an affiliated group
         for d in list(result):
             if d in self._affiliated_lookup:
@@ -198,7 +198,7 @@ class IdPDomainConfig(BaseModel):
 
     def get_expected_idp(
         self, domain: str, domain_config: DomainRelationshipConfig
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the expected IdP for an email domain.
 
         Canonicalizes input, resolves subdomains via

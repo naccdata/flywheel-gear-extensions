@@ -3,16 +3,16 @@
 from abc import ABC, abstractmethod
 from csv import QUOTE_MINIMAL, DictWriter
 from io import StringIO
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, TextIO
 
-SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
+SimpleJSONObject = dict[str, int | str | bool | float | None]
 
 
 class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
     def __init__(
-        self, stream: TextIO, fieldnames: List[str], extrasaction: str = "raise"
+        self, stream: TextIO, fieldnames: list[str], extrasaction: str = "raise"
     ) -> None:
         self.__writer = DictWriter(
             stream,
@@ -48,7 +48,7 @@ class JSONWriter(ABC):
     """Abstract base class for writing JSON objects."""
 
     @abstractmethod
-    def write(self, dict_obj: Dict[str, Any]) -> None:
+    def write(self, dict_obj: dict[str, Any]) -> None:
         """Writes the dictionary object as JSON.
 
         Args:
@@ -60,9 +60,9 @@ class ListJSONWriter(JSONWriter):
     """Collects objects in a list."""
 
     def __init__(self) -> None:
-        self.__objects: List[Dict[str, Any]] = []
+        self.__objects: list[dict[str, Any]] = []
 
-    def write(self, dict_obj: Dict[str, Any]) -> None:
+    def write(self, dict_obj: dict[str, Any]) -> None:
         """Captures object for writing to file.
 
         Args:
@@ -70,7 +70,7 @@ class ListJSONWriter(JSONWriter):
         """
         self.__objects.append(dict_obj)
 
-    def object_list(self) -> List[Dict[str, Any]]:
+    def object_list(self) -> list[dict[str, Any]]:
         """Returns list of accumulated dict objects.
 
         Returns:
@@ -108,7 +108,7 @@ class StringCSVWriter:
         return stream.getvalue()
 
 
-def write_csv_to_stream(headers: List[str], data: List[Dict[str, Any]]) -> StringIO:
+def write_csv_to_stream(headers: list[str], data: list[dict[str, Any]]) -> StringIO:
     """Takes a header and data pair and uses CSVWriter to write the CSV
     contents to a StringIO stream.
 

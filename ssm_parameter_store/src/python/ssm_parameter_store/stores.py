@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Any, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import boto3
 
@@ -40,7 +41,7 @@ class EC2ParameterStore:
 
     def extract_parameter(
         self, parameter: dict[str, str], strip_path: bool = True
-    ) -> Tuple[str, Any]:
+    ) -> tuple[str, Any]:
         key = parameter["Name"]
         if strip_path:
             key_parts = key.split(self.path_delimiter)

@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, TypedDict
 
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
@@ -47,7 +47,7 @@ class JSONUploader:
         proxy: FlywheelProxy,
         project: ProjectAdaptor,
         hierarchy_client: HierarchyCreationClient,
-        environment: Optional[Dict[str, Any]] = None,
+        environment: dict[str, Any] | None = None,
         template_map: UploadTemplateInfo,
         skip_duplicates: bool = True,
     ) -> None:
@@ -60,7 +60,7 @@ class JSONUploader:
         self.__environment = environment if environment else {}
         self.__skip_duplicates = skip_duplicates
 
-    def upload(self, records: Dict[str, List[Dict[str, Any]]]) -> bool:
+    def upload(self, records: dict[str, list[dict[str, Any]]]) -> bool:
         """Uploads the records to acquisitions under the subject.
 
         Args:
@@ -76,8 +76,8 @@ class JSONUploader:
         return success
 
     def upload_record(
-        self, subject_label: str, record: Dict[str, Any]
-    ) -> Optional[FileEntry]:
+        self, subject_label: str, record: dict[str, Any]
+    ) -> FileEntry | None:
         """Uploads the serialized record to the subject with the session,
         acquisition, and file determined by the template of this object.
 
@@ -137,7 +137,7 @@ class FormJSONUploader:
         self.__gear_name = gear_name
         self.__hierarchy_labels = hierarchy_labels
         self.__error_writer = error_writer
-        self.__pending_visits: Dict[str, VisitMapping] = {}
+        self.__pending_visits: dict[str, VisitMapping] = {}
 
     def __add_pending_visit(
         self,
@@ -145,7 +145,7 @@ class FormJSONUploader:
         subject: SubjectAdaptor,
         filename: str,
         file_id: str,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         visitdate_key: str = FieldNames.DATE_COLUMN,
     ):
         """Add the visit to the list of visits pending for QC for the
@@ -213,7 +213,7 @@ class FormJSONUploader:
         return success
 
     def __update_visit_error_log(
-        self, *, error_log_name: str, status: str, error_obj: Optional[FileError] = None
+        self, *, error_log_name: str, status: str, error_obj: FileError | None = None
     ):
         """Update error log file for the visit and store error metadata in
         file.info.qc.
@@ -238,7 +238,7 @@ class FormJSONUploader:
 
     def upload(
         self,
-        participant_records: Dict[str, Dict[str, Dict[str, Any]]],
+        participant_records: dict[str, dict[str, dict[str, Any]]],
         visitdate_key: str = FieldNames.DATE_COLUMN,
     ) -> bool:
         """Converts a transformed CSV record to a JSON file and uploads it to

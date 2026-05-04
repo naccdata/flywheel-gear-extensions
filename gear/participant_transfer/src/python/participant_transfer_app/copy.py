@@ -1,7 +1,7 @@
 """Module for copying transferred participant data."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel import Project
@@ -23,9 +23,9 @@ class CopyHelper:
         proxy: FlywheelProxy,
         new_center: CenterGroup,
         prev_center: CenterGroup,
-        datatypes: List[str],
-        studies: Optional[List[str]],
-        warnings: List[str],
+        datatypes: list[str],
+        studies: list[str] | None,
+        warnings: list[str],
     ) -> None:
         self.__subject_label = subject_label
         self.__proxy = proxy
@@ -34,7 +34,7 @@ class CopyHelper:
         self.__datatypes = datatypes
         self.__studies = studies
         self.__warnings = warnings
-        self.__jobs_list: List[str] = []
+        self.__jobs_list: list[str] = []
 
     def __copy_project_data(
         self, source_project_id: str, target_project_id: str
@@ -80,7 +80,7 @@ class CopyHelper:
         )
 
     def __trigger_soft_copy_gear(
-        self, gear_configs: Dict[str, Any], destination: Project
+        self, gear_configs: dict[str, Any], destination: Project
     ) -> bool:
         """Trigger the soft-copy gear.
 

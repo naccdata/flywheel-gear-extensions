@@ -1,6 +1,6 @@
 """Defines a data model for pipeline project labels."""
 
-from typing import Any, Optional, Self, get_args
+from typing import Any, Self, get_args
 
 from keys.types import DatatypeNameType, PipelineStageType
 from pydantic import (
@@ -22,7 +22,7 @@ class PipelineLabel(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     pipeline: PipelineStageType
-    datatype: Optional[DatatypeNameType] = None
+    datatype: DatatypeNameType | None = None
     study_id: str = "adrc"
 
     @model_serializer

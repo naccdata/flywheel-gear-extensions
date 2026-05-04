@@ -1,7 +1,5 @@
 """Tests for projects.*"""
 
-from typing import Optional
-
 import pytest
 from projects.study import (
     PageConfig,
@@ -16,9 +14,9 @@ class DummyVisitor(StudyVisitor):
     """Visitor for testing apply methods."""
 
     def __init__(self) -> None:
-        self.center_id: Optional[str] = None
-        self.project_name: Optional[str] = None
-        self.datatype_name: Optional[str] = None
+        self.center_id: str | None = None
+        self.project_name: str | None = None
+        self.datatype_name: str | None = None
 
     def visit_center(self, center: StudyCenterModel) -> None:
         self.center_id = center.center_id

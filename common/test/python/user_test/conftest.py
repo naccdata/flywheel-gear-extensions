@@ -6,7 +6,7 @@ data for user authorization tests.
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 from unittest.mock import Mock
 
 import pytest
@@ -44,7 +44,7 @@ class UserBuilder:
         self._firstname = "Test"
         self._lastname = "User"
 
-    def with_id(self, user_id: str) -> "UserBuilder":
+    def with_id(self, user_id: str) -> UserBuilder:
         """Set the user ID.
 
         Args:
@@ -56,7 +56,7 @@ class UserBuilder:
         self._id = user_id
         return self
 
-    def with_email(self, email: str) -> "UserBuilder":
+    def with_email(self, email: str) -> UserBuilder:
         """Set the user email.
 
         Args:
@@ -68,7 +68,7 @@ class UserBuilder:
         self._email = email
         return self
 
-    def with_name(self, firstname: str, lastname: str) -> "UserBuilder":
+    def with_name(self, firstname: str, lastname: str) -> UserBuilder:
         """Set the user name.
 
         Args:
@@ -104,7 +104,7 @@ class AuthorizationsBuilder:
 
     def with_page_resource(
         self, page_name: str, action: ActionType = "view"
-    ) -> "AuthorizationsBuilder":
+    ) -> AuthorizationsBuilder:
         """Add a page resource activity.
 
         Args:
@@ -121,7 +121,7 @@ class AuthorizationsBuilder:
 
     def with_activity(
         self, resource: Resource, action: ActionType
-    ) -> "AuthorizationsBuilder":
+    ) -> AuthorizationsBuilder:
         """Add a custom activity.
 
         Args:
@@ -275,7 +275,7 @@ def build_authorizations() -> Callable[..., Authorizations]:
         A factory function that creates Authorizations objects
     """
 
-    def _build(page_resources: Optional[List[str]] = None) -> Authorizations:
+    def _build(page_resources: list[str] | None = None) -> Authorizations:
         """Build an Authorizations object for testing.
 
         Args:
@@ -409,7 +409,7 @@ def build_identifier() -> Callable[..., Identifier]:
         identifier: str = "test-id-123",
         identifier_type: str = "naccid",
         status: str = "A",
-        login: Optional[bool] = None,
+        login: bool | None = None,
     ) -> Identifier:
         """Build an Identifier object for testing.
 
@@ -465,8 +465,8 @@ def build_org_identity() -> Callable[..., OrgIdentity]:
     """
 
     def _build(
-        email_addresses: Optional[List[EmailAddress]] = None,
-        identifiers: Optional[List[Identifier]] = None,
+        email_addresses: list[EmailAddress] | None = None,
+        identifiers: list[Identifier] | None = None,
     ) -> OrgIdentity:
         """Build an OrgIdentity object for testing.
 
@@ -492,12 +492,12 @@ def build_coperson_message() -> Callable[..., CoPersonMessage]:
     """
 
     def _build(
-        co_person: Optional[CoPerson] = None,
-        email_addresses: Optional[List[EmailAddress]] = None,
-        names: Optional[List[Name]] = None,
-        identifiers: Optional[List[Identifier]] = None,
-        org_identities: Optional[List[OrgIdentity]] = None,
-        co_person_roles: Optional[List[CoPersonRole]] = None,
+        co_person: CoPerson | None = None,
+        email_addresses: list[EmailAddress] | None = None,
+        names: list[Name] | None = None,
+        identifiers: list[Identifier] | None = None,
+        org_identities: list[OrgIdentity] | None = None,
+        co_person_roles: list[CoPersonRole] | None = None,
     ) -> CoPersonMessage:
         """Build a CoPersonMessage object for testing.
 
@@ -529,7 +529,7 @@ def build_coperson_message() -> Callable[..., CoPersonMessage]:
 
 @st.composite
 def email_address_strategy(
-    draw, email_type: Optional[str] = None, verified: Optional[bool] = None
+    draw, email_type: str | None = None, verified: bool | None = None
 ):
     """Generate EmailAddress with optional constraints.
 
@@ -553,7 +553,7 @@ def email_address_strategy(
 
 
 @st.composite
-def name_strategy(draw, primary: Optional[bool] = None):
+def name_strategy(draw, primary: bool | None = None):
     """Generate Name with optional constraints.
 
     Args:
@@ -584,7 +584,7 @@ def name_strategy(draw, primary: Optional[bool] = None):
 
 @st.composite
 def identifier_strategy(
-    draw, identifier_type: Optional[str] = None, status: Optional[str] = None
+    draw, identifier_type: str | None = None, status: str | None = None
 ):
     """Generate Identifier with optional constraints.
 
@@ -627,7 +627,7 @@ def coperson_message_strategy(  # noqa: C901
     ensure_org_email: bool = False,
     include_identifiers: bool = True,
     include_names: bool = True,
-    status: Optional[str] = None,
+    status: str | None = None,
 ):
     """Generate CoPersonMessage with configurable properties.
 
@@ -734,8 +734,8 @@ def build_mock_environment() -> Callable[..., Mock]:
     from users.user_process_environment import UserProcessEnvironment
 
     def _build(
-        domain_config: Optional[DomainRelationshipConfig] = None,
-        idp_config: Optional[IdPDomainConfig] = None,
+        domain_config: DomainRelationshipConfig | None = None,
+        idp_config: IdPDomainConfig | None = None,
     ) -> Mock:
         """Build a mock UserProcessEnvironment for testing.
 

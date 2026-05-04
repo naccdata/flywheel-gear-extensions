@@ -1,7 +1,7 @@
 """QC Status Log Creator and File Visit Annotator."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -104,7 +104,7 @@ class QCStatusLogManager:
 
     def get_qc_log_filename(
         self, visit_keys: DataIdentification, project: ProjectAdaptor
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the actual QC status log filename that exists or would be
         created.
 
@@ -156,7 +156,7 @@ class QCStatusLogManager:
         errors: FileErrorList,
         reset_qc_metadata: MetadataCleanupFlag = "NA",
         add_visit_metadata: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Updates or creates QC status log file at project level.
 
         Handles both new format (with visitnum/packet) and legacy format

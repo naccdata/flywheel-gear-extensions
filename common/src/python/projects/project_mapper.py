@@ -1,7 +1,7 @@
 """Maps ADCID to projects."""
 
 import logging
-from typing import Dict, Iterable, List, Optional
+from collections.abc import Iterable
 
 from centers.center_group import CenterError, CenterGroup
 from centers.nacc_group import NACCGroup
@@ -15,8 +15,8 @@ def build_project_map(
     *,
     proxy: FlywheelProxy,
     destination_label: str,
-    center_filter: Optional[List[str]] = None,
-) -> Dict[str, ProjectAdaptor]:
+    center_filter: list[str] | None = None,
+) -> dict[str, ProjectAdaptor]:
     """Builds a map from adcid to the project of center group with the given
     label.
 
@@ -58,9 +58,9 @@ def generate_project_map(
     *,
     proxy: FlywheelProxy,
     centers: Iterable[str],
-    target_project: Optional[str] = None,
-    staging_project_id: Optional[str] = None,
-) -> Dict[str, ProjectAdaptor]:
+    target_project: str | None = None,
+    staging_project_id: str | None = None,
+) -> dict[str, ProjectAdaptor]:
     """Generates the project map.
 
     Args:

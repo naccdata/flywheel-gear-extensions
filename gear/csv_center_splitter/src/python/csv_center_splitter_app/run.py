@@ -1,7 +1,6 @@
 """Entry script for csv_center_splitter."""
 
 import logging
-from typing import List, Optional
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
@@ -40,14 +39,14 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         adcid_key: str,
         batch_size: int,
-        target_project: Optional[str] = None,
-        staging_project_id: Optional[str] = None,
-        downstream_gears: Optional[List[str]] = None,
-        include: Optional[str] = None,
-        exclude: Optional[str] = None,
+        target_project: str | None = None,
+        staging_project_id: str | None = None,
+        downstream_gears: list[str] | None = None,
+        include: str | None = None,
+        exclude: str | None = None,
         delimiter: str = ",",
         local_run: bool = False,
-        email_client: Optional[EmailListClient] = None,
+        email_client: EmailListClient | None = None,
     ):
         super().__init__(client=client)
 
@@ -69,7 +68,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "CSVCenterSplitterVisitor":
         """Creates a gear execution object.
 
@@ -157,7 +156,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                     f"Failed to find the input file: {error}"
                 ) from error
 
-        with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
+        with open(self.__file_input.filepath, encoding="utf-8-sig") as fh:
             error_writer = ListErrorWriter(container_id=file_id, fw_path=fw_path)
 
             run(

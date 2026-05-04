@@ -1,11 +1,11 @@
 """Gear context parser for user management."""
 
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from fw_gear import GearContext  # type: ignore
 
 
-def get_api_key(gear_context: GearContext) -> Optional[str]:
+def get_api_key(gear_context: GearContext) -> str | None:
     """Returns the api key from the gear context if there is one.
 
     Args:
@@ -23,9 +23,7 @@ def get_api_key(gear_context: GearContext) -> Optional[str]:
 T = TypeVar("T")
 
 
-def get_config(
-    *, gear_context: GearContext, key: str, default: Optional[T] = None
-) -> T:
+def get_config(*, gear_context: GearContext, key: str, default: T | None = None) -> T:
     """Returns the value for the key in the config of the gear context.
 
     Args:

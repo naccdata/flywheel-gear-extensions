@@ -1,7 +1,5 @@
 """Handles REDCap email list."""
 
-from typing import Dict
-
 from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
@@ -26,12 +24,12 @@ class REDCapEmailList:
         self.__email_list = self.__pull_email_list_from_redcap(email_key)
 
     @property
-    def email_list(self) -> Dict[str, Dict[str, str]]:
+    def email_list(self) -> dict[str, dict[str, str]]:
         return self.__email_list
 
     def __pull_email_list_from_redcap(
         self, email_key: str
-    ) -> Dict[str, Dict[str, str]]:
+    ) -> dict[str, dict[str, str]]:
         """Pull email list from REDCap.
 
         Maps each email to the corresponding

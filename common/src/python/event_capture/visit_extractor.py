@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
@@ -15,8 +15,8 @@ class DataIdentificationExtractor:
 
     @staticmethod
     def from_qc_status_custom_info(
-        custom_info: Dict[str, Any],
-    ) -> Optional[DataIdentification]:
+        custom_info: dict[str, Any],
+    ) -> DataIdentification | None:
         """Extract DataIdentification from QC status custom info.
 
         Args:
@@ -38,7 +38,7 @@ class DataIdentificationExtractor:
             return None
 
     @staticmethod
-    def from_json_file_metadata(json_file: FileEntry) -> Optional[DataIdentification]:
+    def from_json_file_metadata(json_file: FileEntry) -> DataIdentification | None:
         """Extract DataIdentification from JSON file forms metadata.
 
         The forms.json metadata uses normalized field names (visitdate, not
@@ -63,7 +63,7 @@ class DataIdentificationExtractor:
     def from_deletion_request_file(
         request_file: FileEntry,
         adcid: int,
-    ) -> Optional[DataIdentification]:
+    ) -> DataIdentification | None:
         """Extract DataIdentification from a deletion request file.
 
         Reads and parses the deletion request JSON file content.
@@ -94,7 +94,7 @@ class DataIdentificationExtractor:
             return None
 
     @staticmethod
-    def from_forms_json(forms_json: dict[str, Any]) -> Optional[DataIdentification]:
+    def from_forms_json(forms_json: dict[str, Any]) -> DataIdentification | None:
         """Extract DataIdentification from forms.json dict.
 
         Args:

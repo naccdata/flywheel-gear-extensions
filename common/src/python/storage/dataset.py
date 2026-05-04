@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, Literal
 
 import pyarrow.parquet as pq
 from pydantic import BaseModel, root_validator
@@ -27,7 +27,7 @@ class FWDataset(BaseModel):
     bucket: str
     prefix: str
     storage_id: str
-    storage_label: Optional[str]
+    storage_label: str | None
     type: Literal["s3"]  # other types allowed but we only work with S3
 
     @property
@@ -36,7 +36,7 @@ class FWDataset(BaseModel):
         return f"{self.bucket}/{self.prefix}"
 
     @root_validator(pre=True)
-    def storage_label_alias(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    def storage_label_alias(cls, values: dict[str, Any]) -> dict[str, Any]:
         """storage_label can also be label, seems to depend on when the dataset
         was made."""
         if "storage_label" not in values and "label" in values:
@@ -48,7 +48,7 @@ class AggregateDataset(ABC):
     """Class to handle aggregating datasets from the same bucket."""
 
     def __init__(
-        self, bucket: str, project: str, datasets: Dict[str, FWDataset]
+        self, bucket: str, project: str, datasets: dict[str, FWDataset]
     ) -> None:
         """Initializer.
 
@@ -82,16 +82,16 @@ class AggregateDataset(ABC):
         return self.__s3_interface
 
     @property
-    def latest_versions(self) -> Dict[str, str]:
+    def latest_versions(self) -> dict[str, str]:
         return self.__latest_versions
 
     @property
-    def tables(self) -> Set[str]:
+    def tables(self) -> set[str]:
         return self.__tables
 
     def __get_latest_versions(
-        self, datasets: Dict[str, FWDataset]
-    ) -> Tuple[Dict[str, str], Set[str]]:
+        self, datasets: dict[str, FWDataset]
+    ) -> tuple[dict[str, str], set[str]]:
         """Get latest versions and all tables for all datasets.
 
         Returns:
@@ -99,7 +99,7 @@ class AggregateDataset(ABC):
                 of all possible tables
         """
         log.info(f"Grabbing latest datasets under {self.bucket}...")
-        latest_versions: Dict[str, str] = {}
+        latest_versions: dict[str, str] = {}
         all_tables = set()
 
         for center, dataset in datasets.items():
@@ -116,7 +116,7 @@ class AggregateDataset(ABC):
 
     def get_latest_version(
         self, dataset: FWDataset
-    ) -> Tuple[Optional[str], Optional[List[str]]]:
+    ) -> tuple[str | None, list[str] | None]:
         """Get latest dataset version and tables under the specified dataset.
 
         Args:

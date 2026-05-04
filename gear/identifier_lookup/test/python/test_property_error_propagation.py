@@ -7,7 +7,6 @@
 
 import csv
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -51,7 +50,7 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
     all_ptids = valid_ptids + invalid_ptids
 
     # Create identifiers only for valid PTIDs
-    identifiers: Dict[str, IdentifierObject] = {
+    identifiers: dict[str, IdentifierObject] = {
         ptid: IdentifierObject(
             naccid=f"NACC{i:06d}",
             adcid=1,
@@ -81,7 +80,7 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -207,7 +206,7 @@ def test_error_propagation_maintains_processing_order():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -289,7 +288,7 @@ def test_short_circuit_strategy_stops_on_first_failure():
       processing visitors after the first failure.
     """
     # Arrange - Create test data with invalid PTID
-    identifiers: Dict[str, IdentifierObject] = {}  # Empty to cause failure
+    identifiers: dict[str, IdentifierObject] = {}  # Empty to cause failure
 
     shared_error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
     output_stream = StringIO()
@@ -306,7 +305,7 @@ def test_short_circuit_strategy_stops_on_first_failure():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

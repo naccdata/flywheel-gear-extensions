@@ -4,7 +4,6 @@ import logging
 import multiprocessing
 from multiprocessing.pool import Pool
 import os
-from typing import List
 
 from curator.curator import Curator, ProjectCurationError
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -34,7 +33,7 @@ def initialize_worker(in_curator: Curator, context: GearContext):
     curator.set_client(context)
 
 
-def get_curation_list(subject: Subject) -> List[FileModel]:
+def get_curation_list(subject: Subject) -> list[FileModel]:
     """Build ordered files list for the given subject.
 
     Args:
@@ -56,7 +55,7 @@ def get_curation_list(subject: Subject) -> List[FileModel]:
             ) from error
 
     # associate UDS sessions; fail whole subject if a duplicate session is found
-    curation_list: List[FileModel] = []
+    curation_list: list[FileModel] = []
     try:
         response_model.associate_uds_session()
     except ValueError as error:
@@ -103,7 +102,7 @@ def curate_subject(subject_id: str) -> None:
     log.debug(f"Curating {len(curation_list)} files for {subject.label}")
 
     curator.pre_curate(subject, subject_table, curation_list)
-    processed_files: List[FileModel] = []
+    processed_files: list[FileModel] = []
 
     for file_model in curation_list:
         if not file_model:
@@ -122,8 +121,8 @@ class ProjectCurationScheduler:
     def __init__(
         self,
         project: ProjectAdaptor,
-        include_subjects: List[str],
-        exclude_subjects: List[str],
+        include_subjects: list[str],
+        exclude_subjects: list[str],
     ) -> None:
         """Initializer.
 

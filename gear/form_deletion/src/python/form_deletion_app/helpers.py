@@ -1,7 +1,6 @@
 """Helper classes for deleting a form visit."""
 
 import logging
-from typing import List, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
 from deletions.models import DeletedItems, DeleteRequest
@@ -28,7 +27,7 @@ class AcquisitionRemover:
         form_configs: FormProjectConfigs,
         module_configs: ModuleConfigs,
         delete_request: DeleteRequest,
-        dependent_modules: Optional[List[str]] = None,
+        dependent_modules: list[str] | None = None,
         deleted_items: DeletedItems,
     ):
         """
@@ -104,7 +103,7 @@ class AcquisitionRemover:
         date_field: str,
         hierarchy_labels: UploadTemplateInfo,
         subject_label: str,
-    ) -> Optional[tuple[str, str, str]]:
+    ) -> tuple[str, str, str] | None:
         """Derives Flywheel container labels from templates and the delete
         request.
 
@@ -345,7 +344,7 @@ class AcquisitionRemover:
         prefixes = ("ingest-form", "sandbox-form", "accepted")
 
         for subject in subjects:
-            project: Optional[Project] = self.__proxy.get_project_by_id(
+            project: Project | None = self.__proxy.get_project_by_id(
                 subject.parents.project
             )
             if not project:

@@ -3,7 +3,7 @@
 import json
 import logging
 from json import JSONDecodeError
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues, MetadataKeys
@@ -32,10 +32,10 @@ class FormQueryArgs(BaseModel):
     module: str
     legacy: bool
     search_col: str
-    search_val: Optional[str] | Optional[List[str]] = None
-    search_op: Optional[SearchOperator] | Optional[str] = None
-    qc_gear: Optional[str] = None
-    extra_columns: Optional[List[str]] = None
+    search_val: str | None | list[str] | None = None
+    search_op: SearchOperator | None | str | None = None
+    qc_gear: str | None = None
+    extra_columns: list[str] | None = None
     find_all: bool = False
 
 
@@ -45,7 +45,7 @@ class FormsStore:
     def __init__(
         self,
         ingest_project: ProjectAdaptor,
-        legacy_project: Optional[ProjectAdaptor] = None,
+        legacy_project: ProjectAdaptor | None = None,
     ) -> None:
         self.__ingest_project = ingest_project
         self.__legacy_project = legacy_project
@@ -75,12 +75,12 @@ class FormsStore:
         module: str,
         legacy: bool,
         search_col: str,
-        search_val: Optional[str] | Optional[List[str]] = None,
-        search_op: Optional[SearchOperator] | Optional[str] = None,
-        qc_gear: Optional[str] = None,
-        extra_columns: Optional[List[str]] = None,
+        search_val: str | None | list[str] | None = None,
+        search_op: SearchOperator | None | str | None = None,
+        qc_gear: str | None = None,
+        extra_columns: list[str] | None = None,
         find_all: bool = False,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         """Retrieve previous visit records for the specified subject/module.
 
         Args:
@@ -124,7 +124,7 @@ class FormsStore:
             )
             return None
 
-        if isinstance(search_val, List) and search_op != DefaultValues.FW_SEARCH_OR:
+        if isinstance(search_val, list) and search_op != DefaultValues.FW_SEARCH_OR:
             raise FormsStoreException(
                 'Unsupported operator "%s" for list input %s', search_op, search_val
             )
@@ -138,7 +138,7 @@ class FormsStore:
             search_val = [search_val.replace(", ", ",")]
 
         # remove spaces for OR search (=|)
-        if isinstance(search_val, List) and search_op == DefaultValues.FW_SEARCH_OR:
+        if isinstance(search_val, list) and search_op == DefaultValues.FW_SEARCH_OR:
             search_val = f"[{','.join(search_val)}]"
 
         # Dataview to retrieve the previous visits
@@ -180,11 +180,11 @@ class FormsStore:
         self,
         *,
         subject_lbl: str,
-        module: str | List[str],
+        module: str | list[str],
         legacy: bool,
         order_by: str,
-        list_filters: Optional[List[FormFilter]] = None,
-    ) -> Optional[List[Dict[str, str]]]:
+        list_filters: list[FormFilter] | None = None,
+    ) -> list[dict[str, str]] | None:
         """Retrieve previous visits matching the specified filters for the
         specified subject/module.
 
@@ -240,7 +240,7 @@ class FormsStore:
         comp_op = "="
         modules = module
         # remove spaces for OR search (=|)
-        if isinstance(module, List):
+        if isinstance(module, list):
             modules = f"[{','.join(module)}]"
             comp_op = DefaultValues.FW_SEARCH_OR
 
@@ -265,7 +265,7 @@ class FormsStore:
 
         return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
-    def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, Any] | None:
+    def get_visit_data(self, *, file_name: str, acq_id: str) -> dict[str, Any] | None:
         """Read the visit file and convert to python dictionary.
 
         Args:

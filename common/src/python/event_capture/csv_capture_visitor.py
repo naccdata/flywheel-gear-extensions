@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from configs.ingest_configs import ConfigsError, ModuleConfigs
 from inputs.csv_reader import CSVVisitor
@@ -39,11 +39,11 @@ class CSVCaptureVisitor(CSVVisitor):
         self.__datatype: DatatypeNameType = datatype
         self.__timestamp = timestamp
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         # No validation needed - NACCIDLookupVisitor already validates required fields
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         self.__error_writer.clear()
 
         # date field is module-specific

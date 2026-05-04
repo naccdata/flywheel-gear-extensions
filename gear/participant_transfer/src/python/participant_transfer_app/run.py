@@ -1,7 +1,6 @@
 """Entry script for Manage Participant Transfer."""
 
 import logging
-from typing import List, Optional
 
 from enrollment.enrollment_project import EnrollmentProject
 from fw_gear import GearContext
@@ -49,7 +48,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "ParticipantTransferVisitor":
         """Creates a Manage Participant Transfer execution visitor.
 
@@ -149,11 +148,11 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         self,
         *,
         sender_email: str,
-        target_emails: List[str],
+        target_emails: list[str],
         project: EnrollmentProject,
         ptid: str,
         status: str,
-        job_id: Optional[str],
+        job_id: str | None,
     ) -> None:
         """Send a raw email notifying target emails of the gear failure.
 

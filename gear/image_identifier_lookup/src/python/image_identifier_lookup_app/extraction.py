@@ -8,7 +8,7 @@ metadata if needed.
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
@@ -32,14 +32,14 @@ class LookupContext(BaseModel):
     info alone.
     """
 
-    pipeline_adcid: Optional[int] = None
-    ptid: Optional[str] = None
-    existing_naccid: Optional[str] = None
-    study_date: Optional[str] = None
-    modality: Optional[str] = None
+    pipeline_adcid: int | None = None
+    ptid: str | None = None
+    existing_naccid: str | None = None
+    study_date: str | None = None
+    modality: str | None = None
     naccid_field_name: str = "naccid"
-    dicom_metadata: Optional[dict[str, Any]] = None
-    visit_metadata: Optional[DataIdentification] = None
+    dicom_metadata: dict[str, Any] | None = None
+    visit_metadata: DataIdentification | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -144,7 +144,7 @@ class LookupContext(BaseModel):
         Returns:
             LookupContext with whatever fields are available
         """
-        pipeline_adcid: Optional[int] = None
+        pipeline_adcid: int | None = None
         try:
             pipeline_adcid = project.get_pipeline_adcid()
             log.info(f"Extracted pipeline ADCID: {pipeline_adcid}")
@@ -154,7 +154,7 @@ class LookupContext(BaseModel):
                 f"{project.group}/{project.label}"
             )
 
-        ptid: Optional[str] = None
+        ptid: str | None = None
         label = subject.label
         if label and label.strip():
             ptid = clean_ptid(label)
@@ -162,7 +162,7 @@ class LookupContext(BaseModel):
         else:
             log.info("PTID not available from subject label")
 
-        existing_naccid: Optional[str] = subject.info.get(naccid_field_name)
+        existing_naccid: str | None = subject.info.get(naccid_field_name)
         if existing_naccid:
             log.info(f"Found existing NACCID in subject metadata: {existing_naccid}")
         else:
@@ -170,8 +170,8 @@ class LookupContext(BaseModel):
 
         # Extract study_date and modality from previously stored dicom_metadata
         stored_dicom: dict = subject.info.get("dicom_metadata", {})
-        study_date: Optional[str] = stored_dicom.get("study_date")
-        modality: Optional[str] = stored_dicom.get("modality")
+        study_date: str | None = stored_dicom.get("study_date")
+        modality: str | None = stored_dicom.get("modality")
         if study_date and modality:
             log.info(
                 f"Found study_date={study_date} and modality={modality} "

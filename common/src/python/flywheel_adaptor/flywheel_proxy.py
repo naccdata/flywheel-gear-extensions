@@ -4,8 +4,9 @@
 import json
 import logging
 from codecs import StreamReader
+from collections.abc import Iterable, Sequence
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, Iterable, List, Literal, Optional, Self, Sequence
+from typing import Any, Literal, Optional, Self
 
 import flywheel
 from flywheel import (
@@ -48,7 +49,7 @@ class FlywheelProxy:
     instance."""
 
     def __init__(
-        self, client: Client, fw_client: Optional[FWClient] = None, dry_run: bool = True
+        self, client: Client, fw_client: FWClient | None = None, dry_run: bool = True
     ) -> None:
         """Initializes a flywheel proxy object.
 
@@ -60,8 +61,8 @@ class FlywheelProxy:
         self.__fw = client
         self.__fw_client = fw_client
         self.__dry_run = dry_run
-        self.__project_roles: Optional[dict[str, RoleOutput]] = None
-        self.__project_admin_role: Optional[RoleOutput] = None
+        self.__project_roles: dict[str, RoleOutput] | None = None
+        self.__project_admin_role: RoleOutput | None = None
 
     @property
     def dry_run(self):
@@ -74,7 +75,7 @@ class FlywheelProxy:
 
     def find_projects(
         self, *, group_id: str, project_label: str
-    ) -> List[flywheel.Project]:
+    ) -> list[flywheel.Project]:
         """Finds a flywheel project with a given label, within a group ID if
         specified. Otherwise it's site wide.
 
@@ -89,7 +90,7 @@ class FlywheelProxy:
             f"parents.group={group_id},label={project_label}"
         )
 
-    def find_groups(self, group_id: str) -> List[flywheel.Group]:
+    def find_groups(self, group_id: str) -> list[flywheel.Group]:
         """Searches for and returns a group if it exists.
 
         Args:
@@ -117,7 +118,7 @@ class FlywheelProxy:
 
         return GroupAdaptor(group=groups[0], proxy=self)
 
-    def find_groups_by_tag(self, tag_pattern: str) -> List[flywheel.Group]:
+    def find_groups_by_tag(self, tag_pattern: str) -> list[flywheel.Group]:
         """Searches for groups with tags matching the pattern.
 
         Args:
@@ -128,7 +129,7 @@ class FlywheelProxy:
         """
         return self.__fw.groups.find(f"tags=~{tag_pattern}")
 
-    def find_user(self, user_id: str) -> Optional[flywheel.User]:
+    def find_user(self, user_id: str) -> flywheel.User | None:
         """Searches for and returns a user if it exists.
 
         Args:
@@ -174,7 +175,7 @@ class FlywheelProxy:
 
         self.__fw.modify_user(user.id, {"email": email})
 
-    def find_user_by_email(self, email: str) -> List[flywheel.User]:
+    def find_user_by_email(self, email: str) -> list[flywheel.User]:
         """Find Flywheel users matching the given email address.
 
         Executes the lookup regardless of dry_run mode (read-only operation).
@@ -293,7 +294,7 @@ class FlywheelProxy:
 
     def get_project(
         self, *, group: flywheel.Group, project_label: str
-    ) -> Optional[flywheel.Project]:
+    ) -> flywheel.Project | None:
         """Given a flywheel project label and optional group ID, search for the
         project, and create it if it doesn't exist returns the project, found
         or created.
@@ -339,7 +340,7 @@ class FlywheelProxy:
 
         return project
 
-    def get_project_by_id(self, project_id: str) -> Optional[flywheel.Project]:
+    def get_project_by_id(self, project_id: str) -> flywheel.Project | None:
         """Returns a project with the given ID.
 
         Args:
@@ -372,7 +373,7 @@ class FlywheelProxy:
             self.__project_roles = {role.label: role for role in all_roles}
         return self.__project_roles
 
-    def get_role(self, label: str) -> Optional[RoleOutput]:
+    def get_role(self, label: str) -> RoleOutput | None:
         """Gets project role by label.
 
         Args:
@@ -383,7 +384,7 @@ class FlywheelProxy:
         role_map = self.get_roles()
         return role_map.get(label)
 
-    def get_user_roles(self, role_names: Sequence[str]) -> List[RoleOutput]:
+    def get_user_roles(self, role_names: Sequence[str]) -> list[RoleOutput]:
         """Get the named roles .
 
         Returns all roles matching a name in the list.
@@ -403,7 +404,7 @@ class FlywheelProxy:
                 log.warning("no such role %s", name)
         return role_list
 
-    def get_admin_role(self) -> Optional[RoleOutput]:
+    def get_admin_role(self) -> RoleOutput | None:
         """Gets admin role."""
         if not self.__project_admin_role:
             self.__project_admin_role = self.get_role("admin")
@@ -425,7 +426,7 @@ class FlywheelProxy:
 
         self.__fw.add_role_to_group(group.id, role)
 
-    def get_project_gear_rules(self, project: flywheel.Project) -> List[GearRule]:
+    def get_project_gear_rules(self, project: flywheel.Project) -> list[GearRule]:
         """Get the gear rules from the given project.
 
         Args:
@@ -465,7 +466,7 @@ class FlywheelProxy:
 
         self.__fw.remove_project_rule(project.id, rule.id)
 
-    def get_dataviews(self, project: flywheel.Project) -> List[DataView]:
+    def get_dataviews(self, project: flywheel.Project) -> list[DataView]:
         """Get the dataviews for the project.
 
         Args:
@@ -566,7 +567,7 @@ class FlywheelProxy:
         assert self.__fw_client, "Requires FWClient to be instantiated"
         self.__fw_client.put(url=f"/api/projects/{project.id}/settings", json=settings)
 
-    def get_project_apps(self, project: flywheel.Project) -> List[AttrDict]:
+    def get_project_apps(self, project: flywheel.Project) -> list[AttrDict]:
         """Returns the viewer apps for the project.
 
         Note: Temporary fix using FWClient because flywheel-sdk doesn't manage
@@ -599,7 +600,7 @@ class FlywheelProxy:
     #     self.__fw.modify_project_settings(project.id, {"viewer_apps": apps})
 
     def set_project_apps(
-        self, *, project: flywheel.Project, apps: List[AttrDict]
+        self, *, project: flywheel.Project, apps: list[AttrDict]
     ) -> None:
         """Sets the viewer apps of the project to the list of apps.
 
@@ -680,7 +681,7 @@ class FlywheelProxy:
         """
         return self.__fw.lookup(f"gears/{gear_name}")
 
-    def retry_job(self, job_id: str) -> Optional[str]:
+    def retry_job(self, job_id: str) -> str | None:
         """Retry a job.
 
         The job must have a state of 'failed', and must not have already been retried.
@@ -697,7 +698,7 @@ class FlywheelProxy:
             log.error("Failed to retry the job %s - %s", job_id, error)
             return None
 
-    def find_job(self, search_str: str, **kwargs) -> Optional[Job]:
+    def find_job(self, search_str: str, **kwargs) -> Job | None:
         """Find the first Job matching the search string.
 
         Args:
@@ -708,7 +709,7 @@ class FlywheelProxy:
         """
         return self.__fw.jobs.find_first(search_str, **kwargs)
 
-    def find_jobs(self, search_str: str) -> List[Job]:
+    def find_jobs(self, search_str: str) -> list[Job]:
         """Find all jobs matching the search string.
 
         Args:
@@ -719,7 +720,7 @@ class FlywheelProxy:
         """
         return self.__fw.jobs.find(search_str)
 
-    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+    def get_job_by_id(self, job_id: str) -> Job | None:
         """Find the Job with matching ID.
 
         Args:
@@ -739,11 +740,11 @@ class FlywheelProxy:
         *,
         container_id: str,
         dv_title: str,
-        columns: List[str],
-        filename_pattern: Optional[str] = "*.json",
-        filters: Optional[str] = None,
+        columns: list[str],
+        filename_pattern: str | None = "*.json",
+        filters: str | None = None,
         missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> list[dict[str, str]] | None:
         """Retrieve info on the list of files matching with the given filters
         (if any) from the specified Flywheel container.
 
@@ -816,7 +817,7 @@ class FlywheelProxy:
         """
         return self.__fw.get(container_id)
 
-    def find_projects_with_pattern(self, pattern: str) -> List[flywheel.Project]:
+    def find_projects_with_pattern(self, pattern: str) -> list[flywheel.Project]:
         return self.__fw.projects.find(f"label=~{pattern}")
 
     def get_subject_by_label(self, label: str) -> list[Subject]:
@@ -896,7 +897,7 @@ class GroupAdaptor:
     def __init__(self, *, group: flywheel.Group, proxy: FlywheelProxy) -> None:
         self._group = group
         self._fw = proxy
-        self._project_cache: dict[str, Optional["ProjectAdaptor"]] = {}
+        self._project_cache: dict[str, ProjectAdaptor | None] = {}
 
     @property
     def group(self) -> flywheel.Group:
@@ -917,11 +918,11 @@ class GroupAdaptor:
         """Return the proxy for the flywheel instance."""
         return self._fw
 
-    def projects(self) -> List[flywheel.Project]:
+    def projects(self) -> list[flywheel.Project]:
         """Return projects for the group."""
         return list(self._group.projects.iter())
 
-    def get_tags(self) -> List[str]:
+    def get_tags(self) -> list[str]:
         """Return the list of tags for the group.
 
         Returns:
@@ -949,7 +950,7 @@ class GroupAdaptor:
         for tag in tags:
             self.add_tag(tag)
 
-    def get_group_users(self, *, access: Optional[str] = None) -> List[flywheel.User]:
+    def get_group_users(self, *, access: str | None = None) -> list[flywheel.User]:
         """Gets the users for the named group.
 
         Returns an empty list if the group does not exist or there are no
@@ -979,7 +980,7 @@ class GroupAdaptor:
                 users.append(user)
         return users
 
-    def get_user_access(self) -> List[AccessPermission]:
+    def get_user_access(self) -> list[AccessPermission]:
         """Returns the user access for the group.
 
         Returns:
@@ -1025,7 +1026,7 @@ class GroupAdaptor:
             new_permission.id, AccessPermission(id=None, access=new_permission.access)
         )
 
-    def add_permissions(self, permissions: List[AccessPermission]) -> None:
+    def add_permissions(self, permissions: list[AccessPermission]) -> None:
         """Adds the user access permissions to the group.
 
         Args:
@@ -1061,7 +1062,7 @@ class GroupAdaptor:
             self.add_role(role)
 
     def get_project(
-        self, label: str, info_update: Optional[dict[str, Any]] = None
+        self, label: str, info_update: dict[str, Any] | None = None
     ) -> Optional["ProjectAdaptor"]:
         """Returns a project in this group with the given label.
 
@@ -1253,11 +1254,11 @@ class ProjectAdaptor:
         self._project.update(description=description)
 
     @property
-    def files(self) -> List[FileEntry]:
+    def files(self) -> list[FileEntry]:
         """The list of files associated with this project."""
         return self._project.files
 
-    def get_file(self, name: str) -> Optional[FileEntry]:
+    def get_file(self, name: str) -> FileEntry | None:
         """Gets the file from the enclosed project.
 
         Args:
@@ -1267,7 +1268,7 @@ class ProjectAdaptor:
         """
         return self._project.get_file(name)
 
-    def get_file_by_id(self, file_id: str) -> Optional[FileEntry]:
+    def get_file_by_id(self, file_id: str) -> FileEntry | None:
         """Returns the file by id.
 
         Args:
@@ -1278,7 +1279,7 @@ class ProjectAdaptor:
         # TODO: should return None if not in this project
         return self.proxy.get_file(file_id)
 
-    def get_matching_files(self, query: str) -> List[FileEntry]:
+    def get_matching_files(self, query: str) -> list[FileEntry]:
         """Returns the files in this project matching the query.
 
         Use "parent_ref.type=project" for project files, and
@@ -1322,7 +1323,7 @@ class ProjectAdaptor:
 
     def upload_file_contents(
         self, *, filename: str, contents: str, content_type: str = "text"
-    ) -> Optional[FileEntry]:
+    ) -> FileEntry | None:
         """Uploads a file to the project using filename and string contents.
 
         Args:
@@ -1370,7 +1371,7 @@ class ProjectAdaptor:
 
         return True
 
-    def get_user_roles(self, user_id: str) -> List[str]:
+    def get_user_roles(self, user_id: str) -> list[str]:
         """Gets the list of user role ids in this project.
 
         Args:
@@ -1475,7 +1476,7 @@ class ProjectAdaptor:
         self.__pull_project()
         return True
 
-    def add_admin_users(self, permissions: List[AccessPermission]) -> None:
+    def add_admin_users(self, permissions: list[AccessPermission]) -> None:
         """Adds the users with admin access in the given group permissions.
 
         Args:
@@ -1499,7 +1500,7 @@ class ProjectAdaptor:
                     self._project.label,
                 )
 
-    def get_gear_rules(self) -> List[GearRule]:
+    def get_gear_rules(self) -> list[GearRule]:
         """Gets the gear rules for this project.
 
         Returns:
@@ -1549,7 +1550,7 @@ class ProjectAdaptor:
         """
         self._fw.remove_project_gear_rule(project=self._project, rule=rule)
 
-    def get_apps(self) -> List[AttrDict]:
+    def get_apps(self) -> list[AttrDict]:
         """Returns the list of viewer apps for the project.
 
         Returns:
@@ -1557,7 +1558,7 @@ class ProjectAdaptor:
         """
         return self._fw.get_project_apps(self._project)
 
-    def set_apps(self, apps: List[AttrDict]) -> None:
+    def set_apps(self, apps: list[AttrDict]) -> None:
         """Sets the viewer apps for the project.
 
         Args:
@@ -1565,7 +1566,7 @@ class ProjectAdaptor:
         """
         self._fw.set_project_apps(project=self._project, apps=apps)
 
-    def get_dataviews(self) -> List[DataView]:
+    def get_dataviews(self) -> list[DataView]:
         """Returns the list of dataviews for the project.
 
         Returns:
@@ -1573,7 +1574,7 @@ class ProjectAdaptor:
         """
         return self._fw.get_dataviews(self._project)
 
-    def get_dataview(self, label: str) -> Optional[DataView]:
+    def get_dataview(self, label: str) -> DataView | None:
         """Returns the dataview in the project with the label.
 
         Args:
@@ -1619,7 +1620,7 @@ class ProjectAdaptor:
     def read_dataview(self, view: DataView) -> StreamReader:
         return self._fw.read_view_data(view, self._project.id)
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Returns the info object for this project.
 
         Returns:
@@ -1628,7 +1629,7 @@ class ProjectAdaptor:
         self._project = self._project.reload()
         return self._project.info
 
-    def update_info(self, info: Dict[str, Any]) -> None:
+    def update_info(self, info: dict[str, Any]) -> None:
         """Updates the info object for this project.
 
         Args:
@@ -1637,7 +1638,7 @@ class ProjectAdaptor:
         log.info("updating info for project %s", self._project.label)
         self._project.update_info(info)
 
-    def get_custom_project_info(self, key_path: str) -> Optional[Any | Dict[str, Any]]:
+    def get_custom_project_info(self, key_path: str) -> Any | dict[str, Any] | None:
         """Retrieve custom project info metadata value by key path.
 
         Args:
@@ -1649,7 +1650,7 @@ class ProjectAdaptor:
 
         keys = key_path.split(":")
         index = 0
-        info: Dict[str, Any] | Any = self.get_info()
+        info: dict[str, Any] | Any = self.get_info()
         while index < len(keys) and info:
             info = info.get(keys[index])
             index += 1
@@ -1666,7 +1667,7 @@ class ProjectAdaptor:
         """
         return SubjectAdaptor(self._project.add_subject(label=label))
 
-    def find_subject(self, label: str) -> Optional[SubjectAdaptor]:
+    def find_subject(self, label: str) -> SubjectAdaptor | None:
         """Finds the subject with the label.
 
         Args:
@@ -1680,7 +1681,7 @@ class ProjectAdaptor:
 
         return None
 
-    def get_subject_by_id(self, subject_id: str) -> Optional[SubjectAdaptor]:
+    def get_subject_by_id(self, subject_id: str) -> SubjectAdaptor | None:
         """Gets the subject with the given id.
 
         Args:

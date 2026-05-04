@@ -8,7 +8,6 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -103,7 +102,7 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -263,7 +262,7 @@ def test_event_logging_resilience_multiple_failures():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

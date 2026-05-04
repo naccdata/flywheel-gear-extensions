@@ -8,7 +8,6 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -135,8 +134,8 @@ def test_output_format_preservation_property(
 
 
 def _process_csv_without_event_logging(
-    identifiers: Dict[str, IdentifierObject], header: List[str], rows: List[Dict]
-) -> Dict:
+    identifiers: dict[str, IdentifierObject], header: list[str], rows: list[dict]
+) -> dict:
     """Process CSV without event logging and return results."""
     # Create error writer and output stream
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -157,7 +156,7 @@ def _process_csv_without_event_logging(
         error_writer=error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -195,8 +194,8 @@ def _process_csv_without_event_logging(
 
 
 def _process_csv_with_event_logging(
-    identifiers: Dict[str, IdentifierObject], header: List[str], rows: List[Dict]
-) -> Dict:
+    identifiers: dict[str, IdentifierObject], header: list[str], rows: list[dict]
+) -> dict:
     """Process CSV with event logging and return results."""
     # Create error writer and output stream
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
@@ -220,7 +219,7 @@ def _process_csv_with_event_logging(
         error_writer=error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -270,7 +269,7 @@ def _process_csv_with_event_logging(
     }
 
 
-def _process_csv_data(aggregate_visitor, header: List[str], rows: List[Dict]):
+def _process_csv_data(aggregate_visitor, header: list[str], rows: list[dict]):
     """Helper function to process CSV data with a visitor."""
     # Create CSV input stream
     input_stream = StringIO()

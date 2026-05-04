@@ -1,6 +1,6 @@
 """Module for formatting CSV file."""
 
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, TextIO
 
 from inputs.csv_reader import CSVVisitor
 from keys.keys import REDCapKeys
@@ -16,8 +16,8 @@ class CSVFormatterVisitor(CSVVisitor):
         self.__out_stream = output_stream
         self.__error_writer = error_writer
         self.__org_header_length = -1
-        self.__header: Optional[List[str]] = None
-        self.__writer: Optional[CSVWriter] = None
+        self.__header: list[str] | None = None
+        self.__writer: CSVWriter | None = None
 
     def __get_writer(self) -> CSVWriter:
         """Returns the writer for the CSV output.
@@ -33,7 +33,7 @@ class CSVFormatterVisitor(CSVVisitor):
 
         return self.__writer
 
-    def __validate_header(self, header: List[str]) -> bool:
+    def __validate_header(self, header: list[str]) -> bool:
         """Validates the header. Returns the list of duplicate columns in the
         header, if any.
 
@@ -79,7 +79,7 @@ class CSVFormatterVisitor(CSVVisitor):
 
         return not (duplicates or empty_cols)
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Convert the header to lowercase. Remove any REDCap specific columns
         form the header.
 
@@ -103,7 +103,7 @@ class CSVFormatterVisitor(CSVVisitor):
 
         return True
 
-    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def valid_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Checks whether the row has the expected number of columns.
 
         Args:
@@ -123,7 +123,7 @@ class CSVFormatterVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Remove any REDCap specific columns form the row.
 
         Args:

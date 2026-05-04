@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from configs.ingest_configs import (
     FormProjectConfigs,
@@ -60,7 +60,7 @@ class FormPreprocessor:
         # Checks should be added in the order they need to be evaluated
         # DON'T add `duplicate-record` check here
         # It'll be evaluated directly after transformations
-        self.__dispatcher: Dict[str, Callable[[PreprocessingContext], bool]] = {
+        self.__dispatcher: dict[str, Callable[[PreprocessingContext], bool]] = {
             PreprocessingChecks.VERSION: self.is_accepted_version,
             PreprocessingChecks.PACKET: self.is_accepted_packet,
             PreprocessingChecks.OPTIONAL_FORMS: self._check_optional_forms_status,
@@ -74,7 +74,7 @@ class FormPreprocessor:
         }
 
         # order the preprocessing checks defined for the module
-        self.__preprocess_checks: List[Callable[[PreprocessingContext], bool]] = []
+        self.__preprocess_checks: list[Callable[[PreprocessingContext], bool]] = []
         if self.__module_configs.preprocess_checks:
             for check, check_function in self.__dispatcher.items():
                 if check in self.__module_configs.preprocess_checks:
@@ -384,7 +384,7 @@ class FormPreprocessor:
         return True
 
     def __find_conflicting_visits(
-        self, visits: List[Dict[str, str]], field: str, value: Any
+        self, visits: list[dict[str, str]], field: str, value: Any
     ) -> bool:
         """Check for any conflicting visits in existing records.
 
@@ -707,8 +707,8 @@ class FormPreprocessor:
         self,
         supplement_module: SupplementModuleConfigs,
         pp_context: PreprocessingContext,
-        qc_passed: Optional[bool] = False,
-    ) -> Optional[List[Dict[str, str]]]:
+        qc_passed: bool | None = False,
+    ) -> list[dict[str, str]] | None:
         """Get supplement visits for the given supplement module.
 
         Args:
@@ -751,7 +751,7 @@ class FormPreprocessor:
         return supplement_visits
 
     def __check_supplement_exact_match(
-        self, supplement_visit: Dict[str, str], pp_context: PreprocessingContext
+        self, supplement_visit: dict[str, str], pp_context: PreprocessingContext
     ) -> bool:
         """Check that the found supplement visit matches exactly.
 
@@ -829,7 +829,7 @@ class FormPreprocessor:
 
         return True
 
-    def is_existing_visit(self, *, input_record: Dict[str, Any]) -> bool:
+    def is_existing_visit(self, *, input_record: dict[str, Any]) -> bool:
         """Check for existing visits.
 
         Args:
@@ -948,9 +948,9 @@ class FormPreprocessor:
     def __check_np_uds_demographics_conflicts(
         self,
         pp_context: PreprocessingContext,
-        uds_visits: List[Dict[str, Any]],
-        last_uds_visit: Dict[str, Any],
-        np_dod: Optional[datetime],
+        uds_visits: list[dict[str, Any]],
+        last_uds_visit: dict[str, Any],
+        np_dod: datetime | None,
     ) -> bool:
         """Compare the demographics entered in NP form against UDS IVP.
 
@@ -1248,9 +1248,9 @@ class FormPreprocessor:
     def preprocess(
         self,
         *,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         line_num: int,
-        ivp_record: Optional[Dict[str, Any]] = None,
+        ivp_record: dict[str, Any] | None = None,
     ) -> bool:
         """Run pre-processing checks for the input record.
 

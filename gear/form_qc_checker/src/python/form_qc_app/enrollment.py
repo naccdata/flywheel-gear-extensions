@@ -9,9 +9,10 @@
 
 import logging
 import os
+from collections.abc import Mapping
 from csv import DictReader
 from io import StringIO
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any
 
 from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
@@ -53,8 +54,8 @@ class EnrollmentFormVisitor(CSVVisitor):
         date_field: str,
         error_writer: ListErrorWriter,
         processor: "CSVFileProcessor",
-        validator: Optional[RecordValidator] = None,
-        output_stream: Optional[StringIO] = None,
+        validator: RecordValidator | None = None,
+        output_stream: StringIO | None = None,
     ) -> None:
         """
 
@@ -72,8 +73,8 @@ class EnrollmentFormVisitor(CSVVisitor):
         self.__processor = processor
         self.__validator = validator
         self.__output_stream = output_stream
-        self.__output_writer: Optional[CSVWriter] = None
-        self.__header: Optional[List[str]] = None
+        self.__output_writer: CSVWriter | None = None
+        self.__header: list[str] | None = None
         self.__valid_rows = 0
 
     def __get_output_writer(self) -> CSVWriter:
@@ -96,7 +97,7 @@ class EnrollmentFormVisitor(CSVVisitor):
 
         return self.__output_writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Validates the header fields in file. If the header doesn't have
         required fields writes an error. Also, if validation schema provided,
         rejects the file if there are any unknown fields in the header.
@@ -125,7 +126,7 @@ class EnrollmentFormVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Validates a row from the CSV file.
 
         If the row doesn't have required fields writes an error.
@@ -218,11 +219,11 @@ class CSVFileProcessor(FileProcessor):
             form_configs=form_configs,
             gear_name=gear_name,
         )
-        self.__input: Optional[InputFileWrapper] = None
+        self.__input: InputFileWrapper | None = None
 
     def validate_input(
         self, *, input_wrapper: InputFileWrapper
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Validates a CSV input file. Check whether all required fields are
         present in the header and the first data row.
 
@@ -239,7 +240,7 @@ class CSVFileProcessor(FileProcessor):
             )
 
         self.__input = input_wrapper
-        with open(input_wrapper.filepath, mode="r", encoding="utf-8-sig") as file_obj:
+        with open(input_wrapper.filepath, encoding="utf-8-sig") as file_obj:
             # Validate header and first row of the CSV file
             result = read_csv(
                 input_file=file_obj,
@@ -278,8 +279,8 @@ class CSVFileProcessor(FileProcessor):
             return first_row
 
     def load_schema_definitions(
-        self, rule_def_loader: DefinitionsLoader, input_data: Dict[str, Any]
-    ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
+        self, rule_def_loader: DefinitionsLoader, input_data: dict[str, Any]
+    ) -> tuple[dict[str, Mapping], dict[str, dict] | None]:
         """Loads the rule definition JSON schemas for the respective
         module/version. Assumes the entire CSV file is for same module/version.
 
@@ -324,7 +325,7 @@ class CSVFileProcessor(FileProcessor):
             output_stream=out_stream,
         )
 
-        with open(self.__input.filepath, mode="r", encoding="utf-8-sig") as csv_file:
+        with open(self.__input.filepath, encoding="utf-8-sig") as csv_file:
             success = read_csv(
                 input_file=csv_file,
                 error_writer=self._error_writer,

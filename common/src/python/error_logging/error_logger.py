@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime as dt
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -34,7 +34,7 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         self.__data_attribute = ""
 
     @property
-    def log_name_prefix(self) -> Optional[str]:
+    def log_name_prefix(self) -> str | None:
         """Build log name prefix from collected attributes.
 
         Format: {ptid}_{date}[_{visitnum}]_{module}
@@ -58,7 +58,7 @@ class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
         return prefix
 
     @property
-    def legacy_log_name_prefix(self) -> Optional[str]:
+    def legacy_log_name_prefix(self) -> str | None:
         """Build legacy log name prefix (without visitnum).
 
         Legacy format: {ptid}_{date}_{module} (no visitnum) Returns None
@@ -113,10 +113,10 @@ class ErrorLogTemplate(BaseModel):
     suffix and extension fields from this template.
     """
 
-    suffix: Optional[str] = "qc-status"
-    extension: Optional[str] = "log"
+    suffix: str | None = "qc-status"
+    extension: str | None = "log"
 
-    def instantiate(self, data_id: "DataIdentification") -> Optional[str]:
+    def instantiate(self, data_id: "DataIdentification") -> str | None:
         """Generate QC log filename from DataIdentification.
 
         Creates filename that reflects the DataIdentification structure:
@@ -148,7 +148,7 @@ class ErrorLogTemplate(BaseModel):
 
         return self.create_filename(prefix)
 
-    def instantiate_legacy(self, data_id: "DataIdentification") -> Optional[str]:
+    def instantiate_legacy(self, data_id: "DataIdentification") -> str | None:
         """Generate legacy QC log filename from DataIdentification.
 
         Creates filename in legacy format (without visitnum, without packet):
@@ -187,7 +187,7 @@ class ErrorLogTemplate(BaseModel):
 
 
 @api_retry
-def update_file_info(file: FileEntry, custom_info: Dict[str, Any]):
+def update_file_info(file: FileEntry, custom_info: dict[str, Any]):
     """Set custom info for the given file.
 
     Args:
@@ -277,7 +277,7 @@ def update_error_log_and_qc_metadata(
     Returns:
         bool: True if metadata update is successful, else False
     """
-    qc_info: Optional[FileQCModel] = FileQCModel(qc={})
+    qc_info: FileQCModel | None = FileQCModel(qc={})
     contents = ""
 
     current_log = destination_prj.get_file(error_log_name)
@@ -381,7 +381,7 @@ def update_gear_qc_status(
 
 
 def reset_error_log_metadata_for_gears(
-    *, error_log_name: str, destination_prj: ProjectAdaptor, gear_names: List[str]
+    *, error_log_name: str, destination_prj: ProjectAdaptor, gear_names: list[str]
 ) -> None:
     """Reset error log file QC metadata in file.info.qc.<gear_name> for the
     specified gears.

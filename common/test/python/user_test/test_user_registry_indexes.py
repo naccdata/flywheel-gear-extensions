@@ -8,7 +8,7 @@ Tests cover:
 - Property P2: Registry indexing invariant
 """
 
-from typing import Callable, List, Optional
+from collections.abc import Callable
 from unittest.mock import MagicMock
 
 from coreapi_client.api.default_api import DefaultApi
@@ -29,12 +29,12 @@ from users.user_registry import RegistryPerson, UserRegistry
 
 
 def _make_person(
-    emails: Optional[List[str]] = None,
-    registry_id: Optional[str] = None,
+    emails: list[str] | None = None,
+    registry_id: str | None = None,
     firstname: str = "Test",
     lastname: str = "User",
     status: str = "A",
-    oidcsub: Optional[str] = None,
+    oidcsub: str | None = None,
     verified: bool = True,
 ) -> RegistryPerson:
     """Create a RegistryPerson for testing without going through the API."""
@@ -46,7 +46,7 @@ def _make_person(
             EmailAddress(mail=e, type="official", verified=verified) for e in emails
         ]
 
-    identifiers: List[Identifier] = []
+    identifiers: list[Identifier] = []
     if registry_id:
         identifiers.append(
             Identifier(identifier=registry_id, type="naccid", status="A")
@@ -70,7 +70,7 @@ def _make_person(
 
 
 def _mock_api_response(
-    persons: List[RegistryPerson],
+    persons: list[RegistryPerson],
 ) -> MagicMock:
     """Build a mock DefaultApi that returns the given persons via
     get_co_person.
@@ -106,9 +106,9 @@ def _mock_api_response(
 
 
 def _build_registry_with_persons(
-    persons: List[RegistryPerson],
-    domain_config: Optional[DomainRelationshipConfig] = None,
-    name_normalizer: Optional[Callable[[str], str]] = None,
+    persons: list[RegistryPerson],
+    domain_config: DomainRelationshipConfig | None = None,
+    name_normalizer: Callable[[str], str] | None = None,
 ) -> UserRegistry:
     """Build a UserRegistry populated through its public interface.
 

@@ -1,7 +1,7 @@
 """Defines the Identifier data class."""
 
 from datetime import date, datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
@@ -15,7 +15,7 @@ IdentifiersMode = Literal["dev", "prod"]
 class GUIDField(BaseModel):
     """Base model for models with guid."""
 
-    guid: Optional[str] = Field(None, max_length=20, pattern=GUID_PATTERN)
+    guid: str | None = Field(None, max_length=20, pattern=GUID_PATTERN)
 
 
 class ADCIDField(BaseModel):
@@ -47,7 +47,7 @@ class NACCADCField(BaseModel):
 class OptionalNACCADCField(BaseModel):
     """Base model for models with optional naccadc."""
 
-    naccadc: Optional[int] = Field(None, ge=0)
+    naccadc: int | None = Field(None, ge=0)
 
 
 class NACCIDField(BaseModel):
@@ -59,7 +59,7 @@ class NACCIDField(BaseModel):
 class OptionalNACCIDField(BaseModel):
     """Base model for models with optional naccid."""
 
-    naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
+    naccid: str | None = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
 class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
@@ -69,7 +69,7 @@ class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
     """
 
     active: bool = True
-    created_on: Optional[datetime] = None
+    created_on: datetime | None = None
 
 
 class IdentifierList(RootModel):
@@ -78,7 +78,7 @@ class IdentifierList(RootModel):
     Otherwise, basically acts like a list.
     """
 
-    root: List[IdentifierObject]
+    root: list[IdentifierObject]
 
     def __bool__(self) -> bool:
         return bool(self.root)
@@ -105,11 +105,11 @@ class ParticipantIdentifiers(NACCIDField, GUIDField):
     """Model for participant identifiers."""
 
     center_identifiers: CenterIdentifiers
-    aliases: Optional[List[str]]
+    aliases: list[str] | None
 
 
 class EnrollmentDurationResponse(CenterFields):
     """Response model for enrollment duration request."""
 
     start_date: date
-    end_date: Optional[date] = None
+    end_date: date | None = None

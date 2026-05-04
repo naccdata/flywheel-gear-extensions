@@ -2,7 +2,6 @@
 
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from nacc_common.error_models import FileError, QCStatus
 from nacc_common.form_dates import DATE_PATTERN
@@ -25,16 +24,16 @@ class DeleteRequest(BaseModel):
     ptid: str
     module: str
     visitdate: str = Field(pattern=DATE_PATTERN)
-    visitnum: Optional[str] = None
+    visitnum: str | None = None
 
 
 class DeletedItems(BaseModel):
     """Model to represent items deleted while processing a delete request."""
 
-    logs: List[str] = Field(default_factory=list)
-    subjects: List[str] = Field(default_factory=list)
-    sessions: List[str] = Field(default_factory=list)
-    acquisitions: List[str] = Field(default_factory=list)
+    logs: list[str] = Field(default_factory=list)
+    subjects: list[str] = Field(default_factory=list)
+    sessions: list[str] = Field(default_factory=list)
+    acquisitions: list[str] = Field(default_factory=list)
 
 
 class DeleteResponse(BaseModel):
@@ -43,8 +42,8 @@ class DeleteResponse(BaseModel):
     Located within file.info.delete_response
     """
 
-    errors: Optional[List[FileError]] = None
-    deleted: Optional[DeletedItems] = None
+    errors: list[FileError] | None = None
+    deleted: DeletedItems | None = None
     state: QCStatus
 
 
@@ -56,9 +55,9 @@ class DeleteInfoModel(BaseModel):
     """
 
     delete_response: DeleteResponse
-    processed_timestamp: Optional[datetime] = None
+    processed_timestamp: datetime | None = None
 
-    def get_deleted_visits_list(self) -> Optional[str]:
+    def get_deleted_visits_list(self) -> str | None:
         """Returns the list of deleted visits as a newline-joined string."""
 
         if not self.delete_response.deleted:

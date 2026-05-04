@@ -1,7 +1,6 @@
 """Pulls metadata from LONI."""
 
 import logging
-from typing import Dict, List
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from s3.s3_bucket import S3BucketInterface
@@ -12,9 +11,9 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    table_list: List[str],
+    table_list: list[str],
     s3_client: S3BucketInterface,
-    project_map: Dict[str, ProjectAdaptor],
+    project_map: dict[str, ProjectAdaptor],
     dry_run: bool = False,
 ) -> None:
     """Pulls tabular data from S3, splits the data by center, and uploads the

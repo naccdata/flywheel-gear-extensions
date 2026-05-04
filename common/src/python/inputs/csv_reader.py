@@ -3,8 +3,9 @@
 import abc
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from csv import DictReader
-from typing import Any, Callable, Dict, List, Optional, Sequence, TextIO
+from typing import Any, TextIO
 
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
@@ -21,7 +22,7 @@ class CSVVisitor(ABC):
     """Abstract class for a visitor for row in a CSV file."""
 
     @abstractmethod
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Visit the dictionary for a row (per DictReader).
 
         Args:
@@ -33,7 +34,7 @@ class CSVVisitor(ABC):
         return True
 
     @abstractmethod
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Add the header.
 
         Args:
@@ -43,7 +44,7 @@ class CSVVisitor(ABC):
         """
         return True
 
-    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def valid_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Checks that the row is valid.
 
         Override this method if there is a row condition that requires stopping
@@ -135,7 +136,7 @@ class AggregateCSVVisitor(CSVVisitor):
         self.__visitors = visitors
         self.__strategy = strategy_builder(visitors)
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Visits headers with each of the visitors.
 
         Args:
@@ -145,7 +146,7 @@ class AggregateCSVVisitor(CSVVisitor):
         """
         return all(visitor.visit_header(header) for visitor in self.__visitors)
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Visits row with each of the visitors using the configured strategy.
 
         Args:
@@ -157,7 +158,7 @@ class AggregateCSVVisitor(CSVVisitor):
         """
         return self.__strategy(row, line_num)
 
-    def valid_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def valid_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Checks that the row is valid.
 
         Args:
@@ -175,8 +176,8 @@ def read_csv(
     error_writer: ErrorWriter,
     visitor: CSVVisitor,
     delimiter: str = ",",
-    limit: Optional[int] = None,
-    clear_errors: Optional[bool] = False,
+    limit: int | None = None,
+    clear_errors: bool | None = False,
     preserve_case: bool = True,
 ) -> bool:
     """Reads CSV file and applies the visitor to each row.
@@ -240,7 +241,7 @@ class RowValidator(abc.ABC):
     """Abstract class for a RowValidator."""
 
     @abc.abstractmethod
-    def check(self, row: Dict[str, Any], line_number: int) -> bool:
+    def check(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks the row passes the validation criteria of the implementing
         class.
 
@@ -255,13 +256,13 @@ class RowValidator(abc.ABC):
 class AggregateRowValidator(RowValidator):
     """Row validator for running more than one validator."""
 
-    def __init__(self, validators: Optional[List[RowValidator]] = None) -> None:
+    def __init__(self, validators: list[RowValidator] | None = None) -> None:
         if validators:
             self.__validators = validators
         else:
             self.__validators = []
 
-    def check(self, row: Dict[str, Any], line_number: int) -> bool:
+    def check(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks the row against each of the validators.
 
         Args:

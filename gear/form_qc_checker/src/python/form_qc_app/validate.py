@@ -1,6 +1,7 @@
 """Helper class for validating a visit."""
 
-from typing import Any, Dict, List, Mapping, Optional
+from collections.abc import Mapping
+from typing import Any
 
 from nacc_form_validator.quality_check import QualityCheck
 from outputs.error_writer import ErrorWriter
@@ -19,7 +20,7 @@ class RecordValidator:
         error_store: ErrorStore,
         error_writer: ErrorWriter,
         date_field: str,
-        codes_map: Optional[Dict[str, Dict]] = None,
+        codes_map: dict[str, dict] | None = None,
     ):
         """Initialize RecordValidator.
 
@@ -36,18 +37,18 @@ class RecordValidator:
         self.__date_field = date_field
         self.__codes_map = codes_map
 
-    def get_validation_schema(self) -> Dict[str, Mapping]:
+    def get_validation_schema(self) -> dict[str, Mapping]:
         """Returns the schema definition used for data validation."""
         return self.__qc.schema
 
     def compose_error_metadata(
         self,
         *,
-        input_record: Dict[str, str],
+        input_record: dict[str, str],
         sys_failure: bool,
-        dict_errors: Dict[str, List[str]],
-        error_tree: Optional[Dict[str, Any]],
-        line_number: Optional[int],
+        dict_errors: dict[str, list[str]],
+        error_tree: dict[str, Any] | None,
+        line_number: int | None,
     ):
         """Compose error metadata using validation errors and error code
         mapping.
@@ -82,7 +83,7 @@ class RecordValidator:
             error_composer.compose_minimal_error_metadata(line_number)
 
     def process_data_record(
-        self, *, record: Dict[str, str], line_number: Optional[int] = None
+        self, *, record: dict[str, str], line_number: int | None = None
     ) -> bool:
         """Process the input record and report any errors.
 

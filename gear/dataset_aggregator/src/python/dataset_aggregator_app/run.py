@@ -4,7 +4,6 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
@@ -48,7 +47,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "DatasetAggregatorVisitor":
         """Creates a Dataset Aggregator execution visitor.
 
@@ -83,7 +82,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             identifiers_mode=identifiers_mode,
         )
 
-    def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
+    def __group_datasets(self, center_ids: list[str]) -> AggregateDataset:
         """Get datasets for each center ID by looking up which centers have the
         specified target project and dataset metadata.
 
@@ -93,7 +92,7 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             AggregateDataset, which has collected all found datasets
         """
         log.info(f"Looking up dataset metadata for {self.__target_project} projects...")
-        datasets: Dict[str, FWDataset] = {}
+        datasets: dict[str, FWDataset] = {}
         bucket = None
 
         for center in center_ids:

@@ -1,8 +1,9 @@
 """Defines Identifier Provisioning."""
 
 import logging
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, TextIO
+from typing import Any, TextIO
 
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
@@ -63,13 +64,13 @@ log = logging.getLogger(__name__)
 
 def update_record_level_error_log(
     *,
-    input_record: Dict[str, Any],
+    input_record: dict[str, Any],
     qc_passed: bool,
     project: ProjectAdaptor,
     gear_name: str,
     errors: FileErrorList,
-    errorlog_template: Optional[ErrorLogTemplate] = None,
-    transfer: Optional[bool] = False,
+    errorlog_template: ErrorLogTemplate | None = None,
+    transfer: bool | None = False,
 ):
     """Update error log file for the visit and store error metadata in
     file.info.qc.
@@ -127,7 +128,7 @@ class EnrollmentBatch:
     """Collects new Identifier objects for committing to repository."""
 
     def __init__(self) -> None:
-        self.__records: Dict[str, EnrollmentRecord] = {}
+        self.__records: dict[str, EnrollmentRecord] = {}
 
     def __iter__(self) -> Iterator[EnrollmentRecord]:
         """Returns an iterator to the the enrollment records in this batch."""
@@ -184,10 +185,10 @@ class TransferVisitor(CSVVisitor):
         self.__transfer_info = transfer_info
         self.__repo = repo
         self.__submitter = submitter
-        self.__naccid_identifier: Optional[IdentifierObject] = None
-        self.__naccid: Optional[str] = None
+        self.__naccid_identifier: IdentifierObject | None = None
+        self.__naccid: str | None = None
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Checks that the header has expected column headings.
 
         Args:
@@ -208,7 +209,7 @@ class TransferVisitor(CSVVisitor):
 
         return True
 
-    def __naccid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __naccid_visit(self, row: dict[str, Any], line_num: int) -> bool:
         """Visits a row to process a known NACCID to gather existing
         identifiers.
 
@@ -295,7 +296,7 @@ class TransferVisitor(CSVVisitor):
         )
         return False
 
-    def __guid_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __guid_visit(self, row: dict[str, Any], line_num: int) -> bool:
         """Visits the row for an available GUID to gather existing identifiers.
 
         Checks whether identifiers match those already found.
@@ -338,7 +339,7 @@ class TransferVisitor(CSVVisitor):
 
         return True
 
-    def __prevenrl_visit(self, row: Dict[str, Any], line_num: int) -> bool:
+    def __prevenrl_visit(self, row: dict[str, Any], line_num: int) -> bool:
         """Visits the row for a previous enrollment to gather identifiers.
 
         Checks that identifiers match those already found.
@@ -417,7 +418,7 @@ class TransferVisitor(CSVVisitor):
 
         return True
 
-    def __check_adcid_ptid(self, row: Dict[str, Any], line_number: int) -> bool:
+    def __check_adcid_ptid(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks that ADCID, PTID does not already correspond to an active
         NACCID.
 
@@ -473,7 +474,7 @@ class TransferVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Visits enrollment/transfer data for single form.
 
         Args:
@@ -565,7 +566,7 @@ class NewEnrollmentVisitor(CSVVisitor):
         )
         self.__error_writer = error_writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Checks for ID columns in the header.
 
         Args:
@@ -580,7 +581,7 @@ class NewEnrollmentVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Adds an enrollment record to the batch for creating new identifiers.
 
         Args:
@@ -683,7 +684,7 @@ class ProvisioningVisitor(CSVVisitor):
             error_writer=error_writer,
         )
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Prepares visitor to work with CSV file with given header.
 
         Args:
@@ -705,7 +706,7 @@ class ProvisioningVisitor(CSVVisitor):
             header
         ) and self.__transfer_in_visitor.visit_header(header)
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         """Provisions a NACCID for the ADCID and PTID.
 
         If form is
@@ -796,11 +797,11 @@ class ProvisioningVisitor(CSVVisitor):
 
 def send_email(
     sender_email: str,
-    target_emails: List[str],
+    target_emails: list[str],
     group_lbl: str,
     project_lbl: str,
     center_id: int,
-    transfer_ptids: List[str],
+    transfer_ptids: list[str],
     project_url: str,
 ) -> None:
     """Send a raw email notifying target emails of the transfer request(s).
@@ -839,7 +840,7 @@ def run(
     gear_name: str,
     submitter: str,
     sender_email: str,
-    target_emails: List[str],
+    target_emails: list[str],
     project_url: str,
 ):
     """Runs identifier provisioning process.

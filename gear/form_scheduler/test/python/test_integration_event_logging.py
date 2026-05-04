@@ -2,7 +2,6 @@
 
 import json
 from datetime import datetime
-from typing import List, Optional
 
 import pytest
 from flywheel.models.file_entry import FileEntry
@@ -32,7 +31,7 @@ class MockProjectAdaptorIntegration(MockProjectAdaptor):
         label: str,
         group: str = "dummy-center",
         pipeline_adcid: int = 42,
-        files: Optional[List[FileEntry]] = None,
+        files: list[FileEntry] | None = None,
     ):
         super().__init__(label)
         self.__group = group
@@ -96,8 +95,8 @@ def create_mock_qc_status_file_with_visit_metadata(
     date: str,
     module: str,
     qc_metadata,
-    visit_metadata: Optional[DataIdentification] = None,
-    modified: Optional[datetime] = None,
+    visit_metadata: DataIdentification | None = None,
+    modified: datetime | None = None,
 ) -> MockFile:
     """Create a mock QC-status file with visit metadata in custom info.
 

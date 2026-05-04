@@ -1,7 +1,6 @@
 """Defines project management computation."""
 
 import logging
-from typing import List
 
 from centers.nacc_group import NACCGroup
 from flywheel.models.group_role import GroupRole
@@ -12,7 +11,7 @@ from projects.study_mapping import StudyMappingVisitor
 log = logging.getLogger(__name__)
 
 
-def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
+def get_project_roles(flywheel_proxy, role_names: list[str]) -> list[GroupRole]:
     """Get the named roles.
 
     Returns all roles matching a name in the list.
@@ -33,7 +32,7 @@ def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
     return role_list
 
 
-def run(*, proxy: FlywheelProxy, admin_group: NACCGroup, study_list: List[StudyModel]):
+def run(*, proxy: FlywheelProxy, admin_group: NACCGroup, study_list: list[StudyModel]):
     """Runs project pipeline creation/management.
 
     Args:

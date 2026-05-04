@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Any, Dict
+from typing import Any
 
 from identifiers.model import PTID_PATTERN
 from keys.keys import SysErrorCodes
@@ -29,7 +29,7 @@ class CenterValidator(RowValidator):
         self.__date_field = date_field
         self.__error_writer = error_writer
 
-    def check(self, row: Dict[str, Any], line_number: int) -> bool:
+    def check(self, row: dict[str, Any], line_number: int) -> bool:
         """Checks that the row has the expected ADCID and the PTID matches
         expected format.
 

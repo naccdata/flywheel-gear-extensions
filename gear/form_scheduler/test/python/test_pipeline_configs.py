@@ -1,7 +1,7 @@
 """Tests the PipelineConfigs and PipelineQueue pydantic classes."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from configs.ingest_configs import ConfigsError, PipelineConfigs
 from form_scheduler_app.form_scheduler_queue import create_queue_builder
@@ -41,7 +41,7 @@ class TestPipelineConfigs:
 
         assert pipeline_configs is not None
 
-        configs: Dict[str, Any] = {
+        configs: dict[str, Any] = {
             "gears": ["gear_one", "gear_two"],
             "pipelines": [
                 {

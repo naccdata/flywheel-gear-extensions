@@ -1,7 +1,7 @@
 """Utilities for writing errors to a error log."""
 
 import logging
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal
 
 from keys.keys import SysErrorCodes
 from nacc_common.error_models import (
@@ -138,8 +138,8 @@ def identifier_error(
     line: int,
     value: str,
     field: str = "ptid",
-    message: Optional[str] = None,
-    visit_keys: Optional[DataIdentification] = None,
+    message: str | None = None,
+    visit_keys: DataIdentification | None = None,
 ) -> FileError:
     """Creates a FileError for an unrecognized PTID error in a CSV file.
 
@@ -183,7 +183,7 @@ def missing_header_error() -> FileError:
     )
 
 
-def invalid_header_error(message: Optional[str] = None) -> FileError:
+def invalid_header_error(message: str | None = None) -> FileError:
     """Creates a FileError for an invalid header."""
     message = message if message else "Invalid header"
     return FileError(
@@ -204,9 +204,9 @@ def missing_field_error(field: str | set[str]) -> FileError:
 
 def empty_field_error(
     field: str | set[str],
-    line: Optional[int] = None,
-    message: Optional[str] = None,
-    visit_keys: Optional[DataIdentification] = None,
+    line: int | None = None,
+    message: str | None = None,
+    visit_keys: DataIdentification | None = None,
 ) -> FileError:
     """Creates a FileError for empty field(s)."""
     error_message = message if message else f"Required field(s) {field} cannot be blank"
@@ -238,9 +238,9 @@ def unexpected_value_error(
     field: str,
     value: str,
     expected: str,
-    line: Optional[int] = None,
-    message: Optional[str] = None,
-    visit_keys: Optional[DataIdentification] = None,
+    line: int | None = None,
+    message: str | None = None,
+    visit_keys: DataIdentification | None = None,
 ) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -282,9 +282,9 @@ def unknown_field_error(field: str | set[str]) -> FileError:
 
 def system_error(
     message: str,
-    error_location: Optional[CSVLocation | JSONLocation] = None,
+    error_location: CSVLocation | JSONLocation | None = None,
     error_type: Literal["alert", "error", "warning"] = "error",
-    visit_keys: Optional[DataIdentification] = None,
+    visit_keys: DataIdentification | None = None,
 ) -> FileError:
     """Creates a FileError object for a system error.
 
@@ -308,7 +308,7 @@ def system_error(
 
 
 def previous_visit_failed_error(
-    prev_visit: str, visit_keys: Optional[DataIdentification] = None
+    prev_visit: str, visit_keys: DataIdentification | None = None
 ) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
@@ -337,11 +337,11 @@ def non_utf8_file_error() -> FileError:
 def preprocessing_error(
     field: str,
     value: str,
-    line: Optional[int] = None,
-    error_code: Optional[str] = None,
-    message: Optional[str] = None,
-    visit_keys: Optional[DataIdentification] = None,
-    extra_args: Optional[List[Any]] = None,
+    line: int | None = None,
+    error_code: str | None = None,
+    message: str | None = None,
+    visit_keys: DataIdentification | None = None,
+    extra_args: list[Any] | None = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
 
@@ -400,7 +400,7 @@ def partially_failed_file_error() -> FileError:
 
 
 def existing_participant_error(
-    field: str, value: str, line: int, message: Optional[str] = None
+    field: str, value: str, line: int, message: str | None = None
 ) -> FileError:
     """Creates a FileError for unexpected existing participant."""
     error_message = message if message else (f"Participant exists for PTID {value}")
@@ -416,8 +416,8 @@ def delete_request_failed_error(
     *,
     ptid: str,
     visitdate: str,
-    visitnum: Optional[str] = None,
-    naccid: Optional[str] = None,
+    visitnum: str | None = None,
+    naccid: str | None = None,
     message: str,
 ) -> FileError:
     """Creates a FileError for delete request failure."""

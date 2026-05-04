@@ -6,7 +6,7 @@ Covers:
 """
 
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any
 
 from form_qc_app.enrollment import EnrollmentFormVisitor
 from nacc_common.field_names import FieldNames
@@ -23,7 +23,7 @@ class StubProcessor:
     def update_visit_error_log(
         self,
         *,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         qc_passed: bool,
         reset_qc_metadata: str = "NA",
     ) -> bool:
@@ -36,7 +36,7 @@ class StubRecordValidator:
     Always returns True so the visitor reaches the output-writing path.
     """
 
-    def get_validation_schema(self) -> Dict:
+    def get_validation_schema(self) -> dict:
         return {
             "ptid": {},
             "adcid": {},
@@ -44,7 +44,7 @@ class StubRecordValidator:
         }
 
     def process_data_record(
-        self, *, record: Dict[str, str], line_number: Optional[int] = None
+        self, *, record: dict[str, str], line_number: int | None = None
     ) -> bool:
         return True
 
@@ -52,7 +52,7 @@ class StubRecordValidator:
 class FailingRecordValidator:
     """Stand-in for RecordValidator that always fails validation."""
 
-    def get_validation_schema(self) -> Dict:
+    def get_validation_schema(self) -> dict:
         return {
             "ptid": {},
             "adcid": {},
@@ -60,7 +60,7 @@ class FailingRecordValidator:
         }
 
     def process_data_record(
-        self, *, record: Dict[str, str], line_number: Optional[int] = None
+        self, *, record: dict[str, str], line_number: int | None = None
     ) -> bool:
         return False
 
@@ -72,8 +72,8 @@ OUTPUT_HEADER = ["ptid", "adcid", "frmdate_enrl", "module", "row_number"]
 
 def _make_visitor(
     *,
-    validator: Optional[object] = None,
-    output_stream: Optional[StringIO] = None,
+    validator: object | None = None,
+    output_stream: StringIO | None = None,
 ) -> tuple[EnrollmentFormVisitor, ListErrorWriter, StubProcessor]:
     """Create an EnrollmentFormVisitor with common defaults."""
     error_writer = ListErrorWriter(container_id="test-container", fw_path="test/path")
@@ -89,9 +89,9 @@ def _make_visitor(
     return visitor, error_writer, processor
 
 
-def _make_row(**overrides: str) -> Dict[str, str]:
+def _make_row(**overrides: str) -> dict[str, str]:
     """Create a valid enrollment row with optional overrides."""
-    row: Dict[str, str] = {
+    row: dict[str, str] = {
         "ptid": "12345",
         "adcid": "99",
         "frmdate_enrl": "2025-01-15",
@@ -144,7 +144,7 @@ def test_visit_row_mutates_row_with_module_on_failure():
     assert visitor.visit_header(HEADER)
 
     # Row missing the required 'adcid' field
-    row: Dict[str, Any] = {"ptid": "12345", "frmdate_enrl": "2025-01-15"}
+    row: dict[str, Any] = {"ptid": "12345", "frmdate_enrl": "2025-01-15"}
 
     result = visitor.visit_row(row=row, line_num=1)
 

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
@@ -31,7 +29,7 @@ class StudyGroup(GroupAdaptor):
             study=study,
         )
 
-    def add_project(self, label: str) -> Optional[ProjectAdaptor]:
+    def add_project(self, label: str) -> ProjectAdaptor | None:
         """Adds a project with the label to this study group.
 
         Args:

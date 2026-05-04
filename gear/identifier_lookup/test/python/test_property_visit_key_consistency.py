@@ -8,7 +8,6 @@
 import csv
 import datetime
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -78,7 +77,7 @@ def visit_row_strategy(draw):
 
 @given(visit_row=visit_row_strategy())
 @settings(max_examples=100)
-def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
+def test_visit_keys_extracted_consistently(visit_row: dict[str, str]):
     """Property test: DataIdentification are extracted consistently from CSV
     rows.
 
@@ -95,7 +94,7 @@ def test_visit_keys_extracted_consistently(visit_row: Dict[str, str]):
     mock_project = Mock(spec=ProjectAdaptor)
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
 
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
@@ -172,7 +171,7 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
         )
 
     # Create identifiers for all PTIDs
-    identifiers: Dict[str, IdentifierObject] = {}
+    identifiers: dict[str, IdentifierObject] = {}
     for i, visit in enumerate(csv_data):
         ptid: str = visit["ptid"]  # type: ignore[assignment]
         identifiers[ptid] = IdentifierObject(
@@ -203,7 +202,7 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -296,7 +295,7 @@ def test_visit_keys_with_missing_fields():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -350,7 +349,7 @@ def test_visit_keys_module_name_handling():
     mock_qc_creator = Mock(spec=QCStatusLogManager)
     mock_qc_creator.update_qc_log.return_value = True
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

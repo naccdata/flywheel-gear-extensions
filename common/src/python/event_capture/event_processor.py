@@ -25,7 +25,6 @@ and packet information, which are stored in different source files.
 """
 
 import logging
-from typing import List, Optional
 
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
@@ -74,7 +73,7 @@ class SubmitEventProcessor:
         project: ProjectAdaptor,
         event_generator: EventGenerator,
         unmatched_events: UnmatchedSubmitEvents,
-        date_filter: Optional[DateRange] = None,
+        date_filter: DateRange | None = None,
     ):
         """Initialize the SubmitEventProcessor.
 
@@ -141,7 +140,7 @@ class SubmitEventProcessor:
             f"{submit_event.visit_date} {submit_event.module}"
         )
 
-    def _discover_qc_logs(self) -> List[FileEntry]:
+    def _discover_qc_logs(self) -> list[FileEntry]:
         """Discover all QC status log files in the project.
 
         Returns:
@@ -184,9 +183,9 @@ class QCEventProcessor:
         project: ProjectAdaptor,
         event_generator: EventGenerator,
         unmatched_events: UnmatchedSubmitEvents,
-        event_capture: Optional[VisitEventCapture],
+        event_capture: VisitEventCapture | None,
         dry_run: bool = False,
-        date_filter: Optional[DateRange] = None,
+        date_filter: DateRange | None = None,
     ):
         """Initialize the QCEventProcessor.
 
@@ -286,7 +285,7 @@ class QCEventProcessor:
                 f"module={match_key.module}, status={qc_event_data.qc_status}"
             )
 
-    def _extract_qc_event_data(self, json_file: FileEntry) -> Optional[QCEventData]:
+    def _extract_qc_event_data(self, json_file: FileEntry) -> QCEventData | None:
         """Extract QC event data from JSON file.
 
         Extracts visit metadata from the JSON file's custom info and
@@ -321,9 +320,7 @@ class QCEventProcessor:
             qc_completion_timestamp=qc_log_file.modified,
         )
 
-    def _find_qc_status_for_json_file(
-        self, json_file: FileEntry
-    ) -> Optional[FileEntry]:
+    def _find_qc_status_for_json_file(self, json_file: FileEntry) -> FileEntry | None:
         """Find QC status log for JSON file using ErrorLogTemplate.
 
         Uses the ErrorLogTemplate to generate the expected QC log filename
@@ -438,7 +435,7 @@ class QCEventProcessor:
                 f"{qc_event.visit_date} {qc_event.module}"
             )
 
-    def _discover_json_files(self) -> List[FileEntry]:
+    def _discover_json_files(self) -> list[FileEntry]:
         """Discover all JSON files in project acquisitions.
 
         Returns:

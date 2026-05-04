@@ -5,7 +5,7 @@ import os
 import re
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 import flywheel
 from centers.nacc_group import NACCGroup
@@ -35,7 +35,7 @@ class ClientWrapper:
 
     def __init__(self, client: Client, dry_run: bool = False) -> None:
         self.__client = client
-        self.__fw_client: Optional[FWClient] = None
+        self.__fw_client: FWClient | None = None
         self.__dry_run = dry_run
 
     def get_proxy(self) -> FlywheelProxy:
@@ -104,7 +104,7 @@ class GearBotClient:
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> ClientWrapper:
         """Creates a GearBotClient wrapper object from the context and
         parameter store.
@@ -146,9 +146,9 @@ class GearBotClient:
 class InputFileWrapper:
     """Defines a gear execution visitor that takes an input file."""
 
-    def __init__(self, file_input: Dict[str, Any]) -> None:
+    def __init__(self, file_input: dict[str, Any]) -> None:
         self.file_input = file_input
-        self.__file_entry: Optional[FileEntry] = None
+        self.__file_entry: FileEntry | None = None
 
     def file_entry(self, context: GearContext) -> FileEntry:
         if self.__file_entry is not None:
@@ -165,7 +165,7 @@ class InputFileWrapper:
 
         return self.__file_entry
 
-    def validate_file_extension(self, accepted_extensions: List[str]) -> Optional[str]:
+    def validate_file_extension(self, accepted_extensions: list[str]) -> str | None:
         """Check whether the input file type is accepted.
 
         Args:
@@ -193,17 +193,17 @@ class InputFileWrapper:
         return self.file_input["object"]["file_id"]
 
     @property
-    def file_info(self) -> Dict[str, Any]:
+    def file_info(self) -> dict[str, Any]:
         """Returns the file object info (metadata)."""
         return self.file_input["object"]["info"]
 
     @property
-    def file_qc_info(self) -> Dict[str, Any]:
+    def file_qc_info(self) -> dict[str, Any]:
         """Returns the QC object in the file info."""
         return self.file_info.get("qc", {})
 
     @property
-    def uploader(self) -> Optional[str]:
+    def uploader(self) -> str | None:
         return self.file_info.get("uploader")
 
     @property
@@ -257,8 +257,8 @@ class InputFileWrapper:
         return InputFileWrapper(file_input=file_input)
 
     def get_validation_objects(
-        self, gear_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, gear_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """Gets the QC validation objects from the file QC info."""
         result = []
 
@@ -273,7 +273,7 @@ class InputFileWrapper:
 
         return result
 
-    def has_qc_errors(self, gear_name: Optional[str] = None) -> bool:
+    def has_qc_errors(self, gear_name: str | None = None) -> bool:
         """Check the QC validation objects in the file QC info for failures."""
         validation_objects = self.get_validation_objects(gear_name=gear_name)
         for validation_object in validation_objects:
@@ -286,8 +286,8 @@ class InputFileWrapper:
         separator: str = "-",
         allowed: str = DefaultValues.MODULE_PATTERN,
         extension: str = "csv",
-        split: Optional[str] = "_",
-    ) -> Optional[str]:
+        split: str | None = "_",
+    ) -> str | None:
         """Get the module name from file suffix.
 
         Args:
@@ -311,7 +311,7 @@ class InputFileWrapper:
         return module
 
     def get_parent_project(
-        self, proxy: FlywheelProxy, file: Optional[FileEntry] = None
+        self, proxy: FlywheelProxy, file: FileEntry | None = None
     ) -> flywheel.Project:
         """Gets the parent project that owns this file.
 
@@ -400,7 +400,7 @@ class GearExecutionEnvironment(ABC):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "GearExecutionEnvironment":
         """Creates an execution environment object from the context and
         parameter store.
@@ -415,7 +415,7 @@ class GearExecutionEnvironment(ABC):
         """
         raise GearExecutionError("Not implemented")
 
-    def get_job_id(self, context: GearContext, gear_name: str) -> Optional[str]:
+    def get_job_id(self, context: GearContext, gear_name: str) -> str | None:
         """Return the ID of the gear job.
 
         Args:
@@ -434,7 +434,7 @@ class GearExecutionEnvironment(ABC):
         return job_info.get("job_info", {}).get("job_id", None)
 
     @classmethod
-    def get_gear_name(cls, context: GearContext, default: Optional[str] = None) -> str:
+    def get_gear_name(cls, context: GearContext, default: str | None = None) -> str:
         """Get gear name.
 
         Args:
@@ -452,7 +452,7 @@ class GearExecutionEnvironment(ABC):
 
         return gear_name
 
-    def get_provenance(self, context: GearContext) -> Dict[str, Any]:
+    def get_provenance(self, context: GearContext) -> dict[str, Any]:
         """Get gear details as provenance.
 
         Args:
@@ -474,7 +474,7 @@ class GearExecutionEnvironment(ABC):
             "metadata": {"job": self.get_job_id(context, gear_name)},
         }
 
-    def get_center_ids(self, context: GearContext) -> List[str]:
+    def get_center_ids(self, context: GearContext) -> list[str]:
         """Get center IDs.
 
         If used, assumes include_centers, exclude_centers, exclude_studies,
@@ -542,7 +542,7 @@ E = TypeVar("E", bound=GearExecutionEnvironment)  # type: ignore
 class GearEngine:
     """Class defining the gear execution engine."""
 
-    def __init__(self, parameter_store: Optional[ParameterStore] = None):
+    def __init__(self, parameter_store: ParameterStore | None = None):
         self.parameter_store = parameter_store
 
     @classmethod
@@ -565,7 +565,7 @@ class GearEngine:
 
         return GearEngine(parameter_store=parameter_store)
 
-    def run(self, gear_type: Type[E]):
+    def run(self, gear_type: type[E]):
         """Execute the gear.
 
         Creates a execution environment object of the gear_type using the

@@ -38,9 +38,7 @@ def parameter_store(fake_ssm):
     )
     # Generate more than 10 parameters to test limit of 10 parameters per response
     for n in range(0, 20):
-        ssm.put_parameter(
-            Name="/test/path/{}".format(n), Value="{}".format(n), Type="SecureString"
-        )
+        ssm.put_parameter(Name=f"/test/path/{n}", Value=f"{n}", Type="SecureString")
     return EC2ParameterStore(
         aws_access_key_id="testing",
         aws_secret_access_key="testing",

@@ -2,7 +2,7 @@
 
 import csv
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 from form_screening_app.format import CSVFormatterVisitor
@@ -19,7 +19,7 @@ def empty_data_stream():
 
 
 # pylint: disable=(duplicate-code)
-def write_to_stream(data: List[List[Any]], stream: StringIO) -> None:
+def write_to_stream(data: list[list[Any]], stream: StringIO) -> None:
     """Writes data to the StringIO object for use in a test.
 
     Resets stream pointer to beginning.
@@ -53,7 +53,7 @@ def no_header_stream():
 @pytest.fixture(scope="function")
 def no_ids_stream():
     """Create data stream without expected column headers."""
-    data: List[List[str | int]] = [
+    data: list[list[str | int]] = [
         ["dummy1", "dummy2", "dummy3"],
         [1, 1, 8],
         [1, 2, 99],
@@ -67,7 +67,7 @@ def no_ids_stream():
 @pytest.fixture(scope="function")
 def data_stream():
     """Create data stream without header row."""
-    data: List[List[str | int]] = [["adcid", "ptid", "var1"], [1, "1", 8], [1, "2", 99]]
+    data: list[list[str | int]] = [["adcid", "ptid", "var1"], [1, "1", 8], [1, "2", 99]]
     stream = StringIO()
     write_to_stream(data, stream)
     yield stream
@@ -77,7 +77,7 @@ def data_stream():
 @pytest.fixture(scope="function")
 def case_stream():
     """Create data stream with different case headeres."""
-    data: List[List[str | int]] = [
+    data: list[list[str | int]] = [
         [
             "adcid",
             "ptid",
@@ -143,11 +143,11 @@ class DummyVisitor(CSVVisitor):
         self.header = None
         self.rows = []
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         self.header = header
         return header is not None
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         self.rows.append(row)
         return row is not None
 
@@ -160,7 +160,7 @@ class NonNumericHeaderVisitor(CSVVisitor):
         """Initializer."""
         self.__error_writer = error_writer
 
-    def visit_header(self, header: List[str]) -> bool:
+    def visit_header(self, header: list[str]) -> bool:
         """Visit header - cannot contain numeric values."""
 
         for x in header:
@@ -175,7 +175,7 @@ class NonNumericHeaderVisitor(CSVVisitor):
 
         return True
 
-    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+    def visit_row(self, row: dict[str, Any], line_num: int) -> bool:
         return row is not None
 
 

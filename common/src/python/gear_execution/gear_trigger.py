@@ -5,7 +5,7 @@ import logging
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -29,7 +29,7 @@ LocatorType = Literal["matched", "module", "fixed"]
 class GearInput(BaseModel):
     label: str
     file_locator: LocatorType
-    file_name: Optional[str] = None
+    file_name: str | None = None
 
     @model_validator(mode="after")
     def validate_iteration_mode(self) -> "GearInput":
@@ -83,12 +83,12 @@ class GearInfo(BaseModel):
 
     gear_name: str
     configs: SerializeAsAny[GearConfigs]
-    inputs: Optional[List[GearInput]] = None
+    inputs: list[GearInput] | None = None
 
     @classmethod
     def load_from_file(
         cls, configs_file_path: str | Path, configs_class=GearConfigs
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Load GearInfo from configs file.
 
         Args:
@@ -124,8 +124,8 @@ class GearInfo(BaseModel):
         return gear_configs
 
     def get_inputs_by_file_locator_type(
-        self, locators: List[LocatorType]
-    ) -> Optional[Dict[str, List[GearInput]]]:
+        self, locators: list[LocatorType]
+    ) -> dict[str, list[GearInput]] | None:
         """Get the list of gear inputs by file_locator type.
 
         Args:
@@ -138,7 +138,7 @@ class GearInfo(BaseModel):
             log.info("No inputs specified for gear %s", self.gear_name)
             return None
 
-        inputs_list: Dict[str, List[GearInput]] = {}
+        inputs_list: dict[str, list[GearInput]] = {}
         for gear_input in self.inputs:
             if gear_input.file_locator not in locators:
                 continue
@@ -156,13 +156,13 @@ class BatchRunInfo(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     source: str
-    target: Optional[str] = None
+    target: str | None = None
     substitute: bool = False
     batch_mode: BatchMode
     batch_size: int
     gear_name: str
-    gear_configs: Dict[str, Any]
-    gear_inputs: Dict[str, Any] = {}
+    gear_configs: dict[str, Any]
+    gear_inputs: dict[str, Any] = {}
 
     @classmethod
     def load_from_file(cls, configs_file_path: str) -> Optional["BatchRunInfo"]:
@@ -176,7 +176,7 @@ class BatchRunInfo(BaseModel):
         """
 
         try:
-            with open(configs_file_path, mode="r", encoding="utf-8-sig") as file_obj:
+            with open(configs_file_path, encoding="utf-8-sig") as file_obj:
                 configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error(
@@ -198,7 +198,7 @@ class BatchRunInfo(BaseModel):
 
     def get_gear_configs(
         self, configs_class=GearConfigs, **kwargs
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get the gear configs from batch run info gear template. Substitute
         config keys with kwargs if `substitute`=true.
 
@@ -275,7 +275,7 @@ class BatchRunInfo(BaseModel):
         self,
         center,
         gear_input_class=GearInputs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get the gear inputs from batch run info gear template.
 
         Args:
@@ -348,10 +348,10 @@ def set_gear_inputs(
     project: ProjectAdaptor,
     gear_name: str,
     locator: LocatorType,
-    gear_inputs_list: List[GearInput],
-    gear_inputs: Dict[str, FileEntry],
-    module: Optional[str] = None,
-    matched_file: Optional[FileEntry] = None,
+    gear_inputs_list: list[GearInput],
+    gear_inputs: dict[str, FileEntry],
+    module: str | None = None,
+    matched_file: FileEntry | None = None,
 ):
     if locator == "matched" and not matched_file:
         raise ValueError("matched_file is required when locator is 'matched'")

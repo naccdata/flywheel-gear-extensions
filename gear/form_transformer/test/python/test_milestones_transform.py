@@ -1,7 +1,7 @@
 """Tests the milestone forms transform and pre-processing checks."""
 
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from configs.ingest_configs import FormProjectConfigs
 from form_csv_app.main import CSVTransformVisitor
@@ -22,8 +22,8 @@ from transform.transformer import (
 
 
 def create_mlst_visitor(
-    transform_schema: Optional[Dict[str, Any]] = None,
-) -> Tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
+    transform_schema: dict[str, Any] | None = None,
+) -> tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
 
     Returns the visitor, mocked project, and mocked form store.
@@ -89,7 +89,7 @@ def create_mlst_visitor(
     return visitor, project, form_store
 
 
-def create_milestones_record(data: Dict[str, Any]):
+def create_milestones_record(data: dict[str, Any]):
     """Create milestones record with default values, then append test-specific
     data.
 

@@ -1,7 +1,7 @@
 """Entry script for Form QC Coordinator."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from configs.ingest_configs import (
     FormProjectConfigs,
@@ -70,7 +70,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "FormQCCoordinator":
         """Creates a gear execution object, loads gear context.
 
@@ -130,7 +130,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
     def __parse_json_input(
         self, subject: SubjectAdaptor, form_configs: FormProjectConfigs
-    ) -> Optional[ParticipantVisits]:
+    ) -> ParticipantVisits | None:
         """Parse the JSON input file and return visits info.
 
         Args:
@@ -196,9 +196,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
         return visits_info
 
-    def __parse_yaml_input(
-        self, subject: SubjectAdaptor
-    ) -> Optional[ParticipantVisits]:
+    def __parse_yaml_input(self, subject: SubjectAdaptor) -> ParticipantVisits | None:
         """Parse the YAML input file and return visits info.
 
         Args:
@@ -209,9 +207,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
         """
 
         try:
-            with open(
-                self.__file_input.filepath, "r", encoding="utf-8-sig "
-            ) as input_file:
+            with open(self.__file_input.filepath, encoding="utf-8-sig ") as input_file:
                 input_data = load_from_stream(input_file)
         except (FileNotFoundError, YAMLReadError) as error:
             log.error(
@@ -236,7 +232,7 @@ class FormQCCoordinator(GearExecutionEnvironment):
 
     def __validate_input_data(
         self, subject: SubjectAdaptor, form_configs: FormProjectConfigs
-    ) -> Optional[ParticipantVisits]:
+    ) -> ParticipantVisits | None:
         """Validate the input file - visits_file.
 
         Args:

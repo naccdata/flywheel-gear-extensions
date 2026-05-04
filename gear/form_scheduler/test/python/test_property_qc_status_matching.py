@@ -6,7 +6,7 @@
 **Validates: Requirements 2.5**
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -18,9 +18,7 @@ from nacc_common.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from test_mocks.strategies import json_file_forms_metadata_strategy
 
 
-def create_mock_file_entry(
-    name: str, info: Optional[Dict[str, Any]] = None
-) -> FileEntry:
+def create_mock_file_entry(name: str, info: dict[str, Any] | None = None) -> FileEntry:
     """Create a mock FileEntry with the given info."""
     file_entry = Mock(spec=FileEntry)
     file_entry.name = name

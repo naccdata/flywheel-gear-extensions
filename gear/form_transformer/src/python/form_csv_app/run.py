@@ -1,7 +1,6 @@
 """Entry script for Form CSV to JSON Transformer."""
 
 import logging
-from typing import Optional
 
 from configs.ingest_configs import (
     FormProjectConfigs,
@@ -40,7 +39,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         client: ClientWrapper,
         file_input: InputFileWrapper,
         config_input: InputFileWrapper,
-        transform_input: Optional[InputFileWrapper],
+        transform_input: InputFileWrapper | None,
     ) -> None:
         self.__client = client
         self.__file_input = file_input
@@ -51,7 +50,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
     def create(
         cls,
         context: GearContext,
-        parameter_store: Optional[ParameterStore] = None,
+        parameter_store: ParameterStore | None = None,
     ) -> "FormCSVtoJSONTransformer":
         """Creates a gear execution object.
 
@@ -152,9 +151,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             error_writer=error_writer,
         )
 
-        with open(
-            self.__file_input.filepath, mode="r", encoding="utf-8-sig"
-        ) as csv_file:
+        with open(self.__file_input.filepath, encoding="utf-8-sig") as csv_file:
             success = run(
                 input_file=csv_file,
                 id_column=form_configs.primary_key,
@@ -178,7 +175,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
     def __build_transformer(
-        self, transformer_input: Optional[InputFileWrapper]
+        self, transformer_input: InputFileWrapper | None
     ) -> TransformerFactory:
         """Loads the transformation file and creates a transformer factory.
 
@@ -195,9 +192,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         if not transformer_input:
             return TransformerFactory(FieldTransformations())
 
-        with open(
-            transformer_input.filepath, mode="r", encoding="utf-8-sig"
-        ) as json_file:
+        with open(transformer_input.filepath, encoding="utf-8-sig") as json_file:
             try:
                 return TransformerFactory(
                     FieldTransformations.model_validate_json(json_file.read())

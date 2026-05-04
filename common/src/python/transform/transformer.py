@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from keys.keys import SysErrorCodes
 from nacc_common.data_identification import (
@@ -24,10 +24,10 @@ class VersionMap(BaseModel):
     the record."""
 
     fieldname: str
-    value_map: Dict[str, str] = {}
+    value_map: dict[str, str] = {}
     default: str
 
-    def apply(self, record: Dict[str, Any]) -> str:
+    def apply(self, record: dict[str, Any]) -> str:
         """Applies this map to determine the version."""
         field_value = record.get(self.fieldname)
         if field_value and field_value in self.value_map:
@@ -40,10 +40,10 @@ class FieldFilter(BaseModel):
     """Defines a map of form field names for different versions of the form."""
 
     version_map: VersionMap
-    fields: Dict[str, List[str]] = {}
+    fields: dict[str, list[str]] = {}
     nofill: bool = True
 
-    def __unique_fields(self, version_name: str) -> Set[str]:
+    def __unique_fields(self, version_name: str) -> set[str]:
         """Finds the field names unique to the version.
 
         Args:
@@ -56,11 +56,11 @@ class FieldFilter(BaseModel):
 
     def apply(
         self,
-        input_record: Dict[str, Any],
+        input_record: dict[str, Any],
         error_writer: ErrorWriter,
         line_num: int,
         date_field: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Filters the input record by dropping the key-value pairs for fields
         unique to the version.
 
@@ -79,7 +79,7 @@ class FieldFilter(BaseModel):
             return input_record
 
         transformed = {}
-        incorrectly_filled: List[str] = []
+        incorrectly_filled: list[str] = []
         for field, value in input_record.items():
             if field in drop_fields:
                 # report error if excluded fields expected to be empty, but filled
@@ -112,9 +112,9 @@ class FieldFilter(BaseModel):
 class FieldTransformations(RootModel):
     """Root model for the form field schema."""
 
-    root: Dict[ModuleName, List[FieldFilter]] = {}
+    root: dict[ModuleName, list[FieldFilter]] = {}
 
-    def __getitem__(self, key: ModuleName) -> List[FieldFilter]:
+    def __getitem__(self, key: ModuleName) -> list[FieldFilter]:
         """Returns the FormField schema for the module.
 
         Args:
@@ -127,11 +127,11 @@ class FieldTransformations(RootModel):
     def get(
         self,
         key: ModuleName,
-        default: List[FieldFilter] = [],  # noqa: B006
-    ) -> List[FieldFilter]:
+        default: list[FieldFilter] = [],  # noqa: B006
+    ) -> list[FieldFilter]:
         return self.root.get(key, default)
 
-    def __setitem__(self, key: ModuleName, value: List[FieldFilter]) -> None:
+    def __setitem__(self, key: ModuleName, value: list[FieldFilter]) -> None:
         """Sets the form field schema for a module.
 
         Args:
@@ -156,8 +156,8 @@ class FieldTransformations(RootModel):
 class BaseRecordTransformer(ABC):
     @abstractmethod
     def transform(
-        self, input_record: Dict[str, Any], line_num: int
-    ) -> Optional[Dict[str, Any]]:
+        self, input_record: dict[str, Any], line_num: int
+    ) -> dict[str, Any] | None:
         """Defines a transform on an input record.
 
         Args:
@@ -173,12 +173,12 @@ class RecordTransformer(BaseRecordTransformer):
     """Defines a composition of transformers that are applied in sequence to
     the input record."""
 
-    def __init__(self, transformers: List[BaseRecordTransformer]) -> None:
+    def __init__(self, transformers: list[BaseRecordTransformer]) -> None:
         self.__transformers = transformers
 
     def transform(
-        self, input_record: Dict[str, Any], line_num: int
-    ) -> Optional[Dict[str, Any]]:
+        self, input_record: dict[str, Any], line_num: int
+    ) -> dict[str, Any] | None:
         """Applies the transformers in sequence to the input record.
 
         If there are no transformers, returns the record untransformed.
@@ -192,7 +192,7 @@ class RecordTransformer(BaseRecordTransformer):
         """
         log.info("Transforming input record %s", line_num)
 
-        record: Optional[Dict[str, Any]] = input_record
+        record: dict[str, Any] | None = input_record
         for transformer in self.__transformers:
             if record is None:
                 return None
@@ -206,14 +206,14 @@ class DateTransformer(BaseRecordTransformer):
     """Defines a transformer that normalizes date fields."""
 
     def __init__(
-        self, error_writer: ErrorWriter, date_field: Optional[str] = None
+        self, error_writer: ErrorWriter, date_field: str | None = None
     ) -> None:
         self._error_writer = error_writer
         self._date_field = date_field if date_field else FieldNames.DATE_COLUMN
 
     def transform(
-        self, input_record: Dict[str, Any], line_num: int
-    ) -> Optional[Dict[str, Any]]:
+        self, input_record: dict[str, Any], line_num: int
+    ) -> dict[str, Any] | None:
         """Normalizes the date column of the record.
 
         Args:
@@ -258,15 +258,15 @@ class FilterTransformer(BaseRecordTransformer):
         self,
         field_filter: FieldFilter,
         error_writer: ErrorWriter,
-        date_field: Optional[str] = None,
+        date_field: str | None = None,
     ) -> None:
         self._transform = field_filter
         self._error_writer = error_writer
         self._date_field = date_field if date_field else FieldNames.DATE_COLUMN
 
     def transform(
-        self, input_record: Dict[str, Any], line_num: int
-    ) -> Optional[Dict[str, Any]]:
+        self, input_record: dict[str, Any], line_num: int
+    ) -> dict[str, Any] | None:
         """Applies the FieldFilter to the input record.
 
         Args:
@@ -290,8 +290,8 @@ class TransformerFactory:
 
     def create(
         self,
-        module: Optional[str],
-        date_field: Optional[str],
+        module: str | None,
+        date_field: str | None,
         error_writer: ErrorWriter,
     ) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
@@ -308,7 +308,7 @@ class TransformerFactory:
         Returns:
           the record transformer
         """
-        transformer_list: List[BaseRecordTransformer] = []
+        transformer_list: list[BaseRecordTransformer] = []
         transformer_list.append(DateTransformer(error_writer, date_field=date_field))
         if module:
             filter_list = self.__transformations.get(module)

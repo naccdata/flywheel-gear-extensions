@@ -8,7 +8,6 @@
 import csv
 from datetime import datetime
 from io import StringIO
-from typing import Dict, List
 from unittest.mock import Mock
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
@@ -48,7 +47,7 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
     ptids = [f"P{str(i).zfill(3)}" for i in range(1, num_ptids + 1)]
 
     # For identifier visitor failure, use empty identifiers map
-    identifiers: Dict[str, IdentifierObject] = {}
+    identifiers: dict[str, IdentifierObject] = {}
     if failing_visitor != "identifier":
         identifiers = {
             ptid: IdentifierObject(
@@ -104,7 +103,7 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,
@@ -307,7 +306,7 @@ def test_visitor_independence_partial_failures():
         error_writer=shared_error_writer,
     )
 
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
     qc_visitor = QCStatusLogCSVVisitor(
         module_configs=uds_ingest_configs(),
         project=mock_project,

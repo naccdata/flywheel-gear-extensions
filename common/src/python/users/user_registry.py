@@ -2,9 +2,9 @@
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Union
 
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.exceptions import ApiException
@@ -80,7 +80,7 @@ class RegistryPerson:
         *,
         firstname: str,
         lastname: str,
-        email: "Union[str, List[str]]",
+        email: "str | list[str]",
         coid: int,
     ) -> "RegistryPerson":
         """Creates a RegistryPerson object with the name and email(s).
@@ -126,7 +126,7 @@ class RegistryPerson:
         return self.__coperson_message
 
     @property
-    def creation_date(self) -> Optional[datetime]:
+    def creation_date(self) -> datetime | None:
         """Returns the creation date for this person in the registry.
 
         Will be None for person that is created locally.
@@ -142,7 +142,7 @@ class RegistryPerson:
         return self.__coperson_message.co_person.meta.created
 
     @property
-    def email_addresses(self) -> List[EmailAddress]:
+    def email_addresses(self) -> list[EmailAddress]:
         """Returns all email addresses for this person.
 
         This property provides access to the complete list of email addresses
@@ -161,7 +161,7 @@ class RegistryPerson:
         return self.__coperson_message.email_address
 
     @property
-    def email_address(self) -> Optional[EmailAddress]:
+    def email_address(self) -> EmailAddress | None:
         """Returns the primary email address for this person.
 
         Implements a priority-based selection strategy to choose the "best"
@@ -204,7 +204,7 @@ class RegistryPerson:
         return None
 
     @property
-    def primary_name(self) -> Optional[str]:
+    def primary_name(self) -> str | None:
         """Returns the primary name of this person as a string.
 
         Concatenates firstname and lastname separated by a space.
@@ -276,7 +276,7 @@ class RegistryPerson:
 
     def identifiers(
         self, predicate: Callable[[Identifier], bool] = lambda x: True
-    ) -> List[Identifier]:
+    ) -> list[Identifier]:
         """Returns the list of identifiers for this CoPerson.
 
         If a predicate is given, returns the identifiers satisfying the predicate.
@@ -298,7 +298,7 @@ class RegistryPerson:
 
     def org_identities(
         self, predicate: Callable[[OrgIdentity], bool] = lambda x: True
-    ) -> List[OrgIdentity]:
+    ) -> list[OrgIdentity]:
         """Returns the list of organizational identities for this CoPerson.
 
         If a predicate is given, returns the org identities satisfying the predicate.
@@ -391,7 +391,7 @@ class RegistryPerson:
         """
         return not self._has_oidcsub()
 
-    def __get_claim_org(self) -> Optional[OrgIdentity]:
+    def __get_claim_org(self) -> OrgIdentity | None:
         """Returns the first claimed organizational identity.
 
         Returns:
@@ -411,7 +411,7 @@ class RegistryPerson:
         return None
 
     @property
-    def organization_email_addresses(self) -> List[EmailAddress]:
+    def organization_email_addresses(self) -> list[EmailAddress]:
         """Returns emails from the claimed organizational identity.
 
         Organizational emails are associated with a claimed OrgIdentity,
@@ -435,7 +435,7 @@ class RegistryPerson:
         return org_identity.email_address
 
     @property
-    def official_email_addresses(self) -> List[EmailAddress]:
+    def official_email_addresses(self) -> list[EmailAddress]:
         """Returns all emails with type='official'.
 
         Filters the email addresses to return only those marked as official.
@@ -447,7 +447,7 @@ class RegistryPerson:
         return [addr for addr in self.email_addresses if addr.type == "official"]
 
     @property
-    def verified_email_addresses(self) -> List[EmailAddress]:
+    def verified_email_addresses(self) -> list[EmailAddress]:
         """Returns all emails with verified=True.
 
         Filters the email addresses to return only those marked as verified.
@@ -458,7 +458,7 @@ class RegistryPerson:
         """
         return [addr for addr in self.email_addresses if addr.verified]
 
-    def registry_id(self) -> Optional[str]:
+    def registry_id(self) -> str | None:
         """Returns the registry ID for the person.
 
         Returns:
@@ -493,17 +493,17 @@ class UserRegistry:
         api_instance: DefaultApi,
         coid: int,
         name_normalizer: Callable[[str], str],
-        domain_config: Optional[DomainRelationshipConfig] = None,
+        domain_config: DomainRelationshipConfig | None = None,
         dry_run: bool = False,
     ):
         self.__api_instance = api_instance
         self.__coid = coid
         self.__loaded = False
-        self.__registry_map: Dict[str, List[RegistryPerson]] = {}
-        self.__bad_claims: Dict[str, List[RegistryPerson]] = {}
-        self.__registry_map_by_id: Dict[str, RegistryPerson] = {}
-        self.__parent_domain_map: Dict[str, List[RegistryPerson]] = {}
-        self.__name_map: Dict[str, List[RegistryPerson]] = {}
+        self.__registry_map: dict[str, list[RegistryPerson]] = {}
+        self.__bad_claims: dict[str, list[RegistryPerson]] = {}
+        self.__registry_map_by_id: dict[str, RegistryPerson] = {}
+        self.__parent_domain_map: dict[str, list[RegistryPerson]] = {}
+        self.__name_map: dict[str, list[RegistryPerson]] = {}
         self.__domain_config = domain_config or DomainRelationshipConfig()
         self.__name_normalizer = name_normalizer
         self.__dry_run = dry_run
@@ -529,7 +529,7 @@ class UserRegistry:
         """
         return self.__coid
 
-    def add(self, person: RegistryPerson) -> List[Identifier]:
+    def add(self, person: RegistryPerson) -> list[Identifier]:
         """Creates a CoPerson record in the registry with name and email.
 
         Args:
@@ -645,7 +645,7 @@ class UserRegistry:
         except ApiException as error:
             raise RegistryError(f"API update_co_person call failed: {error}") from error
 
-    def get(self, email: str) -> List[RegistryPerson]:
+    def get(self, email: str) -> list[RegistryPerson]:
         """Returns the list of person objects with the email address.
 
         Args:
@@ -658,7 +658,7 @@ class UserRegistry:
 
         return self.__registry_map[email]
 
-    def find_by_registry_id(self, registry_id: str) -> Optional[RegistryPerson]:
+    def find_by_registry_id(self, registry_id: str) -> RegistryPerson | None:
         """Returns the registry person object with matching registry id.
 
         Args:
@@ -689,7 +689,7 @@ class UserRegistry:
 
         return name in self.__bad_claims
 
-    def get_bad_claim(self, name: str) -> List[RegistryPerson]:
+    def get_bad_claim(self, name: str) -> list[RegistryPerson]:
         """Returns the list of RegistryPerson objects with incomplete claims
         for the given name.
 
@@ -703,7 +703,7 @@ class UserRegistry:
 
         return self.__bad_claims.get(name, [])
 
-    def get_by_parent_domain(self, email: str) -> List[DomainCandidate]:
+    def get_by_parent_domain(self, email: str) -> list[DomainCandidate]:
         """Fallback lookup: find candidates sharing the same parent domain.
 
         Extracts the domain from the query email, resolves its parent domain
@@ -725,7 +725,7 @@ class UserRegistry:
         query_parent = self.__domain_config.resolve_parent(query_domain)
 
         candidates = self.__parent_domain_map.get(query_parent, [])
-        results: List[DomainCandidate] = []
+        results: list[DomainCandidate] = []
         seen: set[str] = set()
 
         for person in candidates:
@@ -755,7 +755,7 @@ class UserRegistry:
 
         return results
 
-    def get_by_name(self, full_name: str) -> List[RegistryPerson]:
+    def get_by_name(self, full_name: str) -> list[RegistryPerson]:
         """Lookup candidates by normalized full name.
 
         Args:
@@ -870,7 +870,7 @@ class UserRegistry:
 
         return int(response.total_results)
 
-    def __parse_response(self, response: CoPersonResponse) -> List[RegistryPerson]:
+    def __parse_response(self, response: CoPersonResponse) -> list[RegistryPerson]:
         """Collects the CoPersonMessages from the response object and creates a
         list of RegistryPerson objects.
 
@@ -884,7 +884,7 @@ class UserRegistry:
         Returns:
           the list of registry person objects
         """
-        person_list: List[RegistryPerson] = []
+        person_list: list[RegistryPerson] = []
         if response.var_0:
             person_list.append(RegistryPerson(response.var_0))
 

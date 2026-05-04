@@ -3,7 +3,7 @@
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
@@ -29,11 +29,11 @@ class LabelTemplate(BaseModel):
     from file records."""
 
     template: str
-    transform: Optional[Literal["upper", "lower"]] = Field(default=None)
-    delimiter: Optional[str] = Field(default=None)
+    transform: Literal["upper", "lower"] | None = Field(default=None)
+    delimiter: str | None = Field(default=None)
 
     def instantiate(
-        self, record: Dict[str, Any], *, environment: Optional[Dict[str, Any]] = None
+        self, record: dict[str, Any], *, environment: dict[str, Any] | None = None
     ) -> str:
         """Instantiates the template using the data from the record matching
         the variables in the template. Converts the generated label to upper or
@@ -89,9 +89,9 @@ class UploadTemplateInfo(BaseModel):
 
 
 class OptionalFormsConfigs(RootModel):
-    root: Dict[str, Dict[str, List[str]]]
+    root: dict[str, dict[str, list[str]]]
 
-    def get_optional_forms(self, version: str, packet: str) -> Optional[List[str]]:
+    def get_optional_forms(self, version: str, packet: str) -> list[str] | None:
         """Get the list of optional forms for the specified version and packet.
 
         Args:
@@ -111,30 +111,30 @@ class OptionalFormsConfigs(RootModel):
 class SupplementModuleConfigs(BaseModel):
     label: str
     date_field: str
-    version: Optional[str] = None
-    exact_match: Optional[bool] = True
+    version: str | None = None
+    exact_match: bool | None = True
 
 
 class LegacyModuleConfigs(BaseModel):
     label: str
     date_field: str
-    initial_packets: Optional[List[str]] = None
-    followup_packets: Optional[List[str]] = None
+    initial_packets: list[str] | None = None
+    followup_packets: list[str] | None = None
 
 
 class ModuleConfigs(BaseModel):
-    initial_packets: List[str]
-    followup_packets: List[str]
-    versions: List[str]
+    initial_packets: list[str]
+    followup_packets: list[str]
+    versions: list[str]
     date_field: str
     hierarchy_labels: UploadTemplateInfo
-    required_fields: List[str]
-    legacy_module: Optional[LegacyModuleConfigs] = None
-    supplement_module: Optional[SupplementModuleConfigs] = None
-    optional_forms: Optional[OptionalFormsConfigs] = None
-    preprocess_checks: Optional[List[str]] = None
-    errorlog_template: Optional[ErrorLogTemplate] = None
-    longitudinal: Optional[bool] = True
+    required_fields: list[str]
+    legacy_module: LegacyModuleConfigs | None = None
+    supplement_module: SupplementModuleConfigs | None = None
+    optional_forms: OptionalFormsConfigs | None = None
+    preprocess_checks: list[str] | None = None
+    errorlog_template: ErrorLogTemplate | None = None
+    longitudinal: bool | None = True
 
     @model_validator(mode="after")
     def validate_preprocess_checks(self) -> "ModuleConfigs":
@@ -154,15 +154,15 @@ class ModuleConfigs(BaseModel):
 
 class FormProjectConfigs(BaseModel):
     primary_key: str
-    accepted_modules: List[str]
-    module_configs: Dict[str, ModuleConfigs]
-    legacy_project_label: Optional[str] = None
-    qc_gear: Optional[str] = DefaultValues.QC_GEAR
-    legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
+    accepted_modules: list[str]
+    module_configs: dict[str, ModuleConfigs]
+    legacy_project_label: str | None = None
+    qc_gear: str | None = DefaultValues.QC_GEAR
+    legacy_qc_gear: str | None = DefaultValues.LEGACY_QC_GEAR
 
     def get_module_dependencies(
-        self, module: str, exact_match: Optional[bool] = True
-    ) -> Optional[List[str]]:
+        self, module: str, exact_match: bool | None = True
+    ) -> list[str] | None:
         """Get the list of dependent modules for a given module.
 
         Args:
@@ -191,9 +191,9 @@ class Pipeline(BaseModel):
     """Defines model for form scheduler pipeline."""
 
     name: PipelineType
-    modules: List[str]
-    tags: List[str]
-    extensions: List[str]
+    modules: list[str]
+    tags: list[str]
+    extensions: list[str]
     starting_gear: GearInfo
     notify_user: bool = False
     sequential: bool = True
@@ -213,8 +213,8 @@ class Pipeline(BaseModel):
 
 
 class PipelineConfigs(BaseModel):
-    gears: List[str]
-    pipelines: List[Pipeline]
+    gears: list[str]
+    pipelines: list[Pipeline]
 
     @classmethod
     def load_form_pipeline_configurations(
@@ -233,7 +233,7 @@ class PipelineConfigs(BaseModel):
         """
 
         try:
-            with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
+            with open(config_file_path, encoding="utf-8-sig") as configs_file:
                 return PipelineConfigs.model_validate_json(configs_file.read())
         except (
             FileNotFoundError,
@@ -257,5 +257,5 @@ def load_form_ingest_configurations(config_file_path: str) -> FormProjectConfigs
       ValidationError if failed to load the configs file
     """
 
-    with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
+    with open(config_file_path, encoding="utf-8-sig") as configs_file:
         return FormProjectConfigs.model_validate_json(configs_file.read())

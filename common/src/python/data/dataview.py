@@ -1,6 +1,6 @@
 """Defines a factory function for creating a ViewBuilder."""
 
-from typing import List, Literal, Optional, Tuple
+from typing import Literal
 
 from flywheel.view_builder import ViewBuilder
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ class ColumnModel(BaseModel):
     data_key: str
     label: str
 
-    def as_tuple(self) -> Tuple[str, str]:
+    def as_tuple(self) -> tuple[str, str]:
         return (self.data_key, self.label)
 
 
@@ -21,10 +21,10 @@ def make_builder(
     *,
     label: str,
     description: str,
-    columns: List[ColumnModel],
+    columns: list[ColumnModel],
     container: str = "subject",
-    filename: Optional[str] = None,
-    filter_str: Optional[str] = None,
+    filename: str | None = None,
+    filter_str: str | None = None,
     match: str = "all",
     missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
 ) -> ViewBuilder:

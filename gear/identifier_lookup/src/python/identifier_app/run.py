@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import List, Literal, Optional, TextIO
+from typing import Literal, TextIO
 
 from botocore.exceptions import ClientError
 from configs.ingest_configs import (
@@ -63,9 +63,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         direction: Literal["nacc", "center"],
         gear_name: str,
         preserve_case: bool,
-        config_input: Optional[InputFileWrapper] = None,
-        event_capture: Optional[VisitEventCapture] = None,
-        module: Optional[str] = None,
+        config_input: InputFileWrapper | None = None,
+        event_capture: VisitEventCapture | None = None,
+        module: str | None = None,
         single_center: bool = True,
     ):
         super().__init__(client=client)
@@ -82,7 +82,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "IdentifierLookupVisitor":
         """Creates an identifier lookup execution visitor.
 
@@ -166,12 +166,12 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         identifiers_repo: IdentifierRepository,
         output_file: TextIO,
         error_writer: ListErrorWriter,
-        misc_errors: List[FileError],
+        misc_errors: list[FileError],
         timestamp: datetime,
     ) -> CSVVisitor:
         # Determine module name using the new logic
-        module_configs: Optional[ModuleConfigs] = None
-        module: Optional[str] = None
+        module_configs: ModuleConfigs | None = None
+        module: str | None = None
 
         if self.__config_input:
             # Module is defined in uppercase in form configs file (e.g., "UDS", "LBD")
@@ -235,7 +235,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         )
 
         # Start with just the identifier lookup visitor
-        visitors: List[CSVVisitor] = [naccid_visitor]
+        visitors: list[CSVVisitor] = [naccid_visitor]
 
         # Add QC status log visitor if we have module configs and single center
         # (QC logging requires a project context which is only available for
@@ -350,14 +350,14 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         input_path = Path(self.__file_input.filepath)
         out_file = StringIO()
 
-        with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
+        with open(input_path, encoding="utf-8-sig") as csv_file:
             file_id = self.__file_input.file_id
             error_writer = ListErrorWriter(
                 container_id=file_id,
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
 
-            misc_errors: List[FileError] = []
+            misc_errors: list[FileError] = []
 
             if self.__direction == "nacc":
                 # Extract file creation timestamp for visit event capture

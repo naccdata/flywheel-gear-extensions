@@ -8,7 +8,6 @@ Separation of Concerns**
 
 import csv
 from io import StringIO
-from typing import Dict, List
 
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
@@ -156,10 +155,10 @@ def test_naccid_lookup_visitor_error_handling_without_qc():
     """
     # Arrange - Create empty identifiers map so lookups will fail
     invalid_ptids = ["INVALID1", "INVALID2"]
-    identifiers: Dict[str, IdentifierObject] = {}
+    identifiers: dict[str, IdentifierObject] = {}
     output_stream = StringIO()
     error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
-    misc_errors: List[FileError] = []
+    misc_errors: list[FileError] = []
 
     # Create CSV data with PTIDs that won't be found
     header = ["adcid", "ptid", "visitdate", "visitnum", "packet", "formver"]

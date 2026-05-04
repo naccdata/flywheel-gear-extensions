@@ -1,7 +1,8 @@
+from collections.abc import Generator
 from csv import DictReader, DictWriter
 from datetime import date
 from io import StringIO
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 from error_logging.error_logger import ErrorLogTemplate

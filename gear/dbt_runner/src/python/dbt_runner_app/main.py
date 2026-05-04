@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Dict
 
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -20,7 +19,7 @@ def run(
     *,
     context: GearContext,
     dbt_project_zip: InputFileWrapper,
-    source_prefixes: Dict[str, Dict[str, str]],
+    source_prefixes: dict[str, dict[str, str]],
     output_prefix: str,
     dry_run: bool = True,
     debug: bool = False,

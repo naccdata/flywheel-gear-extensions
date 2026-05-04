@@ -5,7 +5,6 @@ using pydicom.
 """
 
 from pathlib import Path
-from typing import Optional
 
 import pydicom
 
@@ -17,7 +16,7 @@ class InvalidDicomError(Exception):
 
 def read_dicom_tags(
     file_path: Path, tags: dict[str, tuple[int, int]]
-) -> dict[str, Optional[str]]:
+) -> dict[str, str | None]:
     """Read multiple DICOM tag values from file in a single read operation.
 
     Args:

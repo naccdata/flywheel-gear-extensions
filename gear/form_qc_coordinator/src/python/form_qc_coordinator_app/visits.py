@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -51,11 +51,11 @@ class VisitsLookupHelper:
         *,
         module: str,
         module_configs: ModuleConfigs,
-        cutoff_date: Optional[str] = None,
-        search_op: Optional[str] = ">=",
+        cutoff_date: str | None = None,
+        search_op: str | None = ">=",
         missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
         add_timestamp: bool = False,
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> list[dict[str, str]] | None:
         """Get the list of visits for this participant for the specified
         module. If cutoff_date specified, get the visits having a visit date on
         or later than the cutoff_date.
@@ -80,7 +80,7 @@ class VisitsLookupHelper:
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
         naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
-        columns: List[Any] = [
+        columns: list[Any] = [
             ptid_key,
             naccid_key,
             date_col_key,
@@ -122,8 +122,8 @@ class VisitsLookupHelper:
         module: str,
         module_configs: ModuleConfigs,
         visitdate: str,
-        visitnum: Optional[str],
-    ) -> Optional[List[Dict[str, str]]]:
+        visitnum: str | None,
+    ) -> list[dict[str, str]] | None:
         """Get the list of visits for the specified participant for the
         specified module matching with the given visitdate and visitnum (if
         specified).
@@ -174,8 +174,8 @@ class VisitsLookupHelper:
         )
 
     def get_dependent_module_visits(
-        self, *, current_module: str, current_visits: List[VisitInfo]
-    ) -> Optional[Dict[str, List[Dict[str, str]]]]:
+        self, *, current_module: str, current_visits: list[VisitInfo]
+    ) -> dict[str, list[dict[str, str]]] | None:
         """Check whether there are any module visits dependent on the specified
         visits that needs to be re-validated.
 
@@ -199,7 +199,7 @@ class VisitsLookupHelper:
             dependent_modules,
         )
 
-        dependent_visits: Dict[str, List[Dict[str, str]]] = {}
+        dependent_visits: dict[str, list[dict[str, str]]] = {}
         for dep_module in dependent_modules:
             dep_module_configs = self.__form_project_configs.module_configs.get(
                 dep_module

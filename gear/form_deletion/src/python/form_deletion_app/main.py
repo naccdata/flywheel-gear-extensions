@@ -1,7 +1,7 @@
 """Defines Form Deletion."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import (
@@ -45,7 +45,7 @@ def update_file_metadata(
         errors=errors.list(), deleted=deleted_items, state=status
     )
     delete_info = DeleteInfoModel(
-        delete_response=delete_response, processed_timestamp=datetime.now(timezone.utc)
+        delete_response=delete_response, processed_timestamp=datetime.now(UTC)
     )
 
     try:

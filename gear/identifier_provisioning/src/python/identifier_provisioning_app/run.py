@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
@@ -48,7 +47,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: ParameterStore | None
     ) -> "IdentifierProvisioningVisitor":
         assert parameter_store, "Parameter store expected"
 
@@ -119,7 +118,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         host_url = f"{self.client.host.rsplit(':', 1)[0]}"
         project_url = f"{host_url}/#/projects/{project.id}/info"
 
-        with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
+        with open(input_path, encoding="utf-8-sig") as csv_file:
             success = run(
                 input_file=csv_file,
                 center_id=adcid,

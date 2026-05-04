@@ -5,7 +5,6 @@ import time
 from datetime import date, timedelta
 from functools import total_ordering
 from heapq import heappop, heappush
-from typing import List, Optional, Tuple
 
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -46,7 +45,7 @@ class Element:
 
 def trigger_gear_for_center(
     proxy: FlywheelProxy, batch_configs: BatchRunInfo, center: Element
-) -> Optional[str]:
+) -> str | None:
     """Trigger the gear for specified center.
 
     Args:
@@ -76,7 +75,7 @@ def trigger_gear_for_center(
     return job_id
 
 
-def get_batch(centers: List[Element], batch_size: int) -> List[Element]:
+def get_batch(centers: list[Element], batch_size: int) -> list[Element]:
     """Get a batch of centers depending on the batch size.
 
     Args:
@@ -96,7 +95,7 @@ def get_batch(centers: List[Element], batch_size: int) -> List[Element]:
 
 
 def check_batch_run_status(
-    proxy: FlywheelProxy, jobs_list: List[str], failed_list: List[str]
+    proxy: FlywheelProxy, jobs_list: list[str], failed_list: list[str]
 ):
     """Checks the job completion status of the jobs in current batch Keeps
     polling job status until all jobs in the current batch complete.
@@ -116,10 +115,10 @@ def check_batch_run_status(
 
 def schedule_batch_copy(
     proxy: FlywheelProxy,
-    centers: List[Element],
+    centers: list[Element],
     batch_configs: BatchRunInfo,
     retry_jobs: bool = True,
-) -> Optional[List[str]]:
+) -> list[str] | None:
     """Schedule the centers in batches depending on the batch mode and batch
     size.
 
@@ -133,8 +132,8 @@ def schedule_batch_copy(
         Optional[List[str]]: list of failed job IDs if any
     """
 
-    failed_list: List[str] = []
-    jobs_list: List[str] = []
+    failed_list: list[str] = []
+    jobs_list: list[str] = []
     batch = get_batch(centers=centers, batch_size=batch_configs.batch_size)
     while len(batch) > 0:
         log.info("Scheduling %s on %s centers", batch_configs.gear_name, len(batch))
@@ -190,8 +189,8 @@ def schedule_batch_copy(
 
 
 def get_centers_to_batch(
-    proxy: FlywheelProxy, center_ids: List[str], time_interval: int, gear_name: str
-) -> List[str]:
+    proxy: FlywheelProxy, center_ids: list[str], time_interval: int, gear_name: str
+) -> list[str]:
     """Get the list of centers to copy data matching with the given time
     interval.
 
@@ -222,8 +221,8 @@ def get_centers_to_batch(
 
 
 def retry_failed_jobs(
-    proxy: FlywheelProxy, failed_ids: List[str], batch_size: int
-) -> Tuple[List[str], List[str]]:
+    proxy: FlywheelProxy, failed_ids: list[str], batch_size: int
+) -> tuple[list[str], list[str]]:
     """Retry the failed jobs.
 
     Args:
@@ -234,8 +233,8 @@ def retry_failed_jobs(
     Returns:
         Tuple[List[str], List[str]]: List of new job IDs, List of failed retries
     """
-    new_jobs: List[str] = []
-    failed_retries: List[str] = []
+    new_jobs: list[str] = []
+    failed_retries: list[str] = []
     num_retried = 0
     wait_time = (batch_size / 5) * 60
     for failed_id in failed_ids:
@@ -253,7 +252,7 @@ def retry_failed_jobs(
 
 
 def send_email(
-    sender_email: str, target_emails: List[str], gear_name: str, failed_count: int
+    sender_email: str, target_emails: list[str], gear_name: str, failed_count: int
 ) -> None:
     """Send a raw email notifying target emails of the error.
 
@@ -277,11 +276,11 @@ def send_email(
 def run(
     *,
     proxy: FlywheelProxy,
-    centers: List[str],
+    centers: list[str],
     time_interval: int,
     batch_configs: BatchRunInfo,
     sender_email: str,
-    target_emails: List[str],
+    target_emails: list[str],
     retry_jobs: bool,
     dry_run: bool,
 ):
@@ -309,7 +308,7 @@ def run(
         else centers
     )
 
-    minheap: List[Element] = []
+    minheap: list[Element] = []
     for center_id in centers_to_batch:
         try:
             source_project = proxy.lookup(f"{center_id}/{batch_configs.source}")

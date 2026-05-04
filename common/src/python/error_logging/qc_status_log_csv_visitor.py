@@ -1,7 +1,7 @@
 """CSV visitor for QC status log creation."""
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -32,8 +32,8 @@ class QCStatusLogCSVVisitor(CSVVisitor):
         qc_log_creator: QCStatusLogManager,
         gear_name: str,
         error_writer: ListErrorWriter,
-        misc_errors: List[FileError],
-        module_name: Optional[str] = None,
+        misc_errors: list[FileError],
+        module_name: str | None = None,
     ) -> None:
         """Initialize QC CSV visitor.
 

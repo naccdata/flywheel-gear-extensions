@@ -1,7 +1,7 @@
 """Tests the GearInfo and GearConfigs pydantic classes."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo
 
@@ -11,8 +11,8 @@ TEST_FILES_DIR = Path(__file__).parent.resolve() / "data"
 class DummyGearConfigs(CredentialGearConfigs):
     test_str: str
     test_int: int
-    test_list: List[Any]
-    test_optional: Optional[str] = "optional"
+    test_list: list[Any]
+    test_optional: str | None = "optional"
 
 
 class TestGearInfo:
@@ -83,7 +83,7 @@ class TestGearInfo:
 
         # however output will not be exactly the same, since test_optional
         # was not explicitly passed; test the behavior is as expected
-        configs: Dict[str, Any] = {
+        configs: dict[str, Any] = {
             "gear_name": "custom-configs",
             "configs": {
                 "test_str": "hello",
@@ -119,7 +119,7 @@ class TestGearInfo:
 
         # however output will not be exactly the same, as optional configs and inputs
         # were not explicitly passed; test the behavior is as expected
-        configs: Dict[str, Any] = {
+        configs: dict[str, Any] = {
             "gear_name": "custom-configs",
             "inputs": [
                 {"label": "input_file1", "file_locator": "matched"},
