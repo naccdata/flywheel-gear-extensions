@@ -153,7 +153,7 @@ class FileErrorList(RootModel):
 QCStatus = Literal["PASS", "FAIL", "IN REVIEW"]
 
 # QC Status constants
-QC_STATUS_PASS = "PASS"
+QC_STATUS_PASS = "PASS"  # noqa: S105
 QC_STATUS_FAIL = "FAIL"
 QC_STATUS_IN_REVIEW = "IN REVIEW"
 

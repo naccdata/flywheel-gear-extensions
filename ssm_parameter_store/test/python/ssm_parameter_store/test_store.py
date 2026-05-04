@@ -10,7 +10,7 @@ from ssm_parameter_store import EC2ParameterStore
 @pytest.fixture(scope="function")
 def aws_credentials():
     """Mock AWS credentials for moto."""
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # noqa: S105
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
@@ -41,7 +41,7 @@ def parameter_store(fake_ssm):
         ssm.put_parameter(Name=f"/test/path/{n}", Value=f"{n}", Type="SecureString")
     return EC2ParameterStore(
         aws_access_key_id="testing",
-        aws_secret_access_key="testing",
+        aws_secret_access_key="testing",  # noqa: S106
         region_name="us-east-1",
     )
 

@@ -14,7 +14,7 @@ from notifications.email_list import (
 @pytest.fixture(scope="function")
 def aws_credentials():
     """Mock AWS credentials for moto."""
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # noqa: S105
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 

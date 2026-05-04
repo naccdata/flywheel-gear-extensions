@@ -84,8 +84,8 @@ class MockGearContext:
         auth_file_path: str | None = None,
         config: dict | None = None,
     ):
-        self.user_file_path = user_file_path or "/tmp/users.yaml"
-        self.auth_file_path = auth_file_path or "/tmp/auth.yaml"
+        self.user_file_path = user_file_path or "/tmp/users.yaml"  # noqa: S108
+        self.auth_file_path = auth_file_path or "/tmp/auth.yaml"  # noqa: S108
         self.config_opts = config or {
             "admin_group": "nacc",
             "comanage_parameter_path": "/comanage/test",

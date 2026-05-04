@@ -84,7 +84,9 @@ class EventAccumulator:
                     return qc_file
             except Exception:
                 # File not found, continue to legacy format
-                pass
+                log.debug(
+                    "File %s not found, trying legacy format", new_format_filename
+                )
 
         # Try legacy format (without visitnum and packet)
         legacy_filename = self.__error_log_template.instantiate_legacy(data_id)
@@ -95,7 +97,7 @@ class EventAccumulator:
                     return qc_file
             except Exception:
                 # File not found
-                pass
+                log.debug("Legacy file %s not found", legacy_filename)
 
         return None
 

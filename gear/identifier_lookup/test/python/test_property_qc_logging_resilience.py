@@ -262,7 +262,7 @@ def test_qc_logging_resilience_exception_handling():
         result1 = qc_visitor.visit_row(visit_data_list[0], line_num=1)
         # If we get here, exception was handled gracefully
         assert result1 is True, "visit_row should return True even after exception"
-    except Exception:
+    except Exception:  # noqa: S110
         # Current implementation doesn't catch exceptions
         # This is acceptable as long as the exception doesn't corrupt state
         pass

@@ -61,6 +61,8 @@ class RxNavConnectionError(Exception):
 class RxNavConnection:
     """Manages a connection to the RxNav API."""
 
+    DEFAULT_TIMEOUT = 30  # seconds
+
     @classmethod
     def url(cls, path: str) -> str:
         """Builds a URL for accessing a RxNav endpoint.
@@ -87,7 +89,7 @@ class RxNavConnection:
         """
         target_url = cls.url(path)
         try:
-            response = requests.get(target_url)
+            response = requests.get(target_url, timeout=cls.DEFAULT_TIMEOUT)
         except (
             requests.exceptions.SSLError,
             requests.exceptions.ConnectionError,

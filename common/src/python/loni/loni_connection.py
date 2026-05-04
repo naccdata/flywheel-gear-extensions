@@ -12,6 +12,9 @@ class LONIConnectionError(Exception):
 class LONIConnection:
     """Manages a connection to the LONI IDA."""
 
+    DEFAULT_TIMEOUT = 30  # seconds for metadata/auth requests
+    DOWNLOAD_TIMEOUT = (10, 120)  # (connect, read) seconds for table downloads
+
     def __init__(self, key) -> None:
         self.__key = key
 
@@ -27,6 +30,7 @@ class LONIConnection:
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/tables"),
             params={"key": self.__key, "format": "json"},
+            timeout=self.DEFAULT_TIMEOUT,
         )
         if response.status_code == 401:
             # handle invalid key
@@ -55,6 +59,7 @@ class LONIConnection:
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/{table_name}/columns"),
             params={"key": self.__key, "format": "json"},
+            timeout=self.DEFAULT_TIMEOUT,
         )
         if response.status_code == 401:
             raise LONIConnectionError(f"unable to access columns: {response.reason}")
@@ -80,6 +85,7 @@ class LONIConnection:
         response = requests.get(
             url=LONIConnection.url(f"{database_name}/download"),
             params={"table": table_name, "key": self.__key},
+            timeout=self.DOWNLOAD_TIMEOUT,
         )
         if response.status_code == 401:
             raise LONIConnectionError(
@@ -124,6 +130,7 @@ class LONIConnection:
             headers={"Content-Type": "text/plain"},
             params=user_params,
             data=password,
+            timeout=cls.DEFAULT_TIMEOUT,
         )
 
         if not response.ok:

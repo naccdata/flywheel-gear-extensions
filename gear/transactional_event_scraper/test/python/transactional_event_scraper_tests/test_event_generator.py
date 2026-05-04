@@ -198,17 +198,12 @@ def test_create_pass_qc_event_no_completion_timestamp(mock_project):
     # QCEventData requires a valid timestamp, so this test verifies
     # that we can't create QCEventData without one
     # The validation happens at the Pydantic model level
-    try:
-        _qc_event_data = QCEventData(
+    with pytest.raises((TypeError, ValueError)):
+        QCEventData(
             visit_metadata=visit_metadata,
             qc_status="PASS",
             qc_completion_timestamp=None,
         )
-        # If we get here, the model allowed None (shouldn't happen)
-        raise AssertionError("QCEventData should not allow None timestamp")
-    except Exception:
-        # Expected - Pydantic should reject None timestamp
-        pass
 
 
 def test_create_pass_qc_event_no_pipeline_label(

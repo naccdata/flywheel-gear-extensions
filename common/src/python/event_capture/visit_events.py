@@ -31,8 +31,8 @@ VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
 # Visit Event Action constants
 ACTION_SUBMIT = "submit"
 ACTION_DELETE = "delete"
-ACTION_NOT_PASS_QC = "not-pass-qc"
-ACTION_PASS_QC = "pass-qc"
+ACTION_NOT_PASS_QC = "not-pass-qc"  # noqa: S105
+ACTION_PASS_QC = "pass-qc"  # noqa: S105
 
 
 class VisitEvent(BaseModel):

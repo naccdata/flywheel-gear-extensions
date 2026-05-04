@@ -36,7 +36,7 @@ class TestPriorityQueue:
     def test_non_empty(self):
         queue = MinHeap[Element]()
         for i in range(10):
-            queue.push(Element(randint(i, 1000)))
+            queue.push(Element(randint(i, 1000)))  # noqa: S311
         assert not queue.empty()
         assert len(queue) == 10
         e1 = queue.pop()

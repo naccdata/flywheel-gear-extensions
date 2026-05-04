@@ -94,7 +94,10 @@ class DBTRunner:
             # Run dbt debug first to check configuration
             log.info("Running dbt debug to verify configuration")
             result = subprocess.run(
-                ["dbt", "debug"], capture_output=True, text=True, check=False
+                ["dbt", "debug"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=False,
             )
             log.info(f"dbt debug output:\n{result.stdout}")
             if result.returncode != 0:
@@ -103,7 +106,10 @@ class DBTRunner:
             # Run dbt run
             log.info("Running dbt run")
             result = subprocess.run(
-                ["dbt", "run"], capture_output=True, text=True, check=True
+                ["dbt", "run"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=True,
             )
 
             # Log output

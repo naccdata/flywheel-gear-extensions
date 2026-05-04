@@ -143,7 +143,7 @@ def capture_naccid_lookup_behavior(
         try:
             reader = csv.DictReader(out_stream)
             output_rows = list(reader)
-        except Exception:
+        except Exception:  # noqa: S110
             # Handle malformed CSV
             pass
 

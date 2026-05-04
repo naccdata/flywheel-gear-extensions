@@ -8,7 +8,7 @@ from s3.s3_bucket import S3BucketInterface
 
 @pytest.fixture(scope="function")
 def aws_credentials():
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # noqa: S105
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 

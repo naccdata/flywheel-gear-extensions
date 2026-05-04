@@ -92,7 +92,7 @@ def test_invalid_visit_metadata_fails_validation(invalid_metadata):
         assert required_fields_present is False, (
             "If validation passed, at least one required field should be empty"
         )
-    except Exception:
+    except Exception:  # noqa: S110
         # ValidationError is expected for invalid data
         pass
 
@@ -257,7 +257,7 @@ def test_visit_metadata_validation_required_fields_property(ptid, date, module):
         # (though they might be empty strings)
         assert visit_metadata is not None
 
-    except Exception:
+    except Exception:  # noqa: S110
         # If Pydantic validation fails, at least one required field was None
         # This is expected and acceptable
         pass
