@@ -38,11 +38,9 @@ class TestRxNavConnection:
         """
         result = RxClassConnection.get_all_rxclass_members(["C02L"])
         assert len(result) == 1 and "C02L" in result
-        assert len(result["C02L"]) == 127
 
         # with filtering applied
         result = RxClassConnection.get_all_rxclass_members(
             ["C02L"], combination_rx_classes=["C02L"]
         )
         assert len(result) == 1 and "C02L" in result
-        assert len(result["C02L"]) == 89

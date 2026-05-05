@@ -273,7 +273,7 @@ class TemplateProject:
             )
             return False
 
-        if dest_file.hash == file.hash and file.hash != None:
+        if dest_file.hash == file.hash and file.hash is not None:
             log.debug(
                 "File %s on destination project %s matches hash of original "
                 "file, no changes",
