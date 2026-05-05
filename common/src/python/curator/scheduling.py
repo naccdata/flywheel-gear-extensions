@@ -159,7 +159,7 @@ class ProjectCurationScheduler:
           exclude_subjects: Subjects to exclude in
           max_num_workers: max number of workers to use
         """
-        process_count = min(max_num_workers, self.__compute_cores())
+        process_count = max(max_num_workers, self.__compute_cores())
         results = []
 
         with Pool(
