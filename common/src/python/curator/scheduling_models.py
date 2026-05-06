@@ -1,5 +1,6 @@
 """Pydantic models to help with scheduling and curation."""
 
+import copy
 import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -85,10 +86,17 @@ class FileModel(BaseModel):
     modified_date: date
 
     # private attributes to be computed
+    _old_info: Optional[Dict[str, Any]] = PrivateAttr(default=None)
     _file_date: Optional[date] = PrivateAttr(default=None)
     _scope: Optional[ScopeLiterals] = PrivateAttr(default=None)
     _visit_pass: Optional[VISIT_PASS_LITERALS] = PrivateAttr(default=None)
     _uds_visitdate: Optional[str] = PrivateAttr(default=None)
+
+    @property
+    def old_info(self) -> Dict[str, Any]:
+        """Return the original old info; used to determine whether an update
+        call to the API is required or not."""
+        return self._old_info
 
     @property
     def file_date(self) -> date:
@@ -160,6 +168,7 @@ class FileModel(BaseModel):
     @model_validator(mode="after")
     def compute_values(self) -> "FileModel":
         """Compute values that need to be derived from other fields."""
+        self._old_info = copy.deepcopy(self.file_info)
         self._file_date = self.__determine_file_date()
         self._scope = self.__determine_scope()
         self._visit_pass = self.__determine_visit_pass()

@@ -581,17 +581,20 @@ class FormCurator(Curator):
 
         file_entry = self.sdk_client.get_file(file.file_id)
 
-        # collect metadata into a single API call
+        # collect metadata into a single API call - only update as necessary
         updated_info = {}
         for curation_type in ["derived", "resolved"]:
             curated_file_info = file.file_info.get(curation_type)
-            if curated_file_info:
+            old_info = file.old_info.get(curation_type)
+
+            if curated_file_info and curated_file_info != old_info:
                 updated_info.update({curation_type: curated_file_info})
 
         if file.file_info.get("affiliate", None) != affiliate:
             updated_info["affiliate"] = affiliate
 
         if updated_info:
+            log.debug(f"{file.filename} has new info, updating")
             file_entry.update_info(updated_info)
 
         # add curation tag
