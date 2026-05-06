@@ -1,114 +1,114 @@
 {
-    "name": "identifier-lookup",
-    "label": "Identifier Lookup",
-    "description": "Gear to look up participant identifiers for incoming data and capture visit events when QC logging is enabled",
-    "version": "2.4.1",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "identifier-lookup",
+  "label": "Identifier Lookup",
+  "description": "Gear to look up participant identifiers for incoming data and capture visit events when QC logging is enabled",
+  "version": "2.4.1",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/identifier_lookup/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/identifier_lookup",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/identifier-lookup:2.4.1"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/identifier-lookup:2.4.1"
-        },
-        "flywheel": {
-            "suite": "NACC Data Gears",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "NACC Data Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        },
-        "input_file": {
-            "description": "The CSV input file. Requires participant ID that matches mapping direction.",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "tabular data"
-                ]
-            }
-        },
-        "form_configs_file": {
-            "description": "A JSON file with forms module configurations; optional, enables field validation and QC logging",
-            "base": "file",
-            "optional": true,
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        }
+    "input_file": {
+      "description": "The CSV input file. Requires participant ID that matches mapping direction.",
+      "base": "file",
+      "type": {
+        "enum": [
+          "tabular data"
+        ]
+      }
     },
-    "config": {
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
-        },
-        "database_mode": {
-            "description": "Whether to lookup identifiers from dev or prod database",
-            "type": "string",
-            "enum": [
-                "prod",
-                "dev"
-            ],
-            "default": "prod"
-        },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter gearbot path prefix",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "direction": {
-            "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
-            "type": "string",
-            "enum": [
-                "nacc",
-                "center"
-            ],
-            "default": "nacc"
-        },
-        "preserve_case": {
-            "description": "Whether or not to preserve the case of the header keys in the input file",
-            "type": "boolean",
-            "default": true
-        },
-        "event_environment": {
-            "description": "Environment for visit event capture (prod or dev); only required when using nacc direction with form configs",
-            "type": "string",
-            "optional": true,
-            "enum": [
-                "prod",
-                "dev"
-            ]
-        },
-        "event_bucket": {
-            "description": "S3 bucket name for event capture; only required when using nacc direction with form configs",
-            "type": "string",
-            "optional": true
-        },
-        "module": {
-            "description": "Module name for form processing (optional, can be inferred from filename)",
-            "type": "string",
-            "optional": true
-        },
-        "single_center": {
-            "description": "Whether the gear is being run in a pipeline for a single center (enables center validation)",
-            "type": "boolean",
-            "default": true
-        }
+    "form_configs_file": {
+      "description": "A JSON file with forms module configurations; optional, enables field validation and QC logging",
+      "base": "file",
+      "optional": true,
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
     },
-    "command": "/bin/run"
+    "admin_group": {
+      "description": "Name of the admin group",
+      "type": "string",
+      "default": "nacc"
+    },
+    "database_mode": {
+      "description": "Whether to lookup identifiers from dev or prod database",
+      "type": "string",
+      "enum": [
+        "prod",
+        "dev"
+      ],
+      "default": "prod"
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter gearbot path prefix",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "direction": {
+      "description": "Direction of identifier mapping; 'nacc' to naccid, or 'center' to center",
+      "type": "string",
+      "enum": [
+        "nacc",
+        "center"
+      ],
+      "default": "nacc"
+    },
+    "preserve_case": {
+      "description": "Whether or not to preserve the case of the header keys in the input file",
+      "type": "boolean",
+      "default": true
+    },
+    "event_environment": {
+      "description": "Environment for visit event capture (prod or dev); only required when using nacc direction with form configs",
+      "type": "string",
+      "optional": true,
+      "enum": [
+        "prod",
+        "dev"
+      ]
+    },
+    "event_bucket": {
+      "description": "S3 bucket name for event capture; only required when using nacc direction with form configs",
+      "type": "string",
+      "optional": true
+    },
+    "module": {
+      "description": "Module name for form processing (optional, can be inferred from filename)",
+      "type": "string",
+      "optional": true
+    },
+    "single_center": {
+      "description": "Whether the gear is being run in a pipeline for a single center (enables center validation)",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "command": "/bin/run"
 }

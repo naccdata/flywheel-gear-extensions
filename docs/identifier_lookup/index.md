@@ -158,3 +158,14 @@ The gear produces up to two output files.
 - **Error file**: a CSV file indicating errors, and specifically information about rows for which an identifier was not found. The format and naming of this file is determined by the Flywheel error UI interface.
 
 Note: Event capture, when enabled, does not produce additional output files. Events are captured directly to the configured S3 bucket and do not affect the standard CSV output files described above.
+
+## File Metadata and Tagging
+
+After processing, the gear updates the input CSV file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether all identifier lookups succeeded
+   - `data`: List of `FileError` objects with error details for any rows where identifiers were not found
+
+2. **File Tag**: The gear name (e.g., `"identifier-lookup"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.

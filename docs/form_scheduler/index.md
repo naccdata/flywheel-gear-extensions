@@ -1,28 +1,40 @@
 # Form Scheduler
 
-Queues project files for the submission pipeline and captures outcome events (pass-qc, not-pass-qc) after pipeline completion. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
+This gear manages the coordination between the different pipelines and captures outcome events after a pipeline completion. Currently supports deletion, submission, and finalization pipelines. Intended to be triggered by the [form-screening](../form_sreening/index.md) gear.
 
+## Pipeline types and processing order
+
+The scheduler manages three pipeline types, processed in the following fixed order each run:
+
+| Order | Pipeline | Queue tag | File type | Starting gear |
+|-------|----------|-----------|-----------|---------------|
+| 1st | deletion | `pending-delete` | `.json` | form-deletion |
+| 2nd | submission | `queued` | `.csv` | nacc-file-validator |
+| 3rd | finalization | `submission-completed` | `.json` | form-qc-coordinator |
+
+Each pipeline runs to completion before the next one starts.
+
+### Module ordering
+
+Within each pipeline, modules are processed in round-robin order. Order of the modules for each pipeline is specified in the pipeline configurations file. The position of the UDS module in that order is intentional:
+
+- **Submission and finalization** — UDS is listed first (`UDS, FTLD, LBD, MLST, BDS, CLS, NP`). This ensures UDS records are prioritized at the start of each cycle, as other modules may depend on UDS data being present.
+- **Deletion** — UDS is listed last (`FTLD, LBD, MLST, BDS, CLS, NP, UDS`). This ensures dependent module records are deleted before the foundational UDS record is removed.
+
+### Sequential vs. subject-parallel processing
+
+Pipelines differ in how files are dispatched within each module queue:
+
+- **Submission (sequential)**: one file is triggered at a time. The scheduler waits for the full pipeline to complete before triggering the next file.
+- **Deletion and finalization (subject-parallel)**: files are grouped by subject. Each processing round triggers one file per subject as a batch — all batch jobs are dispatched before waiting — then the scheduler waits for the entire batch to finish before starting the next round.
+  
 ## Event Capture
 
-The form-scheduler captures outcome events after pipeline completion:
-
+The form-scheduler captures outcome events after a pipeline completes:
 - **pass-qc**: Visit successfully completed all QC checks
-- **not-pass-qc**: Visit failed QC validation
+- **delete**: Delete requests that are successfully completed
 
 Submit events are handled separately by the identifier-lookup gear. For detailed event capture documentation, see the [gear-specific event logging guide](../../gear/form_scheduler/docs/event-logging.md).
-
-## Logic
-
-1. Pulls the current list of project files with the specified queue tags and adds them to processing queues for each module sorted by file timestamp
-2. Process the queues in a round robin
-    1. Check whether there are any submission pipelines running/pending; if so, wait for it to finish
-    2. Pull the next CSV from the queue and remove the queue tags
-    3. Trigger the submission pipeline
-    4. Wait for the triggered submission pipeline to finish
-    5. Send email to user that the submission pipeline is complete
-    6. Move to next queue
-3. Repeat 2) until all queues are empty
-4. Repeat from the beginning until there are no more files to be queued
 
 ## Configuration
 

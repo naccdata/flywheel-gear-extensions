@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.1
+* Adds enrollment project URL to transfer request notification
+  
 ## 2.2.0
 * Rebuilt for log file naming format update
   

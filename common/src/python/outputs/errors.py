@@ -13,7 +13,6 @@ from nacc_common.error_models import (
 
 log = logging.getLogger(__name__)
 
-
 preprocess_errors = {
     SysErrorCodes.ADCID_MISMATCH: (
         "ADCID must match the ADCID of the center uploading the data"
@@ -410,4 +409,25 @@ def existing_participant_error(
         error_code="participant-exists",  # pyright: ignore[reportCallIssue]
         location=CSVLocation(column_name=field, line=line),
         message=error_message,
+    )
+
+
+def delete_request_failed_error(
+    *,
+    ptid: str,
+    visitdate: str,
+    visitnum: Optional[str] = None,
+    naccid: Optional[str] = None,
+    message: str,
+) -> FileError:
+    """Creates a FileError for delete request failure."""
+
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="delete-error",  # pyright: ignore[reportCallIssue]
+        ptid=ptid,
+        date=visitdate,
+        visitnum=visitnum,
+        naccid=naccid,
+        message=message,
     )

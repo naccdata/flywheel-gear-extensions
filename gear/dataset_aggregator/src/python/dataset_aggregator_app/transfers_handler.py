@@ -102,14 +102,15 @@ class TransferDuplicateHandler:
                 naccid_col = table[FieldNames.NACCID]
 
                 # apply corrected values over relevant indexes
-                in_mapping = pc.is_in(naccid_col, keys)
-                idx = pc.index_in(naccid_col, keys)
+                in_mapping = pc.is_in(naccid_col, keys)  # type: ignore[attr-defined]
+                idx = pc.index_in(naccid_col, keys)  # type: ignore[attr-defined]
                 correct_adcid = pc.take(values, idx)
 
                 # build the mask to only keep corrected ADCID/NACCID
                 # pairings and those that didn't need fixing
-                keep_mask = pc.or_(
-                    pc.invert(in_mapping), pc.is_in(adcid_col, correct_adcid)
+                keep_mask = pc.or_(  # type: ignore[attr-defined]
+                    pc.invert(in_mapping),  # type: ignore[attr-defined]
+                    pc.is_in(adcid_col, correct_adcid),  # type: ignore[attr-defined]
                 )
 
                 # apply filter

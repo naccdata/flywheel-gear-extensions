@@ -39,9 +39,11 @@ def review_transfer_info(
         log.error(error)
         return None
 
-    transfer_record = transfer_info.transfers.get(ptid)
+    # replace "." with "_" as FW doesn't allow period in metadata keys
+    ptid_alias = ptid.replace(".", "_")
+    transfer_record = transfer_info.transfers.get(ptid_alias)
     if not transfer_record:
-        log.error(f"No transfer request found for PTID {ptid}")
+        log.error(f"No transfer request found for PTID {ptid} (alias {ptid_alias})")
         return None
 
     if transfer_record.status == "completed":
@@ -74,7 +76,7 @@ def review_transfer_info(
         )
         valid = False
 
-    adcids_list = admin_group.get_form_ingest_adcids()
+    adcids_list = admin_group.get_all_ingest_pipeline_adcids()
     if transfer_record.previous_adcid not in adcids_list:
         log.error(
             f"Invalid previous ADCID {transfer_record.previous_adcid} in "
@@ -93,6 +95,7 @@ def run(  # noqa: C901
     ptid: str,
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
+    studies: Optional[List[str]],
     copy_only: bool,
     dry_run: bool,
 ) -> bool:
@@ -105,6 +108,8 @@ def run(  # noqa: C901
         ptid: PTID to be transferred
         identifiers_repo: Identifiers lambda repository
         datatypes: List of datatypes to be transferred
+        studies: List of studies to include in the transfer (optional).
+                 If not provided, all studies in center metadata are included
         copy_only: No database update, only copy participant data.
                    Used when handling copy failure
         dry_run: Whether to do a dry run
@@ -130,14 +135,14 @@ def run(  # noqa: C901
         )
 
     adcid = transfer_record.center_identifiers.adcid
-    new_center = admin_group.get_center(adcid)
+    new_center = admin_group.get_center_by_pipeline_adcid(adcid)
     if not new_center or not new_center.get_metadata():
         raise GearExecutionError(
             f"Cannot find center metadata for the new center - ADCID: {adcid}"
         )
 
     oldadcid = transfer_record.previous_adcid
-    prev_center = admin_group.get_center(oldadcid)
+    prev_center = admin_group.get_center_by_pipeline_adcid(oldadcid)
     if not prev_center or not prev_center.get_metadata():
         raise GearExecutionError(
             f"Cannot find center metadata for the previous center - ADCID: {oldadcid}"
@@ -189,6 +194,7 @@ def run(  # noqa: C901
         new_center=new_center,
         prev_center=prev_center,
         datatypes=datatypes,
+        studies=studies,
         warnings=warnings,
     )
 

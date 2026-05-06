@@ -5,6 +5,7 @@
     "python.analysis.typeCheckingMode": "basic",
     "python.envFile": "${workspaceFolder}/.env",
     "terminal.integrated.shellIntegration.enabled": true,
+    "terminal.integrated.environmentChangesRelaunch": false,
     "ruff.configuration": "/workspaces/flywheel-gear-extensions/ruff.toml",
     "files.exclude": {
         "**/.git": true,
@@ -66,6 +67,7 @@
         "niagads",
         "NPDKA",
         "oidcsub",
+        "oldadcid",
         "pipx",
         "popleft",
         "primlang",

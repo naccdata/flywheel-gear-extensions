@@ -115,6 +115,10 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         target_emails = context.config.opts.get("target_emails", "nacchelp@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
+        # client.host is like https://naccdata.flywheel.io:443/api
+        host_url = f"{self.client.host.rsplit(':', 1)[0]}"
+        project_url = f"{host_url}/#/projects/{project.id}/info"
+
         with open(input_path, mode="r", encoding="utf-8-sig") as csv_file:
             success = run(
                 input_file=csv_file,
@@ -129,6 +133,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 submitter=submitter,
                 sender_email=sender_email,
                 target_emails=target_emails,
+                project_url=project_url,
             )
 
             context.metadata.add_qc_result(

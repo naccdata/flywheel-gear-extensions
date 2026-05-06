@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.1
+Sets status and legacy fields in the enrollment record
+
 ## 2.1.0
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 

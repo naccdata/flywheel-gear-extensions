@@ -340,8 +340,16 @@ class TestCLARiTIPropertyTests:
 
         fast_email = st.builds(
             lambda user, domain: f"{user}@{domain}.edu",
-            st.from_regex(r"[a-z]{1,10}", fullmatch=True),
-            st.from_regex(r"[a-z]{1,10}", fullmatch=True),
+            st.text(
+                alphabet="abcdefghijklmnopqrstuvwxyz",
+                min_size=1,
+                max_size=10,
+            ),
+            st.text(
+                alphabet="abcdefghijklmnopqrstuvwxyz",
+                min_size=1,
+                max_size=10,
+            ),
         )
 
         @given(

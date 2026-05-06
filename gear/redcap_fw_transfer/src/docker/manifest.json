@@ -1,43 +1,43 @@
 {
-    "name": "redcap-fw-transfer",
-    "label": "REDCap to Flywheel Transfer",
-    "description": "Gear to transfer from data from a REDCap project to the respective Flywheel project",
-    "version": "1.2.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "redcap-fw-transfer",
+  "label": "REDCap to Flywheel Transfer",
+  "description": "Gear to transfer from data from a REDCap project to the respective Flywheel project",
+  "version": "1.2.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/redcap_fw_transfer/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/redcap_fw_transfer",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/redcap-fw-transfer:1.2.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "utility",
-            "image": "naccdata/redcap-fw-transfer:1.2.0"
-        },
-        "flywheel": {
-            "suite": "Import",
-            "show-job": true
-        }
+    "flywheel": {
+      "suite": "Import",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    }
+  },
+  "config": {
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter gearbot path prefix",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key"
-        }
-    },
-    "config": {
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter gearbot path prefix",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "parameter_path": {
-            "description": "AWS parameter base path for REDCap instance",
-            "type": "string",
-            "default": "/redcap/aws"
-        }
-    },
-    "command": "/bin/run"
+    "parameter_path": {
+      "description": "AWS parameter base path for REDCap instance",
+      "type": "string",
+      "default": "/redcap/aws"
+    }
+  },
+  "command": "/bin/run"
 }

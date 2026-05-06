@@ -31,6 +31,17 @@ The gear manifest config includes the following parameters
 - `study_id` - Default `"adrc"`.
   Should be set if any participants have data from an affiliated study.
 
+## File Metadata and Tagging
+
+After processing, the gear updates the input file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether all participant lookups succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred
+
+2. **File Tag**: The gear name is added as a simple tag to the input file, indicating the file has been processed by this gear.
+
 ## Output
 
 A file is written for each module for which participant data is found.

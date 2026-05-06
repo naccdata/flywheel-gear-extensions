@@ -169,7 +169,7 @@ def test_event_structure_compatibility(
     )
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event structure compatibility
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -283,7 +283,7 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS, {}, qc_completion_time)
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event structure should be the same even with JSON fallback
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -364,7 +364,7 @@ def test_event_structure_required_fields():
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS, {}, qc_completion_time)
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - All required fields present with correct values
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -446,7 +446,7 @@ def test_event_structure_s3_storage_compatibility():
     mock_project.add_qc_status_file(qc_filename, QC_STATUS_PASS)
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Event should be serializable (test JSON serialization)
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"

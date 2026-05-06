@@ -51,6 +51,19 @@ The status output file also contains the column
 
 - `status`: the PASS/FAIL status of the data
 
+## File Metadata and Tagging
+
+After processing, the gear updates the input CSV file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether the status/error gathering succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred
+
+2. **File Tag**: The gear name (e.g., `"gather-submission-status"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.
+
+## Error Report Output
+
 The error report output file contains the columns
 
 - `timestamp` - timestamp for the error generation

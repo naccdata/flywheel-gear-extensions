@@ -58,7 +58,7 @@ class MockGearContext:
 
     def __init__(
         self,
-        config: Optional[Dict[str, str]] = None,
+        config: Optional[Dict[str, Any]] = None,
         destination: Optional[Dict[str, str]] = None,
     ):
         self.config_opts = config or {

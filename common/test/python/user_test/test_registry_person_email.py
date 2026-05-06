@@ -64,6 +64,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return organizational email, not regular emails
+        assert person.email_address is not None
         assert person.email_address == org_email
         assert person.email_address.mail == "org@example.com"
 
@@ -96,6 +97,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return official email even though it's not first in list
+        assert person.email_address is not None
         assert person.email_address == official_email
         assert person.email_address.mail == "official@example.com"
 
@@ -129,6 +131,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return verified email even though it's not first in list
+        assert person.email_address is not None
         assert person.email_address == verified_email
         assert person.email_address.mail == "verified@example.com"
 
@@ -159,6 +162,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return first email
+        assert person.email_address is not None
         assert person.email_address == email1
         assert person.email_address.mail == "first@example.com"
 
@@ -187,6 +191,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return first email
+        assert person.email_address is not None
         assert person.email_address == email1
         assert person.email_address.mail == "first@example.com"
 
@@ -245,6 +250,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should fall back to regular email
+        assert person.email_address is not None
         assert person.email_address == regular_email
         assert person.email_address.mail == "regular@example.com"
 
@@ -288,6 +294,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return first org email
+        assert person.email_address is not None
         assert person.email_address == org_email1
         assert person.email_address.mail == "org1@example.com"
 
@@ -338,6 +345,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return org email (highest priority)
+        assert person.email_address is not None
         assert person.email_address == org_email
         assert person.email_address.mail == "org@example.com"
 
@@ -367,6 +375,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return official email (higher priority than verified)
+        assert person.email_address is not None
         assert person.email_address == official_email
         assert person.email_address.mail == "official@example.com"
 
@@ -397,6 +406,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return first official email
+        assert person.email_address is not None
         assert person.email_address == official1
         assert person.email_address.mail == "official1@example.com"
 
@@ -427,6 +437,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return first verified email
+        assert person.email_address is not None
         assert person.email_address == verified1
         assert person.email_address.mail == "verified1@example.com"
 
@@ -456,6 +467,7 @@ class TestEmailAddressPropertyPriorityLogic:
         person = RegistryPerson(coperson_msg)
 
         # Should return the official+verified email
+        assert person.email_address is not None
         assert person.email_address == official_verified
         assert person.email_address.mail == "both@example.com"
 

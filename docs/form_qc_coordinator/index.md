@@ -20,3 +20,13 @@ This gear can only be triggered by submission pipeline or finalization pipeline.
 ### Configs
 Gear configs are defined in [manifest.json](../../gear/form_qc_coordinator/src/docker/manifest.json).
 
+
+## File Metadata and Tagging
+
+This gear manages QC metadata and tags on the visit files it coordinates, not on its own input file. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **File Tag (submission pipeline only)**: When triggered by the submission pipeline, the gear name (e.g., `"form-qc-coordinator"`) is added as a tag to the input visits file, indicating the file has been processed.
+
+2. **Visit File QC Reset**: When re-triggering QC for a visit, the coordinator resets the QC metadata on the visit file using `FileQCModel` and removes existing gear status tags (e.g., `form-qc-checker-PASS` or `form-qc-checker-FAIL`) using the `GearTags` class. This ensures the downstream [Form QC Checker](../form_qc_checker/index.md) starts with a clean state.
+
+   Note: The coordinator does not add QC results to its own input file. QC validation results are managed by the downstream Form QC Checker gear that it triggers for each visit.

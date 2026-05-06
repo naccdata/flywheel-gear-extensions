@@ -96,3 +96,14 @@ graph TB
 style start fill:#000, stroke:#000
 ```
 
+
+## File Metadata and Tagging
+
+After processing, the gear updates the input file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether provisioning succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred during provisioning
+
+2. **File Tag**: The gear name (e.g., `"identifier-provisioning"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.

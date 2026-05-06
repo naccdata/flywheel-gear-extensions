@@ -78,7 +78,7 @@ The flywheel-gear-extensions repository contains:
 ### Other
 
 - **`comanage/`** - COmanage API integration
-- **`bin/`** - Utility scripts for devcontainer management
+- **`bin/`** - Utility scripts for devcontainer management and host environment setup (including `create-host-venv.sh` for IDE support)
 - **`.devcontainer/`** - VSCode dev container configuration
 - **`.github/`** - GitHub Actions workflows
 - **`mypy-stubs/`** - Type stubs for external packages

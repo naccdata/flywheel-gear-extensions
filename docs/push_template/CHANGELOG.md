@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.1
+
+* Fixes issue where `None` file hashes on both source and destination were causing files to not get copied over 
+
 ## 2.1.0
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
