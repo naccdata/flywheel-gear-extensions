@@ -567,7 +567,8 @@ class FormCurator(Curator):
 
     @api_retry
     def apply_file_curation(self, file: FileModel, affiliate: int) -> None:
-        """Applies the file-specific curated information back to FW.
+        """Applies the file-specific curated information back to FW. Only
+        updates as necessary.
 
         Grabs file.info.derived (derived variables) and
         file.info.resolved (resolved raw + missingness data) and pushes
@@ -579,9 +580,9 @@ class FormCurator(Curator):
                 "Cannot apply file curation to FW; processed file missing file_info"
             )
 
-        file_entry = self.sdk_client.get_file(file.file_id)
+        file_entry = None
 
-        # collect metadata into a single API call - only update as necessary
+        # collect metadata into a single API call
         updated_info = {}
         for curation_type in ["derived", "resolved"]:
             curated_file_info = file.file_info.get(curation_type)
@@ -594,13 +595,16 @@ class FormCurator(Curator):
             updated_info["affiliate"] = affiliate
 
         if updated_info:
+            if file_entry is None:
+                file_entry = self.sdk_client.get_file(file.file_id)
+
             log.debug(f"{file.filename} has new info, updating")
             file_entry.update_info(updated_info)
 
         # add curation tag
-        if self.curation_tag not in file_entry.tags:
-            file_entry.add_tag(self.curation_tag)
+        if self.curation_tag not in file.file_tags:
+            if file_entry is None:
+                file_entry = self.sdk_client.get_file(file.file_id)
 
-        # TODO - remove after cleaned up, moving data to file.info
-        if FormCurationTags.AFFILIATE in file_entry.tags:
-            file_entry.delete_tag(FormCurationTags.AFFILIATE)
+            if self.curation_tag not in file_entry.tags:
+                file_entry.add_tag(self.curation_tag)
