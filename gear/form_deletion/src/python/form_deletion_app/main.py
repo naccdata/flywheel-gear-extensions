@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import (
@@ -14,6 +15,7 @@ from error_logging.error_logger import update_file_info
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from fw_gear import GearContext
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_identifier
 from nacc_common.error_models import FileErrorList
@@ -30,6 +32,7 @@ def update_file_metadata(
     success: bool,
     deleted_items: DeletedItems,
     errors: FileErrorList,
+    job_id: Optional[str] = None,
 ) -> None:
     """Save the response details in the file.info metadata of the request file.
 
@@ -38,6 +41,7 @@ def update_file_metadata(
         success: Status of the request
         deleted_items: Information on the deleted items (if any)
         errors: Errors occurred while processing the delete request (if any)
+        job_id: Flywheel job ID for this gear run
     """
 
     status = "PASS" if success else "FAIL"
@@ -45,7 +49,9 @@ def update_file_metadata(
         errors=errors.list(), deleted=deleted_items, state=status
     )
     delete_info = DeleteInfoModel(
-        delete_response=delete_response, processed_timestamp=datetime.now(timezone.utc)
+        delete_response=delete_response,
+        processed_timestamp=datetime.now(timezone.utc),
+        job_id=job_id,
     )
 
     try:
@@ -71,6 +77,7 @@ def run(
     form_configs: FormProjectConfigs,
     identifiers_repo: IdentifierRepository,
     check_sbsq_visits: bool,
+    context: GearContext,
 ):
     """Process the form data delete request.
 
@@ -82,6 +89,7 @@ def run(
         form_configs: Form ingest configs
         identifiers_repo: Identifier repository
         check_sbsq_visits: Check whether there are any subsequent QC passed visits
+        context: Gear execution context
     """
 
     error_writer = ListErrorWriter(
@@ -111,4 +119,5 @@ def run(
         success=success,
         deleted_items=processor.deleted_items,
         errors=error_writer.errors(),
+        job_id=context.config.job.get("id"),
     )
