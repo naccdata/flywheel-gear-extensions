@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from codecs import StreamReader
 from multiprocessing import Manager
 from multiprocessing.managers import ListProxy
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from flywheel import Client, DataView
 from flywheel.models.subject import Subject
@@ -190,6 +190,7 @@ class Curator(ABC):
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
+        old_subject_info: Optional[Dict[str, Any]] = None
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 
@@ -198,6 +199,8 @@ class Curator(ABC):
             subject_table: SymbolTable containing subject-specific metadata
                 and curation results
             processed_files: List of FileModels that were successfully processed
+            old_subject_info: The original subject.info; can be used to determine
+                if subject metadata should be updated
         """
         return
 

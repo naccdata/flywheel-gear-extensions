@@ -343,12 +343,13 @@ class FormCurator(Curator):
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
+        old_subject_info: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Run post-curating on the entire subject.
 
         1. Run cross-module scope derived curations
         2. Run subject-level missingness curations across all scopes
-        3. Pushes final subject_table back to FW
+        3. Pushes final subject_table back to FW (if changed)
         4. Tags affiliates and UDS participants
         5. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
@@ -386,7 +387,10 @@ class FormCurator(Curator):
         # 3. push subject metadata; need to replace due to potentially
         # cleaned-up metadata and subject-level missingness
         if subject_table:
-            subject.replace_info(subject_table.to_dict())  # type: ignore
+            new_subject_info = subject_table.to_dict()
+            if new_subject_info != old_subject_info:
+                log.debug(f"Subject {subject.label} metadata changed, updating")
+                subject.replace_info(new_subject_info)  # type: ignore
 
         derived = subject_table.get("derived", {})
 
@@ -598,7 +602,7 @@ class FormCurator(Curator):
             if file_entry is None:
                 file_entry = self.sdk_client.get_file(file.file_id)
 
-            log.debug(f"{file.filename} has new info, updating")
+            log.debug(f"{file.filename} metadata changed, updating")
             file_entry.update_info(updated_info)
 
         # add curation tag

@@ -93,7 +93,7 @@ class FileModel(BaseModel):
     _uds_visitdate: Optional[str] = PrivateAttr(default=None)
 
     @property
-    def old_info(self) -> Dict[str, Any]:
+    def old_info(self) -> Optional[Dict[str, Any]]:
         """Return the original old info; used to determine whether an update
         call to the API is required or not."""
         return self._old_info

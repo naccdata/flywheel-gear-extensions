@@ -6,7 +6,7 @@ All notable changes to this gear are documented in this file.
 
 * Updates `nacc-attribute-deriver` to `2.3.0`
 * Updates to support NCRAD Biomarker scopes
-* Updates to check if metadata has changed, and only updates the file/subject info if so - done to reduce frequency of API calls
+* Updates to check if metadata has changed, and only updates the file/subject info if so - significantly reduces number of API calls
 
 ## 1.3.4
 
