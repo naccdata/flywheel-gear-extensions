@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.5.0
+## Unreleased
 
 * Update to use new lambda that allows searching NACCIDs in bulk
 
