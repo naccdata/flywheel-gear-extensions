@@ -39,7 +39,11 @@ def run(*, queue: FormSchedulerQueue, pipeline_configs: PipelineConfigs):
         # Pull and queue the tagged files for each pipeline
         # Pipelines are processed in order they are specified in the configs file
         for pipeline in pipeline_configs.pipelines:
-            num_files += queue.queue_files_for_pipeline(pipeline)
+            file_count = queue.queue_files_for_pipeline(pipeline)
+            log.info(
+                f"Number of files queued for pipeline {pipeline.name}: {file_count}"
+            )
+            num_files += file_count
 
         # Process the subqueues for each pipeline until all pipeline queues are empty
         queue.process_pipeline_queues()

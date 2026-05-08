@@ -1,10 +1,9 @@
 import logging
 from typing import Any, Dict, Optional
 
+from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
-from nacc_common.data_identification import (
-    DataIdentification,
-)
+from nacc_common.data_identification import DataIdentification
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -59,6 +58,40 @@ class DataIdentificationExtractor:
             return None
 
         return DataIdentificationExtractor.from_forms_json(forms_json)
+
+    @staticmethod
+    def from_deletion_request_file(
+        request_file: FileEntry,
+        adcid: int,
+    ) -> Optional[DataIdentification]:
+        """Extract DataIdentification from a deletion request file.
+
+        Reads and parses the deletion request JSON file content.
+
+        Args:
+            request_file: The deletion request FileEntry
+            adcid: The ADC ID for the project
+
+        Returns:
+            DataIdentification instance or None if parsing fails
+        """
+        try:
+            content = request_file.read().decode("utf-8")
+            delete_request = DeleteRequest.model_validate_json(content)
+            return DataIdentification.from_visit_metadata(
+                adcid=adcid,
+                ptid=delete_request.ptid,
+                date=delete_request.visitdate,
+                module=delete_request.module,
+                visitnum=delete_request.visitnum,
+            )
+        except (ValidationError, ValueError, TypeError) as error:
+            log.error(
+                "Failed to extract data identification from %s: %s",
+                request_file.name,
+                error,
+            )
+            return None
 
     @staticmethod
     def from_forms_json(forms_json: dict[str, Any]) -> Optional[DataIdentification]:
