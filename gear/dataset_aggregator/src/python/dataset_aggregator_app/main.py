@@ -5,11 +5,10 @@ import os
 from pathlib import Path
 
 from fw_gear import GearContext
-from identifiers.model import IdentifiersMode
 from s3.s3_bucket import S3BucketInterface
 from storage.dataset import AggregateDataset
 
-from .transfers_handler import TransferDuplicateHandler
+from .duplicates_handler import DuplicatesHandler
 
 log = logging.getLogger(__name__)
 
@@ -19,9 +18,11 @@ def run(
     context: GearContext,
     aggregate: AggregateDataset,
     output_uri: str,
-    identifiers_mode: IdentifiersMode,
+    duplicates_handler: DuplicatesHandler,
     provenance_file: Path,
     dry_run: bool = False,
+    etl_date: str,
+    freeze_date: str,
 ):
     """Runs the Dataset Aggregator process.
 
@@ -31,10 +32,14 @@ def run(
             aggregate
         output_uri: Output S3 URI to write aggregated results
             to
-        identifiers_mode: Mode for identifiers repository
+        duplicates_handler: DuplicatesHandler
         provenance_file: File containing provenance info
         dry_run: Whether or not to do a dry run; if True,
             will not write results to S3
+        etl_date: timestamp this aggregation etl was initiated
+        freeze_date: Date of the freeze, in YYYYMMDD format;
+            will use the ETL date (time of execution) if not
+            provided
     """
     work_dir = Path(context.work_dir)
     aggregate_dir = work_dir / "aggregate"
@@ -43,13 +48,14 @@ def run(
     s3_output_interface = None
     if not dry_run:
         # make sure we have access to the output location first
-        bucket, prefix = S3BucketInterface.parse_bucket_and_key(output_uri)
+        bucket, prefix = S3BucketInterface.parse_bucket_and_key(
+            f"{output_uri}/{etl_date}"
+        )
         s3_output_interface = S3BucketInterface.create_from_environment(bucket)
 
         # write provenance
         s3_output_interface.upload_file(provenance_file, prefix)
 
-    transfer_handler = TransferDuplicateHandler(identifiers_mode)
     log.info(f"Grabbing latest datasets under {aggregate.bucket}...")
 
     """
@@ -61,8 +67,15 @@ def run(
         4. Remove local aggregate file when done
     """
     for table in aggregate.tables:
-        aggregate_file = aggregate.aggregate_table(table, aggregate_dir)
-        transfer_handler.handle(aggregate_file)
+        aggregate_file = aggregate.aggregate_table(
+            table,
+            aggregate_dir,
+            extra_columns={
+                "freeze_date": freeze_date,
+                "etl_date": etl_date,
+            },
+        )
+        duplicates_handler.handle(table, aggregate_file)
         target_prefix = f"{prefix}/tables/{table}"
 
         # write results to S3
