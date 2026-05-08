@@ -2,10 +2,6 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
-
-* Update to use new lambda that allows searching NACCIDs in bulk
-
 ## 2.4.1
 
 * Fix multi-center identifier lookup (Scenario 2) when `form_configs_file` is provided with `single_center: false`
