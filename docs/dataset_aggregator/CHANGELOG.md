@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.1
+
+* More verbose error logging
+
 ## 0.2.0
 
 * Differentiate between `freeze_date` and `etl_date`

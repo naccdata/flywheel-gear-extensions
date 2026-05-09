@@ -81,6 +81,9 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
             input_name="duplicates_criteria_json", context=context
         )
 
+        if options.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
         return DatasetAggregatorVisitor(
             client=client,
             target_project=target_project,
