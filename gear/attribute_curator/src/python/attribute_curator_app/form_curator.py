@@ -395,7 +395,7 @@ class FormCurator(Curator):
         derived = subject_table.get("derived", {})
 
         # 4. add subject tags
-        affiliate = derived.get("affiliate", 0)
+        affiliate = derived.get("affiliate", -4)
         self.handle_subject_tags(subject, curated_scopes, affiliate)
 
         # 5. backprop as needed (currently only derived, may need to handle resolved)
