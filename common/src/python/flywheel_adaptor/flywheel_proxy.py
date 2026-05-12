@@ -20,6 +20,7 @@ from flywheel.models.access_permission import AccessPermission
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
+from flywheel.models.file_version_output import FileVersionOutput
 from flywheel.models.group_role import GroupRole
 from flywheel.models.job import Job
 from flywheel.models.project_parents import ProjectParents
@@ -239,6 +240,16 @@ class FlywheelProxy:
         """
         file = self.get_file(file_id)
         return file.parents.group
+
+    def get_file_versions(self, file_id: str) -> List[FileVersionOutput]:
+        """Returns the list of file versions for the file.
+
+        Args:
+          file_id: the file ID
+        Returns:
+          list of FileVersionOutputs for the file
+        """
+        return self.__fw.get_file_versions(file_id)
 
     def get_group(self, *, group_id: str, group_label: str) -> flywheel.Group:
         """Returns the flywheel group with the given ID and label.
