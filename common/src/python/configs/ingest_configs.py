@@ -18,7 +18,7 @@ from pydantic import (
     model_validator,
 )
 
-PipelineType = Literal["submission", "finalization"]
+PipelineType = Literal["submission", "finalization", "deletion"]
 DELIM_CLEANER = re.compile(r'[ /\-_]+')
 
 
@@ -164,12 +164,15 @@ class FormProjectConfigs(BaseModel):
     qc_gear: Optional[str] = DefaultValues.QC_GEAR
     legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
 
-    def get_module_dependencies(self, module: str) -> Optional[List[str]]:
+    def get_module_dependencies(
+        self, module: str, exact_match: Optional[bool] = True
+    ) -> Optional[List[str]]:
         """Get the list of dependent modules for a given module.
-        Note: only returns the dependent modules that has an exact match.
 
         Args:
             module: module label
+            exact_match (optional): Only return the dependent modules
+                                    that has an exact match. Defaults to True.
 
         Returns:
             List[str](optional): list of dependent module labels if found
@@ -179,9 +182,10 @@ class FormProjectConfigs(BaseModel):
         for module_label, config in self.module_configs.items():
             if (
                 config.supplement_module
-                and config.supplement_module.exact_match
                 and config.supplement_module.label == module.upper()
             ):
+                if exact_match and not config.supplement_module.exact_match:
+                    continue
                 dependent_modules.append(module_label)
 
         return dependent_modules
@@ -196,6 +200,7 @@ class Pipeline(BaseModel):
     extensions: List[str]
     starting_gear: GearInfo
     notify_user: bool = False
+    sequential: bool = True
 
     def file_match(self, file_entry: FileEntry) -> bool:
         """Indicates whether the file matches the tags and extensions for the
