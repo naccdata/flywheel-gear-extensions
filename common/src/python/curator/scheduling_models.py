@@ -46,7 +46,7 @@ SCOPE_PATTERN = re.compile(
     r"(?P<mds>.+_MDS\.json)|"
     r"(?P<mlst>.+_MLST\.json)|"
     r"(?P<covid>.+_COVID\.json)|"
-    r"(?P<apoe>.+apoe_genotype\.json)|"
+    r"(?P<ncrad_apoe>.+apoe_genotype\.json)|"
     r"(?P<ncrad_biosamples>.+NCRAD-SAMPLES.+\.json)|"
     r"(?P<niagads_availability>.+niagads_availability\.json)|"
     r"(?P<ncrad_biomarker_ptau217>.+PTAU217.+\.json)|"
@@ -178,7 +178,7 @@ class FileModel(BaseModel):
     def __determine_scope(self) -> Optional[ScopeLiterals]:
         """Determine the file's scope."""
         if "historic_apoe_genotype" in self.filename:
-            return "historic_apoe"
+            return "ncrad_historic_apoe"
 
         match = SCOPE_PATTERN.match(self.filename)
         if not match:
