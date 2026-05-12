@@ -19,7 +19,7 @@ from pydantic import (
 )
 
 PipelineType = Literal["submission", "finalization", "deletion"]
-DELIM_CLEANER = re.compile(r'[ /\-_]+')
+DELIM_CLEANER = re.compile(r"[ /\-_]+")
 
 
 class ConfigsError(Exception):
@@ -68,7 +68,7 @@ class LabelTemplate(BaseModel):
 
         if self.delimiter:
             result = DELIM_CLEANER.sub(self.delimiter, result)
-            result = re.sub(rf'{re.escape(self.delimiter)}+', self.delimiter, result)
+            result = re.sub(rf"{re.escape(self.delimiter)}+", self.delimiter, result)
             result = result.strip(self.delimiter)
 
         if self.transform == "lower":

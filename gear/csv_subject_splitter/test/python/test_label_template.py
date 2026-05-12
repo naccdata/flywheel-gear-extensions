@@ -41,10 +41,20 @@ class TestLabelTemplate:
     def test_multi_delimiter_template(self):
         """Test when there are multiple delimiters."""
         template_string = "   BIOMARKER-${collection_date}----/////      "
-        template = LabelTemplate(template=template_string, transform="upper", delimiter='-')
-        assert template.instantiate({"collection_date": "1/1/2025"}) == "BIOMARKER-1-1-2025"
+        template = LabelTemplate(
+            template=template_string, transform="upper", delimiter="-"
+        )
+        assert (
+            template.instantiate({"collection_date": "1/1/2025"})
+            == "BIOMARKER-1-1-2025"
+        )
 
         # with suffix
         template_string = "   BIOMARKER-${collection_date}.json   "
-        template = LabelTemplate(template=template_string, transform="upper", delimiter='-')
-        assert template.instantiate({"collection_date": "1/1/2025"}) == "BIOMARKER-1-1-2025.json"
+        template = LabelTemplate(
+            template=template_string, transform="upper", delimiter="-"
+        )
+        assert (
+            template.instantiate({"collection_date": "1/1/2025"})
+            == "BIOMARKER-1-1-2025.json"
+        )
