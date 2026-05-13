@@ -2,7 +2,7 @@ import copy
 import importlib.metadata
 import logging
 import typing as typing
-from typing import Any, Dict, List, MutableMapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional, Set
 
 from curator.curator import Curator, ProjectCurationError
 from curator.scheduling_models import FileModel
@@ -34,7 +34,6 @@ from utils.decorators import api_retry
 
 from .curation_keys import (
     BACKPROP_SCOPES,
-    CHILD_SCOPES,
     RESOLVED_SCOPES,
     FormCurationTags,
 )
@@ -71,21 +70,17 @@ class FormCurator(Curator):
         self.__prev_scope = None
 
         # get expected cross-sectional derived variables by scope
-        self.__scope_reference = {
-            scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
-        }
+        # these will get back-propagated at the end of each subject's curation
+        self.__scope_reference: Dict[str, Set[str]] = {}
 
-        # due to the nature of UDS/NP, it also includes additional scopes
-        # TODO: this is currently a hack because the ETL process cannot
-        # pull multiple sources (e.g. file.info and subject.info), so for
-        # now we are stuffing the necessary variables back into the file
-        # level
-        for scope, child_scopes in CHILD_SCOPES.items():
+        for scope, child_scopes in BACKPROP_SCOPES.items():
             if scope not in self.__scope_reference:
-                self.__scope_reference[scope] = []
+                self.__scope_reference[scope] = set([])
+
+            self.__scope_reference[scope].update(self.__extract_attributes(scope))
 
             for child_scope in child_scopes:
-                self.__scope_reference[scope].extend(
+                self.__scope_reference[scope].update(
                     self.__extract_attributes(child_scope)
                 )
 
@@ -98,7 +93,7 @@ class FormCurator(Curator):
                 ALL_RX_CLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
             )
 
-    def __extract_attributes(self, scope: str) -> List[str]:
+    def __extract_attributes(self, scope: str) -> Set[str]:
         """Extracts the attributes for the given scope.
 
         Args:
@@ -121,11 +116,13 @@ class FormCurator(Curator):
         # subject.info.derived.cross-sectional,
         # so parse out and strip down to the derived variable name
         parent_location = "subject.info.derived.cross-sectional."
-        return [
-            x.replace(parent_location, "")
-            for x in attributes
-            if x.startswith(parent_location)
-        ]
+        return set(
+            [
+                x.replace(parent_location, "")
+                for x in attributes
+                if x.startswith(parent_location)
+            ]
+        )
 
     def get_table(
         self, subject: Subject, subject_table: SymbolTable, file_entry: FileEntry
