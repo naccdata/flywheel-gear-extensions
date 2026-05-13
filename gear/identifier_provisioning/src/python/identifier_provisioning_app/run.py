@@ -37,12 +37,10 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         client: ClientWrapper,
-        admin_id: str,
         file_input: InputFileWrapper,
         identifiers_mode: IdentifiersMode,
     ) -> None:
         super().__init__(client=client)
-        self.__admin_id = admin_id
         self.__file_input = file_input
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
 
@@ -59,7 +57,6 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         options = context.config.opts
         return IdentifierProvisioningVisitor(
             client=client,
-            admin_id=options.get("admin_group", DefaultValues.NACC_GROUP_ID),
             file_input=file_input,
             identifiers_mode=options.get("database_mode", "prod"),
         )
@@ -136,14 +133,55 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 project_url=project_url,
             )
 
-            context.metadata.add_qc_result(
-                self.__file_input.file_input,
-                name="validation",
-                state="PASS" if success else "FAIL",
-                data=error_writer.errors().model_dump(by_alias=True),
-            )
+        self.__update_csv_file_metadata(
+            context=context,
+            project=project,
+            success=success,
+            error_writer=error_writer,
+            gear_name=gear_name,
+        )
 
-            context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
+    def __update_csv_file_metadata(
+        self,
+        *,
+        context: GearContext,
+        project: ProjectAdaptor,
+        success: bool,
+        error_writer: ListErrorWriter,
+        gear_name: str,
+    ) -> None:
+        """Adds QC metadata to the original CSV file. The gear's input is the.
+
+        <filename>_provisioning.csv file created by form-qc-checker. This
+        method finds the original CSV and writes the file-level QC metadata there
+        instead.
+
+        Args:
+            context: Flywheel gear context
+            project: Flywheel project adaptor
+            success: Gear success or failure
+            error_writer: Error writer object that stored processing errors
+            gear_name: Provisioning gear name
+        """
+        filename = Path(self.__file_input.filename)
+        original_stem = filename.stem.removesuffix(f"_{DefaultValues.PROV_SUFFIX}")
+        original_filename = f"{original_stem}{filename.suffix}"
+
+        input_file = project.get_file(original_filename)
+        if not input_file:
+            log.warning(
+                f"Could not find original CSV file {original_filename} to ",
+                f"update QC metadata, updating {self.__file_input.filename} instead",
+            )
+            input_file = self.__file_input.file_input  # type: ignore
+
+        context.metadata.add_qc_result(
+            input_file,
+            name="validation",
+            state="PASS" if success else "FAIL",
+            data=error_writer.errors().model_dump(by_alias=True),
+        )
+        context.metadata.add_file_tags(input_file, tags=gear_name)
 
 
 def main():
