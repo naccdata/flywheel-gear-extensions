@@ -173,7 +173,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
                 f"Could not find original CSV file {original_filename} to ",
                 f"update QC metadata, updating {self.__file_input.filename} instead",
             )
-            input_file = self.__file_input.file_input
+            input_file = self.__file_input.file_input # type: ignore
 
         context.metadata.add_qc_result(
             input_file,
