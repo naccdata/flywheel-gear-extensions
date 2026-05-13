@@ -141,6 +141,7 @@ class FormDeletionVisitor(GearExecutionEnvironment):
             form_configs=form_project_configs,
             identifiers_repo=identifiers_repo,
             check_sbsq_visits=context.config.opts.get("check_subsequent_visits", True),
+            context=context,
         )
 
 

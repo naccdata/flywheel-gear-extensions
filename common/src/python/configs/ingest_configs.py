@@ -190,6 +190,20 @@ class FormProjectConfigs(BaseModel):
 
         return dependent_modules
 
+    def get_modules_dependent_on_clinical_forms(self) -> Optional[List[str]]:
+        """Get the list of modules that require a clinical form to be
+        present."""
+
+        dependent_modules = []
+        for module_label, config in self.module_configs.items():
+            if (
+                config.preprocess_checks
+                and PreprocessingChecks.CLINICAL_FORMS in config.preprocess_checks
+            ):
+                dependent_modules.append(module_label)
+
+        return dependent_modules
+
 
 class Pipeline(BaseModel):
     """Defines model for form scheduler pipeline."""
