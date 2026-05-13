@@ -37,12 +37,10 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         client: ClientWrapper,
-        admin_id: str,
         file_input: InputFileWrapper,
         identifiers_mode: IdentifiersMode,
     ) -> None:
         super().__init__(client=client)
-        self.__admin_id = admin_id
         self.__file_input = file_input
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
 
@@ -59,7 +57,6 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         options = context.config.opts
         return IdentifierProvisioningVisitor(
             client=client,
-            admin_id=options.get("admin_group", DefaultValues.NACC_GROUP_ID),
             file_input=file_input,
             identifiers_mode=options.get("database_mode", "prod"),
         )
