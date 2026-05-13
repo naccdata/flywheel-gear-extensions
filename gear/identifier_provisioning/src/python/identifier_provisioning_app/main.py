@@ -51,7 +51,6 @@ from outputs.errors import (
     existing_participant_error,
     identifier_error,
     missing_field_error,
-    partially_failed_file_error,
     system_error,
     unexpected_value_error,
 )
@@ -876,10 +875,7 @@ def run(
         )
 
         if not success:
-            log.warning(
-                "Some records in the input file failed validation. "
-                "Check record level QC status."
-            )
+            log.warning("Some records in the input file failed validation.")
 
         log.info(
             "Requesting new NACCIDs for %s successfully validated records",
@@ -990,9 +986,5 @@ def run(
             transfer_ptids=list(transfer_info.transfers.keys()),
             project_url=project_url,
         )
-
-    if not success:
-        error_writer.clear()
-        error_writer.write(partially_failed_file_error())
 
     return success
