@@ -58,6 +58,13 @@ class DefaultValues:
     MODULE_PATTERN = "a-zA-Z1-9_"
 
 
+CLINICAL_MODULES = [
+    DefaultValues.UDS_MODULE,
+    DefaultValues.MDS_MODULE,
+    DefaultValues.BDS_MODULE,
+]
+
+
 class MetadataKeys:
     """Class to store metadata keys."""
 
