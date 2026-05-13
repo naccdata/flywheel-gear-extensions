@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from configs.ingest_configs import FormProjectConfigs
+from deletions.models import DeleteRequest
 from form_deletion_app.delete import FormDeletionProcessor
 from form_deletion_test.conftest import MockProjectAdaptorForDeletion
 
@@ -247,7 +248,6 @@ class TestProcessRequest:
             result = processor.process_request()
 
         assert result
-        mock_project.proxy.get_matching_acquisition_files_info.assert_not_called()
 
     def test_no_module_configs_for_subject(
         self,
@@ -344,6 +344,217 @@ class TestProcessRequest:
         assert error_log_name in processor.deleted_items.logs
         assert not error_writer.errors().list()
 
+
+class TestOrphanedNpMlstRemoval:
+    """Tests for orphaned NP/MLST removal triggered after clinical form
+    deletion."""
+
+    def test_non_clinical_module_skips_orphan_check(
+        self,
+        mock_project,
+        request_time,
+        error_writer,
+        active_identifier,
+        np_module_configs,
+    ):
+        """Deleting a non-clinical module (NP itself) never triggers the orphan
+        check."""
+        np_request = DeleteRequest(ptid="adrc1010", module="np", visitdate="2024-01-01")
+        np_configs = FormProjectConfigs(
+            primary_key="ptid",
+            accepted_modules=["NP"],
+            module_configs={"NP": np_module_configs},
+        )
+        np_log_name = "adrc1010_2024-01-01_np_qc-status.log"
+        np_log_file = MagicMock()
+        np_log_file.name = np_log_name
+        np_log_file.modified = datetime(2024, 1, 10, tzinfo=timezone.utc)
+        mock_project.add_file(np_log_file)
+
+        mock_subject = MagicMock()
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+
+        processor = create_processor(
+            mock_project,
+            np_request,
+            np_configs,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=np_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_orphaned_acquisitions.assert_not_called()
+
+    def test_clinical_module_remaining_forms_skips_orphan_removal(
+        self,
+        mock_project,
+        delete_request,
+        form_configs_with_np_mlst,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """When clinical forms still remain after deletion, orphan removal is
+        skipped."""
+        mock_subject = MagicMock()
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        # First call: subsequent-visit check → no results (deletion proceeds).
+        # Second call: remaining-clinical-forms check → forms found (skip
+        # orphan removal).
+        call_count = {"n": 0}
+
+        def side_effect(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return []
+            return [{"file.name": "remaining-uds.json", "file.file_id": "abc"}]
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs_with_np_mlst,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_orphaned_acquisitions.assert_not_called()
+
+    def test_clinical_module_no_remaining_forms_removes_orphans(
+        self,
+        mock_project,
+        delete_request,
+        form_configs_with_np_mlst,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """When no clinical forms remain, cleanup_orphaned_acquisitions is
+        called with NP and MLST."""
+        mock_subject = MagicMock()
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        # Subsequent-visit check returns no results; remaining-clinical-forms
+        # check also returns no results — both use the same mock.
+        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs_with_np_mlst,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            mock_acq_cls.return_value.cleanup_orphaned_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_orphaned_acquisitions.assert_called_once()
+        called_modules = (
+            mock_acq_cls.return_value.cleanup_orphaned_acquisitions.call_args[0][0]
+        )
+        assert set(called_modules) == {"NP", "MLST"}
+
+    def test_orphan_acquisition_removal_failure_returns_false(
+        self,
+        mock_project,
+        delete_request,
+        form_configs_with_np_mlst,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """Failure in cleanup_orphaned_acquisitions propagates as overall
+        failure with an error."""
+        mock_subject = MagicMock()
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs_with_np_mlst,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            mock_acq_cls.return_value.cleanup_orphaned_acquisitions.return_value = False
+            result = processor.process_request()
+
+        assert not result
+        assert error_writer.errors().list()
+
+    def test_retrospective_form_clinical_found_skips_orphan_removal(
+        self,
+        mock_project,
+        delete_request,
+        form_configs_with_np_mlst,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """A UDS acquisition in retrospective-form counts as a remaining
+        clinical form — orphan removal is skipped."""
+        mock_subject = MagicMock()
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+
+        # Simulate: subsequent-visit check returns nothing (first call),
+        # but remaining-clinical-forms check finds a retro-form UDS (second
+        # call via get_subject_by_label → per-subject dataview query).
+        call_count = {"n": 0}
+
+        def side_effect(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                # subsequent-visit check — no results
+                return []
+            # remaining-clinical-forms check — found retro UDS
+            return [{"file.name": "retro-uds.json", "file.file_id": "xyz"}]
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
+        # get_subject_by_label used by __has_remaining_clinical_forms
+        mock_project.proxy.get_subject_by_label.return_value = [mock_subject]
+        mock_subject.id = "subj-001"
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs_with_np_mlst,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_orphaned_acquisitions.assert_not_called()
+
     def test_dep_module_log_delete_fails(
         self,
         mock_project,
@@ -354,7 +565,7 @@ class TestProcessRequest:
         error_log_name,
     ):
         """Dependent module log deletion failure returns False."""
-        dep_log_name = "NACC123456-TFP-2024-01-15-1.json"
+        dep_log_name = "adrc1010_2024-01-15_1_tfp_qc-status.log"
         dep_log_file = MagicMock()
         dep_log_file.name = dep_log_name
         dep_log_file.modified = datetime(2024, 1, 14, tzinfo=timezone.utc)

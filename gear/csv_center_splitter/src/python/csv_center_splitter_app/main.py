@@ -1,5 +1,6 @@
 """Defines csv_center_splitter."""
 
+import copy
 import logging
 from typing import Any, Dict, List, Optional, Set, TextIO
 
@@ -30,6 +31,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         self.__error_writer: ListErrorWriter = error_writer
         self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
         self.__headers: List[str] = []
+        self.__dropped_rows: List[Dict[str, Any]] = []
 
     @property
     def adcid_key(self):
@@ -56,6 +58,11 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         """Return the error writer."""
         return self.__error_writer
 
+    @property
+    def dropped_rows(self):
+        """Return the dropped row."""
+        return self.__dropped_rows
+
     def visit_header(self, header: List[str]) -> bool:
         """Adds the header and verifies that the header key is in it.
 
@@ -75,9 +82,6 @@ class CSVVisitorCenterSplitter(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visit the dictionary for a row (per DictReader).
 
-        TODO: Should we clean up/ignore empty rows? Or just assume
-              a clean CSV? Particularly in the merged cells case.
-
         Args:
           row: The dictionary for a row from a CSV file
           line_num: The line number of the row
@@ -93,8 +97,12 @@ class CSVVisitorCenterSplitter(CSVVisitor):
             self.__error_writer.write(error)
             return False
 
+        # skip centers not explicitly included
         if adcid not in self.__include:
-            return True  # skip center not explicitly included
+            row_copy = copy.deepcopy(row)
+            row_copy["__drop_reason__"] = "ADCID not in include list"
+            self.__dropped_rows.append(row_copy)
+            return True
 
         if adcid not in self.split_data:
             self.split_data[adcid] = []
@@ -116,7 +124,7 @@ def run(
     include: Optional[Set[str]] = None,
     downstream_gears: Optional[List[str]] = None,
     delimiter: str = ",",
-):
+) -> List[Dict[str, Any]]:
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
 
@@ -137,6 +145,9 @@ def run(
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
         delimiter: The CSV's delimiter; defaults to ','
+
+    Returns:
+        The list of dropped rows, if any
     """
     # split CSV by ADCID key
     visitor = CSVVisitorCenterSplitter(
@@ -158,7 +169,7 @@ def run(
         )
         for error in error_writer.errors():
             log.error(error.message)
-        return
+        return visitor.dropped_rows
 
     # filter to centers that were actually found
     centers = [adcid for adcid in visitor.split_data]
@@ -225,3 +236,5 @@ def run(
                 project_ids_list=project_ids_list,
                 downstream_gears=downstream_gears,
             )
+
+    return visitor.dropped_rows

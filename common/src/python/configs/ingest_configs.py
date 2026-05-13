@@ -1,5 +1,6 @@
 """Form ingest configurations."""
 
+import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
@@ -18,6 +19,7 @@ from pydantic import (
 )
 
 PipelineType = Literal["submission", "finalization", "deletion"]
+DELIM_CLEANER = re.compile(r"[ /\-_]+")
 
 
 class ConfigsError(Exception):
@@ -65,7 +67,9 @@ class LabelTemplate(BaseModel):
                 ) from error
 
         if self.delimiter:
-            result = result.replace(" ", self.delimiter)
+            result = DELIM_CLEANER.sub(self.delimiter, result)
+            result = re.sub(rf"{re.escape(self.delimiter)}+", self.delimiter, result)
+            result = result.strip(self.delimiter)
 
         if self.transform == "lower":
             return result.lower()
@@ -182,6 +186,20 @@ class FormProjectConfigs(BaseModel):
             ):
                 if exact_match and not config.supplement_module.exact_match:
                     continue
+                dependent_modules.append(module_label)
+
+        return dependent_modules
+
+    def get_modules_dependent_on_clinical_forms(self) -> Optional[List[str]]:
+        """Get the list of modules that require a clinical form to be
+        present."""
+
+        dependent_modules = []
+        for module_label, config in self.module_configs.items():
+            if (
+                config.preprocess_checks
+                and PreprocessingChecks.CLINICAL_FORMS in config.preprocess_checks
+            ):
                 dependent_modules.append(module_label)
 
         return dependent_modules
