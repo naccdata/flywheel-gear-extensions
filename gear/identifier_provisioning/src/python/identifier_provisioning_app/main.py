@@ -681,6 +681,7 @@ class ProvisioningVisitor(CSVVisitor):
             date_field=FieldNames.ENRLFRM_DATE,
             error_writer=error_writer,
         )
+        self.__header: Optional[List[str]] = None
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares visitor to work with CSV file with given header.
@@ -700,9 +701,9 @@ class ProvisioningVisitor(CSVVisitor):
             self.__error_writer.write(missing_field_error(expected_columns))
             return False
 
-        return self.__enrollment_visitor.visit_header(
-            header
-        ) and self.__transfer_in_visitor.visit_header(header)
+        self.__header = header
+
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Provisions a NACCID for the ADCID and PTID.
@@ -737,11 +738,21 @@ class ProvisioningVisitor(CSVVisitor):
             )
             return False
 
+        # required columns depends on whether it's a new enrollment or transfer
+        # do the custom header validation here instead of visit_header method
+        # record level error log is created at this point by form-qc-checker gear
+        # update the record level error log at header validation failure
+        #   to prevent the status from being stuck at processing
+        success = False
         if is_new_enrollment(row):
             try:
-                success = self.__enrollment_visitor.visit_row(
-                    row=row, line_num=line_num
-                )
+                if self.__header and self.__enrollment_visitor.visit_header(
+                    self.__header
+                ):
+                    success = self.__enrollment_visitor.visit_row(
+                        row=row, line_num=line_num
+                    )
+
                 if not success:  # Only update record level log if validation failed
                     update_record_level_error_log(
                         input_record=row,
@@ -750,6 +761,7 @@ class ProvisioningVisitor(CSVVisitor):
                         gear_name=self.__gear_name,
                         errors=self.__error_writer.errors(),
                     )
+
                 return success
             except IdentifierRepositoryError as error:
                 message = (
@@ -778,7 +790,8 @@ class ProvisioningVisitor(CSVVisitor):
                 )
                 return False
 
-        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+        if self.__header and self.__transfer_in_visitor.visit_header(self.__header):
+            success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
 
         # Update visit level log for the transfer request
         update_record_level_error_log(
