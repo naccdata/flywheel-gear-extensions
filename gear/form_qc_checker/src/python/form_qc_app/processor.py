@@ -20,12 +20,13 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
-    VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
 from nacc_common.data_identification import (
     DataIdentification,
+    EmptyFieldError,
+    InvalidDateError,
 )
 from nacc_common.error_models import JSONLocation
 from nacc_common.field_names import FieldNames
@@ -37,6 +38,7 @@ from outputs.errors import (
     previous_visit_failed_error,
     system_error,
 )
+from submissions.models import VisitInfo
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.validate import RecordValidator
@@ -159,12 +161,16 @@ class FileProcessor(ABC):
             bool: True if error log updated successfully, else False
         """
         # Create DataIdentification from CSV record
-        data_id = DataIdentification.from_form_record(input_record, self._date_field)
-        if not data_id:
+        try:
+            data_id = DataIdentification.from_form_record(
+                input_record, self._date_field
+            )
+        except (EmptyFieldError, InvalidDateError) as error:
             log.warning(
-                "Failed to create DataIdentification for record %s, %s",
+                "Failed to create DataIdentification for record %s, %s: %s",
                 input_record.get(self._pk_field),
                 input_record.get(self._date_field),
+                error,
             )
             return False
 

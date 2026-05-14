@@ -952,3 +952,82 @@ class TestClaimStateTrichotomy:
         ]
         assert sum(states) == 1
         assert person.is_unclaimed() is True
+
+
+class TestIsSuspendedMethod:
+    """Tests for is_suspended method.
+
+    Tests Requirement 4.1:
+    - Returns True when CoPerson status is "S" (Suspended)
+    - Returns False for status "A" (Active), "D" (Deleted), and None
+    """
+
+    def test_returns_true_for_suspended_status(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_suspended returns True when status is "S"."""
+        email = build_email_address(mail="user@example.com")
+        coperson = build_co_person(status="S")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_suspended() is True
+
+    def test_returns_false_for_active_status(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_suspended returns False when status is "A"."""
+        email = build_email_address(mail="user@example.com")
+        coperson = build_co_person(status="A")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_suspended() is False
+
+    def test_returns_false_for_deleted_status(
+        self,
+        build_email_address,
+        build_co_person,
+        build_coperson_message,
+    ):
+        """Test that is_suspended returns False when status is "D"."""
+        email = build_email_address(mail="user@example.com")
+        coperson = build_co_person(status="D")
+
+        coperson_msg = build_coperson_message(
+            co_person=coperson,
+            email_addresses=[email],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_suspended() is False
+
+    def test_returns_false_when_coperson_is_none(
+        self,
+        build_email_address,
+        build_coperson_message,
+    ):
+        """Test that is_suspended returns False when CoPerson is None."""
+        email = build_email_address(mail="user@example.com")
+
+        coperson_msg = build_coperson_message(
+            co_person=None,
+            email_addresses=[email],
+        )
+
+        person = RegistryPerson(coperson_msg)
+        assert person.is_suspended() is False

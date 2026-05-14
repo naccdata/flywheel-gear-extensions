@@ -265,7 +265,7 @@ class TestImageIdentifierLookupProcessor:
         mock_repository.get.return_value = identifier
 
         # Mock subject update failure
-        mock_subject.update.side_effect = ApiException("Internal Server Error")
+        mock_subject.update.side_effect = ApiException(reason="Internal Server Error")
 
         # Act & Assert
         with pytest.raises(ApiException) as exc_info:

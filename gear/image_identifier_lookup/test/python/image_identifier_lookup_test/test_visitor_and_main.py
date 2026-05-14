@@ -18,12 +18,37 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
-from image_identifier_lookup_app.extraction import extract_dicom_metadata
-from image_identifier_lookup_app.main import run as main_run
+from image_identifier_lookup_app.extraction import (
+    LookupContext,
+    extract_dicom_metadata,
+)
+from image_identifier_lookup_app.main import ImageIdentifierLookup
 from image_identifier_lookup_app.run import ImageIdentifierLookupVisitor
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3InterfaceError
+
+
+def _build_lookup_context(
+    *,
+    pipeline_adcid: int = 42,
+    ptid: str = "110001",
+    existing_naccid: str | None = None,
+    dicom_metadata: dict | None = None,
+) -> LookupContext:
+    """Build a LookupContext with optional DICOM enrichment.
+
+    When dicom_metadata is provided, calls enrich_from_dicom() to
+    populate visit_metadata — matching what run.py does in production.
+    """
+    ctx = LookupContext(
+        pipeline_adcid=pipeline_adcid,
+        ptid=ptid,
+        existing_naccid=existing_naccid,
+    )
+    if dicom_metadata is not None:
+        ctx.enrich_from_dicom(dicom_metadata)
+    return ctx
 
 
 def create_test_dicom_file(
@@ -365,16 +390,20 @@ class TestMainOrchestration:
         dicom_metadata = extract_dicom_metadata(dicom_file)
 
         # Act
-        success, _errors = main_run(
+        success, _errors = ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=dicom_metadata,
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=dicom_metadata,
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - processor called
         mock_processor.lookup_and_update.assert_called_once()
@@ -440,16 +469,20 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        success, _errors = main_run(
+        success, _errors = ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=existing_naccid,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - processor NOT created (skipped)
         mock_processor_class.assert_not_called()
@@ -502,16 +535,20 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - QC log updated with PASS status
         mock_qc_manager.update_qc_log.assert_called_once()
@@ -557,16 +594,20 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act - error is now captured, not raised
-        success, errors = main_run(
+        success, errors = ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - failure captured in errors
         assert success is False
@@ -613,16 +654,20 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - event captured
         mock_event_capture.capture_event.assert_called_once()
@@ -671,16 +716,20 @@ class TestMainOrchestration:
         mock_event_capture.capture_event.side_effect = S3InterfaceError("S3 error")
 
         # Act - should not raise exception
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - event capture was attempted but failure didn't stop processing
         mock_event_capture.capture_event.assert_called_once()
@@ -721,16 +770,20 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Note: File metadata updates are now handled in run.py, not main.py
         # This test would need to test the visitor.run() method instead
@@ -739,25 +792,33 @@ class TestMainOrchestration:
 class TestVisitorRun:
     """Tests for ImageIdentifierLookupVisitor.run() method."""
 
+    @patch("image_identifier_lookup_app.run.resolve_dicom_file")
     @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
-    @patch("image_identifier_lookup_app.run.run")
+    @patch("image_identifier_lookup_app.run.ImageIdentifierLookup")
     def test_visitor_run_calls_main_with_correct_parameters(
         self,
-        mock_main_run: Mock,
+        mock_lookup_class: Mock,
         mock_extract_metadata: Mock,
+        mock_resolve_dicom: Mock,
         visitor: ImageIdentifierLookupVisitor,
         mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
         mock_file_obj: Mock,
     ) -> None:
-        """Test that visitor.run() calls main.run() with correct parameters."""
+        """Test that visitor.run() calls main with correct parameters."""
         # Arrange - mock the proxy property
         mock_proxy = Mock()
         mock_proxy.get_file.return_value = mock_file_obj
         mock_fw_project = Mock()
         mock_proxy.get_project_by_id.return_value = mock_fw_project
         mock_project.get_subject_by_id.return_value = mock_subject
+
+        # Mock resolve_dicom_file to return the path unchanged
+        mock_resolve_dicom.return_value = (
+            Path("/flywheel/v0/input/input_file/test.dcm"),
+            None,
+        )
 
         # Mock extract_dicom_metadata to return test metadata
         mock_extract_metadata.return_value = {
@@ -766,8 +827,10 @@ class TestVisitorRun:
             "modality": "MR",
         }
 
-        # Mock main.run() to return success
-        mock_main_run.return_value = (True, FileErrorList([]))
+        # Mock ImageIdentifierLookup to return success
+        mock_instance = Mock()
+        mock_instance.run.return_value = (True, FileErrorList([]))
+        mock_lookup_class.return_value = mock_instance
 
         with (
             patch.object(
@@ -787,12 +850,12 @@ class TestVisitorRun:
             # Assert - extract_dicom_metadata was called
             mock_extract_metadata.assert_called_once()
 
-            # Assert - main.run() was called
-            mock_main_run.assert_called_once()
-            call_kwargs = mock_main_run.call_args.kwargs
+            # Assert - ImageIdentifierLookup was constructed and run
+            mock_lookup_class.assert_called_once()
+            call_kwargs = mock_lookup_class.call_args.kwargs
             assert call_kwargs["gear_name"] == "image-identifier-lookup"
-            assert call_kwargs["naccid_field_name"] == "naccid"
-            assert "dicom_metadata" in call_kwargs
+            assert "lookup_context" in call_kwargs
+            mock_instance.run.assert_called_once()
 
 
 class TestIntegrationScenarios:
@@ -838,16 +901,20 @@ class TestIntegrationScenarios:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert complete workflow
         # 1. Processor created and lookup performed
@@ -905,16 +972,20 @@ class TestIntegrationScenarios:
 
         # Act - run twice with same NACCID
         for _ in range(2):
-            main_run(
+            ImageIdentifierLookup(
+                lookup_context=_build_lookup_context(
+                    pipeline_adcid=42,
+                    ptid="110001",
+                    existing_naccid=existing_naccid,
+                    dicom_metadata=extract_dicom_metadata(dicom_file),
+                ),
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
                 event_capture=mock_event_capture,
                 gear_name="image-identifier-lookup",
-                naccid_field_name="naccid",
-                dicom_metadata=extract_dicom_metadata(dicom_file),
                 error_writer=error_writer,
-            )
+            ).run()
 
         # Assert - both runs succeeded
         # QC log updated twice (once per run)
@@ -960,16 +1031,20 @@ class TestIntegrationScenarios:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act - should not raise exception
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - processing continued despite QC logging failure
         # Event capture still happened

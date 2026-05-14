@@ -4,7 +4,7 @@ Utilities for centers accessing the NACC Data Platform to pull information about
 Based on the `flywheel-sdk` package.
 We encourage using these functions to avoid situations where data organization might be changed.
 
-Distributions can be accessed via each [release](https://github.com/naccdata/nacc-common/releases) on GitHub.
+Distributions can be accessed via each [release](https://github.com/naccdata/flywheel-gear-extensions/releases?q=nacc-common) on GitHub.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ You can use a release directly by referencing the release files in your package 
 For instance, adding the following line to `requirements.txt` for use with [pip](https://pip.pypa.io/en/stable/topics/vcs-support/#git):
 
 ```text
-nacc-common@ https://github.com/naccdata/nacc-common/releases/download/v3.0.0/nacc_common-3.0.0-py3-none-any.whl
+nacc_common @ https://github.com/naccdata/flywheel-gear-extensions/releases/download/nacc-common%2Fv3.1.0/nacc_common-3.1.0-py3-none-any.whl
 ```
 
 The format of the URL stays consistent, so to use a newer version of the package replace the version number.
@@ -82,5 +82,7 @@ The version number is set in both `nacc-common/pyproject.toml` and `nacc-common/
 
    ```bash
    git tag -a nacc-common/v<version> -m "nacc-common v<version>"
-   git push origin main --tags
+   git push origin nacc-common/v<version>
    ```
+
+6. The [release workflow](/.github/workflows/release-nacc-common.yml) will automatically build the package, verify version consistency, and create a GitHub release with the wheel and sdist attached.

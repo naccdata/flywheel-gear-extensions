@@ -86,7 +86,7 @@ def test_qc_pass_event_creation_only(json_file: FileEntry, qc_status: str):
     )
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Events should only be created for PASS status
     if qc_status == QC_STATUS_PASS:
@@ -131,7 +131,7 @@ def test_no_events_for_missing_qc_status(json_file: FileEntry):
     )  # Empty project with no QC status files
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - No events should be created
     assert len(mock_logger.logged_events) == 0, (
@@ -193,7 +193,7 @@ def test_qc_pass_event_structure():
     )
 
     # Act
-    event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+    event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert
     assert len(mock_logger.logged_events) == 1, "Should create exactly one event"
@@ -272,7 +272,7 @@ def test_multiple_json_files_mixed_qc_status():
 
     # Act - Process each JSON file
     for json_file in json_files:
-        event_accumulator.capture_events(json_file, mock_project)  # type: ignore[arg-type]
+        event_accumulator.capture_qc_event(json_file, mock_project)  # type: ignore[arg-type]
 
     # Assert - Only PASS files should generate events
     assert len(mock_logger.logged_events) == expected_pass_count, (

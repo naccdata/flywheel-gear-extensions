@@ -1,7 +1,7 @@
 """Module for copying transferred participant data."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel import Project
@@ -24,6 +24,7 @@ class CopyHelper:
         new_center: CenterGroup,
         prev_center: CenterGroup,
         datatypes: List[str],
+        studies: Optional[List[str]],
         warnings: List[str],
     ) -> None:
         self.__subject_label = subject_label
@@ -31,6 +32,7 @@ class CopyHelper:
         self.__new_center = new_center
         self.__prev_center = prev_center
         self.__datatypes = datatypes
+        self.__studies = studies
         self.__warnings = warnings
         self.__jobs_list: List[str] = []
 
@@ -133,26 +135,31 @@ class CopyHelper:
             return True
 
         for source_project in ingest_projects.values():
-            if (
-                source_project.datatype in self.__datatypes
-                and source_project.project_label.startswith(
-                    "ingest-"
-                )  # skip sandbox projects
-            ):
-                dest_project = new_center_info.get_ingest(source_project.project_label)
-                if not dest_project:
-                    message = (
-                        f"Ingest project {source_project.project_label} "
-                        f"not found in center {self.__new_center.label} metadata"
-                    )
-                    log.warning(message)
-                    self.__warnings.append(message)
-                    continue
+            # skip sandbox projects
+            if source_project.project_label.startswith("sandbox-"):
+                continue
 
-                if not self.__copy_project_data(
-                    source_project.project_id, dest_project.project_id
-                ):
-                    return False
+            if source_project.datatype.lower() not in self.__datatypes:
+                log.info(
+                    f"Datatype {source_project.datatype} not in the specified list of "
+                    f"datatypes {self.__datatypes}, skipping"
+                )
+                continue
+
+            dest_project = new_center_info.get_ingest(source_project.project_label)
+            if not dest_project:
+                message = (
+                    f"Ingest project {source_project.project_label} "
+                    f"not found in center {self.__new_center.label} metadata"
+                )
+                log.warning(message)
+                self.__warnings.append(message)
+                continue
+
+            if not self.__copy_project_data(
+                source_project.project_id, dest_project.project_id
+            ):
+                return False
 
         return True
 
@@ -178,23 +185,29 @@ class CopyHelper:
             return True
 
         for source_project in dist_projects.values():
-            if source_project.datatype in self.__datatypes:
-                dest_project = new_center_info.get_distribution(
-                    source_project.project_label
+            if source_project.datatype.lower() not in self.__datatypes:
+                log.info(
+                    f"Datatype {source_project.datatype} not in the specified list of "
+                    f"datatypes {self.__datatypes}, skipping"
                 )
-                if not dest_project:
-                    message = (
-                        f"Distribution project {source_project.project_label} "
-                        f"not found in center {self.__new_center.label} metadata"
-                    )
-                    log.warning(message)
-                    self.__warnings.append(message)
-                    continue
+                continue
 
-                if not self.__copy_project_data(
-                    source_project.project_id, dest_project.project_id
-                ):
-                    return False
+            dest_project = new_center_info.get_distribution(
+                source_project.project_label
+            )
+            if not dest_project:
+                message = (
+                    f"Distribution project {source_project.project_label} "
+                    f"not found in center {self.__new_center.label} metadata"
+                )
+                log.warning(message)
+                self.__warnings.append(message)
+                continue
+
+            if not self.__copy_project_data(
+                source_project.project_id, dest_project.project_id
+            ):
+                return False
 
         return True
 
@@ -214,6 +227,13 @@ class CopyHelper:
             return False
 
         for study_id, study_info in prev_center_metadata.studies.items():
+            if self.__studies and study_id.lower() not in self.__studies:
+                log.info(
+                    f"Study {study_id} not in the specified list of studies "
+                    f"{self.__studies}, skipping"
+                )
+                continue
+
             new_center_info = new_center_metadata.get(study_id=study_id)
             if not new_center_info:
                 message = (

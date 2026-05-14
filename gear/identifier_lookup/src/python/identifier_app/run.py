@@ -107,7 +107,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
         mode = options.get("database_mode", "prod")
         direction = options.get("direction", "nacc")
-        preserve_case = options.get("preserve_case", False)
+        preserve_case = options.get("preserve_case", True)
         module = options.get("module")
         single_center = options.get("single_center", True)
         gear_name = GearExecutionEnvironment.get_gear_name(context, "identifer-lookup")
@@ -117,15 +117,15 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
         # Initialize visit event capture for nacc direction with QC logging
         event_capture = None
-        if direction == "nacc" and config_input is not None:
-            # Get visit event capture parameters - required when capture is enabled
+        if direction == "nacc" and config_input is not None and single_center:
+            # Get visit event capture parameters - required for single center
             event_environment = options.get("event_environment")
             event_bucket = options.get("event_bucket")
 
             if not event_environment or not event_bucket:
                 raise GearExecutionError(
                     "event_environment and event_bucket are required when using "
-                    "nacc direction with form configs for visit event capture"
+                    "nacc direction with form configs in single center mode"
                 )
 
             try:
@@ -237,8 +237,10 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # Start with just the identifier lookup visitor
         visitors: List[CSVVisitor] = [naccid_visitor]
 
-        # Add QC status log visitor if we have module configs
-        if module_configs:
+        # Add QC status log visitor if we have module configs and single center
+        # (QC logging requires a project context which is only available for
+        # single center mode)
+        if module_configs and self.__single_center:
             error_log_template = ErrorLogTemplate()
             visit_annotator = FileVisitAnnotator(project=project)
             qc_log_manager = QCStatusLogManager(
@@ -256,8 +258,9 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             )
             visitors.append(qc_visitor)
 
-        # Add event capture visitor if we have both event capture and module configs
-        if self.__event_capture and module_configs:
+        # Add event capture visitor if we have event capture, module configs,
+        # and single center mode (event capture requires project context)
+        if self.__event_capture and module_configs and self.__single_center:
             # Extract center label and project label from project adaptor
             center_label = project.group  # Use group as center label
             project_label = project.label

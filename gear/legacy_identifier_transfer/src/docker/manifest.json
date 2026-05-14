@@ -2,20 +2,20 @@
     "name": "legacy-identifier-transfer",
     "label": "Legacy Identifier Transfer",
     "description": "Handles retrieving legacy NACCIDs from identifiers-api and provisioning identifiers in Flywheel.",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions/legacy_identifier_transfer",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/legacy_identifier_transfer/",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/legacy_identifier_transfer",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
     },
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/legacy-identifier-transfer:2.1.0"
+            "image": "naccdata/legacy-identifier-transfer:2.1.1"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -32,11 +32,6 @@
             "description": "Whether to do a dry run",
             "type": "boolean",
             "default": false
-        },
-        "admin_group": {
-            "description": "Name of the admin group",
-            "type": "string",
-            "default": "nacc"
         },
         "identifiers_mode": {
             "description": "Whether to retrieve identifiers from dev or prod database",

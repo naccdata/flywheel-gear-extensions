@@ -2,6 +2,37 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.3.2
+
+* Skips REDCap role unassignment for users who have no role assignment in a project
+  * Checks `export_user_role_assignments` before attempting to unassign, avoiding unnecessary API calls
+  * No longer emits misleading success events for projects where the user was never assigned a role
+  * Reduces noise in the REDCap disable notification email sent to support staff
+  * Handles `REDCapConnectionError` from the membership check gracefully without blocking the disable flow
+* Bumps `redcap_api` to 0.3.0
+* Fixes flaky Hypothesis test in CLARiTI role property tests (slow `from_regex` strategy)
+
+## 4.3.1
+
+* Handles empty user list gracefully instead of failing with an error
+  * Incremental pull-directory runs can produce empty user files, which is now expected
+  * Logs an informational message and exits successfully when no users are present
+  * Skips unnecessary infrastructure setup (COManage, SES, registry) for empty inputs
+* Adds `__len__` method to `UserQueue` for queue size checks
+
+## 4.3.0
+
+* Adds inactive user disable flow across Flywheel, COmanage, and REDCap
+  * Disables matching Flywheel users when a directory entry is marked inactive
+  * Suspends matching COmanage registry persons with dry-run support
+  * Removes REDCap role assignments from all REDCap projects across all centers
+  * Each step is independent — failure of one does not block the others
+* Adds automatic re-enable of previously suspended COmanage users when they reappear as active in the directory
+* Adds summary notification email to support staff listing REDCap projects that need manual user suspension
+* Adds service-specific event categories for disable actions: Flywheel User Disabled, COmanage User Suspended, REDCap User Disabled
+* Adds `find_user_by_email` and `disable_user` to `FlywheelProxy`
+* Adds `suspend` and `re_enable` to `UserRegistry` with dry-run support
+
 ## 4.2.2
 
 * Rebuilt for updated common libraries (adds `data-freeze` datatype, relaxes primary study mode restriction)

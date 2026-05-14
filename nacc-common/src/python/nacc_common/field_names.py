@@ -24,3 +24,4 @@ class FieldNames:
     BIRTHSEX = "birthsex"
     NPSEX = "npsex"
     NPDAGE = "npdage"
+    ROW_NUMBER = "row_number"

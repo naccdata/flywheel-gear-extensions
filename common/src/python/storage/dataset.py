@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 from pydantic import BaseModel, root_validator
 from s3.s3_bucket import S3BucketInterface
@@ -174,6 +175,7 @@ class AggregateDataset(ABC):
         table: str,
         aggregate_dir: Path,
         file_prefix: str = "aggregate_",
+        extra_columns: Optional[Dict[str, Any]] = None,
     ) -> Path:
         """Abstract method to handle the download and aggregation step for a
         single table."""
@@ -189,15 +191,19 @@ class ParquetAggregateDataset(AggregateDataset):
         table: str,
         aggregate_dir: Path,
         file_prefix: str = "aggregate_",
+        extra_columns: Optional[Dict[str, Any]] = None,
     ) -> Path:
         """Download and write the specified table into the open table writer.
-        Assumes under tables/ directory, and contains parquets.
+        Assumes under tables/ directory, contains parquets, and that every
+        center's table has the same schema.
 
         Args:
             table: specific table to aggregate
             aggregate_dir: Target directory to write aggregate results to
             file_prefix: Prefix to give the resulting aggregate file.
                 The table name will be appended to it.
+            extra_columns: Extra columns to add to the aggregated table.
+                Expects mapping of column name to value to fill in
 
         Returns:
             Path to the aggregate file
@@ -239,6 +245,13 @@ class ParquetAggregateDataset(AggregateDataset):
                 # are small enough it is probably okay to just load into memory
                 body = self.s3_interface.get_file_object(s3_files[0])["Body"]
                 data = pq.read_table(io.BytesIO(body.read()))
+
+                # add extra_columns if specified
+                if extra_columns:
+                    for field, value in extra_columns.items():
+                        arr = pa.array([value] * data.num_rows)
+                        data = data.append_column(field, arr)
+
                 if not writer:
                     writer = pq.ParquetWriter(outfile, schema=data.schema)
 

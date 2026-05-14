@@ -81,6 +81,7 @@ class TestActiveUserProcessIntegration:
         mock_person.creation_date = "2024-01-01"
         mock_person.is_claimed.return_value = True
         mock_person.registry_id.return_value = "reg123"
+        mock_person.is_suspended.return_value = False
 
         mock_environment.user_registry.get.return_value = [mock_person]
         mock_environment.user_registry.has_bad_claim.return_value = False
@@ -183,6 +184,7 @@ class TestActiveUserProcessIntegration:
         # Setup mocks for missing creation date scenario
         mock_person = Mock(spec=RegistryPerson)
         mock_person.creation_date = None  # No creation date
+        mock_person.is_suspended.return_value = False
 
         mock_environment.user_registry.get.return_value = [mock_person]
         mock_environment.user_registry.has_bad_claim.return_value = False
@@ -212,6 +214,7 @@ class TestActiveUserProcessIntegration:
         mock_person.creation_date = "2024-01-01"
         mock_person.is_claimed.return_value = True
         mock_person.registry_id.return_value = "reg123"
+        mock_person.is_suspended.return_value = False
 
         mock_environment.user_registry.get.return_value = [mock_person]
         mock_environment.user_registry.has_bad_claim.return_value = False

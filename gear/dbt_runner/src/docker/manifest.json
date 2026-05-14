@@ -1,71 +1,71 @@
 {
-    "name": "dbt-runner",
-    "label": "DBT Runner",
-    "description": "Run dbt (data build tool) projects on Flywheel datasets stored in external storage. Transforms source parquet files using user-defined dbt models and outputs results back to external storage",
-    "version": "0.2.0",
-    "author": "NACC",
-    "maintainer": "NACC <nacchelp@uw.edu>",
-    "cite": "",
-    "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
-    "environment": {
-        "FLYWHEEL": "/flywheel/v0"
+  "name": "dbt-runner",
+  "label": "DBT Runner",
+  "description": "Run dbt (data build tool) projects on Flywheel datasets stored in external storage. Transforms source parquet files using user-defined dbt models and outputs results back to external storage",
+  "version": "0.2.0",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/dbt_runner/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/dbt_runner",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "analysis",
+      "image": "naccdata/dbt-runner:0.2.0"
     },
-    "custom": {
-        "gear-builder": {
-            "category": "analysis",
-            "image": "naccdata/dbt-runner:0.2.0"
-        },
-        "flywheel": {
-            "suite": "Utility",
-            "show-job": true,
-            "classification": {
-                "function": [
-                    "Export"
-                ]
-            }
-        }
+    "flywheel": {
+      "suite": "Utility",
+      "show-job": true,
+      "classification": {
+        "function": [
+          "Export"
+        ]
+      }
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key",
+      "read-only": true
     },
-    "inputs": {
-        "api-key": {
-            "base": "api-key",
-            "read-only": true
-        },
-        "dbt_project_zip": {
-            "description": "Zip file containing a complete dbt project with dbt_project.yml, profiles.yml, models/, and other dbt files",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "archive"
-                ]
-            }
-        }
+    "dbt_project_zip": {
+      "description": "Zip file containing a complete dbt project with dbt_project.yml, profiles.yml, models/, and other dbt files",
+      "base": "file",
+      "type": {
+        "enum": [
+          "archive"
+        ]
+      }
+    }
+  },
+  "config": {
+    "source_prefixes": {
+      "description": "JSON mapping of local directory names to S3 prefixes containing parquet files.",
+      "type": "string"
     },
-    "config": {
-        "source_prefixes": {
-            "description": "JSON mapping of local directory names to S3 prefixes containing parquet files.",
-            "type": "string"
-        },
-        "output_prefix": {
-            "description": "Path prefix within external storage where transformed output tables will be written",
-            "type": "string"
-        },
-        "dry_run": {
-            "description": "Whether to do a dry run",
-            "type": "boolean",
-            "default": false
-        },
-        "apikey_path_prefix": {
-            "description": "The instance specific AWS parameter path prefix for apikey",
-            "type": "string",
-            "default": "/prod/flywheel/gearbot"
-        },
-        "debug": {
-            "description": "Log debug messages",
-            "type": "boolean",
-            "default": false
-        }
+    "output_prefix": {
+      "description": "Path prefix within external storage where transformed output tables will be written",
+      "type": "string"
     },
-    "command": "/bin/run"
+    "dry_run": {
+      "description": "Whether to do a dry run",
+      "type": "boolean",
+      "default": false
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    },
+    "debug": {
+      "description": "Log debug messages",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
 }

@@ -1,5 +1,6 @@
 """Form ingest configurations."""
 
+import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
@@ -17,7 +18,8 @@ from pydantic import (
     model_validator,
 )
 
-PipelineType = Literal["submission", "finalization"]
+PipelineType = Literal["submission", "finalization", "deletion"]
+DELIM_CLEANER = re.compile(r"[ /\-_]+")
 
 
 class ConfigsError(Exception):
@@ -65,7 +67,9 @@ class LabelTemplate(BaseModel):
                 ) from error
 
         if self.delimiter:
-            result = result.replace(" ", self.delimiter)
+            result = DELIM_CLEANER.sub(self.delimiter, result)
+            result = re.sub(rf"{re.escape(self.delimiter)}+", self.delimiter, result)
+            result = result.strip(self.delimiter)
 
         if self.transform == "lower":
             return result.lower()
@@ -160,12 +164,15 @@ class FormProjectConfigs(BaseModel):
     qc_gear: Optional[str] = DefaultValues.QC_GEAR
     legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
 
-    def get_module_dependencies(self, module: str) -> Optional[List[str]]:
+    def get_module_dependencies(
+        self, module: str, exact_match: Optional[bool] = True
+    ) -> Optional[List[str]]:
         """Get the list of dependent modules for a given module.
-        Note: only returns the dependent modules that has an exact match.
 
         Args:
             module: module label
+            exact_match (optional): Only return the dependent modules
+                                    that has an exact match. Defaults to True.
 
         Returns:
             List[str](optional): list of dependent module labels if found
@@ -175,8 +182,23 @@ class FormProjectConfigs(BaseModel):
         for module_label, config in self.module_configs.items():
             if (
                 config.supplement_module
-                and config.supplement_module.exact_match
                 and config.supplement_module.label == module.upper()
+            ):
+                if exact_match and not config.supplement_module.exact_match:
+                    continue
+                dependent_modules.append(module_label)
+
+        return dependent_modules
+
+    def get_modules_dependent_on_clinical_forms(self) -> Optional[List[str]]:
+        """Get the list of modules that require a clinical form to be
+        present."""
+
+        dependent_modules = []
+        for module_label, config in self.module_configs.items():
+            if (
+                config.preprocess_checks
+                and PreprocessingChecks.CLINICAL_FORMS in config.preprocess_checks
             ):
                 dependent_modules.append(module_label)
 
@@ -192,6 +214,7 @@ class Pipeline(BaseModel):
     extensions: List[str]
     starting_gear: GearInfo
     notify_user: bool = False
+    sequential: bool = True
 
     def file_match(self, file_entry: FileEntry) -> bool:
         """Indicates whether the file matches the tags and extensions for the

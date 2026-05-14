@@ -18,12 +18,37 @@ from gear_execution.gear_execution import (
 from identifiers.identifiers_repository import (
     IdentifierRepositoryError,
 )
-from image_identifier_lookup_app.extraction import extract_dicom_metadata
-from image_identifier_lookup_app.main import run as main_run
+from image_identifier_lookup_app.extraction import (
+    LookupContext,
+    extract_dicom_metadata,
+)
+from image_identifier_lookup_app.main import ImageIdentifierLookup
 from moto import mock_aws
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from pydicom.dataset import Dataset
+
+
+def _build_lookup_context(
+    *,
+    pipeline_adcid: int = 42,
+    ptid: str = "110001",
+    existing_naccid: str | None = None,
+    dicom_metadata: dict | None = None,
+) -> LookupContext:
+    """Build a LookupContext with optional DICOM enrichment.
+
+    When dicom_metadata is provided, calls enrich_from_dicom() to
+    populate visit_metadata — matching what run.py does in production.
+    """
+    ctx = LookupContext(
+        pipeline_adcid=pipeline_adcid,
+        ptid=ptid,
+        existing_naccid=existing_naccid,
+    )
+    if dicom_metadata is not None:
+        ctx.enrich_from_dicom(dicom_metadata)
+    return ctx
 
 
 def create_test_dicom_file(
@@ -232,17 +257,21 @@ class TestEndToEndSuccessFlow:
         }
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             dry_run=False,
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - processor called with correct data
         mock_processor.lookup_and_update.assert_called_once_with(
@@ -314,17 +343,21 @@ class TestEndToEndFailureFlow:
         _dicom_metadata = {"patient_id": "999999", "study_date": "20240115"}
 
         # Act - error is now captured, not raised
-        success, errors = main_run(
+        success, errors = ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             dry_run=False,
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - failure captured
         assert success is False
@@ -381,17 +414,21 @@ class TestIdempotentRerun:
 
         # Act - run twice
         for _ in range(2):
-            main_run(
+            ImageIdentifierLookup(
+                lookup_context=_build_lookup_context(
+                    pipeline_adcid=42,
+                    ptid="110001",
+                    existing_naccid=existing_naccid,
+                    dicom_metadata=extract_dicom_metadata(dicom_file),
+                ),
                 project=mock_project,
                 subject=mock_subject,
                 identifiers_repository=mock_repository,
                 event_capture=mock_event_capture,
                 gear_name="image-identifier-lookup",
                 dry_run=False,
-                naccid_field_name="naccid",
-                dicom_metadata=extract_dicom_metadata(dicom_file),
                 error_writer=error_writer,
-            )
+            ).run()
 
         # Assert - both runs succeeded
         assert mock_qc_manager.update_qc_log.call_count == 2
@@ -428,18 +465,15 @@ class TestFailFastScenarios:
         ds.save_as(str(dicom_file), write_like_original=False)
 
         # Act & Assert - extraction should fail
-        from image_identifier_lookup_app.extraction import extract_visit_metadata
-
         # Extract metadata first
         dicom_metadata = extract_dicom_metadata(dicom_file)
 
+        lookup_context = LookupContext(
+            pipeline_adcid=42, ptid="110001", existing_naccid=None
+        )
+
         with pytest.raises(ValueError) as exc_info:
-            extract_visit_metadata(
-                dicom_metadata=dicom_metadata,
-                ptid="110001",
-                adcid=42,
-                naccid=None,
-            )
+            lookup_context.enrich_from_dicom(dicom_metadata)
 
         assert "StudyDate" in str(exc_info.value)
         assert "required DICOM field" in str(exc_info.value)
@@ -475,13 +509,16 @@ class TestFailFastScenarios:
         mock_subject.label = ""
 
         # Act & Assert - extraction should fail
-        from image_identifier_lookup_app.extraction import extract_ptid
-
         # Extract metadata first
         dicom_metadata = extract_dicom_metadata(dicom_file)
 
+        # Create context with empty PTID (matching empty subject label)
+        lookup_context = LookupContext(
+            pipeline_adcid=42, ptid=None, existing_naccid=None
+        )
+
         with pytest.raises(ValueError) as exc_info:
-            extract_ptid(subject=mock_subject, dicom_metadata=dicom_metadata)
+            lookup_context.enrich_from_dicom(dicom_metadata)
 
         assert "PTID not found" in str(exc_info.value)
         assert "subject.label is empty" in str(exc_info.value)
@@ -535,17 +572,21 @@ class TestQCLogAndEventCapture:
         _dicom_metadata = {"patient_id": "110001", "study_date": "20240115"}
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             dry_run=False,
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         mock_qc_manager.update_qc_log.assert_called_once()
         qc_call = mock_qc_manager.update_qc_log.call_args.kwargs
@@ -593,17 +634,21 @@ class TestQCLogAndEventCapture:
         _dicom_metadata = {"patient_id": "110001", "study_date": "20240115"}
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=mock_event_capture,
             gear_name="image-identifier-lookup",
             dry_run=False,
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - event captured with correct fields
         mock_event_capture.capture_event.assert_called_once()
@@ -674,17 +719,21 @@ class TestMockedAWSServices:
         _dicom_metadata = {"patient_id": "110001", "study_date": "20240115"}
 
         # Act
-        main_run(
+        ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
             event_capture=event_capture,
             gear_name="image-identifier-lookup",
             dry_run=False,
-            naccid_field_name="naccid",
-            dicom_metadata=extract_dicom_metadata(dicom_file),
             error_writer=error_writer,
-        )
+        ).run()
 
         # Assert - event was written to S3
         objects = s3_client.list_objects_v2(Bucket=bucket_name)

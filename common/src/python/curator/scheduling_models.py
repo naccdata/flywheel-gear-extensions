@@ -1,5 +1,6 @@
 """Pydantic models to help with scheduling and curation."""
 
+import copy
 import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -25,6 +26,7 @@ VISIT_PATTERN = re.compile(
     r"(?P<pass2>.+("
     r"_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|_B1A|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
+    r"PTAU217.+|N2PB.+|ABETA40.+|ABETA42.+|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
     r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
@@ -44,9 +46,13 @@ SCOPE_PATTERN = re.compile(
     r"(?P<mds>.+_MDS\.json)|"
     r"(?P<mlst>.+_MLST\.json)|"
     r"(?P<covid>.+_COVID\.json)|"
-    r"(?P<apoe>.+apoe_genotype\.json)|"
+    r"(?P<ncrad_apoe>.+apoe_genotype\.json)|"
     r"(?P<ncrad_biosamples>.+NCRAD-SAMPLES.+\.json)|"
     r"(?P<niagads_availability>.+niagads_availability\.json)|"
+    r"(?P<ncrad_biomarker_ptau217>.+PTAU217.+\.json)|"
+    r"(?P<ncrad_biomarker_n2pb>.+N2PB.+\.json)|"
+    r"(?P<ncrad_biomarker_abeta40>.+ABETA40.+\.json)|"
+    r"(?P<ncrad_biomarker_abeta42>.+ABETA42.+\.json)|"
     r"(?P<scan_mri_qc>.+SCAN-MR-QC.+\.json)|"
     r"(?P<scan_mri_sbm>.+SCAN-MR-SBM.+\.json)|"
     r"(?P<scan_pet_qc>.+SCAN-PET-QC.+\.json)|"
@@ -80,10 +86,20 @@ class FileModel(BaseModel):
     modified_date: date
 
     # private attributes to be computed
+    _old_info: Optional[Dict[str, Any]] = PrivateAttr(default=None)
     _file_date: Optional[date] = PrivateAttr(default=None)
     _scope: Optional[ScopeLiterals] = PrivateAttr(default=None)
     _visit_pass: Optional[VISIT_PASS_LITERALS] = PrivateAttr(default=None)
     _uds_visitdate: Optional[str] = PrivateAttr(default=None)
+
+    @property
+    def old_info(self) -> Dict[str, Any]:
+        """Return the original old info; used to determine whether an update
+        call to the API is required or not."""
+        if self._old_info is None:
+            raise ValueError("old_info not set, issue with initialization")
+
+        return self._old_info
 
     @property
     def file_date(self) -> date:
@@ -155,6 +171,7 @@ class FileModel(BaseModel):
     @model_validator(mode="after")
     def compute_values(self) -> "FileModel":
         """Compute values that need to be derived from other fields."""
+        self._old_info = copy.deepcopy(self.file_info)
         self._file_date = self.__determine_file_date()
         self._scope = self.__determine_scope()
         self._visit_pass = self.__determine_visit_pass()
@@ -164,7 +181,7 @@ class FileModel(BaseModel):
     def __determine_scope(self) -> Optional[ScopeLiterals]:
         """Determine the file's scope."""
         if "historic_apoe_genotype" in self.filename:
-            return "historic_apoe"
+            return "ncrad_historic_apoe"
 
         match = SCOPE_PATTERN.match(self.filename)
         if not match:

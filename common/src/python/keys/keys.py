@@ -53,8 +53,16 @@ class DefaultValues:
     UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
+    DELETION_PIPELINE = "deletion"
     FINALIZED_TAG = "submission-completed"
     MODULE_PATTERN = "a-zA-Z1-9_"
+
+
+CLINICAL_MODULES = [
+    DefaultValues.UDS_MODULE,
+    DefaultValues.MDS_MODULE,
+    DefaultValues.BDS_MODULE,
+]
 
 
 class MetadataKeys:

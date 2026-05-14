@@ -259,6 +259,21 @@ class RegistryPerson:
 
         return self.__coperson_message.co_person.status == "A"
 
+    def is_suspended(self) -> bool:
+        """Indicates whether the CoPerson record is suspended.
+
+        A person is considered suspended if their CoPerson status is "S"
+        (suspended). Suspended status removes the user from the
+        CO:members:active group, revoking OIDC authorization.
+
+        Returns:
+          True if the CoPerson status is "S" (Suspended). False otherwise.
+        """
+        if self.__coperson_message.co_person is None:
+            return False
+
+        return self.__coperson_message.co_person.status == "S"
+
     def identifiers(
         self, predicate: Callable[[Identifier], bool] = lambda x: True
     ) -> List[Identifier]:
@@ -479,6 +494,7 @@ class UserRegistry:
         coid: int,
         name_normalizer: Callable[[str], str],
         domain_config: Optional[DomainRelationshipConfig] = None,
+        dry_run: bool = False,
     ):
         self.__api_instance = api_instance
         self.__coid = coid
@@ -490,6 +506,19 @@ class UserRegistry:
         self.__name_map: Dict[str, List[RegistryPerson]] = {}
         self.__domain_config = domain_config or DomainRelationshipConfig()
         self.__name_normalizer = name_normalizer
+        self.__dry_run = dry_run
+
+    @property
+    def dry_run(self) -> bool:
+        """Returns whether dry-run mode is enabled.
+
+        When dry-run mode is enabled, write operations (suspend, re-enable)
+        are logged but not executed against the COmanage API.
+
+        Returns:
+          True if dry-run mode is enabled. False otherwise.
+        """
+        return self.__dry_run
 
     @property
     def coid(self) -> int:
@@ -515,6 +544,106 @@ class UserRegistry:
             )
         except ApiException as error:
             raise RegistryError(f"API add_co_person call failed: {error}") from error
+
+    def suspend(self, registry_id: str) -> None:
+        """Suspend a CO Person by setting status to 'S'.
+
+        Retrieves the full CoPersonMessage, sets CoPerson.status to 'S',
+        and PUTs the entire record back. In dry-run mode, logs the
+        intended action without calling PUT.
+
+        Args:
+            registry_id: the NACC registry ID (naccid identifier)
+
+        Raises:
+            RegistryError: if the person cannot be found, has no registry ID,
+                          or the API call fails
+        """
+        self.__update_status(registry_id, "S")
+
+    def re_enable(self, registry_id: str) -> None:
+        """Re-enable a suspended CO Person by setting status to 'A'.
+
+        Retrieves the full CoPersonMessage, sets CoPerson.status to 'A',
+        and PUTs the entire record back. In dry-run mode, logs the
+        intended action without calling PUT.
+
+        Args:
+            registry_id: the NACC registry ID (naccid identifier)
+
+        Raises:
+            RegistryError: if the person cannot be found or the API call fails
+        """
+        self.__update_status(registry_id, "A")
+
+    def __get_person_message(self, registry_id: str) -> CoPersonMessage:
+        """Retrieve the full CoPersonMessage for a registry ID via GET.
+
+        Uses the DefaultApi.get_co_person with the identifier parameter
+        to fetch a single record.
+
+        Args:
+            registry_id: the NACC registry ID
+
+        Returns:
+            The full CoPersonMessage
+
+        Raises:
+            RegistryError: if the API call fails or no record is found
+        """
+        try:
+            response = self.__api_instance.get_co_person(
+                coid=self.__coid, identifier=registry_id
+            )
+        except ApiException as error:
+            raise RegistryError(f"API get_co_person call failed: {error}") from error
+
+        if not response.var_0:
+            raise RegistryError(
+                f"No COmanage record found for registry ID {registry_id}"
+            )
+
+        return response.var_0
+
+    def __update_status(self, registry_id: str, target_status: str) -> None:
+        """Retrieve the full CoPersonMessage, change only the status, PUT it
+        back.
+
+        Args:
+            registry_id: the NACC registry ID
+            target_status: the target CoPerson status ('S' or 'A')
+
+        Raises:
+            RegistryError: on API errors or missing records
+        """
+        if not registry_id:
+            raise RegistryError("Cannot update person: no registry ID")
+
+        person_message = self.__get_person_message(registry_id)
+
+        if not person_message.co_person:
+            raise RegistryError(
+                f"No CoPerson object in record for registry ID {registry_id}"
+            )
+
+        person_message.co_person.status = target_status
+
+        if self.__dry_run:
+            log.info(
+                "DRY RUN: Would update registry ID %s to status %s",
+                registry_id,
+                target_status,
+            )
+            return
+
+        try:
+            self.__api_instance.update_co_person(
+                coid=self.__coid,
+                identifier=registry_id,
+                co_person_message=person_message,
+            )
+        except ApiException as error:
+            raise RegistryError(f"API update_co_person call failed: {error}") from error
 
     def get(self, email: str) -> List[RegistryPerson]:
         """Returns the list of person objects with the email address.
@@ -776,4 +905,4 @@ class UserRegistry:
 
 
 class RegistryError(Exception):
-    pass
+    """Error raised by UserRegistry operations."""

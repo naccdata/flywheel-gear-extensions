@@ -1,9 +1,10 @@
 """Unit tests for filter_approved_records().
 
 Tests that the function correctly filters records based on the
-permissions_approval field, retaining only records where the value is '1'.
+permissions_approval and archive_contact fields, retaining records where
+permissions_approval == '1' or archive_contact == '1'.
 
-Requirements: 2.1, 2.2
+Requirements: 1.1, 1.2, 2.1, 2.2, 4.1
 """
 
 from directory_app.main import filter_approved_records
@@ -60,3 +61,40 @@ class TestFilterApprovedRecords:
             "second@test.com",
             "third@test.com",
         ]
+
+
+class TestFilterApprovedRecordsArchiveContact:
+    """Tests for archive_contact bypass in filter_approved_records().
+
+    Requirements: 1.1, 1.2, 4.1
+    """
+
+    def test_archived_unapproved_record_is_retained(self) -> None:
+        """Archived record with permissions_approval='0' is retained."""
+        record = {
+            "email": "archived@test.com",
+            "permissions_approval": "0",
+            "archive_contact": "1",
+        }
+        result = filter_approved_records([record])
+        assert result == [record]
+
+    def test_archived_approved_record_is_retained(self) -> None:
+        """Archived record with permissions_approval='1' is retained."""
+        record = {
+            "email": "archived@test.com",
+            "permissions_approval": "1",
+            "archive_contact": "1",
+        }
+        result = filter_approved_records([record])
+        assert result == [record]
+
+    def test_non_archived_unapproved_record_is_excluded(self) -> None:
+        """Non-archived record with permissions_approval='0' is excluded."""
+        record = {
+            "email": "active@test.com",
+            "permissions_approval": "0",
+            "archive_contact": "0",
+        }
+        result = filter_approved_records([record])
+        assert result == []

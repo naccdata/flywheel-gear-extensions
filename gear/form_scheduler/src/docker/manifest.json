@@ -2,20 +2,20 @@
     "name": "form-scheduler",
     "label": "Form Scheduler",
     "description": "Queues project files for the submission pipeline",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
     "license": "MPL-2.0",
-    "url": "https://naccdata.github.io/flywheel-gear-extensions",
-    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions/form_scheduler/",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/form_scheduler",
     "environment": {
         "FLYWHEEL": "/flywheel/v0"
     },
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-scheduler:1.3.0"
+            "image": "naccdata/form-scheduler:1.4.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",

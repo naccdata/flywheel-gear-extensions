@@ -2,6 +2,26 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.2
+
+* Skips writing the user file when no valid user entries are produced, preventing user-management from being triggered on empty incremental pulls
+* Returns `None` from directory processing when all records are filtered out (empty input, validation failures, missing permissions, or unsigned agreements)
+
+## 4.1.1
+
+* Fixes archived contacts being silently dropped by the approval and agreement filters
+* Archived contacts (`archive_contact='1'`) now bypass `permissions_approval` and `signed_user_agreement` checks at all three filtering points
+* Archived contacts appear in the output YAML with `active: false` so the user management gear can process them as inactive users
+* Non-archived contact filtering behavior is unchanged
+
+## 4.1.0
+
+* Adds optional `preceding_hours` configuration for incremental pulls of recently modified records
+* When `preceding_hours` is set to a positive value, the gear computes a date range and passes it to the REDCap export API
+* Defaults to 0 (full pull), maintaining backward compatibility with existing schedules
+* Adds validation that `preceding_hours` is non-negative
+* Adds logging to indicate whether the gear is performing a full pull or an incremental pull
+
 ## 4.0.3
 
 * Fixes REDCap `export_records` field list to use base field names for checkbox fields, allowing REDCap to return expanded columns automatically

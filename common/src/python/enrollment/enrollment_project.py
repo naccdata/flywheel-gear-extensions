@@ -26,8 +26,9 @@ class TransferInfo(BaseModel):
           record: the transfer record
         """
         self.transfers = self.transfers if self.transfers else {}
-        ptid = record.center_identifiers.ptid
-        self.transfers[ptid] = record
+        # replace "." with "_" as FW doesn't allow period in metadata keys
+        ptid_alias = record.center_identifiers.ptid.replace(".", "_")
+        self.transfers[ptid_alias] = record
 
     def merge(self, transfer_info: "TransferInfo") -> None:
         """Merges the passed transfer records to this object. Duplicates will
@@ -73,7 +74,7 @@ class EnrollmentProject(ProjectAdaptor):
         except ValidationError as error:
             raise EnrollmentError(
                 f"{MetadataKeys.TRANSFERS} metadata in {self.group}/{self.label} "
-                "does not match expected format"
+                f"does not match the expected format: {error}"
             ) from error
 
     def update_transfer_info(self, transfer_info: TransferInfo) -> None:

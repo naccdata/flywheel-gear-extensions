@@ -51,7 +51,6 @@ from outputs.errors import (
     existing_participant_error,
     identifier_error,
     missing_field_error,
-    partially_failed_file_error,
     system_error,
     unexpected_value_error,
 )
@@ -482,6 +481,12 @@ class TransferVisitor(CSVVisitor):
         Returns:
           True if the row is a valid transfer. False, otherwise.
         """
+
+        # Get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
+
         if not self.__naccid_visit(row=row, line_num=line_num):
             return False
 
@@ -583,6 +588,11 @@ class NewEnrollmentVisitor(CSVVisitor):
         Returns:
           True if the row is a valid enrollment. False, otherwise.
         """
+        # get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
+
         if not self.__validator.check(row, line_num):
             return False
 
@@ -671,6 +681,7 @@ class ProvisioningVisitor(CSVVisitor):
             date_field=FieldNames.ENRLFRM_DATE,
             error_writer=error_writer,
         )
+        self.__header: Optional[List[str]] = None
 
     def visit_header(self, header: List[str]) -> bool:
         """Prepares visitor to work with CSV file with given header.
@@ -690,9 +701,9 @@ class ProvisioningVisitor(CSVVisitor):
             self.__error_writer.write(missing_field_error(expected_columns))
             return False
 
-        return self.__enrollment_visitor.visit_header(
-            header
-        ) and self.__transfer_in_visitor.visit_header(header)
+        self.__header = header
+
+        return True
 
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Provisions a NACCID for the ADCID and PTID.
@@ -712,6 +723,11 @@ class ProvisioningVisitor(CSVVisitor):
         # processing a new row, clear previous errors if any
         self.__error_writer.clear()
 
+        # get the row number from original input file if present
+        org_row_num = row.get(FieldNames.ROW_NUMBER)
+        if org_row_num:
+            line_num = int(org_row_num)
+
         if not self.__validator.check(row=row, line_number=line_num):
             update_record_level_error_log(
                 input_record=row,
@@ -722,11 +738,21 @@ class ProvisioningVisitor(CSVVisitor):
             )
             return False
 
+        # required columns depends on whether it's a new enrollment or transfer
+        # do the custom header validation here instead of visit_header method
+        # record level error log is created at this point by form-qc-checker gear
+        # update the record level error log at header validation failure
+        #   to prevent the status from being stuck at processing
+        success = False
         if is_new_enrollment(row):
             try:
-                success = self.__enrollment_visitor.visit_row(
-                    row=row, line_num=line_num
-                )
+                if self.__header and self.__enrollment_visitor.visit_header(
+                    self.__header
+                ):
+                    success = self.__enrollment_visitor.visit_row(
+                        row=row, line_num=line_num
+                    )
+
                 if not success:  # Only update record level log if validation failed
                     update_record_level_error_log(
                         input_record=row,
@@ -735,6 +761,7 @@ class ProvisioningVisitor(CSVVisitor):
                         gear_name=self.__gear_name,
                         errors=self.__error_writer.errors(),
                     )
+
                 return success
             except IdentifierRepositoryError as error:
                 message = (
@@ -763,7 +790,8 @@ class ProvisioningVisitor(CSVVisitor):
                 )
                 return False
 
-        success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
+        if self.__header and self.__transfer_in_visitor.visit_header(self.__header):
+            success = self.__transfer_in_visitor.visit_row(row=row, line_num=line_num)
 
         # Update visit level log for the transfer request
         update_record_level_error_log(
@@ -783,7 +811,9 @@ def send_email(
     target_emails: List[str],
     group_lbl: str,
     project_lbl: str,
+    center_id: int,
     transfer_ptids: List[str],
+    project_url: str,
 ) -> None:
     """Send a raw email notifying target emails of the transfer request(s).
 
@@ -792,15 +822,20 @@ def send_email(
         target_emails: The target email(s)
         group_lbl: Flywheel group label
         project_lbl: Flywheel project label
+        center_id: the ADCID for the center
         transfer_ptids: PTIDs pending for transfer
+        project_url: URL for the Flywheel enrollment project
     """
     client = EmailClient(client=create_ses_client(), source=sender_email)
 
-    subject = f"Participant Transfer Request for {group_lbl}/{project_lbl}"
+    subject = f"Participant Transfer Request for {group_lbl} [ADCID {center_id}]"
     body = (
-        "\n\nParticipant transfer request(s) submitted for PTIDs "
-        f"{transfer_ptids} in enrollment project {group_lbl}/{project_lbl}.\n"
-        "Please review the details in project Information tab under transfers.\n\n"
+        "\n\nParticipant transfer request(s) submitted in the "
+        f"enrollment project {group_lbl}/{project_lbl}.\n"
+        f"PTID(s): {transfer_ptids}\n\n"
+        "Please review the transfer details in the project Information tab "
+        "under the Custom Information.\n"
+        f"{project_url}\n\n"
     )
 
     client.send_raw(destinations=target_emails, subject=subject, body=body)
@@ -817,6 +852,7 @@ def run(
     submitter: str,
     sender_email: str,
     target_emails: List[str],
+    project_url: str,
 ):
     """Runs identifier provisioning process.
 
@@ -830,6 +866,7 @@ def run(
       submitter: User/Job uploaded the CSV file
       sender_email: The source email to send transfer request notification
       target_emails: The target email(s) that the notification to be delivered
+      project_url: URL for the Flywheel enrollment project
     """
     transfer_info = TransferInfo(transfers={})
     enrollment_batch = EnrollmentBatch()
@@ -851,10 +888,7 @@ def run(
         )
 
         if not success:
-            log.warning(
-                "Some records in the input file failed validation. "
-                "Check record level QC status."
-            )
+            log.warning("Some records in the input file failed validation.")
 
         log.info(
             "Requesting new NACCIDs for %s successfully validated records",
@@ -883,6 +917,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                     ),
                 )
             )
@@ -906,6 +941,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                         naccid=record.naccid,
                     ),
                 )
@@ -938,6 +974,7 @@ def run(
                     visit_keys=DataIdentification.from_visit_metadata(
                         ptid=record_info[FieldNames.PTID],
                         date=record_info[FieldNames.ENRLFRM_DATE],
+                        module=DefaultValues.ENROLLMENT_MODULE,
                         naccid=record.naccid,
                     ),
                 )
@@ -958,11 +995,9 @@ def run(
             target_emails=target_emails,
             group_lbl=enrollment_project.group,
             project_lbl=enrollment_project.label,
+            center_id=center_id,
             transfer_ptids=list(transfer_info.transfers.keys()),
+            project_url=project_url,
         )
-
-    if not success:
-        error_writer.clear()
-        error_writer.write(partially_failed_file_error())
 
     return success

@@ -20,6 +20,7 @@ from flywheel.models.access_permission import AccessPermission
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
+from flywheel.models.file_version_output import FileVersionOutput
 from flywheel.models.group_role import GroupRole
 from flywheel.models.job import Job
 from flywheel.models.project_parents import ProjectParents
@@ -174,6 +175,48 @@ class FlywheelProxy:
 
         self.__fw.modify_user(user.id, {"email": email})
 
+    def find_user_by_email(self, email: str) -> List[flywheel.User]:
+        """Find Flywheel users matching the given email address.
+
+        Executes the lookup regardless of dry_run mode (read-only operation).
+
+        Args:
+            email: email address to search for
+
+        Returns:
+            List of matching User objects. Empty list if none found.
+
+        Raises:
+            FlywheelError: if the Flywheel SDK call fails
+        """
+        try:
+            return self.__fw.users.find(f"email={email}")
+        except ApiException as error:
+            raise FlywheelError(
+                f"Failed to find users by email {email}: {error}"
+            ) from error
+
+    def disable_user(self, user: flywheel.User) -> None:
+        """Disable a Flywheel user account and clear permissions.
+
+        In dry_run mode, logs the intended action without calling the API.
+
+        Args:
+            user: the Flywheel user to disable
+
+        Raises:
+            FlywheelError: if the Flywheel SDK call fails
+        """
+        assert user.id
+        if self.dry_run:
+            log.info("Dry run: would disable user %s", user.id)
+            return
+
+        try:
+            self.__fw.modify_user(user.id, {"disabled": True}, clear_permissions=True)
+        except ApiException as error:
+            raise FlywheelError(f"Failed to disable user {user.id}: {error}") from error
+
     def get_file(self, file_id: str) -> FileEntry:
         """Returns file object with the file ID.
 
@@ -197,6 +240,16 @@ class FlywheelProxy:
         """
         file = self.get_file(file_id)
         return file.parents.group
+
+    def get_file_versions(self, file_id: str) -> List[FileVersionOutput]:
+        """Returns the list of file versions for the file.
+
+        Args:
+          file_id: the file ID
+        Returns:
+          list of FileVersionOutputs for the file
+        """
+        return self.__fw.get_file_versions(file_id)
 
     def get_group(self, *, group_id: str, group_label: str) -> flywheel.Group:
         """Returns the flywheel group with the given ID and label.
@@ -780,6 +833,57 @@ class FlywheelProxy:
     def get_subject_by_label(self, label: str) -> list[Subject]:
         return self.__fw.subjects.find(f"label={label}")
 
+    def delete_acquisition(self, acquisition_id: str) -> bool:
+        """Deletes the acquisition with the given ID.
+
+        Args:
+            acquisition_id: the Flywheel acquisition ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_acquisition(acquisition_id)
+        except ApiException as error:
+            log.error("Failed to delete acquisition %s: %s", acquisition_id, error)
+            return False
+
+        return True
+
+    def delete_session(self, session_id: str) -> bool:
+        """Deletes the session with the given ID.
+
+        Args:
+            session_id: the Flywheel session ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_session(session_id)
+        except ApiException as error:
+            log.error("Failed to delete session %s: %s", session_id, error)
+            return False
+
+        return True
+
+    def delete_subject(self, subject_id: str) -> bool:
+        """Deletes the subject with the given ID.
+
+        Args:
+            subject_id: the Flywheel subject ID
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            self.__fw.delete_subject(subject_id)
+        except ApiException as error:
+            log.error("Failed to delete subject %s: %s", subject_id, error)
+            return False
+
+        return True
+
 
 def get_name(container) -> str:
     """Returns the name for the container.
@@ -1267,7 +1371,7 @@ class ProjectAdaptor:
             bool: True if file successfully deleted
         """
         try:
-            self.delete_file(filename)
+            self._project.delete_file(filename)
         except ApiException as error:
             log.error(
                 f"Failed to delete file {filename} from "

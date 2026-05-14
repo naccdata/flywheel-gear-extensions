@@ -1,5 +1,6 @@
 """Entry script for csv_center_splitter."""
 
+import csv
 import logging
 from typing import List, Optional
 
@@ -157,10 +158,11 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                     f"Failed to find the input file: {error}"
                 ) from error
 
+        dropped_rows = None
         with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
             error_writer = ListErrorWriter(container_id=file_id, fw_path=fw_path)
 
-            run(
+            dropped_rows = run(
                 proxy=self.proxy,
                 input_file=fh,
                 input_filename=self.__file_input.filename,
@@ -172,6 +174,20 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 downstream_gears=self.__downstream_gears,
                 include=set(self.__centers),
                 delimiter=self.__delimiter,
+            )
+
+        # report out any dropped rows
+        if dropped_rows:
+            with context.open_output(
+                "dropped_rows.csv", mode="w", encoding="utf-8"
+            ) as fh:
+                writer = csv.DictWriter(fh, fieldnames=dropped_rows[0].keys())
+                writer.writeheader()
+                writer.writerows(dropped_rows)
+
+            log.warning(
+                f"Dropped {len(dropped_rows)} rows - "
+                + "see dropped_rows.csv for more details"
             )
 
         if self.__email_client:
