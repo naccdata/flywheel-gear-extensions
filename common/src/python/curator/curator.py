@@ -190,7 +190,7 @@ class Curator(ABC):
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
-        old_subject_info: Optional[Dict[str, Any]] = None
+        old_subject_info: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Run post-curation on the entire subject. Not required.
 
