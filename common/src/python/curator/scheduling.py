@@ -1,5 +1,6 @@
 """Scheduling for project curation."""
 
+import copy
 import logging
 import multiprocessing
 from multiprocessing.pool import Pool
@@ -94,6 +95,7 @@ def curate_subject(subject_id: str) -> None:
     subject = curator.get_subject(subject_id)
     subject = subject.reload()
     subject_table = SymbolTable(subject.info)
+    old_subject_info = copy.deepcopy(subject.info)
 
     curation_list = get_curation_list(subject)
     if not curation_list:
@@ -112,7 +114,7 @@ def curate_subject(subject_id: str) -> None:
         if curator.curate_file(subject, subject_table, file_model):
             processed_files.append(file_model)
 
-    curator.post_curate(subject, subject_table, processed_files)
+    curator.post_curate(subject, subject_table, processed_files, old_subject_info)
 
 
 class ProjectCurationScheduler:
@@ -159,7 +161,9 @@ class ProjectCurationScheduler:
           exclude_subjects: Subjects to exclude in
           max_num_workers: max number of workers to use
         """
-        process_count = max(max_num_workers, self.__compute_cores())
+        process_count = min(max_num_workers, self.__compute_cores())
+        log.info(f"Using {process_count} workers")
+
         results = []
 
         with Pool(
