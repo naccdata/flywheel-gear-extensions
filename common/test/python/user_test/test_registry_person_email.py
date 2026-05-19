@@ -543,12 +543,13 @@ class TestHasEmailMethod:
         # Should return False for any email when list is empty
         assert person.has_email("any@example.com") is False
 
-    def test_case_sensitive_email_search(
+    def test_case_insensitive_email_search(
         self, build_email_address, build_co_person, build_coperson_message
     ):
-        """Test that has_email is case-sensitive.
+        """Test that has_email is case-insensitive.
 
-        Email addresses should be matched exactly, including case.
+        Email addresses are functionally case-insensitive per RFC 5321,
+        so matching should ignore case differences.
         """
         email = build_email_address(mail="Test@Example.com")
 
@@ -562,11 +563,9 @@ class TestHasEmailMethod:
         # Exact match should work
         assert person.has_email("Test@Example.com") is True
 
-        # Different case should not match (if implementation is case-sensitive)
-        # Note: This tests current behavior - may need adjustment if
-        # implementation changes to be case-insensitive
-        assert person.has_email("test@example.com") is False
-        assert person.has_email("TEST@EXAMPLE.COM") is False
+        # Different case should also match (case-insensitive)
+        assert person.has_email("test@example.com") is True
+        assert person.has_email("TEST@EXAMPLE.COM") is True
 
     def test_searches_across_all_email_types(
         self, build_email_address, build_co_person, build_coperson_message

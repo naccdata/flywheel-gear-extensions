@@ -229,6 +229,9 @@ class RegistryPerson:
     def has_email(self, email: str) -> bool:
         """Indicates whether this person has the email address.
 
+        Comparison is case-insensitive since email addresses are
+        functionally case-insensitive per RFC 5321.
+
         Args:
           email: the email address
         Returns:
@@ -237,8 +240,11 @@ class RegistryPerson:
         if not self.email_addresses:
             return False
 
+        email_lower = email.lower()
         email_addresses = [
-            address for address in self.email_addresses if email == address.mail
+            address
+            for address in self.email_addresses
+            if email_lower == address.mail.lower()
         ]
         return bool(email_addresses)
 
@@ -648,6 +654,9 @@ class UserRegistry:
     def get(self, email: str) -> List[RegistryPerson]:
         """Returns the list of person objects with the email address.
 
+        Lookup is case-insensitive since email addresses are functionally
+        case-insensitive per RFC 5321.
+
         Args:
           email: the email address
         Returns:
@@ -656,7 +665,7 @@ class UserRegistry:
         if not self.__loaded:
             self.__list()
 
-        return self.__registry_map[email]
+        return self.__registry_map[email.lower()]
 
     def find_by_registry_id(self, registry_id: str) -> Optional[RegistryPerson]:
         """Returns the registry person object with matching registry id.
@@ -846,7 +855,7 @@ class UserRegistry:
             return
 
         for address in person.email_addresses:
-            self.__registry_map[address.mail].append(person)
+            self.__registry_map[address.mail.lower()].append(person)
 
             # Index by parent domain
             email_domain = address.mail.split("@")[-1] if "@" in address.mail else ""
